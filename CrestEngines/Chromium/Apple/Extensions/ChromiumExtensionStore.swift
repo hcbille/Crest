@@ -16,7 +16,20 @@ final class ChromiumExtensionStore {
         let permissions: [String]
         let webStore: Bool
         let options: String
-        init(_ item: [String: Any]) {
+        init(_ item: InstalledExtension) {
+            id = item.id
+            name = item.name.isEmpty ? item.id : item.name
+            version = item.version
+            detail = item.description
+            icon = item.icon.flatMap(NSImage.init(extensionIcon:))
+            enabled = item.enabled
+            permissions = item.permissions
+            webStore = item.fromWebStore
+            options = item.optionsURL ?? ""
+        }
+        /// The package an install review describes. TRANSITIONAL until the
+        /// review travels as a presentation (WP C (e)).
+        init(review item: [String: Any]) {
             id = item["id"] as? String ?? ""
             name = item["name"] as? String ?? id
             version = item["version"] as? String ?? ""
@@ -62,12 +75,18 @@ final class ChromiumExtensionStore {
     }
     func refresh() {
         revision &+= 1
-        guard let host = CrestChromiumRoot.engineHost else { return }
+        guard CrestChromiumRoot.chromiumEngine != nil else { return }
         let profiles = Set(spaces.map { $0.profile.id })
         installed = installed.filter { profiles.contains($0.key) }
         for space in spaces where installed[space.profile.id] != nil {
-            installed[space.profile.id] = host.extensions(forProfile: space.profile.id.uuidString).map(Installed.init)
+            installed[space.profile.id] = Self.installed(in: space)
         }
+    }
+
+    /// What the engine has installed in the Space's profile.
+    private static func installed(in space: BrowserSpace) -> [Installed] {
+        guard let pages = CrestChromiumRoot.chromiumEngine?.pages else { return [] }
+        return pages.request(InstalledExtensions(profileID: space.profile.id)).extensions.map(Installed.init)
     }
     func load(_ space: BrowserSpace, in browser: BrowserStore? = nil) async {
         guard authorized(space, in: browser), let host = CrestChromiumRoot.engineHost else { return }
@@ -75,15 +94,12 @@ final class ChromiumExtensionStore {
             host.prepareExtensionProfile(space.profile.id.uuidString) { ready in continuation.resume(returning: ready) }
         }
         guard ready, authorized(space, in: browser) else { return }
-        installed[space.profile.id] = host.extensions(forProfile: space.profile.id.uuidString).map(Installed.init)
+        installed[space.profile.id] = Self.installed(in: space)
         revision &+= 1
     }
     func actions(for page: ChromiumNativePage) -> [BrowserExtensionActionPresentation] {
         _ = revision
-        return page.extensions.map {
-            BrowserExtensionActionPresentation(id: $0.id, displayName: $0.name, badgeText: $0.badge,
-                icon: $0.icon, isPinned: $0.pinned)
-        }
+        return page.extensions
     }
     /// The pinned actions of a Space's own toolbar row.
     ///
@@ -93,19 +109,16 @@ final class ChromiumExtensionStore {
     /// anything to act on — is overlaid on top of it.
     func pinnedActions(for space: BrowserSpace, page: ChromiumNativePage?) -> [BrowserExtensionActionPresentation] {
         _ = revision
-        guard let host = CrestChromiumRoot.engineHost else { return [] }
+        guard let pages = CrestChromiumRoot.chromiumEngine?.pages else { return [] }
         let live = Dictionary(page?.extensions.map { ($0.id, $0) } ?? [],
                               uniquingKeysWith: { first, _ in first })
-        return host.pinnedExtensions(profile: space.profile.id.uuidString)
-            .compactMap { item -> BrowserExtensionActionPresentation? in
-                guard let id = item["id"] as? String, let name = item["name"] as? String else { return nil }
-                if let tab = live[id] {
-                    return BrowserExtensionActionPresentation(id: id, displayName: tab.name,
-                        badgeText: tab.badge, icon: tab.icon, isPinned: true)
+        return pages.request(PinnedExtensions(profileID: space.profile.id)).actions
+            .map { action -> BrowserExtensionActionPresentation in
+                if let tab = live[action.id] {
+                    return BrowserExtensionActionPresentation(id: tab.id, displayName: tab.displayName,
+                        badgeText: tab.badgeText, icon: tab.icon, isPinned: true)
                 }
-                return BrowserExtensionActionPresentation(id: id, displayName: name,
-                    badgeText: item["badge"] as? String ?? "", icon: item["icon"] as? NSImage,
-                    isEnabled: item["enabled"] as? Bool ?? true, isPinned: true)
+                return BrowserExtensionActionPresentation(action)
             }
             .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
@@ -141,9 +154,8 @@ final class ChromiumExtensionStore {
     }
     @discardableResult
     func command(_ command: String, extensionID: String = "", space: BrowserSpace, window: NSWindow? = nil) -> Bool {
-        guard authorized(space), let host = CrestChromiumRoot.engineHost,
-              let window = window ?? CrestChromiumRoot.activeNativeWindow,
-              let windowID = window.identifier?.rawValue else { return false }
+        guard authorized(space), let pages = CrestChromiumRoot.chromiumEngine?.pages,
+              let window = window ?? CrestChromiumRoot.activeNativeWindow else { return false }
         let destination: String?
         switch command {
         case "store": destination = extensionID.isEmpty
@@ -158,8 +170,17 @@ final class ChromiumExtensionStore {
         if let destination, let url = URL(string: destination) {
             return CrestChromiumRoot.openExtensionURL(url, in: space, window: window)
         }
-        let accepted = host.extensionCommand(command, extension: extensionID,
-            profile: space.profile.id.uuidString, window: windowID)
+        let change: ExtensionChange
+        switch command {
+        case "enable": change = .enable
+        case "disable": change = .disable
+        case "remove": change = .remove
+        case "pin": change = .pin
+        case "unpin": change = .unpin
+        default: return false
+        }
+        let accepted = pages.request(
+            ChangeExtension(profileID: space.profile.id, extensionID: extensionID, change: change))
         refresh()
         return accepted
     }
@@ -171,8 +192,8 @@ final class ChromiumExtensionStore {
     /// whenever an action is presented, so the host answers synchronously.
     private func installedRecord(_ extensionID: String, in space: BrowserSpace) -> Installed? {
         if let cached = installed[space.profile.id] { return cached.first { $0.id == extensionID } }
-        guard authorized(space), let host = CrestChromiumRoot.engineHost else { return nil }
-        let items = host.extensions(forProfile: space.profile.id.uuidString).map(Installed.init)
+        guard authorized(space) else { return nil }
+        let items = Self.installed(in: space)
         guard !items.isEmpty else { return nil }
         installed[space.profile.id] = items
         revision &+= 1
@@ -441,7 +462,7 @@ final class ChromiumExtensionInstallation {
     }
     func review(_ values: [String: Any], reply: @escaping (Bool, Bool) -> Void) {
         guard !canceled, store.authorized(space), let targetSpace, store.authorized(targetSpace) else { reply(false, false); return }
-        let candidate = ChromiumExtensionStore.Installed(values)
+        let candidate = ChromiumExtensionStore.Installed(review: values)
         if let approvedIdentity {
             // Consent applies only to the same verified package and warnings.
             reply(candidate.permissionIdentity == approvedIdentity, withhold)

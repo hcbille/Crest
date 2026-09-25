@@ -10,7 +10,9 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
+#include "chrome/browser/ui/crest/crest_engine_extensions.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -31,6 +33,39 @@ std::string GuidText(const engine::Guid& guid) {
     text.push_back(kDigits[guid[index] & 0x0f]);
   }
   return text;
+}
+
+std::optional<engine::Guid> ParseGuid(const std::string& text) {
+  engine::Guid guid{};
+  size_t digits = 0;
+  for (size_t index = 0; index < text.size(); ++index) {
+    const char character = text[index];
+    if (index == 8 || index == 13 || index == 18 || index == 23) {
+      if (character != '-') {
+        return std::nullopt;
+      }
+      continue;
+    }
+    int value;
+    if (character >= '0' && character <= '9') {
+      value = character - '0';
+    } else if (character >= 'a' && character <= 'f') {
+      value = character - 'a' + 10;
+    } else if (character >= 'A' && character <= 'F') {
+      value = character - 'A' + 10;
+    } else {
+      return std::nullopt;
+    }
+    if (digits >= 32) {
+      return std::nullopt;
+    }
+    guid[digits / 2] = static_cast<uint8_t>(guid[digits / 2] | (digits % 2 ? value : value << 4));
+    ++digits;
+  }
+  if (digits != 32 || text.size() != 36) {
+    return std::nullopt;
+  }
+  return guid;
 }
 
 // static
@@ -63,6 +98,7 @@ void EngineBinding::Dispose() {
   disposing_ = true;
   queue_.clear();
   due_.clear();
+  extensions_.reset();
   for (auto& [key, page] : pages_) {
     page->Stop();
   }
@@ -261,6 +297,30 @@ void EngineBinding::RefreshStoreListings() {
 void EngineBinding::DockInspector(const std::string& key, content::WebContents* frontend) {
   if (shell_ && !disposing_) {
     shell_->DockInspector(key, frontend);
+  }
+}
+
+EngineExtensions& EngineBinding::Extensions() {
+  if (!extensions_) {
+    extensions_ = std::make_unique<EngineExtensions>(
+        base::BindRepeating(&EngineBinding::Present, base::Unretained(this)),
+        base::BindRepeating(
+            [](EngineBinding* binding, Profile* profile, const std::string& extension, std::optional<int> tab) {
+              if (binding->shell_ && !binding->disposing_) {
+                binding->shell_->RetractSidePanels(profile, extension, tab);
+              }
+            },
+            base::Unretained(this)),
+        base::BindRepeating(&EngineBinding::RefreshStoreListings, base::Unretained(this)));
+  }
+  return *extensions_;
+}
+
+void EngineBinding::RequestSidePanel(const std::string& key,
+                                     const std::string& extension,
+                                     engine::SidePanelRequest request) {
+  if (EnginePage* page = Find(key)) {
+    Present(engine::SidePanelRequested{.page_id = page->id(), .extension_id = extension, .request = request});
   }
 }
 
@@ -519,6 +579,38 @@ engine::InspectorLayout EngineBinding::Handle(const engine::LayoutInspector& req
   return page ? page->LayoutInspector(request.width, request.height) : engine::InspectorLayout{};
 }
 
+// The toolbar's actions for a page's own tab, and a Space's pinned ones with
+// no page open.
+engine::ExtensionActionList EngineBinding::Handle(const engine::PageExtensions& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  if (!page || !page->web_contents() || disposing_) {
+    return engine::ExtensionActionList{};
+  }
+  return Extensions().PageActions(page->web_contents(), page->profile());
+}
+
+engine::ExtensionActionList EngineBinding::Handle(const engine::PinnedExtensions& request) {
+  const std::string profile_id = GuidText(request.profile_id);
+  Profile* profile = shell_ && !disposing_ ? shell_->ProfileFor(profile_id) : nullptr;
+  return profile ? Extensions().Pinned(profile, profile_id) : engine::ExtensionActionList{};
+}
+
+engine::InstalledExtensionList EngineBinding::Handle(const engine::InstalledExtensions& request) {
+  const std::string profile_id = GuidText(request.profile_id);
+  Profile* profile = shell_ && !disposing_ ? shell_->ProfileFor(profile_id) : nullptr;
+  return profile ? Extensions().Installed(profile, profile_id) : engine::InstalledExtensionList{};
+}
+
+bool EngineBinding::Handle(const engine::ChangeExtension& request) {
+  Profile* profile = shell_ && !disposing_ ? shell_->ProfileFor(GuidText(request.profile_id)) : nullptr;
+  return profile && Extensions().Change(profile, request.extension_id, request.change);
+}
+
+bool EngineBinding::Handle(const engine::HasSidePanel& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && EngineExtensions::SidePanelExtension(page->web_contents(), request.extension_id);
+}
+
 // Reports and presentations.
 
 void EngineBinding::Report(engine::EngineEvent event) {
@@ -611,6 +703,28 @@ void UpdateSiteIndicators(content::WebContents* contents) {
   if (EnginePage* page = EngineBinding::Get().PageFor(contents)) {
     page->SiteIndicatorsChanged();
   }
+}
+
+// Extension side panels are cards beside Crest's pages, so this build never
+// creates Chrome's Views side-panel UI: `chrome.sidePanel.open()` and
+// `close()` are asked of the page that shows `contents`. False leaves a
+// WebContents no Crest page shows to the engine.
+bool OpenExtensionSidePanel(content::WebContents* contents, const std::string& extension_id) {
+  EnginePage* page = EngineBinding::Get().PageFor(contents);
+  if (!page) {
+    return false;
+  }
+  EngineBinding::Get().RequestSidePanel(page->key(), extension_id, engine::SidePanelRequest::kOpen);
+  return true;
+}
+
+bool CloseExtensionSidePanel(content::WebContents* contents, const std::string& extension_id) {
+  EnginePage* page = EngineBinding::Get().PageFor(contents);
+  if (!page) {
+    return false;
+  }
+  EngineBinding::Get().RequestSidePanel(page->key(), extension_id, engine::SidePanelRequest::kClose);
+  return true;
 }
 
 bool CanDockDevTools(content::WebContents* inspected) {

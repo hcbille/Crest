@@ -71,20 +71,28 @@
         /// Hands a presentation to the page it names; one for a page that is
         /// gone changes nothing.
         private func present(_ presentation: EnginePresentation) {
-            hosted[presentation.pageID]?.page?.receive(presentation)
+            switch presentation {
+            case .extensionsChanged: CrestChromiumRoot.extensions.refresh()
+            case .sidePanelRequested(let requested): CrestChromiumRoot.routeSidePanel(requested)
+            default:
+                guard let pageID = presentation.pageID else { return }
+                hosted[pageID]?.page?.receive(presentation)
+            }
         }
     }
 
     extension EnginePresentation {
-        /// The page the presentation is about.
-        fileprivate var pageID: UUID {
+        /// The page the presentation is about, or none for a profile's.
+        fileprivate var pageID: UUID? {
             switch self {
+            case .extensionsChanged: nil
             case .contentFullscreenChanged(let value): value.pageID
             case .contentMessagePosted(let value): value.pageID
             case .contentScriptEvaluated(let value): value.pageID
             case .findFinished(let value): value.pageID
             case .infoBarRemoved(let value): value.pageID
             case .infoBarShown(let value): value.pageID
+            case .sidePanelRequested(let value): value.pageID
             case .inspectorClosed(let value): value.pageID
             case .inspectorLayoutChanged(let value): value.pageID
             case .linkHovered(let value): value.pageID

@@ -28,7 +28,7 @@ extension BrowserExtensionSidePanelHost {
     /// second request for the panel already on screen toggles or is ignored
     /// rather than rebuilding the same document.
     static func route(
-        _ request: CrestSidePanelRequest,
+        _ request: SidePanelRequest,
         extensionID: String,
         page: ChromiumNativePage,
         host: BrowserExtensionSidePanelHost

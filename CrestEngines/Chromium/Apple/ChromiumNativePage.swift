@@ -385,22 +385,12 @@
             return pages.request(ShowBlockedPopups(pageID: pageID))
         }
 
-        struct ExtensionAction: Identifiable {
-            let id: String
-            let name: String
-            let badge: String
-            let icon: NSImage?
-            let pinned: Bool
-        }
-
-        var extensions: [ExtensionAction] {
-            guard created, !disposed else { return [] }
-            return (host?.extensions(forPage: id) ?? []).compactMap { item in
-                guard let id = item["id"] as? String, let name = item["name"] as? String else { return nil }
-                return ExtensionAction(
-                    id: id, name: name, badge: item["badge"] as? String ?? "", icon: item["icon"] as? NSImage,
-                    pinned: item["pinned"] as? Bool ?? false)
-            }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        /// The extension actions the page's toolbar offers, with each one's state
+        /// for the page's own tab.
+        var extensions: [BrowserExtensionActionPresentation] {
+            guard created, let pages else { return [] }
+            return pages.request(PageExtensions(pageID: pageID)).actions.map(BrowserExtensionActionPresentation.init)
+                .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
         }
 
         func runExtension(_ extensionID: String, anchor: BrowserExtensionPopupAnchor? = nil) {
@@ -416,8 +406,8 @@
 
         /// Whether `extensionID` has a side panel entry for this page's own tab.
         func hasSidePanel(_ extensionID: String) -> Bool {
-            guard created, !disposed, let host else { return false }
-            return host.hasSidePanel(extensionID, page: id)
+            guard created, let pages else { return false }
+            return pages.request(HasSidePanel(pageID: pageID, extensionID: extensionID))
         }
 
         /// Creates the panel document and returns its view for the core to mount.
@@ -590,6 +580,7 @@
                 observer(.progressChanged(1))
             case .inspectorLayoutChanged: refreshDevTools()
             case .inspectorClosed: developerPanelDidClose()
+            case .extensionsChanged, .sidePanelRequested: break
             case .findFinished(let finished): receive(finished)
             case .pageCaptured(let captured): receive(captured)
             case .pageExported(let exported): receive(exported)

@@ -36,6 +36,7 @@
 #include "components/sessions/core/serialized_navigation_entry.h"
 #include "content/public/browser/restore_type.h"
 #include "chrome/browser/ui/crest/crest_permission_prompt.h"
+#include "chrome/browser/ui/crest/crest_engine_extensions.h"
 #include "chrome/browser/ui/crest/crest_extension_prompt.h"
 #include "extensions/browser/crx_installer.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
@@ -161,8 +162,6 @@
 + (BOOL)deferQuit;
 + (BOOL)reopen;
 + (BOOL)openExternalURLs:(NSArray<NSURL*>*)urls;
-+ (void)routeSidePanel:(NSString*)extensionID page:(NSString*)pageID
-               request:(CrestSidePanelRequest)request;
 + (void)showNativeNotice:(NSString*)message icon:(NSString*)icon;
 + (void)translateText:(NSString*)text;
 + (BOOL)openAuthenticationSession:(NSURL*)url window:(NSString*)windowID;
@@ -523,11 +522,9 @@ struct PendingLinkNavigation {
   uint64_t revision;
   uint64_t generation;
 };
-class ExtensionStateObserver;
 class NativeProfileDeletion;
 struct HostState {
   const base::Time started_at = base::Time::Now();
-  std::map<std::string, std::unique_ptr<ExtensionStateObserver>> extension_observers;
   void (^extension_review)(NSDictionary<NSString*, id>*, NSWindow*, void (^)(BOOL, BOOL));
   Browser* bootstrap = nullptr;
   Profile* root_profile = nullptr;
@@ -630,11 +627,6 @@ void StartAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
 }
 
 
-// Drops any open panel card for `extension_id` in `profile`, for one tab or
-// for all of them. An extension that unloads or turns its entry off has no
-// panel left to show.
-void RetractSidePanels(Profile* profile, const std::string& extension_id,
-                       std::optional<int> tab_id);
 
 // Chromium owns the wipe, profile registry and crash-recoverable disk cleanup.
 // Keep the profile alive until the wipe and deletion marker have both completed.
@@ -739,222 +731,6 @@ class NativeProfileDeletion final : public content::BrowsingDataRemover::Observe
 
 // Re-states Crest's install affordance on every open Chrome Web Store listing.
 
-// Profile-scoped change and icon observation adapted from Mori (MIT).
-class ExtensionStateObserver
-    : public extensions::ExtensionRegistryObserver,
-      public extensions::ExtensionActionDispatcher::Observer,
-      public extensions::SidePanelService::Observer,
-      public ToolbarActionsModel::Observer,
-      public extensions::IconImage::Observer {
- public:
-  static ExtensionStateObserver* Ensure(Profile* profile, const std::string& id) {
-    auto& observers = State().extension_observers;
-    if (!observers.contains(id)) observers[id] = std::unique_ptr<ExtensionStateObserver>(new ExtensionStateObserver(profile));
-    return observers[id].get();
-  }
-  ~ExtensionStateObserver() override {
-    extensions::ExtensionRegistry::Get(profile_)->RemoveObserver(this);
-    if (dispatcher_observed_) extensions::ExtensionActionDispatcher::Get(profile_)->RemoveObserver(this);
-    if (side_panel_observed_) extensions::SidePanelService::Get(profile_)->RemoveObserver(this);
-    if (auto* model = ToolbarActionsModel::Get(profile_)) model->RemoveObserver(this);
-  }
-  // The best currently-loaded icon for an extension, preferring the action's
-  // dynamic (chrome.action.setIcon) and declarative icons for `tab_id`, then
-  // the manifest icon, then the action's default icon.
-  NSImage* IconFor(const extensions::Extension& extension,
-                   extensions::ExtensionAction* action,
-                   int tab_id) {
-    if (action) {
-      gfx::Image explicit_icon = action->GetExplicitlySetIcon(tab_id);
-      if (!explicit_icon.IsEmpty()) {
-        return explicit_icon.ToNSImage();
-      }
-      gfx::Image declarative_icon = action->GetDeclarativeIcon(tab_id);
-      if (!declarative_icon.IsEmpty()) {
-        return declarative_icon.ToNSImage();
-      }
-    }
-    auto it = icons_.find(extension.id());
-    if (it != icons_.end()) {
-      gfx::Image manifest_icon = it->second->image();
-      if (!manifest_icon.IsEmpty()) {
-        return manifest_icon.ToNSImage();
-      }
-    }
-    if (action) {
-      gfx::Image default_icon = action->GetDefaultIconImage();
-      if (!default_icon.IsEmpty()) {
-        return default_icon.ToNSImage();
-      }
-    }
-    return nil;
-  }
-
-  // Whether an extension still has the files it was installed from.
-  //
-  // A tracked-preference enforcement reset clears `extensions.settings` and
-  // garbage-collects the install directories, but an extension can also be
-  // loaded from a directory the user has since moved or deleted. Chromium keeps
-  // such an extension enabled in the registry and only discovers the loss when
-  // a resource is requested, which for an action means the popup navigating to
-  // its own ERR_FILE_NOT_FOUND page inside Crest's popup window. Crest offers no
-  // action for one: it is missing, not broken.
-  //
-  // One stat per extension per registry change. `RebuildIcons` runs on every
-  // registry change and drops the cache with the icons.
-  bool IsAvailable(const extensions::Extension& extension,
-                   extensions::ExtensionAction* action) {
-    auto cached = availability_.find(extension.id());
-    if (cached != availability_.end()) {
-      return cached->second;
-    }
-    bool available =
-        !extension.path().empty() && base::PathExists(extension.path());
-    if (available && action) {
-      // A default popup is the resource the action's own click needs. A popup
-      // set at runtime cannot be checked here and does not need to be: the
-      // directory it would be read from is the one just checked.
-      const GURL popup =
-          action->GetPopupUrl(extensions::ExtensionAction::kDefaultTabId);
-      if (!popup.is_empty() &&
-          extension.GetResource(popup.path()).GetFilePath().empty()) {
-        available = false;
-      }
-    }
-    availability_[extension.id()] = available;
-    return available;
-  }
-
-  // extensions::ExtensionRegistryObserver:
-  void OnExtensionLoaded(content::BrowserContext* browser_context,
-                         const extensions::Extension* extension) override {
-    RebuildIcons();
-    PostExtensionsChanged();
-  }
-  void OnExtensionUnloaded(content::BrowserContext* browser_context,
-                           const extensions::Extension* extension,
-                           extensions::UnloadedExtensionReason reason) override {
-    RetractSidePanels(profile_, extension->id(), std::nullopt);
-    RebuildIcons();
-    PostExtensionsChanged();
-  }
-  void OnExtensionInstalled(content::BrowserContext* browser_context,
-                            const extensions::Extension* extension,
-                            bool is_update) override {
-    RebuildIcons();
-    PostExtensionsChanged();
-  }
-  void OnExtensionUninstalled(content::BrowserContext* browser_context,
-                              const extensions::Extension* extension,
-                              extensions::UninstallReason reason) override {
-    RebuildIcons();
-    PostExtensionsChanged();
-  }
-
-  // extensions::SidePanelService::Observer:
-  // `chrome.sidePanel.setOptions` can retract an entry the core is showing.
-  // Chromium hands over the extension's merged options, so an entry that no
-  // longer resolves to an enabled document closes its card.
-  void OnPanelOptionsChanged(
-      const extensions::ExtensionId& extension_id,
-      const extensions::api::side_panel::PanelOptions& options) override {
-    if (options.enabled.value_or(true) && options.path && !options.path->empty()) return;
-    RetractSidePanels(profile_, extension_id,
-                      options.tab_id ? std::optional<int>(*options.tab_id) : std::nullopt);
-  }
-  void OnSidePanelServiceShutdown() override { side_panel_observed_ = false; }
-
-  // extensions::ExtensionActionDispatcher::Observer:
-  void OnExtensionActionUpdated(
-      extensions::ExtensionAction* extension_action,
-      content::WebContents* web_contents,
-      content::BrowserContext* browser_context) override {
-    PostExtensionsChanged();
-  }
-  void OnShuttingDown() override { dispatcher_observed_ = false; }
-
-  // ToolbarActionsModel::Observer:
-  void OnToolbarActionAdded(const ToolbarActionsModel::ActionId& id) override {
-    PostExtensionsChanged();
-  }
-  void OnToolbarActionRemoved(
-      const ToolbarActionsModel::ActionId& id) override {
-    PostExtensionsChanged();
-  }
-  void OnToolbarActionUpdated(
-      const ToolbarActionsModel::ActionId& id) override {
-    PostExtensionsChanged();
-  }
-  void OnToolbarModelInitialized() override { PostExtensionsChanged(); }
-  void OnToolbarPinnedActionsChanged() override { PostExtensionsChanged(); }
-
-  // extensions::IconImage::Observer:
-  void OnExtensionIconImageChanged(extensions::IconImage* image) override {
-    PostExtensionsChanged();
-  }
-
- private:
-  explicit ExtensionStateObserver(Profile* profile) : profile_(profile) {
-    extensions::ExtensionRegistry::Get(profile_)->AddObserver(this);
-    extensions::ExtensionActionDispatcher::Get(profile_)->AddObserver(this);
-    dispatcher_observed_ = true;
-    if (auto* panels = extensions::SidePanelService::Get(profile_)) {
-      panels->AddObserver(this);
-      side_panel_observed_ = true;
-    }
-    if (ToolbarActionsModel* model = ToolbarActionsModel::Get(profile_)) {
-      model->AddObserver(this);
-    }
-    RebuildIcons();
-  }
-
-  static void PostExtensionsChanged() {
-    // Coalesce changes and publish after registry/toolbar mutations finish.
-    static bool queued = false;
-    if (queued) return;
-    queued = true;
-    dispatch_async(dispatch_get_main_queue(), ^{
-      queued = false;
-      if (State().browser_observation && !State().disposing)
-        State().browser_observation(@{@"extensionsChanged": @YES});
-      crest::EngineBinding::Get().RefreshStoreListings();
-    });
-  }
-
-  // Keeps one async-loading manifest icon per installed extension. IconImage
-  // self-invalidates when its extension unloads, so the map is rebuilt on
-  // every registry change.
-  void RebuildIcons() {
-    availability_.clear();
-    auto* registry = extensions::ExtensionRegistry::Get(profile_);
-    std::map<std::string, std::unique_ptr<extensions::IconImage>> next;
-    for (const extensions::ExtensionSet* set :
-         {&registry->enabled_extensions(), &registry->disabled_extensions()}) {
-      for (const auto& extension : *set) {
-        if (!extension->is_extension()) {
-          continue;
-        }
-        auto existing = icons_.find(extension->id());
-        if (existing != icons_.end() &&
-            existing->second->is_valid()) {
-          next[extension->id()] = std::move(existing->second);
-          continue;
-        }
-        next[extension->id()] = std::make_unique<extensions::IconImage>(
-            profile_, extension.get(),
-            extensions::IconsInfo::GetIcons(extension.get()), 32,
-            gfx::ImageSkia(), this);
-      }
-    }
-    icons_ = std::move(next);
-  }
-
-  raw_ptr<Profile> profile_;
-  bool dispatcher_observed_ = false;
-  bool side_panel_observed_ = false;
-  std::map<std::string, std::unique_ptr<extensions::IconImage>> icons_;
-  std::map<std::string, bool> availability_;
-};
 
 
 void AdvancePageClosePreparation(uint64_t generation, bool allowed);
@@ -1043,31 +819,7 @@ struct Page final : content::WebContentsObserver {
 
 void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foreground);
 
-// The Crest page that owns `contents`, or an empty string when no page does:
-// a panel document, a popup or an engine tab that was never adopted.
-std::string PageIdentifierForContents(content::WebContents* contents) {
-  if (!contents) return std::string();
-  for (const auto& [id, page] : State().pages) {
-    if (page->web_contents() == contents) return id;
-  }
-  return std::string();
-}
 
-void RetractSidePanels(Profile* profile, const std::string& extension_id,
-                       std::optional<int> tab_id) {
-  if (!profile) return;
-  for (const auto& [id, page] : State().pages) {
-    if (!page->side_panel || page->side_panel->extension_id() != extension_id) continue;
-    auto* contents = page->web_contents();
-    if (!contents || !page->browser) continue;
-    // A private window's pages run in the off-the-record profile, while the
-    // registry and panel options belong to the profile it was derived from.
-    if (page->browser->GetProfile()->GetOriginalProfile() != profile->GetOriginalProfile()) continue;
-    if (tab_id && sessions::SessionTabHelper::IdForTab(contents).id() != *tab_id) continue;
-    page->side_panel->Retract();
-    page->side_panel.reset();
-  }
-}
 
 struct BrowserOwner final : TabStripModelObserver {
   BrowserOwner(Browser* value, std::string native_window)
@@ -1509,6 +1261,29 @@ class MacShell final : public crest::EngineBinding::Shell {
     return true;
   }
 
+  Profile* ProfileFor(const std::string& profile_id) override {
+    auto found = State().profiles.find(profile_id);
+    return found == State().profiles.end() ? nullptr : found->second;
+  }
+
+  // Drops any open panel card for `extension_id` in `profile`, for one tab or
+  // for all of them. An extension that unloads or turns its entry off has no
+  // panel left to show.
+  void RetractSidePanels(Profile* profile, const std::string& extension_id, std::optional<int> tab_id) override {
+    if (!profile) return;
+    for (const auto& [id, page] : State().pages) {
+      if (!page->side_panel || page->side_panel->extension_id() != extension_id) continue;
+      auto* contents = page->web_contents();
+      if (!contents || !page->browser) continue;
+      // A private window's pages run in the off-the-record profile, while the
+      // registry and panel options belong to the profile it was derived from.
+      if (page->browser->GetProfile()->GetOriginalProfile() != profile->GetOriginalProfile()) continue;
+      if (tab_id && sessions::SessionTabHelper::IdForTab(contents).id() != *tab_id) continue;
+      page->side_panel->Retract();
+      page->side_panel.reset();
+    }
+  }
+
   void DockInspector(const std::string& page_id, content::WebContents* frontend) override {
     Page* page = FindPage(base::SysUTF8ToNSString(page_id));
     if (!page) return;
@@ -1540,23 +1315,6 @@ class MacShell final : public crest::EngineBinding::Shell {
     return true;
   }
 };
-// The extension, only if a side panel is available for this page's own tab.
-// Crest resolves the panel itself: `SidePanelService::OpenSidePanelForTab`
-// drives Chrome's Views side-panel UI, which this build never creates. An
-// explicit `chrome.sidePanel.open()` needs only an enabled panel for the tab,
-// not the open-on-action-click behaviour; whether an action click toggles a
-// panel is decided by the engine before the request reaches Crest.
-const extensions::Extension* SidePanelExtension(NSString* extension_id, Page* page) {
-  if (!page || !page->web_contents()) return nullptr;
-  Profile* profile = page->browser->GetProfile();
-  const auto id = base::SysNSStringToUTF8(extension_id);
-  const auto* extension = extensions::ExtensionRegistry::Get(profile)->enabled_extensions().GetByID(id);
-  if (!extension || (profile->IsOffTheRecord() && !extensions::util::IsIncognitoEnabled(id, profile))) return nullptr;
-  auto* service = extensions::SidePanelService::Get(profile);
-  if (!service) return nullptr;
-  const int tab = sessions::SessionTabHelper::IdForTab(page->web_contents()).id();
-  return service->HasSidePanelContextMenuActionForTab(*extension, tab) ? extension : nullptr;
-}
 // chrome.commands. Crest owns the key-equivalent path, so an event the core
 // did not claim is matched against the extension keybindings itself rather
 // than through Chrome's Views keybinding registry, which this build never
@@ -1760,33 +1518,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   }
   return NO;
 }
-- (NSArray<NSDictionary<NSString*, id>*>*)extensionsForPage:(NSString*)pageID {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  if (!page || !page->web_contents()) return @[];
-  Profile* profile = page->browser->GetProfile();
-  auto* registry = extensions::ExtensionRegistry::Get(profile);
-  auto* actions = extensions::ExtensionActionManager::Get(profile);
-  if (!registry || !actions) return @[];
-  const int tab = sessions::SessionTabHelper::IdForTab(page->web_contents()).id();
-  auto* observer = ExtensionStateObserver::Ensure(profile, page->profile);
-  NSMutableArray* result = [NSMutableArray array];
-  for (const auto& extension : registry->enabled_extensions()) {
-    if (!extension->is_extension() || extensions::Manifest::IsComponentLocation(extension->location()) ||
-        (profile->IsOffTheRecord() && !extensions::util::IsIncognitoEnabled(extension->id(), profile))) continue;
-    auto* action = actions->GetExtensionAction(*extension);
-    if (!action) continue;
-    // An extension whose files are gone has no action to offer.
-    if (!observer->IsAvailable(*extension, action)) continue;
-    auto* model = ToolbarActionsModel::Get(profile);
-    NSImage* icon = observer->IconFor(*extension, action, tab);
-    [result addObject:@{ @"id": base::SysUTF8ToNSString(extension->id()),
-        @"name": base::SysUTF8ToNSString(extension->name()), @"icon": icon ?: (id)NSNull.null,
-        @"pinned": @(model && model->IsActionPinned(extension->id())),
-        @"badge": base::SysUTF8ToNSString(action->GetExplicitlySetBadgeText(tab)) }];
-  }
-  return result;
-}
 - (BOOL)runExtension:(NSString*)extensionID page:(NSString*)pageID
          anchorView:(NSView*)anchorView anchorRect:(NSRect)anchorRect {
   CHECK(NSThread.isMainThread);
@@ -1800,7 +1531,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   // Declined rather than navigated: an extension whose files are gone would
   // otherwise show Chromium's own ERR_FILE_NOT_FOUND page inside Crest's
   // popup window. The core states this as an unavailable action instead.
-  if (!ExtensionStateObserver::Ensure(profile, page->profile)->IsAvailable(*extension,
+  if (!crest::EngineBinding::Get().Extensions().For(profile, page->profile).IsAvailable(*extension,
           extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(*extension))) return NO;
   auto* contents = page->web_contents();
   const int index = page->browser->tab_strip_model()->GetIndexOfWebContents(contents);
@@ -1813,9 +1544,9 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   if (result == extensions::ExtensionAction::ShowAction::kNone) return YES;
   if (result == extensions::ExtensionAction::ShowAction::kToggleSidePanel) {
     // The action opens a panel instead of a popup. The card belongs to the
-    // core, so the click toggles the one this page is already showing.
-    [NSClassFromString(@"CrestRoot") routeSidePanel:extensionID page:pageID
-                                           request:CrestSidePanelRequestToggle];
+    // platform, so the click toggles the one this page is already showing.
+    crest::EngineBinding::Get().RequestSidePanel(base::SysNSStringToUTF8(pageID), id,
+                                                crest::engine::SidePanelRequest::kToggle);
     return YES;
   }
   if (result != extensions::ExtensionAction::ShowAction::kShowPopup) return NO;
@@ -1826,55 +1557,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   if (!popup) return NO;
   page->extension_popup = std::make_unique<ExtensionPopup>(std::move(popup), anchorView, anchorRect);
   return YES;
-}
-- (NSArray<NSDictionary<NSString*, id>*>*)pinnedExtensionsForProfile:(NSString*)profileID {
-  CHECK(NSThread.isMainThread);
-  // The pinned strip belongs to the Space, not to whatever page happens to be
-  // open in it: a Space showing its Start Page still has the extensions the
-  // user pinned to it. The per-page list stays the source of per-tab state
-  // (badge, dynamic icon, page-action enablement) and is overlaid on this.
-  const auto profile_id = base::SysNSStringToUTF8(profileID);
-  auto found = State().profiles.find(profile_id);
-  if (found == State().profiles.end()) return @[];
-  Profile* profile = found->second;
-  // A private window reads the same Space's pinned list and narrows it to the
-  // extensions that are allowed in incognito. The registry, the action manager
-  // and the toolbar model all belong to the regular profile that owns it.
-  const bool private_mode = profile->IsOffTheRecord();
-  Profile* owner = profile->GetOriginalProfile();
-  auto* registry = extensions::ExtensionRegistry::Get(owner);
-  auto* actions = extensions::ExtensionActionManager::Get(owner);
-  if (!registry || !actions) return @[];
-  // The pinned list is read from the preference `ToolbarActionsModel` persists
-  // rather than from the model itself. A Space whose engine profile was only
-  // just loaded — which is every Space on a Start Page, before anything has
-  // been opened in it — has no initialized model yet, and the row would stay
-  // empty until something else happened to rebuild it.
-  std::set<std::string> pinned;
-  for (const base::Value& entry :
-       owner->GetPrefs()->GetList(extensions::pref_names::kPinnedExtensions)) {
-    if (const std::string* id = entry.GetIfString()) pinned.insert(*id);
-  }
-  if (pinned.empty()) return @[];
-  auto* observer = ExtensionStateObserver::Ensure(profile, profile_id);
-  const int tab = extensions::ExtensionAction::kDefaultTabId;
-  NSMutableArray* result = [NSMutableArray array];
-  for (const auto& extension : registry->enabled_extensions()) {
-    if (!extension->is_extension() || extensions::Manifest::IsComponentLocation(extension->location())) continue;
-    if (private_mode && !extensions::util::IsIncognitoEnabled(extension->id(), owner)) continue;
-    if (!pinned.contains(extension->id())) continue;
-    auto* action = actions->GetExtensionAction(*extension);
-    if (!action || !observer->IsAvailable(*extension, action)) continue;
-    // Page actions exist only in relation to a page. With none open the tile
-    // is still shown — the user pinned it — but it has nothing to act on.
-    const bool enabled = action->action_type() != extensions::ActionInfo::Type::kPage;
-    NSImage* icon = observer->IconFor(*extension, action, tab);
-    [result addObject:@{ @"id": base::SysUTF8ToNSString(extension->id()),
-        @"name": base::SysUTF8ToNSString(extension->name()), @"icon": icon ?: (id)NSNull.null,
-        @"pinned": @YES, @"enabled": @(enabled),
-        @"badge": base::SysUTF8ToNSString(action->GetExplicitlySetBadgeText(tab)) }];
-  }
-  return result;
 }
 - (BOOL)runExtension:(NSString*)extensionID profile:(NSString*)profileID window:(NSString*)windowID
           anchorView:(NSView*)anchorView anchorRect:(NSRect)anchorRect {
@@ -1894,7 +1576,8 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   if (!extension) return NO;
   if (profile->IsOffTheRecord() && !extensions::util::IsIncognitoEnabled(id, owner)) return NO;
   auto* action = extensions::ExtensionActionManager::Get(owner)->GetExtensionAction(*extension);
-  if (!action || !ExtensionStateObserver::Ensure(profile, profile_id)->IsAvailable(*extension, action)) return NO;
+  if (!action || !crest::EngineBinding::Get().Extensions().For(profile, profile_id).IsAvailable(*extension, action))
+    return NO;
   if (action->action_type() == extensions::ActionInfo::Type::kPage) return NO;
   const GURL popup_url = action->GetPopupUrl(extensions::ExtensionAction::kDefaultTabId);
   if (!popup_url.is_valid()) return NO;
@@ -1905,14 +1588,11 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   State().space_extension_popup = std::make_unique<ExtensionPopup>(std::move(popup), anchorView, anchorRect);
   return YES;
 }
-- (BOOL)hasSidePanel:(NSString*)extensionID page:(NSString*)pageID {
-  CHECK(NSThread.isMainThread);
-  return SidePanelExtension(extensionID, FindPage(pageID)) != nullptr;
-}
 - (NSView*)openSidePanel:(NSString*)extensionID page:(NSString*)pageID closed:(void (^)(void))closed {
   CHECK(NSThread.isMainThread);
   Page* page = FindPage(pageID);
-  const auto* extension = SidePanelExtension(extensionID, page);
+  const auto* extension = page ? crest::EngineExtensions::SidePanelExtension(
+      page->web_contents(), base::SysNSStringToUTF8(extensionID)) : nullptr;
   if (!extension) return nil;
   auto* service = extensions::SidePanelService::Get(page->browser->GetProfile());
   auto* contents = page->web_contents();
@@ -1985,65 +1665,9 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
         State().profiles[id] = profile;
         State().profile_leases[id] = std::make_unique<ScopedProfileKeepAlive>(profile, ProfileKeepAliveOrigin::kAppWindow);
       }
-      ExtensionStateObserver::Ensure(profile, id);
+      crest::EngineBinding::Get().Extensions().For(profile, id);
       done(YES);
     }, id, [completion copy]));
-}
-- (NSArray<NSDictionary<NSString*, id>*>*)extensionsForProfile:(NSString*)profileID {
-  const auto profile_id = base::SysNSStringToUTF8(profileID);
-  auto found = State().profiles.find(profile_id);
-  if (found == State().profiles.end() || found->second->IsOffTheRecord()) return @[];
-  auto* profile = found->second;
-  auto* registry = extensions::ExtensionRegistry::Get(profile);
-  auto* observer = ExtensionStateObserver::Ensure(profile, profile_id);
-  NSMutableArray* result = [NSMutableArray array];
-  for (const auto& extension : registry->GenerateInstalledExtensionsSet()) {
-    if (!extension->is_extension() || extensions::Manifest::IsComponentLocation(extension->location())) continue;
-    auto* action = extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(*extension);
-    // An extension that still has a registry entry but no files on disk is
-    // reported as absent, not as a row the user could act on.
-    if (!observer->IsAvailable(*extension, action)) continue;
-    NSMutableArray* warnings = [NSMutableArray array];
-    for (const auto& permission : extension->permissions_data()->GetPermissionMessages())
-      [warnings addObject:base::SysUTF16ToNSString(permission.message())];
-    NSImage* icon = observer->IconFor(*extension, action, -1);
-    [result addObject:@{@"id": base::SysUTF8ToNSString(extension->id()),
-      @"name": base::SysUTF8ToNSString(extension->name()), @"version": base::SysUTF8ToNSString(extension->version().GetString()),
-      @"description": base::SysUTF8ToNSString(extension->manifest()->FindStringPath("description") ? *extension->manifest()->FindStringPath("description") : std::string()), @"icon": icon ?: (id)NSNull.null,
-      @"enabled": @(registry->enabled_extensions().Contains(extension->id())), @"permissions": warnings,
-      @"webStore": @(extension->from_webstore()),
-      @"options": base::SysUTF8ToNSString(extensions::OptionsPageInfo::GetOptionsPage(extension.get()).spec())}];
-  }
-  return result;
-}
-- (BOOL)extensionCommand:(NSString*)command extension:(NSString*)extensionID profile:(NSString*)profileID window:(NSString*)windowID {
-  const auto id = base::SysNSStringToUTF8(extensionID);
-  auto found = State().profiles.find(base::SysNSStringToUTF8(profileID));
-  if (found == State().profiles.end() || found->second->IsOffTheRecord()) return NO;
-  auto* profile = found->second;
-  auto* extension = extensions::ExtensionRegistry::Get(profile)->GetInstalledExtension(id);
-  if ([command isEqualToString:@"manage"] || [command isEqualToString:@"details"] || [command isEqualToString:@"options"] || [command isEqualToString:@"store"]) {
-    GURL url([command isEqualToString:@"store"] ? "https://chromewebstore.google.com/" : "chrome://extensions/");
-    if ([command isEqualToString:@"details"]) { if (!extension) return NO; url = GURL("chrome://extensions/?id=" + id); }
-    if ([command isEqualToString:@"options"]) { if (!extension) return NO; url = extensions::OptionsPageInfo::GetOptionsPage(extension); if (!url.is_valid()) return NO; }
-    auto* browser = BrowserFor(base::SysNSStringToUTF8(profileID), base::SysNSStringToUTF8(windowID));
-    if (!browser) return NO;
-    NavigateParams params(browser, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-    params.window_action = NavigateParams::WindowAction::kNoAction;
-    Navigate(&params); return YES;
-  }
-  if (!extension || !extensions::ExtensionSystem::Get(profile)->management_policy()->UserMayModifySettings(extension, nullptr)) return NO;
-  auto* registrar = extensions::ExtensionRegistrar::Get(profile);
-  if ([command isEqualToString:@"enable"]) registrar->EnableExtension(id);
-  else if ([command isEqualToString:@"disable"]) registrar->DisableExtension(id, {extensions::disable_reason::DISABLE_USER_ACTION});
-  else if ([command isEqualToString:@"remove"]) { std::u16string error; return registrar->UninstallExtension(id, extensions::UNINSTALL_REASON_USER_INITIATED, &error); }
-  else if ([command isEqualToString:@"pin"] || [command isEqualToString:@"unpin"]) {
-    auto* model = ToolbarActionsModel::Get(profile);
-    if (!model || !model->HasAction(id) || model->IsActionForcePinned(id)) return NO;
-    model->SetActionVisibility(id, [command isEqualToString:@"pin"]);
-  } else return NO;
-  return YES;
 }
 - (BOOL)installExtension:(NSString*)extensionID package:(NSString*)path profile:(NSString*)profileID window:(NSString*)windowID
               completion:(void (^)(BOOL, NSString*))completion {
@@ -2106,7 +1730,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
       if (strip->empty()) browser->SynchronouslyDestroyBrowser();
       else for (int index = strip->count() - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
     }
-    state.extension_observers.erase(id);
+    crest::EngineBinding::Get().Extensions().Forget(id);
     state.profiles.erase(found);
     if (profile->IsOffTheRecord()) ProfileDestroyer::DestroyOTRProfileWhenAppropriate(profile);
     state.profile_leases.erase(id);
@@ -2184,7 +1808,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   }
   for (const auto& [id, profile] : state.profiles)
     if (profile->IsOffTheRecord()) ProfileDestroyer::DestroyOTRProfileWhenAppropriate(profile);
-  state.extension_observers.clear();
+  crest::EngineBinding::Get().Extensions().Clear();
   state.profiles.clear();
   state.profile_leases.clear();
 }
@@ -2959,25 +2583,6 @@ bool DeferQuit() {
 bool Reopen() {
   if (!IsEnabled() || !State().started || State().disposing || State().quitting) return false;
   return [NSClassFromString(@"CrestRoot") reopen];
-}
-namespace {
-// Hands one panel request to the core, which owns the card.
-bool RouteSidePanel(content::WebContents* contents, const std::string& extension_id,
-                    CrestSidePanelRequest request) {
-  if (!IsEnabled() || !State().started || State().disposing || State().quitting) return false;
-  const std::string page = PageIdentifierForContents(contents);
-  if (page.empty()) return false;
-  [NSClassFromString(@"CrestRoot") routeSidePanel:base::SysUTF8ToNSString(extension_id)
-                                            page:base::SysUTF8ToNSString(page)
-                                         request:request];
-  return true;
-}
-}  // namespace
-bool OpenExtensionSidePanel(content::WebContents* contents, const std::string& extension_id) {
-  return RouteSidePanel(contents, extension_id, CrestSidePanelRequestOpen);
-}
-bool CloseExtensionSidePanel(content::WebContents* contents, const std::string& extension_id) {
-  return RouteSidePanel(contents, extension_id, CrestSidePanelRequestClose);
 }
 bool OpenExternalURLs(NSArray<NSURL*>* urls) {
   // Before the native root exists there is nothing to route into, and after a

@@ -2,13 +2,6 @@
 
 NS_ASSUME_NONNULL_BEGIN
 typedef void (^CrestDeferredNavigation)(void);
-// Which extension side-panel card change the engine asked the core for. A
-// panel is a Crest page card, so the engine never opens or closes one itself.
-typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
-    CrestSidePanelRequestOpen,
-    CrestSidePanelRequestClose,
-    CrestSidePanelRequestToggle,
-};
 // In-process, main-thread native port. Objects and blocks never enter .NET.
 @protocol CrestChromiumEngineHost <NSObject>
 - (void)setBrowserObserver:(void (^)(NSDictionary<NSString *, id> *values))observer;
@@ -70,17 +63,8 @@ typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
     NS_SWIFT_NAME(clearSiteData(page:completion:));
 - (NSArray<NSDictionary<NSString *, id> *> *)permissionsForPage:(NSString *)pageID;
 - (BOOL)setPermission:(NSString *)permissionID page:(NSString *)pageID value:(NSInteger)value;
-- (NSArray<NSDictionary<NSString *, id> *> *)extensionsForPage:(NSString *)pageID;
 - (BOOL)runExtension:(NSString *)extensionID page:(NSString *)pageID
          anchorView:(NSView *)anchorView anchorRect:(NSRect)anchorRect;
-// The pinned extension actions of a Space, independent of any page. A Space
-// showing its Start Page still has the extensions the user pinned to it, so the
-// toolbar row is driven from the Space's own profile and the per-page list is
-// overlaid on it when a page exists. A private window passes the profile its
-// pages were opened with and is narrowed to incognito-enabled extensions.
-// Entries carry `enabled: NO` when the action needs a page and there is none.
-- (NSArray<NSDictionary<NSString *, id> *> *)pinnedExtensionsForProfile:(NSString *)profileID
-    NS_SWIFT_NAME(pinnedExtensions(profile:));
 // Runs a pinned action with no page open. Only an action carrying its own
 // popup document can run: there is no tab to activate, grant host access for or
 // inject into. Returns NO for anything else, including a page action.
@@ -90,8 +74,6 @@ typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
 // Extension side panels. A panel is hosted as a Crest split-row card beside
 // the page it belongs to: it is not a tab, is never persisted and never syncs.
 // `closed` runs when the panel document or its extension host goes away.
-- (BOOL)hasSidePanel:(NSString *)extensionID page:(NSString *)pageID
-    NS_SWIFT_NAME(hasSidePanel(_:page:));
 - (nullable NSView *)openSidePanel:(NSString *)extensionID page:(NSString *)pageID
                             closed:(void (^)(void))closed
     NS_SWIFT_NAME(openSidePanel(_:page:closed:));
@@ -110,8 +92,6 @@ typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
 - (nullable NSDictionary<NSString *, id> *)dispatchExtensionShortcut:(NSEvent *)event
     page:(NSString *)pageID NS_SWIFT_NAME(dispatchExtensionShortcut(_:page:));
 - (void)prepareExtensionProfile:(NSString *)profileID completion:(void (^)(BOOL ready))completion;
-- (NSArray<NSDictionary<NSString *, id> *> *)extensionsForProfile:(NSString *)profileID;
-- (BOOL)extensionCommand:(NSString *)command extension:(NSString *)extensionID profile:(NSString *)profileID window:(NSString *)windowID;
 - (void)setExtensionReview:(void (^)(NSDictionary<NSString *, id> *values, NSWindow *window, void (^reply)(BOOL accept, BOOL withhold)))review;
 - (NSString *)engineVersion;
 - (BOOL)installExtension:(NSString *)extensionID package:(NSString *)path profile:(NSString *)profileID window:(NSString *)windowID

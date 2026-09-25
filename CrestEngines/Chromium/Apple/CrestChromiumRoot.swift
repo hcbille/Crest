@@ -208,7 +208,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
                     if self?.privateSourceProfile?.uuidString == profileID { self?.privateWindow?.close() }
                     return
                 }
-                if values["extensionsChanged"] as? Bool == true { Self.extensions.refresh(); return }
                 guard let self, let token = values["adoptionId"] as? String else { return }
                 guard let adoption = BrowserEnginePageAdoption(chromiumValues: values) else {
                     host.rejectAdoption(token)
@@ -798,10 +797,10 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// The engine asked for a side-panel card: `chrome.sidePanel.open()`,
     /// `chrome.sidePanel.close()`, or an action click whose extension opens a
     /// panel instead of a popup. The card belongs to the page's own window.
-    @objc(routeSidePanel:page:request:)
-    static func routeSidePanel(_ extensionID: String, page pageID: String,
-                               request: CrestSidePanelRequest) {
-        guard let instance, !instance.quitting, let page = instance.chromium.page(pageID),
+    static func routeSidePanel(_ requested: SidePanelRequested) {
+        let extensionID = requested.extensionID
+        let request = requested.request
+        guard let instance, !instance.quitting, let page = instance.chromium.page(requested.pageID.uuidString),
             let window = page.surface.window else { return }
         guard let host = sidePanelHost(for: window) else {
             // A Quick Window or setup page has no card row to hold a panel,

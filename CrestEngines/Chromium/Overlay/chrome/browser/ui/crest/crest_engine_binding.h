@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/crest/crest_engine_contract.h"
 
 class GURL;
+class Profile;
 
 namespace content {
 class WebContents;
@@ -27,6 +28,7 @@ class WebContents;
 
 namespace crest {
 
+class EngineExtensions;
 class EnginePage;
 
 // Chromium's engine binding: the portable half of Crest's Chromium host, in
@@ -80,6 +82,12 @@ class EngineBinding {
     // Hosts the view of the inspector docked on `page`, or none when
     // `frontend` is null.
     virtual void DockInspector(const std::string& page, content::WebContents* frontend) = 0;
+    // The engine profile `profile` names, once it is loaded. TRANSITIONAL
+    // until the profiles move into the binding.
+    virtual Profile* ProfileFor(const std::string& profile) = 0;
+    // Closes the side panels the shell hosts for `extension` in `profile`'s
+    // pages, or only for the tab `tab` names.
+    virtual void RetractSidePanels(Profile* profile, const std::string& extension, std::optional<int> tab) = 0;
   };
 
   static EngineBinding& Get();
@@ -113,6 +121,10 @@ class EngineBinding {
   void RefreshStoreListings();
   // The shell hosts the view of the inspector docked on `page`, or none.
   void DockInspector(const std::string& page, content::WebContents* frontend);
+  // Every profile's extensions.
+  EngineExtensions& Extensions();
+  // The engine asks for an extension's side panel beside `page`.
+  void RequestSidePanel(const std::string& page, const std::string& extension, engine::SidePanelRequest request);
 
   // For the binding's pages.
   void Report(engine::EngineEvent event);
@@ -173,6 +185,11 @@ class EngineBinding {
   bool Handle(const engine::CloseInspector& request);
   bool Handle(const engine::PageInspected& request);
   engine::InspectorLayout Handle(const engine::LayoutInspector& request);
+  engine::ExtensionActionList Handle(const engine::PageExtensions& request);
+  engine::ExtensionActionList Handle(const engine::PinnedExtensions& request);
+  engine::InstalledExtensionList Handle(const engine::InstalledExtensions& request);
+  bool Handle(const engine::ChangeExtension& request);
+  bool Handle(const engine::HasSidePanel& request);
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
@@ -198,6 +215,7 @@ class EngineBinding {
   // The pages the engine could not create, until the core closes them, so a
   // platform that comes to one late still hears it has no view.
   std::set<std::string> failed_;
+  std::unique_ptr<EngineExtensions> extensions_;
   std::deque<Outgoing> queue_;
   std::vector<std::string> due_;
   bool flush_posted_ = false;
@@ -207,6 +225,8 @@ class EngineBinding {
 
 // A GUID as the platform spells it: uppercase hexadecimal in RFC 4122 groups.
 std::string GuidText(const engine::Guid& guid);
+// The GUID `text` spells in RFC 4122 groups, in either case, or nothing.
+std::optional<engine::Guid> ParseGuid(const std::string& text);
 
 }  // namespace crest
 

@@ -190,9 +190,12 @@ ready, its navigations as they start, commit and fail, its loading, history
 and theme, the link under the pointer, blocked pop-ups, fullscreen, the
 engine's bars, its media session, Crest's content-bridge messages, Chrome Web
 Store requests and the docked inspector's layout. A page's `WatchPage` request
-replays them for a view that arrives after the engine made the page. The Mac
-shell keeps only the views it hosts: the page, its docked inspector, side
-panels and extension popups.
+replays them for a view that arrives after the engine made the page. A
+profile's extensions are the binding's too: the toolbar's and Settings' lists
+(icons as PNG bytes), the changes the person makes, whether an extension has a
+side panel for a page, and `ExtensionsChanged` and `SidePanelRequested` when the
+engine changes them or asks for a panel. The Mac shell keeps only the views it
+hosts: the page, its docked inspector, side panels and extension popups.
 Typed addresses, the
 command palette, Open Location and every first load go through `Navigate`, which
 the core resolves by the Space's address and search rules before it issues

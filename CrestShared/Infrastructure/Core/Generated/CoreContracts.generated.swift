@@ -256,6 +256,7 @@ enum EnginePresentation: Equatable, Sendable {
     case contentFullscreenChanged(ContentFullscreenChanged)
     case contentMessagePosted(ContentMessagePosted)
     case contentScriptEvaluated(ContentScriptEvaluated)
+    case extensionsChanged(ExtensionsChanged)
     case findFinished(FindFinished)
     case infoBarRemoved(InfoBarRemoved)
     case infoBarShown(InfoBarShown)
@@ -277,6 +278,7 @@ enum EnginePresentation: Equatable, Sendable {
     case pageViewReady(PageViewReady)
     case pageViewUnavailable(PageViewUnavailable)
     case popupBlocked(PopupBlocked)
+    case sidePanelRequested(SidePanelRequested)
     case stagedLinkUnavailable(StagedLinkUnavailable)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
@@ -595,6 +597,14 @@ struct CapturePage: PageRequest, Equatable, Sendable {
     let captureID: UUID
     let area: PageArea?
     let width: Double
+}
+
+struct ChangeExtension: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let profileID: UUID
+    let extensionID: String
+    let change: ExtensionChange
 }
 
 struct ChooseTabIcon: Intent, SessionIntent, Equatable, Sendable {
@@ -1196,6 +1206,23 @@ struct ExportPage: PageRequest, Equatable, Sendable {
     let width: Double
 }
 
+struct ExtensionAction: Equatable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    let badge: String
+    let icon: Data?
+    let pinned: Bool
+    let enabled: Bool
+}
+
+struct ExtensionActionList: Equatable, Sendable {
+    let actions: [ExtensionAction]
+}
+
+struct ExtensionsChanged: Equatable, Sendable {
+    let profileID: UUID
+}
+
 struct ExternalLinkPlacement: Equatable, Sendable {
     let spaceID: UUID?
     let opensQuickWindow: Bool
@@ -1336,6 +1363,13 @@ struct GoToHistoryOffset: PageRequest, Equatable, Sendable {
     let offset: Int
 }
 
+struct HasSidePanel: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let extensionID: String
+}
+
 struct HidePage: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -1455,6 +1489,28 @@ struct InspectorLayout: Equatable, Sendable {
 
 struct InspectorLayoutChanged: Equatable, Sendable {
     let pageID: UUID
+}
+
+struct InstalledExtension: Equatable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    let version: String
+    let description: String
+    let icon: Data?
+    let enabled: Bool
+    let permissions: [String]
+    let fromWebStore: Bool
+    let optionsURL: String?
+}
+
+struct InstalledExtensionList: Equatable, Sendable {
+    let extensions: [InstalledExtension]
+}
+
+struct InstalledExtensions: PageRequest, Equatable, Sendable {
+    typealias Answer = InstalledExtensionList
+
+    let profileID: UUID
 }
 
 struct InteractionState: Equatable, Sendable {
@@ -2039,6 +2095,12 @@ struct PageExported: Equatable, Sendable {
     let failure: PageExportFailure?
 }
 
+struct PageExtensions: PageRequest, Equatable, Sendable {
+    typealias Answer = ExtensionActionList
+
+    let pageID: UUID
+}
+
 struct PageFailure: Equatable, Sendable {
     let error: NavigationError
     let url: String?
@@ -2258,6 +2320,12 @@ struct PersistentWorkspaceRequired: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Open a regular window to do this.")
     }
+}
+
+struct PinnedExtensions: PageRequest, Equatable, Sendable {
+    typealias Answer = ExtensionActionList
+
+    let profileID: UUID
 }
 
 struct PinnedTabsDragAlone: Equatable, Sendable {
@@ -2720,6 +2788,12 @@ struct ShowTab: Intent, WindowIntent, Equatable, Sendable {
 struct ShownTab: Equatable, Sendable {
     let spaceID: UUID
     let tabID: UUID?
+}
+
+struct SidePanelRequested: Equatable, Sendable {
+    let pageID: UUID
+    let extensionID: String
+    let request: SidePanelRequest
 }
 
 struct SidebarChanged: Equatable, Sendable {
@@ -3664,6 +3738,14 @@ enum CrestTrim: Int, CaseIterable, Sendable {
     case beaded = 8
 }
 
+enum ExtensionChange: Int, CaseIterable, Sendable {
+    case enable = 0
+    case disable = 1
+    case remove = 2
+    case pin = 3
+    case unpin = 4
+}
+
 enum ImportFlaw: Int, CaseIterable, Sendable {
     case unreadable = 0
     case malformedSplit = 1
@@ -3740,6 +3822,12 @@ struct ShortcutModifiers: OptionSet, Sendable {
     static let option = ShortcutModifiers(rawValue: 2)
     static let control = ShortcutModifiers(rawValue: 4)
     static let shift = ShortcutModifiers(rawValue: 8)
+}
+
+enum SidePanelRequest: Int, CaseIterable, Sendable {
+    case open = 0
+    case close = 1
+    case toggle = 2
 }
 
 enum SitePermissionVerdict: Int, CaseIterable, Sendable {

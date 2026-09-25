@@ -2593,6 +2593,10 @@
     "2026-09-25-chromium-binding-presentation": {
       "category": "internal",
       "message": "Chromium presents each page's view, inspector and page events from its own C++ binding"
+    },
+    "2026-09-25-chromium-binding-extensions": {
+      "category": "internal",
+      "message": "Chromium lists and changes a profile's extensions from its own C++ binding"
     }
   }
 }

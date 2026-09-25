@@ -29,3 +29,21 @@ struct BrowserExtensionActionPresentation: Identifiable {
     }
 
 }
+
+extension BrowserExtensionActionPresentation {
+    /// An action as the engine lists it.
+    init(_ action: ExtensionAction) {
+        self.init(
+            id: action.id, displayName: action.name, badgeText: action.badge,
+            icon: action.icon.flatMap(NSImage.init(extensionIcon:)), isEnabled: action.enabled,
+            isPinned: action.pinned)
+    }
+}
+
+extension NSImage {
+    /// An extension's icon, which the engine encodes at twice its size in points.
+    convenience init?(extensionIcon data: Data) {
+        self.init(data: data)
+        size = NSSize(width: size.width / 2, height: size.height / 2)
+    }
+}
