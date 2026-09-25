@@ -184,7 +184,15 @@ The page's view work (history, reload, find, zoom, capture, export and
 printing, whether it is on screen) goes straight to the binding as a
 `PageRequest` through the table the engine hands the composition beside its
 binding table, and what finishes later, such as a find's count or an export,
-comes back as an `EnginePresentation`.
+comes back as an `EnginePresentation`. The binding also presents what the
+platform shows of the page and the core does not keep: whether its view is
+ready, its navigations as they start, commit and fail, its loading, history
+and theme, the link under the pointer, blocked pop-ups, fullscreen, the
+engine's bars, its media session, Crest's content-bridge messages, Chrome Web
+Store requests and the docked inspector's layout. A page's `WatchPage` request
+replays them for a view that arrives after the engine made the page. The Mac
+shell keeps only the views it hosts: the page, its docked inspector, side
+panels and extension popups.
 Typed addresses, the
 command palette, Open Location and every first load go through `Navigate`, which
 the core resolves by the Space's address and search rules before it issues

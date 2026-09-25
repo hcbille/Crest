@@ -6,7 +6,9 @@
     /// Hosts the view of one Chromium page and makes the page's direct calls:
     /// history, find, zoom, capture and the rest. Chromium's C++ binding creates,
     /// loads and closes the page when the core asks, under the identity the
-    /// core gave it, and tells the core what it does; this reports nothing.
+    /// core gave it, and tells the core what it does; this reports nothing. It
+    /// presents the page to this one: what its view shows, as the page's
+    /// engine-neutral events.
     @Observable @MainActor
     final class ChromiumNativePage: BrowserPageEngine {
         let registration = BrowserEngineRegistration.chromium
@@ -27,7 +29,7 @@
         private let isStandalone: Bool
         /// The engine that hosts the page, which its direct requests go to.
         private weak var engine: ChromiumEngine?
-        var observer: (ChromiumPageReport) -> Void
+        var observer: (BrowserPageEngineEvent) -> Void
         var linkHandler: (String, URL, String) -> Bool = { _, _, _ in false }
         var contextMenuActions: (URL?, String?) -> [[String: String]] = { _, _ in [] }
         var contextMenuAction: (String, URL?, String?) -> Bool = { _, _, _ in false }
@@ -54,6 +56,7 @@
         private var findCompletion: (@MainActor (BrowserFindResult) -> Void)?
         private var captures: [UUID: @MainActor (NSImage?) -> Void] = [:]
         private var exports: [UUID: CheckedContinuation<Data, any Error>] = [:]
+        private var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
 
         /// A page the core opened, which Chromium's binding creates.
         init(id: UUID, engine: ChromiumEngine) {
@@ -66,9 +69,8 @@
             isStandalone = false
             observer = { _ in }
             surface.page = self
-            engine.host.observePage(self.id) { [weak self] event, values in
-                MainActor.assumeIsolated { self?.receive(event, values: values) }
-            }
+            // The binding may have created the page before its view came.
+            engine.pages.request(WatchPage(pageID: id))
         }
 
         /// A Settings page of the engine's own in `profileID`, which opens once
@@ -84,9 +86,6 @@
             isStandalone = true
             observer = { _ in }
             surface.page = self
-            engine.host.observePage(self.id) { [weak self] event, values in
-                MainActor.assumeIsolated { self?.receive(event, values: values) }
-            }
         }
 
         /// The page's direct path to the binding, while the engine is running.
@@ -104,25 +103,23 @@
             (host ?? CrestChromiumRoot.engineHost)?.discardPendingNavigation(token)
         }
         func showInspector() -> Bool {
-            guard created, !disposed, let host else { return false }
-            return host.command(ChromiumPageHostCommand.inspect.rawValue, page: id, url: nil)
+            guard created, let pages else { return false }
+            return pages.request(OpenInspector(pageID: pageID, panel: nil))
         }
         func toggleInspector(_ panel: BrowserDeveloperPanel, current: BrowserDeveloperPanel?)
             -> BrowserWebInspectorToggleResult
         {
-            guard created, !disposed, let host else { return .unavailable }
-            let isOpen = host.command(ChromiumPageHostCommand.inspectVisible.rawValue, page: id, url: nil)
-            if isOpen, current == panel {
-                return host.command(ChromiumPageHostCommand.inspectClose.rawValue, page: id, url: nil)
-                    ? .closed : .unavailable
+            guard created, let pages else { return .unavailable }
+            if pages.request(PageInspected(pageID: pageID)), current == panel {
+                return pages.request(CloseInspector(pageID: pageID)) ? .closed : .unavailable
             }
-            let command: ChromiumPageHostCommand
+            let starting: InspectorPanel
             switch panel {
-            case .console: command = .inspectConsole
-            case .elements: command = .inspectElements
-            case .network: command = .inspectNetwork
+            case .console: starting = .console
+            case .elements: starting = .elements
+            case .network: starting = .network
             }
-            guard host.command(command.rawValue, page: id, url: nil) else { return .unavailable }
+            guard pages.request(OpenInspector(pageID: pageID, panel: starting)) else { return .unavailable }
             // Chromium selects a starting panel for Console and Elements only. A
             // Network request opens DevTools wherever it was, so report no panel
             // rather than claiming a selection the engine did not make.
@@ -151,21 +148,17 @@
         private(set) var currentURL: URL?
         private(set) var canGoBack = false
         private(set) var canGoForward = false
-        /// Every `changed` report carries the page's history, loading and failure
-        /// state, so the page reads them from it.
+        /// The binding presents the page's history, loading and failures, so the
+        /// page reads them from its presentations.
         var reportsNavigationState: Bool { true }
         var currentMediaActivity: PageMediaActivity? {
-            guard created, !disposed, let values = host?.mediaActivity(forPage: id) else { return nil }
-            var activity: PageMediaActivity = []
-            if values["playing"] as? Bool == true { activity.insert(.playing) }
-            if values["capturing"] as? Bool == true { activity.insert(.capturing) }
-            if values["pictureInPicture"] as? Bool == true { activity.insert(.pictureInPicture) }
-            return activity
+            guard created, let pages else { return nil }
+            return pages.request(PageMedia(pageID: pageID)).activity
         }
         func mediaActivity() async -> PageMediaActivity? { currentMediaActivity }
         func enterPictureInPicture() -> Bool {
-            guard created, !disposed, let host else { return false }
-            return host.command(ChromiumPageHostCommand.pictureInPictureEnter.rawValue, page: id, url: nil)
+            guard created, let pages else { return false }
+            return pages.request(EnterPictureInPicture(pageID: pageID))
         }
         func transferOwnership(to windowID: BrowserWindowID) -> Bool {
             guard created, let pages else { return false }
@@ -245,19 +238,14 @@
                 OpenStandalonePage(
                     pageID: pageID, profileID: profileID, windowID: windowID,
                     url: ChromiumInternalURL.engine(requestedURL.absoluteString)))
-            if !opened {
-                opening = false
-                observer(ChromiumPageReport(.creationFailed))
-            }
+            if !opened { creationFailed() }
         }
 
         /// Makes the page the engine offered as `token` this page, which the
         /// binding then follows instead of creating one.
         func adopt(_ token: String) -> Bool {
             guard !isStandalone, !created, !disposed, let host else { return false }
-            return host.adoptPage(token, asPage: id) { [weak self] event, values in
-                MainActor.assumeIsolated { self?.receive(event, values: values) }
-            }
+            return host.adoptPage(token, asPage: id)
         }
 
         /// The engine's find wraps at the end of the page, as Crest's find always
@@ -293,18 +281,17 @@
         private var contentReceivers: [String: @MainActor (BrowserContentMessage) -> Void] = [:]
         var contentScripting: (any BrowserPageContentScripting)? { self }
 
-        private func receiveContentMessage(_ values: [String: Any]) {
+        private func receive(_ message: ContentMessagePosted) {
             // The body is whatever the bridge posted, so it stays an opaque value.
-            guard let message = ChromiumHostPayload.decode(ChromiumContentMessagePayload.self, from: values),
-                let receive = contentReceivers[message.handler],
+            guard let receive = contentReceivers[message.handler],
                 let body = try? JSONSerialization.jsonObject(with: Data(message.body.utf8), options: .fragmentsAllowed)
             else { return }
             receive(
                 BrowserContentMessage(
                     handlerName: message.handler, body: body,
                     frame: BrowserContentFrame(
-                        isMainFrame: message.isMainFrame == true, securityProtocol: message.protocol,
-                        host: message.host, port: message.port ?? 0, handle: message.frame as NSString)))
+                        isMainFrame: message.frame.isMainFrame, securityProtocol: message.frame.protocol,
+                        host: message.frame.host, port: Int(message.frame.port), handle: message.frame.id as NSString)))
         }
 
         struct ContentSetting: Identifiable {
@@ -335,8 +322,15 @@
         }
 
         func respondToInfoBar(_ barID: Int, response: String) -> Bool {
-            guard created, !disposed, let host else { return false }
-            return host.command(ChromiumPageHostCommand.infoBar.rawValue, page: id, url: "\(response):\(barID)")
+            let answer: InfoBarAnswer
+            switch BrowserEngineInfoBar.Response(rawValue: response) {
+            case .accept: answer = .accept
+            case .cancel: answer = .cancel
+            case .dismiss: answer = .dismiss
+            case nil: return false
+            }
+            guard created, let pages else { return false }
+            return pages.request(AnswerInfoBar(pageID: pageID, infoBarID: barID, answer: answer))
         }
 
         /// Rebuilt from the chain the engine verified, so the system certificate
@@ -382,13 +376,13 @@
         }
 
         func refreshFavicon() {
-            guard created, !disposed else { return }
-            _ = host?.command(ChromiumPageHostCommand.faviconRefresh.rawValue, page: id, url: nil)
+            guard created else { return }
+            pages?.request(RefreshPageIcon(pageID: pageID))
         }
 
         func showBlockedPopups() -> Bool {
-            guard created, !disposed, let host else { return false }
-            return host.command(ChromiumPageHostCommand.showBlockedPopups.rawValue, page: id, url: nil)
+            guard created, let pages else { return false }
+            return pages.request(ShowBlockedPopups(pageID: pageID))
         }
 
         struct ExtensionAction: Identifiable {
@@ -452,12 +446,18 @@
             surface.layoutEngineView()
         }
 
+        /// Where the docked inspector and the page go in a card of `size`.
+        func layoutInspector(in size: CGSize) -> InspectorLayout? {
+            guard created, let pages else { return nil }
+            return pages.request(LayoutInspector(pageID: pageID, width: size.width, height: size.height))
+        }
+
         /// The inspector for this page is going away, whatever closed it. The core
         /// clears its developer-panel selection so the next Console or Elements
         /// command opens an inspector instead of trying to close a closed one.
         func developerPanelDidClose() {
             guard !disposed else { return }
-            observer(ChromiumPageReport(.developerPanel))
+            observer(.developerPanelClosed)
         }
 
         /// The Chrome Web Store listing this page is showing asked Crest to install
@@ -465,27 +465,26 @@
         /// the extension is the one the page's own URL names, and the destination is
         /// this page's own Space — a listing can never reach another Space or a
         /// private window, which keeps no persistent extension state.
-        private func performStoreRequest(_ event: ChromiumPageEvent, _ values: [String: Any]) {
+        private func performStoreRequest(_ extensionID: String, removes: Bool) {
             let store = CrestChromiumRoot.extensions
-            guard !isPrivateBrowsing, let id = values["id"] as? String, let profileID,
-                let space = hostCommands?.extensionSpace(forProfile: profileID)
+            guard !isPrivateBrowsing, let profileID, let space = hostCommands?.extensionSpace(forProfile: profileID)
             else {
                 refreshStoreState()
                 return
             }
             let refresh: @MainActor () -> Void = { [weak self] in self?.refreshStoreState() }
-            if event == .storeRemove {
-                store.confirmRemoval(id, in: space, completion: refresh)
+            if removes {
+                store.confirmRemoval(extensionID, in: space, completion: refresh)
             } else {
-                store.install(id, in: space, anchor: surface, completion: refresh)
+                store.install(extensionID, in: space, anchor: surface, completion: refresh)
             }
         }
 
         /// Restates the listing's install button from Chromium's own registry once
         /// an install review has finished, been canceled, or was never offered.
         private func refreshStoreState() {
-            guard created, !disposed else { return }
-            _ = host?.command(ChromiumPageHostCommand.storeState.rawValue, page: id, url: nil)
+            guard created else { return }
+            pages?.request(RefreshStoreListing(pageID: pageID))
         }
 
         static func webStoreExtensionID(_ url: URL?) -> String? {
@@ -521,126 +520,193 @@
             captures = [:]
             for (_, export) in exports { export.resume(throwing: BrowserPageExportError.pageUnavailable) }
             exports = [:]
+            for (_, evaluation) in evaluations { evaluation.resume(returning: nil) }
+            evaluations = [:]
         }
 
-        private func history(_ entries: [ChromiumPageChange.HistoryEntry]?) -> [BrowserNavigationHistoryItem] {
-            (entries ?? []).compactMap { entry in
-                guard entry.depth > 0, let url = URL(string: ChromiumInternalURL.presented(entry.url)) else {
-                    return nil
-                }
-                let title = entry.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        private func history(_ entries: [PageHistoryEntry]) -> [BrowserNavigationHistoryItem] {
+            entries.enumerated().compactMap { index, entry in
+                guard let url = URL(string: entry.url) else { return nil }
+                let title = entry.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 return BrowserNavigationHistoryItem(
-                    depth: entry.depth,
-                    title: title.isEmpty ? url.host() ?? url.absoluteString : title, url: url)
+                    depth: index + 1, title: title.isEmpty ? url.host() ?? url.absoluteString : title, url: url)
             }
         }
 
-        /// Decodes a host observation once. An event this build does not know is
-        /// dropped: the page has nothing to do with it.
-        private func receive(_ name: String, values: [String: Any]) {
-            guard !disposed, let event = ChromiumPageEvent(rawValue: name) else { return }
-            switch event {
-            case .contentMessage:
-                receiveContentMessage(values)
-            case .changed:
-                guard let change = ChromiumHostPayload.decode(ChromiumPageChange.self, from: values) else { return }
-                receive(change)
-            default:
-                receive(ChromiumPageReport(event, values: ChromiumInternalURL.presentedValues(values)))
+        /// What the binding presents of this page, as the page's events.
+        func receive(_ presentation: EnginePresentation) {
+            guard !disposed else { return }
+            switch presentation {
+            case .pageViewReady: viewReady()
+            case .pageViewUnavailable: creationFailed()
+            case .pageViewClosed: observer(.closeRequested)
+            case .pageNavigationStarted: observer(.navigationStarted)
+            case .pageNavigationCommitted(let committed):
+                currentURL = URL(string: committed.url)
+                pageHost = currentURL?.host()
+                mediaSessionLocation = committed.url
+                surface.layoutEngineView()
+                observer(.navigationCommitted(currentURL, isLoading: committed.isLoading))
+            case .pageNavigationFailed: observer(.navigationFailed)
+            case .pageRendererGone: observer(.webContentProcessTerminated)
+            case .pageLoadingChanged(let loading):
+                observer(.loadingChanged(loading.isLoading))
+                observer(.progressChanged(loading.isLoading ? 0.5 : 1))
+            case .pageHistoryChanged(let changed):
+                backHistory = history(changed.back)
+                forwardHistory = history(changed.forward)
+                canGoBack = !changed.back.isEmpty
+                canGoForward = !changed.forward.isEmpty
+            case .pageThemeChanged(let theme):
+                observer(
+                    .themeColorChanged(
+                        theme.color.map {
+                            NSColor(srgbRed: $0.red, green: $0.green, blue: $0.blue, alpha: $0.alpha)
+                        }))
+            case .pageInteracted: observer(.userActivity)
+            case .linkHovered(let hovered): observer(.linkHovered(hovered.url.flatMap(URL.init(string:))))
+            case .popupBlocked(let blocked):
+                if let url = URL(string: blocked.pageURL) { observer(.popupBlocked(pageURL: url)) }
+            case .contentFullscreenChanged(let fullscreen): observer(.contentFullscreenChanged(fullscreen.active))
+            case .infoBarShown(let shown):
+                guard
+                    let bar = BrowserEngineInfoBar(
+                        id: Int(shown.infoBarID), message: shown.message, acceptTitle: shown.acceptLabel ?? "",
+                        cancelTitle: shown.cancelLabel ?? "", isCloseable: shown.closeable)
+                else { return }
+                observer(.infoBarAdded(bar))
+            case .infoBarRemoved(let removed): observer(.infoBarRemoved(id: Int(removed.infoBarID)))
+            case .mediaSessionChanged(let session):
+                if let event = BrowserMediaSessionPageEvent(session) { observer(.mediaSession(event)) }
+            case .contentMessagePosted(let message): receive(message)
+            case .contentScriptEvaluated(let evaluated):
+                evaluations.removeValue(forKey: evaluated.evaluationID)?.resume(returning: evaluated.json)
+            case .storeInstallRequested(let request): performStoreRequest(request.extensionID, removes: false)
+            case .storeRemovalRequested(let request): performStoreRequest(request.extensionID, removes: true)
+            case .stagedLinkUnavailable:
+                // A stale link is never retried as a bare address, which would
+                // lose the initiating frame's security and referrer.
+                observer(.loadingChanged(false))
+                observer(.progressChanged(1))
+            case .inspectorLayoutChanged: refreshDevTools()
+            case .inspectorClosed: developerPanelDidClose()
+            case .findFinished(let finished): receive(finished)
+            case .pageCaptured(let captured): receive(captured)
+            case .pageExported(let exported): receive(exported)
             }
         }
 
-        private func receive(_ change: ChromiumPageChange) {
-            backHistory = history(change.backHistory)
-            forwardHistory = history(change.forwardHistory)
-            canGoBack = change.canGoBack ?? false
-            canGoForward = change.canGoForward ?? false
-            currentURL = change.url.map(ChromiumInternalURL.presented).flatMap(URL.init(string:))
-            if change.committed == true { surface.layoutEngineView() }
-            pageHost = change.url.flatMap(URL.init(string:))?.host()
-            mediaSessionLocation = change.url
-            observer(ChromiumPageReport(.changed, change: change.presented()))
+        /// The engine created the page: the page's handlers and scripts go in,
+        /// and its view goes on screen if it has a window to go in.
+        private func viewReady() {
+            guard !created else { return }
+            created = true
+            opening = false
+            for script in contentScripts {
+                pages?.request(
+                    AddContentScript(pageID: pageID, source: script.source, mainFrameOnly: script.mainFrameOnly))
+            }
+            installHandlers()
+            attachIfPossible()
         }
 
-        private func receive(_ report: ChromiumPageReport) {
-            let event = report.event
-            let values = report.values
-            if event == .created {
-                created = true
-                opening = false
-                for script in contentScripts {
-                    _ = host?.addContentScript(script.source, page: id, mainFrameOnly: script.mainFrameOnly)
-                }
-                host?.setPermissionHandler(page: id) { [weak self] request, reply in
-                    MainActor.assumeIsolated {
-                        guard let self, let handler = self.permissionHandler,
-                            let permission = (request["permission"] as? String).flatMap(
-                                SitePermission.named),
-                            let origin = (request["origin"] as? String).flatMap(URL.init(string:)).flatMap(
-                                SiteOrigin.init(url:))
-                        else {
-                            reply(BrowserEnginePermissionResponse.dismiss.hostCode)
-                            return
-                        }
-                        let topLevel =
-                            (request["topLevelOrigin"] as? String).flatMap(URL.init(string:))
-                            .flatMap(SiteOrigin.init(url:)) ?? origin
-                        Task { @MainActor in reply(await handler(permission, origin, topLevel).hostCode) }
+        private func creationFailed() {
+            opening = false
+            observer(.creationFailed(message: String(localized: "Chromium couldn’t create this page.")))
+        }
+
+        /// The handlers the Mac shell asks for what Chromium needs answered on
+        /// its own stack. TRANSITIONAL until dialogs, prompts and link questions
+        /// travel as presentations (WP C (e), (f), (l)).
+        private func installHandlers() {
+            host?.setPermissionHandler(page: id) { [weak self] request, reply in
+                MainActor.assumeIsolated {
+                    guard let self, let handler = self.permissionHandler,
+                        let permission = (request["permission"] as? String).flatMap(
+                            SitePermission.named),
+                        let origin = (request["origin"] as? String).flatMap(URL.init(string:)).flatMap(
+                            SiteOrigin.init(url:))
+                    else {
+                        reply(BrowserEnginePermissionResponse.dismiss.hostCode)
+                        return
                     }
+                    let topLevel =
+                        (request["topLevelOrigin"] as? String).flatMap(URL.init(string:))
+                        .flatMap(SiteOrigin.init(url:)) ?? origin
+                    Task { @MainActor in reply(await handler(permission, origin, topLevel).hostCode) }
                 }
-                host?.setLinkHandler(page: id) { [weak self] action, address, label in
+            }
+            host?.setLinkHandler(page: id) { [weak self] action, address, label in
+                MainActor.assumeIsolated {
+                    guard let self, !self.disposed, let url = URL(string: address) else { return false }
+                    return self.linkHandler(action, url, label)
+                }
+            }
+            host?.setContextMenuHandler(
+                page: id,
+                provider: { [weak self] address, selection in
                     MainActor.assumeIsolated {
-                        guard let self, !self.disposed, let url = URL(string: address) else { return false }
-                        return self.linkHandler(action, url, label)
+                        guard let self, !self.disposed else { return [] }
+                        let url = address == "about:blank" ? nil : URL(string: address)
+                        return self.contextMenuActions(url, selection.isEmpty ? nil : selection)
                     }
+                },
+                action: { [weak self] identifier, address, selection in
+                    MainActor.assumeIsolated {
+                        guard let self, !self.disposed else { return false }
+                        let url = address == "about:blank" ? nil : URL(string: address)
+                        return self.contextMenuAction(identifier, url, selection.isEmpty ? nil : selection)
+                    }
+                })
+            host?.setJavaScriptDialogHandler(page: id) { [weak self] kind, message, defaultText, address, reply in
+                MainActor.assumeIsolated {
+                    guard let self, !self.disposed else {
+                        reply(false, nil)
+                        return
+                    }
+                    guard let kind = ChromiumJavaScriptDialogKind(rawValue: kind) else {
+                        reply(false, nil)
+                        return
+                    }
+                    self.javaScriptDialogHandler(kind, message, defaultText, URL(string: address), reply)
                 }
-                host?.setContextMenuHandler(
-                    page: id,
-                    provider: { [weak self] address, selection in
+            }
+            host?.setHTTPAuthenticationHandler(page: id) { [weak self] challenge, reply in
+                MainActor.assumeIsolated {
+                    guard let self, !self.disposed,
+                        let challenge = ChromiumHostPayload.decode(
+                            ChromiumAuthenticationChallenge.self, from: challenge)
+                    else {
+                        reply(nil, nil)
+                        return
+                    }
+                    self.httpAuthenticationHandler(challenge, reply)
+                }
+            }
+            host?.setProtectedLinkHandler(page: id) { [weak self] address in
+                var deferred: CrestDeferredNavigation?
+                MainActor.assumeIsolated {
+                    guard let self, !self.disposed, let url = URL(string: address),
+                        let action = self.protectedLinkHandler(url)
+                    else { return }
+                    deferred = { [weak self] in
                         MainActor.assumeIsolated {
-                            guard let self, !self.disposed else { return [] }
-                            let url = address == "about:blank" ? nil : URL(string: address)
-                            return self.contextMenuActions(url, selection.isEmpty ? nil : selection)
+                            guard let self, !self.disposed else { return }
+                            action()
                         }
-                    },
-                    action: { [weak self] identifier, address, selection in
-                        MainActor.assumeIsolated {
-                            guard let self, !self.disposed else { return false }
-                            let url = address == "about:blank" ? nil : URL(string: address)
-                            return self.contextMenuAction(identifier, url, selection.isEmpty ? nil : selection)
-                        }
-                    })
-                host?.setJavaScriptDialogHandler(page: id) { [weak self] kind, message, defaultText, address, reply in
-                    MainActor.assumeIsolated {
-                        guard let self, !self.disposed else {
-                            reply(false, nil)
-                            return
-                        }
-                        guard let kind = ChromiumJavaScriptDialogKind(rawValue: kind) else {
-                            reply(false, nil)
-                            return
-                        }
-                        self.javaScriptDialogHandler(kind, message, defaultText, URL(string: address), reply)
                     }
                 }
-                host?.setHTTPAuthenticationHandler(page: id) { [weak self] challenge, reply in
-                    MainActor.assumeIsolated {
-                        guard let self, !self.disposed,
-                            let challenge = ChromiumHostPayload.decode(
-                                ChromiumAuthenticationChallenge.self, from: challenge)
-                        else {
-                            reply(nil, nil)
-                            return
-                        }
-                        self.httpAuthenticationHandler(challenge, reply)
+                return deferred
+            }
+            host?.setModifiedLinkHandler(page: id) { [weak self] address, modifiers, token, reply in
+                MainActor.assumeIsolated {
+                    guard let self, !self.disposed, let url = URL(string: address) else {
+                        reply(LinkNavigationDecision.navigate.name, nil)
+                        return
                     }
-                }
-                host?.setProtectedLinkHandler(page: id) { [weak self] address in
+                    let (decision, action) = self.modifiedLinkHandler(url, Int(modifiers), token)
                     var deferred: CrestDeferredNavigation?
-                    MainActor.assumeIsolated {
-                        guard let self, !self.disposed, let url = URL(string: address),
-                            let action = self.protectedLinkHandler(url)
-                        else { return }
+                    if let action {
                         deferred = { [weak self] in
                             MainActor.assumeIsolated {
                                 guard let self, !self.disposed else { return }
@@ -648,45 +714,9 @@
                             }
                         }
                     }
-                    return deferred
+                    reply(decision.name, deferred)
                 }
-                host?.setModifiedLinkHandler(page: id) { [weak self] address, modifiers, token, reply in
-                    MainActor.assumeIsolated {
-                        guard let self, !self.disposed, let url = URL(string: address) else {
-                            reply(LinkNavigationDecision.navigate.name, nil)
-                            return
-                        }
-                        let (decision, action) = self.modifiedLinkHandler(url, Int(modifiers), token)
-                        var deferred: CrestDeferredNavigation?
-                        if let action {
-                            deferred = { [weak self] in
-                                MainActor.assumeIsolated {
-                                    guard let self, !self.disposed else { return }
-                                    action()
-                                }
-                            }
-                        }
-                        reply(decision.name, deferred)
-                    }
-                }
-                attachIfPossible()
-            } else if event == .creationFailed {
-                opening = false
-            } else if event == .storeInstall || event == .storeRemove {
-                performStoreRequest(event, values)
-            } else if event == .linkUnavailable {
-                // A stale link is never retried as a bare address, which would
-                // lose the initiating frame's security and referrer.
-                observer(
-                    ChromiumPageReport(
-                        .changed,
-                        change: ChromiumPageChange(
-                            url: currentURL?.absoluteString, isLoading: false,
-                            failure: String(
-                                localized: "This link is no longer available. Open it again from its original page."))))
-                return
             }
-            observer(report)
         }
     }
 
@@ -777,10 +807,9 @@
         }
         func layoutEngineView() {
             guard !bounds.isEmpty, let view = engineView else { return }
-            guard let devToolsView, let page,
-                let frames = CrestChromiumRoot.engineHost?.layoutDevTools(page: page.id, container: bounds),
-                let frontendFrame = frames["devTools"]?.rectValue,
-                let pageFrame = frames["page"]?.rectValue
+            guard let devToolsView, let layout = page?.layoutInspector(in: bounds.size),
+                let frontendFrame = layout.inspector.map({ frame(of: $0) }),
+                let pageFrame = layout.page.map({ frame(of: $0) })
             else {
                 view.isHidden = false
                 view.frame = bounds
@@ -798,6 +827,14 @@
             guard !pageFrame.isEmpty else { return }
             view.frame = pageFrame
             view.setFrameSize(pageFrame.size)
+        }
+
+        /// An area the binding measured from the card's top left, as AppKit
+        /// measures it, from the bottom left.
+        private func frame(of area: PageArea) -> CGRect {
+            CGRect(
+                x: bounds.minX + area.x, y: bounds.minY + bounds.height - area.y - area.height,
+                width: area.width, height: area.height)
         }
         override var acceptsFirstResponder: Bool { true }
         override func becomeFirstResponder() -> Bool {
@@ -821,29 +858,21 @@
             guard !disposed else { return false }
             contentScripts.append(script)
             contentReceivers[script.handlerName] = receive
-            if created, let host {
-                return host.addContentScript(script.source, page: id, mainFrameOnly: script.mainFrameOnly)
+            if created, let pages {
+                return pages.request(
+                    AddContentScript(pageID: pageID, source: script.source, mainFrameOnly: script.mainFrameOnly))
             }
             return true
         }
 
         func callAsyncJavaScriptInMainFrame(_ body: String) async -> Any? {
-            guard created, !disposed, let host else { return nil }
-            let result: String? = await withCheckedContinuation { continuation in
-                host.evaluateContentScript(body, page: id, frame: "main") { json in continuation.resume(returning: json)
-                }
-            }
-            guard let data = result?.data(using: .utf8),
-                let value = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed),
-                !(value is NSNull)
-            else { return nil }
-            return value
+            await evaluate(body, in: "main")
         }
 
         func callAsyncJavaScript(_ body: String, arguments: [String: Any], in frame: BrowserContentFrame) async throws
             -> Any?
         {
-            guard created, !disposed, let host, let frameID = frame.handle as? String else { return nil }
+            guard created, !disposed, let frameID = frame.handle as? String else { return nil }
             // The arguments arrive as constants named for their keys, as WebKit's
             // callAsyncJavaScript binds them.
             var source = ""
@@ -853,10 +882,24 @@
                 for key in arguments.keys.sorted() { source += "const \(key) = __crestArguments[\"\(key)\"];\n" }
             }
             source += body
+            return await evaluate(source, in: frameID)
+        }
+
+        /// Runs `source` in the document `frameID` names and answers the value of
+        /// its result, or nil when the document is gone.
+        private func evaluate(_ source: String, in frameID: String) async -> Any? {
+            guard created, let pages else { return nil }
+            let evaluationID = UUID()
             let result: String? = await withCheckedContinuation { continuation in
-                host.evaluateContentScript(source, page: id, frame: frameID) { json in
-                    continuation.resume(returning: json)
+                guard
+                    pages.request(
+                        EvaluateContentScript(
+                            pageID: pageID, evaluationID: evaluationID, source: source, frameID: frameID))
+                else {
+                    continuation.resume(returning: nil)
+                    return
                 }
+                evaluations[evaluationID] = continuation
             }
             guard let data = result?.data(using: .utf8),
                 let value = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed),
@@ -867,38 +910,72 @@
     }
     extension ChromiumNativePage: BrowserMediaSessionTransport {
         func activateMediaSession(documentIdentifier: String) {
-            guard created, !disposed else { return }
-            _ = host?.command(ChromiumPageHostCommand.mediaActivate.rawValue, page: id, url: documentIdentifier)
+            guard created else { return }
+            pages?.request(ActivateMediaSession(pageID: pageID, document: documentIdentifier))
         }
 
         func performMediaSessionAction(_ action: BrowserMediaSessionAction, documentIdentifier: String) {
-            guard created, !disposed else { return }
-            _ = host?.command(
-                ChromiumPageHostCommand.mediaAction.rawValue, page: id, url: "\(action.rawValue):\(documentIdentifier)")
+            guard created else { return }
+            pages?.request(
+                PerformMediaAction(pageID: pageID, document: documentIdentifier, action: MediaSessionAction(action)))
         }
 
         func setMediaSessionMuted(_ muted: Bool, documentIdentifier: String) {
-            guard created, !disposed else { return }
-            _ = host?.command(
-                ChromiumPageHostCommand.mediaMute.rawValue, page: id, url: "\(muted ? 1 : 0):\(documentIdentifier)")
+            guard created else { return }
+            pages?.request(MuteMediaSession(pageID: pageID, document: documentIdentifier, muted: muted))
         }
     }
 
-    private enum ChromiumPageHostCommand: String, Codable, Sendable {
-        case inspect = "engine.inspect"
-        case inspectVisible = "engine.inspect_visible"
-        case inspectClose = "engine.inspect_close"
-        case inspectConsole = "engine.inspect_console"
-        case inspectElements = "engine.inspect_elements"
-        case inspectNetwork = "engine.inspect_network"
-        case pictureInPictureEnter = "engine.picture_in_picture_enter"
-        case infoBar = "engine.infobar"
-        case faviconRefresh = "engine.favicon_refresh"
-        case showBlockedPopups = "engine.show_blocked_popups"
-        case storeState = "engine.store_state"
-        case mediaActivate = "engine.media_activate"
-        case mediaAction = "engine.media_action"
-        case mediaMute = "engine.media_mute"
+    extension MediaSessionAction {
+        fileprivate init(_ action: BrowserMediaSessionAction) {
+            switch action {
+            case .play: self = .play
+            case .pause: self = .pause
+            case .previousTrack: self = .previousTrack
+            case .nextTrack: self = .nextTrack
+            }
+        }
+    }
+
+    extension BrowserMediaSessionAction {
+        fileprivate init(_ action: MediaSessionAction) {
+            switch action {
+            case .play: self = .play
+            case .pause: self = .pause
+            case .previousTrack: self = .previousTrack
+            case .nextTrack: self = .nextTrack
+            }
+        }
+    }
+
+    extension BrowserMediaSessionPageEvent {
+        /// The session the binding presented, as Crest's media store takes it,
+        /// within the bounds a page script's report is held to.
+        fileprivate init?(_ session: MediaSessionChanged) {
+            typealias Bounds = BrowserMediaSessionPageEventDecoder
+            guard !session.document.isEmpty, session.document.count <= Bounds.maximumDocumentIdentifierLength,
+                session.location.count <= Bounds.maximumLocationLength
+            else { return nil }
+            func bounded(_ text: String?) -> String? {
+                guard let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty,
+                    trimmed.count <= Bounds.maximumTextLength
+                else { return nil }
+                return trimmed
+            }
+            let playback: BrowserMediaSessionPlaybackState
+            switch session.playback {
+            case .none: playback = .none
+            case .playing: playback = .playing
+            case .paused: playback = .paused
+            }
+            self.init(
+                documentIdentifier: session.document, sequence: UInt64(max(session.sequence, 0)),
+                location: session.location, isInvalidated: false, hasActiveSession: session.active,
+                title: bounded(session.title), artist: bounded(session.artist), album: bounded(session.album),
+                artworkData: nil,
+                playbackState: playback, isAudible: session.audible, isMuted: session.muted,
+                availableActions: Set(session.actions.map(BrowserMediaSessionAction.init)))
+        }
     }
 
     extension BrowserEnginePermissionResponse {

@@ -98,12 +98,18 @@ final class BrowserMediaSessionPageCoordinator {
     }
 
     func receive(_ body: Any, isMainFrame: Bool) {
+        guard let event = BrowserMediaSessionPageEventDecoder.decode(body) else { return }
+        receive(event, isMainFrame: isMainFrame)
+    }
+
+    /// A session event an engine reports in the model itself rather than as a
+    /// page script's message body.
+    func receive(_ event: BrowserMediaSessionPageEvent, isMainFrame: Bool) {
         guard let documentIdentifier,
             isMainFrame,
             let transport,
             let endpoint,
             let owner = owner(),
-            let event = BrowserMediaSessionPageEventDecoder.decode(body),
             event.documentIdentifier == documentIdentifier,
             event.location == transport.mediaSessionLocation
         else { return }

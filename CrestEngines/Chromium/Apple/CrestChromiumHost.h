@@ -18,16 +18,11 @@ typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
 - (void)removeDownload:(NSString *)downloadID profile:(NSString *)profileID;
 - (void)approveDownload:(NSString *)downloadID profile:(NSString *)profileID warning:(NSString *)token;
 - (void)deleteProfile:(NSString *)profileID ephemeral:(BOOL)ephemeral completion:(void (^)(BOOL deleted))completion;
-// The engine binding creates, loads and closes the pages the core opens, and
-// reports what they do straight to the core. The platform observes each one's
-// presentation, which may begin before the binding has created it.
-// TRANSITIONAL until page presentation travels as EnginePresentations.
-- (void)observePage:(NSString *)pageID
-           observer:(void (^)(NSString *event, NSDictionary<NSString *, id> *values))observer;
+// The engine binding creates, loads and closes the pages the core opens,
+// reports what they do straight to the core and presents them to the platform.
 // Makes a page the engine offered the page the core is opening, instead of a
 // new one.
-- (BOOL)adoptPage:(NSString *)adoptionID asPage:(NSString *)pageID
-         observer:(void (^)(NSString *event, NSDictionary<NSString *, id> *values))observer;
+- (BOOL)adoptPage:(NSString *)adoptionID asPage:(NSString *)pageID;
 - (void)rejectAdoption:(NSString *)adoptionID;
 // What the platform asks of a page directly that no PageRequest carries yet.
 // TRANSITIONAL until engine-offered pages and link routing move (WP C (l)): the
@@ -61,8 +56,6 @@ typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
         void (^reply)(NSString *decision, CrestDeferredNavigation _Nullable present)))handler
     NS_SWIFT_NAME(setModifiedLinkHandler(page:handler:));
 - (void)discardPendingNavigation:(NSString *)token;
-- (nullable NSDictionary<NSString *, id> *)mediaActivityForPage:(NSString *)pageID;
-- (BOOL)command:(NSString *)command page:(NSString *)pageID url:(nullable NSString *)url;
 // The DER certificate chain of the page's visible entry, leaf first; empty
 // when the page was not loaded over a verified TLS connection.
 // Site permission requests the page's Crest record covers — camera,
@@ -105,19 +98,10 @@ typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
 - (void)closeSidePanelForPage:(NSString *)pageID NS_SWIFT_NAME(closeSidePanel(page:));
 // Docked DevTools. A Crest window is the user's window, so a docked inspector
 // is mounted inside the page card it inspects instead of opening a window of
-// its own. The engine offers and withdraws the frontend through
-// `CrestRoot.routeDevTools(page:)`; this reads back what it offered.
-//
-// `devToolsViewForPage:` is the frontend's container while an inspector is
-// docked on that page, and nil otherwise. `layoutDevToolsForPage:container:`
-// resolves where the frontend and the inspected page go inside `container`,
-// which is the whole card interior, and returns AppKit rectangles under the
-// `devTools` and `page` keys — the frontend's own dock side and size are
-// encoded in the resizing strategy the engine keeps for that page. A `page`
-// rectangle with no area means the frontend is covering the page on purpose.
+// its own. The binding presents when the docked frontend changes and answers
+// where it goes; this is the frontend's container while an inspector is
+// docked on that page, and nil otherwise.
 - (nullable NSView *)devToolsViewForPage:(NSString *)pageID NS_SWIFT_NAME(devToolsView(page:));
-- (nullable NSDictionary<NSString *, NSValue *> *)layoutDevToolsForPage:(NSString *)pageID
-    container:(NSRect)container NS_SWIFT_NAME(layoutDevTools(page:container:));
 // chrome.commands. The shortcut's target in the active page's own profile, or
 // nil when no enabled extension bound it. A named command has already been
 // delivered to its extension and reports `handled`; an `_execute_action`
@@ -140,14 +124,6 @@ typedef NS_ENUM(NSInteger, CrestSidePanelRequest) {
                 completion:(void (^)(BOOL allowed))completion NS_SWIFT_NAME(prepareToClose(pages:windows:completion:));
 - (void)prepareToQuit:(void (^)(BOOL allowed))completion NS_SWIFT_NAME(prepareToQuit(_:));
 - (void)cancelQuitPreparation;
-// Content bridges. A source runs in Crest's own isolated world of every
-// document the page loads, or of its main frame only; its `postMessage`
-// calls arrive as `content_message` observations naming the frame. An
-// evaluation runs in that frame's current document only and answers the JSON
-// of its result, or nil when the document is gone.
-- (BOOL)addContentScript:(NSString *)source page:(NSString *)pageID mainFrameOnly:(BOOL)mainFrameOnly;
-- (void)evaluateContentScript:(NSString *)source page:(NSString *)pageID frame:(NSString *)frameID
-                   completion:(void (^)(NSString * _Nullable json))completion;
 // Declines a system sign-in the core could not place, so the requesting app
 // learns at once rather than waiting on a window that will never open.
 - (void)cancelAuthenticationSessionForWindow:(NSString *)windowID NS_SWIFT_NAME(cancelAuthenticationSession(window:));

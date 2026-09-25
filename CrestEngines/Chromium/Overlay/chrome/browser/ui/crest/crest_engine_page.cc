@@ -11,7 +11,13 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/crest/crest_engine_binding.h"
+#include "chrome/browser/ui/crest/crest_engine_content.h"
 #include "chrome/browser/ui/crest/crest_engine_documents.h"
+#include "chrome/browser/ui/crest/crest_engine_infobars.h"
+#include "chrome/browser/ui/crest/crest_engine_inspector.h"
+#include "chrome/browser/ui/crest/crest_engine_media.h"
+#include "chrome/browser/ui/crest/crest_engine_store.h"
+#include "components/blocked_content/popup_blocker_tab_helper.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/find_in_page/find_types.h"
@@ -24,6 +30,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/restore_type.h"
 #include "content/public/browser/web_contents.h"
@@ -150,6 +157,15 @@ void EnginePage::Start(content::WebContents* contents) {
   if (find_helper_) {
     find_helper_->AddObserver(this);
   }
+  const auto present = base::BindRepeating(&EnginePage::Present, weak_factory_.GetWeakPtr());
+  Present(engine::PageViewReady{.page_id = id_});
+  media_ = std::make_unique<PageMedia>(contents, id_, present,
+                                       base::BindRepeating(&EnginePage::StateChanged, weak_factory_.GetWeakPtr()));
+  infobars_ = std::make_unique<PageInfoBars>(contents, id_, present);
+  inspector_ = std::make_unique<PageInspector>(
+      contents, id_, present, base::BindRepeating(&EngineBinding::DockInspector, base::Unretained(&*binding_), key_));
+  content_ = std::make_unique<PageContent>(contents, id_, present);
+  store_ = std::make_unique<PageStore>(contents, id_, present);
   ApplyZoom();
   UpdateTheme();
   StateChanged();
@@ -158,6 +174,11 @@ void EnginePage::Start(content::WebContents* contents) {
 void EnginePage::Stop() {
   settle_timer_.Stop();
   documents_.reset();
+  store_.reset();
+  content_.reset();
+  inspector_.reset();
+  infobars_.reset();
+  media_.reset();
   if (find_helper_) {
     find_helper_->RemoveObserver(this);
     find_helper_ = nullptr;
@@ -341,6 +362,7 @@ void EnginePage::DidStartNavigation(content::NavigationHandle* navigation) {
     return;
   }
   loading_navigation_ = navigation->GetNavigationId();
+  Present(engine::PageNavigationStarted{.page_id = id_});
   Started(PresentedURL(navigation->GetURL()));
 }
 
@@ -355,6 +377,12 @@ void EnginePage::DidRedirectNavigation(content::NavigationHandle* navigation) {
 
 void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
   if (!navigation->IsInPrimaryMainFrame()) {
+    return;
+  }
+  // A store listing's own fragment carries the request its script made. It is
+  // Crest's message, not a page anyone records.
+  if (store_ && navigation->HasCommitted() && navigation->IsSameDocument() &&
+      store_->Committed(navigation->GetURL())) {
     return;
   }
   const bool loading = loading_navigation_ == navigation->GetNavigationId();
@@ -372,6 +400,8 @@ void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
                                .replaced_document = true,
                                .domain = "net",
                                .code = navigation->GetNetErrorCode()});
+    Present(engine::PageNavigationFailed{.page_id = id_});
+    StateChanged();
     return;
   }
   if (!navigation->HasCommitted()) {
@@ -392,8 +422,13 @@ void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
     MovedWithinDocument(PresentedURL(committed));
   } else {
     awaits_finish_ = true;
+    if (media_) {
+      media_->DocumentChanged();
+    }
     Committed(PresentedURL(committed));
   }
+  Present(engine::PageNavigationCommitted{
+      .page_id = id_, .url = PresentedURL(committed), .is_loading = web_contents()->IsLoading()});
   NoteTitle();
   FinishIfLoaded();
   StateChanged();
@@ -430,25 +465,75 @@ void EnginePage::PrimaryMainFrameRenderProcessGone(base::TerminationStatus statu
   awaits_finish_ = false;
   loading_navigation_.reset();
   Interrupted();
+  Present(engine::PageRendererGone{.page_id = id_});
+}
+
+void EnginePage::DidGetUserInteraction(const blink::WebInputEvent& event) {
+  const auto now = base::TimeTicks::Now();
+  if (!last_interaction_.is_null() && now - last_interaction_ < kInteractionInterval) {
+    return;
+  }
+  last_interaction_ = now;
+  Present(engine::PageInteracted{.page_id = id_});
+}
+
+// The main frame takes the bridges as soon as its document element exists;
+// frames below it once their document is parsed. The bridges' world guards
+// itself against a second setup in the same document.
+void EnginePage::PrimaryMainDocumentElementAvailable() {
+  if (store_) {
+    store_->DocumentAvailable();
+  }
+  if (content_) {
+    content_->DocumentAvailable(web_contents()->GetPrimaryMainFrame());
+  }
+}
+
+void EnginePage::DOMContentLoaded(content::RenderFrameHost* frame) {
+  if (content_ && frame && !frame->IsInPrimaryMainFrame()) {
+    content_->DocumentAvailable(frame);
+  }
 }
 
 void EnginePage::OnAudioStateChanged(bool audible) {
-  StateChanged();
+  if (media_) {
+    media_->AudioChanged();
+  }
+}
+
+void EnginePage::DidUpdateAudioMutingState(bool muted) {
+  if (media_) {
+    media_->AudioChanged();
+  }
 }
 
 void EnginePage::MediaStartedPlaying(const MediaPlayerInfo& info, const content::MediaPlayerId& id) {
+  if (media_) {
+    media_->PlayerStarted(id, info.has_video);
+  }
   StateChanged();
 }
 
 void EnginePage::MediaStoppedPlaying(const MediaPlayerInfo& info,
                                      const content::MediaPlayerId& id,
                                      content::WebContentsObserver::MediaStoppedReason reason) {
+  if (media_) {
+    media_->PlayerStopped(id);
+  }
   StateChanged();
 }
 
+// The engine closed the page on its own; a page the binding lets go of stops
+// following its WebContents first.
 void EnginePage::WebContentsDestroyed() {
   settle_timer_.Stop();
   documents_.reset();
+  store_.reset();
+  content_.reset();
+  inspector_.reset();
+  infobars_.reset();
+  media_.reset();
+  Present(engine::PageViewClosed{.page_id = id_});
   if (find_helper_) {
     find_helper_->RemoveObserver(this);
     find_helper_ = nullptr;
@@ -635,6 +720,10 @@ void EnginePage::StateChanged() {
 
 void EnginePage::ReportState() {
   report_due_ = false;
+  PresentView();
+  if (standalone_) {
+    return;
+  }
   engine::PageSnapshot snapshot = Snapshot();
   if (snapshot == reported_) {
     return;
@@ -658,7 +747,7 @@ engine::PageSnapshot EnginePage::Snapshot() const {
   snapshot.can_go_back = controller.CanGoBack();
   snapshot.can_go_forward = controller.CanGoForward();
   snapshot.security = Security();
-  snapshot.media = binding_->MediaActivity(key_);
+  snapshot.media = MediaActivity();
   return snapshot;
 }
 
@@ -725,6 +814,66 @@ void EnginePage::Report(engine::EngineEvent event) {
 
 void EnginePage::Present(engine::EnginePresentation presentation) {
   binding_->Present(std::move(presentation));
+}
+
+void EnginePage::PresentView() {
+  if (!web_contents()) {
+    return;
+  }
+  const bool loading = web_contents()->IsLoading();
+  if (presented_loading_ != loading) {
+    presented_loading_ = loading;
+    Present(engine::PageLoadingChanged{.page_id = id_, .is_loading = loading});
+  }
+  auto history = std::make_pair(History(-1), History(1));
+  if (presented_history_ != history) {
+    presented_history_ = history;
+    Present(engine::PageHistoryChanged{.page_id = id_, .back = history.first, .forward = history.second});
+  }
+  std::optional<engine::BrandColor> theme;
+  if (const auto color = web_contents()->GetThemeColor()) {
+    theme = engine::BrandColor{.red = SkColorGetR(*color) / 255.0,
+                               .green = SkColorGetG(*color) / 255.0,
+                               .blue = SkColorGetB(*color) / 255.0,
+                               .alpha = SkColorGetA(*color) / 255.0};
+  }
+  if (presented_theme_ != theme) {
+    presented_theme_ = theme;
+    Present(engine::PageThemeChanged{.page_id = id_, .color = theme});
+  }
+}
+
+std::vector<engine::PageHistoryEntry> EnginePage::History(int direction) const {
+  std::vector<engine::PageHistoryEntry> entries;
+  auto& controller = web_contents()->GetController();
+  const int current = controller.GetCurrentEntryIndex();
+  for (int depth = 1; depth <= kHistoryDepth; ++depth) {
+    const int index = current + direction * depth;
+    if (index < 0 || index >= controller.GetEntryCount()) {
+      break;
+    }
+    auto* entry = controller.GetEntryAtIndex(index);
+    if (!entry) {
+      break;
+    }
+    entries.push_back(engine::PageHistoryEntry{.url = PresentedURL(entry->GetVirtualURL()),
+                                               .title = base::UTF16ToUTF8(entry->GetTitle())});
+  }
+  return entries;
+}
+
+void EnginePage::Watch() {
+  if (phase_ != Phase::kLive || !web_contents()) {
+    return;
+  }
+  Present(engine::PageViewReady{.page_id = id_});
+  presented_loading_.reset();
+  presented_history_.reset();
+  presented_theme_.reset();
+  if (infobars_) {
+    infobars_->PresentAll();
+  }
+  StateChanged();
 }
 
 // What the platform asks of the page directly.
@@ -886,6 +1035,9 @@ bool EnginePage::Show() {
   }
   web_contents()->WasShown();
   web_contents()->Focus();
+  if (media_) {
+    media_->VisibilityChanged(true);
+  }
   StateChanged();
   return true;
 }
@@ -894,9 +1046,143 @@ bool EnginePage::Hide() {
   if (!web_contents()) {
     return false;
   }
+  if (media_) {
+    media_->VisibilityChanged(false);
+  }
   web_contents()->WasHidden();
   StateChanged();
   return true;
+}
+
+engine::PageMediaActivity EnginePage::MediaActivity() const {
+  return media_ ? media_->Activity() : engine::PageMediaActivity::kNone;
+}
+
+bool EnginePage::EnterPictureInPicture() {
+  return media_ && media_->EnterPictureInPicture();
+}
+
+bool EnginePage::ActivateMediaSession(const std::string& document) {
+  return media_ && media_->Activate(document);
+}
+
+bool EnginePage::PerformMediaAction(const std::string& document, engine::MediaSessionAction action) {
+  return media_ && media_->Perform(document, action);
+}
+
+bool EnginePage::MuteMediaSession(const std::string& document, bool muted) {
+  return media_ && media_->Mute(document, muted);
+}
+
+bool EnginePage::AnswerInfoBar(int id, engine::InfoBarAnswer answer) {
+  return infobars_ && infobars_->Answer(id, answer);
+}
+
+// Fetches the icon again rather than replay the one the engine has.
+bool EnginePage::RefreshIcon() {
+  auto* driver = web_contents() ? favicon::ContentFaviconDriver::FromWebContents(web_contents()) : nullptr;
+  if (!driver) {
+    return false;
+  }
+  driver->FetchFavicon(web_contents()->GetLastCommittedURL(), /*is_same_document=*/false);
+  return true;
+}
+
+bool EnginePage::ShowBlockedPopups() {
+  auto* blocker =
+      web_contents() ? blocked_content::PopupBlockerTabHelper::FromWebContents(web_contents()) : nullptr;
+  if (!blocker || !blocker->GetBlockedPopupsCount()) {
+    return false;
+  }
+  blocker->ShowAllBlockedPopups();
+  presented_blocked_popups_ = 0;
+  return true;
+}
+
+bool EnginePage::AddContentScript(std::string source, bool main_frame_only) {
+  if (!content_ || source.empty()) {
+    return false;
+  }
+  content_->Add(std::move(source), main_frame_only);
+  return true;
+}
+
+bool EnginePage::EvaluateContentScript(const engine::Guid& evaluation,
+                                       const std::string& source,
+                                       const std::string& frame) {
+  return content_ && content_->Evaluate(evaluation, source, frame);
+}
+
+bool EnginePage::OpenInspector(std::optional<engine::InspectorPanel> panel) {
+  return inspector_ && inspector_->Open(panel);
+}
+
+bool EnginePage::CloseInspector() {
+  return inspector_ && inspector_->Close();
+}
+
+bool EnginePage::Inspected() const {
+  return inspector_ && inspector_->IsOpen();
+}
+
+engine::InspectorLayout EnginePage::LayoutInspector(double width, double height) const {
+  return inspector_ ? inspector_->Layout(width, height) : engine::InspectorLayout{};
+}
+
+bool EnginePage::FinishStoreRequest() {
+  if (!store_) {
+    return false;
+  }
+  store_->RequestFinished();
+  return true;
+}
+
+void EnginePage::RefreshStore() {
+  if (store_) {
+    store_->Refresh();
+  }
+}
+
+// The engine's hooks.
+
+void EnginePage::FullscreenChanged(bool active) {
+  Present(engine::ContentFullscreenChanged{.page_id = id_, .active = active});
+}
+
+void EnginePage::HoverChanged(const GURL& url) {
+  Present(engine::LinkHovered{.page_id = id_,
+                              .url = url.is_valid() ? std::optional<std::string>(PresentedURL(url)) : std::nullopt});
+}
+
+// The engine's blocker forgets its pop-ups when the document changes.
+void EnginePage::SiteIndicatorsChanged() {
+  auto* blocker =
+      web_contents() ? blocked_content::PopupBlockerTabHelper::FromWebContents(web_contents()) : nullptr;
+  const size_t count = blocker ? blocker->GetBlockedPopupsCount() : 0;
+  if (count < presented_blocked_popups_) {
+    presented_blocked_popups_ = count;
+  }
+  if (count <= presented_blocked_popups_) {
+    return;
+  }
+  presented_blocked_popups_ = count;
+  Present(engine::PopupBlocked{.page_id = id_, .page_url = PresentedURL(web_contents()->GetLastCommittedURL())});
+}
+
+void EnginePage::StagedLinkUnavailable() {
+  Present(engine::StagedLinkUnavailable{.page_id = id_});
+}
+
+void EnginePage::InspectorChanged() {
+  if (inspector_) {
+    inspector_->Update();
+  }
+}
+
+void EnginePage::InspectorClosing() {
+  if (inspector_) {
+    inspector_->Closing();
+  }
 }
 
 }  // namespace crest

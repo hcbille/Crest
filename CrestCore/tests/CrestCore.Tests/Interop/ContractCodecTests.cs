@@ -169,8 +169,12 @@ public sealed unsafe class ContractCodecTests {
 
     [Fact]
     public void EveryFixedSetMemberTravelsAsItsIndexInAll() {
-        var sets = Sets().Where(type => !type.IsDefined(typeof(OpenSetAttribute), false)).ToList();
+        // A set only the platform's direct path to an engine carries has no
+        // reader in the core's codec.
+        var sets = Sets().Where(type => !type.IsDefined(typeof(OpenSetAttribute), false) &&
+            typeof(ContractCodec).GetMethod($"Write{type.Name}") is not null).ToList();
         Assert.Contains(typeof(DownloadPhase), sets);
+        Assert.DoesNotContain(typeof(PageExportFailure), sets);
         foreach (var type in sets) {
             var members = SetMembers(type)!;
             var write = typeof(ContractCodec).GetMethod($"Write{type.Name}")!;
@@ -424,8 +428,11 @@ public sealed unsafe class ContractCodecTests {
         Assert.DoesNotContain("localized", schema.EngineCanonical, StringComparison.Ordinal);
         // The platform's direct path to a binding shares the engine contract,
         // and the core never reads or writes it.
-        Assert.Contains("pagerequest 0 CapturePage -> bool", schema.EngineCanonical, StringComparison.Ordinal);
-        Assert.DoesNotContain("ReadPageRequest(", CSharpCodecEmitter.Emit(schema), StringComparison.Ordinal);
+        Assert.Matches(@"pagerequest \d+ CapturePage -> bool", schema.EngineCanonical);
+        var codec = CSharpCodecEmitter.Emit(schema);
+        Assert.DoesNotContain("ReadPageRequest(", codec, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReadPageMediaState(", codec, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReadInfoBarAnswer(", codec, StringComparison.Ordinal);
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

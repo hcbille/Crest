@@ -1023,8 +1023,8 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
             engineInfoBars.append(bar)
         case .infoBarRemoved(let id):
             engineInfoBars.removeAll { $0.id == id }
-        case .mediaSession(let body):
-            mediaSessionCoordinator?.receive(body, isMainFrame: true)
+        case .mediaSession(let event):
+            mediaSessionCoordinator?.receive(event, isMainFrame: true)
         case .contentFullscreenChanged(let active):
             isContentFullscreen = active
         case .userActivity:

@@ -1,9 +1,9 @@
 #if CREST_CHROMIUM_HOST
     import AppKit
 
-    /// The desktop Chromium adapter for one page. The engine reports its page
-    /// through `ChromiumNativePage`'s observer and handlers; this decodes those
-    /// reports into the page's engine-neutral events and link actions.
+    /// The desktop Chromium adapter for one page. The engine presents its page
+    /// through `ChromiumNativePage` as the page's engine-neutral events and asks
+    /// through its handlers; this connects both to the page.
     @MainActor
     final class ChromiumPageAdapter: BrowserPageEngineAdapter {
         // MARK: - Variables
@@ -49,9 +49,7 @@
                 await page?.resolveEngineSitePermission(permission, origin: origin, topLevelOrigin: topLevelOrigin)
                     ?? .dismiss
             }
-            native.observer = { [weak page] report in
-                for event in report.pageEvents { page?.receive(event) }
-            }
+            native.observer = { [weak page] event in page?.receive(event) }
             native.linkHandler = { [weak page] name, destination, label in
                 guard let page, let action = ChromiumLinkAction(rawValue: name) else { return false }
                 return page.performEngineLinkAction(action.pageAction, destination: destination, label: label)
@@ -173,65 +171,6 @@
                     isSecureTransport: origin.isSecure,
                     previousFailureCount: previousFailures),
                 proposedUsername: nil)
-        }
-    }
-
-    extension ChromiumPageReport {
-        /// The engine-neutral events this report describes, none when the page
-        /// has nothing to do with it or its values do not describe one.
-        fileprivate var pageEvents: [BrowserPageEngineEvent] {
-            if event == .changed { return change?.pageEvents ?? [] }
-            return pageEvent.map { [$0] } ?? []
-        }
-
-        private var pageEvent: BrowserPageEngineEvent? {
-            let url = (values["url"] as? String).flatMap(URL.init(string:))
-            switch event {
-            case .navigationStarted: return .navigationStarted
-            case .changed: return nil
-            case .infoBarAdded: return BrowserEngineInfoBar(values: values).map { .infoBarAdded($0) }
-            case .infoBarRemoved: return .infoBarRemoved(id: values["id"] as? Int)
-            case .mediaSession: return values["body"].map { .mediaSession(body: $0) }
-            case .fullscreenChanged: return .contentFullscreenChanged(values["active"] as? Bool == true)
-            case .userActivity: return .userActivity
-            case .linkHover: return .linkHovered(url)
-            case .popupBlocked: return url.map { .popupBlocked(pageURL: $0) }
-            case .favicon: return url.map { .favicon(values["data"] as? Data, source: $0) }
-            case .developerPanel: return .developerPanelClosed
-            case .closed: return .closeRequested
-            case .creationFailed:
-                return .creationFailed(message: String(localized: "Chromium couldn’t create this page."))
-            case .created, .contentMessage, .storeInstall, .storeRemove, .closeCanceled, .linkUnavailable: return nil
-            }
-        }
-    }
-
-    extension ChromiumPageChange {
-        /// What one `changed` report tells the page, in order: whether it
-        /// still loads, which ends a navigation it no longer loads, its
-        /// progress and theme, a failure, then a committed document. What the
-        /// page shows reaches the core through the native page's reporter.
-        fileprivate var pageEvents: [BrowserPageEngineEvent] {
-            let isLoading = isLoading ?? false
-            var events: [BrowserPageEngineEvent] = [
-                .loadingChanged(isLoading),
-                .progressChanged(isLoading ? 0.5 : 1),
-                .themeColorChanged(
-                    themeColor.map { argb in
-                        NSColor(
-                            srgbRed: CGFloat((argb >> 16) & 0xFF) / 255, green: CGFloat((argb >> 8) & 0xFF) / 255,
-                            blue: CGFloat(argb & 0xFF) / 255, alpha: CGFloat((argb >> 24) & 0xFF) / 255)
-                    }),
-            ]
-            switch pageFailure {
-            case .processTerminated: events.append(.webContentProcessTerminated)
-            case .navigationFailed: events.append(.navigationFailed)
-            case nil: break
-            }
-            if committed == true {
-                events.append(.navigationCommitted(url.flatMap(URL.init(string:)), isLoading: isLoading))
-            }
-            return events
         }
     }
 

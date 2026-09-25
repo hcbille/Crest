@@ -41,8 +41,8 @@ internal static class CSharpCodecEmitter {
         EmitAnswers(code, schema);
         var direct = DirectOnly(schema);
         foreach (var record in schema.Records.Where(record => !direct.Contains(record.Type))) EmitRecord(code, record);
-        foreach (var item in schema.Enums) EmitEnum(code, item);
-        var tagged = schema.Sets.Where(set => !set.IsOpen).ToList();
+        foreach (var item in schema.Enums.Where(item => !direct.Contains(item.Type))) EmitEnum(code, item);
+        var tagged = schema.Sets.Where(set => !set.IsOpen && !direct.Contains(set.Type)).ToList();
         foreach (var set in tagged) EmitSet(code, set);
         if (tagged.Count > 0) EmitTagOf(code);
         code.Append("}\n");
@@ -149,20 +149,24 @@ internal static class CSharpCodecEmitter {
         code.Append($"        writer.WriteEnum(TagOf({set.Name}.All, value));\n    }}\n");
     }
 
-    /// The records only the platform's direct path to an engine binding
-    /// carries, which never reach the core.
+    /// The records, enums and sets only the platform's direct path to an
+    /// engine binding carries, which never reach the core.
     private static HashSet<Type> DirectOnly(ContractSchema schema) {
         var records = schema.Records.ToDictionary(record => record.Type);
         var direct = Reachable(records, ContractRoot.All.Where(root => !root.ReachesCore)
-            .SelectMany(root => schema.Members(root)).Select(member => member.Record.Type));
+            .SelectMany(root => Carried(schema, root)));
         var core = Reachable(records, schema.Records.Select(record => record.Type).Where(type => !direct.Contains(type))
-            .Concat(ContractRoot.All.Where(root => root.ReachesCore).SelectMany(root => schema.Members(root))
-                .Select(member => member.Record.Type)));
+            .Concat(ContractRoot.All.Where(root => root.ReachesCore).SelectMany(root => Carried(schema, root))));
         direct.ExceptWith(core);
         return direct;
     }
 
-    /// `seeds` and every record their fields hold.
+    /// The types `root`'s members are, and the types their answers hold.
+    private static IEnumerable<Type> Carried(ContractSchema schema, ContractRoot root) =>
+        schema.Members(root).SelectMany(member =>
+            member.Answer is { } answer ? Held(answer).Prepend(member.Record.Type) : [member.Record.Type]);
+
+    /// `seeds` and every type their fields hold.
     private static HashSet<Type> Reachable(Dictionary<Type, ContractRecord> records, IEnumerable<Type> seeds) {
         var reached = new HashSet<Type>();
         var pending = new Stack<Type>(seeds);
@@ -176,6 +180,8 @@ internal static class CSharpCodecEmitter {
 
     private static IEnumerable<Type> Held(FieldType type) => type switch {
         RecordField record => [record.Type],
+        EnumField item => [item.Type],
+        SetField set => [set.Type],
         ListField list => Held(list.Element),
         OptionalField optional => Held(optional.Value),
         _ => []

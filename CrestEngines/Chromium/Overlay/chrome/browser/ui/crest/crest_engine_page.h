@@ -23,7 +23,12 @@ class GURL;
 namespace crest {
 
 class EngineBinding;
+class PageContent;
 class PageDocuments;
+class PageInfoBars;
+class PageInspector;
+class PageMedia;
+class PageStore;
 
 // One page the core asked Chromium to create, from its CreatePage until the
 // engine lets it go. It turns the WebContents' own callbacks into the core's
@@ -45,9 +50,13 @@ class PageDocuments;
 // the engine's own `chrome://` pages are `crest://` pages.
 //
 // It also answers what the platform asks of the page directly: its history,
-// reload, find, zoom, capture, export and whether it is on screen. A
-// standalone page, one of the engine's own that Settings shows, answers those
-// and reports nothing to the core.
+// reload, find, zoom, capture, export and whether it is on screen, its media
+// session, the engine's bars and Crest's content bridges. It presents what
+// the platform shows of the page: whether its view is ready, its navigations
+// as they start, commit and fail, its loading, history and theme, the link
+// under the pointer, blocked pop-ups, fullscreen and a Chrome Web Store
+// listing's requests. A standalone page, one of the engine's own that
+// Settings shows, answers and presents those and reports nothing to the core.
 class EnginePage final : public content::WebContentsObserver,
                          public favicon::FaviconDriverObserver,
                          public find_in_page::FindResultObserver {
@@ -71,6 +80,11 @@ class EnginePage final : public content::WebContentsObserver,
   // The longest a move within the document waits for its title, counted from
   // the move, so a page whose title never stops changing still records.
   static constexpr base::TimeDelta kTitleSettleLimit = base::Seconds(2);
+  // The person's typing, clicking and scrolling in the page is presented at
+  // most this often.
+  static constexpr base::TimeDelta kInteractionInterval = base::Seconds(1);
+  // The most history entries presented each way.
+  static constexpr int kHistoryDepth = 50;
 
   EnginePage(EngineBinding& binding, const engine::CreatePage& creation, bool standalone = false);
   EnginePage(const EnginePage&) = delete;
@@ -117,6 +131,10 @@ class EnginePage final : public content::WebContentsObserver,
   // The icon the engine found for the page's document.
   std::optional<std::vector<uint8_t>> icon() const;
 
+  // The platform shows the page from now on. A live page presents that its
+  // view is ready and everything its view shows again.
+  void Watch();
+
   // What the platform asks of the page directly. Each answers whether the
   // page took it; what finishes later is presented.
   bool GoToOffset(int offset);
@@ -128,6 +146,35 @@ class EnginePage final : public content::WebContentsObserver,
   bool Export(const engine::Guid& export_id, engine::PageExportFormat format, double width);
   bool Show();
   bool Hide();
+  engine::PageMediaActivity MediaActivity() const;
+  bool EnterPictureInPicture();
+  bool ActivateMediaSession(const std::string& document);
+  bool PerformMediaAction(const std::string& document, engine::MediaSessionAction action);
+  bool MuteMediaSession(const std::string& document, bool muted);
+  bool AnswerInfoBar(int id, engine::InfoBarAnswer answer);
+  bool RefreshIcon();
+  bool ShowBlockedPopups();
+  bool AddContentScript(std::string source, bool main_frame_only);
+  bool EvaluateContentScript(const engine::Guid& evaluation, const std::string& source, const std::string& frame);
+  bool OpenInspector(std::optional<engine::InspectorPanel> panel);
+  bool CloseInspector();
+  bool Inspected() const;
+  engine::InspectorLayout LayoutInspector(double width, double height) const;
+  // The review a Chrome Web Store listing's request began finished.
+  bool FinishStoreRequest();
+  // The engine's extensions changed, which a store listing's button shows.
+  void RefreshStore();
+
+  // What the engine's own hooks say about the page.
+  void FullscreenChanged(bool active);
+  void HoverChanged(const GURL& url);
+  void SiteIndicatorsChanged();
+  // A link staged for the page's first load no longer applies.
+  void StagedLinkUnavailable();
+  // The engine offered, relaid or withdrew the docked inspector, or the
+  // inspector is going away.
+  void InspectorChanged();
+  void InspectorClosing();
 
   // What the page shows changed; it reports once this turn ends.
   void StateChanged();
@@ -155,7 +202,11 @@ class EnginePage final : public content::WebContentsObserver,
   void DidChangeVisibleSecurityState() override;
   void DidChangeThemeColor() override;
   void PrimaryMainFrameRenderProcessGone(base::TerminationStatus status) override;
+  void DidGetUserInteraction(const blink::WebInputEvent& event) override;
+  void PrimaryMainDocumentElementAvailable() override;
+  void DOMContentLoaded(content::RenderFrameHost* frame) override;
   void OnAudioStateChanged(bool audible) override;
+  void DidUpdateAudioMutingState(bool muted) override;
   void MediaStartedPlaying(const MediaPlayerInfo& info, const content::MediaPlayerId& id) override;
   void MediaStoppedPlaying(const MediaPlayerInfo& info,
                            const content::MediaPlayerId& id,
@@ -175,6 +226,9 @@ class EnginePage final : public content::WebContentsObserver,
 
   void ApplyZoom();
   void Present(engine::EnginePresentation presentation);
+  // Presents what the page's view shows that changed since it last did.
+  void PresentView();
+  std::vector<engine::PageHistoryEntry> History(int direction) const;
 
   // The engine's own callbacks, as navigation events.
   void Navigate(const std::string& url);
@@ -245,6 +299,20 @@ class EnginePage final : public content::WebContentsObserver,
   raw_ptr<find_in_page::FindTabHelper> find_helper_ = nullptr;
   bool find_pending_ = false;
   std::unique_ptr<PageDocuments> documents_;
+  std::unique_ptr<PageMedia> media_;
+  std::unique_ptr<PageInfoBars> infobars_;
+  std::unique_ptr<PageInspector> inspector_;
+  std::unique_ptr<PageContent> content_;
+  std::unique_ptr<PageStore> store_;
+
+  // What the page's view showed when it was last presented.
+  std::optional<bool> presented_loading_;
+  std::optional<std::pair<std::vector<engine::PageHistoryEntry>, std::vector<engine::PageHistoryEntry>>>
+      presented_history_;
+  std::optional<std::optional<engine::BrandColor>> presented_theme_;
+  // How many pop-ups the engine blocked in the document when last presented.
+  size_t presented_blocked_popups_ = 0;
+  base::TimeTicks last_interaction_;
   base::WeakPtrFactory<EnginePage> weak_factory_{this};
 };
 

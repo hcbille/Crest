@@ -253,9 +253,33 @@ enum EngineCommand: Equatable, Sendable {
 
 /// What an engine binding tells the platform directly about one of its pages.
 enum EnginePresentation: Equatable, Sendable {
+    case contentFullscreenChanged(ContentFullscreenChanged)
+    case contentMessagePosted(ContentMessagePosted)
+    case contentScriptEvaluated(ContentScriptEvaluated)
     case findFinished(FindFinished)
+    case infoBarRemoved(InfoBarRemoved)
+    case infoBarShown(InfoBarShown)
+    case inspectorClosed(InspectorClosed)
+    case inspectorLayoutChanged(InspectorLayoutChanged)
+    case linkHovered(LinkHovered)
+    case mediaSessionChanged(MediaSessionChanged)
     case pageCaptured(PageCaptured)
     case pageExported(PageExported)
+    case pageHistoryChanged(PageHistoryChanged)
+    case pageInteracted(PageInteracted)
+    case pageLoadingChanged(PageLoadingChanged)
+    case pageNavigationCommitted(PageNavigationCommitted)
+    case pageNavigationFailed(PageNavigationFailed)
+    case pageNavigationStarted(PageNavigationStarted)
+    case pageRendererGone(PageRendererGone)
+    case pageThemeChanged(PageThemeChanged)
+    case pageViewClosed(PageViewClosed)
+    case pageViewReady(PageViewReady)
+    case pageViewUnavailable(PageViewUnavailable)
+    case popupBlocked(PopupBlocked)
+    case stagedLinkUnavailable(StagedLinkUnavailable)
+    case storeInstallRequested(StoreInstallRequested)
+    case storeRemovalRequested(StoreRemovalRequested)
 }
 
 extension CoreState {
@@ -310,6 +334,21 @@ struct AcknowledgeUploads: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [UploadedRecord]
 }
 
+struct ActivateMediaSession: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let document: String
+}
+
+struct AddContentScript: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let source: String
+    let mainFrameOnly: Bool
+}
+
 struct AddSearchEngine: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -351,6 +390,14 @@ struct AnalyzedSpaceReview: Equatable, Sendable {
     let sourceSpaceID: UUID
     let duplicateTabIDs: [UUID]
     let matchedTabIDs: [UUID]
+}
+
+struct AnswerInfoBar: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let infoBarID: Int
+    let answer: InfoBarAnswer
 }
 
 struct AppConfiguration: Equatable, Sendable {
@@ -575,6 +622,12 @@ struct ClearHistory: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID?
 }
 
+struct CloseInspector: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+}
+
 struct ClosePage: Equatable, Sendable {
     let pageID: UUID
     let keepsState: Bool
@@ -633,9 +686,35 @@ struct ColorPalette: Equatable, Sendable {
     let colors: [BrandColor]
 }
 
+struct ContentFrame: Equatable, Sendable, Identifiable {
+    let id: String
+    let isMainFrame: Bool
+    let `protocol`: String
+    let host: String
+    let port: Int
+}
+
+struct ContentFullscreenChanged: Equatable, Sendable {
+    let pageID: UUID
+    let active: Bool
+}
+
+struct ContentMessagePosted: Equatable, Sendable {
+    let pageID: UUID
+    let handler: String
+    let body: String
+    let frame: ContentFrame
+}
+
 struct ContentRuleList: Equatable, Sendable {
     let identifier: String
     let source: String
+}
+
+struct ContentScriptEvaluated: Equatable, Sendable {
+    let pageID: UUID
+    let evaluationID: UUID
+    let json: String?
 }
 
 struct CreateFolder: Intent, SessionIntent, Equatable, Sendable {
@@ -1082,6 +1161,21 @@ struct EngineRegistration: Equatable, Sendable {
     let isDefault: Bool
 }
 
+struct EnterPictureInPicture: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+}
+
+struct EvaluateContentScript: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let evaluationID: UUID
+    let source: String
+    let frameID: String
+}
+
 struct ExpandSavedTabs: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1336,6 +1430,33 @@ struct IncompleteSplit: Equatable, Sendable {
     }
 }
 
+struct InfoBarRemoved: Equatable, Sendable {
+    let pageID: UUID
+    let infoBarID: Int
+}
+
+struct InfoBarShown: Equatable, Sendable {
+    let pageID: UUID
+    let infoBarID: Int
+    let message: String
+    let acceptLabel: String?
+    let cancelLabel: String?
+    let closeable: Bool
+}
+
+struct InspectorClosed: Equatable, Sendable {
+    let pageID: UUID
+}
+
+struct InspectorLayout: Equatable, Sendable {
+    let inspector: PageArea?
+    let page: PageArea?
+}
+
+struct InspectorLayoutChanged: Equatable, Sendable {
+    let pageID: UUID
+}
+
 struct InteractionState: Equatable, Sendable {
     let state: Data?
 }
@@ -1520,6 +1641,14 @@ struct LaunchPlan: Query, Equatable, Sendable {
     let hasActiveLaunchGate: Bool
 }
 
+struct LayoutInspector: PageRequest, Equatable, Sendable {
+    typealias Answer = InspectorLayout
+
+    let pageID: UUID
+    let width: Double
+    let height: Double
+}
+
 struct LeavePageFailure: Intent, PageIntent, Equatable, Sendable {
     let pageID: UUID
 }
@@ -1552,6 +1681,11 @@ struct LegacySession: Equatable, Sendable {
     let wholeGraph: Data?
     let history: [LegacyHistory]
     let journal: Data?
+}
+
+struct LinkHovered: Equatable, Sendable {
+    let pageID: UUID
+    let url: String?
 }
 
 struct LinkRoute: Equatable, Sendable, Identifiable {
@@ -1593,6 +1727,21 @@ struct LockAllSpaces: Intent, SpaceAccessIntent, Equatable, Sendable {
 
 struct LockSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
     let spaceID: UUID
+}
+
+struct MediaSessionChanged: Equatable, Sendable {
+    let pageID: UUID
+    let document: String
+    let sequence: Int64
+    let location: String
+    let active: Bool
+    let title: String?
+    let artist: String?
+    let album: String?
+    let playback: MediaPlayback
+    let audible: Bool
+    let muted: Bool
+    let actions: [MediaSessionAction]
 }
 
 struct MergeCloudSnapshot: Intent, CloudSyncIntent, Equatable, Sendable {
@@ -1689,6 +1838,14 @@ struct MoveTabsToSpace: Intent, SessionIntent, Equatable, Sendable {
     let follows: Bool
 }
 
+struct MuteMediaSession: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let document: String
+    let muted: Bool
+}
+
 struct NameSplit: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1780,6 +1937,13 @@ struct NumberedSelections: Query, Equatable, Sendable {
     typealias Answer = NumberedSelectionList
 
     let windowID: UUID
+}
+
+struct OpenInspector: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let panel: InspectorPanel?
 }
 
 struct OpenLinkInSplit: Intent, SessionIntent, Equatable, Sendable {
@@ -1883,6 +2047,17 @@ struct PageFailure: Equatable, Sendable {
     let code: Int64
 }
 
+struct PageHistoryChanged: Equatable, Sendable {
+    let pageID: UUID
+    let back: [PageHistoryEntry]
+    let forward: [PageHistoryEntry]
+}
+
+struct PageHistoryEntry: Equatable, Sendable {
+    let url: String
+    let title: String
+}
+
 struct PageIcon: PageRequest, Equatable, Sendable {
     typealias Answer = PageIconImage
 
@@ -1897,6 +2072,16 @@ struct PageIconChanged: EngineEvent, Equatable, Sendable {
 
 struct PageIconImage: Equatable, Sendable {
     let image: Data?
+}
+
+struct PageInspected: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+}
+
+struct PageInteracted: Equatable, Sendable {
+    let pageID: UUID
 }
 
 struct PageLiveState: Equatable, Sendable {
@@ -1925,6 +2110,35 @@ struct PageLiveState: Equatable, Sendable {
     let address: String?
 }
 
+struct PageLoadingChanged: Equatable, Sendable {
+    let pageID: UUID
+    let isLoading: Bool
+}
+
+struct PageMedia: PageRequest, Equatable, Sendable {
+    typealias Answer = PageMediaState
+
+    let pageID: UUID
+}
+
+struct PageMediaState: Equatable, Sendable {
+    let activity: PageMediaActivity
+}
+
+struct PageNavigationCommitted: Equatable, Sendable {
+    let pageID: UUID
+    let url: String
+    let isLoading: Bool
+}
+
+struct PageNavigationFailed: Equatable, Sendable {
+    let pageID: UUID
+}
+
+struct PageNavigationStarted: Equatable, Sendable {
+    let pageID: UUID
+}
+
 struct PageNotLoadable: Equatable, Sendable {
     let pageID: UUID
 }
@@ -1939,6 +2153,10 @@ struct PageProfileMismatch: Equatable, Sendable {
 }
 
 struct PageRemoved: Equatable, Sendable {
+    let pageID: UUID
+}
+
+struct PageRendererGone: Equatable, Sendable {
     let pageID: UUID
 }
 
@@ -1979,6 +2197,23 @@ struct PageStateChanged: EngineEvent, Equatable, Sendable {
     let snapshot: PageSnapshot
 }
 
+struct PageThemeChanged: Equatable, Sendable {
+    let pageID: UUID
+    let color: BrandColor?
+}
+
+struct PageViewClosed: Equatable, Sendable {
+    let pageID: UUID
+}
+
+struct PageViewReady: Equatable, Sendable {
+    let pageID: UUID
+}
+
+struct PageViewUnavailable: Equatable, Sendable {
+    let pageID: UUID
+}
+
 struct PasskeyAccess: Query, Equatable, Sendable {
     typealias Answer = PasskeyAccessVerdict
 
@@ -2007,6 +2242,14 @@ struct PendingUploadList: Equatable, Sendable {
 struct PendingUploads: Query, Equatable, Sendable {
     typealias Answer = PendingUploadList
 
+}
+
+struct PerformMediaAction: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let document: String
+    let action: MediaSessionAction
 }
 
 struct PersistentWorkspaceRequired: Equatable, Sendable {
@@ -2041,6 +2284,11 @@ struct PinsOneTabAtATime: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Drag one tab at a time to pin it.")
     }
+}
+
+struct PopupBlocked: Equatable, Sendable {
+    let pageID: UUID
+    let pageURL: String
 }
 
 struct PrivateWorkspaceBoundary: Equatable, Sendable {
@@ -2093,6 +2341,18 @@ struct RecordsToUpload: Query, Equatable, Sendable {
 
 struct RecoveryCheckpointUnusable: Equatable, Sendable {
     let reason: StorageFailure
+}
+
+struct RefreshPageIcon: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+}
+
+struct RefreshStoreListing: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
 }
 
 struct ReleasePage: Intent, PageIntent, Equatable, Sendable {
@@ -2432,6 +2692,12 @@ struct ShowAdjacentSpace: Intent, WindowIntent, Equatable, Sendable {
 struct ShowAdjacentTab: Intent, WindowIntent, Equatable, Sendable {
     let windowID: UUID
     let direction: AdjacentDirection
+}
+
+struct ShowBlockedPopups: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
 }
 
 struct ShowPage: PageRequest, Equatable, Sendable {
@@ -2779,6 +3045,10 @@ struct SplitTabs: Intent, SessionIntent, Equatable, Sendable {
     let index: Int?
 }
 
+struct StagedLinkUnavailable: Equatable, Sendable {
+    let pageID: UUID
+}
+
 struct StaleCredentialComparison: Equatable, Sendable {
 }
 
@@ -2811,6 +3081,16 @@ struct StorageRestoreInterrupted: Equatable, Sendable {
 
 struct StorageUnreadable: Equatable, Sendable {
     let reason: StorageFailure
+}
+
+struct StoreInstallRequested: Equatable, Sendable {
+    let pageID: UUID
+    let extensionID: String
+}
+
+struct StoreRemovalRequested: Equatable, Sendable {
+    let pageID: UUID
+    let extensionID: String
 }
 
 struct StoredSessionClosed: Equatable, Sendable {
@@ -3094,6 +3374,12 @@ struct UploadBatch: Equatable, Sendable {
 struct UploadedRecord: Equatable, Sendable {
     let record: SyncRecordReference
     let version: SyncVersion
+}
+
+struct WatchPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
 }
 
 struct WebPagesOnly: Equatable, Sendable {
@@ -3382,6 +3668,31 @@ enum ImportFlaw: Int, CaseIterable, Sendable {
     case unreadable = 0
     case malformedSplit = 1
     case unpairedChoices = 2
+}
+
+enum InfoBarAnswer: Int, CaseIterable, Sendable {
+    case accept = 0
+    case cancel = 1
+    case dismiss = 2
+}
+
+enum InspectorPanel: Int, CaseIterable, Sendable {
+    case console = 0
+    case elements = 1
+    case network = 2
+}
+
+enum MediaPlayback: Int, CaseIterable, Sendable {
+    case none = 0
+    case playing = 1
+    case paused = 2
+}
+
+enum MediaSessionAction: Int, CaseIterable, Sendable {
+    case play = 0
+    case pause = 1
+    case previousTrack = 2
+    case nextTrack = 3
 }
 
 enum PageExportFormat: Int, CaseIterable, Sendable {

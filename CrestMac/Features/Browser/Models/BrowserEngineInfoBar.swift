@@ -15,13 +15,13 @@ struct BrowserEngineInfoBar: Identifiable, Equatable {
         case accept, cancel, dismiss
     }
 
-    init?(values: [String: Any]) {
-        guard let id = values["id"] as? Int, let message = values["message"] as? String,
-            !message.isEmpty else { return nil }
+    /// A bar with no message asks nothing, so there is none to show.
+    init?(id: Int, message: String, acceptTitle: String, cancelTitle: String, isCloseable: Bool) {
+        guard !message.isEmpty else { return nil }
         self.id = id
         self.message = message
-        acceptTitle = values["ok"] as? String ?? ""
-        cancelTitle = values["cancel"] as? String ?? ""
-        isCloseable = values["closeable"] as? Bool ?? true
+        self.acceptTitle = acceptTitle
+        self.cancelTitle = cancelTitle
+        self.isCloseable = isCloseable
     }
 }

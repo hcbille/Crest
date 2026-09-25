@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -50,15 +51,13 @@ class EnginePage;
 class EngineBinding {
  public:
   // What the platform shell still does for the binding. TRANSITIONAL: the
-  // shell keeps the engine profiles, the Browsers and the pages' media
-  // sessions until those areas move into the binding.
+  // shell keeps the engine profiles and the Browsers until those areas move
+  // into the binding.
   class Shell {
    public:
     virtual ~Shell() = default;
     // Creates `page`'s WebContents in the engine profile of `profile`, inside
-    // the Browser of `window`, and answers it, or nullptr when it cannot. The
-    // shell attaches its own presentation to the WebContents but tells no one
-    // yet.
+    // the Browser of `window`, and answers it, or nullptr when it cannot.
     virtual void CreateContents(const std::string& page,
                                 const std::string& profile,
                                 bool is_private,
@@ -69,25 +68,18 @@ class EngineBinding {
     virtual content::WebContents* AdoptContents(const std::string& page,
                                                 const std::string& token,
                                                 const std::string& profile) = 0;
-    // The binding follows `page`'s new WebContents: the platform may now
-    // present it, before the page loads anything.
-    virtual void ContentsCreated(const std::string& page) = 0;
-    // The binding could not create `page`.
-    virtual void CreationFailed(const std::string& page) = 0;
     // Destroys `page`'s WebContents, which the binding has let go of.
     virtual void DestroyContents(const std::string& page) = 0;
     // Loads the link navigation staged as `token` in `page`, which is heading
     // to `url`. TRANSITIONAL until link routing moves into the core (WP C (l)).
     virtual bool LoadStagedNavigation(const std::string& page, const std::string& token, const GURL& url) = 0;
     virtual void DiscardStagedNavigation(const std::string& token) = 0;
-    // What media `page` runs. TRANSITIONAL until the media session moves.
-    virtual engine::PageMediaActivity MediaActivity(const std::string& page) = 0;
     // Moves `page`'s WebContents into the Browser of `window`. TRANSITIONAL
     // until the Browsers move into the binding.
     virtual bool MoveToWindow(const std::string& page, const std::string& window) = 0;
-    // `page`'s view came on screen or left it, which its media follows.
-    // TRANSITIONAL until the media session moves.
-    virtual void VisibilityChanged(const std::string& page, bool visible) = 0;
+    // Hosts the view of the inspector docked on `page`, or none when
+    // `frontend` is null.
+    virtual void DockInspector(const std::string& page, content::WebContents* frontend) = 0;
   };
 
   static EngineBinding& Get();
@@ -113,9 +105,14 @@ class EngineBinding {
   bool Adopt(const std::string& page, const std::string& token);
   bool Stage(const std::string& page, const std::string& token, const std::string& url);
   void Load(const std::string& page, const std::string& url);
-  // What `page` shows changed in a way only the shell sees, such as its media
-  // session.
-  void StateChanged(const std::string& page);
+
+  // The page that follows `contents`, for the engine's own hooks, or nullptr
+  // when no page does.
+  EnginePage* PageFor(content::WebContents* contents);
+  // The engine's extensions changed, which Chrome Web Store listings show.
+  void RefreshStoreListings();
+  // The shell hosts the view of the inspector docked on `page`, or none.
+  void DockInspector(const std::string& page, content::WebContents* frontend);
 
   // For the binding's pages.
   void Report(engine::EngineEvent event);
@@ -124,7 +121,6 @@ class EngineBinding {
   void PageLost(const std::string& page);
   bool LoadStagedNavigation(const std::string& page, const std::string& token, const GURL& url);
   void DiscardStagedNavigation(const std::string& token);
-  engine::PageMediaActivity MediaActivity(const std::string& page);
 
  private:
   friend class base::NoDestructor<EngineBinding>;
@@ -161,6 +157,22 @@ class EngineBinding {
   engine::PageIconImage Handle(const engine::PageIcon& request);
   bool Handle(const engine::OpenStandalonePage& request);
   bool Handle(const engine::CloseStandalonePage& request);
+  bool Handle(const engine::WatchPage& request);
+  engine::PageMediaState Handle(const engine::PageMedia& request);
+  bool Handle(const engine::EnterPictureInPicture& request);
+  bool Handle(const engine::ActivateMediaSession& request);
+  bool Handle(const engine::PerformMediaAction& request);
+  bool Handle(const engine::MuteMediaSession& request);
+  bool Handle(const engine::AnswerInfoBar& request);
+  bool Handle(const engine::RefreshPageIcon& request);
+  bool Handle(const engine::ShowBlockedPopups& request);
+  bool Handle(const engine::AddContentScript& request);
+  bool Handle(const engine::EvaluateContentScript& request);
+  bool Handle(const engine::RefreshStoreListing& request);
+  bool Handle(const engine::OpenInspector& request);
+  bool Handle(const engine::CloseInspector& request);
+  bool Handle(const engine::PageInspected& request);
+  engine::InspectorLayout Handle(const engine::LayoutInspector& request);
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
@@ -183,6 +195,9 @@ class EngineBinding {
   RAW_PTR_EXCLUSION void* ui_ = nullptr;
   bool disposing_ = false;
   std::map<std::string, std::unique_ptr<EnginePage>> pages_;
+  // The pages the engine could not create, until the core closes them, so a
+  // platform that comes to one late still hears it has no view.
+  std::set<std::string> failed_;
   std::deque<Outgoing> queue_;
   std::vector<std::string> due_;
   bool flush_posted_ = false;

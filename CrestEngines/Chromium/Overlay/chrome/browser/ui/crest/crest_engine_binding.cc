@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/ui/crest/crest_chrome_hooks.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -146,9 +147,8 @@ void EngineBinding::Created(const std::string& key, content::WebContents* conten
     const engine::Guid id = page->id();
     const bool standalone = page->standalone();
     pages_.erase(key);
-    if (shell_) {
-      shell_->CreationFailed(key);
-    }
+    failed_.insert(key);
+    Present(engine::PageViewUnavailable{.page_id = id});
     if (!standalone) {
       Report(engine::PageCreationFailed{.page_id = id});
     }
@@ -172,13 +172,10 @@ bool EngineBinding::Adopt(const std::string& key, const std::string& token) {
   return true;
 }
 
-// The page has its WebContents: the platform presents it, the core hears the
-// page is live, and then it loads what it was asked to.
+// The page has its WebContents: the platform hears its view is ready, the
+// core hears the page is live, and then it loads what it was asked to.
 void EngineBinding::Live(EnginePage& page, content::WebContents* contents) {
   page.Start(contents);
-  if (shell_) {
-    shell_->ContentsCreated(page.key());
-  }
   if (!page.standalone()) {
     Report(engine::PageCreated{.page_id = page.id()});
   }
@@ -193,6 +190,7 @@ void EngineBinding::Close(const engine::ClosePage& closing) {
     }
     page.mapped()->Stop();
   }
+  failed_.erase(key);
   std::erase(due_, key);
   if (shell_) {
     shell_->DestroyContents(key);
@@ -239,24 +237,49 @@ void EngineBinding::Load(const std::string& key, const std::string& url) {
   }
 }
 
-void EngineBinding::StateChanged(const std::string& key) {
-  if (EnginePage* page = Find(key)) {
-    page->StateChanged();
+EnginePage* EngineBinding::PageFor(content::WebContents* contents) {
+  if (!contents || disposing_) {
+    return nullptr;
+  }
+  for (auto& [key, page] : pages_) {
+    if (page->web_contents() == contents) {
+      return page.get();
+    }
+  }
+  return nullptr;
+}
+
+void EngineBinding::RefreshStoreListings() {
+  if (disposing_) {
+    return;
+  }
+  for (auto& [key, page] : pages_) {
+    page->RefreshStore();
   }
 }
 
+void EngineBinding::DockInspector(const std::string& key, content::WebContents* frontend) {
+  if (shell_ && !disposing_) {
+    shell_->DockInspector(key, frontend);
+  }
+}
+
+// The platform shows the link is gone rather than retry it as a bare address,
+// which would lose the initiating frame's security and referrer.
 bool EngineBinding::LoadStagedNavigation(const std::string& key, const std::string& token, const GURL& url) {
-  return shell_ && shell_->LoadStagedNavigation(key, token, url);
+  const bool loaded = shell_ && shell_->LoadStagedNavigation(key, token, url);
+  if (!loaded) {
+    if (EnginePage* page = Find(key)) {
+      page->StagedLinkUnavailable();
+    }
+  }
+  return loaded;
 }
 
 void EngineBinding::DiscardStagedNavigation(const std::string& token) {
   if (shell_) {
     shell_->DiscardStagedNavigation(token);
   }
-}
-
-engine::PageMediaActivity EngineBinding::MediaActivity(const std::string& key) {
-  return shell_ ? shell_->MediaActivity(key) : engine::PageMediaActivity::kNone;
 }
 
 // The platform's direct path.
@@ -362,27 +385,13 @@ bool EngineBinding::Handle(const engine::MovePageToWindow& request) {
 }
 
 bool EngineBinding::Handle(const engine::ShowPage& request) {
-  const std::string key = GuidText(request.page_id);
-  EnginePage* page = Find(key);
-  if (!page || !page->Show()) {
-    return false;
-  }
-  if (shell_) {
-    shell_->VisibilityChanged(key, true);
-  }
-  return true;
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->Show();
 }
 
 bool EngineBinding::Handle(const engine::HidePage& request) {
-  const std::string key = GuidText(request.page_id);
-  EnginePage* page = Find(key);
-  if (!page) {
-    return false;
-  }
-  if (shell_) {
-    shell_->VisibilityChanged(key, false);
-  }
-  return page->Hide();
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->Hide();
 }
 
 engine::PageIconImage EngineBinding::Handle(const engine::PageIcon& request) {
@@ -420,6 +429,96 @@ bool EngineBinding::Handle(const engine::CloseStandalonePage& request) {
   return true;
 }
 
+// A page the platform comes to after the engine made it, or failed to,
+// hears where it stands.
+bool EngineBinding::Handle(const engine::WatchPage& request) {
+  const std::string key = GuidText(request.page_id);
+  if (EnginePage* page = Find(key)) {
+    page->Watch();
+    return true;
+  }
+  if (failed_.contains(key)) {
+    Present(engine::PageViewUnavailable{.page_id = request.page_id});
+    return true;
+  }
+  return false;
+}
+
+engine::PageMediaState EngineBinding::Handle(const engine::PageMedia& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return engine::PageMediaState{.activity = page ? page->MediaActivity() : engine::PageMediaActivity::kNone};
+}
+
+bool EngineBinding::Handle(const engine::EnterPictureInPicture& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->EnterPictureInPicture();
+}
+
+bool EngineBinding::Handle(const engine::ActivateMediaSession& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->ActivateMediaSession(request.document);
+}
+
+bool EngineBinding::Handle(const engine::PerformMediaAction& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->PerformMediaAction(request.document, request.action);
+}
+
+bool EngineBinding::Handle(const engine::MuteMediaSession& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->MuteMediaSession(request.document, request.muted);
+}
+
+bool EngineBinding::Handle(const engine::AnswerInfoBar& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->AnswerInfoBar(request.info_bar_id, request.answer);
+}
+
+bool EngineBinding::Handle(const engine::RefreshPageIcon& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->RefreshIcon();
+}
+
+bool EngineBinding::Handle(const engine::ShowBlockedPopups& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->ShowBlockedPopups();
+}
+
+bool EngineBinding::Handle(const engine::AddContentScript& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->AddContentScript(request.source, request.main_frame_only);
+}
+
+bool EngineBinding::Handle(const engine::EvaluateContentScript& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->EvaluateContentScript(request.evaluation_id, request.source, request.frame_id);
+}
+
+bool EngineBinding::Handle(const engine::RefreshStoreListing& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->FinishStoreRequest();
+}
+
+bool EngineBinding::Handle(const engine::OpenInspector& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->OpenInspector(request.panel);
+}
+
+bool EngineBinding::Handle(const engine::CloseInspector& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->CloseInspector();
+}
+
+bool EngineBinding::Handle(const engine::PageInspected& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->Inspected();
+}
+
+engine::InspectorLayout EngineBinding::Handle(const engine::LayoutInspector& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page ? page->LayoutInspector(request.width, request.height) : engine::InspectorLayout{};
+}
+
 // Reports and presentations.
 
 void EngineBinding::Report(engine::EngineEvent event) {
@@ -439,10 +538,7 @@ void EngineBinding::Present(engine::EnginePresentation presentation) {
 }
 
 void EngineBinding::ReportStateSoon(const std::string& key) {
-  if (disposing_ || !report_) {
-    return;
-  }
-  if (EnginePage* page = Find(key); page && page->standalone()) {
+  if (disposing_) {
     return;
   }
   if (std::find(due_.begin(), due_.end(), key) == due_.end()) {
@@ -495,6 +591,45 @@ void EngineBinding::Flush() {
 EnginePage* EngineBinding::Find(const std::string& key) {
   auto found = pages_.find(key);
   return found == pages_.end() ? nullptr : found->second.get();
+}
+
+// The engine's own hooks, for the pages that follow the WebContents they name.
+
+void ReportContentFullscreen(content::WebContents* contents, bool active) {
+  if (EnginePage* page = EngineBinding::Get().PageFor(contents)) {
+    page->FullscreenChanged(active);
+  }
+}
+
+void UpdateTargetURL(content::WebContents* contents, const GURL& url) {
+  if (EnginePage* page = EngineBinding::Get().PageFor(contents)) {
+    page->HoverChanged(url);
+  }
+}
+
+void UpdateSiteIndicators(content::WebContents* contents) {
+  if (EnginePage* page = EngineBinding::Get().PageFor(contents)) {
+    page->SiteIndicatorsChanged();
+  }
+}
+
+bool CanDockDevTools(content::WebContents* inspected) {
+  return EngineBinding::Get().PageFor(inspected) != nullptr;
+}
+
+bool UpdateDockedDevTools(content::WebContents* inspected) {
+  EnginePage* page = EngineBinding::Get().PageFor(inspected);
+  if (!page) {
+    return false;
+  }
+  page->InspectorChanged();
+  return true;
+}
+
+void OnDevToolsClosing(content::WebContents* inspected) {
+  if (EnginePage* page = EngineBinding::Get().PageFor(inspected)) {
+    page->InspectorClosing();
+  }
 }
 
 }  // namespace crest

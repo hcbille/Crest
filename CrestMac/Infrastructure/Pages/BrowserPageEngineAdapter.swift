@@ -95,7 +95,7 @@ enum BrowserPageEngineEvent {
     case webContentProcessTerminated
     case infoBarAdded(BrowserEngineInfoBar)
     case infoBarRemoved(id: Int?)
-    case mediaSession(body: Any)
+    case mediaSession(BrowserMediaSessionPageEvent)
     case contentFullscreenChanged(Bool)
     case userActivity
     case linkHovered(URL?)

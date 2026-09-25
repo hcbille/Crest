@@ -14,12 +14,12 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0x77, 0xc9, 0x73, 0xc8, 0x8d, 0xba, 0x6e, 0x21, 0x1c, 0x7c, 0xc8, 0x2e, 0xb5, 0x1b, 0x9f, 0x38, 0xb9, 0xa7, 0xa8, 0x6c, 0x81, 0xcb, 0xda, 0x26, 0x98, 0x1a, 0xaa, 0xf4, 0xd5, 0xf3, 0xd1, 0x5f
+        0x58, 0x65, 0x0b, 0x99, 0xa7, 0xa7, 0xcd, 0x56, 0xaf, 0x4a, 0x54, 0x8e, 0xd4, 0x47, 0x57, 0xf6, 0xb4, 0xbc, 0xb1, 0x73, 0x47, 0x32, 0x3e, 0xe6, 0x90, 0x08, 0xec, 0xba, 0xbc, 0x01, 0xd1, 0xe0
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
     public static ReadOnlySpan<byte> EngineFingerprint => [
-        0x6c, 0x49, 0x00, 0xb8, 0x58, 0x54, 0x1c, 0xf7, 0x94, 0xfe, 0x77, 0xd8, 0x92, 0xec, 0x60, 0xb5, 0x06, 0xf4, 0xff, 0x77, 0xc3, 0xc6, 0x0b, 0xc2, 0x49, 0x1c, 0x0d, 0x17, 0x50, 0xc5, 0xad, 0x12
+        0x57, 0xfa, 0x01, 0xad, 0x27, 0xbd, 0x9b, 0x30, 0x99, 0x73, 0xed, 0x28, 0xeb, 0xe3, 0x07, 0xc5, 0x6a, 0xf5, 0x33, 0x70, 0x48, 0xd0, 0xf6, 0xfe, 0x60, 0xcd, 0xdc, 0x6d, 0x81, 0x74, 0x7d, 0x87
     ];
 
     public static Intent ReadIntent(WireReader reader) {
@@ -4684,23 +4684,6 @@ public static class ContractCodec {
         writer.WriteGuid(value.GroupId);
     }
 
-    public static InteractionState ReadInteractionState(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new InteractionState(
-            reader.ReadPresence() ? (byte[]?)reader.ReadBytes() : null);
-    }
-
-    public static void WriteInteractionState(WireWriter writer, InteractionState value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        if (value.State is { } presentState) {
-            writer.WritePresence(true);
-            writer.WriteBytes(presentState);
-        } else {
-            writer.WritePresence(false);
-        }
-    }
-
     public static InvalidCredentialDate ReadInvalidCredentialDate(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new InvalidCredentialDate();
@@ -6231,23 +6214,6 @@ public static class ContractCodec {
         if (value.Accent is { } presentAccent) {
             writer.WritePresence(true);
             WriteTabIconAccent(writer, presentAccent);
-        } else {
-            writer.WritePresence(false);
-        }
-    }
-
-    public static PageIconImage ReadPageIconImage(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new PageIconImage(
-            reader.ReadPresence() ? (byte[]?)reader.ReadBytes() : null);
-    }
-
-    public static void WritePageIconImage(WireWriter writer, PageIconImage value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        if (value.Image is { } presentImage) {
-            writer.WritePresence(true);
-            writer.WriteBytes(presentImage);
         } else {
             writer.WritePresence(false);
         }
@@ -9937,16 +9903,6 @@ public static class ContractCodec {
         writer.WriteEnum((int)value);
     }
 
-    public static PageExportFormat ReadPageExportFormat(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return (PageExportFormat)reader.ReadEnum(3);
-    }
-
-    public static void WritePageExportFormat(WireWriter writer, PageExportFormat value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteEnum((int)value);
-    }
-
     public static PageMediaActivity ReadPageMediaActivity(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return (PageMediaActivity)reader.ReadFlags(7);
@@ -10412,17 +10368,6 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteEnum(TagOf(NumberedSelectionTarget.All, value));
-    }
-
-    public static PageExportFailure ReadPageExportFailure(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return PageExportFailure.All[reader.ReadEnum(PageExportFailure.All.Count)];
-    }
-
-    public static void WritePageExportFailure(WireWriter writer, PageExportFailure value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteEnum(TagOf(PageExportFailure.All, value));
     }
 
     public static PagePhase ReadPagePhase(WireReader reader) {

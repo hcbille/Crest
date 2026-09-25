@@ -816,22 +816,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         BrowserExtensionSidePanelHost.route(request, extensionID: extensionID, page: page, host: host)
     }
 
-    /// The docked DevTools frontend for a page changed: it was opened, resized,
-    /// moved to another dock side, or withdrawn. The page owns the card it is
-    /// mounted in, so it reads the offer back itself.
-    @objc(routeDevTools:)
-    static func routeDevTools(_ pageID: String) {
-        guard let instance, !instance.quitting else { return }
-        instance.chromium.page(pageID)?.refreshDevTools()
-    }
-
-    /// The inspector for a page is closing, whichever way it was closed.
-    @objc(closeDevToolsPanel:)
-    static func closeDevToolsPanel(_ pageID: String) {
-        guard let instance, !instance.quitting else { return }
-        instance.chromium.page(pageID)?.developerPanelDidClose()
-    }
-
     @objc static func deferQuit() -> Bool {
         guard let instance, !instance.hasStopped else { return false }
         guard !instance.quitting else { return true }

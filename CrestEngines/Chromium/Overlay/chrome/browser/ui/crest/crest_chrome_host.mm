@@ -16,7 +16,6 @@
 #include "base/apple/scoped_cftyperef.h"
 #include "base/pickle.h"
 #include "base/json/json_reader.h"
-#include "base/json/json_writer.h"
 #include "base/timer/timer.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_client.h"
@@ -33,8 +32,6 @@
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
-#include "components/favicon/content/content_favicon_driver.h"
-#include "components/favicon/core/favicon_driver_observer.h"
 #include "components/sessions/content/content_serialized_navigation_builder.h"
 #include "components/sessions/core/serialized_navigation_entry.h"
 #include "content/public/browser/restore_type.h"
@@ -92,8 +89,6 @@
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_widget_host_view.h"
-#include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
-#include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "ui/gfx/image/image.h"
 #include "extensions/browser/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -125,11 +120,9 @@
 #include "base/no_destructor.h"
 #include "base/uuid.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
@@ -150,23 +143,15 @@
 #include "content/public/common/drop_data.h"
 #include "net/base/apple/url_conversions.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
-#include "components/blocked_content/popup_blocker_tab_helper.h"
 #include "components/security_state/content/security_state_tab_helper.h"
-#include "content/public/browser/media_session.h"
-#include "content/public/browser/media_player_id.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "services/media_session/public/mojom/media_session.mojom.h"
 #include "components/security_state/core/security_state.h"
 #include "content/public/browser/ssl_status.h"
 #include "net/base/net_errors.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
-#include "components/infobars/content/content_infobar_manager.h"
-#include "components/infobars/core/confirm_infobar_delegate.h"
-#include "components/infobars/core/infobar.h"
 #include "content/public/browser/global_routing_id.h"
-#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "ui/base/page_transition_types.h"
 
 @interface CrestRoot : NSObject
@@ -178,8 +163,6 @@
 + (BOOL)openExternalURLs:(NSArray<NSURL*>*)urls;
 + (void)routeSidePanel:(NSString*)extensionID page:(NSString*)pageID
                request:(CrestSidePanelRequest)request;
-+ (void)routeDevTools:(NSString*)pageID;
-+ (void)closeDevToolsPanel:(NSString*)pageID;
 + (void)showNativeNotice:(NSString*)message icon:(NSString*)icon;
 + (void)translateText:(NSString*)text;
 + (BOOL)openAuthenticationSession:(NSURL*)url window:(NSString*)windowID;
@@ -218,7 +201,6 @@
 @end
 
 namespace {
-using Observation = void (^)(NSString*, NSDictionary<NSString*, id>*);
 // AppKit hosting follows Mori's native ExtensionView bridge (MIT; see
 // ThirdParty/Mori-LICENSE). Each instance belongs to one Crest page/profile.
 class ExtensionPopup final : public extensions::ExtensionView,
@@ -467,7 +449,6 @@ class DevToolsPanel {
   bool hosts(content::WebContents* frontend) const {
     return frontend_ && frontend_.get() == frontend;
   }
-  DevToolsContentsResizingStrategy strategy;
 
  private:
   base::WeakPtr<content::WebContents> frontend_;
@@ -577,11 +558,6 @@ struct HostState {
   std::unique_ptr<ExtensionPopup> space_extension_popup;
   std::map<std::string, NativeAdoption> adoptions;
   std::map<std::string, PendingLinkNavigation> pending_link_navigations;
-  // The platform's observers of pages the binding is still creating, and the
-  // pages it could not create, which a late observer hears about.
-  // TRANSITIONAL until page presentation travels as EnginePresentations.
-  std::map<std::string, Observation> pending_observers;
-  std::set<std::string> failed_pages;
   // The regular profile a private window's pages are derived from, which the
   // window names when it opens. TRANSITIONAL: which profile it is is a rule
   // for the core.
@@ -762,7 +738,6 @@ class NativeProfileDeletion final : public content::BrowsingDataRemover::Observe
 };
 
 // Re-states Crest's install affordance on every open Chrome Web Store listing.
-void RefreshStoreButtons();
 
 // Profile-scoped change and icon observation adapted from Mori (MIT).
 class ExtensionStateObserver
@@ -942,7 +917,7 @@ class ExtensionStateObserver
       queued = false;
       if (State().browser_observation && !State().disposing)
         State().browser_observation(@{@"extensionsChanged": @YES});
-      RefreshStoreButtons();
+      crest::EngineBinding::Get().RefreshStoreListings();
     });
   }
 
@@ -984,236 +959,7 @@ class ExtensionStateObserver
 
 void AdvancePageClosePreparation(uint64_t generation, bool allowed);
 
-// Chrome Web Store listings. The store's own Add to Chrome button is inert in
-// this baseline, so Crest owns that affordance: a script in an isolated world
-// on the store's own host relabels the button and asks the core to run Crest's
-// install review. The script is not a general scripting entry point — it is
-// injected only into the store's own main frame in a regular profile, and the
-// only request it can make is for the extension the page's own URL names.
-bool IsWebStoreURL(const GURL& url) {
-  return url.SchemeIs(url::kHttpsScheme) && url.host() == "chromewebstore.google.com";
-}
 
-// The extension a store detail URL names, or an empty string for any other
-// store page. Chrome Web Store identifiers are 32 characters from a-p.
-std::string WebStoreExtensionID(const GURL& url) {
-  if (!IsWebStoreURL(url)) return std::string();
-  const std::string_view path = url.path();
-  std::vector<std::string_view> parts = base::SplitStringPiece(
-      path, "/", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  if (parts.size() < 2 || parts.front() != "detail") return std::string();
-  std::string_view candidate = parts.back();
-  if (candidate.size() != 32) return std::string();
-  for (char character : candidate)
-    if (character < 'a' || character > 'p') return std::string();
-  return std::string(candidate);
-}
-
-// The isolated-world script. It uses DOM and CSSOM APIs only: the store's
-// content policy rejects stylesheets and inline style attributes Crest would
-// add to the markup, but script-driven property changes are not markup.
-const char* CrestStoreScript() {
-  return R"JS((function() {
-  if (window.__crestStore) { window.__crestStore.render(); return; }
-  var labels = { install: 'Add to Crest', installed: 'Added to Crest',
-                 remove: 'Remove from Crest', busy: 'Installing…' };
-  var state = { id: '', installed: false, busy: false };
-  var adopted = null, hovering = false, pending = false;
-  function detailID() {
-    var match = /\/detail\/(?:[^\/]+\/)?([a-p]{32})(?:\/|$)/.exec(location.pathname);
-    return match ? match[1] : '';
-  }
-  function label(button) { return button.querySelector('span[jsname="V67aGc"]') || button; }
-  function text(node) { return (node.textContent || '').replace(/\s+/g, ' ').trim(); }
-  // The store keeps the listing it navigated away from in the document and
-  // only hides it, so anything that is not actually rendered is stale.
-  function shown(element) {
-    if (!element || !element.isConnected) return false;
-    var rect = element.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  }
-  function installLabel(value) {
-    return /^(add to|added to|remove from) (chrome|crest)$/i.test(value) || value === labels.busy;
-  }
-  // The listing's own install button: the one in the section that carries the
-  // extension's title, so a related listing's button is never adopted.
-  function locate() {
-    if (shown(adopted)) return adopted;
-    adopted = null; hovering = false;
-    var headings = document.querySelectorAll('h1'), scope = null;
-    for (var heading = 0; heading < headings.length; heading++) {
-      if (!shown(headings[heading])) continue;
-      scope = headings[heading].closest('section');
-      break;
-    }
-    var buttons = (scope || document).querySelectorAll('button');
-    for (var index = 0; index < buttons.length; index++) {
-      var button = buttons[index];
-      if (!shown(button) || !installLabel(text(label(button)))) continue;
-      adopted = button;
-      button.addEventListener('pointerenter', function() { hovering = true; render(); });
-      button.addEventListener('pointerleave', function() { hovering = false; render(); });
-      button.addEventListener('focus', function() { hovering = true; render(); });
-      button.addEventListener('blur', function() { hovering = false; render(); });
-      return button;
-    }
-    return null;
-  }
-  // The store's desktop layout keeps a minimum width wider than a Crest page
-  // card, which pushes the listing and its install button past the card's
-  // edge. Releasing that minimum lets the store use its own narrow layout.
-  function relax() {
-    // The store keeps the listing it navigated away from, so each document can
-    // hold more than one of these; every one of them has to be released.
-    var elements = [document.body].concat(
-        Array.prototype.slice.call(document.querySelectorAll('header, main')));
-    for (var index = 0; index < elements.length; index++) {
-      var element = elements[index];
-      if (!element) continue;
-      var minimum = parseFloat(getComputedStyle(element).minWidth);
-      if (minimum > 0 && minimum > window.innerWidth) element.style.minWidth = 'auto';
-    }
-  }
-  // Crest installs extensions itself, so the store's prompts to switch to
-  // Chrome are noise. Each prompt is found from its own wording and hidden at
-  // the outermost element that still says nothing else, so the listing around
-  // it is never affected.
-  function hidePrompt(pattern, limit) {
-    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    var node;
-    while ((node = walker.nextNode())) {
-      if (!pattern.test(node.nodeValue || '')) continue;
-      var element = node.parentElement, box = null;
-      while (element && element !== document.body && text(element).length <= limit) {
-        box = element;
-        element = element.parentElement;
-      }
-      // A prompt the store re-rendered leaves the hidden original behind, so
-      // a match that is already hidden is not the one to act on.
-      if (!box || box.style.display === 'none') continue;
-      box.style.display = 'none';
-      return;
-    }
-  }
-  var swept = 0, sweeping = 0;
-  function hidePrompts() {
-    // A prompt can be the last thing the store adds, so a suppressed sweep is
-    // always retried rather than dropped.
-    var waiting = 500 - (Date.now() - swept);
-    if (waiting > 0) {
-      if (!sweeping) sweeping = setTimeout(function() { sweeping = 0; hidePrompts(); }, waiting);
-      return;
-    }
-    swept = Date.now();
-    hidePrompt(/switch to chrome to install/i, 140);
-    hidePrompt(/switch to chrome\?/i, 260);
-  }
-  function render() {
-    relax();
-    hidePrompts();
-    var button = locate();
-    if (!button) return;
-    var wanted = state.busy ? labels.busy
-        : (state.installed ? (hovering ? labels.remove : labels.installed) : labels.install);
-    var span = label(button);
-    if (text(span) !== wanted) span.textContent = wanted;
-    if (button.disabled) button.disabled = false;
-    button.removeAttribute('disabled');
-    button.setAttribute('aria-disabled', state.busy ? 'true' : 'false');
-    button.setAttribute('aria-label', wanted);
-  }
-  function schedule() {
-    if (pending) return;
-    pending = true;
-    requestAnimationFrame(function() { pending = false; render(); });
-  }
-  // The core owns the install review, so the click never reaches the store's
-  // own handler. The request names the extension the page itself is showing
-  // and the core checks that name again before it downloads anything.
-  function request() {
-    var id = detailID();
-    if (!id || state.busy) return;
-    var command = state.installed ? 'crest-remove' : 'crest-install';
-    if (!state.installed) { state.busy = true; render(); }
-    history.replaceState(history.state, '',
-        location.pathname + location.search + '#' + command + '=' + id);
-  }
-  document.addEventListener('click', function(event) {
-    var button = locate();
-    var target = event.target;
-    if (!button || !target || !(target === button || (target.nodeType === 1 && button.contains(target)))) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    request();
-  }, true);
-  window.addEventListener('resize', function() { schedule(); });
-  new MutationObserver(schedule).observe(document.documentElement,
-      { childList: true, subtree: true, characterData: true });
-  window.__crestStore = {
-    render: render,
-    apply: function(next) {
-      state.id = next && typeof next.id === 'string' ? next.id : '';
-      state.installed = !!(next && next.installed);
-      state.busy = false;
-      if (!adopted || !adopted.isConnected) { adopted = null; }
-      render();
-    }
-  };
-  render();
-})();)JS";
-}
-
-// Crest's content bridges run in one isolated world of their own, as they do in
-// WebKit's named content worlds: the page cannot see or call them. The bridges
-// are written against WebKit's `webkit.messageHandlers.<name>.postMessage`, so
-// the world defines that object itself and the bridge scripts run unchanged.
-//
-// A message leaves the world through a long poll. The host keeps one
-// `__crestBridge.next()` evaluation outstanding per document; the engine
-// resolves it when a bridge posts (the patched evaluator awaits promises in
-// this world only) and the host at once asks for the next batch. Every batch and
-// every evaluation names the document by a nonce the world minted, so nothing
-// from a previous document is attributed to, or runs in, the next one.
-constexpr char kContentBridgeShim[] = R"JS(
-(() => {
-  if (globalThis.__crestBridge) return null;
-  const doc = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  const queue = [];
-  let waiter = null;
-  const flush = () => {
-    if (!waiter || !queue.length) return;
-    const resolve = waiter;
-    waiter = null;
-    resolve({ doc, messages: queue.splice(0) });
-  };
-  const handlers = new Map();
-  const handler = (name) => {
-    if (!handlers.has(name)) {
-      handlers.set(name, Object.freeze({
-        postMessage(body) {
-          queue.push({ handler: name, body: JSON.parse(JSON.stringify(body ?? null)) });
-          flush();
-        },
-      }));
-    }
-    return handlers.get(name);
-  };
-  globalThis.webkit = Object.freeze({
-    messageHandlers: new Proxy({}, { get: (_, name) => typeof name === "string" ? handler(name) : undefined }),
-  });
-  globalThis.__crestBridge = Object.freeze({
-    doc,
-    next() { return new Promise((resolve) => { waiter = resolve; flush(); }); },
-  });
-  return doc;
-})();
-)JS";
-
-std::string ContentFrameIdentifier(content::RenderFrameHost* frame, const std::string& doc) {
-  const auto id = frame->GetGlobalId();
-  return base::NumberToString(id.child_id.GetUnsafeValue()) + ":" +
-         base::NumberToString(id.frame_routing_id) + ":" + doc;
-}
 
 // Crest's vault owns credentials in every window, so the engine's own password
 // manager never saves, offers fills or shows its bubbles — in a private window
@@ -1230,80 +976,28 @@ void DisableEnginePasswordManager(content::WebContents* contents) {
   }
 }
 
-struct Page final : content::WebContentsObserver,
-                    favicon::FaviconDriverObserver, infobars::InfoBarManager::Observer,
-                    media_session::mojom::MediaSessionObserver {
-  Page(content::WebContents* contents, Browser* owner, std::string profile_id,
-       Observation observer)
-      : content::WebContentsObserver(contents), browser(owner),
-        profile(std::move(profile_id)),
-        observation(static_cast<Observation>([(observer ?: ^(NSString*, NSDictionary<NSString*, id>*) {}) copy])) {
+// The shell's side of a page: the Browser that holds its WebContents, the
+// views it hosts over it, and the handlers the platform installs.
+// TRANSITIONAL until dialogs, prompts and link questions travel as
+// presentations (WP C (e), (f), (l)).
+struct Page final : content::WebContentsObserver {
+  Page(content::WebContents* contents, Browser* owner, std::string profile_id)
+      : content::WebContentsObserver(contents), browser(owner), profile(std::move(profile_id)) {
     DisableEnginePasswordManager(contents);
-    if (auto* driver = favicon::ContentFaviconDriver::FromWebContents(contents)) driver->AddObserver(this);
-    if (auto* media_session = content::MediaSession::Get(contents))
-      media_session->AddObserver(media_receiver.BindNewPipeAndPassRemote());
-    infobar_manager = infobars::ContentInfoBarManager::FromWebContents(contents);
-    if (infobar_manager) {
-      infobar_manager->AddObserver(this);
-      // A page adopted from the engine may already carry bars.
-      auto weak = contents->GetWeakPtr();
-      std::vector<infobars::InfoBar*> existing(infobar_manager->infobars().begin(), infobar_manager->infobars().end());
-      dispatch_async(dispatch_get_main_queue(), ^{
-        if (!weak || State().disposing) return;
-        for (auto& [id, page] : State().pages) {
-          if (page->web_contents() != weak.get()) continue;
-          for (auto* bar : existing) page->PublishInfoBar(bar);
-        }
-      });
-    }
   }
   ~Page() override {
-    if (infobar_manager) infobar_manager->RemoveObserver(this);
     std::erase_if(State().pending_link_navigations, [&](const auto& entry) {
       return !entry.second.source || entry.second.source.get() == web_contents();
     });
-    RemoveFaviconObservation();
   }
-  // The platform's observer, which may arrive after the page exists: it hears
-  // the page is created once the binding has it. TRANSITIONAL until page
-  // presentation travels as EnginePresentations.
-  void SetObserver(Observation observer) {
-    observation = [observer copy];
-    if (announced) Announce();
-  }
-  void Announce() {
-    announced = true;
-    observation(@"created", @{});
-    Publish();
-  }
-  bool announced = false;
   // The page's identity, as the platform spells it.
   std::string Key() const {
     for (const auto& [id, page] : State().pages)
       if (page.get() == this) return id;
     return std::string();
   }
-  void RemoveFaviconObservation() {
-    if (web_contents())
-      if (auto* driver = favicon::ContentFaviconDriver::FromWebContents(web_contents())) driver->RemoveObserver(this);
-  }
-  void PublishFavicon(const gfx::Image& image) {
-    if (!web_contents() || State().disposing) return;
-    auto* driver = favicon::ContentFaviconDriver::FromWebContents(web_contents());
-    if (!driver) return;
-    auto png = image.IsEmpty() ? nullptr : image.As1xPNGBytes();
-    id data = NSNull.null;
-    if (png && png->size() > 0 && png->size() <= 512 * 1024)
-      data = [NSData dataWithBytes:png->front() length:png->size()];
-    observation(@"favicon", @{ @"url": base::SysUTF8ToNSString(driver->GetActiveURL().spec()), @"data": data });
-  }
-  void OnFaviconUpdated(favicon::FaviconDriver*, NotificationIconType,
-                       const GURL&, bool, const gfx::Image& image) override {
-    PublishFavicon(image);
-  }
   Browser* browser;
   std::string profile;
-  Observation observation;
   BOOL (^link_handler)(NSString*, NSString*, NSString*) = nil;
   NSArray<NSDictionary<NSString*, NSString*>*>* (^context_menu_provider)(NSString*, NSString*) = nil;
   BOOL (^context_menu_action)(NSString*, NSString*, NSString*) = nil;
@@ -1317,397 +1011,24 @@ struct Page final : content::WebContentsObserver,
   CrestDeferredNavigation (^protected_link_handler)(NSString*) = nil;
   void (^modified_link_handler)(NSString*, NSUInteger, NSString*, void (^)(NSString*, CrestDeferredNavigation)) = nil;
   bool closing = false;
-  // Whether a Chrome Web Store install or removal request from this page is
-  // still with the core.
-  bool store_request_open = false;
   uint64_t navigation_revision = 0;
   uint64_t navigation_generation = 0;
   std::unique_ptr<ExtensionPopup> extension_popup;
   std::unique_ptr<ExtensionSidePanel> side_panel;
   std::unique_ptr<DevToolsPanel> devtools;
-  // A frontend Crest handed back to Chromium's own window. Its renderer is
-  // permanently switched to Views drawing there, so re-docking must replace it
-  // rather than mount it again.
-  base::WeakPtr<content::WebContents> undocked_devtools;
-  // Content bridge sources, in install order, and whether each is limited to
-  // the main frame.
-  std::vector<std::pair<std::string, bool>> content_scripts;
-  // Chromium's info bars — tab sharing, `chrome.debugger`, extension notices —
-  // have no Views container here. Confirm bars are relayed for Crest to show
-  // in the page; the rest carry no text of their own and stay silent.
-  infobars::InfoBarManager* infobar_manager = nullptr;
-  std::map<int, infobars::InfoBar*> infobars;
-  int next_infobar_id = 0;
-  void PublishInfoBar(infobars::InfoBar* bar) {
-    if (!bar || State().disposing) return;
-    auto* confirm = bar->delegate() ? bar->delegate()->AsConfirmInfoBarDelegate() : nullptr;
-    if (!confirm) return;
-    for (const auto& [id, known] : infobars) if (known == bar) return;
-    const int id = ++next_infobar_id;
-    infobars[id] = bar;
-    const int buttons = confirm->GetButtons();
-    NSString* ok = buttons & ConfirmInfoBarDelegate::BUTTON_OK
-        ? base::SysUTF16ToNSString(confirm->GetButtonLabel(ConfirmInfoBarDelegate::BUTTON_OK)) : @"";
-    NSString* cancel = buttons & ConfirmInfoBarDelegate::BUTTON_CANCEL
-        ? base::SysUTF16ToNSString(confirm->GetButtonLabel(ConfirmInfoBarDelegate::BUTTON_CANCEL)) : @"";
-    observation(@"infobar_added", @{ @"id": @(id), @"message": base::SysUTF16ToNSString(confirm->GetMessageText()),
-        @"ok": ok, @"cancel": cancel, @"closeable": @(confirm->IsCloseable()) });
-  }
-  void OnInfoBarAdded(infobars::InfoBar* bar) override { PublishInfoBar(bar); }
-  void OnInfoBarRemoved(infobars::InfoBar* bar, bool) override {
-    for (auto it = infobars.begin(); it != infobars.end(); ++it) {
-      if (it->second != bar) continue;
-      const int id = it->first;
-      infobars.erase(it);
-      if (!State().disposing) observation(@"infobar_removed", @{ @"id": @(id) });
-      return;
-    }
-  }
-  void OnInfoBarReplaced(infobars::InfoBar* old_bar, infobars::InfoBar* new_bar) override {
-    OnInfoBarRemoved(old_bar, false);
-    PublishInfoBar(new_bar);
-  }
-  void OnManagerWillBeDestroyed(infobars::InfoBarManager* manager) override {
-    if (manager == infobar_manager) { manager->RemoveObserver(this); infobar_manager = nullptr; }
-    infobars.clear();
-  }
-  // Runs the person's answer to a bar: accept, cancel or dismiss.
-  bool RespondToInfoBar(int id, const std::string& response) {
-    auto found = infobars.find(id);
-    if (found == infobars.end() || !found->second->delegate()) return false;
-    infobars::InfoBar* bar = found->second;
-    auto* confirm = bar->delegate()->AsConfirmInfoBarDelegate();
-    bool remove = false;
-    if (response == "accept" && confirm) remove = confirm->Accept();
-    else if (response == "cancel" && confirm) remove = confirm->Cancel();
-    else if (response == "dismiss") { bar->delegate()->InfoBarDismissed(); remove = true; }
-    else return false;
-    if (remove) bar->RemoveSelf();
-    return true;
-  }
-  // The engine's own Media Session — metadata, playback state and the actions
-  // the page handles — reported in the event shape Crest's store reads, under
-  // the document identifier Crest issued for the committed document.
-  mojo::Receiver<media_session::mojom::MediaSessionObserver> media_receiver{this};
-  media_session::mojom::MediaSessionInfoPtr media_info;
-  std::optional<media_session::MediaMetadata> media_metadata;
-  std::vector<media_session::mojom::MediaSessionAction> media_actions;
-  std::string media_document;
-  uint64_t media_sequence = 0;
-  // The engine deactivates a session whose tab is muted; Crest keeps showing
-  // it, muted, so the person can unmute it.
-  bool media_seen_active = false;
-  bool media_last_playing = false;
-  std::set<content::MediaPlayerId> playing_videos;
-  bool video_was_playing_when_detached = false;
-  void MediaStartedPlaying(const MediaPlayerInfo& info, const content::MediaPlayerId& id) override {
-    if (info.has_video) playing_videos.insert(id);
-  }
-  void MediaStoppedPlaying(const MediaPlayerInfo& info, const content::MediaPlayerId& id,
-                           content::WebContentsObserver::MediaStoppedReason) override {
-    playing_videos.erase(id);
-  }
-  void MediaSessionInfoChanged(media_session::mojom::MediaSessionInfoPtr info) override {
-    media_info = std::move(info);
-    PublishMediaSession();
-  }
-  void MediaSessionMetadataChanged(const std::optional<media_session::MediaMetadata>& metadata) override {
-    media_metadata = metadata;
-    PublishMediaSession();
-  }
-  void MediaSessionActionsChanged(const std::vector<media_session::mojom::MediaSessionAction>& actions) override {
-    media_actions = actions;
-    PublishMediaSession();
-  }
-  void MediaSessionImagesChanged(
-      const base::flat_map<media_session::mojom::MediaSessionImageType,
-                           std::vector<media_session::MediaImage>>&) override {}
-  void MediaSessionPositionChanged(const std::optional<media_session::MediaPosition>&) override {}
-  void OnAudioStateChanged(bool) override { PublishMediaSession(); }
-  void DidUpdateAudioMutingState(bool) override { PublishMediaSession(); }
-  void PublishMediaSession() {
-    if (media_document.empty() || State().disposing || !web_contents()) return;
-    using SessionState = media_session::mojom::MediaSessionInfo::SessionState;
-    const bool engine_active = media_info && media_info->state != SessionState::kInactive;
-    if (engine_active) {
-      media_seen_active = true;
-      media_last_playing = media_info->playback_state == media_session::mojom::MediaPlaybackState::kPlaying;
-    }
-    const bool active = engine_active || (media_info && media_seen_active && web_contents()->IsAudioMuted());
-    // While muted the engine reports no playback; the last state it did report stands.
-    NSString* playback = !active ? @"none" : media_last_playing ? @"playing" : @"paused";
-    NSMutableArray* actions = [NSMutableArray array];
-    for (auto action : media_actions) {
-      switch (action) {
-        case media_session::mojom::MediaSessionAction::kPlay: [actions addObject:@"play"]; break;
-        case media_session::mojom::MediaSessionAction::kPause: [actions addObject:@"pause"]; break;
-        case media_session::mojom::MediaSessionAction::kPreviousTrack: [actions addObject:@"previoustrack"]; break;
-        case media_session::mojom::MediaSessionAction::kNextTrack: [actions addObject:@"nexttrack"]; break;
-        default: break;
-      }
-    }
-    auto text = [](const std::u16string& value) -> id {
-      return value.empty() ? (id)NSNull.null : base::SysUTF16ToNSString(value);
-    };
-    crest::EngineBinding::Get().StateChanged(Key());
-    observation(@"media_session", @{ @"body": @{
-      @"version": @1, @"documentIdentifier": base::SysUTF8ToNSString(media_document),
-      @"sequence": @(++media_sequence),
-      @"location": base::SysUTF8ToNSString(web_contents()->GetLastCommittedURL().spec()),
-      @"active": @(active),
-      @"title": media_metadata ? text(media_metadata->title) : (id)NSNull.null,
-      @"artist": media_metadata ? text(media_metadata->artist) : (id)NSNull.null,
-      @"album": media_metadata ? text(media_metadata->album) : (id)NSNull.null,
-      @"playbackState": playback,
-      @"audible": @(web_contents()->IsCurrentlyAudible()),
-      @"muted": @(web_contents()->IsAudioMuted()),
-      @"actions": actions } });
-  }
-  // How many blocked pop-ups this document has already been reported.
-  size_t published_blocked_popups = 0;
-  void InjectContentScripts(content::RenderFrameHost* frame) {
-    if (content_scripts.empty() || State().disposing || !frame || !frame->IsRenderFrameLive()) return;
-    const bool main = frame->IsInPrimaryMainFrame();
-    if (!main && frame->GetMainFrame() != web_contents()->GetPrimaryMainFrame()) return;
-    std::string script = kContentBridgeShim;
-    script = "(() => { const doc = " + script + " if (doc === null) return null;\n";
-    for (const auto& [source, main_frame_only] : content_scripts) {
-      if (main_frame_only && !main) continue;
-      script += "try {\n" + source + "\n} catch (_) {}\n";
-    }
-    script += "return doc; })()";
-    const auto id = frame->GetGlobalId();
-    auto weak = web_contents()->GetWeakPtr();
-    frame->ExecuteJavaScriptInIsolatedWorld(base::UTF8ToUTF16(script),
-        base::BindOnce([](base::WeakPtr<content::WebContents> contents, content::GlobalRenderFrameHostId id,
-                          base::Value value) {
-          if (!contents || !value.is_string()) return;
-          PollContentMessages(contents.get(), id, value.GetString());
-        }, weak, id), crest::kContentWorldID);
-  }
-  static void PollContentMessages(content::WebContents* contents, content::GlobalRenderFrameHostId id,
-                                  const std::string& doc) {
-    auto* frame = content::RenderFrameHost::FromID(id);
-    if (!frame || !frame->IsRenderFrameLive() || State().disposing ||
-        content::WebContents::FromRenderFrameHost(frame) != contents) return;
-    auto weak = contents->GetWeakPtr();
-    frame->ExecuteJavaScriptInIsolatedWorld(u"globalThis.__crestBridge?.next()",
-        base::BindOnce([](base::WeakPtr<content::WebContents> contents, content::GlobalRenderFrameHostId id,
-                          std::string doc, base::Value value) {
-          // An empty answer means the document went away or its world was
-          // torn down; the next document arms a poll of its own.
-          if (!contents || State().disposing || !value.is_dict()) return;
-          const auto* batch_doc = value.GetDict().FindString("doc");
-          const auto* messages = value.GetDict().FindList("messages");
-          if (!batch_doc || *batch_doc != doc || !messages) return;
-          auto* frame = content::RenderFrameHost::FromID(id);
-          Page* page = nullptr;
-          for (auto& [key, candidate] : State().pages)
-            if (candidate->web_contents() == contents.get()) { page = candidate.get(); break; }
-          if (!frame || !page) return;
-          const url::Origin origin = frame->GetLastCommittedOrigin();
-          const std::string identifier = ContentFrameIdentifier(frame, doc);
-          for (const auto& message : *messages) {
-            if (!message.is_dict()) continue;
-            const auto* handler = message.GetDict().FindString("handler");
-            const auto* body = message.GetDict().Find("body");
-            auto json = body ? base::WriteJson(*body) : std::nullopt;
-            if (!handler || !json) continue;
-            page->observation(@"content_message", @{
-              @"handler": base::SysUTF8ToNSString(*handler),
-              @"body": base::SysUTF8ToNSString(*json),
-              @"frame": base::SysUTF8ToNSString(identifier),
-              @"isMainFrame": @(frame->IsInPrimaryMainFrame()),
-              @"protocol": base::SysUTF8ToNSString(origin.scheme()),
-              @"host": base::SysUTF8ToNSString(origin.host()),
-              @"port": @(origin.port()) });
-          }
-          PollContentMessages(contents.get(), id, doc);
-        }, weak, id, doc), crest::kContentWorldID);
-  }
-  void Publish(bool committed = false, NSString* failure = nil, int error_code = 0) {
-    if (!web_contents() || State().disposing) return;
-    auto& controller = web_contents()->GetController();
-    observation(@"changed", @{
-      @"url": base::SysUTF8ToNSString(web_contents()->GetVisibleURL().spec()),
-      @"title": base::SysUTF16ToNSString(web_contents()->GetTitle()),
-      @"isLoading": @(web_contents()->IsLoading()),
-      @"canGoBack": @(controller.CanGoBack()), @"canGoForward": @(controller.CanGoForward()),
-      @"backHistory": History(-1), @"forwardHistory": History(1),
-      @"committed": @(committed), @"failure": failure ?: (id)NSNull.null, @"errorCode": @(error_code),
-      @"themeColor": ThemeColor() });
-  }
-  // The page's declared theme colour, as 0xAARRGGBB, for Crest's tab accents.
-  id ThemeColor() {
-    const auto color = web_contents()->GetThemeColor();
-    return color ? @(static_cast<uint32_t>(*color)) : (id)NSNull.null;
-  }
-  // Chrome Web Store support. Regular profiles only: a private window must
-  // not change a Space's persistent extension state, so its store pages keep
-  // the engine's own behavior.
-  content::RenderFrameHost* StoreFrame() {
-    if (!web_contents() || State().disposing) return nullptr;
-    if (web_contents()->GetBrowserContext()->IsOffTheRecord()) return nullptr;
-    auto* frame = web_contents()->GetPrimaryMainFrame();
-    if (!frame || !IsWebStoreURL(frame->GetLastCommittedURL())) return nullptr;
-    return frame;
-  }
-  void RunInStore(const std::string& script) {
-    if (auto* frame = StoreFrame())
-      frame->ExecuteJavaScriptInIsolatedWorld(base::UTF8ToUTF16(script), {},
-                                             ISOLATED_WORLD_ID_CHROME_INTERNAL);
-  }
-  void InjectStoreScript() {
-    if (!StoreFrame()) return;
-    RunInStore(CrestStoreScript());
-    PublishStoreState();
-  }
-  void PublishStoreState() {
-    auto* frame = StoreFrame();
-    if (!frame) return;
-    const std::string id = WebStoreExtensionID(frame->GetLastCommittedURL());
-    bool installed = false;
-    if (!id.empty()) {
-      auto* profile = Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-      auto* registry = profile ? extensions::ExtensionRegistry::Get(profile) : nullptr;
-      installed = registry && registry->GetInstalledExtension(id) != nullptr;
-    }
-    auto state = base::DictValue().Set("id", id).Set("installed", installed);
-    auto json = base::WriteJson(state);
-    if (!json) return;
-    RunInStore("window.__crestStore && window.__crestStore.apply(" + *json + ");");
-  }
-  // A request the injected script wrote into the listing's own URL fragment.
-  // The extension it names has to be the one the page is showing, so a store
-  // page cannot ask Crest to install anything else, and the core still runs
-  // its own install review before Chromium verifies the package.
-  bool ConsumeStoreRequest(const GURL& url) {
-    if (!StoreFrame() || !url.has_ref()) return false;
-    const std::string_view ref = url.ref();
-    NSString* event = nil;
-    std::string requested;
-    if (base::StartsWith(ref, "crest-install=")) {
-      event = @"store_install";
-      requested = std::string(ref.substr(std::string_view("crest-install=").size()));
-    } else if (base::StartsWith(ref, "crest-remove=")) {
-      event = @"store_remove";
-      requested = std::string(ref.substr(std::string_view("crest-remove=").size()));
-    } else {
-      return false;
-    }
-    // Leave the listing's own address in place; the fragment is a message.
-    RunInStore("history.replaceState(history.state, '', location.pathname + location.search);");
-    const std::string expected = WebStoreExtensionID(url);
-    if (expected.empty() || requested != expected) {
-      PublishStoreState();
-      return true;
-    }
-    // The core owns the request now: leave the button's own progress label in
-    // place until the review it presents finishes.
-    store_request_open = true;
-    observation(event, @{ @"id": base::SysUTF8ToNSString(expected) });
-    return true;
-  }
-  NSArray* History(int direction) {
-    auto& controller = web_contents()->GetController();
-    NSMutableArray* result = [NSMutableArray array];
-    const int current = controller.GetCurrentEntryIndex();
-    for (int depth = 1; depth <= 50; ++depth) {
-      const int index = current + direction * depth;
-      if (index < 0 || index >= controller.GetEntryCount()) break;
-      auto* entry = controller.GetEntryAtIndex(index);
-      if (!entry) break;
-      [result addObject:@{ @"depth": @(depth),
-        @"title": base::SysUTF16ToNSString(entry->GetTitle()),
-        @"url": base::SysUTF8ToNSString(entry->GetVirtualURL().spec()) }];
-    }
-    return result;
-  }
-  void DidStartLoading() override { Publish(); }
-  void DidStopLoading() override {
-    Publish();
-    if (web_contents())
-      if (auto* driver = favicon::ContentFaviconDriver::FromWebContents(web_contents())) PublishFavicon(driver->GetFavicon());
-  }
-  void TitleWasSet(content::NavigationEntry*) override { Publish(); }
   void DidStartNavigation(content::NavigationHandle* navigation) override {
-    if (navigation->IsInPrimaryMainFrame() && !navigation->IsSameDocument()) {
-      ++navigation_generation;
-      observation(@"navigation_started", @{});
-    }
-  }
-  // Typing, clicking and scrolling in the page, at most once a second, so a
-  // Quick Window's idle timer sees the person working in it.
-  base::TimeTicks last_user_activity;
-  void DidGetUserInteraction(const blink::WebInputEvent&) override {
-    const auto now = base::TimeTicks::Now();
-    if (!last_user_activity.is_null() && now - last_user_activity < base::Seconds(1)) return;
-    last_user_activity = now;
-    if (!State().disposing) observation(@"user_activity", @{});
-  }
-  void PrimaryMainDocumentElementAvailable() override {
-    InjectStoreScript();
-    if (web_contents()) InjectContentScripts(web_contents()->GetPrimaryMainFrame());
-  }
-  // The main frame is injected as soon as its document element exists; frames
-  // below it once their document is parsed. The world guards itself against a
-  // second installation in the same document.
-  void DOMContentLoaded(content::RenderFrameHost* frame) override {
-    if (frame && !frame->IsInPrimaryMainFrame()) InjectContentScripts(frame);
+    if (navigation->IsInPrimaryMainFrame() && !navigation->IsSameDocument()) ++navigation_generation;
   }
   void DidFinishNavigation(content::NavigationHandle* navigation) override {
-    // A store listing's own fragment carries the install request the injected
-    // script made. It is Crest's message, not a page the core should publish.
-    if (navigation->IsInPrimaryMainFrame() && navigation->HasCommitted() &&
-        navigation->IsSameDocument() && ConsumeStoreRequest(navigation->GetURL()))
-      return;
-    if (navigation->IsInPrimaryMainFrame() && navigation->HasCommitted()) ++navigation_revision;
-    // Crest issues a new Media Session identity for the next document.
-    if (navigation->IsInPrimaryMainFrame() && navigation->HasCommitted() && !navigation->IsSameDocument()) {
-      media_document.clear();
-      media_seen_active = false;
-      media_last_playing = false;
-      playing_videos.clear();
-      video_was_playing_when_detached = false;
-      http_authentication_attempts.clear();
-    }
-    // The store is a single-page application: a listing change keeps the
-    // document, so the script stays and only its state has to be refreshed.
-    if (navigation->IsInPrimaryMainFrame() && navigation->HasCommitted() &&
-        navigation->IsSameDocument()) {
-      // Restoring the listing's own address is Crest's own edit, not a change
-      // of listing, so it must not reset a request that is still open.
-      if (store_request_open) store_request_open = false;
-      else PublishStoreState();
-    }
-    if (navigation->IsInPrimaryMainFrame()) {
-      // A certificate error commits the engine's own interstitial, which
-      // explains the problem and offers to proceed. It is shown as the page
-      // rather than covered by Crest's failure view.
-      const bool certificate_error = navigation->IsErrorPage() &&
-          net::IsCertificateError(navigation->GetNetErrorCode());
-      const bool failed = navigation->IsErrorPage() && !certificate_error;
-      Publish(navigation->HasCommitted() && !failed, failed ? @"navigation_failed" : nil,
-              failed ? navigation->GetNetErrorCode() : 0);
-    }
+    if (!navigation->IsInPrimaryMainFrame() || !navigation->HasCommitted()) return;
+    ++navigation_revision;
+    if (!navigation->IsSameDocument()) http_authentication_attempts.clear();
   }
-  void PrimaryMainFrameRenderProcessGone(base::TerminationStatus) override {
-    Publish(false, @"process_terminated");
-  }
-  // Mixed content found after load, or a certificate decision, changes what
-  // the address shows.
-  void DidChangeVisibleSecurityState() override { Publish(); }
-  void DidChangeThemeColor() override { Publish(); }
-  void BeforeUnloadDialogCancelled() override {
-    if (!closing || State().disposing) return;
-    closing = false;
-    observation(@"close_canceled", @{});
-  }
+  void BeforeUnloadDialogCancelled() override { closing = false; }
   void BeforeUnloadFired(bool proceed) override {
-    if (!proceed) BeforeUnloadDialogCancelled();
+    if (!proceed) closing = false;
   }
   void WebContentsDestroyed() override {
-    RemoveFaviconObservation();
     if (State().close_preflight) {
       const auto generation = State().close_generation;
       dispatch_async(dispatch_get_main_queue(), ^{ AdvancePageClosePreparation(generation, false); });
@@ -1716,14 +1037,9 @@ struct Page final : content::WebContentsObserver,
     side_panel.reset();
     devtools.reset();
     Observe(nullptr);
-    if (!State().disposing) observation(@"closed", @{});
   }
 };
 
-void RefreshStoreButtons() {
-  if (State().disposing) return;
-  for (const auto& [id, page] : State().pages) page->PublishStoreState();
-}
 
 void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foreground);
 
@@ -1783,7 +1099,6 @@ struct BrowserOwner final : TabStripModelObserver {
     for (auto& [id, page] : State().pages) {
       if (page->web_contents() == tab->GetContents() && page->closing) {
         page->closing = false;
-        page->observation(@"close_canceled", @{});
         return;
       }
     }
@@ -2108,19 +1423,15 @@ void CreatePageContents(const std::string& page_id, const std::string& profile_i
         auto* contents = owned_contents.get();
         browser->tab_strip_model()->AddWebContents(std::move(owned_contents), -1,
             ui::PAGE_TRANSITION_AUTO_TOPLEVEL, AddTabTypes::ADD_NONE);
-        Observation observer = nil;
-        if (auto waiting = state.pending_observers.extract(page_id)) observer = waiting.mapped();
-        state.pages.emplace(page_id, std::make_unique<Page>(contents, browser, profile_id, observer));
+        state.pages.emplace(page_id, std::make_unique<Page>(contents, browser, profile_id));
         std::move(done).Run(contents);
       }, page_id, profile_id, source_id, window_id, private_mode, std::move(done)));
 }
 
-// Lets a page go: the platform stops hearing it, then its WebContents is destroyed.
+// Lets a page go: the shell forgets it, then its WebContents is destroyed.
 void DisposePage(const std::string& id) {
   auto& state = State();
   state.creating_pages.erase(id);
-  state.pending_observers.erase(id);
-  state.failed_pages.erase(id);
   auto found = state.pages.find(id);
   if (found == state.pages.end()) return;
   auto* contents = found->second->web_contents();
@@ -2133,8 +1444,7 @@ void DisposePage(const std::string& id) {
 }
 
 // What the Mac shell does for the portable binding. TRANSITIONAL: each part
-// moves into the binding with its area, and the platform's presentation with
-// the EnginePresentations.
+// moves into the binding with its area.
 class MacShell final : public crest::EngineBinding::Shell {
  public:
   void CreateContents(const std::string& page, const std::string& profile, bool is_private,
@@ -2154,24 +1464,9 @@ class MacShell final : public crest::EngineBinding::Shell {
     for (const auto& [id, owner] : state.browsers)
       if (owner->strip && owner->strip->GetIndexOfWebContents(contents) >= 0) { browser = owner->browser; break; }
     if (!browser) return nullptr;
-    Observation observer = nil;
-    if (auto waiting = state.pending_observers.extract(page)) observer = waiting.mapped();
-    state.pages.emplace(page, std::make_unique<Page>(contents, browser, profile, observer));
+    state.pages.emplace(page, std::make_unique<Page>(contents, browser, profile));
     state.adoptions.erase(found);
     return contents;
-  }
-
-  void ContentsCreated(const std::string& page) override {
-    if (Page* created = FindPage(base::SysUTF8ToNSString(page))) created->Announce();
-  }
-
-  void CreationFailed(const std::string& page) override {
-    auto& state = State();
-    if (auto waiting = state.pending_observers.extract(page)) {
-      waiting.mapped()(@"creation_failed", @{});
-      return;
-    }
-    state.failed_pages.insert(page);
   }
 
   void DestroyContents(const std::string& page) override { DisposePage(page); }
@@ -2186,8 +1481,6 @@ class MacShell final : public crest::EngineBinding::Shell {
       pending.erase(found);  // Tokens can be consumed only once, including failures.
       loaded = LoadLinkNavigation(page, navigation, url);
     }
-    // The platform shows the link is gone rather than retry it as a bare address.
-    if (!loaded && page) page->observation(@"link_unavailable", @{});
     return loaded;
   }
 
@@ -2216,30 +1509,16 @@ class MacShell final : public crest::EngineBinding::Shell {
     return true;
   }
 
-  void VisibilityChanged(const std::string& page_id, bool visible) override {
+  void DockInspector(const std::string& page_id, content::WebContents* frontend) override {
     Page* page = FindPage(base::SysUTF8ToNSString(page_id));
-    if (!page || !page->web_contents()) return;
-    // A video playing when the page left the screen still counts as playing.
-    page->video_was_playing_when_detached = !visible && !page->playing_videos.empty();
+    if (!page) return;
+    if (!frontend) {
+      page->devtools.reset();
+    } else if (!page->devtools || !page->devtools->hosts(frontend)) {
+      page->devtools = std::make_unique<DevToolsPanel>(frontend);
+    }
   }
 
-  crest::engine::PageMediaActivity MediaActivity(const std::string& page_id) override {
-    using crest::engine::PageMediaActivity;
-    Page* page = FindPage(base::SysUTF8ToNSString(page_id));
-    auto* contents = page ? page->web_contents() : nullptr;
-    if (!contents) return PageMediaActivity::kNone;
-    auto indicator = MediaCaptureDevicesDispatcher::GetInstance()->GetMediaStreamCaptureIndicator();
-    PageMediaActivity activity = PageMediaActivity::kNone;
-    if (page->video_was_playing_when_detached || !page->playing_videos.empty() || page->media_last_playing ||
-        contents->IsCurrentlyAudible() || contents->GetCurrentlyPlayingVideoCount() > 0)
-      activity |= PageMediaActivity::kPlaying;
-    if (contents->IsBeingCaptured() || indicator->IsCapturingUserMedia(contents) || indicator->IsCapturingTab(contents) ||
-        indicator->IsCapturingWindow(contents) || indicator->IsCapturingDisplay(contents))
-      activity |= PageMediaActivity::kCapturing;
-    if (contents->HasPictureInPictureVideo() || contents->HasPictureInPictureDocument())
-      activity |= PageMediaActivity::kPictureInPicture;
-    return activity;
-  }
 
  private:
   // Loads a link navigation Chromium verified in the page that staged it, as
@@ -2352,21 +1631,8 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
     if (auto* item = FindDownload(profileID, downloadID)) item->Remove();
   });
 }
-- (void)observePage:(NSString*)pageID observer:(Observation)observer {
+- (BOOL)adoptPage:(NSString*)adoptionID asPage:(NSString*)pageID {
   CHECK(NSThread.isMainThread);
-  auto& state = State();
-  const std::string key = base::SysNSStringToUTF8(pageID);
-  if (Page* page = FindPage(pageID)) {
-    page->SetObserver(observer);
-  } else if (state.failed_pages.erase(key)) {
-    observer(@"creation_failed", @{});
-  } else {
-    state.pending_observers[key] = [observer copy];
-  }
-}
-- (BOOL)adoptPage:(NSString*)adoptionID asPage:(NSString*)pageID observer:(Observation)observer {
-  CHECK(NSThread.isMainThread);
-  State().pending_observers[base::SysNSStringToUTF8(pageID)] = [observer copy];
   return crest::EngineBinding::Get().Adopt(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(adoptionID));
 }
 - (BOOL)stageNavigation:(NSString*)token page:(NSString*)pageID url:(NSString*)url {
@@ -2434,106 +1700,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
 - (void)discardPendingNavigation:(NSString*)token {
   CHECK(NSThread.isMainThread);
   State().pending_link_navigations.erase(base::SysNSStringToUTF8(token));
-}
-- (BOOL)command:(NSString*)command page:(NSString*)pageID url:(NSString*)url {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  if (!page || !page->web_contents()) return NO;
-  auto* contents = page->web_contents();
-  if ([command isEqualToString:@"engine.picture_in_picture_enter"]) {
-    // The browser Media Session chooses the active video player and asks its
-    // renderer to enter PiP. Do not synthesize a page gesture in JavaScript.
-    if ((!page->video_was_playing_when_detached && page->playing_videos.empty() &&
-         !page->media_last_playing && contents->GetCurrentlyPlayingVideoCount() == 0) ||
-        contents->HasPictureInPictureVideo() || contents->HasPictureInPictureDocument()) return NO;
-    auto* media_session = content::MediaSession::GetIfExists(contents);
-    if (!media_session) return NO;
-    media_session->EnterPictureInPicture();
-  } else if ([command isEqualToString:@"engine.media_activate"]) {
-    const std::string document = base::SysNSStringToUTF8(url ?: @"");
-    if (document.empty() || document.size() > 128) return NO;
-    page->media_document = document;
-    page->PublishMediaSession();
-  } else if ([command isEqualToString:@"engine.media_action"] ||
-             [command isEqualToString:@"engine.media_mute"]) {
-    // `url` carries "<action or 0/1>:<document>"; a stale document is ignored.
-    const std::string value = base::SysNSStringToUTF8(url ?: @"");
-    const auto separator = value.find(':');
-    if (separator == std::string::npos || value.substr(separator + 1) != page->media_document) return NO;
-    const std::string argument = value.substr(0, separator);
-    if ([command isEqualToString:@"engine.media_mute"]) {
-      contents->SetAudioMuted(argument == "1");
-      return YES;
-    }
-    auto* media_session = content::MediaSession::Get(contents);
-    if (!media_session) return NO;
-    using SuspendType = media_session::mojom::MediaSession::SuspendType;
-    if (argument == "play") media_session->Resume(SuspendType::kUI);
-    else if (argument == "pause") media_session->Suspend(SuspendType::kUI);
-    else if (argument == "previoustrack") media_session->PreviousTrack();
-    else if (argument == "nexttrack") media_session->NextTrack();
-    else return NO;
-  } else if ([command isEqualToString:@"engine.infobar"]) {
-    // `url` carries "<response>:<id>".
-    auto parts = base::SplitString(base::SysNSStringToUTF8(url ?: @""), ":", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-    int id = 0;
-    if (parts.size() != 2 || !base::StringToInt(parts[1], &id)) return NO;
-    return page->RespondToInfoBar(id, parts[0]) ? YES : NO;
-  } else if ([command isEqualToString:@"engine.favicon_refresh"]) {
-    // Fetch the page's icon again rather than replay the cached one.
-    auto* driver = favicon::ContentFaviconDriver::FromWebContents(contents);
-    if (!driver) return NO;
-    driver->FetchFavicon(contents->GetLastCommittedURL(), /*is_same_document=*/false);
-  } else if ([command isEqualToString:@"engine.show_blocked_popups"]) {
-    auto* blocker = blocked_content::PopupBlockerTabHelper::FromWebContents(contents);
-    if (!blocker || !blocker->GetBlockedPopupsCount()) return NO;
-    blocker->ShowAllBlockedPopups();
-    page->published_blocked_popups = 0;
-  } else if ([command isEqualToString:@"engine.extensions"]) {
-    if (page->browser->GetProfile()->IsOffTheRecord()) return NO;
-    NavigateParams params(page->browser, GURL("chrome://extensions/"), ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-    params.window_action = NavigateParams::WindowAction::kNoAction;
-    Navigate(&params);
-  } else if ([command isEqualToString:@"engine.inspect"] ||
-             [command isEqualToString:@"engine.inspect_console"] ||
-             [command isEqualToString:@"engine.inspect_elements"] ||
-             [command isEqualToString:@"engine.inspect_network"]) {
-    // DevToolsToggleAction is the only public way to choose a starting panel,
-    // and it covers Console and Elements. Network has no toggle action, and the
-    // frontend's panel parameter is private to DevToolsWindow, so a Network
-    // request opens DevTools without selecting a panel; the engine reports that
-    // back as an inspector opened on no known panel.
-    DevToolsToggleAction action = DevToolsToggleAction::Show();
-    DevToolsOpenedByAction opened_by = DevToolsOpenedByAction::kMainMenuOrMainShortcut;
-    if ([command isEqualToString:@"engine.inspect_console"]) {
-      action = DevToolsToggleAction::ShowConsolePanel();
-      opened_by = DevToolsOpenedByAction::kConsoleShortcut;
-    } else if ([command isEqualToString:@"engine.inspect_elements"]) {
-      action = DevToolsToggleAction::ShowElementsPanel();
-    }
-    DevToolsWindow::OpenDevToolsWindow(contents, action, opened_by);
-  } else if ([command isEqualToString:@"engine.inspect_visible"]) {
-    // A state query: the answer is this command's result, not an action.
-    return DevToolsWindow::GetInstanceForInspectedWebContents(contents) != nullptr;
-  } else if ([command isEqualToString:@"engine.inspect_close"]) {
-    auto* inspector = DevToolsWindow::GetInstanceForInspectedWebContents(contents);
-    if (!inspector) return NO;
-    // Closing the frontend contents is the one path that covers both states: a
-    // docked frontend is its own delegate and tears the inspector down from
-    // here, and an undocked one takes the same route its window close takes.
-    // The browser-scoped toggle cannot be used instead — it acts on whichever
-    // tab is active, which is not necessarily the card this command names.
-    content::WebContents* frontend = inspector->GetDevToolsWebContents();
-    if (!frontend) return NO;
-    frontend->Close();
-  } else if ([command isEqualToString:@"engine.store_state"]) {
-    // The core finished or abandoned an install review; the listing's own
-    // button goes back to the state Chromium's registry reports.
-    page->store_request_open = false;
-    page->PublishStoreState();
-  } else { return NO; }
-  return YES;
 }
 - (void)clearSiteDataForPage:(NSString*)pageID completion:(void (^)(BOOL))completion {
   CHECK(NSThread.isMainThread);
@@ -2771,27 +1937,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   Page* page = FindPage(pageID);
   return page && page->devtools ? page->devtools->container() : nil;
 }
-- (NSDictionary<NSString*, NSValue*>*)layoutDevToolsForPage:(NSString*)pageID container:(NSRect)container {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  if (!page || !page->devtools || NSIsEmptyRect(container)) return nil;
-  // The frontend takes the whole card interior and the inspected page is drawn
-  // on top of it at the rectangle the frontend asked for, which is how its own
-  // dock side, splitter position and drawer height reach the card.
-  gfx::Rect frontend_bounds;
-  gfx::Rect page_bounds;
-  ApplyDevToolsContentsResizingStrategy(
-      page->devtools->strategy,
-      gfx::Rect(0, 0, static_cast<int>(NSWidth(container)), static_cast<int>(NSHeight(container))),
-      &frontend_bounds, &page_bounds);
-  // Chromium measures from the top left; AppKit measures from the bottom left.
-  auto flipped = [&container](const gfx::Rect& rect) {
-    return [NSValue valueWithRect:NSMakeRect(NSMinX(container) + rect.x(),
-        NSMinY(container) + NSHeight(container) - rect.y() - rect.height(),
-        rect.width(), rect.height())];
-  };
-  return @{ @"devTools": flipped(frontend_bounds), @"page": flipped(page_bounds) };
-}
 - (NSDictionary<NSString*, id>*)dispatchExtensionShortcut:(NSEvent*)event page:(NSString*)pageID {
   CHECK(NSThread.isMainThread);
   Page* page = FindPage(pageID);
@@ -2921,68 +2066,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   }));
   installer->InstallCrx(base::FilePath(base::SysNSStringToUTF8(path)));
   return YES;
-}
-- (NSDictionary<NSString*, id>*)mediaActivityForPage:(NSString*)pageID {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  auto* contents = page ? page->web_contents() : nullptr;
-  if (!contents) return nil;
-  auto indicator = MediaCaptureDevicesDispatcher::GetInstance()->GetMediaStreamCaptureIndicator();
-  return @{
-    @"playing": @(page->video_was_playing_when_detached || !page->playing_videos.empty() ||
-                   page->media_last_playing || contents->IsCurrentlyAudible() ||
-                   contents->GetCurrentlyPlayingVideoCount() > 0),
-    @"capturing": @(contents->IsBeingCaptured() || indicator->IsCapturingUserMedia(contents)
-                     || indicator->IsCapturingTab(contents) || indicator->IsCapturingWindow(contents)
-                     || indicator->IsCapturingDisplay(contents)),
-    @"pictureInPicture": @(contents->HasPictureInPictureVideo() || contents->HasPictureInPictureDocument())
-  };
-}
-- (BOOL)addContentScript:(NSString*)source page:(NSString*)pageID mainFrameOnly:(BOOL)mainFrameOnly {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  if (!page || !page->web_contents() || !source.length) return NO;
-  page->content_scripts.emplace_back(base::SysNSStringToUTF8(source), mainFrameOnly);
-  return YES;
-}
-- (void)evaluateContentScript:(NSString*)source page:(NSString*)pageID frame:(NSString*)frameID
-                   completion:(void (^)(NSString* _Nullable))completion {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  // "main" addresses the primary main frame's current document directly.
-  if ([frameID isEqualToString:@"main"]) {
-    auto* main = page && page->web_contents() ? page->web_contents()->GetPrimaryMainFrame() : nullptr;
-    if (!main || !main->IsRenderFrameLive()) { completion(nil); return; }
-    void (^reply)(NSString*) = [completion copy];
-    main->ExecuteJavaScriptInIsolatedWorld(
-        base::UTF8ToUTF16("(async () => {\n" + base::SysNSStringToUTF8(source) + "\n})()"),
-        mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-            base::BindOnce([](void (^reply)(NSString*), base::Value value) {
-              auto json = base::WriteJson(value);
-              reply(json ? base::SysUTF8ToNSString(*json) : nil);
-            }, reply), base::Value()), crest::kContentWorldID);
-    return;
-  }
-  auto parts = base::SplitString(base::SysNSStringToUTF8(frameID), ":", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
-  int child = 0, routing = 0;
-  if (!page || !page->web_contents() || parts.size() != 3 || !base::StringToInt(parts[0], &child) ||
-      !base::StringToInt(parts[1], &routing)) { completion(nil); return; }
-  auto* frame = content::RenderFrameHost::FromID(content::GlobalRenderFrameHostId(child, routing));
-  if (!frame || !frame->IsRenderFrameLive() ||
-      content::WebContents::FromRenderFrameHost(frame) != page->web_contents()) { completion(nil); return; }
-  auto doc = base::WriteJson(base::Value(parts[2]));
-  // The source runs only in the document it was addressed to.
-  const std::string script = "(async () => { if (globalThis.__crestBridge?.doc !== " + *doc +
-      ") return null;\n" + base::SysNSStringToUTF8(source) + "\n})()";
-  void (^reply)(NSString*) = [completion copy];
-  // A document torn down mid-evaluation drops its reply; the caller still
-  // gets an answer.
-  frame->ExecuteJavaScriptInIsolatedWorld(base::UTF8ToUTF16(script),
-      mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-          base::BindOnce([](void (^reply)(NSString*), base::Value value) {
-            auto json = base::WriteJson(value);
-            reply(json ? base::SysUTF8ToNSString(*json) : nil);
-          }, reply), base::Value()), crest::kContentWorldID);
 }
 - (void)disposePages:(NSArray<NSString*>*)pageIDs windows:(NSArray<NSString*>*)windowIDs
     releaseProfiles:(NSArray<NSString*>*)profileIDs {
@@ -3171,16 +2254,6 @@ void SnapPictureInPictureWindow(views::Widget* widget) {
     context.duration = 0.22;
     [[window animator] setFrame:target display:YES];
   } completionHandler:nil];
-}
-
-void ReportContentFullscreen(content::WebContents* contents, bool active) {
-  if (!IsEnabled() || !contents) return;
-  for (auto& [id, page] : State().pages) {
-    if (page->web_contents() == contents) {
-      page->observation(@"fullscreen_changed", @{ @"active": @(active) });
-      return;
-    }
-  }
 }
 
 bool PresentHTTPAuthentication(content::WebContents* contents, const net::AuthChallengeInfo& challenge,
@@ -3906,60 +2979,6 @@ bool OpenExtensionSidePanel(content::WebContents* contents, const std::string& e
 bool CloseExtensionSidePanel(content::WebContents* contents, const std::string& extension_id) {
   return RouteSidePanel(contents, extension_id, CrestSidePanelRequestClose);
 }
-bool CanDockDevTools(content::WebContents* inspected) {
-  if (!IsEnabled() || !State().started || State().disposing || State().quitting) return false;
-  return !PageIdentifierForContents(inspected).empty();
-}
-bool UpdateDockedDevTools(content::WebContents* inspected) {
-  if (!IsEnabled() || !State().started || State().disposing || State().quitting) return false;
-  const std::string identifier = PageIdentifierForContents(inspected);
-  if (identifier.empty()) return false;
-  Page* page = FindPage(base::SysUTF8ToNSString(identifier));
-  if (!page) return false;
-  auto* inspector = DevToolsWindow::GetInstanceForInspectedWebContents(inspected);
-  DevToolsContentsResizingStrategy strategy;
-  // Only a docked frontend belongs in the card. An undocked window also offers
-  // its device-emulation container for the inspected tab, which Crest does not
-  // present: the card keeps showing the page.
-  content::WebContents* frontend = inspector && inspector->IsDocked()
-      ? DevToolsWindow::GetInTabWebContents(inspected, &strategy) : nullptr;
-  if (!frontend) {
-    if (inspector && !inspector->IsDocked()) {
-      if (content::WebContents* undocked = inspector->GetDevToolsWebContents())
-        page->undocked_devtools = undocked->GetWeakPtr();
-    }
-    // Nothing is docked any more: the inspector closed, or the user undocked
-    // it and Chromium has taken the frontend into a window of its own.
-    if (!page->devtools) return true;
-    page->devtools.reset();
-  } else if (page->undocked_devtools.get() == frontend) {
-    // The user re-docked the window they had undocked. That frontend can no
-    // longer draw outside Views, so it is replaced with a fresh docked one.
-    page->undocked_devtools.reset();
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce([](base::WeakPtr<content::WebContents> inspected,
-                                     base::WeakPtr<content::WebContents> frontend) {
-          if (frontend) frontend->Close();
-          if (inspected) {
-            DevToolsWindow::OpenDevToolsWindow(inspected.get(), DevToolsToggleAction::Show(),
-                DevToolsOpenedByAction::kMainMenuOrMainShortcut);
-          }
-        }, inspected->GetWeakPtr(), frontend->GetWeakPtr()));
-    return true;
-  } else {
-    if (!page->devtools || !page->devtools->hosts(frontend))
-      page->devtools = std::make_unique<DevToolsPanel>(frontend);
-    page->devtools->strategy.CopyFrom(strategy);
-  }
-  [NSClassFromString(@"CrestRoot") routeDevTools:base::SysUTF8ToNSString(identifier)];
-  return true;
-}
-void OnDevToolsClosing(content::WebContents* inspected) {
-  if (!IsEnabled() || !State().started || State().disposing || State().quitting) return;
-  const std::string identifier = PageIdentifierForContents(inspected);
-  if (identifier.empty()) return;
-  [NSClassFromString(@"CrestRoot") closeDevToolsPanel:base::SysUTF8ToNSString(identifier)];
-}
 bool OpenExternalURLs(NSArray<NSURL*>* urls) {
   // Before the native root exists there is nothing to route into, and after a
   // quit has been accepted there is nothing left to open. Chromium then keeps
@@ -3994,32 +3013,6 @@ bool CancelAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
     break;
   }
   return true;
-}
-void UpdateTargetURL(content::WebContents* contents, const GURL& url) {
-  if (!IsEnabled() || !State().started || State().disposing || !contents) return;
-  for (auto& [page_id, page] : State().pages) {
-    if (page->web_contents() != contents) continue;
-    page->observation(@"link_hover", @{
-      @"url": url.is_valid() ? base::SysUTF8ToNSString(url.spec()) : (id)NSNull.null });
-    return;
-  }
-}
-void UpdateSiteIndicators(content::WebContents* contents) {
-  if (!IsEnabled() || !State().started || State().disposing || !contents) return;
-  for (auto& [id, page] : State().pages) {
-    if (page->web_contents() != contents) continue;
-    auto* blocker = blocked_content::PopupBlockerTabHelper::FromWebContents(contents);
-    const size_t count = blocker ? blocker->GetBlockedPopupsCount() : 0;
-    // The blocker forgets its pop-ups when the document changes.
-    if (count < page->published_blocked_popups) page->published_blocked_popups = count;
-    if (count > page->published_blocked_popups) {
-      page->published_blocked_popups = count;
-      page->observation(@"popup_blocked", @{
-        @"url": base::SysUTF8ToNSString(contents->GetLastCommittedURL().spec()),
-        @"count": @(count) });
-    }
-    return;
-  }
 }
 void TranslateSelection(const std::u16string& text) {
   if (!IsEnabled() || !State().started || State().disposing || text.empty()) return;

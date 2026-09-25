@@ -1,0 +1,90 @@
+#ifndef CHROME_BROWSER_UI_CREST_CREST_ENGINE_MEDIA_H_
+#define CHROME_BROWSER_UI_CREST_CREST_ENGINE_MEDIA_H_
+
+#include <cstdint>
+#include <optional>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/crest/crest_engine_contract.h"
+#include "content/public/browser/media_player_id.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "services/media_session/public/mojom/media_session.mojom.h"
+
+namespace content {
+class WebContents;
+}
+
+namespace crest {
+
+// A page's media: what it plays and captures, and the engine's own Media
+// Session — metadata, playback state and the actions the page handles — as
+// Crest shows it under the document identity Crest issued for the document
+// the page shows. The engine deactivates the session of a muted page; Crest
+// keeps showing it, muted, so the person can unmute it.
+class PageMedia final : public media_session::mojom::MediaSessionObserver {
+ public:
+  using Present = base::RepeatingCallback<void(engine::EnginePresentation)>;
+
+  // Follows `contents`' media for the page `page`. `present` hears the
+  // session as Crest shows it, and `changed` that what the page runs changed.
+  PageMedia(content::WebContents* contents, const engine::Guid& page, Present present,
+            base::RepeatingClosure changed);
+  PageMedia(const PageMedia&) = delete;
+  PageMedia& operator=(const PageMedia&) = delete;
+  ~PageMedia() override;
+
+  // What the page runs now. A video that was playing when the page left the
+  // screen still counts as playing.
+  engine::PageMediaActivity Activity() const;
+
+  void PlayerStarted(const content::MediaPlayerId& id, bool has_video);
+  void PlayerStopped(const content::MediaPlayerId& id);
+  // The page's sound or muting changed.
+  void AudioChanged();
+  // The page committed a new document, which gets a session identity of its own.
+  void DocumentChanged();
+  // The page's view left the screen or came back to it.
+  void VisibilityChanged(bool visible);
+
+  // What the platform asks of the session.
+  bool EnterPictureInPicture();
+  bool Activate(const std::string& document);
+  bool Perform(const std::string& document, engine::MediaSessionAction action);
+  bool Mute(const std::string& document, bool muted);
+
+  // media_session::mojom::MediaSessionObserver:
+  void MediaSessionInfoChanged(media_session::mojom::MediaSessionInfoPtr info) override;
+  void MediaSessionMetadataChanged(const std::optional<media_session::MediaMetadata>& metadata) override;
+  void MediaSessionActionsChanged(const std::vector<media_session::mojom::MediaSessionAction>& actions) override;
+  void MediaSessionImagesChanged(
+      const base::flat_map<media_session::mojom::MediaSessionImageType, std::vector<media_session::MediaImage>>&
+          images) override;
+  void MediaSessionPositionChanged(const std::optional<media_session::MediaPosition>& position) override;
+
+ private:
+  // Presents the session as Crest shows it, once Crest issued its document.
+  void Publish();
+
+  const raw_ptr<content::WebContents> contents_;
+  const engine::Guid page_;
+  const Present present_;
+  const base::RepeatingClosure changed_;
+  mojo::Receiver<media_session::mojom::MediaSessionObserver> receiver_{this};
+  media_session::mojom::MediaSessionInfoPtr info_;
+  std::optional<media_session::MediaMetadata> metadata_;
+  std::vector<media_session::mojom::MediaSessionAction> actions_;
+  std::string document_;
+  int64_t sequence_ = 0;
+  bool seen_active_ = false;
+  bool last_playing_ = false;
+  std::set<content::MediaPlayerId> playing_videos_;
+  bool played_before_hidden_ = false;
+};
+
+}  // namespace crest
+
+#endif  // CHROME_BROWSER_UI_CREST_CREST_ENGINE_MEDIA_H_

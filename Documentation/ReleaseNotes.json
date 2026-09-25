@@ -2589,6 +2589,10 @@
     "2026-09-25-chromium-release-entry-export": {
       "category": "fixed",
       "message": "Fix the Chromium build crashing on launch when built for release"
+    },
+    "2026-09-25-chromium-binding-presentation": {
+      "category": "internal",
+      "message": "Chromium presents each page's view, inspector and page events from its own C++ binding"
     }
   }
 }

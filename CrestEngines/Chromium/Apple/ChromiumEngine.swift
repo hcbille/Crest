@@ -20,11 +20,8 @@
         /// The Mac shell, for what only AppKit does.
         let host: any CrestChromiumEngineHost
         /// The pages' direct path to the binding, which hears the binding's
-        /// presentations from its first request on.
-        private(set) lazy var pages = NativeEnginePages(table: pagesTable) { [weak self] presentation in
-            self?.present(presentation)
-        }
-        private let pagesTable: crest_engine_pages_t
+        /// presentations from the engine's start on.
+        private(set) var pages: NativeEnginePages!
         /// Each page this hosts, while its owner keeps it.
         private var hosted: [UUID: WeakNativePage] = [:]
 
@@ -37,7 +34,7 @@
             self.host = host
             self.table = table
             self.fingerprint = fingerprint
-            pagesTable = pages
+            self.pages = NativeEnginePages(table: pages) { [weak self] presentation in self?.present(presentation) }
         }
 
         // MARK: - Actions - Pages
@@ -74,10 +71,41 @@
         /// Hands a presentation to the page it names; one for a page that is
         /// gone changes nothing.
         private func present(_ presentation: EnginePresentation) {
-            switch presentation {
-            case .findFinished(let finished): hosted[finished.pageID]?.page?.receive(finished)
-            case .pageCaptured(let captured): hosted[captured.pageID]?.page?.receive(captured)
-            case .pageExported(let exported): hosted[exported.pageID]?.page?.receive(exported)
+            hosted[presentation.pageID]?.page?.receive(presentation)
+        }
+    }
+
+    extension EnginePresentation {
+        /// The page the presentation is about.
+        fileprivate var pageID: UUID {
+            switch self {
+            case .contentFullscreenChanged(let value): value.pageID
+            case .contentMessagePosted(let value): value.pageID
+            case .contentScriptEvaluated(let value): value.pageID
+            case .findFinished(let value): value.pageID
+            case .infoBarRemoved(let value): value.pageID
+            case .infoBarShown(let value): value.pageID
+            case .inspectorClosed(let value): value.pageID
+            case .inspectorLayoutChanged(let value): value.pageID
+            case .linkHovered(let value): value.pageID
+            case .mediaSessionChanged(let value): value.pageID
+            case .pageCaptured(let value): value.pageID
+            case .pageExported(let value): value.pageID
+            case .pageHistoryChanged(let value): value.pageID
+            case .pageInteracted(let value): value.pageID
+            case .pageLoadingChanged(let value): value.pageID
+            case .pageNavigationCommitted(let value): value.pageID
+            case .pageNavigationFailed(let value): value.pageID
+            case .pageNavigationStarted(let value): value.pageID
+            case .pageRendererGone(let value): value.pageID
+            case .pageThemeChanged(let value): value.pageID
+            case .pageViewClosed(let value): value.pageID
+            case .pageViewReady(let value): value.pageID
+            case .pageViewUnavailable(let value): value.pageID
+            case .popupBlocked(let value): value.pageID
+            case .stagedLinkUnavailable(let value): value.pageID
+            case .storeInstallRequested(let value): value.pageID
+            case .storeRemovalRequested(let value): value.pageID
             }
         }
     }
