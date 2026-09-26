@@ -2601,6 +2601,10 @@
     "2026-09-25-chromium-host-install-stamp": {
       "category": "internal",
       "message": "Installing the Chromium host sources stamps them with the install time, so an engine build never links a stale object"
+    },
+    "2026-09-25-debugger-passes-core-signal": {
+      "category": "internal",
+      "message": "Debugging a Crest app from Xcode no longer stops on the core runtime's own garbage-collection signal, which froze the app"
     }
   }
 }

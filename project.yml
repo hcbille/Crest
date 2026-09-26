@@ -238,9 +238,6 @@ targets:
           - "$(CREST_CORE_LIBRARY_DIR)/CrestCore.Native.dylib"
         outputFiles:
           - "$(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/CrestCore.Native.dylib"
-    scheme:
-      testTargets:
-        - CrestNativeCoreTests
   CrestNativeCoreTests:
     type: bundle.unit-test
     platform: macOS
@@ -331,9 +328,6 @@ targets:
         # Experimental while the Chromium engine lives on its branch; set to
         # development in the commit before merging to main.
         CREST_DEFAULT_UPDATE_CHANNEL: experimental
-    scheme:
-      testTargets:
-        - CrestTests
   CrestDockTilePlugin:
     type: bundle
     platform: macOS
@@ -424,7 +418,6 @@ targets:
           - "$(CREST_CORE_FRAMEWORK_DIR)/CrestCoreABI.framework/CrestCoreABI"
         outputFiles:
           - "$(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/CrestCoreABI.framework/CrestCoreABI"
-    scheme: {}
   CrestMobile:
     templates: [PortableCoreMobile]
     type: application
@@ -462,9 +455,6 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: Crest
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "CrestWinter CrestLion CrestStorm CrestDragon CrestMeadow CrestIron CrestRiver CrestSun CrestVigil"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-    scheme:
-      testTargets:
-        - CrestMobileTests
   CrestMobileTests:
     type: bundle.unit-test
     platform: iOS
@@ -482,12 +472,48 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Crest.app/Crest"
 schemes:
+  # The app schemes source Config/Crest.lldbinit, so the debugger never
+  # stops on the core runtime's own signals.
+  Crest:
+    build:
+      targets:
+        Crest: all
+    run:
+      customLLDBInit: "$(SRCROOT)/Config/Crest.lldbinit"
+    test:
+      targets:
+        - CrestTests
+  CrestNativeCore:
+    build:
+      targets:
+        CrestNativeCore: all
+    run:
+      customLLDBInit: "$(SRCROOT)/Config/Crest.lldbinit"
+    test:
+      targets:
+        - CrestNativeCoreTests
+  CrestMobile:
+    build:
+      targets:
+        CrestMobile: all
+    run:
+      customLLDBInit: "$(SRCROOT)/Config/Crest.lldbinit"
+    test:
+      targets:
+        - CrestMobileTests
+  CrestMobileNativeCore:
+    build:
+      targets:
+        CrestMobileNativeCore: all
+    run:
+      customLLDBInit: "$(SRCROOT)/Config/Crest.lldbinit"
   CrestMobile Production:
     build:
       targets:
         CrestMobile: all
     run:
       config: Release
+      customLLDBInit: "$(SRCROOT)/Config/Crest.lldbinit"
     profile:
       config: Release
     analyze:
