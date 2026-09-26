@@ -129,6 +129,9 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     private static func finishStart(_ root: CrestChromiumRoot) {
         guard instance == nil else { return }
         instance = root
+        #if CREST_REVIEW_BUILD && DEBUG
+            root.listenForReviewCommands()
+        #endif
         BrowserMacWindowPresentation.host = root
         BrowserMacAppIconPreference.restore()
         root.restoreWindows()
@@ -945,4 +948,45 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     }
     @objc static func showTabSearch() { instance?.activeContext?.chrome.presentCommandPalette() }
 }
+
+#if CREST_REVIEW_BUILD && DEBUG
+    /// Commands a review pass posts to an isolated Debug review build, so it can
+    /// load pages in the window's current tab and run Crest's own commands with
+    /// no keystrokes and no accessibility driving. No other build listens.
+    ///
+    /// The notification's object is the command:
+    /// - `load <address>` loads the address in the current tab, as if typed.
+    /// - `command <name>` runs the Crest command with that persisted shortcut
+    ///   name, such as `back`, `reloadPage` or `webInspectorInstructions` (Show
+    ///   Web Inspector). A name no command has does nothing.
+    /// - `settings` opens Settings.
+    ///
+    /// Commands take the same route a person's do, so the window must be key:
+    /// with no key window a window command does nothing.
+    extension CrestChromiumRoot {
+        static let reviewCommandName = Notification.Name("com.pauldavis.crest.review.command")
+
+        fileprivate func listenForReviewCommands() {
+            DistributedNotificationCenter.default().addObserver(
+                forName: Self.reviewCommandName, object: nil, queue: .main
+            ) { [weak self] notification in
+                guard let text = notification.object as? String else { return }
+                MainActor.assumeIsolated { self?.performReviewCommand(text) }
+            }
+        }
+
+        private func performReviewCommand(_ text: String) {
+            let parts = text.split(separator: " ", maxSplits: 1).map(String.init)
+            guard let verb = parts.first else { return }
+            let argument = parts.count > 1 ? parts[1] : ""
+            switch verb {
+            case "load": activeContext?.pages.navigate(to: argument)
+            case "command":
+                if let command = ShortcutCommand.named(argument) { perform(command) }
+            case "settings": performApplicationAction(.settings)
+            default: break
+            }
+        }
+    }
+#endif
 #endif
