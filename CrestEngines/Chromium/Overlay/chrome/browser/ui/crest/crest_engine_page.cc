@@ -37,11 +37,13 @@
 #include "content/public/browser/navigation_entry.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/restore_type.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
+#include "net/base/schemeful_site.h"
 #include "net/cert/cert_status_flags.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -67,6 +69,10 @@ constexpr size_t kInteractionStateEntryBytes = 64 * 1024;
 constexpr size_t kInteractionStateBytes = 2 * 1024 * 1024;
 // The largest icon image the page reports.
 constexpr size_t kIconBytes = 512 * 1024;
+// The key systems a page asks for by name that another engine plays through
+// the platform: Widevine and every PlayReady variant.
+constexpr std::string_view kWidevinePrefix = "com.widevine.alpha";
+constexpr std::string_view kPlayReadyPrefix = "com.microsoft.playready";
 // The zoom factors a page takes.
 constexpr double kMinimumZoom = 0.25;
 constexpr double kMaximumZoom = 5;
@@ -517,6 +523,27 @@ void EnginePage::DOMContentLoaded(content::RenderFrameHost* frame) {
   if (content_ && frame && !frame->IsInPrimaryMainFrame()) {
     content_->DocumentAvailable(frame);
   }
+}
+
+// A frame of the page's own site asked for a key system this engine does not
+// carry, so the core may move the page to an engine that plays it. A frame of
+// another site, such as an advertisement's, moves nothing.
+void EnginePage::CrestKeySystemUnavailable(content::RenderFrameHost* frame, const std::string& key_system) {
+  engine::KeySystem system;
+  if (key_system.starts_with(kWidevinePrefix)) {
+    system = engine::KeySystem::kWidevine;
+  } else if (key_system.starts_with(kPlayReadyPrefix)) {
+    system = engine::KeySystem::kPlayReady;
+  } else {
+    return;
+  }
+  auto* main = web_contents()->GetPrimaryMainFrame();
+  if (!frame || !frame->GetPage().IsPrimary() ||
+      (frame != main && net::SchemefulSite(frame->GetLastCommittedOrigin()) !=
+                            net::SchemefulSite(main->GetLastCommittedOrigin()))) {
+    return;
+  }
+  Report(engine::ProtectedMediaUnavailable{.page_id = id_, .key_system = system});
 }
 
 void EnginePage::OnAudioStateChanged(bool audible) {

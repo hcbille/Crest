@@ -2889,6 +2889,10 @@
     "protected-video-fallback": {
       "category": "new",
       "message": "When a page's protected video needs a player Crest's Chromium doesn't have, the page moves to WebKit to play it, with an option to move it back"
+    },
+    "2026-09-26-chromium-reports-missing-drm": {
+      "category": "internal",
+      "message": "Chromium reports a missing Widevine or PlayReady to the core"
     }
   }
 }

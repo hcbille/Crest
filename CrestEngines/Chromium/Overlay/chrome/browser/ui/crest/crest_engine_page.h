@@ -221,6 +221,7 @@ class EnginePage final : public content::WebContentsObserver,
   void DidGetUserInteraction(const blink::WebInputEvent& event) override;
   void PrimaryMainDocumentElementAvailable() override;
   void DOMContentLoaded(content::RenderFrameHost* frame) override;
+  void CrestKeySystemUnavailable(content::RenderFrameHost* frame, const std::string& key_system) override;
   void OnAudioStateChanged(bool audible) override;
   void DidUpdateAudioMutingState(bool muted) override;
   void MediaStartedPlaying(const MediaPlayerInfo& info, const content::MediaPlayerId& id) override;

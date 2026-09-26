@@ -1148,7 +1148,24 @@
    AssertFrameWasCommitted();
  
    const bool wants_result = !callback.is_null();
-@@ -10289,6 +10291,18 @@
+@@ -6663,6 +6665,16 @@
+ 
+   // Since we didn't early return, it's safe to keep the commit state.
+   commit_state_resetter.disable();
++}
++
++// Crest: only an active document may ask, so a page moving to another engine
++// is always the one the person sees.
++void RenderFrameHostImpl::CrestKeySystemUnavailable(
++    const std::string& key_system) {
++  if (!IsActive()) {
++    return;
++  }
++  delegate_->CrestKeySystemUnavailable(this, key_system);
+ }
+ 
+ void RenderFrameHostImpl::DidOpenDocumentInputStream(const GURL& url) {
+@@ -10289,6 +10301,18 @@
    }
    // TODO(crbug.com/385170155): Consider whether to pass actual_navigation_start
    // through this path as well, which may involve a lot of plumbing.
@@ -1167,7 +1184,7 @@
    owner->GetCurrentNavigator().RequestOpenURL(
        this, validated_url, base::OptionalToPtr(params->initiator_frame_token),
        GetProcess()->GetDeprecatedID(), params->initiator_origin,
-@@ -10297,7 +10311,8 @@
+@@ -10297,7 +10321,8 @@
        params->disposition, params->should_replace_current_entry,
        params->user_gesture, params->triggering_event_info,
        params->href_translate, std::move(blob_url_loader_factory),
@@ -1795,3 +1812,137 @@
 +#endif
 +}
 +
+--- a/third_party/blink/public/platform/media/key_system_config_selector.h
++++ b/third_party/blink/public/platform/media/key_system_config_selector.h
+@@ -42,6 +42,10 @@
+     // Delegate to `WebContentSettingsClient` within `WebLocalFrame`.
+     virtual bool AllowStorageAccessSync(
+         WebContentSettingsClient::StorageType storage_type) = 0;
++
++    // Crest: the frame asked for `key_system`, which this browser does not
++    // have, so the embedder may play it in another engine.
++    virtual void KeySystemUnavailable(const std::string& key_system) {}
+   };
+ 
+   KeySystemConfigSelector(
+@@ -81,6 +85,11 @@
+     is_supported_media_type_cb_ = std::move(cb);
+   }
+ 
++  // Crest: the frame this selector chooses configurations for.
++  WebLocalFrameDelegate* web_frame_delegate() const {
++    return web_frame_delegate_.get();
++  }
++
+  private:
+   struct SelectionRequest;
+   class ConfigState;
+--- a/third_party/blink/renderer/platform/media/web_encrypted_media_client_impl.cc
++++ b/third_party/blink/renderer/platform/media/web_encrypted_media_client_impl.cc
+@@ -309,6 +309,12 @@
+   // Handle unsupported cases first.
+   switch (status) {
+     case KeySystemConfigSelector::Status::kUnsupportedKeySystem:
++      // Crest: tell the embedder which key system the frame lacks.
++      if (auto* frame = key_system_config_selector_.web_frame_delegate();
++          frame && request.KeySystem().ContainsOnlyAscii()) {
++        frame->KeySystemUnavailable(request.KeySystem().Ascii());
++      }
++      [[fallthrough]];
+     case KeySystemConfigSelector::Status::kUnsupportedConfigs:
+       request.RequestNotSupported(kUnsupportedKeySystemOrConfigMessage);
+       GetPerProcessReporter(request.KeySystem())->ReportRejectTime();
+--- a/content/renderer/media/media_factory.cc
++++ b/content/renderer/media/media_factory.cc
+@@ -292,6 +292,13 @@
+     return web_frame_->AllowStorageAccessSyncAndNotify(storage_type);
+   }
+ 
++  // Crest: the browser may move the page to an engine that has it.
++  void KeySystemUnavailable(const std::string& key_system) override {
++    if (auto* frame = content::RenderFrameImpl::FromWebFrame(&*web_frame_)) {
++      frame->GetFrameHost()->CrestKeySystemUnavailable(key_system);
++    }
++  }
++
+   ~LocalFrameDelegate() override = default;
+ 
+  private:
+--- a/content/common/frame.mojom
++++ b/content/common/frame.mojom
+@@ -782,6 +782,10 @@
+   // document in the frame should be updated to `url` per step 12 of
+   // https://whatwg.org/C/dynamic-markup-insertion.html#document-open-steps.
+   DidOpenDocumentInputStream(url.mojom.Url url);
++
++  // Crest: sent by the renderer when the frame asked for a protected media
++  // key system this browser does not have.
++  CrestKeySystemUnavailable(string key_system);
+ 
+   // Sent by the renderer to request a navigation.
+   // |blob_url_token| should be non-null when this is a navigation to a blob:
+--- a/content/browser/renderer_host/render_frame_host_impl.h
++++ b/content/browser/renderer_host/render_frame_host_impl.h
+@@ -3692,6 +3692,7 @@
+       mojom::DidCommitSameDocumentNavigationParamsPtr same_document_params)
+       override;
+   void DidOpenDocumentInputStream(const GURL& url) override;
++  void CrestKeySystemUnavailable(const std::string& key_system) override;
+   // |initiator_navigation_state_keep_alive_handle| is needed to ensure that the
+   // NavigationStateKeepAlive of the initiator RenderFrameHost can still be
+   // retrieved even if the RenderFrameHost has been deleted.
+--- a/content/browser/renderer_host/render_frame_host_delegate.h
++++ b/content/browser/renderer_host/render_frame_host_delegate.h
+@@ -258,6 +258,11 @@
+   // The DOMContentLoaded handler in the frame has completed.
+   virtual void DOMContentLoaded(RenderFrameHostImpl* render_frame_host) {}
+ 
++  // Crest: the frame asked for a protected media key system this browser
++  // does not have.
++  virtual void CrestKeySystemUnavailable(RenderFrameHostImpl* render_frame_host,
++                                         const std::string& key_system) {}
++
+   // The onload handler in the frame has completed. Only called for the main
+   // frames.
+   virtual void DocumentOnLoadCompleted(RenderFrameHostImpl* render_frame_host) {
+--- a/content/browser/web_contents/web_contents_impl.h
++++ b/content/browser/web_contents/web_contents_impl.h
+@@ -744,6 +744,8 @@
+   void FrameSizeChanged(RenderFrameHostImpl* render_frame_host,
+                         const gfx::Size& frame_size) override;
+   void DOMContentLoaded(RenderFrameHostImpl* render_frame_host) override;
++  void CrestKeySystemUnavailable(RenderFrameHostImpl* render_frame_host,
++                                 const std::string& key_system) override;
+   void DocumentOnLoadCompleted(RenderFrameHostImpl* render_frame_host) override;
+   void UpdateTitle(RenderFrameHostImpl* render_frame_host,
+                    const std::u16string& title) override;
+--- a/content/browser/web_contents/web_contents_impl.cc
++++ b/content/browser/web_contents/web_contents_impl.cc
+@@ -8705,6 +8705,13 @@
+                              render_frame_host);
+ }
+ 
++void WebContentsImpl::CrestKeySystemUnavailable(
++    RenderFrameHostImpl* render_frame_host,
++    const std::string& key_system) {
++  observers_.NotifyObservers(&WebContentsObserver::CrestKeySystemUnavailable,
++                             render_frame_host, key_system);
++}
++
+ void WebContentsImpl::OnDidFinishLoad(RenderFrameHostImpl* render_frame_host,
+                                       const GURL& url) {
+   OPTIONAL_TRACE_EVENT2("content", "WebContentsImpl::OnDidFinishLoad",
+--- a/content/public/browser/web_contents_observer.h
++++ b/content/public/browser/web_contents_observer.h
+@@ -470,6 +470,11 @@
+   // content scripts marked "document_end" get injected into the frame.
+   virtual void DOMContentLoaded(RenderFrameHost* render_frame_host) {}
+ 
++  // Crest: a frame of this WebContents asked for a protected media key system
++  // this browser does not have, such as Widevine.
++  virtual void CrestKeySystemUnavailable(RenderFrameHost* render_frame_host,
++                                         const std::string& key_system) {}
++
+   // This method is invoked when the load is done for the document represented
+   // by `render_frame_host` on the renderer side, e.g. the onload event was
+   // dispatched. Note that this function is not related to

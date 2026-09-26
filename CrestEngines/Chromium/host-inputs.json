@@ -153,7 +153,7 @@
   },
   "content/browser/renderer_host/render_frame_host_impl.cc": {
     "before": "4eeb2db6661d24a1a9aa98d1b0e9790cfacd8ec84261d72713b5df219c102478",
-    "after": "fac495e86c78a45b29e3d4b1bfcc3ec43771ca3848577c65ce3c48a61c19f136"
+    "after": "e453deac297e998b926c24f8af6915836e926ce20460d87d503608a252f50efd"
   },
   "content/browser/renderer_host/navigator.h": {
     "before": "2b7a3770a08eafe6b35477ca98a9b63037f6ff013a42e58b26a7b28f0f894d4c",
@@ -234,5 +234,41 @@
   "chrome/browser/ui/views/overlay/video_overlay_window_views.cc": {
     "before": "793978267d896517464cb74307f52a9e875840b63e56a48104f730660ff0dc90",
     "after": "97e4e9d2e873df87cdfe409c6921e61f562eebe4065186ac3124b89d72301a7d"
+  },
+  "third_party/blink/public/platform/media/key_system_config_selector.h": {
+    "before": "ac960b2a40c65ff1c9b640e53ed6ed6e3a9ccf53d7a5607033d0cf59201a3d65",
+    "after": "c31e6b52bced9e039d8fb9feedf1174c6d42c4910e9898a58bcbf6b6f516f08a"
+  },
+  "third_party/blink/renderer/platform/media/web_encrypted_media_client_impl.cc": {
+    "before": "df6165533cf5a4945f30684de96aae56bc916c7d8ad29310b2ac4ca67c78ec3d",
+    "after": "cd01dbe279265bee79a7514528dc0b2598a4608467dbb10ef15affcf6bb38ca1"
+  },
+  "content/renderer/media/media_factory.cc": {
+    "before": "bed61fe205bc01cc5ad1089c3c6ed243fc602fb1ab59fa5d3a8c5e5da2398f16",
+    "after": "035b5e2fb8f05d539116f3c497cea45b6435539294cca95ab2e0b7dcca89cd8a"
+  },
+  "content/common/frame.mojom": {
+    "before": "24917d38c9bf9028a31bd218d350c738b6ee506cbf8917668cd4fde67d25086e",
+    "after": "4b39eb6eecaf8765b865f6367fab2203565846d3c7a177e06e794ebddcbd2e41"
+  },
+  "content/browser/renderer_host/render_frame_host_impl.h": {
+    "before": "4f59f596fcccfe1746b5455323300ae4284a379b22ce7f34571785fa4b317cbe",
+    "after": "653678b4b861ebf17e5ce4d837a2511019b1bb58e0b726f79b114cb5f1e4df9c"
+  },
+  "content/browser/renderer_host/render_frame_host_delegate.h": {
+    "before": "5ae46dfd611e95cd7503b5f4046f101c15739eb00ca036d24d3076524ed8b31b",
+    "after": "7db2b2e2721d86cf16f8c61778cecb757c2e776ae43cc0b4f9fde038c7b513aa"
+  },
+  "content/browser/web_contents/web_contents_impl.h": {
+    "before": "4b5b52a9624e5d432378916c211794b9d52c539943e4fbe8c4b677ed245efaa8",
+    "after": "55dc6fe5d69e7929a77e6450f5c15d56b370de7b0e45fdf6fd562ba000d1521f"
+  },
+  "content/browser/web_contents/web_contents_impl.cc": {
+    "before": "e38ef3480ec29f7971ecb0a28a17c544e99ffb01c8f80faab425c9096e4ec3d9",
+    "after": "7eccfd748f67d54b4fd46bef51e01dd775d13cb250e8c27df84d321a9146e352"
+  },
+  "content/public/browser/web_contents_observer.h": {
+    "before": "2a593b9f47feb5c6bf66f5dd65e889c48b8c6f82af3675964db978bc8f3e2e4e",
+    "after": "1d8a170ec953769ada484cdaa967c550d04743164b98029f5d828a766c8f6a66"
   }
 }
