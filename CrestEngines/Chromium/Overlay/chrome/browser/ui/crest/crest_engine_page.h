@@ -142,6 +142,12 @@ class EnginePage final : public content::WebContentsObserver,
   bool Reload(bool bypasses_cache);
   // Brings the page back after its renderer stopped, as the core decided.
   bool Recover();
+  // Asks the page whether it may go, for a close the core prepares; the
+  // answer is reported as BeforeUnloadAnswered.
+  void CheckBeforeUnload();
+  // The engine fired the page's beforeunload. Answers whether the core had
+  // asked, which then hears `proceed`.
+  bool AnswerBeforeUnload(bool proceed);
   bool StopLoading();
   bool Zoom(double factor);
   bool Find(const std::string& query, bool backwards, bool case_sensitive);
@@ -285,6 +291,8 @@ class EnginePage final : public content::WebContentsObserver,
   std::optional<int64_t> loading_navigation_;
   // A new document committed and has not finished loading.
   bool awaits_finish_ = false;
+  // The core asked whether the page may go and waits for the answer.
+  bool checks_before_unload_ = false;
   // The title last reported.
   std::string reported_title_;
   // The move within the document waiting for its title, and the latest

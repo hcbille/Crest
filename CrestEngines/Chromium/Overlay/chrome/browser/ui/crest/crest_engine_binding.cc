@@ -158,6 +158,13 @@ void EngineBinding::Perform(engine::EngineCommand command) {
     if (EnginePage* page = Find(GuidText(recovery->page_id))) {
       page->Recover();
     }
+  } else if (const auto* check = std::get_if<engine::CheckBeforeUnload>(&command)) {
+    if (EnginePage* page = Find(GuidText(check->page_id))) {
+      page->CheckBeforeUnload();
+    } else {
+      // A page the binding no longer holds has nothing to keep.
+      Report(engine::BeforeUnloadAnswered{.page_id = check->page_id, .proceeds = true});
+    }
   } else if (const auto* dialog = std::get_if<engine::SettleScriptDialog>(&command)) {
     Prompts().Settle(*dialog);
   } else if (const auto* authentication = std::get_if<engine::SettleAuthentication>(&command)) {
@@ -949,6 +956,11 @@ void OnDevToolsClosing(content::WebContents* inspected) {
   if (EnginePage* page = EngineBinding::Get().PageFor(inspected)) {
     page->InspectorClosing();
   }
+}
+
+bool AnswerBeforeUnload(content::WebContents* contents, bool proceed) {
+  EnginePage* page = EngineBinding::Get().PageFor(contents);
+  return page && page->AnswerBeforeUnload(proceed);
 }
 
 }  // namespace crest

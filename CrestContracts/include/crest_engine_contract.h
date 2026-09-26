@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0xf3, 0xad, 0x8b, 0xd3, 0x2e, 0x60, 0x6d, 0xc1, 0x15, 0x42, 0xa8, 0x01, 0x6e, 0x66, 0xef, 0x85, 0xac, 0x4e, 0x3d, 0xfa, 0xbe, 0x46, 0x2a, 0x3f, 0xec, 0xba, 0xce, 0x4b, 0xb0, 0x48, 0x49, 0x18};
+    0x80, 0x84, 0x68, 0x23, 0x72, 0xfb, 0x60, 0xe8, 0x04, 0x8e, 0x4f, 0x3b, 0x32, 0x4f, 0x73, 0x55, 0xd2, 0x24, 0x37, 0x7b, 0x21, 0x68, 0x8f, 0x30, 0x55, 0x15, 0x4c, 0xf0, 0xd3, 0x2c, 0x11, 0xe1};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -705,6 +705,21 @@ inline bool Read(WireReader& reader, AuthenticationCredential& value) {
       && Read(reader, value.password);
 }
 
+struct BeforeUnloadAnswered {
+  Guid page_id = {};
+  bool proceeds = false;
+
+  friend bool operator==(const BeforeUnloadAnswered&, const BeforeUnloadAnswered&) = default;
+};
+inline void Write(WireWriter& writer, const BeforeUnloadAnswered& value) {
+  Write(writer, value.page_id);
+  Write(writer, value.proceeds);
+}
+inline bool Read(WireReader& reader, BeforeUnloadAnswered& value) {
+  return Read(reader, value.page_id)
+      && Read(reader, value.proceeds);
+}
+
 struct BrandColor {
   double red = 0;
   double green = 0;
@@ -811,6 +826,18 @@ inline bool Read(WireReader& reader, ChangeExtension& value) {
   return Read(reader, value.profile_id)
       && Read(reader, value.extension_id)
       && Read(reader, value.change);
+}
+
+struct CheckBeforeUnload {
+  Guid page_id = {};
+
+  friend bool operator==(const CheckBeforeUnload&, const CheckBeforeUnload&) = default;
+};
+inline void Write(WireWriter& writer, const CheckBeforeUnload& value) {
+  Write(writer, value.page_id);
+}
+inline bool Read(WireReader& reader, CheckBeforeUnload& value) {
+  return Read(reader, value.page_id);
 }
 
 struct ClearSiteData {
@@ -2748,7 +2775,7 @@ inline bool Read(WireReader& reader, ZoomPage& value) {
       && Read(reader, value.factor);
 }
 
-using EngineCommand = std::variant<ApproveEngineDownload, CancelEngineDownload, ClosePage, CreatePage, LoadPage, RecoverPage, RemoveEngineDownload, SettleAuthentication, SettleDownloadDestination, SettleExtensionInstall, SettlePermission, SettleScriptDialog>;
+using EngineCommand = std::variant<ApproveEngineDownload, CancelEngineDownload, CheckBeforeUnload, ClosePage, CreatePage, LoadPage, RecoverPage, RemoveEngineDownload, SettleAuthentication, SettleDownloadDestination, SettleExtensionInstall, SettlePermission, SettleScriptDialog>;
 inline void Write(WireWriter& writer, const EngineCommand& value) {
   writer.WriteVarint(value.index());
   std::visit([&writer](const auto& member) { Write(writer, member); }, value);
@@ -2768,60 +2795,66 @@ inline bool Read(WireReader& reader, EngineCommand& value) {
       return true;
     }
     case 2: {
-      ClosePage member;
+      CheckBeforeUnload member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 3: {
-      CreatePage member;
+      ClosePage member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 4: {
-      LoadPage member;
+      CreatePage member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 5: {
-      RecoverPage member;
+      LoadPage member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 6: {
-      RemoveEngineDownload member;
+      RecoverPage member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 7: {
-      SettleAuthentication member;
+      RemoveEngineDownload member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 8: {
-      SettleDownloadDestination member;
+      SettleAuthentication member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 9: {
-      SettleExtensionInstall member;
+      SettleDownloadDestination member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 10: {
-      SettlePermission member;
+      SettleExtensionInstall member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 11: {
+      SettlePermission member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
+    case 12: {
       SettleScriptDialog member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
@@ -2833,7 +2866,7 @@ inline bool Read(WireReader& reader, EngineCommand& value) {
   }
 }
 
-using EngineEvent = std::variant<AuthenticationChallenged, EngineDownloadChanged, EngineDownloadDestinationRequested, ExtensionInstallRequested, NavigationCommitted, NavigationFailed, NavigationFinished, NavigationStarted, PageClosed, PageCrashed, PageCreated, PageCreationFailed, PageIconChanged, PageStateChanged, PermissionRequested, PromptWithdrawn, ScriptDialogOpened>;
+using EngineEvent = std::variant<AuthenticationChallenged, BeforeUnloadAnswered, EngineDownloadChanged, EngineDownloadDestinationRequested, ExtensionInstallRequested, NavigationCommitted, NavigationFailed, NavigationFinished, NavigationStarted, PageClosed, PageCrashed, PageCreated, PageCreationFailed, PageIconChanged, PageStateChanged, PermissionRequested, PromptWithdrawn, ScriptDialogOpened>;
 inline void Write(WireWriter& writer, const EngineEvent& value) {
   writer.WriteVarint(value.index());
   std::visit([&writer](const auto& member) { Write(writer, member); }, value);
@@ -2847,96 +2880,102 @@ inline bool Read(WireReader& reader, EngineEvent& value) {
       return true;
     }
     case 1: {
-      EngineDownloadChanged member;
+      BeforeUnloadAnswered member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 2: {
-      EngineDownloadDestinationRequested member;
+      EngineDownloadChanged member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 3: {
-      ExtensionInstallRequested member;
+      EngineDownloadDestinationRequested member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 4: {
-      NavigationCommitted member;
+      ExtensionInstallRequested member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 5: {
-      NavigationFailed member;
+      NavigationCommitted member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 6: {
-      NavigationFinished member;
+      NavigationFailed member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 7: {
-      NavigationStarted member;
+      NavigationFinished member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 8: {
-      PageClosed member;
+      NavigationStarted member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 9: {
-      PageCrashed member;
+      PageClosed member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 10: {
-      PageCreated member;
+      PageCrashed member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 11: {
-      PageCreationFailed member;
+      PageCreated member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 12: {
-      PageIconChanged member;
+      PageCreationFailed member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 13: {
-      PageStateChanged member;
+      PageIconChanged member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 14: {
-      PermissionRequested member;
+      PageStateChanged member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 15: {
-      PromptWithdrawn member;
+      PermissionRequested member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 16: {
+      PromptWithdrawn member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
+    case 17: {
       ScriptDialogOpened member;
       if (!Read(reader, member)) return false;
       value = std::move(member);

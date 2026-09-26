@@ -68,9 +68,12 @@ public sealed partial class CrestApp {
                 prompts.Report(engine, report, changes, Issue);
             } else if (EngineDownloads.Concerns(report)) {
                 engineDownloads.Report(engine, report, changes, Issue, clock.Now);
+            } else if (ClosePreparations.Concerns(report)) {
+                closePreparations.Report(engine, report, changes, Issue);
             } else {
                 pages.Report(engine, report, changes, Issue);
                 prompts.Prune(changes);
+                closePreparations.Prune(changes, Issue);
             }
         }
         foreach (var change in changes.Published) Announce(change);

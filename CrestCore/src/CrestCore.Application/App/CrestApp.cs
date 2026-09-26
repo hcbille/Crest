@@ -33,6 +33,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly Prompts prompts;
     /// The downloads engines run, in the download ledger.
     private readonly EngineDownloads engineDownloads;
+    /// Close and quit preparations, which ask each page whether it may go.
+    private readonly ClosePreparations closePreparations;
     /// Which Spaces this process may show.
     private readonly SpaceAccess access;
     /// The time session intents are stamped with.
@@ -67,6 +69,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             pages = new(device, engines, clock, ids);
             prompts = new(device, pages);
             engineDownloads = new(downloads, device, pages, ids);
+            closePreparations = new(pages, downloads, ids);
             access = new(device, grants);
             return;
         }
@@ -75,6 +78,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         pages = new(device, engines, clock, ids);
         prompts = new(device, pages);
         engineDownloads = new(downloads, device, pages, ids);
+        closePreparations = new(pages, downloads, ids);
         access = new(device, grants);
         try {
             if (loaded.Session is { } stored) Establish(stored, loaded.Journal, loaded.LegacySelection);
@@ -133,6 +137,12 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 case SpaceAccessIntent grant:
                     access.Handle(grant, changes);
                     break;
+                case CloseIntent closing:
+                    closePreparations.Handle(closing, changes, Issue);
+                    break;
+                case PromptIntent prompt when ClosePreparations.Concerns(prompt):
+                    closePreparations.Handle(prompt, changes);
+                    break;
                 case PromptIntent prompt when EngineDownloads.Concerns(prompt):
                     engineDownloads.Handle(prompt, changes, Issue);
                     break;
@@ -144,6 +154,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             }
             // What a page that went had asked no longer waits.
             prompts.Prune(changes);
+            closePreparations.Prune(changes, Issue);
             published = [.. TakePending(), .. changes.Published];
         }
         Deliver();

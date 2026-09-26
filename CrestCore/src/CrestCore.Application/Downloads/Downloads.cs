@@ -78,6 +78,9 @@ public sealed class Downloads {
 
     #region Actions - Queries
 
+    /// How many downloads are still in progress.
+    public int LiveCount => ledger.Items.Count(download => download.Phase.IsLive);
+
     public DownloadProgressReading Answer(DownloadProgress query) {
         ArgumentNullException.ThrowIfNull(query);
         return (query.Estimator ?? DownloadTransferEstimator.Initial).Sample(query.CompletedUnitCount, query.TotalUnitCount,

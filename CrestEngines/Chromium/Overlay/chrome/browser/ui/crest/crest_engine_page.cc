@@ -472,6 +472,8 @@ void EnginePage::DidChangeThemeColor() {
 // The core decides whether the page comes back; the platform's page services
 // hear it too, so they drop what belonged to the document that is gone.
 void EnginePage::PrimaryMainFrameRenderProcessGone(base::TerminationStatus status) {
+  // A page whose document is gone has nothing to keep.
+  AnswerBeforeUnload(true);
   awaits_finish_ = false;
   loading_navigation_.reset();
   Interrupted();
@@ -925,6 +927,27 @@ bool EnginePage::Recover() {
     return true;
   }
   controller.Reload(content::ReloadType::NORMAL, /*check_for_repost=*/false);
+  return true;
+}
+
+// A document that asks nothing lets the page go at once; one with a
+// beforeunload handler may ask the person first.
+void EnginePage::CheckBeforeUnload() {
+  content::WebContents* contents = web_contents();
+  if (!contents || !contents->NeedToFireBeforeUnloadOrUnloadEvents()) {
+    Report(engine::BeforeUnloadAnswered{.page_id = id_, .proceeds = true});
+    return;
+  }
+  checks_before_unload_ = true;
+  contents->DispatchBeforeUnload(/*auto_cancel=*/false);
+}
+
+bool EnginePage::AnswerBeforeUnload(bool proceed) {
+  if (!checks_before_unload_) {
+    return false;
+  }
+  checks_before_unload_ = false;
+  Report(engine::BeforeUnloadAnswered{.page_id = id_, .proceeds = proceed});
   return true;
 }
 

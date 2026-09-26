@@ -255,6 +255,11 @@ class EngineBinding {
   base::WeakPtrFactory<EngineBinding> weak_factory_{this};
 };
 
+// The engine fired `contents`'s beforeunload. Answers whether the core had
+// asked the page, which then hears `proceed`; otherwise the shell's own close
+// preflight takes it. TRANSITIONAL until the Swift close and quit wiring moves.
+bool AnswerBeforeUnload(content::WebContents* contents, bool proceed);
+
 // A GUID as the platform spells it: uppercase hexadecimal in RFC 4122 groups.
 std::string GuidText(const engine::Guid& guid);
 // The GUID `text` spells in RFC 4122 groups, in either case, or nothing.

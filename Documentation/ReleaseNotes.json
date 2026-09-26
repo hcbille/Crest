@@ -2665,6 +2665,10 @@
     "2026-09-26-download-failure-reasons": {
       "category": "improved",
       "message": "A download that fails now says why, such as a network problem, a full disk or a blocked file"
+    },
+    "2026-09-26-close-preparation-core": {
+      "category": "internal",
+      "message": "The core prepares closing pages, windows and the app, asking each page whether it may leave"
     }
   }
 }

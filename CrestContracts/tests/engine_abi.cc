@@ -99,6 +99,7 @@ void CodecRoundTrips() {
                                                     .realm = "Staff",
                                                     .scheme = engine::AuthenticationScheme::kDigest,
                                                     .previous_failures = 1}},
+      engine::BeforeUnloadAnswered{.page_id = page, .proceeds = true},
       engine::EngineDownloadChanged{.download = {.download_id = "7",
                                                  .profile_id = Filled(0x76),
                                                  .source_page_id = page,

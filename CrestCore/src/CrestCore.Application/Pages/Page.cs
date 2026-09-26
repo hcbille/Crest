@@ -54,6 +54,10 @@ internal sealed class Page {
     /// The document's navigation is recorded, or ended with nothing to record.
     private bool isRecorded;
 
+    /// How many documents the page has shown, so a question it answered can
+    /// tell whether that document is still the one it shows.
+    public long Documents { get; private set; }
+
     /// How many times in a row the page's renderer stopped since a document
     /// last finished loading or the person asked for one.
     private int crashes;
@@ -108,6 +112,7 @@ internal sealed class Page {
         if (!sameDocument) {
             failure = null;
             RecoversWhenShown = false;
+            Documents++;
         }
         if (sameDocument && documentUrl is { } shown && new WebAddress(shown).IsSamePage(new WebAddress(url))) return;
         documentUrl = url;

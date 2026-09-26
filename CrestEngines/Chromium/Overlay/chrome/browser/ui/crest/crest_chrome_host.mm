@@ -1739,6 +1739,8 @@ void AppendLinkMenuItem(NSMenu* menu, content::WebContents* contents, const GURL
 
 
 bool CompletePageClosePreparation(content::WebContents* contents, bool proceed) {
+  // A page the core asked answers the core.
+  if (crest::AnswerBeforeUnload(contents, proceed)) return true;
   auto& state = State();
   if (!state.close_preflight || state.close_pending.empty()) return false;
   auto found = state.pages.find(state.close_pending);

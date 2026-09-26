@@ -29,6 +29,9 @@ protocol PageRequest: Sendable {
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer
 }
 
+/// The members of `Intent` that derive from the core's `CloseIntent`.
+protocol CloseIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `CloudSyncIntent`.
 protocol CloudSyncIntent: Intent {}
 
@@ -70,6 +73,7 @@ enum Change: Equatable, Sendable {
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
     case authenticationAsked(AuthenticationAsked)
+    case closeReady(CloseReady)
     case downloadApprovalAsked(DownloadApprovalAsked)
     case downloadDestinationAsked(DownloadDestinationAsked)
     case downloadUpdated(DownloadUpdated)
@@ -83,6 +87,7 @@ enum Change: Equatable, Sendable {
     case pageRemoved(PageRemoved)
     case permissionAsked(PermissionAsked)
     case promptSettled(PromptSettled)
+    case quitWithDownloadsAsked(QuitWithDownloadsAsked)
     case saved(Saved)
     case scriptDialogAsked(ScriptDialogAsked)
     case sessionAdopted(SessionAdopted)
@@ -120,6 +125,7 @@ enum Rejection: Equatable, Error, Sendable {
     case cannotDeleteLastSpace(CannotDeleteLastSpace)
     case cannotMoveSplitAcrossSpaces(CannotMoveSplitAcrossSpaces)
     case cannotPinSplit(CannotPinSplit)
+    case closePreparationUnderway(ClosePreparationUnderway)
     case credentialRecordLimitReached(CredentialRecordLimitReached)
     case currentTabsOnly(CurrentTabsOnly)
     case defaultEngineAlreadyRegistered(DefaultEngineAlreadyRegistered)
@@ -262,6 +268,7 @@ enum Rejection: Equatable, Error, Sendable {
 enum EngineCommand: Equatable, Sendable {
     case approveEngineDownload(ApproveEngineDownload)
     case cancelEngineDownload(CancelEngineDownload)
+    case checkBeforeUnload(CheckBeforeUnload)
     case closePage(ClosePage)
     case createPage(CreatePage)
     case loadPage(LoadPage)
@@ -319,6 +326,7 @@ extension CoreState {
         case .appPreferencesChanged(let change): apply(change)
         case .archiveChanged(let change): apply(change)
         case .authenticationAsked(let change): apply(change)
+        case .closeReady(let change): apply(change)
         case .downloadApprovalAsked(let change): apply(change)
         case .downloadDestinationAsked(let change): apply(change)
         case .downloadUpdated(let change): apply(change)
@@ -332,6 +340,7 @@ extension CoreState {
         case .pageRemoved(let change): apply(change)
         case .permissionAsked(let change): apply(change)
         case .promptSettled(let change): apply(change)
+        case .quitWithDownloadsAsked(let change): apply(change)
         case .saved(let change): apply(change)
         case .scriptDialogAsked(let change): apply(change)
         case .sessionAdopted(let change): apply(change)
@@ -477,6 +486,11 @@ struct AnswerPermission: Intent, PromptIntent, Equatable, Sendable {
     let remembers: Bool
 }
 
+struct AnswerQuitWithDownloads: Intent, PromptIntent, Equatable, Sendable {
+    let promptID: UUID
+    let quits: Bool
+}
+
 struct AnswerScriptDialog: Intent, PromptIntent, Equatable, Sendable {
     let promptID: UUID
     let accepted: Bool
@@ -588,6 +602,11 @@ struct BalancedProtectionRules: Query, Equatable, Sendable {
 
 }
 
+struct BeforeUnloadAnswered: EngineEvent, Equatable, Sendable {
+    let pageID: UUID
+    let proceeds: Bool
+}
+
 struct BeginDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -669,6 +688,10 @@ struct CanTearOff: Query, Equatable, Sendable {
     let draggedTabs: [UUID]?
 }
 
+struct CancelClosePreparation: Intent, CloseIntent, Equatable, Sendable {
+    let requestID: UUID
+}
+
 struct CancelDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
     let message: String
@@ -730,6 +753,10 @@ struct ChangeExtension: PageRequest, Equatable, Sendable {
     let change: ExtensionChange
 }
 
+struct CheckBeforeUnload: Equatable, Sendable {
+    let pageID: UUID
+}
+
 struct ChooseTabIcon: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -771,6 +798,15 @@ struct CloseInspector: PageRequest, Equatable, Sendable {
 struct ClosePage: Equatable, Sendable {
     let pageID: UUID
     let keepsState: Bool
+}
+
+struct ClosePreparationUnderway: Equatable, Sendable {
+    let requestID: UUID
+}
+
+struct CloseReady: Equatable, Sendable {
+    let requestID: UUID
+    let allowed: Bool
 }
 
 struct CloseStandalonePage: PageRequest, Equatable, Sendable {
@@ -2710,6 +2746,20 @@ struct PrepareProfile: PageRequest, Equatable, Sendable {
     let preparationID: UUID
 }
 
+struct PrepareToClosePages: Intent, CloseIntent, Equatable, Sendable {
+    let requestID: UUID
+    let pageIDs: [UUID]
+}
+
+struct PrepareToCloseWindows: Intent, CloseIntent, Equatable, Sendable {
+    let requestID: UUID
+    let windowIDs: [UUID]
+}
+
+struct PrepareToQuit: Intent, CloseIntent, Equatable, Sendable {
+    let requestID: UUID
+}
+
 struct PresentPage: Query, Equatable, Sendable {
     typealias Answer = PagePresented
 
@@ -2775,6 +2825,12 @@ struct QuickWindowSite: Query, Equatable, Sendable {
 
 struct QuickWindowSiteKey: Equatable, Sendable {
     let site: String?
+}
+
+struct QuitWithDownloadsAsked: Equatable, Sendable {
+    let promptID: UUID
+    let requestID: UUID
+    let liveDownloads: Int
 }
 
 struct ReassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {

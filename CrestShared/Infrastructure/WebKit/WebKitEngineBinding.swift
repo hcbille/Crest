@@ -36,6 +36,10 @@ final class WebKitEngineBinding: EngineBinding {
             (engines.page(loading.pageID) ?? engines.request(loading.pageID)?.page)?.appLoad?(url)
         case .closePage(let closing):
             engines.report(PageClosed(pageID: closing.pageID), from: self)
+        case .checkBeforeUnload(let check):
+            // WebKit runs a page's beforeunload only for its own navigations, so
+            // closing a WebKit page asks nothing.
+            engines.report(BeforeUnloadAnswered(pageID: check.pageID, proceeds: true), from: self)
         case .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission, .settleExtensionInstall,
             .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload, .approveEngineDownload:
             // WebKit recovers its own pages, answers its own prompts and runs
