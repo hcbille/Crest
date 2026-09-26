@@ -80,12 +80,16 @@ final class BrowserSidebarReorderState {
         (item: BrowserSidebarReorderItem, section: BrowserSidebarReorderSection, plan: BrowserSidebarLiftPlan?)?
     @ObservationIgnored private var stagedLiftExpirationTask: Task<Void, Never>?
     @ObservationIgnored private let stagedLiftExpiration: Duration
+    /// The clock a stage's expiry waits on.
+    @ObservationIgnored private let clock: any Clock<Duration>
 
     init(
         stagedLiftExpiration: Duration = BrowserSidebarReorderPolicy
-            .stagedLiftExpiration
+            .stagedLiftExpiration,
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.stagedLiftExpiration = stagedLiftExpiration
+        self.clock = clock
     }
     private(set) var isSuppressingActivation = false
     // Latch the content host for the drag so its WebView does not change parents repeatedly.
@@ -297,8 +301,9 @@ final class BrowserSidebarReorderState {
     private func armStagedLiftExpiration() {
         stagedLiftExpirationTask?.cancel()
         let delay = stagedLiftExpiration
+        let clock = clock
         stagedLiftExpirationTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: delay)
+            try? await clock.sleep(for: delay)
             guard !Task.isCancelled, let self else { return }
             stagedLiftExpirationTask = nil
             guard lift == nil else { return }

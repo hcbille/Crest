@@ -2925,6 +2925,10 @@
     "previews-draw-detached-read-model": {
       "category": "internal",
       "message": "Previews, setup drafts and import reviews draw Spaces the core resolves"
+    },
+    "staged-lift-expiry-manual-clock": {
+      "category": "internal",
+      "message": "Sidebar reorder expiry tests run on a clock the test moves"
     }
   }
 }
