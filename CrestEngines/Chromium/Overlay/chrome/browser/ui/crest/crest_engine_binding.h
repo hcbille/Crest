@@ -29,6 +29,7 @@ class WebContents;
 
 namespace crest {
 
+class EngineDownloads;
 class EngineExtensions;
 class EnginePage;
 class EngineProfiles;
@@ -72,6 +73,9 @@ class EngineBinding {
     virtual content::WebContents* AdoptContents(const std::string& page,
                                                 const std::string& token,
                                                 const std::string& profile) = 0;
+    // The page the engine offered as `token` has no place in Crest; it closes.
+    // TRANSITIONAL until engine-offered pages move to the core (WP C (l)).
+    virtual bool RejectAdoption(const std::string& token) = 0;
     // Destroys `page`'s WebContents, which the binding has let go of.
     virtual void DestroyContents(const std::string& page) = 0;
     // Loads the link navigation staged as `token` in `page`, which is heading
@@ -125,6 +129,9 @@ class EngineBinding {
   // The engine profiles, and every profile's extensions.
   EngineProfiles& Profiles();
   EngineExtensions& Extensions();
+  // The engine's downloads in Crest's profiles.
+  EngineDownloads& Downloads();
+  bool disposing() const { return disposing_; }
   // The regular profile a private window's pages derive from, which the
   // window names when it opens. TRANSITIONAL: which profile it is is a rule
   // for the core.
@@ -211,6 +218,12 @@ class EngineBinding {
   bool Handle(const engine::AnswerPermission& request);
   bool Handle(const engine::PrepareProfile& request);
   bool Handle(const engine::DeleteProfile& request);
+  bool Handle(const engine::AdoptOfferedPage& request);
+  bool Handle(const engine::RejectOfferedPage& request);
+  bool Handle(const engine::AnswerEngineDownloadDestination& request);
+  bool Handle(const engine::CancelEngineDownload& request);
+  bool Handle(const engine::RemoveEngineDownload& request);
+  bool Handle(const engine::ApproveEngineDownload& request);
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
@@ -240,6 +253,7 @@ class EngineBinding {
   std::unique_ptr<EngineProfiles> profiles_;
   std::string private_source_;
   std::unique_ptr<EngineExtensions> extensions_;
+  std::unique_ptr<EngineDownloads> downloads_;
   std::unique_ptr<EnginePrompts> prompts_;
   std::deque<Outgoing> queue_;
   std::vector<std::string> due_;

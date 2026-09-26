@@ -12,6 +12,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
+#include "chrome/browser/ui/crest/crest_download_hooks.h"
+#include "chrome/browser/download/download_confirmation_result.h"
+#include "ui/shell_dialogs/selected_file_info.h"
+#include "chrome/browser/ui/crest/crest_engine_downloads.h"
 #include "chrome/browser/ui/crest/crest_engine_extensions.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
 #include "chrome/browser/ui/crest/crest_engine_profiles.h"
@@ -19,6 +23,7 @@
 #include "net/base/auth.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
@@ -103,6 +108,7 @@ void EngineBinding::Dispose() {
   due_.clear();
   extensions_.reset();
   prompts_.reset();
+  downloads_.reset();
   // The shell lets the profiles go once its Browsers are gone.
   Profiles().Dispose();
   for (auto& [key, page] : pages_) {
@@ -317,6 +323,20 @@ void EngineBinding::DockInspector(const std::string& key, content::WebContents* 
   if (shell_ && !disposing_) {
     shell_->DockInspector(key, frontend);
   }
+}
+
+EngineDownloads& EngineBinding::Downloads() {
+  if (!downloads_) {
+    downloads_ = std::make_unique<EngineDownloads>(
+        Profiles(), base::BindRepeating(&EngineBinding::Present, base::Unretained(this)),
+        base::BindRepeating(
+            [](EngineBinding* binding, download::DownloadItem* item) -> std::optional<engine::Guid> {
+              EnginePage* page = binding->PageFor(content::DownloadItemUtils::GetWebContents(item));
+              return page ? std::optional<engine::Guid>(page->id()) : std::nullopt;
+            },
+            base::Unretained(this)));
+  }
+  return *downloads_;
 }
 
 EngineProfiles& EngineBinding::Profiles() {
@@ -733,6 +753,30 @@ bool EngineBinding::Handle(const engine::DeleteProfile& request) {
   return true;
 }
 
+bool EngineBinding::Handle(const engine::AdoptOfferedPage& request) {
+  return Adopt(GuidText(request.page_id), GuidText(request.adoption_id));
+}
+
+bool EngineBinding::Handle(const engine::RejectOfferedPage& request) {
+  return shell_ && !disposing_ && shell_->RejectAdoption(GuidText(request.adoption_id));
+}
+
+bool EngineBinding::Handle(const engine::AnswerEngineDownloadDestination& request) {
+  return !disposing_ && Downloads().Answer(request);
+}
+
+bool EngineBinding::Handle(const engine::CancelEngineDownload& request) {
+  return !disposing_ && Downloads().Cancel(request);
+}
+
+bool EngineBinding::Handle(const engine::RemoveEngineDownload& request) {
+  return !disposing_ && Downloads().Remove(request);
+}
+
+bool EngineBinding::Handle(const engine::ApproveEngineDownload& request) {
+  return !disposing_ && Downloads().Approve(request);
+}
+
 // Reports and presentations.
 
 void EngineBinding::Report(engine::EngineEvent event) {
@@ -869,6 +913,31 @@ bool PresentHTTPAuthentication(content::WebContents* contents,
                                                             challenge.scheme + "\n" + challenge.realm);
   EngineBinding::Get().Prompts().Authenticate(page->id(), challenge, previous_failures, std::move(reply));
   return true;
+}
+
+// Downloads in Crest's profiles are Crest's to show; the rest stay the engine's.
+bool OwnsDownload(download::DownloadItem* item) {
+  auto& binding = EngineBinding::Get();
+  return !binding.disposing() && binding.Downloads().Owns(item);
+}
+
+void PublishDownload(download::DownloadItem* item) {
+  auto& binding = EngineBinding::Get();
+  if (!binding.disposing()) {
+    binding.Downloads().Changed(item);
+  }
+}
+
+void ChooseDownloadDestination(download::DownloadItem* item,
+                               const base::FilePath& suggested_path,
+                               DownloadConfirmationReason reason,
+                               DownloadTargetDeterminerDelegate::ConfirmationCallback callback) {
+  auto& binding = EngineBinding::Get();
+  if (binding.disposing()) {
+    std::move(callback).Run(DownloadConfirmationResult::CANCELED, ui::SelectedFileInfo());
+    return;
+  }
+  binding.Downloads().ChooseDestination(item, suggested_path, reason, std::move(callback));
 }
 
 bool CanDockDevTools(content::WebContents* inspected) {

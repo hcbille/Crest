@@ -11,13 +11,6 @@ enum ChromiumInternalURL {
         replacingScheme(in: value, from: "chrome", to: "crest")
     }
 
-    static func presentedValues(_ values: [String: Any]) -> [String: Any] {
-        guard let url = values["url"] as? String else { return values }
-        var result = values
-        result["url"] = presented(url)
-        return result
-    }
-
     private static func replacingScheme(in value: String, from: String, to: String) -> String {
         let prefix = from + "://"
         guard value.prefix(prefix.count).lowercased() == prefix else { return value }

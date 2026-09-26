@@ -174,8 +174,9 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         restorationDefaults = Self.restorationDefaults()
         restorableWindowIDs = Self.storedRestorableWindowIDs(in: restorationDefaults)
         super.init()
-        downloads = ChromiumDownloadAdapter(host: host) { [weak self] values, profileID in
+        downloads = ChromiumDownloadAdapter(engine: chromium) { [weak self] download in
             guard let self else { return nil }
+            let profileID = download.profileID
             var contexts = self.windows.keys.compactMap { id -> (BrowserStore, BrowserPagePool)? in
                 guard let model = self.application.windowCoordinator.existingModel(for: id) else { return nil }
                 return (model.browser, model.pages)
@@ -183,7 +184,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             if self.privateWindow != nil { contexts.append((self.application.privateBrowser, self.application.privatePages)) }
             for (browser, pages) in contexts {
                 let assignment: BrowserSpaceRuntimeAssignment?
-                if let pageID = values["sourcePageId"] as? String {
+                if let pageID = download.sourcePageID?.uuidString {
                     assignment = pages.engineDownloadAssignment(pageID: pageID, profileID: profileID)
                 } else {
                     // Background extension downloads have no page. Only route a
@@ -200,21 +201,21 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         host.setExtensionReview { values, window, reply in
             MainActor.assumeIsolated { Self.extensions.review(values, window: window, reply: reply) }
         }
-        host.setBrowserObserver { [weak self] values in
-            MainActor.assumeIsolated {
-                let values = ChromiumInternalURL.presentedValues(values)
-                guard let self, let token = values["adoptionId"] as? String else { return }
-                guard let adoption = BrowserEnginePageAdoption(chromiumValues: values) else {
-                    host.rejectAdoption(token)
-                    return
-                }
-                for id in self.windows.keys {
-                    if self.application.windowCoordinator.existingModel(for: id)?.pages.adoptEnginePage(adoption) == true { return }
-                }
-                if self.privateWindow != nil, self.application.privatePages.adoptEnginePage(adoption) { return }
-                host.rejectAdoption(token)
+        chromium.downloads = downloads
+    }
+
+    /// The engine offered a page of its own: a window that can take it adopts it
+    /// as a tab, and one no window takes closes.
+    static func pageOffered(_ offer: PageOffered) {
+        guard let instance else { return }
+        let adoption = BrowserEnginePageAdoption(offer: offer)
+        for id in instance.windows.keys {
+            if instance.application.windowCoordinator.existingModel(for: id)?.pages.adoptEnginePage(adoption) == true {
+                return
             }
         }
+        if instance.privateWindow != nil, instance.application.privatePages.adoptEnginePage(adoption) { return }
+        instance.chromium.pages.request(RejectOfferedPage(adoptionID: offer.adoptionID))
     }
 
     /// The engine let go of a profile: its Space's extensions went with it, and

@@ -22,6 +22,8 @@
         /// The pages' direct path to the binding, which hears the binding's
         /// presentations from the engine's start on.
         private(set) var pages: NativeEnginePages!
+        /// Shows the engine's downloads. Weak: the composition owns it.
+        weak var downloads: ChromiumDownloadAdapter?
         /// Each page this hosts, while its owner keeps it.
         private var hosted: [UUID: WeakNativePage] = [:]
         /// What waits for the binding's profiles: each preparation and deletion by
@@ -110,6 +112,14 @@
             case .profileDeleted(let deleted):
                 deletions.removeValue(forKey: deleted.deletionID)?.resume(returning: deleted.deleted)
             case .profileReleased(let released): CrestChromiumRoot.profileReleased(released.profileID)
+            case .pageOffered(let offer): CrestChromiumRoot.pageOffered(offer)
+            case .engineDownloadChanged(let changed): downloads?.receive(changed.download)
+            case .engineDownloadDestinationRequested(let request):
+                if let downloads {
+                    downloads.resolveDestination(request)
+                } else {
+                    pages.request(AnswerEngineDownloadDestination(requestID: request.requestID, path: nil))
+                }
             case .sidePanelRequested(let requested): CrestChromiumRoot.routeSidePanel(requested)
             default:
                 guard let pageID = presentation.pageID else { return }
@@ -122,7 +132,9 @@
         /// The page the presentation is about, or none for a profile's.
         fileprivate var pageID: UUID? {
             switch self {
-            case .extensionsChanged, .profilePrepared, .profileDeleted, .profileReleased: nil
+            case .extensionsChanged, .profilePrepared, .profileDeleted, .profileReleased, .pageOffered,
+                .engineDownloadChanged, .engineDownloadDestinationRequested:
+                nil
             case .contentFullscreenChanged(let value): value.pageID
             case .contentMessagePosted(let value): value.pageID
             case .contentScriptEvaluated(let value): value.pageID

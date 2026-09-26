@@ -1,57 +1,55 @@
 #if CREST_CHROMIUM_HOST
     import Foundation
 
+    /// Shows the engine's downloads in the download center of the Space each
+    /// belongs to, and answers where each one's file goes. TRANSITIONAL until
+    /// downloads move to the core (WP C (f)).
     @MainActor
     final class ChromiumDownloadAdapter: BrowserEngineDownloadControlling {
         struct Destination {
             let center: BrowserDownloadCenter
             let assignment: BrowserSpaceRuntimeAssignment
         }
-        private let host: any CrestChromiumEngineHost
-        private let resolve: ([String: Any], UUID) -> Destination?
+        private let engine: ChromiumEngine
+        private let resolve: (EngineDownload) -> Destination?
         private struct CachedDestination {
             weak var center: BrowserDownloadCenter?
             let assignment: BrowserSpaceRuntimeAssignment
         }
         private var destinations: [BrowserEngineDownloadID: CachedDestination] = [:]
 
-        init(
-            host: any CrestChromiumEngineHost,
-            resolve: @escaping ([String: Any], UUID) -> Destination?
-        ) {
-            self.host = host
+        init(engine: ChromiumEngine, resolve: @escaping (EngineDownload) -> Destination?) {
+            self.engine = engine
             self.resolve = resolve
-            host.setDownloadObserver { [weak self] values in
-                MainActor.assumeIsolated { _ = self?.receive(values) }
+        }
+
+        /// Where the download the engine asks about goes: its Space's download
+        /// center decides, asking the person when the engine says to.
+        func resolveDestination(_ request: EngineDownloadDestinationRequested) {
+            guard let (id, destination) = receive(request.download) else {
+                answer(request, path: nil)
+                return
             }
-            host.setDownloadDestinationResolver { [weak self] values, reply in
-                MainActor.assumeIsolated {
-                    guard let self, let (id, destination) = self.receive(values) else {
-                        reply(nil)
-                        return
-                    }
-                    Task { @MainActor in
-                        let url = await destination.center.resolveEngineDownloadDestination(
-                            id,
-                            suggestedFilename: values["filename"] as? String ?? "download",
-                            forcesPrompt: values["forcePrompt"] as? Bool == true)
-                        reply(url?.path)
-                    }
-                }
+            Task { @MainActor in
+                let url = await destination.center.resolveEngineDownloadDestination(
+                    id, suggestedFilename: request.suggestedFilename, forcesPrompt: request.forcesPrompt)
+                answer(request, path: url?.path)
             }
         }
 
+        private func answer(_ request: EngineDownloadDestinationRequested, path: String?) {
+            engine.pages.request(AnswerEngineDownloadDestination(requestID: request.requestID, path: path))
+        }
+
         @discardableResult
-        private func receive(_ values: [String: Any]) -> (BrowserEngineDownloadID, Destination)? {
-            guard let profileID = (values["profileId"] as? String).flatMap(UUID.init(uuidString:)),
-                let value = values["downloadId"] as? String
-            else { return nil }
-            let id = BrowserEngineDownloadID(engine: .chromium, profileID: profileID, value: value)
+        func receive(_ download: EngineDownload) -> (BrowserEngineDownloadID, Destination)? {
+            let id = BrowserEngineDownloadID(
+                engine: .chromium, profileID: download.profileID, value: download.downloadID)
             let target: Destination?
             if let cached = destinations[id] {
                 target = cached.center.map { Destination(center: $0, assignment: cached.assignment) }
             } else {
-                target = resolve(values, profileID)
+                target = resolve(download)
             }
             guard let destination = target else {
                 cancelDownload(id)
@@ -59,61 +57,73 @@
             }
             destinations[id] = CachedDestination(center: destination.center, assignment: destination.assignment)
             let state: BrowserEngineDownloadUpdate.State
-            // A state this build does not know is still being prepared.
-            switch (values["state"] as? String).flatMap(ChromiumDownloadState.init(rawValue:)) {
+            switch download.state {
             case .finished: state = .finished
             case .canceled: state = .canceled
-            case .failed: state = .failed(values["message"] as? String ?? "The download failed.")
-            case .warning:
-                guard let token = values["warningToken"] as? String,
-                    let message = values["message"] as? String
-                else {
+            case .failed:
+                state = .failed(
+                    download.failure ?? download.warning.map(Self.message)
+                        ?? String(localized: "The download failed."))
+            case .awaitingApproval:
+                guard let warning = download.warning else {
                     cancelDownload(id)
                     return nil
                 }
-                state = .awaitingApproval(token: token, message: message)
+                state = .awaitingApproval(token: download.approvalToken, message: Self.message(for: warning))
             case .downloading: state = .downloading
-            case .preparing, nil: state = .preparing
+            case .preparing: state = .preparing
             }
-            let path = values["path"] as? String ?? ""
             destination.center.receiveEngineDownload(
                 BrowserEngineDownloadUpdate(
                     id: id,
-                    filename: values["filename"] as? String ?? "download",
-                    destination: path.isEmpty ? nil : URL(fileURLWithPath: path),
-                    bytesReceived: (values["received"] as? NSNumber)?.int64Value ?? 0,
-                    totalBytes: (values["total"] as? NSNumber)?.int64Value ?? 0,
-                    isPaused: values["paused"] as? Bool == true, state: state,
+                    filename: download.filename.isEmpty ? "download" : download.filename,
+                    destination: download.path.flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) },
+                    bytesReceived: download.received,
+                    totalBytes: download.total,
+                    isPaused: download.paused, state: state,
                     // The core only records finite dates.
-                    createdAt: (values["startedAt"] as? NSNumber).map(\.doubleValue).flatMap {
-                        $0.isFinite ? Date(timeIntervalSince1970: $0) : nil
-                    } ?? .now,
-                    isRestored: values["restored"] as? Bool == true),
+                    createdAt: download.startedAt.timeIntervalSinceReferenceDate.isFinite ? download.startedAt : .now,
+                    isRestored: download.restored),
                 assignment: destination.assignment, controller: self)
             return (id, destination)
         }
 
+        /// What the person is told about a download the engine warned about or
+        /// blocked.
+        private static func message(for warning: EngineDownloadWarning) -> String {
+            switch warning {
+            case .insecureConnection:
+                String(
+                    localized:
+                        "This file was transferred over an insecure connection and could have been changed by someone else. Keep it only if you trust its source."
+                )
+            case .dangerousFile:
+                String(localized: "This type of file can change your computer. Keep it only if you trust its source.")
+            case .uncommonContent:
+                String(localized: "This file is not commonly downloaded. The engine could not confirm that it is safe.")
+            case .potentiallyUnwanted:
+                String(localized: "This file may change your browser or computer settings without your permission.")
+            case .insecureBlocked:
+                String(localized: "The engine blocked this insecure download.")
+            case .policyBlocked:
+                String(
+                    localized:
+                        "The engine blocked this download because of its safety or organization policy verdict.")
+            }
+        }
+
         func cancelDownload(_ id: BrowserEngineDownloadID) {
             guard id.engine == .chromium else { return }
-            host.cancelDownload(id.value, profile: id.profileID.uuidString)
+            engine.pages.request(CancelEngineDownload(profileID: id.profileID, downloadID: id.value))
         }
         func removeDownload(_ id: BrowserEngineDownloadID) {
             guard id.engine == .chromium else { return }
-            host.removeDownload(id.value, profile: id.profileID.uuidString)
+            engine.pages.request(RemoveEngineDownload(profileID: id.profileID, downloadID: id.value))
         }
         func approveDownload(_ id: BrowserEngineDownloadID, warningToken: String) {
             guard id.engine == .chromium else { return }
-            host.approveDownload(id.value, profile: id.profileID.uuidString, warning: warningToken)
+            engine.pages.request(
+                ApproveEngineDownload(profileID: id.profileID, downloadID: id.value, approvalToken: warningToken))
         }
-    }
-
-    /// A download's state in the host's download observations.
-    private enum ChromiumDownloadState: String {
-        case preparing
-        case downloading
-        case warning
-        case finished
-        case canceled
-        case failed
     }
 #endif

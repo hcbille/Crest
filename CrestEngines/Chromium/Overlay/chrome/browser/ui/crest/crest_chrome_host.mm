@@ -131,6 +131,8 @@
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
 #include "chrome/browser/ui/crest/crest_engine_binding.h"
+#include "chrome/browser/ui/crest/crest_engine_page.h"
+#include "chrome/browser/ui/crest/crest_engine_prompts.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/tabs/public/tab_interface.h"
@@ -535,9 +537,6 @@ struct HostState {
   std::unique_ptr<ExtensionPopup> space_extension_popup;
   std::map<std::string, NativeAdoption> adoptions;
   std::map<std::string, PendingLinkNavigation> pending_link_navigations;
-  void (^browser_observation)(NSDictionary<NSString*, id>*);
-  void (^download_observation)(NSDictionary<NSString*, id>*);
-  void (^download_destination)(NSDictionary<NSString*, id>*, void (^)(NSString*));
   // System sign-in requests from other apps, by the Quick Window running each.
   // Requests that arrive before the native root starts wait in `pending_*`.
   std::map<std::string, ASWebAuthenticationSessionRequest*> authentication_sessions;
@@ -727,21 +726,21 @@ struct BrowserOwner final : TabStripModelObserver {
 
 void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foreground) {
   auto& state = State();
-  if (!contents || state.disposing || !state.browser_observation) return;
+  if (!contents || state.disposing || crest::EngineBinding::Get().disposing()) return;
   for (const auto& [id, page] : state.pages) if (page->web_contents() == contents.get()) return;
   for (const auto& [id, adoption] : state.adoptions) if (adoption.contents.get() == contents.get()) return;
   std::string profile_id;
   profile_id = crest::EngineBinding::Get().Profiles().IdFor(contents->GetBrowserContext());
   if (profile_id.empty()) return;
-  const std::string token = base::Uuid::GenerateRandomV4().AsLowercaseString();
-  state.adoptions.emplace(token, NativeAdoption{contents, profile_id});
-  id source_id = NSNull.null;
+  const crest::engine::Guid adoption = crest::RandomGuid();
+  state.adoptions.emplace(crest::GuidText(adoption), NativeAdoption{contents, profile_id});
+  std::optional<crest::engine::Guid> source_id;
   if (auto* opener = contents->GetOpener()) {
     auto* source = content::WebContents::FromRenderFrameHost(opener);
     for (const auto& [id, page] : state.pages)
-      if (page->web_contents() == source) { source_id = base::SysUTF8ToNSString(id); break; }
+      if (page->web_contents() == source) { source_id = crest::ParseGuid(id); break; }
   }
-  NSString* url = base::SysUTF8ToNSString(contents->GetVisibleURL().spec());
+  const GURL url = contents->GetVisibleURL();
   BrowserOwner* host = nullptr;
   for (const auto& [id, owner] : state.browsers)
     if (owner->strip && owner->strip->GetIndexOfWebContents(contents.get()) >= 0) { host = owner.get(); break; }
@@ -749,17 +748,20 @@ void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foregrou
   // extension app window) has no Crest window until one of its tabs needs it.
   // A renderer popup keeps its opener's window instead: that tab is adopted
   // beside the page that opened it, exactly as it was before this path existed.
-  if (host && host->engine_window && !host->presented && source_id == NSNull.null) {
+  if (host && host->engine_window && !host->presented && !source_id) {
     host->presented = true;
     [NSClassFromString(@"CrestRoot") presentEngineWindow:base::SysUTF8ToNSString(host->window)
                                                   space:base::SysUTF8ToNSString(host->space)
                                                 focused:host->focused ? YES : NO];
   }
-  state.browser_observation(@{
-    @"adoptionId": base::SysUTF8ToNSString(token), @"profileId": base::SysUTF8ToNSString(profile_id),
-    @"windowId": host ? base::SysUTF8ToNSString(host->window) : (id)NSNull.null,
-    @"spaceId": host && !host->space.empty() ? base::SysUTF8ToNSString(host->space) : (id)NSNull.null,
-    @"sourcePageId": source_id, @"url": url.length ? url : @"about:blank", @"foreground": @(foreground) });
+  crest::EngineBinding::Get().Present(crest::engine::PageOffered{
+      .adoption_id = adoption,
+      .profile_id = *crest::ParseGuid(profile_id),
+      .window_id = host ? crest::ParseGuid(host->window) : std::nullopt,
+      .space_id = host && !host->space.empty() ? crest::ParseGuid(host->space) : std::nullopt,
+      .source_page_id = source_id,
+      .url = url.is_empty() ? std::string("about:blank") : crest::PresentedURL(url),
+      .foreground = foreground});
 }
 
 Browser* BrowserFor(const std::string& profile_id, const std::string& window_id) {
@@ -807,81 +809,6 @@ bool RegisterEngineBrowser(Browser* browser) {
   return true;
 }
 
-download::DownloadItem* FindDownload(NSString* profile_id, NSString* guid) {
-  if (State().disposing) return nullptr;
-  Profile* profile = crest::EngineBinding::Get().Profiles().Find(base::SysNSStringToUTF8(profile_id));
-  return profile ? profile->GetDownloadManager()->GetDownloadByGuid(base::SysNSStringToUTF8(guid)) : nullptr;
-}
-
-NSString* DownloadWarningToken(download::DownloadItem* item) {
-  return [NSString stringWithFormat:@"%d:%d", item->GetDangerType(), item->GetInsecureDownloadStatus()];
-}
-
-// Only warnings with an explicit user override enter the approval path. Policy
-// blocks and known malware remain blocked; pending scans remain engine-owned.
-NSString* DownloadWarning(download::DownloadItem* item, bool* blocked) {
-  *blocked = false;
-  if (item->IsInsecure()) {
-    *blocked = item->GetInsecureDownloadStatus() != download::DownloadItem::WARN;
-    return *blocked ? @"The engine blocked this insecure download." :
-        @"This file was transferred over an insecure connection and could have been changed by someone else. Keep it only if you trust its source.";
-  }
-  if (!item->IsDangerous()) return nil;
-  switch (item->GetDangerType()) {
-    case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE:
-      return @"This type of file can change your computer. Keep it only if you trust its source.";
-    case download::DOWNLOAD_DANGER_TYPE_UNCOMMON_CONTENT:
-      return @"This file is not commonly downloaded. The engine could not confirm that it is safe.";
-    case download::DOWNLOAD_DANGER_TYPE_POTENTIALLY_UNWANTED:
-      return @"This file may change your browser or computer settings without your permission.";
-    case download::DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING:
-    case download::DOWNLOAD_DANGER_TYPE_ASYNC_LOCAL_PASSWORD_SCANNING:
-    case download::DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT:
-      return nil;
-    default:
-      *blocked = true;
-      return @"The engine blocked this download because of its safety or organization policy verdict.";
-  }
-}
-
-NSMutableDictionary<NSString*, id>* DownloadValues(download::DownloadItem* item) {
-  const std::string profile_id =
-      crest::EngineBinding::Get().Profiles().IdFor(content::DownloadItemUtils::GetBrowserContext(item));
-  if (profile_id.empty()) return nil;
-  auto* contents = content::DownloadItemUtils::GetWebContents(item);
-  id source = NSNull.null;
-  for (const auto& [id, page] : State().pages)
-    if (contents && page->web_contents() == contents) { source = base::SysUTF8ToNSString(id); break; }
-  NSString* state = @"preparing";
-  NSString* message = @"";
-  switch (item->GetState()) {
-    case download::DownloadItem::COMPLETE: state = @"finished"; break;
-    case download::DownloadItem::CANCELLED: state = @"canceled"; break;
-    case download::DownloadItem::INTERRUPTED:
-      state = @"failed";
-      message = base::SysUTF16ToNSString(DownloadItemModel(item).GetInterruptDescription());
-      break;
-    case download::DownloadItem::IN_PROGRESS:
-      state = item->GetTargetFilePath().empty() ? @"preparing" : @"downloading";
-      bool blocked;
-      if (NSString* warning = DownloadWarning(item, &blocked)) {
-        state = blocked ? @"failed" : @"warning";
-        message = warning;
-      }
-      break;
-    default: break;
-  }
-  return [@{
-    @"downloadId": base::SysUTF8ToNSString(item->GetGuid()),
-    @"profileId": base::SysUTF8ToNSString(profile_id), @"sourcePageId": source,
-    @"filename": base::SysUTF8ToNSString(item->GetFileNameToReportUser().AsUTF8Unsafe()),
-    @"path": base::SysUTF8ToNSString(item->GetTargetFilePath().AsUTF8Unsafe()),
-    @"received": @(item->GetReceivedBytes()), @"total": @(item->GetTotalBytes()),
-    @"startedAt": @(item->GetStartTime().InSecondsFSinceUnixEpoch()),
-    @"restored": @(item->GetStartTime() < State().started_at),
-    @"paused": @(item->IsPaused()), @"state": state, @"message": message,
-    @"warningToken": DownloadWarningToken(item) } mutableCopy];
-}
 // A batch retains all WebContents until the native semantic operation accepts it.
 // In particular, approving the first tab never destroys it if a later tab vetoes.
 void FinishPageClosePreparation(uint64_t generation, bool allowed) {
@@ -1128,6 +1055,23 @@ class MacShell final : public crest::EngineBinding::Shell {
     }
   }
 
+  bool RejectAdoption(const std::string& token) override {
+    auto& state = State();
+    auto found = state.adoptions.find(token);
+    if (found == state.adoptions.end()) return false;
+    auto contents = found->second.contents;
+    state.adoptions.erase(found);
+    if (!contents) return true;
+    for (const auto& [id, owner] : state.browsers) {
+      const int index = owner->strip ? owner->strip->GetIndexOfWebContents(contents.get()) : -1;
+      if (index >= 0) {
+        owner->strip->DetachAndDeleteWebContentsAt(index);
+        break;
+      }
+    }
+    return true;
+  }
+
   void DockInspector(const std::string& page_id, content::WebContents* frontend) override {
     Page* page = FindPage(base::SysUTF8ToNSString(page_id));
     if (!page) return;
@@ -1203,65 +1147,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
                                       const crest_engine_pages_t* pages);
 
 @implementation CrestChromiumHost
-- (void)setBrowserObserver:(void (^)(NSDictionary<NSString*, id>*))observer {
-  CHECK(NSThread.isMainThread);
-  State().browser_observation = [observer copy];
-}
-- (void)setDownloadObserver:(void (^)(NSDictionary<NSString*, id>*))observer {
-  State().download_observation = [observer copy];
-}
-- (void)setDownloadDestinationResolver:(void (^)(NSDictionary<NSString*, id>*, void (^)(NSString*)))resolver {
-  State().download_destination = [resolver copy];
-}
-- (void)cancelDownload:(NSString*)downloadID profile:(NSString*)profileID {
-  // Do not mutate an item from inside its own notification stack.
-  dispatch_async(dispatch_get_main_queue(), ^{
-    if (auto* item = FindDownload(profileID, downloadID)) item->Cancel(true);
-  });
-}
-- (void)approveDownload:(NSString*)downloadID profile:(NSString*)profileID warning:(NSString*)token {
-  auto* item = FindDownload(profileID, downloadID);
-  if (!item || item->GetState() != download::DownloadItem::IN_PROGRESS ||
-      ![DownloadWarningToken(item) isEqualToString:token]) return;
-  bool blocked;
-  if (!DownloadWarning(item, &blocked) || blocked) return;
-  if (item->IsInsecure()) item->ValidateInsecureDownload();
-  else if (item->IsDangerous()) item->ValidateDangerousDownload();
-}
-- (void)removeDownload:(NSString*)downloadID profile:(NSString*)profileID {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    if (auto* item = FindDownload(profileID, downloadID)) item->Remove();
-  });
-}
-- (BOOL)adoptPage:(NSString*)adoptionID asPage:(NSString*)pageID {
-  CHECK(NSThread.isMainThread);
-  return crest::EngineBinding::Get().Adopt(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(adoptionID));
-}
-- (BOOL)stageNavigation:(NSString*)token page:(NSString*)pageID url:(NSString*)url {
-  CHECK(NSThread.isMainThread);
-  return crest::EngineBinding::Get().Stage(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(token),
-                                           base::SysNSStringToUTF8(url));
-}
-- (void)loadPage:(NSString*)pageID url:(NSString*)url {
-  CHECK(NSThread.isMainThread);
-  crest::EngineBinding::Get().Load(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(url));
-}
-- (void)setPrivateSourceProfile:(NSString*)profileID {
-  CHECK(NSThread.isMainThread);
-  crest::EngineBinding::Get().SetPrivateSourceProfile(base::SysNSStringToUTF8(profileID));
-}
-- (void)rejectAdoption:(NSString*)adoptionID {
-  CHECK(NSThread.isMainThread);
-  auto& state = State();
-  auto found = state.adoptions.find(base::SysNSStringToUTF8(adoptionID));
-  if (found == state.adoptions.end()) return;
-  auto contents = found->second.contents; state.adoptions.erase(found);
-  if (!contents) return;
-  for (const auto& [id, owner] : state.browsers) {
-    int index = owner->strip ? owner->strip->GetIndexOfWebContents(contents.get()) : -1;
-    if (index >= 0) { owner->strip->DetachAndDeleteWebContentsAt(index); return; }
-  }
-}
 - (NSView*)viewForPage:(NSString*)pageID {
   CHECK(NSThread.isMainThread);
   Page* page = FindPage(pageID);
@@ -1490,7 +1375,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   state.disposing = true;
   crest::EngineBinding::Get().Dispose();
   CancelAllAuthenticationSessions();
-  state.browser_observation = nil;
   state.space_extension_popup.reset();
   state.adoptions.clear();
   state.pending_link_navigations.clear();
@@ -1821,57 +1705,6 @@ void AppendLinkMenuItem(NSMenu* menu, content::WebContents* contents, const GURL
   }
 }
 
-bool OwnsDownload(download::DownloadItem* item) {
-  if (!IsEnabled() || State().disposing || item->IsTransient() ||
-      item->GetMimeType() == "application/x-chrome-extension") return false;
-  return !crest::EngineBinding::Get().Profiles().IdFor(content::DownloadItemUtils::GetBrowserContext(item)).empty();
-}
-
-void PublishDownload(download::DownloadItem* item) {
-  auto values = DownloadValues(item);
-  if (!values || !State().download_observation) return;
-  // Capture a value snapshot before returning to the engine. Native UI or
-  // cancellation must never destroy a WebContents on this notification stack.
-  dispatch_async(dispatch_get_main_queue(), ^{
-    if (State().disposing || !State().download_observation) return;
-    State().download_observation(values);
-    if ([values[@"state"] isEqual:@"failed"]) {
-      if (auto* current = FindDownload(values[@"profileId"], values[@"downloadId"]);
-          current && current->GetState() == download::DownloadItem::IN_PROGRESS) {
-        bool blocked;
-        DownloadWarning(current, &blocked);
-        if (blocked) current->Cancel(true);
-      }
-    }
-  });
-}
-
-void ChooseDownloadDestination(download::DownloadItem* item,
-    const base::FilePath& suggested_path, DownloadConfirmationReason reason,
-    DownloadTargetDeterminerDelegate::ConfirmationCallback callback) {
-  auto values = DownloadValues(item);
-  // DLP and managed targets retain Chromium's policy path. This callback is
-  // reached only after its normal filename and path reservation checks.
-  if (!values || !State().download_destination || reason == DownloadConfirmationReason::DLP_BLOCKED) {
-    std::move(callback).Run(DownloadConfirmationResult::CANCELED, ui::SelectedFileInfo());
-    return;
-  }
-  values[@"filename"] = base::SysUTF8ToNSString(suggested_path.BaseName().AsUTF8Unsafe());
-  values[@"forcePrompt"] = @(reason != DownloadConfirmationReason::NONE && reason != DownloadConfirmationReason::PREFERENCE);
-  auto reply = std::make_shared<DownloadTargetDeterminerDelegate::ConfirmationCallback>(std::move(callback));
-  State().download_destination(values, ^(NSString* path) {
-    if (!*reply) return;
-    auto* current = FindDownload(values[@"profileId"], values[@"downloadId"]);
-    if (!path.length || !current || current->GetState() != download::DownloadItem::IN_PROGRESS) {
-      std::move(*reply).Run(DownloadConfirmationResult::CANCELED, ui::SelectedFileInfo());
-      return;
-    }
-    // Destination resolution alone never grants a safety override, even when
-    // the native resolver used a save panel. Chromium still checks the file.
-    std::move(*reply).Run(DownloadConfirmationResult::CONTINUE_WITHOUT_CONFIRMATION,
-        ui::SelectedFileInfo(base::FilePath(base::SysNSStringToUTF8(path))));
-  });
-}
 
 bool CompletePageClosePreparation(content::WebContents* contents, bool proceed) {
   auto& state = State();

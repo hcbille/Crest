@@ -257,6 +257,8 @@ enum EnginePresentation: Equatable, Sendable {
     case contentFullscreenChanged(ContentFullscreenChanged)
     case contentMessagePosted(ContentMessagePosted)
     case contentScriptEvaluated(ContentScriptEvaluated)
+    case engineDownloadChanged(EngineDownloadChanged)
+    case engineDownloadDestinationRequested(EngineDownloadDestinationRequested)
     case extensionsChanged(ExtensionsChanged)
     case findFinished(FindFinished)
     case infoBarRemoved(InfoBarRemoved)
@@ -274,6 +276,7 @@ enum EnginePresentation: Equatable, Sendable {
     case pageNavigationCommitted(PageNavigationCommitted)
     case pageNavigationFailed(PageNavigationFailed)
     case pageNavigationStarted(PageNavigationStarted)
+    case pageOffered(PageOffered)
     case pageRendererGone(PageRendererGone)
     case pageThemeChanged(PageThemeChanged)
     case pageViewClosed(PageViewClosed)
@@ -376,6 +379,13 @@ struct AdoptLegacySession: Intent, Equatable, Sendable {
     let seed: Data
 }
 
+struct AdoptOfferedPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let adoptionID: UUID
+}
+
 struct AdoptShortcuts: Intent, ShortcutIntent, Equatable, Sendable {
     let overrides: Data?
 }
@@ -413,6 +423,13 @@ struct AnswerAuthentication: PageRequest, Equatable, Sendable {
     let pageID: UUID
     let challengeID: UUID
     let credential: AuthenticationCredential?
+}
+
+struct AnswerEngineDownloadDestination: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let requestID: UUID
+    let path: String?
 }
 
 struct AnswerInfoBar: PageRequest, Equatable, Sendable {
@@ -468,6 +485,14 @@ struct ApplyManualSetup: Intent, ImportWorkspace, SessionIntent, Equatable, Send
     let spaces: Data
     let drafts: [SetupSpace]
     let orderWasEdited: Bool
+}
+
+struct ApproveEngineDownload: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let profileID: UUID
+    let downloadID: String
+    let approvalToken: String
 }
 
 struct ArchiveChanged: Equatable, Sendable {
@@ -613,6 +638,13 @@ struct CanTearOff: Query, Equatable, Sendable {
 struct CancelDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
     let message: String
+}
+
+struct CancelEngineDownload: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let profileID: UUID
+    let downloadID: String
 }
 
 struct CannotDeleteLastSpace: Equatable, Sendable {
@@ -1229,6 +1261,34 @@ struct DuplicateTabs: Intent, SessionIntent, Equatable, Sendable {
 
 struct EngineAlreadyRegistered: Equatable, Sendable {
     let kind: EngineKind
+}
+
+struct EngineDownload: Equatable, Sendable {
+    let downloadID: String
+    let profileID: UUID
+    let sourcePageID: UUID?
+    let filename: String
+    let path: String?
+    let received: Int64
+    let total: Int64
+    let startedAt: Date
+    let restored: Bool
+    let paused: Bool
+    let state: EngineDownloadState
+    let warning: EngineDownloadWarning?
+    let failure: String?
+    let approvalToken: String
+}
+
+struct EngineDownloadChanged: Equatable, Sendable {
+    let download: EngineDownload
+}
+
+struct EngineDownloadDestinationRequested: Equatable, Sendable {
+    let requestID: UUID
+    let download: EngineDownload
+    let suggestedFilename: String
+    let forcesPrompt: Bool
 }
 
 struct EngineLacksCapability: Equatable, Sendable {
@@ -2319,6 +2379,16 @@ struct PageNotLoadable: Equatable, Sendable {
     let pageID: UUID
 }
 
+struct PageOffered: Equatable, Sendable {
+    let adoptionID: UUID
+    let profileID: UUID
+    let windowID: UUID?
+    let spaceID: UUID?
+    let sourcePageID: UUID?
+    let url: String
+    let foreground: Bool
+}
+
 struct PageOpened: Equatable, Sendable {
     let page: PageState
 }
@@ -2605,6 +2675,12 @@ struct RefreshStoreListing: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct RejectOfferedPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let adoptionID: UUID
+}
+
 struct ReleasePage: Intent, PageIntent, Equatable, Sendable {
     let pageID: UUID
     let keepsState: Bool
@@ -2619,6 +2695,13 @@ struct ReloadPage: PageRequest, Equatable, Sendable {
 
 struct RemoveDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
+}
+
+struct RemoveEngineDownload: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let profileID: UUID
+    let downloadID: String
 }
 
 struct RemoveHistoryAddress: Intent, SessionIntent, Equatable, Sendable {
@@ -3982,6 +4065,24 @@ enum CrestTrim: Int, CaseIterable, Sendable {
     case doubleRing = 6
     case seal = 7
     case beaded = 8
+}
+
+enum EngineDownloadState: Int, CaseIterable, Sendable {
+    case preparing = 0
+    case downloading = 1
+    case awaitingApproval = 2
+    case finished = 3
+    case canceled = 4
+    case failed = 5
+}
+
+enum EngineDownloadWarning: Int, CaseIterable, Sendable {
+    case insecureConnection = 0
+    case dangerousFile = 1
+    case uncommonContent = 2
+    case potentiallyUnwanted = 3
+    case insecureBlocked = 4
+    case policyBlocked = 5
 }
 
 enum ExtensionChange: Int, CaseIterable, Sendable {

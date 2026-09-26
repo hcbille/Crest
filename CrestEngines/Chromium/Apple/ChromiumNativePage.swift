@@ -245,8 +245,8 @@
         /// Makes the page the engine offered as `token` this page, which the
         /// binding then follows instead of creating one.
         func adopt(_ token: String) -> Bool {
-            guard !isStandalone, !created, !disposed, let host else { return false }
-            return host.adoptPage(token, asPage: id)
+            guard !isStandalone, !created, let pages, let adoptionID = UUID(uuidString: token) else { return false }
+            return pages.request(AdoptOfferedPage(pageID: pageID, adoptionID: adoptionID))
         }
 
         /// The engine's find wraps at the end of the page, as Crest's find always
@@ -574,7 +574,9 @@
             case .javaScriptDialogRequested(let dialog): present(dialog)
             case .authenticationRequested(let challenge): present(challenge)
             case .permissionRequested(let request): present(request)
-            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileDeleted, .profileReleased: break
+            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileDeleted, .profileReleased,
+                .pageOffered, .engineDownloadChanged, .engineDownloadDestinationRequested:
+                break
             case .findFinished(let finished): receive(finished)
             case .pageCaptured(let captured): receive(captured)
             case .pageExported(let exported): receive(exported)

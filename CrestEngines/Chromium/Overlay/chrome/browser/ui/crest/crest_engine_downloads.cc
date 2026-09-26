@@ -1,0 +1,255 @@
+#include "chrome/browser/ui/crest/crest_engine_downloads.h"
+
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/location.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/download/download_confirmation_result.h"
+#include "chrome/browser/download/download_item_model.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/crest/crest_engine_binding.h"
+#include "chrome/browser/ui/crest/crest_engine_profiles.h"
+#include "chrome/browser/ui/crest/crest_engine_prompts.h"
+#include "components/download/public/common/download_item.h"
+#include "content/public/browser/download_item_utils.h"
+#include "content/public/browser/download_manager.h"
+#include "ui/shell_dialogs/selected_file_info.h"
+
+namespace crest {
+
+namespace {
+
+// Seconds from the Unix epoch to the wire's reference date, 2001-01-01.
+constexpr double kReferenceDateOffset = 978307200;
+
+// Only a warning the person may override enters the approval path. A policy
+// block or known malware stays blocked; a pending scan stays the engine's.
+std::optional<engine::EngineDownloadWarning> WarningFor(download::DownloadItem* item, bool* blocked) {
+  *blocked = false;
+  if (item->IsInsecure()) {
+    *blocked = item->GetInsecureDownloadStatus() != download::DownloadItem::WARN;
+    return *blocked ? engine::EngineDownloadWarning::kInsecureBlocked
+                    : engine::EngineDownloadWarning::kInsecureConnection;
+  }
+  if (!item->IsDangerous()) {
+    return std::nullopt;
+  }
+  switch (item->GetDangerType()) {
+    case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE:
+      return engine::EngineDownloadWarning::kDangerousFile;
+    case download::DOWNLOAD_DANGER_TYPE_UNCOMMON_CONTENT:
+      return engine::EngineDownloadWarning::kUncommonContent;
+    case download::DOWNLOAD_DANGER_TYPE_POTENTIALLY_UNWANTED:
+      return engine::EngineDownloadWarning::kPotentiallyUnwanted;
+    case download::DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING:
+    case download::DOWNLOAD_DANGER_TYPE_ASYNC_LOCAL_PASSWORD_SCANNING:
+    case download::DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT:
+      return std::nullopt;
+    default:
+      *blocked = true;
+      return engine::EngineDownloadWarning::kPolicyBlocked;
+  }
+}
+
+// The warning a person's approval answers, so a download whose verdict
+// changed since is never kept on an old answer.
+std::string ApprovalToken(download::DownloadItem* item) {
+  return base::NumberToString(static_cast<int>(item->GetDangerType())) + ":" +
+         base::NumberToString(static_cast<int>(item->GetInsecureDownloadStatus()));
+}
+
+}  // namespace
+
+EngineDownloads::EngineDownloads(EngineProfiles& profiles, Present present, PageFor page_for)
+    : profiles_(profiles), present_(std::move(present)), page_for_(std::move(page_for)) {}
+
+EngineDownloads::~EngineDownloads() = default;
+
+// An extension package the engine installs itself, and a transient download,
+// stay the engine's.
+bool EngineDownloads::Owns(download::DownloadItem* item) const {
+  return !item->IsTransient() && item->GetMimeType() != "application/x-chrome-extension" &&
+         !profiles_->IdFor(content::DownloadItemUtils::GetBrowserContext(item)).empty();
+}
+
+std::optional<engine::EngineDownload> EngineDownloads::Describe(download::DownloadItem* item) const {
+  const auto profile = ParseGuid(profiles_->IdFor(content::DownloadItemUtils::GetBrowserContext(item)));
+  if (!profile) {
+    return std::nullopt;
+  }
+  engine::EngineDownload download{
+      .download_id = item->GetGuid(),
+      .profile_id = *profile,
+      .source_page_id = page_for_.Run(item),
+      .filename = item->GetFileNameToReportUser().AsUTF8Unsafe(),
+      .received = item->GetReceivedBytes(),
+      .total = item->GetTotalBytes(),
+      .started_at = engine::Date{.seconds_since_2001 =
+                                     item->GetStartTime().InSecondsFSinceUnixEpoch() - kReferenceDateOffset},
+      .restored = item->GetStartTime() < started_at_,
+      .paused = item->IsPaused(),
+      .state = engine::EngineDownloadState::kPreparing,
+      .approval_token = ApprovalToken(item),
+  };
+  if (!item->GetTargetFilePath().empty()) {
+    download.path = item->GetTargetFilePath().AsUTF8Unsafe();
+  }
+  switch (item->GetState()) {
+    case download::DownloadItem::COMPLETE:
+      download.state = engine::EngineDownloadState::kFinished;
+      break;
+    case download::DownloadItem::CANCELLED:
+      download.state = engine::EngineDownloadState::kCanceled;
+      break;
+    case download::DownloadItem::INTERRUPTED:
+      download.state = engine::EngineDownloadState::kFailed;
+      download.failure = base::UTF16ToUTF8(DownloadItemModel(item).GetInterruptDescription());
+      break;
+    case download::DownloadItem::IN_PROGRESS: {
+      download.state = item->GetTargetFilePath().empty() ? engine::EngineDownloadState::kPreparing
+                                                         : engine::EngineDownloadState::kDownloading;
+      bool blocked = false;
+      if (auto warning = WarningFor(item, &blocked)) {
+        download.state =
+            blocked ? engine::EngineDownloadState::kFailed : engine::EngineDownloadState::kAwaitingApproval;
+        download.warning = warning;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return download;
+}
+
+// The engine's notification is not the place to change the download, so a
+// blocked one is canceled once the presentation is sent.
+void EngineDownloads::Changed(download::DownloadItem* item) {
+  auto download = Describe(item);
+  if (!download) {
+    return;
+  }
+  const bool failed = download->state == engine::EngineDownloadState::kFailed;
+  std::string profile = GuidText(download->profile_id);
+  std::string id = download->download_id;
+  present_.Run(engine::EngineDownloadChanged{.download = std::move(*download)});
+  if (failed) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&EngineDownloads::CancelIfBlocked, weak_factory_.GetWeakPtr(), std::move(profile),
+                                  std::move(id)));
+  }
+}
+
+void EngineDownloads::CancelIfBlocked(std::string profile, std::string download) {
+  auto* current = Find(profile, download);
+  if (!current || current->GetState() != download::DownloadItem::IN_PROGRESS) {
+    return;
+  }
+  bool blocked = false;
+  WarningFor(current, &blocked);
+  if (blocked) {
+    current->Cancel(true);
+  }
+}
+
+// Reached only after the engine's own name and path reservation checks. A
+// data-loss-prevention or managed target keeps the engine's policy path.
+void EngineDownloads::ChooseDestination(download::DownloadItem* item,
+                                        const base::FilePath& suggested_path,
+                                        DownloadConfirmationReason reason,
+                                        DownloadTargetDeterminerDelegate::ConfirmationCallback callback) {
+  auto download = Describe(item);
+  if (!download || reason == DownloadConfirmationReason::DLP_BLOCKED) {
+    std::move(callback).Run(DownloadConfirmationResult::CANCELED, ui::SelectedFileInfo());
+    return;
+  }
+  const engine::Guid id = RandomGuid();
+  destinations_[id] = Destination{.profile = GuidText(download->profile_id),
+                                  .download = download->download_id,
+                                  .callback = std::move(callback)};
+  present_.Run(engine::EngineDownloadDestinationRequested{
+      .request_id = id,
+      .download = std::move(*download),
+      .suggested_filename = suggested_path.BaseName().AsUTF8Unsafe(),
+      .forces_prompt =
+          reason != DownloadConfirmationReason::NONE && reason != DownloadConfirmationReason::PREFERENCE});
+}
+
+// Choosing where a file goes never overrides the engine's safety verdict,
+// even through a save panel; the engine still checks the file.
+bool EngineDownloads::Answer(const engine::AnswerEngineDownloadDestination& answer) {
+  auto found = destinations_.find(answer.request_id);
+  if (found == destinations_.end()) {
+    return false;
+  }
+  Destination destination = std::move(found->second);
+  destinations_.erase(found);
+  auto* current = Find(destination.profile, destination.download);
+  if (!answer.path || answer.path->empty() || !current || current->GetState() != download::DownloadItem::IN_PROGRESS) {
+    std::move(destination.callback).Run(DownloadConfirmationResult::CANCELED, ui::SelectedFileInfo());
+    return true;
+  }
+  std::move(destination.callback)
+      .Run(DownloadConfirmationResult::CONTINUE_WITHOUT_CONFIRMATION,
+           ui::SelectedFileInfo(base::FilePath(*answer.path)));
+  return true;
+}
+
+// Never on the download's own notification stack.
+bool EngineDownloads::Cancel(const engine::CancelEngineDownload& request) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](base::WeakPtr<EngineDownloads> downloads, std::string profile, std::string download) {
+                       if (!downloads) {
+                         return;
+                       }
+                       if (auto* item = downloads->Find(profile, download)) {
+                         item->Cancel(true);
+                       }
+                     },
+                     weak_factory_.GetWeakPtr(), GuidText(request.profile_id), request.download_id));
+  return true;
+}
+
+bool EngineDownloads::Remove(const engine::RemoveEngineDownload& request) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](base::WeakPtr<EngineDownloads> downloads, std::string profile, std::string download) {
+                       if (!downloads) {
+                         return;
+                       }
+                       if (auto* item = downloads->Find(profile, download)) {
+                         item->Remove();
+                       }
+                     },
+                     weak_factory_.GetWeakPtr(), GuidText(request.profile_id), request.download_id));
+  return true;
+}
+
+bool EngineDownloads::Approve(const engine::ApproveEngineDownload& request) {
+  auto* item = Find(GuidText(request.profile_id), request.download_id);
+  if (!item || item->GetState() != download::DownloadItem::IN_PROGRESS ||
+      ApprovalToken(item) != request.approval_token) {
+    return false;
+  }
+  bool blocked = false;
+  if (!WarningFor(item, &blocked) || blocked) {
+    return false;
+  }
+  if (item->IsInsecure()) {
+    item->ValidateInsecureDownload();
+  } else if (item->IsDangerous()) {
+    item->ValidateDangerousDownload();
+  }
+  return true;
+}
+
+download::DownloadItem* EngineDownloads::Find(const std::string& profile, const std::string& download) const {
+  Profile* found = profiles_->Find(profile);
+  return found ? found->GetDownloadManager()->GetDownloadByGuid(download) : nullptr;
+}
+
+}  // namespace crest

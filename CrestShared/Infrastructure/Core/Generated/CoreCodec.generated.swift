@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xfd, 0xdd, 0x46, 0x03, 0x07, 0x87, 0xc8, 0x68, 0xc5, 0x92, 0x8c, 0xab, 0x82, 0x47, 0x3a, 0x59, 0x22, 0xd7, 0xbf, 0xed, 0xd8, 0xdf, 0x3e, 0x75, 0xf9, 0x51, 0xc4, 0x21, 0x8f, 0x40, 0xf5, 0xf1
+        0x5f, 0x8e, 0x8e, 0xca, 0x24, 0x9a, 0xf3, 0xa0, 0x94, 0x14, 0xe6, 0x9f, 0xfb, 0x00, 0x86, 0x5a, 0x41, 0xd2, 0x4d, 0x0a, 0x73, 0xe8, 0xda, 0x6b, 0x0c, 0xcc, 0xba, 0x9e, 0xd8, 0xde, 0x74, 0xe0
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0x5a, 0xa6, 0xb7, 0x8e, 0x02, 0x79, 0x5f, 0x6d, 0x3b, 0xeb, 0x2c, 0x5f, 0xcf, 0x20, 0xa8, 0x9e, 0x9f, 0xa1, 0x83, 0xd1, 0x9b, 0x7d, 0xf6, 0x56, 0xdd, 0xc1, 0x5e, 0xad, 0x82, 0x46, 0xf1, 0x4f
+        0xc0, 0x24, 0x2f, 0x1d, 0xb5, 0x86, 0x8b, 0x26, 0x24, 0x27, 0x7e, 0xc9, 0xeb, 0xc1, 0x1e, 0x8c, 0x45, 0x48, 0xab, 0x18, 0x40, 0x7f, 0xf6, 0x24, 0xc1, 0x3f, 0x43, 0x5e, 0xce, 0x17, 0x97, 0x49
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -216,48 +216,54 @@ enum CoreCodec {
         switch tag {
         case 0: return try ActivateMediaSession(from: &reader)
         case 1: return try AddContentScript(from: &reader)
-        case 2: return try AnswerAuthentication(from: &reader)
-        case 3: return try AnswerInfoBar(from: &reader)
-        case 4: return try AnswerJavaScriptDialog(from: &reader)
-        case 5: return try AnswerPermission(from: &reader)
-        case 6: return try CapturePage(from: &reader)
-        case 7: return try ChangeExtension(from: &reader)
-        case 8: return try ClearSiteData(from: &reader)
-        case 9: return try CloseInspector(from: &reader)
-        case 10: return try CloseStandalonePage(from: &reader)
-        case 11: return try DeleteProfile(from: &reader)
-        case 12: return try EnterPictureInPicture(from: &reader)
-        case 13: return try EvaluateContentScript(from: &reader)
-        case 14: return try ExportPage(from: &reader)
-        case 15: return try FindInPage(from: &reader)
-        case 16: return try GoToHistoryOffset(from: &reader)
-        case 17: return try HasSidePanel(from: &reader)
-        case 18: return try HidePage(from: &reader)
-        case 19: return try InstalledExtensions(from: &reader)
-        case 20: return try LayoutInspector(from: &reader)
-        case 21: return try MovePageToWindow(from: &reader)
-        case 22: return try MuteMediaSession(from: &reader)
-        case 23: return try OpenInspector(from: &reader)
-        case 24: return try OpenStandalonePage(from: &reader)
-        case 25: return try PageCertificates(from: &reader)
-        case 26: return try PageExtensions(from: &reader)
-        case 27: return try PageIcon(from: &reader)
-        case 28: return try PageInspected(from: &reader)
-        case 29: return try PageMedia(from: &reader)
-        case 30: return try PerformMediaAction(from: &reader)
-        case 31: return try PinnedExtensions(from: &reader)
-        case 32: return try PrepareProfile(from: &reader)
-        case 33: return try RefreshPageIcon(from: &reader)
-        case 34: return try RefreshStoreListing(from: &reader)
-        case 35: return try ReloadPage(from: &reader)
-        case 36: return try RestoreInteractionState(from: &reader)
-        case 37: return try SaveInteractionState(from: &reader)
-        case 38: return try SetSitePermission(from: &reader)
-        case 39: return try ShowBlockedPopups(from: &reader)
-        case 40: return try ShowPage(from: &reader)
-        case 41: return try StopLoading(from: &reader)
-        case 42: return try WatchPage(from: &reader)
-        case 43: return try ZoomPage(from: &reader)
+        case 2: return try AdoptOfferedPage(from: &reader)
+        case 3: return try AnswerAuthentication(from: &reader)
+        case 4: return try AnswerEngineDownloadDestination(from: &reader)
+        case 5: return try AnswerInfoBar(from: &reader)
+        case 6: return try AnswerJavaScriptDialog(from: &reader)
+        case 7: return try AnswerPermission(from: &reader)
+        case 8: return try ApproveEngineDownload(from: &reader)
+        case 9: return try CancelEngineDownload(from: &reader)
+        case 10: return try CapturePage(from: &reader)
+        case 11: return try ChangeExtension(from: &reader)
+        case 12: return try ClearSiteData(from: &reader)
+        case 13: return try CloseInspector(from: &reader)
+        case 14: return try CloseStandalonePage(from: &reader)
+        case 15: return try DeleteProfile(from: &reader)
+        case 16: return try EnterPictureInPicture(from: &reader)
+        case 17: return try EvaluateContentScript(from: &reader)
+        case 18: return try ExportPage(from: &reader)
+        case 19: return try FindInPage(from: &reader)
+        case 20: return try GoToHistoryOffset(from: &reader)
+        case 21: return try HasSidePanel(from: &reader)
+        case 22: return try HidePage(from: &reader)
+        case 23: return try InstalledExtensions(from: &reader)
+        case 24: return try LayoutInspector(from: &reader)
+        case 25: return try MovePageToWindow(from: &reader)
+        case 26: return try MuteMediaSession(from: &reader)
+        case 27: return try OpenInspector(from: &reader)
+        case 28: return try OpenStandalonePage(from: &reader)
+        case 29: return try PageCertificates(from: &reader)
+        case 30: return try PageExtensions(from: &reader)
+        case 31: return try PageIcon(from: &reader)
+        case 32: return try PageInspected(from: &reader)
+        case 33: return try PageMedia(from: &reader)
+        case 34: return try PerformMediaAction(from: &reader)
+        case 35: return try PinnedExtensions(from: &reader)
+        case 36: return try PrepareProfile(from: &reader)
+        case 37: return try RefreshPageIcon(from: &reader)
+        case 38: return try RefreshStoreListing(from: &reader)
+        case 39: return try RejectOfferedPage(from: &reader)
+        case 40: return try ReloadPage(from: &reader)
+        case 41: return try RemoveEngineDownload(from: &reader)
+        case 42: return try RestoreInteractionState(from: &reader)
+        case 43: return try SaveInteractionState(from: &reader)
+        case 44: return try SetSitePermission(from: &reader)
+        case 45: return try ShowBlockedPopups(from: &reader)
+        case 46: return try ShowPage(from: &reader)
+        case 47: return try StopLoading(from: &reader)
+        case 48: return try WatchPage(from: &reader)
+        case 49: return try ZoomPage(from: &reader)
         default: throw WireError.malformed("Unknown PageRequest tag \(tag)")
         }
     }
@@ -895,38 +901,41 @@ extension EnginePresentation {
         case 1: self = .contentFullscreenChanged(try ContentFullscreenChanged(from: &reader))
         case 2: self = .contentMessagePosted(try ContentMessagePosted(from: &reader))
         case 3: self = .contentScriptEvaluated(try ContentScriptEvaluated(from: &reader))
-        case 4: self = .extensionsChanged(try ExtensionsChanged(from: &reader))
-        case 5: self = .findFinished(try FindFinished(from: &reader))
-        case 6: self = .infoBarRemoved(try InfoBarRemoved(from: &reader))
-        case 7: self = .infoBarShown(try InfoBarShown(from: &reader))
-        case 8: self = .inspectorClosed(try InspectorClosed(from: &reader))
-        case 9: self = .inspectorLayoutChanged(try InspectorLayoutChanged(from: &reader))
-        case 10: self = .javaScriptDialogRequested(try JavaScriptDialogRequested(from: &reader))
-        case 11: self = .linkHovered(try LinkHovered(from: &reader))
-        case 12: self = .mediaSessionChanged(try MediaSessionChanged(from: &reader))
-        case 13: self = .pageCaptured(try PageCaptured(from: &reader))
-        case 14: self = .pageExported(try PageExported(from: &reader))
-        case 15: self = .pageHistoryChanged(try PageHistoryChanged(from: &reader))
-        case 16: self = .pageInteracted(try PageInteracted(from: &reader))
-        case 17: self = .pageLoadingChanged(try PageLoadingChanged(from: &reader))
-        case 18: self = .pageNavigationCommitted(try PageNavigationCommitted(from: &reader))
-        case 19: self = .pageNavigationFailed(try PageNavigationFailed(from: &reader))
-        case 20: self = .pageNavigationStarted(try PageNavigationStarted(from: &reader))
-        case 21: self = .pageRendererGone(try PageRendererGone(from: &reader))
-        case 22: self = .pageThemeChanged(try PageThemeChanged(from: &reader))
-        case 23: self = .pageViewClosed(try PageViewClosed(from: &reader))
-        case 24: self = .pageViewReady(try PageViewReady(from: &reader))
-        case 25: self = .pageViewUnavailable(try PageViewUnavailable(from: &reader))
-        case 26: self = .permissionRequested(try PermissionRequested(from: &reader))
-        case 27: self = .popupBlocked(try PopupBlocked(from: &reader))
-        case 28: self = .profileDeleted(try ProfileDeleted(from: &reader))
-        case 29: self = .profilePrepared(try ProfilePrepared(from: &reader))
-        case 30: self = .profileReleased(try ProfileReleased(from: &reader))
-        case 31: self = .sidePanelRequested(try SidePanelRequested(from: &reader))
-        case 32: self = .siteDataCleared(try SiteDataCleared(from: &reader))
-        case 33: self = .stagedLinkUnavailable(try StagedLinkUnavailable(from: &reader))
-        case 34: self = .storeInstallRequested(try StoreInstallRequested(from: &reader))
-        case 35: self = .storeRemovalRequested(try StoreRemovalRequested(from: &reader))
+        case 4: self = .engineDownloadChanged(try EngineDownloadChanged(from: &reader))
+        case 5: self = .engineDownloadDestinationRequested(try EngineDownloadDestinationRequested(from: &reader))
+        case 6: self = .extensionsChanged(try ExtensionsChanged(from: &reader))
+        case 7: self = .findFinished(try FindFinished(from: &reader))
+        case 8: self = .infoBarRemoved(try InfoBarRemoved(from: &reader))
+        case 9: self = .infoBarShown(try InfoBarShown(from: &reader))
+        case 10: self = .inspectorClosed(try InspectorClosed(from: &reader))
+        case 11: self = .inspectorLayoutChanged(try InspectorLayoutChanged(from: &reader))
+        case 12: self = .javaScriptDialogRequested(try JavaScriptDialogRequested(from: &reader))
+        case 13: self = .linkHovered(try LinkHovered(from: &reader))
+        case 14: self = .mediaSessionChanged(try MediaSessionChanged(from: &reader))
+        case 15: self = .pageCaptured(try PageCaptured(from: &reader))
+        case 16: self = .pageExported(try PageExported(from: &reader))
+        case 17: self = .pageHistoryChanged(try PageHistoryChanged(from: &reader))
+        case 18: self = .pageInteracted(try PageInteracted(from: &reader))
+        case 19: self = .pageLoadingChanged(try PageLoadingChanged(from: &reader))
+        case 20: self = .pageNavigationCommitted(try PageNavigationCommitted(from: &reader))
+        case 21: self = .pageNavigationFailed(try PageNavigationFailed(from: &reader))
+        case 22: self = .pageNavigationStarted(try PageNavigationStarted(from: &reader))
+        case 23: self = .pageOffered(try PageOffered(from: &reader))
+        case 24: self = .pageRendererGone(try PageRendererGone(from: &reader))
+        case 25: self = .pageThemeChanged(try PageThemeChanged(from: &reader))
+        case 26: self = .pageViewClosed(try PageViewClosed(from: &reader))
+        case 27: self = .pageViewReady(try PageViewReady(from: &reader))
+        case 28: self = .pageViewUnavailable(try PageViewUnavailable(from: &reader))
+        case 29: self = .permissionRequested(try PermissionRequested(from: &reader))
+        case 30: self = .popupBlocked(try PopupBlocked(from: &reader))
+        case 31: self = .profileDeleted(try ProfileDeleted(from: &reader))
+        case 32: self = .profilePrepared(try ProfilePrepared(from: &reader))
+        case 33: self = .profileReleased(try ProfileReleased(from: &reader))
+        case 34: self = .sidePanelRequested(try SidePanelRequested(from: &reader))
+        case 35: self = .siteDataCleared(try SiteDataCleared(from: &reader))
+        case 36: self = .stagedLinkUnavailable(try StagedLinkUnavailable(from: &reader))
+        case 37: self = .storeInstallRequested(try StoreInstallRequested(from: &reader))
+        case 38: self = .storeRemovalRequested(try StoreRemovalRequested(from: &reader))
         default: throw WireError.malformed("Unknown EnginePresentation tag \(tag)")
         }
     }
@@ -945,101 +954,110 @@ extension EnginePresentation {
         case .contentScriptEvaluated(let value):
             writer.writeTag(3)
             value.encode(into: &writer)
-        case .extensionsChanged(let value):
+        case .engineDownloadChanged(let value):
             writer.writeTag(4)
             value.encode(into: &writer)
-        case .findFinished(let value):
+        case .engineDownloadDestinationRequested(let value):
             writer.writeTag(5)
             value.encode(into: &writer)
-        case .infoBarRemoved(let value):
+        case .extensionsChanged(let value):
             writer.writeTag(6)
             value.encode(into: &writer)
-        case .infoBarShown(let value):
+        case .findFinished(let value):
             writer.writeTag(7)
             value.encode(into: &writer)
-        case .inspectorClosed(let value):
+        case .infoBarRemoved(let value):
             writer.writeTag(8)
             value.encode(into: &writer)
-        case .inspectorLayoutChanged(let value):
+        case .infoBarShown(let value):
             writer.writeTag(9)
             value.encode(into: &writer)
-        case .javaScriptDialogRequested(let value):
+        case .inspectorClosed(let value):
             writer.writeTag(10)
             value.encode(into: &writer)
-        case .linkHovered(let value):
+        case .inspectorLayoutChanged(let value):
             writer.writeTag(11)
             value.encode(into: &writer)
-        case .mediaSessionChanged(let value):
+        case .javaScriptDialogRequested(let value):
             writer.writeTag(12)
             value.encode(into: &writer)
-        case .pageCaptured(let value):
+        case .linkHovered(let value):
             writer.writeTag(13)
             value.encode(into: &writer)
-        case .pageExported(let value):
+        case .mediaSessionChanged(let value):
             writer.writeTag(14)
             value.encode(into: &writer)
-        case .pageHistoryChanged(let value):
+        case .pageCaptured(let value):
             writer.writeTag(15)
             value.encode(into: &writer)
-        case .pageInteracted(let value):
+        case .pageExported(let value):
             writer.writeTag(16)
             value.encode(into: &writer)
-        case .pageLoadingChanged(let value):
+        case .pageHistoryChanged(let value):
             writer.writeTag(17)
             value.encode(into: &writer)
-        case .pageNavigationCommitted(let value):
+        case .pageInteracted(let value):
             writer.writeTag(18)
             value.encode(into: &writer)
-        case .pageNavigationFailed(let value):
+        case .pageLoadingChanged(let value):
             writer.writeTag(19)
             value.encode(into: &writer)
-        case .pageNavigationStarted(let value):
+        case .pageNavigationCommitted(let value):
             writer.writeTag(20)
             value.encode(into: &writer)
-        case .pageRendererGone(let value):
+        case .pageNavigationFailed(let value):
             writer.writeTag(21)
             value.encode(into: &writer)
-        case .pageThemeChanged(let value):
+        case .pageNavigationStarted(let value):
             writer.writeTag(22)
             value.encode(into: &writer)
-        case .pageViewClosed(let value):
+        case .pageOffered(let value):
             writer.writeTag(23)
             value.encode(into: &writer)
-        case .pageViewReady(let value):
+        case .pageRendererGone(let value):
             writer.writeTag(24)
             value.encode(into: &writer)
-        case .pageViewUnavailable(let value):
+        case .pageThemeChanged(let value):
             writer.writeTag(25)
             value.encode(into: &writer)
-        case .permissionRequested(let value):
+        case .pageViewClosed(let value):
             writer.writeTag(26)
             value.encode(into: &writer)
-        case .popupBlocked(let value):
+        case .pageViewReady(let value):
             writer.writeTag(27)
             value.encode(into: &writer)
-        case .profileDeleted(let value):
+        case .pageViewUnavailable(let value):
             writer.writeTag(28)
             value.encode(into: &writer)
-        case .profilePrepared(let value):
+        case .permissionRequested(let value):
             writer.writeTag(29)
             value.encode(into: &writer)
-        case .profileReleased(let value):
+        case .popupBlocked(let value):
             writer.writeTag(30)
             value.encode(into: &writer)
-        case .sidePanelRequested(let value):
+        case .profileDeleted(let value):
             writer.writeTag(31)
             value.encode(into: &writer)
-        case .siteDataCleared(let value):
+        case .profilePrepared(let value):
             writer.writeTag(32)
             value.encode(into: &writer)
-        case .stagedLinkUnavailable(let value):
+        case .profileReleased(let value):
             writer.writeTag(33)
             value.encode(into: &writer)
-        case .storeInstallRequested(let value):
+        case .sidePanelRequested(let value):
             writer.writeTag(34)
             value.encode(into: &writer)
-        case .storeRemovalRequested(let value):
+        case .siteDataCleared(let value):
             writer.writeTag(35)
+            value.encode(into: &writer)
+        case .stagedLinkUnavailable(let value):
+            writer.writeTag(36)
+            value.encode(into: &writer)
+        case .storeInstallRequested(let value):
+            writer.writeTag(37)
+            value.encode(into: &writer)
+        case .storeRemovalRequested(let value):
+            writer.writeTag(38)
             value.encode(into: &writer)
         }
     }
@@ -1186,6 +1204,29 @@ extension AdoptLegacySession {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(3)
         encode(into: &writer)
+    }
+}
+
+extension AdoptOfferedPage {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        let adoptionID = try reader.readUUID()
+        self.init(pageID: pageID, adoptionID: adoptionID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
+        writer.writeUUID(adoptionID)
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(2)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
     }
 }
 
@@ -1382,7 +1423,41 @@ extension AnswerAuthentication {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(2)
+        writer.writeTag(3)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
+    }
+}
+
+extension AnswerEngineDownloadDestination {
+    init(from reader: inout WireReader) throws(WireError) {
+        let requestID = try reader.readUUID()
+        let path: String?
+        if try reader.readPresence() {
+            let pathValue = try reader.readString()
+            path = pathValue
+        } else {
+            path = nil
+        }
+        self.init(requestID: requestID, path: path)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(requestID)
+        if let present0 = path {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(4)
         encode(into: &writer)
     }
 
@@ -1407,7 +1482,7 @@ extension AnswerInfoBar {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(3)
+        writer.writeTag(5)
         encode(into: &writer)
     }
 
@@ -1445,7 +1520,7 @@ extension AnswerJavaScriptDialog {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(4)
+        writer.writeTag(6)
         encode(into: &writer)
     }
 
@@ -1470,7 +1545,7 @@ extension AnswerPermission {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(5)
+        writer.writeTag(7)
         encode(into: &writer)
     }
 
@@ -1594,6 +1669,31 @@ extension ApplyManualSetup {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(7)
         encode(into: &writer)
+    }
+}
+
+extension ApproveEngineDownload {
+    init(from reader: inout WireReader) throws(WireError) {
+        let profileID = try reader.readUUID()
+        let downloadID = try reader.readString()
+        let approvalToken = try reader.readString()
+        self.init(profileID: profileID, downloadID: downloadID, approvalToken: approvalToken)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(profileID)
+        writer.writeString(downloadID)
+        writer.writeString(approvalToken)
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(8)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
     }
 }
 
@@ -2130,6 +2230,29 @@ extension CancelDownload {
     }
 }
 
+extension CancelEngineDownload {
+    init(from reader: inout WireReader) throws(WireError) {
+        let profileID = try reader.readUUID()
+        let downloadID = try reader.readString()
+        self.init(profileID: profileID, downloadID: downloadID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(profileID)
+        writer.writeString(downloadID)
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(9)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
+    }
+}
+
 extension CannotDeleteLastSpace {
     init(from reader: inout WireReader) throws(WireError) {
         self.init()
@@ -2214,7 +2337,7 @@ extension CapturePage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(6)
+        writer.writeTag(10)
         encode(into: &writer)
     }
 
@@ -2259,7 +2382,7 @@ extension ChangeExtension {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(7)
+        writer.writeTag(11)
         encode(into: &writer)
     }
 
@@ -2408,7 +2531,7 @@ extension ClearSiteData {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(8)
+        writer.writeTag(12)
         encode(into: &writer)
     }
 
@@ -2429,7 +2552,7 @@ extension CloseInspector {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(9)
+        writer.writeTag(13)
         encode(into: &writer)
     }
 
@@ -2463,7 +2586,7 @@ extension CloseStandalonePage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(10)
+        writer.writeTag(14)
         encode(into: &writer)
     }
 
@@ -3504,7 +3627,7 @@ extension DeleteProfile {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(11)
+        writer.writeTag(15)
         encode(into: &writer)
     }
 
@@ -4358,6 +4481,115 @@ extension EngineAlreadyRegistered {
     }
 }
 
+extension EngineDownload {
+    init(from reader: inout WireReader) throws(WireError) {
+        let downloadID = try reader.readString()
+        let profileID = try reader.readUUID()
+        let sourcePageID: UUID?
+        if try reader.readPresence() {
+            let sourcePageIDValue = try reader.readUUID()
+            sourcePageID = sourcePageIDValue
+        } else {
+            sourcePageID = nil
+        }
+        let filename = try reader.readString()
+        let path: String?
+        if try reader.readPresence() {
+            let pathValue = try reader.readString()
+            path = pathValue
+        } else {
+            path = nil
+        }
+        let received = try reader.readInt64()
+        let total = try reader.readInt64()
+        let startedAt = try reader.readDate()
+        let restored = try reader.readBool()
+        let paused = try reader.readBool()
+        let state = try EngineDownloadState(from: &reader)
+        let warning: EngineDownloadWarning?
+        if try reader.readPresence() {
+            let warningValue = try EngineDownloadWarning(from: &reader)
+            warning = warningValue
+        } else {
+            warning = nil
+        }
+        let failure: String?
+        if try reader.readPresence() {
+            let failureValue = try reader.readString()
+            failure = failureValue
+        } else {
+            failure = nil
+        }
+        let approvalToken = try reader.readString()
+        self.init(downloadID: downloadID, profileID: profileID, sourcePageID: sourcePageID, filename: filename, path: path, received: received, total: total, startedAt: startedAt, restored: restored, paused: paused, state: state, warning: warning, failure: failure, approvalToken: approvalToken)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeString(downloadID)
+        writer.writeUUID(profileID)
+        if let present0 = sourcePageID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeString(filename)
+        if let present0 = path {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeInt64(received)
+        writer.writeInt64(total)
+        writer.writeDate(startedAt)
+        writer.writeBool(restored)
+        writer.writeBool(paused)
+        state.encode(into: &writer)
+        if let present0 = warning {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = failure {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeString(approvalToken)
+    }
+}
+
+extension EngineDownloadChanged {
+    init(from reader: inout WireReader) throws(WireError) {
+        let download = try EngineDownload(from: &reader)
+        self.init(download: download)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        download.encode(into: &writer)
+    }
+}
+
+extension EngineDownloadDestinationRequested {
+    init(from reader: inout WireReader) throws(WireError) {
+        let requestID = try reader.readUUID()
+        let download = try EngineDownload(from: &reader)
+        let suggestedFilename = try reader.readString()
+        let forcesPrompt = try reader.readBool()
+        self.init(requestID: requestID, download: download, suggestedFilename: suggestedFilename, forcesPrompt: forcesPrompt)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(requestID)
+        download.encode(into: &writer)
+        writer.writeString(suggestedFilename)
+        writer.writeBool(forcesPrompt)
+    }
+}
+
 extension EngineLacksCapability {
     init(from reader: inout WireReader) throws(WireError) {
         let kind = try EngineKind(from: &reader)
@@ -4415,7 +4647,7 @@ extension EnterPictureInPicture {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(12)
+        writer.writeTag(16)
         encode(into: &writer)
     }
 
@@ -4442,7 +4674,7 @@ extension EvaluateContentScript {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(13)
+        writer.writeTag(17)
         encode(into: &writer)
     }
 
@@ -4516,7 +4748,7 @@ extension ExportPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(14)
+        writer.writeTag(18)
         encode(into: &writer)
     }
 
@@ -4818,7 +5050,7 @@ extension FindInPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(15)
+        writer.writeTag(19)
         encode(into: &writer)
     }
 
@@ -5147,7 +5379,7 @@ extension GoToHistoryOffset {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(16)
+        writer.writeTag(20)
         encode(into: &writer)
     }
 
@@ -5170,7 +5402,7 @@ extension HasSidePanel {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(17)
+        writer.writeTag(21)
         encode(into: &writer)
     }
 
@@ -5191,7 +5423,7 @@ extension HidePage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(18)
+        writer.writeTag(22)
         encode(into: &writer)
     }
 
@@ -5816,7 +6048,7 @@ extension InstalledExtensions {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(19)
+        writer.writeTag(23)
         encode(into: &writer)
     }
 
@@ -6390,7 +6622,7 @@ extension LayoutInspector {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(20)
+        writer.writeTag(24)
         encode(into: &writer)
     }
 
@@ -7117,7 +7349,7 @@ extension MovePageToWindow {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(21)
+        writer.writeTag(25)
         encode(into: &writer)
     }
 
@@ -7377,7 +7609,7 @@ extension MuteMediaSession {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(26)
         encode(into: &writer)
     }
 
@@ -7736,7 +7968,7 @@ extension OpenInspector {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(23)
+        writer.writeTag(27)
         encode(into: &writer)
     }
 
@@ -7826,7 +8058,7 @@ extension OpenStandalonePage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(24)
+        writer.writeTag(28)
         encode(into: &writer)
     }
 
@@ -8044,7 +8276,7 @@ extension PageCertificates {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(25)
+        writer.writeTag(29)
         encode(into: &writer)
     }
 
@@ -8163,7 +8395,7 @@ extension PageExtensions {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(26)
+        writer.writeTag(30)
         encode(into: &writer)
     }
 
@@ -8260,7 +8492,7 @@ extension PageIcon {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(27)
+        writer.writeTag(31)
         encode(into: &writer)
     }
 
@@ -8334,7 +8566,7 @@ extension PageInspected {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(28)
+        writer.writeTag(32)
         encode(into: &writer)
     }
 
@@ -8463,7 +8695,7 @@ extension PageMedia {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(29)
+        writer.writeTag(33)
         encode(into: &writer)
     }
 
@@ -8529,6 +8761,62 @@ extension PageNotLoadable {
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(pageID)
+    }
+}
+
+extension PageOffered {
+    init(from reader: inout WireReader) throws(WireError) {
+        let adoptionID = try reader.readUUID()
+        let profileID = try reader.readUUID()
+        let windowID: UUID?
+        if try reader.readPresence() {
+            let windowIDValue = try reader.readUUID()
+            windowID = windowIDValue
+        } else {
+            windowID = nil
+        }
+        let spaceID: UUID?
+        if try reader.readPresence() {
+            let spaceIDValue = try reader.readUUID()
+            spaceID = spaceIDValue
+        } else {
+            spaceID = nil
+        }
+        let sourcePageID: UUID?
+        if try reader.readPresence() {
+            let sourcePageIDValue = try reader.readUUID()
+            sourcePageID = sourcePageIDValue
+        } else {
+            sourcePageID = nil
+        }
+        let url = try reader.readString()
+        let foreground = try reader.readBool()
+        self.init(adoptionID: adoptionID, profileID: profileID, windowID: windowID, spaceID: spaceID, sourcePageID: sourcePageID, url: url, foreground: foreground)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(adoptionID)
+        writer.writeUUID(profileID)
+        if let present0 = windowID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = spaceID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = sourcePageID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeString(url)
+        writer.writeBool(foreground)
     }
 }
 
@@ -9088,7 +9376,7 @@ extension PerformMediaAction {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(30)
+        writer.writeTag(34)
         encode(into: &writer)
     }
 
@@ -9139,7 +9427,7 @@ extension PinnedExtensions {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(31)
+        writer.writeTag(35)
         encode(into: &writer)
     }
 
@@ -9213,7 +9501,7 @@ extension PrepareProfile {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(32)
+        writer.writeTag(36)
         encode(into: &writer)
     }
 
@@ -9441,7 +9729,7 @@ extension RefreshPageIcon {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(33)
+        writer.writeTag(37)
         encode(into: &writer)
     }
 
@@ -9462,7 +9750,28 @@ extension RefreshStoreListing {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(34)
+        writer.writeTag(38)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
+    }
+}
+
+extension RejectOfferedPage {
+    init(from reader: inout WireReader) throws(WireError) {
+        let adoptionID = try reader.readUUID()
+        self.init(adoptionID: adoptionID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(adoptionID)
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(39)
         encode(into: &writer)
     }
 
@@ -9503,7 +9812,7 @@ extension ReloadPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(35)
+        writer.writeTag(40)
         encode(into: &writer)
     }
 
@@ -9526,6 +9835,29 @@ extension RemoveDownload {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(83)
         encode(into: &writer)
+    }
+}
+
+extension RemoveEngineDownload {
+    init(from reader: inout WireReader) throws(WireError) {
+        let profileID = try reader.readUUID()
+        let downloadID = try reader.readString()
+        self.init(profileID: profileID, downloadID: downloadID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(profileID)
+        writer.writeString(downloadID)
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(41)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
     }
 }
 
@@ -10003,7 +10335,7 @@ extension RestoreInteractionState {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(36)
+        writer.writeTag(42)
         encode(into: &writer)
     }
 
@@ -10078,7 +10410,7 @@ extension SaveInteractionState {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(37)
+        writer.writeTag(43)
         encode(into: &writer)
     }
 
@@ -10679,7 +11011,7 @@ extension SetSitePermission {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(38)
+        writer.writeTag(44)
         encode(into: &writer)
     }
 
@@ -10953,7 +11285,7 @@ extension ShowBlockedPopups {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(39)
+        writer.writeTag(45)
         encode(into: &writer)
     }
 
@@ -10974,7 +11306,7 @@ extension ShowPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(40)
+        writer.writeTag(46)
         encode(into: &writer)
     }
 
@@ -12311,7 +12643,7 @@ extension StopLoading {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(41)
+        writer.writeTag(47)
         encode(into: &writer)
     }
 
@@ -13581,7 +13913,7 @@ extension WatchPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(42)
+        writer.writeTag(48)
         encode(into: &writer)
     }
 
@@ -13827,7 +14159,7 @@ extension ZoomPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(43)
+        writer.writeTag(49)
         encode(into: &writer)
     }
 
@@ -14094,6 +14426,34 @@ extension CrestTrim {
         let rawValue = try reader.readEnum()
         guard let value = CrestTrim(rawValue: rawValue) else {
             throw WireError.malformed("Unknown CrestTrim \(rawValue)")
+        }
+        self = value
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(rawValue)
+    }
+}
+
+extension EngineDownloadState {
+    init(from reader: inout WireReader) throws(WireError) {
+        let rawValue = try reader.readEnum()
+        guard let value = EngineDownloadState(rawValue: rawValue) else {
+            throw WireError.malformed("Unknown EngineDownloadState \(rawValue)")
+        }
+        self = value
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(rawValue)
+    }
+}
+
+extension EngineDownloadWarning {
+    init(from reader: inout WireReader) throws(WireError) {
+        let rawValue = try reader.readEnum()
+        guard let value = EngineDownloadWarning(rawValue: rawValue) else {
+            throw WireError.malformed("Unknown EngineDownloadWarning \(rawValue)")
         }
         self = value
     }

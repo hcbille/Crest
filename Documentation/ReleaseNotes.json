@@ -2617,6 +2617,10 @@
     "2026-09-25-chromium-binding-profiles": {
       "category": "internal",
       "message": "Chromium keeps Crest's engine profiles in its own C++ binding"
+    },
+    "2026-09-25-chromium-binding-offered-downloads": {
+      "category": "internal",
+      "message": "Chromium presents pages it offers and its downloads from its own C++ binding"
     }
   }
 }

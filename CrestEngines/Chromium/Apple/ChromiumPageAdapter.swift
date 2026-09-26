@@ -207,19 +207,16 @@
     }
 
     extension BrowserEnginePageAdoption {
-        /// Decodes the engine host's adoption offer; nil when it names no page.
-        init?(chromiumValues values: [String: Any]) {
-            guard let token = values["adoptionId"] as? String,
-                let profileID = (values["profileId"] as? String).flatMap(UUID.init(uuidString:))
-            else { return nil }
+        /// The page the engine offered.
+        init(offer: PageOffered) {
             self.init(
-                token: token,
-                profileID: profileID,
-                sourcePageID: values["sourcePageId"] as? String,
-                windowID: (values["windowId"] as? String).flatMap(UUID.init(uuidString:)),
-                spaceID: (values["spaceId"] as? String).flatMap(UUID.init(uuidString:)),
-                url: (values["url"] as? String).flatMap(URL.init(string:)),
-                foreground: values["foreground"] as? Bool ?? true
+                token: offer.adoptionID.uuidString,
+                profileID: offer.profileID,
+                sourcePageID: offer.sourcePageID?.uuidString,
+                windowID: offer.windowID,
+                spaceID: offer.spaceID,
+                url: URL(string: offer.url),
+                foreground: offer.foreground
             )
         }
     }

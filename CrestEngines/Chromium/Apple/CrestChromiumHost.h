@@ -4,18 +4,8 @@ NS_ASSUME_NONNULL_BEGIN
 typedef void (^CrestDeferredNavigation)(void);
 // In-process, main-thread native port. Objects and blocks never enter .NET.
 @protocol CrestChromiumEngineHost <NSObject>
-- (void)setBrowserObserver:(void (^)(NSDictionary<NSString *, id> *values))observer;
-- (void)setDownloadObserver:(void (^)(NSDictionary<NSString *, id> *values))observer;
-- (void)setDownloadDestinationResolver:(void (^)(NSDictionary<NSString *, id> *values, void (^reply)(NSString * _Nullable path)))resolver;
-- (void)cancelDownload:(NSString *)downloadID profile:(NSString *)profileID;
-- (void)removeDownload:(NSString *)downloadID profile:(NSString *)profileID;
-- (void)approveDownload:(NSString *)downloadID profile:(NSString *)profileID warning:(NSString *)token;
 // The engine binding creates, loads and closes the pages the core opens,
 // reports what they do straight to the core and presents them to the platform.
-// Makes a page the engine offered the page the core is opening, instead of a
-// new one.
-- (BOOL)adoptPage:(NSString *)adoptionID asPage:(NSString *)pageID;
-- (void)rejectAdoption:(NSString *)adoptionID;
 // What the platform asks of a page directly that no PageRequest carries yet.
 // TRANSITIONAL until engine-offered pages and link routing move (WP C (l)): the
 // app's own load and a link navigation staged for the page's first load; and
