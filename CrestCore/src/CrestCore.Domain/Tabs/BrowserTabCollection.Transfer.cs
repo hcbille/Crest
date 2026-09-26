@@ -8,8 +8,10 @@ public sealed partial class BrowserTabCollection {
     /// Moves ownership without closing, archiving, or creating a replacement tab.
     /// All destination checks precede mutation of either collection. Refused with
     /// `TabAlreadyExists` when the destination holds the tab or keeps it in its
-    /// archive, `TabLimitReached` or `PinnedTabsFull` when it has no room, and
-    /// `InvalidFolderPlacement` for a tab named to go before itself.
+    /// archive, `TabLimitReached` or `PinnedTabsFull` when it has no room,
+    /// `UnknownFolder` for a folder the destination does not hold, and
+    /// `InvalidFolderPlacement` for one outside the section or a tab named to
+    /// go before itself.
     public Guid? TransferTo(BrowserTabCollection destination, Guid id, Guid? selected, Guid? fallback,
         TabPlacement? requestedPlacement, Guid? requestedFolder, Guid? before,
         bool afterSelection, Guid? destinationSelection, DateTimeOffset now) {
@@ -20,8 +22,10 @@ public sealed partial class BrowserTabCollection {
             throw new Rejected(new TabAlreadyExists(id));
         if (destination.tabs.Count >= MaximumTabs) throw new Rejected(new TabLimitReached(MaximumTabs));
         var placement = requestedPlacement ?? tab.Placement;
-        Guid? folder = placement.HoldsFolders && destination.folders.Any(f => f.Id == requestedFolder && f.Location == placement)
-            ? requestedFolder : null;
+        // A folder the move names must be there, in the section it moves to.
+        if (requestedFolder is { } named && (destination.KnownFolder(named).Location != placement || !placement.HoldsFolders))
+            throw new Rejected(new InvalidFolderPlacement());
+        Guid? folder = requestedFolder;
         RequireRoom(placement, destination.tabs.Count(t => t.Placement == placement) + 1);
         if (before == id) throw new Rejected(new InvalidFolderPlacement());
         bool Matches(BrowserTab tab) => tab.Placement == placement && tab.FolderId == folder;

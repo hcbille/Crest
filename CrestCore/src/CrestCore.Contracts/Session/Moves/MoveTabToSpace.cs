@@ -7,7 +7,9 @@ namespace CrestCore.Contracts;
 /// before in the Space the tab left, when it showed the moved one; when
 /// `Follows`, it moves to the destination and shows the moved tab. Saved with
 /// the sync journal before the intent returns. Refused with `AlreadyInSpace`
-/// for the Space the tab is in, and with `TabLimitReached` or
-/// `PinnedTabsFull` when the destination has no room.
+/// for the Space the tab is in, with `TabLimitReached` or `PinnedTabsFull`
+/// when the destination has no room, and with `UnknownFolder` or
+/// `InvalidFolderPlacement` for a folder that is not there or not in the
+/// section.
 public sealed record MoveTabToSpace(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId, Guid DestinationSpaceId,
     TabPlacement? Placement, Guid? FolderId, Guid? BeforeTabId, bool Follows) : SessionIntent(WorkspaceId);

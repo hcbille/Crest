@@ -2689,6 +2689,10 @@
     "2026-09-26-link-clicks-decided-in-core": {
       "category": "internal",
       "message": "The core decides what a clicked link does, whether a window a page opens comes to the front and how Quick Windows keep their pages"
+    },
+    "2026-09-26-drop-into-gone-folder-refused": {
+      "category": "fixed",
+      "message": "A tab dropped on a folder that was just deleted in another Space now stays where it was instead of landing outside any folder"
     }
   }
 }
