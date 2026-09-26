@@ -2729,6 +2729,10 @@
     "2026-09-26-webkit-binding-builds-pages": {
       "category": "internal",
       "message": "WebKit's engine binding builds each page, with thin Mac and iOS layers, instead of the page pool and store"
+    },
+    "2026-09-26-cloud-sync-codec-swift62": {
+      "category": "fixed",
+      "message": "The iOS app builds again with Xcode 26"
     }
   }
 }

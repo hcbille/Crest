@@ -333,13 +333,16 @@ actor BrowserCloudSyncEngine {
             !persistedState.requiresFullPull, !isPullingSnapshot
         else { return nil }
         let systemFields = persistedState.systemFields
-        let codec = codec
+        // A local copy for the sendable closure, named apart from the
+        // property: Swift 6.2 reads a same-named local declared later in the
+        // scope as the one the filter above captures, and refuses it.
+        let recordCodec = codec
         return await CKSyncEngine.RecordZoneChangeBatch(pendingChanges: changes) { recordID in
             switch await source.upload(for: recordID) {
             case .record(let record):
                 // A record whose server copy a newer build wrote stays
                 // pending, skipped.
-                return try? codec.record(for: record, reusing: systemFields.record(for: recordID))
+                return try? recordCodec.record(for: record, reusing: systemFields.record(for: recordID))
             case .gone:
                 syncEngine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
                 return nil
