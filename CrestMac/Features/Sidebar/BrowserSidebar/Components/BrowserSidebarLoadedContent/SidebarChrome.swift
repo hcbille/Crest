@@ -70,7 +70,11 @@ struct SidebarChrome: View {
         }
     }
 
+    /// TRANSITIONAL until the site controls read their Space from the read
+    /// model: the Space on show as the session copy holds it.
     private var selectedSpace: BrowserSpace? {
-        context.availableSpaces.first { $0.id == context.browser.selectedSpaceID }
+        BrowserSidebarAccessPolicy.availableSpaceCopies(in: context.browser).first {
+            $0.id == context.browser.selectedSpaceID
+        }
     }
 }

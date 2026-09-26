@@ -3,8 +3,8 @@ import SwiftUI
 /// The content seam used by both single cards and Split View, on every shell.
 /// The surrounding layout owns identity, geometry, focus, and placement.
 struct BrowserNativeTabHost: View {
-    let tab: BrowserTab
-    let space: BrowserSpace
+    let tab: TabStateModel
+    let space: SpaceModel
     /// The shell's floating controls remain outside native scrolling content.
     var bottomChromeHeight: CGFloat = 0
     @Environment(\.browserSettingsTabContent) private var settingsContent
@@ -13,7 +13,7 @@ struct BrowserNativeTabHost: View {
 
     var body: some View {
         Group {
-            if let content = tab.nativeContent,
+            if let content = tab.nativeTabContent,
                 let runtime = nativeTabs?.runtime(matching: assignment, content: content)
             {
                 switch content.kind {
@@ -35,13 +35,13 @@ struct BrowserNativeTabHost: View {
                 }
             }
         }
-        .id(tab.nativeContent.flatMap { nativeTabs?.runtime(matching: assignment, content: $0)?.id })
+        .id(tab.nativeTabContent.flatMap { nativeTabs?.runtime(matching: assignment, content: $0)?.id })
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaPadding(.bottom, bottomChromeHeight)
     }
 
     private var assignment: BrowserTabRuntimeAssignment {
-        BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profile.id)
+        BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
     }
 }
 
@@ -58,7 +58,7 @@ struct BrowserNativeTabActions {
                 let space = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
                     matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID),
                     in: browser, accessController: spaceAccess),
-                space.tabs.first(where: { $0.id == source.tabID })?.nativeContent == content,
+                space.tabs.model(source.tabID)?.nativeTabContent == content,
                 ["https", "http"].contains(url.scheme?.lowercased() ?? "")
             else { return }
             browser.openNewTab(url: url, in: space.id)

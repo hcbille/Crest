@@ -5,9 +5,9 @@ import SwiftUI
 /// Backgrounds share both the pager's tracked position and its release timeline
 /// without making the shell observe every gesture sample.
 struct SpaceBackdropBlend<Background: View>: NSViewRepresentable {
-    let spaces: [BrowserSpace]
-    let selectedSpace: BrowserSpace?
-    @ViewBuilder let background: (BrowserSpace?) -> Background
+    let spaces: [SpaceModel]
+    let selectedSpace: SpaceModel?
+    @ViewBuilder let background: (SpaceModel?) -> Background
 
     func makeNSView(context: Context) -> SpaceBackdropBlendView<Background> {
         SpaceBackdropBlendView(frame: .zero)
@@ -40,9 +40,9 @@ struct SpaceBackdropRoot<Background: View>: View {
 @MainActor
 final class SpaceBackdropBlendView<Background: View>: NSView {
     private var presentation: SpacePagerPresentation?
-    private var spaces: [BrowserSpace] = []
-    private var selectedSpace: BrowserSpace?
-    private var makeRoot: ((BrowserSpace?) -> SpaceBackdropRoot<Background>)?
+    private var spaces: [SpaceModel] = []
+    private var selectedSpace: SpaceModel?
+    private var makeRoot: ((SpaceModel?) -> SpaceBackdropRoot<Background>)?
     private var hosts: [BrowserSpaceRuntimeAssignment: NSHostingView<SpaceBackdropRoot<Background>>] = [:]
     private var fallback: NSHostingView<SpaceBackdropRoot<Background>>?
     private var activeTransition: SpacePagerSettlement?
@@ -67,9 +67,9 @@ final class SpaceBackdropBlendView<Background: View>: NSView {
     }
 
     func update(
-        spaces: [BrowserSpace], selectedSpace: BrowserSpace?,
+        spaces: [SpaceModel], selectedSpace: SpaceModel?,
         presentation: SpacePagerPresentation?,
-        makeRoot: @escaping (BrowserSpace?) -> SpaceBackdropRoot<Background>
+        makeRoot: @escaping (SpaceModel?) -> SpaceBackdropRoot<Background>
     ) {
         let connectionChanged = self.presentation !== presentation
         if connectionChanged { disconnect() }

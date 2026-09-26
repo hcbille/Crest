@@ -27,9 +27,13 @@ final class BrowserPagePoolTests: XCTestCase {
         let activePage = pages.activePage
         let history = page.webView.backForwardList.backList.map(\.url)
 
-        XCTAssertEqual(pages.linkURL(for: target, in: space), current)
-        XCTAssertEqual(pages.linkURL(for: unloaded, in: space), root)
-        XCTAssertNil(pages.linkURL(for: selected, in: space))
+        XCTAssertEqual(
+            pages.liveLinkURL(
+                for: BrowserTabRuntimeAssignment(tabID: target.id, spaceID: space.id, profileID: space.profile.id)),
+            current)
+        XCTAssertNil(
+            pages.liveLinkURL(
+                for: BrowserTabRuntimeAssignment(tabID: unloaded.id, spaceID: space.id, profileID: space.profile.id)))
         XCTAssertEqual(pages.retainedTabIDs, before)
         XCTAssertFalse(pages.retainedTabIDs.contains(unloaded.id))
         XCTAssertEqual(page.webView.backForwardList.backList.map(\.url), history)
@@ -264,9 +268,10 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertEqual(context.pool.activeTabID, context.sourceTabID)
         XCTAssertTrue(context.pool.containsResidentPage(for: backgroundTab.id))
         let backgroundWebView = try XCTUnwrap(
-            context.pool.residentPage(matching: BrowserTabRuntimeAssignment(
-                tabID: backgroundTab.id, spaceID: context.spaceID,
-                profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
+            context.pool.residentPage(
+                matching: BrowserTabRuntimeAssignment(
+                    tabID: backgroundTab.id, spaceID: context.spaceID,
+                    profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
         )
         try await waitForURL(destinationURL, in: backgroundWebView)
         XCTAssertEqual(context.store.selectedTab?.id, context.sourceTabID)
@@ -290,9 +295,10 @@ final class BrowserPagePoolTests: XCTestCase {
         for tab in context.openedTabs {
             XCTAssertTrue(context.pool.containsResidentPage(for: tab.id))
             let webView = try XCTUnwrap(
-                context.pool.residentPage(matching: BrowserTabRuntimeAssignment(
-                tabID: tab.id, spaceID: context.spaceID,
-                profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
+                context.pool.residentPage(
+                    matching: BrowserTabRuntimeAssignment(
+                        tabID: tab.id, spaceID: context.spaceID,
+                        profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
             )
             try await waitForURL(try XCTUnwrap(tab.url), in: webView)
         }
@@ -342,9 +348,10 @@ final class BrowserPagePoolTests: XCTestCase {
         context.open(destinationURL, selecting: false)
         let backgroundTab = try XCTUnwrap(context.openedTabs.first)
         let webView = try XCTUnwrap(
-            context.pool.residentPage(matching: BrowserTabRuntimeAssignment(
-                tabID: backgroundTab.id, spaceID: context.spaceID,
-                profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
+            context.pool.residentPage(
+                matching: BrowserTabRuntimeAssignment(
+                    tabID: backgroundTab.id, spaceID: context.spaceID,
+                    profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
         )
 
         webView.loadSimulatedRequest(
@@ -355,7 +362,10 @@ final class BrowserPagePoolTests: XCTestCase {
         for attempt in 0..<200 {
             let tab = context.store.selectedSpace?.tabs.first { $0.id == backgroundTab.id }
             if tab?.title == "Background Ready",
-                context.store.selectedSpace?.history.last?.url == destinationURL { break }
+                context.store.selectedSpace?.history.last?.url == destinationURL
+            {
+                break
+            }
             if attempt < 199 { try await Task.sleep(for: .milliseconds(20)) }
         }
 
@@ -374,9 +384,10 @@ final class BrowserPagePoolTests: XCTestCase {
         context.open(initialURL, selecting: false)
         let backgroundTab = try XCTUnwrap(context.openedTabs.first)
         let webView = try XCTUnwrap(
-            context.pool.residentPage(matching: BrowserTabRuntimeAssignment(
-                tabID: backgroundTab.id, spaceID: context.spaceID,
-                profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
+            context.pool.residentPage(
+                matching: BrowserTabRuntimeAssignment(
+                    tabID: backgroundTab.id, spaceID: context.spaceID,
+                    profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
         )
         try await waitForLoad(initialURL, in: webView)
         let acceptedTab = try XCTUnwrap(
@@ -411,9 +422,10 @@ final class BrowserPagePoolTests: XCTestCase {
         context.open(destinationURL, selecting: false)
         let backgroundTab = try XCTUnwrap(context.openedTabs.first)
         let webView = try XCTUnwrap(
-            context.pool.residentPage(matching: BrowserTabRuntimeAssignment(
-                tabID: backgroundTab.id, spaceID: context.spaceID,
-                profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
+            context.pool.residentPage(
+                matching: BrowserTabRuntimeAssignment(
+                    tabID: backgroundTab.id, spaceID: context.spaceID,
+                    profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
         )
         try await waitForLoad(destinationURL, in: webView)
         let page = try XCTUnwrap(webView.navigationDelegate as? BrowserPage)
@@ -437,9 +449,10 @@ final class BrowserPagePoolTests: XCTestCase {
         context.open(destinationURL, selecting: false)
         let backgroundTab = try XCTUnwrap(context.openedTabs.first)
         let webView = try XCTUnwrap(
-            context.pool.residentPage(matching: BrowserTabRuntimeAssignment(
-                tabID: backgroundTab.id, spaceID: context.spaceID,
-                profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
+            context.pool.residentPage(
+                matching: BrowserTabRuntimeAssignment(
+                    tabID: backgroundTab.id, spaceID: context.spaceID,
+                    profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
         )
         try await waitForLoad(destinationURL, in: webView)
         await Task.yield()
@@ -553,24 +566,26 @@ final class BrowserPagePoolTests: XCTestCase {
             url: url,
             placement: .current
         )
-        let replacementSpace = showing(promotedTab.id, in: BrowserSpace(
-            id: sourceSpace.id,
-            profile: BrowsingProfile(),
-            name: sourceSpace.name,
-            symbol: sourceSpace.symbol,
-            accent: sourceSpace.accent,
-            branding: sourceSpace.branding,
-            folders: sourceSpace.folders,
-            tabs: sourceSpace.tabs + [promotedTab],
-            archivedTabs: sourceSpace.archivedTabs,
-            history: sourceSpace.history,
-            browsingPreferences: sourceSpace.browsingPreferences,
-            credentialPreferences: sourceSpace.credentialPreferences,
-            accessPolicy: sourceSpace.accessPolicy,
-            isSavedTabsExpanded: sourceSpace.isSavedTabsExpanded,
-            savedTabsExpansionModifiedAt:
-                sourceSpace.savedTabsExpansionModifiedAt
-        ))
+        let replacementSpace = showing(
+            promotedTab.id,
+            in: BrowserSpace(
+                id: sourceSpace.id,
+                profile: BrowsingProfile(),
+                name: sourceSpace.name,
+                symbol: sourceSpace.symbol,
+                accent: sourceSpace.accent,
+                branding: sourceSpace.branding,
+                folders: sourceSpace.folders,
+                tabs: sourceSpace.tabs + [promotedTab],
+                archivedTabs: sourceSpace.archivedTabs,
+                history: sourceSpace.history,
+                browsingPreferences: sourceSpace.browsingPreferences,
+                credentialPreferences: sourceSpace.credentialPreferences,
+                accessPolicy: sourceSpace.accessPolicy,
+                isSavedTabsExpanded: sourceSpace.isSavedTabsExpanded,
+                savedTabsExpansionModifiedAt:
+                    sourceSpace.savedTabsExpansionModifiedAt
+            ))
 
         XCTAssertFalse(
             pool.adoptTransientPage(
@@ -982,10 +997,9 @@ final class BrowserPagePoolTests: XCTestCase {
         let pages = BrowserPagePool(
             browser: browser, contentRuleListProvider: EmptyBrowserContentRuleListProvider())
 
-        XCTAssertTrue(pages.requiresStartPageOnEntry(to: space, showing: tab.id))
-        XCTAssertNil(
-            pages.surfacePage(
-                for: tab, in: space, showing: tab.id, accessController: BrowserSpaceAccessController()))
+        let spaceModel = try XCTUnwrap(browser.spaceModel(space.id))
+        XCTAssertTrue(pages.requiresStartPageOnEntry(to: spaceModel))
+        XCTAssertNil(pages.surfacePage(for: tab.id, in: spaceModel, accessController: BrowserSpaceAccessController()))
         XCTAssertTrue(pages.retainedTabIDs.isEmpty, "Preparing an unloaded card must not create a WebKit runtime")
         pages.selectSpace(in: browser)
 
@@ -1012,10 +1026,11 @@ final class BrowserPagePoolTests: XCTestCase {
         let pending = resident.live.pendingNavigationURL
         pages.deactivatePagePresentation()
 
-        XCTAssertFalse(pages.requiresStartPageOnEntry(to: space, showing: tab.id))
+        let spaceModel = try XCTUnwrap(browser.spaceModel(space.id))
+        XCTAssertFalse(pages.requiresStartPageOnEntry(to: spaceModel))
         XCTAssertTrue(
-            pages.surfacePage(
-                for: tab, in: space, showing: tab.id, accessController: BrowserSpaceAccessController()) === resident)
+            pages.surfacePage(for: tab.id, in: spaceModel, accessController: BrowserSpaceAccessController())
+                === resident)
         XCTAssertNil(pages.activePage, "Drawing a retained card must not activate or focus it")
         pages.selectSpace(in: browser)
 
@@ -1028,10 +1043,12 @@ final class BrowserPagePoolTests: XCTestCase {
     func testSpaceEntryDoesNotReuseAResidentPageFromAnOldProfile() throws {
         let tab = BrowserTab(title: "Moved", url: URL(string: "about:blank#moved"), placement: .current)
         let old = makeSpace(tabs: [tab], selectedTabID: tab.id)
-        let current = showing(tab.id, in: BrowserSpace(
-            id: old.id, profile: BrowsingProfile(), name: old.name, symbol: old.symbol,
-            accent: old.accent, folders: [], tabs: [tab]
-        ))
+        let current = showing(
+            tab.id,
+            in: BrowserSpace(
+                id: old.id, profile: BrowsingProfile(), name: old.name, symbol: old.symbol,
+                accent: old.accent, folders: [], tabs: [tab]
+            ))
         let browser = BrowserStore.hostingPages(
             BrowserSession(spaces: [current]), showing: current.id, tabs: fixtureSelections)
         let pages = BrowserPagePool(
@@ -1736,9 +1753,12 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertEqual(context.store.selectedTab?.id, sourceID)
         XCTAssertEqual(context.pool.activeTabID, sourceID)
         let tab = try XCTUnwrap(context.store.selectedSpace?.tabs.first { $0.id != sourceID })
-        XCTAssertTrue(context.pool.residentPage(matching: BrowserTabRuntimeAssignment(
-                tabID: tab.id, spaceID: context.opener.spaceID,
-                profileID: try XCTUnwrap(context.store.session.space(id: context.opener.spaceID)).profile.id))?.webView === popup)
+        XCTAssertTrue(
+            context.pool.residentPage(
+                matching: BrowserTabRuntimeAssignment(
+                    tabID: tab.id, spaceID: context.opener.spaceID,
+                    profileID: try XCTUnwrap(context.store.session.space(id: context.opener.spaceID)).profile.id))?
+                .webView === popup)
         XCTAssertTrue(popup.configuration.websiteDataStore === configuration.websiteDataStore)
         context.store.selectTab(tab.id)
         context.pool.select(session: context.store.presented)
@@ -1940,11 +1960,13 @@ final class BrowserPagePoolTests: XCTestCase {
     func testInvalidProfileAssignmentReleasesItsRememberedResponder() throws {
         let tab = BrowserTab(title: "Editor", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab], selectedTabID: tab.id)
-        let replacement = showing(tab.id, in: BrowserSpace(
-            id: space.id, profile: BrowsingProfile(), name: space.name,
-            symbol: space.symbol, accent: space.accent, folders: [],
-            tabs: [tab]
-        ))
+        let replacement = showing(
+            tab.id,
+            in: BrowserSpace(
+                id: space.id, profile: BrowsingProfile(), name: space.name,
+                symbol: space.symbol, accent: space.accent, folders: [],
+                tabs: [tab]
+            ))
         let pool = BrowserPagePool(browser: hosting(space))
         pool.select(tab: tab, space: space)
         let original = try XCTUnwrap(pool.activePage)
@@ -2921,16 +2943,18 @@ final class BrowserPagePoolTests: XCTestCase {
         selectedTabID: TabID,
         accessPolicy: BrowserSpaceAccessPolicy = .open
     ) -> BrowserSpace {
-        showing(selectedTabID, in: BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Test",
-            symbol: "circle",
-            accent: .indigo,
-            folders: [],
-            tabs: tabs,
-            accessPolicy: accessPolicy
-        ))
+        showing(
+            selectedTabID,
+            in: BrowserSpace(
+                id: SpaceID(),
+                profile: BrowsingProfile(),
+                name: "Test",
+                symbol: "circle",
+                accent: .indigo,
+                folders: [],
+                tabs: tabs,
+                accessPolicy: accessPolicy
+            ))
     }
 
     /// Which tab each fixture Space shows. Selection is window state, so the
@@ -2954,7 +2978,9 @@ final class BrowserPagePoolTests: XCTestCase {
 
     private func restoreArchivedTab(_ tabID: TabID, in session: inout BrowserSession) {
         for index in session.spaces.indices {
-            guard let position = session.spaces[index].archivedTabs.firstIndex(where: { $0.id == tabID }) else { continue }
+            guard let position = session.spaces[index].archivedTabs.firstIndex(where: { $0.id == tabID }) else {
+                continue
+            }
             session.spaces[index].tabs.append(session.spaces[index].archivedTabs.remove(at: position).tab)
         }
     }

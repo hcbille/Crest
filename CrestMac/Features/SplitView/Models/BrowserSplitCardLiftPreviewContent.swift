@@ -10,7 +10,9 @@ import CoreGraphics
 /// rather than a handful of properties so the window host can tell a frame that
 /// changed something from a frame that changed nothing.
 struct BrowserSplitCardLiftPreviewContent: Equatable {
-    let tab: BrowserTab
+    /// The carried tab's icon and title, drawn until the picture arrives.
+    let favicon: BrowserTabFaviconSubject
+    let title: String
     /// The Space profile the fallback art resolves the favicon against.
     let profileID: UUID
     /// The page as it was rendered at pickup, once WebKit has handed it over.

@@ -138,7 +138,7 @@ struct BrowserMacWindowScene: View {
                 spaceSettingsPresentation.requestedDestination, assignment: assignment)
             browser.selectSpace(assignment.spaceID)
             browser.openSettings()
-            pages.select(session: browser.presented)
+            pages.select()
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {

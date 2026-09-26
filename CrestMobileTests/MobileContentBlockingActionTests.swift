@@ -43,7 +43,7 @@ final class MobileContentBlockingActionTests: XCTestCase {
         )
     }
 
-    func testValidatedActionReconcilesTheCommittedSnapshotAfterSelectionChanges() async throws {
+    func testValidatedActionReconcilesAfterSelectionChanges() async throws {
         let fixture = makeFixture()
         let browser = fixture.browser
         let pageActions = RecordingMobilePageActions(
@@ -61,14 +61,7 @@ final class MobileContentBlockingActionTests: XCTestCase {
 
         XCTAssertTrue(performed)
         XCTAssertEqual(browser.selectedSpaceID, fixture.secondSpaceID)
-        let reconciledSession = try XCTUnwrap(
-            pageActions.reconciledSessions.first
-        )
-        XCTAssertEqual(
-            reconciledSession.space(id: fixture.firstSpaceID)?
-                .browsingPreferences.contentBlockingPolicy,
-            .off
-        )
+        XCTAssertEqual(pageActions.reconciliationCount, 1)
         XCTAssertEqual(
             browser.session.space(id: fixture.firstSpaceID)?
                 .browsingPreferences.contentBlockingPolicy,
@@ -130,7 +123,7 @@ final class MobileContentBlockingActionTests: XCTestCase {
     private final class RecordingMobilePageActions: MobilePageActions {
         var pageAssignment: BrowserTabRuntimeAssignment?
         var beforeRecordingReconciliation: () -> Void = {}
-        private(set) var reconciledSessions: [BrowserSession] = []
+        private(set) var reconciliationCount = 0
 
         init(pageAssignment: BrowserTabRuntimeAssignment?) {
             self.pageAssignment = pageAssignment
@@ -173,9 +166,9 @@ final class MobileContentBlockingActionTests: XCTestCase {
         func exportPDF(to destination: MobileBrowserFileExportDestination) {}
         func exportWebArchive(to destination: MobileBrowserFileExportDestination) {}
 
-        func reconcileContentBlocking(in session: BrowserSession) async {
+        func reconcileContentBlocking() async {
             beforeRecordingReconciliation()
-            reconciledSessions.append(session)
+            reconciliationCount += 1
         }
     }
 }

@@ -26,10 +26,8 @@ internal sealed class Window {
     public bool Saved { get; }
     public Guid ShownSpaceId { get; private set; }
 
-    /// What the window shows, as the platform reads it.
-    public WindowState State => new(Id, WorkspaceId, ShownSpaceId,
-        [.. tabs.OrderBy(entry => entry.Key).Select(entry => new ShownTab(entry.Key, entry.Value))],
-        [.. shares.OrderBy(entry => entry.Key).Select(entry => new SplitColumnShares(entry.Key, entry.Value))]);
+    /// The tab the window shows in each Space it has shown.
+    public IEnumerable<ShownTab> ShownTabs => tabs.Select(entry => new ShownTab(entry.Key, entry.Value));
 
     #endregion
 
@@ -67,6 +65,36 @@ internal sealed class Window {
                 .ToDictionary(entry => entry.Key, entry => (Guid?)entry.Value), [], []);
         if (launch is not null) window.ShowSpace(launch);
         return window;
+    }
+
+    /// What the window shows over `session`, as the platform reads it: what
+    /// it chose to show, the cards its content shows for the tab it shows, and
+    /// the commands it cannot run now. A window over a private workspace keeps
+    /// nothing, which its commands read.
+    public WindowState State(SessionState session, bool isPrivate) {
+        ArgumentNullException.ThrowIfNull(session);
+        var space = Showable(session).FirstOrDefault(candidate => candidate.Id == ShownSpaceId);
+        var shown = space is not null && Tab(space.Id) is { } tabId ? space.Tabs.FirstOrDefault(tab => tab.Id == tabId) : null;
+        var cards = session.Spaces.OrderBy(candidate => candidate.Id)
+            .Select(candidate => Tab(candidate.Id) is { } tabId && Contains(candidate, tabId) ? Cards(candidate, tabId) : null)
+            .OfType<ShownCards>().ToArray();
+        int shownCards = shown is null ? 0 : cards.First(candidate => candidate.SpaceId == ShownSpaceId).TabIds.Count;
+        var facts = new WindowCommandFacts(space is not null, isPrivate, shown, space?.ArchivedTabs.Count > 0,
+            space is not null && shown is not null && space.SplitCandidate(shown.Id) is not null, shownCards);
+        return new(Id, WorkspaceId, ShownSpaceId,
+            [.. tabs.OrderBy(entry => entry.Key).Select(entry => new ShownTab(entry.Key, entry.Value))],
+            [.. shares.OrderBy(entry => entry.Key).Select(entry => new SplitColumnShares(entry.Key, entry.Value))],
+            cards, [.. ShortcutCommand.All.Where(command => !command.IsAvailable(facts))]);
+    }
+
+    /// The tabs a window's content shows for `shown` in `space`, side by
+    /// side: the members of the split its sidebar row shows, in order, or
+    /// `shown` alone.
+    private static ShownCards Cards(SpaceState space, Guid shown) {
+        foreach (var list in space.Sidebar.Lists)
+            foreach (var row in list.Rows)
+                if (row.Kind.GroupsTabs && row.Members.Contains(shown)) return new(space.Id, [.. row.Members], row.Id);
+        return new(space.Id, [shown], null);
     }
 
     /// A copy a command reads while the device keeps editing the window.
@@ -129,13 +157,11 @@ internal sealed class Window {
         return null;
     }
 
-    /// Answers whether the window still matches `session` after it changed,
-    /// repairing it when it does not: a tab that is gone shows nothing, a
+    /// Repairs the window after `session` changed under it: a tab that is gone shows nothing, a
     /// Space that is gone or being deleted gives way to the first remaining
     /// one on its fallback tab, split shares survive only while their group
     /// renders with as many columns, and the history forgets what is gone.
-    public bool Repair(SessionState session) {
-        var before = State;
+    public void Repair(SessionState session) {
         var spaces = session.Spaces.ToDictionary(space => space.Id);
         foreach (var (spaceId, tabId) in tabs.ToArray()) {
             if (!spaces.TryGetValue(spaceId, out var space)) tabs.Remove(spaceId);
@@ -150,7 +176,6 @@ internal sealed class Window {
             else history.RemoveAll(tabId => !Contains(space, tabId));
         }
         foreach (var spaceId in tabs.Keys) Remember(spaceId);
-        return State != before;
     }
 
     /// Records one split group's column shares, normalized. Answers false for

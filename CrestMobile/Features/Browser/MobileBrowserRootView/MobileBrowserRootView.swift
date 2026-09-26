@@ -76,7 +76,7 @@ struct MobileBrowserRootView: View {
             \.browserNativeTabActions,
             BrowserNativeTabActions(
                 browser: model.browser, spaceAccess: model.spaceAccess,
-                didOpenURL: { model.pages.select(session: model.browser.presented) }))
+                didOpenURL: { model.pages.select() }))
     }
 }
 

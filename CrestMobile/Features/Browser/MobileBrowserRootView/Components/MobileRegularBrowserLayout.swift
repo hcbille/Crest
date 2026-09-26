@@ -16,8 +16,8 @@ struct MobileRegularBrowserLayout<Sidebar: View, Detail: View>: View,
     @Binding var preferredSidebarWidth: CGFloat
     let reduceTransparency: Bool
     let layoutDirection: LayoutDirection
-    let space: BrowserSpace?
-    var spaces: [BrowserSpace] = []
+    let space: SpaceModel?
+    var spaces: [SpaceModel] = []
     let showSidebar: () -> Void
     let commitSidebarWidth: (CGFloat) -> Void
     let sidebar: Sidebar

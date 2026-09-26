@@ -30,7 +30,7 @@ extension MobileBrowserRootContent {
             addressFocusRequest &+= 1
         } else {
             switch MobileStartPageSearchPolicy.destination(
-                isStartPage: browser.selectedTab?.isStartPage != false,
+                isStartPage: showsStartPage,
                 presentation: presentation
             ) {
             case .embeddedStartPage:
@@ -56,7 +56,7 @@ extension MobileBrowserRootContent {
 
         showRegularSidebar()
         switch MobileStartPageSearchPolicy.destination(
-            isStartPage: browser.selectedTab?.isStartPage != false,
+            isStartPage: showsStartPage,
             presentation: presentation
         ) {
         case .embeddedStartPage:
@@ -140,10 +140,7 @@ extension MobileBrowserRootContent {
     }
 
     var isSelectedTabInSplitGroup: Bool {
-        guard let space = browser.selectedSpace,
-            let selectedTabID = browser.selectedTabID(in: space.id)
-        else { return false }
-        return space.splitGroup(containing: selectedTabID) != nil
+        model.presentedSplitGroupID != nil
     }
 
     func toggleSidebarFromCommand() {

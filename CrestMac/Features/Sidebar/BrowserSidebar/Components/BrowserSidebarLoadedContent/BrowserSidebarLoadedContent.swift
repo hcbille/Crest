@@ -52,15 +52,17 @@ struct BrowserSidebarLoadedContent: View {
             }
 
             BrowserSidebarSpacePager(context: context) { space, isSelected in
-                BrowserSidebarSpacePage(
-                    space: space,
-                    isSelected: isSelected,
-                    context: context,
-                    pages: pages,
-                    openNewTab: openNewTab,
-                    commandSurfaceNamespace: commandSurfaceNamespace,
-                    tabPromotionNamespace: tabPromotionNamespace
-                )
+                if let copy = context.spaceCopy(space) {
+                    BrowserSidebarSpacePage(
+                        space: copy,
+                        isSelected: isSelected,
+                        context: context,
+                        pages: pages,
+                        openNewTab: openNewTab,
+                        commandSurfaceNamespace: commandSurfaceNamespace,
+                        tabPromotionNamespace: tabPromotionNamespace
+                    )
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()

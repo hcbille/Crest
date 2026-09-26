@@ -50,6 +50,6 @@ struct MobileBrowserSidebarSpaceContent: View {
     }
 
     private func showSettings() {
-        configuration.context.chromeActions.presentSpaceSettings(space)
+        configuration.context.chromeActions.presentSpaceSettings(BrowserSpaceRuntimeAssignment(space: space))
     }
 }

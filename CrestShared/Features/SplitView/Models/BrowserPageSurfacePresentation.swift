@@ -4,7 +4,8 @@ import Foundation
 ///
 /// Resolved by `BrowserPageSurfaceBranchPolicy` and then only drawn, so a shell
 /// reads the branch rather than deciding it.
-enum BrowserPageSurfacePresentation: Equatable, Sendable {
+@MainActor
+enum BrowserPageSurfacePresentation {
     /// The single surface with no Space of its own behind it — none is
     /// selected, or the selected one is locked and showing its access gate
     /// instead of pages. Nothing may be dropped into it: the page store has
@@ -15,19 +16,17 @@ enum BrowserPageSurfacePresentation: Equatable, Sendable {
     /// The single rounded surface, presenting `space`. `cardTabID` is the lone
     /// tab a drag can drop beside — what a dropped tab would join, and the side
     /// of it the pointer is on is which side the new card lands.
-    case single(space: BrowserSpace, cardTabID: TabID?)
+    case single(space: SpaceModel, cardTabID: TabID?)
 
     /// A row of cards. `placeholderIndex` is the slot a drag in flight would
     /// drop into, or `nil` when no drop is resolved against this row.
-    case columns(
-        space: BrowserSpace,
-        members: [BrowserTab],
-        placeholderIndex: Int?
-    )
+    case columns(space: SpaceModel, members: [TabStateModel], placeholderIndex: Int?)
+
+    // MARK: - Variables
 
     /// The Space whose cards this window is showing, or `nil` when there are
     /// none to show.
-    var presentingSpace: BrowserSpace? {
+    var presentingSpace: SpaceModel? {
         switch self {
         case .unavailable: nil
         case .single(let space, _): space
@@ -48,12 +47,10 @@ enum BrowserPageSurfacePresentation: Equatable, Sendable {
         return cardTabID
     }
 
-    /// The single surface's captured tab, not a later store selection that may
-    /// already belong to a different layout while this surface disappears.
-    var singleTab: BrowserTab? {
-        guard case .single(let space, let tabID) = self, let tabID else {
-            return nil
-        }
-        return space.tabs.first { $0.id == tabID }
+    /// The single surface's captured tab, not a later window selection that
+    /// may already belong to a different layout while this surface disappears.
+    var singleTab: TabStateModel? {
+        guard case .single(let space, let tabID) = self, let tabID else { return nil }
+        return space.tabs.model(tabID)
     }
 }

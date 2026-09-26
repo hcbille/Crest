@@ -6,7 +6,7 @@ struct MobileCompactPageBackdrop: View {
     let hasSelectedPage: Bool
     let pageThemeColor: UIColor?
     let underPageBackgroundColor: UIColor?
-    let space: BrowserSpace?
+    let space: SpaceModel?
 
     var body: some View {
         if MobileCompactPageChromePolicy.usesPageThemeBackdrop,

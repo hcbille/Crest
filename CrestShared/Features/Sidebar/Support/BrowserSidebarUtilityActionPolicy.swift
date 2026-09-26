@@ -17,7 +17,7 @@ enum BrowserSidebarUtilityActionPolicy {
             )
         else { return nil }
         let itemID = itemID(for: action)
-        return itemsForProfile(space.profile.id).first {
+        return itemsForProfile(space.profileID).first {
             $0.id == itemID && $0.profileID == assignment.profileID
         }
     }

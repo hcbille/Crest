@@ -11,7 +11,6 @@ enum BrowserPolicyOperation: String, Codable, Sendable {
     case externalScheme = "external.scheme"
     case externalURL = "external.url"
     case geolocationOrigin = "geolocation.origin"
-    case launchPlan = "launch.plan"
     case limits
     case mediaArbitrate = "media.arbitrate"
     case mediaSessionEvent = "media.session_event"
@@ -28,13 +27,11 @@ enum BrowserPolicyOperation: String, Codable, Sendable {
     case setupReconcile = "setup.reconcile"
     case setupSpace = "setup.space"
     case setupTab = "setup.tab"
-    case brandingNormalize = "branding.normalize"
     case linksRouteCreate = "links.route_create"
     case linksRouteMove = "links.route_move"
     case linksRouteRemove = "links.route_remove"
     case linksRouteUpdate = "links.route_update"
     case linksSpaceRemoved = "links.space_removed"
-    case pagePresentation = "page.presentation"
     case quickWindowDismissal = "quick_window.dismissal"
     case quickWindowRetarget = "quick_window.retarget"
 }

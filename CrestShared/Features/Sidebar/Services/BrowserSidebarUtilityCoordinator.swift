@@ -17,14 +17,8 @@ struct BrowserSidebarUtilityCoordinator {
     let platformActions: BrowserSidebarUtilityPlatformActions
 
     var selectedDownloads: [DownloadState] {
-        guard let selectedSpace = browser.selectedSpace,
-            let space = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
-                matching: BrowserSpaceRuntimeAssignment(space: selectedSpace),
-                in: browser,
-                accessController: spaceAccess
-            )
-        else { return [] }
-        return downloadCenter.items(for: space.profile.id)
+        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return [] }
+        return downloadCenter.items(for: space.profileID)
     }
 
     var actions: BrowserUtilityListActions {
@@ -37,15 +31,8 @@ struct BrowserSidebarUtilityCoordinator {
     }
 
     func acknowledgeDownloads(ifPresented surface: BrowserUtilitySurface?) {
-        guard surface == .downloads,
-            let selectedSpace = browser.selectedSpace,
-            let space = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
-                matching: BrowserSpaceRuntimeAssignment(space: selectedSpace),
-                in: browser,
-                accessController: spaceAccess
-            )
-        else { return }
-        downloadCenter.acknowledgeItems(for: space.profile.id)
+        guard surface == .downloads, let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return }
+        downloadCenter.acknowledgeItems(for: space.profileID)
     }
 
     private func restoreArchivedTab(

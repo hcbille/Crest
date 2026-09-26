@@ -701,7 +701,8 @@ final class MobileBrowserPageStore:
         // Only the first page replays the staged request; a rebuilt page
         // after memory pressure reloads its last URL like any other.
         if let engineNavigation,
-            !initialPage.pageEngine.stageNavigation(engineNavigation, expecting: url) {
+            !initialPage.pageEngine.stageNavigation(engineNavigation, expecting: url)
+        {
             initialPage.release(keepingState: false)
             return nil
         }
@@ -1577,12 +1578,10 @@ extension MobileBrowserPageStore: BrowserTabCopying {
 }
 
 extension MobileBrowserPageStore: BrowserTabLinkProviding {
-    func linkURL(for tab: BrowserTab, in space: BrowserSpace) -> URL? {
-        guard tab.isWebPage else { return nil }
-        guard let page = pagesByTabID[tab.id],
-            page.spaceID == space.id,
-            page.profileID == space.profile.id
-        else { return tab.url }
+    func liveLinkURL(for assignment: BrowserTabRuntimeAssignment) -> URL? {
+        guard let page = pagesByTabID[assignment.tabID], page.spaceID == assignment.spaceID,
+            page.profileID == assignment.profileID
+        else { return nil }
         return page.live.documentURL
     }
 }

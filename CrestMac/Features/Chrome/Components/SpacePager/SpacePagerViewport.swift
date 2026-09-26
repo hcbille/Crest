@@ -20,7 +20,11 @@ final class SpacePagerViewport<Content: View>: NSView {
         let commitsSelection: Bool
     }
 
-    private(set) var spaces: [BrowserSpace] = []
+    private(set) var spaces: [SpaceModel] = []
+    /// What the Spaces were at the last update, kept as values: the models
+    /// change in place, so only a snapshot tells an update what moved.
+    private var shownAssignments: [BrowserSpaceRuntimeAssignment] = []
+    private var shownAccessPolicies: [SpaceAccessPolicy] = []
     private(set) var selectedSpaceID: SpaceID?
     private(set) var presentationSpaceID: SpaceID?
     private(set) var isInteractionLocked = false
@@ -30,7 +34,7 @@ final class SpacePagerViewport<Content: View>: NSView {
     private var generation: UInt = 0
     private var expectedSelection: SpaceID?
     private var hosts: [BrowserSpaceRuntimeAssignment: SpacePageHost<Content>] = [:]
-    private var makeRoot: ((BrowserSpace, Bool) -> SpacePageRoot<Content>)?
+    private var makeRoot: ((SpaceModel, Bool) -> SpacePageRoot<Content>)?
     private var selectSpace: (SpaceID) -> SpaceID = { $0 }
     private var lastSize = CGSize.zero
     private var presentation: SpacePagerPresentation?
@@ -65,18 +69,20 @@ final class SpacePagerViewport<Content: View>: NSView {
     }
 
     func update(
-        spaces: [BrowserSpace], selectedSpaceID: SpaceID,
+        spaces: [SpaceModel], selectedSpaceID: SpaceID,
         isInteractionLocked: Bool, reduceMotion: Bool, layoutDirection: LayoutDirection,
         presentation: SpacePagerPresentation? = nil,
         contentTopInsets: [SpaceID: CGFloat] = [:],
         selectSpace: @escaping (SpaceID) -> SpaceID,
-        makeRoot: @escaping (BrowserSpace, Bool) -> SpacePageRoot<Content>
+        makeRoot: @escaping (SpaceModel, Bool) -> SpacePageRoot<Content>
     ) {
-        let assignmentsChanged =
-            self.spaces.map(BrowserSpaceRuntimeAssignment.init(space:))
-            != spaces.map(BrowserSpaceRuntimeAssignment.init(space:))
+        let assignments = spaces.map(BrowserSpaceRuntimeAssignment.init(space:))
+        let accessPolicies = spaces.map(\.settings.accessPolicy)
+        let assignmentsChanged = shownAssignments != assignments
         let selectionChanged = self.selectedSpaceID != selectedSpaceID
-        let accessPoliciesChanged = self.spaces.map(\.accessPolicy) != spaces.map(\.accessPolicy)
+        let accessPoliciesChanged = shownAccessPolicies != accessPolicies
+        shownAssignments = assignments
+        shownAccessPolicies = accessPolicies
         let invalidatesMotion =
             assignmentsChanged || accessPoliciesChanged || isInteractionLocked
             || self.reduceMotion != reduceMotion || self.layoutDirection != layoutDirection

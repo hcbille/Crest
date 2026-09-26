@@ -28,7 +28,7 @@ struct BrowserExternalLinkHandler: ViewModifier {
         // belongs in the Space already on screen.
         if url.isFileURL {
             guard BrowserCorePolicy.acceptsLocalDocument(url),
-                let spaceID = browser.selectedSpace?.id,
+                let spaceID = browser.shownSpace?.id,
                 let assignment = await accessibleAssignment(for: spaceID)
             else { return }
             actions.openLocalDocuments([url], in: assignment)
@@ -42,7 +42,7 @@ struct BrowserExternalLinkHandler: ViewModifier {
                 for: url,
                 in: browser.presented,
                 unavailableSpaceIDs: browser.deletingSpaceIDs,
-                lockedSpaceIDs: Set(browser.session.spaces.filter(spaceAccess.isLocked).map(\.id)),
+                lockedSpaceIDs: Set(browser.spaceModels.filter(spaceAccess.isLocked).map(\.id)),
                 asking: browser.core
             ),
             let assignment = await accessibleAssignment(for: decision.spaceID)
@@ -64,7 +64,7 @@ struct BrowserExternalLinkHandler: ViewModifier {
                     matching: assignment
                 ) != nil
             else { return }
-            pages.select(session: browser.presented)
+            pages.select()
             pages.navigate(to: url.absoluteString)
             chrome.dismissCommandPalette()
         }
@@ -86,11 +86,11 @@ struct BrowserExternalLinkHandler: ViewModifier {
     private func accessibleAssignment(
         for spaceID: SpaceID
     ) async -> BrowserSpaceRuntimeAssignment? {
-        guard let space = browser.session.space(id: spaceID) else { return nil }
+        guard !browser.isDeleting(spaceID), let space = browser.spaceModel(spaceID) else { return nil }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard await spaceAccess.unlock(space),
-            browser.space(matching: assignment) != nil
-        else { return nil }
+        guard await spaceAccess.unlock(space), browser.spaceModel(spaceID)?.profileID == assignment.profileID else {
+            return nil
+        }
         return assignment
     }
 }

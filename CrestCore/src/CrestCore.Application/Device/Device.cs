@@ -28,6 +28,8 @@ internal sealed partial class Device {
 
     private readonly Lock gate = new();
     private readonly Dictionary<Guid, Window> open = [];
+    /// What the device last published for each open window.
+    private readonly Dictionary<Guid, WindowState> published = [];
     private readonly Dictionary<Guid, NativeSessionAuthority> workspaces = [];
     /// The saved windows' records, open or not.
     private readonly Dictionary<Guid, SavedWindow> saved = [];
@@ -171,7 +173,7 @@ internal sealed partial class Device {
     public IReadOnlySet<Guid> ShownTabs(Guid workspaceId) {
         lock (gate) {
             var shown = open.Values.Where(window => window.WorkspaceId == workspaceId)
-                .SelectMany(window => window.State.ShownTabs).Select(tab => tab.TabId).OfType<Guid>().ToHashSet();
+                .SelectMany(window => window.ShownTabs).Select(tab => tab.TabId).OfType<Guid>().ToHashSet();
             if (workspaceId == persistentWorkspace)
                 shown.UnionWith(saved.Values.SelectMany(record => record.Tabs).Select(tab => tab.TabId).OfType<Guid>());
             return shown;
@@ -196,7 +198,7 @@ internal sealed partial class Device {
             changes.AddRange(Changing(open.Values.Where(window => window.WorkspaceId == workspaceId), window => {
                 if (followUp is not null && window.Id == followUp.Window?.Id) window.Apply(followUp);
                 window.Repair(next);
-            }));
+            }, next));
             owner = workspaces.GetValueOrDefault(workspaceId);
         }
         foreach (var change in changes) announce(change);
@@ -235,19 +237,28 @@ internal sealed partial class Device {
     }
 
     /// Runs `edit` on each of `windows` and answers a change for every one
-    /// that shows something else afterwards, keeping saved records current.
-    /// The caller holds the device lock.
-    private List<Change> Changing(IEnumerable<Window> windows, Action<Window> edit) {
+    /// that shows something else over `session` afterwards, keeping saved
+    /// records current. The caller holds the device lock.
+    private List<Change> Changing(IEnumerable<Window> windows, Action<Window> edit, SessionState session) {
         var changes = new List<Change>();
         foreach (var window in windows.ToArray()) {
-            var before = window.State;
             edit(window);
-            var after = window.State;
-            if (after == before) continue;
-            changes.Add(new WindowChanged(after));
-            if (window.Saved) Record(window);
+            if (Publishing(window, session) is { } change) changes.Add(change);
         }
         return changes;
+    }
+
+    /// What `window` shows over `session`, when it differs from what the
+    /// device last published for it, keeping a saved window's record current
+    /// with what it chose to show. The caller holds the device lock.
+    private WindowChanged? Publishing(Window window, SessionState session) {
+        var state = window.State(session, workspaces.GetValueOrDefault(window.WorkspaceId)?.Kind.IsPrivate == true);
+        published.TryGetValue(window.Id, out var before);
+        if (state == before) return null;
+        published[window.Id] = state;
+        if (window.Saved && (before is null || before.ShownSpaceId != state.ShownSpaceId || !before.ShownTabs.SequenceEqual(state.ShownTabs)
+            || !before.SplitColumnShares.SequenceEqual(state.SplitColumnShares))) Record(window);
+        return new(state);
     }
 
     #endregion

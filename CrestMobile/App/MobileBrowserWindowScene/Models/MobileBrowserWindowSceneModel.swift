@@ -133,11 +133,11 @@ final class MobileBrowserWindowSceneModel {
             let space = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
                 matching: BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID),
                 in: browser, accessController: spaceAccess),
-            browser.session.spaces.first?.id == space.id,
+            browser.spaceModels.first?.id == space.id,
             browser.selectedTabID(in: space.id) == assignment.tabID,
-            space.tabs.first(where: { $0.id == assignment.tabID })?.nativeContent == .gettingStarted
+            space.tabs.model(assignment.tabID)?.nativeTabContent == .gettingStarted
         else { return false }
-        pages.select(session: browser.presented)
+        pages.select()
         navigation.presentSelectedTabAfterSetup()
         return true
     }
@@ -245,7 +245,7 @@ final class MobileBrowserWindowSceneModel {
             else {
                 return false
             }
-            pages.selectAndNavigate(to: url.absoluteString, in: browser.presented)
+            pages.selectAndNavigate(to: url.absoluteString)
             navigation.selectTab()
         }
         return true

@@ -7,11 +7,11 @@ extension EnvironmentValues {
 
 /// SwiftUI supplies semantic state and content. AppKit owns only sidebar motion.
 struct PlatformSpacePager<Content: View>: NSViewRepresentable {
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
     let selectedSpaceID: SpaceID
     let isInteractionLocked: Bool
     let selectSpace: (SpaceID) -> SpaceID
-    @ViewBuilder let content: (BrowserSpace, Bool) -> Content
+    @ViewBuilder let content: (SpaceModel, Bool) -> Content
 
     func makeNSView(context: Context) -> SpacePagerViewport<Content> {
         SpacePagerViewport(frame: .zero)

@@ -155,7 +155,7 @@ final class BrowserPeekModel {
         if outcome == .openedNewPage {
             pageLease.release()
         }
-        pages.select(session: browser.presented)
+        pages.select()
         coordinator.dismissPeek(request)
         return true
     }

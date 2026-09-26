@@ -19,6 +19,41 @@ public sealed partial class NativeSessionAuthority {
         return new(Replacing(basis, edited.Capture(space)), SyncStaging.Creation, followUp);
     }
 
+    /// Shows the Space's first open Start Page, outside splits when asked, or
+    /// opens one after the tab the window shows there. Showing the one it has
+    /// records its use, as showing a tab does.
+    private SessionEdit ShowingStartPage(SessionState basis, ShowStartPage intent, DateTimeOffset now) {
+        var space = Editable(basis, intent.SpaceId);
+        var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId));
+        var edited = BrowserTabCollection.Restore(space);
+        var draft = space.Tabs.FirstOrDefault(tab => tab.IsStartPage && !tab.Placement.IsDurable
+            && (!intent.OutsideSplits || edited.SplitMembers(tab.Id).Count < 2));
+        if (draft is null)
+            return OpeningTab(basis, new OpenTab(intent.WorkspaceId, intent.WindowId, space.Id, intent.TabId,
+                new TabContent(Address: null, View: null, Title: null, Symbol: null), TabPlacement.Current,
+                AfterTabId: followUp.Window?.Tab(space.Id), Shows: true), now);
+        followUp.ShowTab(space.Id, draft.Id).ShowSpace(space.Id);
+        var used = StoredSessionCodec.Date(StoredSessionCodec.Seconds(now));
+        return new(Replacing(basis, space with { Tabs = [.. space.Tabs.Select(tab => tab.Id == draft.Id ? tab with { LastActivatedAt = used } : tab)] }),
+            SyncStaging.TabUse, followUp);
+    }
+
+    /// Opens an address for the window that asked: a Start Page it shows in
+    /// the Space takes the address, and otherwise a new tab opens it after the
+    /// tab it shows. The window shows the tab either way.
+    private SessionEdit OpeningAddress(SessionState basis, OpenAddress intent, DateTimeOffset now, bool allowsInternalPages) {
+        var space = Editable(basis, intent.SpaceId);
+        var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId));
+        var shown = followUp.Window?.Tab(space.Id) is { } shownId ? space.Tabs.FirstOrDefault(tab => tab.Id == shownId) : null;
+        if (shown is not { IsStartPage: true })
+            return OpeningTab(basis, new OpenTab(intent.WorkspaceId, intent.WindowId, space.Id, intent.TabId,
+                new TabContent(intent.Address, View: null, Title: null, Symbol: null), TabPlacement.Current, AfterTabId: shown?.Id,
+                Shows: true), now);
+        var navigated = NavigatingTab(basis, new NavigateTab(intent.WorkspaceId, space.Id, shown.Id, intent.Address), allowsInternalPages);
+        followUp.ShowTab(space.Id, shown.Id).ShowSpace(space.Id);
+        return navigated with { FollowUp = followUp };
+    }
+
     /// A new tab in `placement`'s section showing `content`: a page titled by
     /// its title or host, a native view with the title and symbol it was
     /// given, or the Start Page. A saved or pinned page belongs to its address.
@@ -126,6 +161,7 @@ public sealed partial class NativeSessionAuthority {
     private SessionEdit DuplicatingTab(SessionState basis, DuplicateTab intent, DateTimeOffset now, IIdSource ids, Pages? pages) {
         var space = Editable(basis, intent.SpaceId);
         var edited = BrowserTabCollection.Restore(space);
+        if (edited.Tab(intent.TabId).Content.IsStartPage) throw new Rejected(new StartPageNotCopied(intent.TabId));
         var copy = edited.DuplicateTab(intent.TabId, ids, now, intent.Placement ?? TabPlacement.Current);
         StartFromSourcePage(copy, intent.TabId, intent.WindowId, pages);
         var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId));

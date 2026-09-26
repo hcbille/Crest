@@ -272,9 +272,10 @@ final class SpaceScrollGestureTests: XCTestCase {
     }
 
     func testNativePagingPreservesInterruptedPositionAndRejectsInvalidatedGestures() async throws {
-        var spaces = nativeSpaces()
+        let store = nativeStore()
+        var spaces: [SpaceModel] { store.spaceModels }
         var selections: [SpaceID] = []
-        var renderedRoots: [SpaceID: (isSelected: Bool, name: String, accessPolicy: BrowserSpaceAccessPolicy)] = [:]
+        var renderedRoots: [SpaceID: (isSelected: Bool, name: String, accessPolicy: SpaceAccessPolicy)] = [:]
         let (window, viewport) = makeNativeViewport()
         let presentation = SpacePagerPresentation()
         defer {
@@ -292,7 +293,7 @@ final class SpaceScrollGestureTests: XCTestCase {
                     return $0
                 },
                 makeRoot: { space, isSelected in
-                    renderedRoots[space.id] = (isSelected, space.name, space.accessPolicy)
+                    renderedRoots[space.id] = (isSelected, space.settings.name, space.settings.accessPolicy)
                     return self.nativeRoot(space, isSelected)
                 })
         }
@@ -379,43 +380,43 @@ final class SpaceScrollGestureTests: XCTestCase {
         update(selected: spaces[1].id)
         XCTAssertNotNil(viewport.motion)
         XCTAssertEqual(renderedRoots[spaces[1].id]?.isSelected, false)
-        spaces[1].name = "Changed while settling"
+        store.updateSpaceIdentity(spaces[1].id, name: "Changed while settling", symbol: "globe", accent: .indigo)
         update(selected: spaces[1].id)
         try await awaitSettlement(viewport)
         XCTAssertEqual(renderedRoots[spaces[1].id]?.isSelected, true)
-        XCTAssertEqual(renderedRoots[spaces[1].id]?.name, spaces[1].name)
+        XCTAssertEqual(renderedRoots[spaces[1].id]?.name, spaces[1].settings.name)
 
         // Resize and detachment can bypass the animation's completion. They
         // must still refresh the authoritative page before returning input.
         update(selected: spaces[2].id)
         XCTAssertNotNil(viewport.motion)
-        spaces[2].name = "Changed before resize"
+        store.updateSpaceIdentity(spaces[2].id, name: "Changed before resize", symbol: "globe", accent: .indigo)
         update(selected: spaces[2].id)
         window.setContentSize(NSSize(width: 321, height: 501))
         viewport.layoutSubtreeIfNeeded()
         XCTAssertNil(viewport.motion)
         XCTAssertEqual(renderedRoots[spaces[2].id]?.isSelected, true)
-        XCTAssertEqual(renderedRoots[spaces[2].id]?.name, spaces[2].name)
+        XCTAssertEqual(renderedRoots[spaces[2].id]?.name, spaces[2].settings.name)
         update(selected: spaces[1].id)
         XCTAssertNotNil(viewport.motion)
-        spaces[1].name = "Changed before reattachment"
+        store.updateSpaceIdentity(spaces[1].id, name: "Changed before reattachment", symbol: "globe", accent: .indigo)
         update(selected: spaces[1].id)
         window.contentView = nil
         window.contentView = viewport
         XCTAssertNil(viewport.motion)
         XCTAssertEqual(renderedRoots[spaces[1].id]?.isSelected, true)
-        XCTAssertEqual(renderedRoots[spaces[1].id]?.name, spaces[1].name)
+        XCTAssertEqual(renderedRoots[spaces[1].id]?.name, spaces[1].settings.name)
 
         // A privacy-policy change supersedes both a simultaneous command and
         // an existing physical gesture; an old open-policy root cannot linger.
-        spaces[0].accessPolicy = .deviceOwnerAuthentication
+        store.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: spaces[0].id)
         update(selected: spaces[0].id)
         XCTAssertNil(viewport.motion)
         XCTAssertEqual(renderedRoots[spaces[0].id]?.accessPolicy, .deviceOwnerAuthentication)
         XCTAssertEqual(renderedRoots[spaces[0].id]?.isSelected, true)
         let protected = try XCTUnwrap(viewport.beginInteractiveMotion())
         XCTAssertTrue(track(viewport, deltaX: -32, token: protected))
-        spaces[1].accessPolicy = .deviceOwnerAuthentication
+        store.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: spaces[1].id)
         update(selected: spaces[0].id)
         XCTAssertNil(viewport.motion)
         XCTAssertEqual(renderedRoots[spaces[1].id]?.accessPolicy, .deviceOwnerAuthentication)
@@ -454,7 +455,7 @@ final class SpaceScrollGestureTests: XCTestCase {
     }
 
     private func assertPageFrames(
-        _ viewport: SpacePagerViewport<Text>, spaces: [BrowserSpace], selectedIndex: Int,
+        _ viewport: SpacePagerViewport<Text>, spaces: [SpaceModel], selectedIndex: Int,
         file: StaticString = #filePath, line: UInt = #line
     ) {
         for host in viewport.subviews.compactMap({ $0 as? SpacePageHost<Text> }) {
@@ -481,17 +482,24 @@ final class SpaceScrollGestureTests: XCTestCase {
         return (window, viewport)
     }
 
-    private func nativeSpaces(count: Int = 3) -> [BrowserSpace] {
-        (0..<count).map { index in
-            BrowserSpace(
-                id: SpaceID(), profile: BrowsingProfile(), name: "Space \(index)",
-                symbol: "globe", accent: .indigo, folders: [], tabs: [])
-        }
+    /// A window over `count` Spaces, whose read model the pager draws.
+    private func nativeStore(count: Int = 3) -> BrowserStore {
+        BrowserStore(
+            session: BrowserSession(
+                spaces: (0..<count).map { index in
+                    BrowserSpace(
+                        id: SpaceID(), profile: BrowsingProfile(), name: "Space \(index)",
+                        symbol: "globe", accent: .indigo, folders: [], tabs: [])
+                }))
     }
 
-    private func nativeRoot(_ space: BrowserSpace, _ isSelected: Bool) -> SpacePageRoot<Text> {
+    private func nativeSpaces(count: Int = 3) -> [SpaceModel] {
+        nativeStore(count: count).spaceModels
+    }
+
+    private func nativeRoot(_ space: SpaceModel, _ isSelected: Bool) -> SpacePageRoot<Text> {
         SpacePageRoot(
-            content: Text(space.name),
+            content: Text(space.settings.name),
             assignment: BrowserSpaceRuntimeAssignment(space: space))
     }
 

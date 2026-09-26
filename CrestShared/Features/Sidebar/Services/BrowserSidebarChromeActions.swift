@@ -5,7 +5,7 @@ import Foundation
 @MainActor
 struct BrowserSidebarChromeActions {
     /// Opens the Space's own settings, wherever this shell keeps them.
-    let presentSpaceSettings: (BrowserSpace) -> Void
+    let presentSpaceSettings: (BrowserSpaceRuntimeAssignment) -> Void
 
     /// Brings the selected Space's history on screen, inline or as a sheet.
     let presentHistory: () -> Void
@@ -27,7 +27,7 @@ struct BrowserSidebarChromeActions {
     let createSpace: (() -> Void)?
 
     init(
-        presentSpaceSettings: @escaping (BrowserSpace) -> Void,
+        presentSpaceSettings: @escaping (BrowserSpaceRuntimeAssignment) -> Void,
         presentHistory: @escaping () -> Void,
         presentPasswords: (() -> Void)? = nil,
         presentArchive: (() -> Void)? = nil,

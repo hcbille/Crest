@@ -4,6 +4,13 @@ import Foundation
 /// falls back to credentials, a local file path, or a URL's query and fragment.
 @MainActor
 enum BrowserWindowTitle {
+    /// The title of a window showing `tab`, drawing on its live page when it has one.
+    static func resolve(tab: TabStateModel, page: BrowserPage?) -> String {
+        if tab.surface == .startPage { return String(localized: "Start Page") }
+        if let title = BrowserTab.resolvedCustomTitle(tab.customTitle) { return title }
+        return resolve(page: page, storedTitle: tab.title, url: tab.address)
+    }
+
     static func resolve(
         page: BrowserPage?,
         storedTitle: String? = nil,

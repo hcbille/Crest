@@ -6,14 +6,14 @@ import Foundation
 /// Written once because both shells were writing it, and a disagreement is not
 /// cosmetic — the two layouts host the live web view in different places, so a
 /// shell that opens columns one condition earlier than the other rebuilds a
-/// page's host where the other does not.
-///
-/// Membership is asked of `presentedSplitMembers(for:)` and never of
-/// `BrowserTab.splitGroupID`: a run too short to render still keeps its stored
-/// group ID so a staggered sync can reconstitute the group, and only that
-/// accessor knows the difference between the two.
+/// page's host where the other does not. Which tabs are cards is the core's:
+/// the window's `cards(in:)`.
+@MainActor
 enum BrowserPageSurfaceBranchPolicy {
+    // MARK: - Actions - Resolving
+
     /// - Parameters:
+    ///   - cards: The tabs the window shows side by side in `space`.
     ///   - hasEnteredSplitContent: Whether a drag has already reached the
     ///     content area during this lift. It holds the columns layout open
     ///     around a single presented tab for the rest of the drag rather than
@@ -24,41 +24,25 @@ enum BrowserPageSurfaceBranchPolicy {
     ///   - resolvedTarget: Where the lift in flight would land. Only a
     ///     `.splitInsert` aimed at this very Space opens a slot in this row.
     static func resolve(
-        selectedSpace: BrowserSpace?,
-        isSelectedSpaceLocked: Bool,
-        selectedTabID: TabID?,
+        space: SpaceModel?,
+        isLocked: Bool,
+        cards: [TabStateModel],
         hasEnteredSplitContent: Bool,
         resolvedTarget: BrowserSidebarReorderTarget?,
         presentsTrailingPanel: Bool = false
     ) -> BrowserPageSurfacePresentation {
-        guard let space = selectedSpace, !isSelectedSpaceLocked else {
-            return .unavailable
+        guard let space, !isLocked else { return .unavailable }
+        guard !cards.isEmpty, cards.count > 1 || hasEnteredSplitContent || presentsTrailingPanel else {
+            return .single(space: space, cardTabID: cards.first?.id)
         }
-
-        let members = space.presentedSplitMembers(for: selectedTabID)
-        guard !members.isEmpty, members.count > 1 || hasEnteredSplitContent || presentsTrailingPanel
-        else {
-            return .single(space: space, cardTabID: selectedTabID)
-        }
-
         return .columns(
-            space: space,
-            members: members,
-            placeholderIndex: placeholderIndex(
-                resolvedTarget: resolvedTarget,
-                spaceID: space.id
-            )
-        )
+            space: space, members: cards,
+            placeholderIndex: placeholderIndex(resolvedTarget: resolvedTarget, spaceID: space.id))
     }
 
     /// The slot a drag in flight would drop a card into, for this Space.
-    private static func placeholderIndex(
-        resolvedTarget: BrowserSidebarReorderTarget?,
-        spaceID: SpaceID
-    ) -> Int? {
-        guard
-            case .splitInsert(let assignment, let index) = resolvedTarget?.kind,
-            assignment.spaceID == spaceID
+    private static func placeholderIndex(resolvedTarget: BrowserSidebarReorderTarget?, spaceID: SpaceID) -> Int? {
+        guard case .splitInsert(let assignment, let index) = resolvedTarget?.kind, assignment.spaceID == spaceID
         else { return nil }
         return index
     }

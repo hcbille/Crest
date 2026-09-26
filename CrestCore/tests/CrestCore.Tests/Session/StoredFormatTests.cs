@@ -97,7 +97,7 @@ public sealed class StoredFormatTests {
                 request["windowId"] = issuer.ToString();
             }
             if (RecordedIntents.LaunchPlan(request, workspace) is { } plan) {
-                Compare(name, LaunchCodes.Plan(app.Query(plan)));
+                Compare(name, RecordedIntents.Encode(app.Query(plan)));
             } else if (RecordedIntents.Typed(request, workspace, window, authority.Current) is { } intents) {
                 clock.Now = RecordedIntents.Time(request);
                 ids.Supply(RecordedIntents.Identities(request));

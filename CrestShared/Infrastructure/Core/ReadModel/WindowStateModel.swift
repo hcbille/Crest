@@ -36,15 +36,26 @@ final class WindowStateModel: ObservedModel, Identifiable {
         set { publish(newValue, into: \.splitColumnSharesStorage, as: \.splitColumnShares) }
     }
     @ObservationIgnored private var splitColumnSharesStorage: [SplitColumnShares]
+    /// The tabs the window's content shows side by side in each Space where
+    /// it shows a tab. A view reads one Space's through `cards(in:)`.
+    private(set) var cards: [ShownCards] {
+        get { observed(\.cardsStorage, as: \.cards) }
+        set { publish(newValue, into: \.cardsStorage, as: \.cards) }
+    }
+    @ObservationIgnored private var cardsStorage: [ShownCards]
     /// The tabs the window shows, one per Space it has shown, each observed
     /// on its own. A tab lives in one Space, so a row of any Space's sidebar
     /// is shown exactly when its tab is here.
     let shownTabIDs: ObservedSet<UUID>
+    /// The commands the window cannot run now, each observed on its own, so a
+    /// menu item redraws only when its own command changes.
+    let unavailableCommands: ObservedSet<ShortcutCommand>
 
     var value: WindowState {
         WindowState(
             id: id, workspaceID: workspaceID, shownSpaceID: shownSpaceID, shownTabs: shownTabs,
-            splitColumnShares: splitColumnShares)
+            splitColumnShares: splitColumnShares, cards: cards,
+            unavailableCommands: ShortcutCommand.all.filter(unavailableCommands.members.contains))
     }
 
     // MARK: - Initializers
@@ -55,7 +66,17 @@ final class WindowStateModel: ObservedModel, Identifiable {
         shownSpaceIDStorage = value.shownSpaceID
         shownTabsStorage = value.shownTabs
         splitColumnSharesStorage = value.splitColumnShares
+        cardsStorage = value.cards
         shownTabIDs = ObservedSet(Set(value.shownTabs.compactMap(\.tabID)))
+        unavailableCommands = ObservedSet(Set(value.unavailableCommands))
+    }
+
+    // MARK: - Actions - Reading
+
+    /// The tabs the window's content shows side by side in the Space, or nil
+    /// where it shows no tab.
+    func cards(in spaceID: UUID) -> ShownCards? {
+        cards.first { $0.spaceID == spaceID }
     }
 
     // MARK: - Actions - Changes
@@ -68,7 +89,9 @@ final class WindowStateModel: ObservedModel, Identifiable {
         shownSpaceID = value.shownSpaceID
         shownTabs = value.shownTabs
         splitColumnShares = value.splitColumnShares
+        cards = value.cards
         shownTabIDs.replace(with: Set(value.shownTabs.compactMap(\.tabID)))
+        unavailableCommands.replace(with: Set(value.unavailableCommands))
     }
 }
 

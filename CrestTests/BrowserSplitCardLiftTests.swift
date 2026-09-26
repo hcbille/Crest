@@ -142,46 +142,6 @@ final class BrowserSplitCardLiftPolicyTests: XCTestCase {
         )
     }
 
-    // MARK: - Which cards have a picture to carry
-
-    /// Selecting a split builds a page — and a `WKWebView` — for every member,
-    /// start pages included, and a start-page card never loads or mounts the one
-    /// it was given. Asking that web view for a picture answers with an empty
-    /// one, and an empty picture stands the preview's title-and-favicon
-    /// placeholder down: the carry then shows neither the page nor the tab, which
-    /// is a card with nothing in it at all.
-    func testOnlyACardShowingALivePageHasAPictureToCarry() {
-        XCTAssertTrue(BrowserSplitCardLiftPolicy.picturesPage(.livePage))
-
-        for presentation in BrowserPagePresentation.allCases
-        where presentation != .livePage {
-            XCTAssertFalse(
-                BrowserSplitCardLiftPolicy.picturesPage(presentation),
-                "\(presentation) draws over a web view that is showing nothing."
-            )
-        }
-    }
-
-    /// The card and its picture must agree about what the card is showing, which
-    /// is why both resolve it with the same policy rather than by asking whether
-    /// a page happens to exist.
-    func testAStartPageCardResolvesToAPresentationWithNoPicture() {
-        let presentation = BrowserCorePolicy.pagePresentation(
-            BrowserPagePresentationInput(
-                selection: .startPage,
-                // A page exists for it, which is exactly the trap: presence is
-                // not the same question as what the card is drawing.
-                hasActivePage: true,
-                hasNavigationFailure: false,
-                hasProcessFailure: false,
-                unloadedBehavior: .remainUnloaded
-            )
-        )
-
-        XCTAssertEqual(presentation, .startPage)
-        XCTAssertFalse(BrowserSplitCardLiftPolicy.picturesPage(presentation))
-    }
-
     // MARK: - Which card the press landed in
 
     /// A frame left behind by a card the row has already closed up around

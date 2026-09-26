@@ -24,12 +24,10 @@ struct MobileBrowserRootLifecycleModifier: ViewModifier {
         _isAddressEditing = isAddressEditing
         _storedSidebarWidth = storedSidebarWidth
         _runtimeSessionProjection = State(
-            initialValue: BrowserRuntimeSessionProjection(
-                session: model.browser.session
-            )
+            initialValue: model.pages.runtimeProjection
         )
         _tabRuntimeAssignments = State(
-            initialValue: model.browser.session.tabRuntimeAssignments
+            initialValue: model.pages.tabRuntimeAssignments
         )
     }
 
@@ -61,11 +59,9 @@ struct MobileBrowserRootLifecycleModifier: ViewModifier {
         let runtimeObservedContent =
             pageObservedContent
             .onChange(of: model.browser.sessionRevision, initial: true) {
-                runtimeSessionProjection = BrowserRuntimeSessionProjection(
-                    session: model.browser.session
-                )
+                runtimeSessionProjection = model.pages.runtimeProjection
                 tabRuntimeAssignments =
-                    model.browser.session.tabRuntimeAssignments
+                    model.pages.tabRuntimeAssignments
             }
             .onChange(of: tabRuntimeAssignments, initial: true) {
                 model.reconcileResidentPages()

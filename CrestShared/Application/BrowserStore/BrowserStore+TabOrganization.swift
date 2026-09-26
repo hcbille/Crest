@@ -334,11 +334,8 @@ extension BrowserStore {
 
     @discardableResult
     func duplicateSelectedTab() -> TabID? {
-        guard let spaceID = selectedSpace?.id,
-            let tab = selectedTab,
-            !tab.isStartPage
-        else { return nil }
-        return duplicateTab(tab.id, in: spaceID)
+        guard let space = shownSpace, let tab = shownTab else { return nil }
+        return duplicateTab(tab.id, in: space.id)
     }
 
 }

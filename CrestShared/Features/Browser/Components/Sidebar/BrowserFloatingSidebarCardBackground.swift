@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserFloatingSidebarCardBackground: View {
-    let space: BrowserSpace?
+    let space: SpaceModel?
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
@@ -10,7 +10,7 @@ struct BrowserFloatingSidebarCardBackground: View {
             platformBackground
 
             if let space {
-                BrowserSpaceBannerBackground(branding: space.branding)
+                BrowserSpaceBannerBackground(branding: BrowserSpaceBranding(look: space.settings.look))
                     .opacity(BrowserFloatingSidebarThemePolicy.spaceThemeOpacity)
             }
 

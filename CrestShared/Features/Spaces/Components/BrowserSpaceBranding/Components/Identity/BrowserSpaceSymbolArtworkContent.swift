@@ -1,14 +1,24 @@
 import SwiftUI
 
 struct BrowserSpaceSymbolArtworkContent: View {
-    let space: BrowserSpace
+    let identity: BrowserSpaceIdentity
     let size: CGFloat
     let lockSize: CGFloat
 
+    init(space: BrowserSpace, size: CGFloat, lockSize: CGFloat) {
+        self.init(identity: BrowserSpaceIdentity(space: space), size: size, lockSize: lockSize)
+    }
+
+    init(identity: BrowserSpaceIdentity, size: CGFloat, lockSize: CGFloat) {
+        self.identity = identity
+        self.size = size
+        self.lockSize = lockSize
+    }
+
     var body: some View {
-        BrowserSpaceIdentityIcon(space: space, size: size)
+        BrowserSpaceIdentityIcon(identity: identity, size: size)
             .overlay(alignment: .bottomTrailing) {
-                if space.accessPolicy.requiresAuthentication {
+                if identity.accessPolicy.requiresAuthentication {
                     Image(systemName: "lock.fill")
                         .font(.system(size: lockSize, weight: .bold))
                         .padding(2)

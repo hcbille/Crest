@@ -4,9 +4,9 @@ import UIKit
 /// The touch adapter for the shared Space presentation. Only background layers
 /// receive scroll samples; tab trees and web views are never hosted here.
 struct SpaceBackdropBlend<Background: View>: UIViewControllerRepresentable {
-    let spaces: [BrowserSpace]
-    let selectedSpace: BrowserSpace?
-    @ViewBuilder let background: (BrowserSpace?) -> Background
+    let spaces: [SpaceModel]
+    let selectedSpace: SpaceModel?
+    @ViewBuilder let background: (SpaceModel?) -> Background
 
     func makeUIViewController(context: Context) -> SpaceBackdropBlendController<Background> {
         SpaceBackdropBlendController<Background>()
@@ -30,9 +30,9 @@ struct SpaceBackdropBlend<Background: View>: UIViewControllerRepresentable {
 @MainActor
 final class SpaceBackdropBlendController<Background: View>: UIViewController {
     private weak var presentation: SpacePagerPresentation?
-    private var spaces: [BrowserSpace] = []
-    private var selectedSpace: BrowserSpace?
-    private var makeBackground: ((BrowserSpace?) -> TouchSpaceBackdropRoot<Background>)?
+    private var spaces: [SpaceModel] = []
+    private var selectedSpace: SpaceModel?
+    private var makeBackground: ((SpaceModel?) -> TouchSpaceBackdropRoot<Background>)?
     private var hosts: [BrowserSpaceRuntimeAssignment: UIHostingController<TouchSpaceBackdropRoot<Background>>] = [:]
     private var fallback: UIHostingController<TouchSpaceBackdropRoot<Background>>?
 
@@ -48,8 +48,8 @@ final class SpaceBackdropBlendController<Background: View>: UIViewController {
     }
 
     func update(
-        spaces: [BrowserSpace], selectedSpace: BrowserSpace?, presentation: SpacePagerPresentation?,
-        makeBackground: @escaping (BrowserSpace?) -> TouchSpaceBackdropRoot<Background>
+        spaces: [SpaceModel], selectedSpace: SpaceModel?, presentation: SpacePagerPresentation?,
+        makeBackground: @escaping (SpaceModel?) -> TouchSpaceBackdropRoot<Background>
     ) {
         let connectionChanged = self.presentation !== presentation
         if connectionChanged { disconnect() }

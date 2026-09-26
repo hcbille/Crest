@@ -91,7 +91,7 @@ struct SpaceSidebarContent: View {
             let liveSpace = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
                 matching: assignment, in: browser, accessController: spaceAccess)
         else { return }
-        browser.setSavedTabsExpanded(!liveSpace.isSavedTabsExpanded, matching: assignment)
+        browser.setSavedTabsExpanded(!liveSpace.settings.isSavedTabsExpanded, matching: assignment)
     }
 
     private var assignment: BrowserSpaceRuntimeAssignment {

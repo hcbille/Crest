@@ -27,7 +27,7 @@ extension MobileBrowserRootModel {
             isPrivateBrowsing: browser.isPrivateBrowsing,
             canGoBack: pageActions?.canGoBack == true,
             canGoForward: pageActions?.canGoForward == true,
-            hasSelectedTab: browser.selectedTab != nil,
+            hasSelectedTab: browser.shownTab != nil,
             hasActivePage: pageActions?.isAvailable == true,
             isLoading: pageActions?.activePage?.live.isLoading == true,
             canDismissSelectedTab: controller.canDismissSelectedTab
@@ -38,8 +38,8 @@ extension MobileBrowserRootModel {
                 && transientBrowsing.quickWindowRequest == nil,
             canDuplicateSelectedTab: controller.canDuplicateSelectedTab,
             canReopenClosedTab: controller.canReopenClosedTab,
-            tabCount: controller.orderedTabs.count,
-            spaceCount: browser.session.spaces.count,
+            tabCount: controller.tabCount,
+            spaceCount: browser.spaceModels.count,
             numberedSelections: browser.core.numberedSelections(windowID: browser.windowID),
             isSelectedTabInSplit: controller.isSelectedTabInSplit,
             canSplitWithNextTab: controller.canSplitWithNextTab,
@@ -50,7 +50,9 @@ extension MobileBrowserRootModel {
                 && pageActions?.readerModeState.isActive != true,
             isTranslationToolbarVisible: pageActions?.activePage?.translation.showsToolbar == true,
             contentBlockingActionTitle: ContentBlockingPolicy.switchTitle(
-                for: browser.selectedSpace?.browsingPreferences.contentBlockingPolicy),
+                for: browser.shownSpace.map {
+                    BrowserSpaceBrowsingPreferences(core: $0.settings.browsingPreferences).contentBlockingPolicy
+                }),
             openNewTab: openNewTab,
             togglePrivateBrowsing: togglePrivateBrowsing,
             openLocation: openLocation,
@@ -328,7 +330,7 @@ extension MobileBrowserRootModel {
         guard commandController.focusAdjacentSplitCard(offset: offset) != nil
         else { return false }
         beforeSynchronization()
-        address = browser.selectedTab?.url?.absoluteString ?? ""
+        address = browser.shownTab?.url ?? ""
         return true
     }
 
@@ -377,8 +379,8 @@ extension MobileBrowserRootModel {
     }
 
     private func synchronizeAfterCommandSelection() {
-        address = browser.selectedTab?.url?.absoluteString ?? ""
-        if browser.selectedTab == nil {
+        address = browser.shownTab?.url ?? ""
+        if browser.shownTab == nil {
             navigation.showTabViewer()
         } else {
             navigation.selectTab()

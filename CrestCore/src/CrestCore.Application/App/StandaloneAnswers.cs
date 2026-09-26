@@ -4,11 +4,11 @@ using CrestCore.Domain;
 namespace CrestCore.Application;
 
 /// The queries that read no state: whether two addresses name one page, the
-/// addresses history keeps for others, how
-/// translation languages match, which translation rule applies, and what an
-/// address typed outside any workspace loads. A host
-/// asks them before it has an app, or from code that holds none; an app
-/// answers them the same way.
+/// addresses history keeps for others, how translation languages match, which
+/// translation rule applies, what an address typed outside any workspace
+/// loads, how a launch treats the person's data, branding as a Space keeps it,
+/// and what a page surface shows. A host asks them before it has an app, or from code that holds none; an
+/// app answers them the same way.
 public sealed class StandaloneAnswers : IQueryAnswers {
     #region Actions - Queries
 
@@ -26,6 +26,9 @@ public sealed class StandaloneAnswers : IQueryAnswers {
         TranslationChoice choice => Decided(choice),
         ResolveAddress { WorkspaceId: null } address => NativeSessionAuthority.Resolved(address.Input, SearchProvider.Google,
             allowsInternalPages: false),
+        LaunchIsolation launch => LaunchPolicy.Plan(launch.Environment, launch.Platform, storedStartup: null, hasActiveLaunchGate: false),
+        NormalizeBranding branding => new NormalizedBranding(SpaceBrandingPolicy.Normalize(branding.Branding)),
+        PresentPage page => new PagePresented(PagePresentation.Of(page)),
         _ => throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "No area answers this query.")
     };
 

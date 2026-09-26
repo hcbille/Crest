@@ -12,12 +12,15 @@ struct BrowserDetailView: View {
 
     var body: some View {
         let tab = presentation.singleTab
-        let page = selectedPage(for: tab)
+        let space = presentation.presentingSpace
+        let page = tab.flatMap { tab in
+            space.flatMap { pages.surfacePage(for: tab.id, in: $0, accessController: spaceAccess) }
+        }
         BrowserDetailContent(
             page: page,
             tab: tab,
-            space: presentation.presentingSpace,
-            pagePresentation: previewsStartPage ? .startPage : pagePresentation(for: page, tab: tab),
+            space: space,
+            pagePresentation: previewsStartPage ? .startPage : .of(tab?.surface, page: page),
             browser: browser,
             pages: pages,
             spaceAccess: spaceAccess,
@@ -25,29 +28,5 @@ struct BrowserDetailView: View {
             startPageFocusRequest: startPageFocusRequest,
             isCommandPalettePresented: isCommandPalettePresented
         )
-    }
-
-    private func pagePresentation(
-        for page: BrowserPage?,
-        tab: BrowserTab?
-    ) -> BrowserPagePresentation {
-        BrowserCorePolicy.pagePresentation(
-            BrowserPagePresentationInput(
-                selection: tab.map { $0.pagePresentationSelection }
-                    ?? .none,
-                hasActivePage: page != nil,
-                hasNavigationFailure: page?.live.failure != nil,
-                hasProcessFailure: page?.webContentFailureMessage != nil,
-                unloadedBehavior: .remainUnloaded
-            )
-        )
-    }
-
-    private func selectedPage(for tab: BrowserTab?) -> BrowserPage? {
-        guard let tab,
-            let space = presentation.presentingSpace
-        else { return nil }
-        return pages.surfacePage(for: tab, in: space, showing: browser.selectedTabID(in: space.id),
-            accessController: spaceAccess)
     }
 }

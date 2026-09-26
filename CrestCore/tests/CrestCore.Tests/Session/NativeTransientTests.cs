@@ -78,7 +78,8 @@ public sealed partial class BrowserContractsTests {
         var archived = core.Current.Spaces[0].ArchivedTabs[^1];
         Assert.Equal((ArchiveReason.QuickWindow, "Idle", "https://idle.example/", TabPlacement.Current),
             (archived.Reason, archived.Tab.Title, archived.Tab.Url, archived.Tab.Placement));
-        Assert.Equal(shown, device.Shown(window));
+        Assert.Equal((shown.ShownSpaceId, shown.ShownTabs), (device.Shown(window).ShownSpaceId, device.Shown(window).ShownTabs),
+            new ShownComparer());
         Assert.IsType<TransientAlreadyCompleted>(Assert.Throws<Rejected>(() => device.Send(Archiving(page, first))).Rejection);
 
         // A page memory pressure took back is archived where it lived, at

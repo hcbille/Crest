@@ -9,7 +9,7 @@ import SwiftUI
 /// lives here and the page arrives as a builder.
 struct BrowserSidebarSpacePager<Page: View>: View {
     let context: BrowserSidebarContext
-    @ViewBuilder let page: (BrowserSpace, Bool) -> Page
+    @ViewBuilder let page: (SpaceModel, Bool) -> Page
 
     @State private var dropViewportID = UUID()
 

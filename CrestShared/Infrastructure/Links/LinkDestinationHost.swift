@@ -18,10 +18,10 @@ struct BrowserLinkDestinationHost {
                 accessController: spaceAccess
             )
         else { return false }
-        return space.tabs.contains { $0.id == source.tabID }
+        return space.tabs.model(source.tabID) != nil
     }
 
-    func otherSpaces(from source: BrowserTabRuntimeAssignment) -> [BrowserSpace] {
+    func otherSpaces(from source: BrowserTabRuntimeAssignment) -> [SpaceModel] {
         guard canOpenLink(from: source), let browser, let spaceAccess else { return [] }
         return BrowserSidebarAccessPolicy.availableTabMoveDestinationSpaces(
             from: BrowserSpaceRuntimeAssignment(

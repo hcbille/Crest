@@ -23,7 +23,11 @@ final class MobileBrowserRootModelTests: XCTestCase {
     func testRegularSettingsActivationsSelectTheirNativeTabAndRejectStaleAssignments() throws {
         var space = makeSpace(index: 20)
         let group = SplitGroupID()
-        space.tabs[0].splitGroupID = group
+        // A Start Page lists in no sidebar row, so the split pairs Settings
+        // with a web page.
+        var page = BrowserTab(title: "Page", url: URL(string: "https://example.com/"), placement: .current)
+        page.splitGroupID = group
+        space.tabs = [page]
         var settings = BrowserTab(title: "Settings", url: nil, nativeContent: .settings, placement: .current)
         settings.splitGroupID = group
         space.tabs.append(settings)

@@ -25,10 +25,10 @@ import SwiftUI
 ///   in the session at all.
 struct BrowserSplitPageSurface: View {
     let model: BrowserRootModel
-    let space: BrowserSpace
+    let space: SpaceModel
     /// The presented cards in session order. What the row *draws* is this list
     /// with any carried card moved to the gap.
-    let members: [BrowserTab]
+    let members: [TabStateModel]
     /// The slot a drag in flight would drop into, or `nil` when no drop is
     /// resolved. `BrowserRootPageSurface` owns the decision; the row only draws
     /// it.
@@ -51,7 +51,7 @@ struct BrowserSplitPageSurface: View {
 
     private var widthTransaction: Binding<BrowserSplitWidthTransaction> {
         guard !isSelectedSpace else { return model.splitWidthTransactionBinding }
-        let persisted = model.browser.selectedTabID(in: space.id).flatMap { space.splitGroup(containing: $0) }
+        let persisted = model.browser.shownSplitGroupID(in: space)
             .flatMap { model.windowState?.splitColumnFractions(for: $0) }
         return .constant(
             BrowserSplitWidthTransaction(
@@ -66,7 +66,7 @@ struct BrowserSplitPageSurface: View {
             frameInsets: appearance.pageInsets(
                 docked: model.sidebarPresentation.reservesSidebarWidth, direction: layoutDirection
             ),
-            accent: space.branding.primaryColor.color,
+            accent: BrowserSpaceBranding(look: space.settings.look).primaryColor.color,
             placeholderIndex: placeholderIndex,
             liftedTabID: isSelectedSpace ? model.splitCardLift.carriedTabID : nil,
             widthTransaction: widthTransaction,
@@ -153,7 +153,7 @@ struct BrowserSplitPageSurface: View {
     /// keeps its host — and the live `WKWebView` inside it — alive through a
     /// whole reorder. Once the release settles, the session's own order is the
     /// order already on screen.
-    private var displayMembers: [BrowserTab] {
+    private var displayMembers: [TabStateModel] {
         guard isSelectedSpace, let lift = model.splitCardLift.lift, !lift.isSettling else {
             return members
         }
@@ -308,28 +308,10 @@ struct BrowserSplitPageSurface: View {
     /// nor the tab it belongs to. The card's own presentation is the authority
     /// on what it is drawing, and it is resolved here by the same policy the card
     /// resolves it with, so the picture and the card cannot disagree.
-    private func loadSnapshot(for member: BrowserTab, token: BrowserSplitCardLiftToken) {
+    private func loadSnapshot(for member: TabStateModel, token: BrowserSplitCardLiftToken) {
         let page = model.pages.presentedPage(
-            matching: BrowserTabRuntimeAssignment(
-                tabID: member.id,
-                spaceID: space.id,
-                profileID: space.profile.id
-            )
-        )
-        guard
-            BrowserSplitCardLiftPolicy.picturesPage(
-                BrowserCorePolicy.pagePresentation(
-                    BrowserPagePresentationInput(
-                        selection: member.pagePresentationSelection,
-                        hasActivePage: page != nil,
-                        hasNavigationFailure: page?.live.failure != nil,
-                        hasProcessFailure: page?.webContentFailureMessage != nil,
-                        unloadedBehavior: .remainUnloaded
-                    )
-                )
-            ),
-            let page
-        else { return }
+            matching: BrowserTabRuntimeAssignment(tabID: member.id, spaceID: space.id, profileID: space.profileID))
+        guard BrowserSplitCardLiftPolicy.picturesPage(.of(member.surface, page: page)), let page else { return }
         let lift = model.splitCardLift
         BrowserSplitCardSnapshotLoader.snapshot(of: page) { snapshot in
             guard let snapshot else { return }
@@ -366,11 +348,10 @@ struct BrowserSplitPageSurface: View {
     /// The transparent-interior decision, made per card rather than once for
     /// the window: a start-page or not-yet-committed card shows the Space's
     /// atmosphere through it while loaded neighbours keep their page background.
-    private func usesTransparentInnerSurface(_ member: BrowserTab) -> Bool {
-        let page = model.pages.surfacePage(for: member, in: space, showing: model.browser.selectedTabID(in: space.id),
-            accessController: model.spaceAccess)
+    private func usesTransparentInnerSurface(_ member: TabStateModel) -> Bool {
+        let page = model.pages.surfacePage(for: member.id, in: space, accessController: model.spaceAccess)
         return BrowserPageSurfacePolicy.usesTransparentInnerSurface(
-            isStartPage: member.isStartPage,
+            isStartPage: member.surface == .startPage,
             hasActivePage: page != nil,
             completedNavigationCount: page?.completedNavigationCount ?? 0
         )

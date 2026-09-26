@@ -34,7 +34,7 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                 .ignoresSafeArea()
             } else {
                 BrowserRootBackdrop(
-                    space: model.browser.selectedSpace,
+                    space: model.browser.shownSpace,
                     spaces: BrowserSidebarAccessPolicy.availableSpaces(in: model.browser),
                     transparencyIsEnabled: windowTransparencyIsEnabled,
                     transparencyStrength: windowTransparencyStrength,
@@ -57,7 +57,7 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                         presentation: model.sidebarPresentation,
                         width: model.sidebarWidth,
                         edge: sidebarEdge,
-                        space: model.browser.selectedSpace,
+                        space: model.browser.shownSpace,
                         reduceTransparency: reduceTransparency,
                         spaces: BrowserSidebarAccessPolicy.availableSpaces(in: model.browser),
                         hoverChanged: {

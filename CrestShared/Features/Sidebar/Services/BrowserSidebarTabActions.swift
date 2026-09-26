@@ -107,6 +107,6 @@ struct BrowserSidebarTabActions {
                 accessController: spaceAccess
             )
         else { return false }
-        return space.tabs.contains(where: { $0.id == tabID })
+        return space.tabs.model(tabID) != nil
     }
 }

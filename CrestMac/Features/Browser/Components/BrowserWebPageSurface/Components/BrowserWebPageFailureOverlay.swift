@@ -3,7 +3,7 @@ import SwiftUI
 struct BrowserWebPageFailureOverlay: View {
     let page: BrowserPage
     let branding: BrowserSpaceBranding?
-    let pagePresentation: BrowserPagePresentation
+    let pagePresentation: PagePresentation
 
     var body: some View {
         switch pagePresentation {
@@ -31,7 +31,7 @@ struct BrowserWebPageFailureOverlay: View {
                 goBack: {},
                 proceed: {}
             )
-        case .noSelection, .startPage, .nativeContent, .livePage, .unloaded, .automaticRestore:
+        default:
             EmptyView()
         }
     }

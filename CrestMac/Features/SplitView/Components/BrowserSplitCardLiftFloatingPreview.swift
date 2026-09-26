@@ -80,8 +80,8 @@ struct BrowserSplitCardLiftFloatingPreview: View {
 
     private var placeholder: some View {
         VStack(spacing: CrestSpacing.small) {
-            TabFaviconView(tab: content.tab, profileID: content.profileID, size: 32)
-            Text(content.tab.displayTitle)
+            TabFaviconView(subject: content.favicon, profileID: content.profileID, size: 32)
+            Text(content.title)
                 .font(CrestTypography.controlTitle)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)

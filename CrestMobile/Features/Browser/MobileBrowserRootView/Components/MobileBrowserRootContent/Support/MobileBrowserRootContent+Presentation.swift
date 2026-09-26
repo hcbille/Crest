@@ -15,10 +15,13 @@ extension MobileBrowserRootContent {
     }
 
     var presentsSplitView: Bool {
-        guard let space = browser.selectedSpace,
-            !spaceAccess.isLocked(space)
-        else { return false }
+        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return false }
         return model.presentedSplitMembers.count > 1
+    }
+
+    /// Whether the window shows the Start Page, or no tab at all.
+    var showsStartPage: Bool {
+        browser.shownTab.map { $0.surface == .startPage } ?? true
     }
 
     var usesBorderlessPageFrame: Bool {

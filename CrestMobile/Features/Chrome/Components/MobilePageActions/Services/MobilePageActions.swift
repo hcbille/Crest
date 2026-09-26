@@ -37,5 +37,6 @@ protocol MobilePageActions {
     func printPage()
     func exportPDF(to destination: MobileBrowserFileExportDestination)
     func exportWebArchive(to destination: MobileBrowserFileExportDestination)
-    func reconcileContentBlocking(in session: BrowserSession) async
+    /// Brings every resident page in line with its Space's content blocking.
+    func reconcileContentBlocking() async
 }

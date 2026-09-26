@@ -68,7 +68,7 @@ extension BrowserPage {
             for space in linkDestinationHost.otherSpaces(from: source) {
                 actions.append(
                     BrowserPageContextMenuAction(
-                        kind: .space(space.id), title: space.name,
+                        kind: .space(space.id), title: space.settings.name,
                         symbolName: "square.stack.3d.up", linkURL: linkURL, selectionText: nil))
             }
             actions.append(

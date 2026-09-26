@@ -22,7 +22,7 @@ struct BrowserSidebarContext {
     let capabilities: BrowserInteractionCapabilities
 
     /// The Spaces the sidebar may show, with the ones being deleted left out.
-    let availableSpaces: [BrowserSpace]
+    let availableSpaces: [SpaceModel]
 
     let utilityPresentation: BrowserUtilityPresentationState
     let utilityActions: BrowserUtilityListActions
@@ -49,4 +49,13 @@ struct BrowserSidebarContext {
     /// Opens or closes the archive, history, and downloads switcher, landing on
     /// downloads when some have not been looked at yet.
     let toggleUtilitySwitcher: () -> Void
+
+    // MARK: - Actions - Spaces
+
+    /// The Space as the session copy holds it, for the sidebar pages that
+    /// still draw a copy. TRANSITIONAL until the Space pass draws the Space
+    /// header and site controls from the read model.
+    func spaceCopy(_ space: SpaceModel) -> BrowserSpace? {
+        browser.session.space(id: space.id)
+    }
 }

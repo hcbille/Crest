@@ -33,6 +33,7 @@ extension TabState {
             splitGroupID: tab.splitGroupID, lastActivatedAt: tab.lastActivatedAt,
             positionModifiedAt: tab.positionModifiedAt, customTitle: tab.customTitle,
             titleModifiedAt: tab.titleModifiedAt, keepsPageLoaded: tab.keepsPageLoaded, iconMode: tab.iconMode,
-            displayTitle: tab.displayTitle, isAwayFromSavedAddress: false, pageIconIsCurrent: false)
+            displayTitle: tab.displayTitle, isAwayFromSavedAddress: false, pageIconIsCurrent: false,
+            surface: tab.isStartPage ? .startPage : tab.isWebPage ? .webPage : .nativeView)
     }
 }

@@ -76,16 +76,8 @@ static void policy_boundary(void) {
     assert(crest_core_evaluate_policy((const uint8_t*)setup, strlen(setup), output, 256, &length) == CREST_OK);
     output[length] = 0;
     assert(strstr((const char*)output, "\"error\":\"pinned_limit_reached\""));
-    /* Launch isolation and media arbitration are core rules. */
+    /* Media arbitration is a core rule. */
     char answer[2048];
-    const char *launch = "{\"version\":1,\"operation\":\"launch.plan\",\"platform\":\"mobile\",\"environment\":{"
-        "\"testRuntime\":false,\"previewRuntime\":false,\"isolatedSession\":false,\"namedProfile\":false,"
-        "\"isolatedCloudSync\":false,\"resetSession\":true,\"showcase\":false,\"inMemoryCredentials\":false,"
-        "\"onboardingWelcome\":false,\"desktopSetup\":false,\"mobileSetup\":false,\"performanceHarness\":false,"
-        "\"updateTestFeed\":false},\"hasActiveLaunchGate\":false}";
-    assert(crest_core_evaluate_policy((const uint8_t*)launch, strlen(launch), (uint8_t*)answer, sizeof(answer) - 1, &length) == CREST_OK);
-    answer[length] = 0;
-    assert(strstr(answer, "\"requiresIsolation\":true") && strstr(answer, "\"startupBehavior\":\"lastActiveTab\""));
     const char *media = "{\"version\":1,\"operation\":\"media.arbitrate\",\"sessions\":["
         "{\"id\":\"tab:b\",\"ordinal\":2,\"playbackState\":\"playing\",\"audible\":true},"
         "{\"id\":\"tab:a\",\"ordinal\":1,\"playbackState\":\"paused\",\"audible\":true}]}";

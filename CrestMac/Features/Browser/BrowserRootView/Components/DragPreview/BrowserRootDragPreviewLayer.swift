@@ -32,12 +32,13 @@ struct BrowserRootDragPreviewLayer: View {
     /// from.
     private var splitCardLiftContent: BrowserSplitCardLiftPreviewContent? {
         guard let lift = model.splitCardLift.lift,
-            let space = model.browser.selectedSpace,
-            let tab = space.tabs.first(where: { $0.id == lift.tabID })
+            let space = model.browser.shownSpace,
+            let tab = space.tabs.model(lift.tabID)
         else { return nil }
         return BrowserSplitCardLiftPreviewContent(
-            tab: tab,
-            profileID: space.profile.id,
+            favicon: BrowserTabFaviconSubject(tab: tab, image: model.browser.core.state.favicons.icon(of: tab.id)),
+            title: tab.displayTitle,
+            profileID: space.profileID,
             snapshot: lift.snapshot,
             origin: lift.previewOrigin,
             size: lift.cardSize,

@@ -6,14 +6,13 @@ import Foundation
 extension TabStateModel {
     // MARK: - Variables
 
-    /// A tab with neither a page nor native content: the Start Page, which
-    /// the sidebar lists nowhere.
+    /// The Start Page, which the sidebar lists nowhere.
     var isStartPage: Bool {
-        nativeContent == nil && url == nil
+        surface == .startPage
     }
 
     var isWebPage: Bool {
-        nativeContent == nil && url != nil
+        surface == .webPage
     }
 
     /// The address the tab shows, as the platform reads addresses.

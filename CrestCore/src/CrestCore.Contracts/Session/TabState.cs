@@ -57,9 +57,14 @@ public sealed record TabState(
     /// or the one it shows when it has none. A current tab has none.</summary>
     public string? SavedAddress => Placement.IsDurable ? SavedUrl ?? Url : null;
 
+    /// <summary>What the tab's surface shows: the Start Page, its native view or its web
+    /// page.</summary>
+    [Resolved]
+    public TabSurface Surface => TabSurface.Of(NativeContent, Url);
+
     /// <summary>The tab is a Start Page: it shows neither a web page nor a native view,
     /// and no sidebar lists it.</summary>
-    public bool IsStartPage => Url is null && NativeContent is null;
+    public bool IsStartPage => Surface == TabSurface.StartPage;
 
     #endregion
 }

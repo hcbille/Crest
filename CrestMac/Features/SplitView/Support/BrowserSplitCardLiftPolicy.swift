@@ -69,7 +69,7 @@ enum BrowserSplitCardLiftPolicy {
     /// preview stands its title-and-favicon placeholder down the moment a
     /// snapshot arrives, so a blank one leaves the carry showing neither the page
     /// nor the tab. A card with nothing to picture must not ask.
-    static func picturesPage(_ presentation: BrowserPagePresentation) -> Bool {
+    static func picturesPage(_ presentation: PagePresentation) -> Bool {
         presentation == .livePage
     }
 
@@ -87,11 +87,11 @@ enum BrowserSplitCardLiftPolicy {
     /// Asking the members first removes both. Membership is the row's order, the
     /// answer carries the slot as well as the tab, and a frame belonging to
     /// nobody on show is not a card anybody can be pointing at.
-    static func card(
+    static func card<Member: Identifiable>(
         at point: CGPoint,
-        members: [BrowserTab],
+        members: [Member],
         cardFrames: [TabID: CGRect]
-    ) -> (tabID: TabID, index: Int, frame: CGRect)? {
+    ) -> (tabID: TabID, index: Int, frame: CGRect)? where Member.ID == TabID {
         for (index, member) in members.enumerated() {
             guard let frame = cardFrames[member.id],
                 !frame.isEmpty,
@@ -110,10 +110,10 @@ enum BrowserSplitCardLiftPolicy {
     /// still there, and the midpoint between it and its neighbour lands in the
     /// middle of a card, which would read a whole column as a resize divider and
     /// refuse every pickup inside it.
-    static func orderedMemberFrames(
-        members: [BrowserTab],
+    static func orderedMemberFrames<Member: Identifiable>(
+        members: [Member],
         cardFrames: [TabID: CGRect]
-    ) -> [CGRect] {
+    ) -> [CGRect] where Member.ID == TabID {
         BrowserSplitDropPolicy.ordered(members.compactMap { cardFrames[$0.id] })
     }
 
@@ -189,11 +189,11 @@ enum BrowserSplitCardLiftPolicy {
     ///
     /// It is also why the drop is invisible: the row is already in the order the
     /// commit produces, so the session catching up changes nothing on screen.
-    static func displayMembers(
-        _ members: [BrowserTab],
+    static func displayMembers<Member: Identifiable>(
+        _ members: [Member],
         lifted liftedTabID: TabID?,
         gapIndex: Int
-    ) -> [BrowserTab] {
+    ) -> [Member] where Member.ID == TabID {
         guard let liftedTabID,
             let sourceIndex = members.firstIndex(where: { $0.id == liftedTabID })
         else { return members }

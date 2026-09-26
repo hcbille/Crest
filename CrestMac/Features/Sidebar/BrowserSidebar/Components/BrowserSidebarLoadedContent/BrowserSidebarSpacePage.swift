@@ -77,7 +77,7 @@ struct BrowserSidebarSpacePage: View {
             showHistory: chromeActions.presentHistory,
             commandSurfaceNamespace: commandSurfaceNamespace,
             tabPromotionNamespace: tabPromotionNamespace,
-            editSpace: { actions.presentSpaceSettings(pageSpace) },
+            editSpace: { actions.presentSpaceSettings(BrowserSpaceRuntimeAssignment(space: pageSpace)) },
             createSpace: actions.createSpace,
             utilitySurface: utilityPresentation.surface,
             utilitySearchText: utilitySearchText,

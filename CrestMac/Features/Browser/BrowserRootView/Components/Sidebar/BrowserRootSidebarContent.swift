@@ -75,18 +75,16 @@ struct BrowserRootSidebarContent: View {
         )
     }
 
-    private func presentSpaceSettings(for space: BrowserSpace) {
-        spaceSettingsPresentation.present(
-            assignment: BrowserSpaceRuntimeAssignment(space: space)
-        )
+    private func presentSpaceSettings(for assignment: BrowserSpaceRuntimeAssignment) {
+        spaceSettingsPresentation.present(assignment: assignment)
         model.browser.openSettings()
-        model.pages.select(session: model.browser.presented)
+        model.pages.select()
     }
 
     private func createSpace() {
         model.browser.addSpace()
-        guard let space = model.browser.selectedSpace else { return }
-        model.pages.select(session: model.browser.presented)
-        presentSpaceSettings(for: space)
+        guard let space = model.browser.shownSpace else { return }
+        model.pages.select()
+        presentSpaceSettings(for: BrowserSpaceRuntimeAssignment(space: space))
     }
 }

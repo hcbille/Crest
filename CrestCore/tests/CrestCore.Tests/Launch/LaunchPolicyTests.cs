@@ -1,6 +1,3 @@
-using System.Text;
-using System.Text.Json.Nodes;
-
 using CrestCore.Application;
 using CrestCore.Contracts;
 using CrestCore.Domain;
@@ -15,67 +12,54 @@ public sealed class LaunchPolicyTests {
         "inMemoryCredentials", "onboardingWelcome", "desktopSetup", "mobileSetup", "performanceHarness", "updateTestFeed"
     ];
 
-    private static JsonObject Environment(params string[] enabled) {
-        var value = new JsonObject();
-        foreach (var flag in FixtureFlags.Append("namedProfile")) value[flag] = enabled.Contains(flag);
-        return value;
+    /// A launch environment with the named flags on.
+    private static LaunchEnvironment Environment(params string[] enabled) {
+        bool On(string flag) => enabled.Contains(flag);
+        return new(On("testRuntime"), On("previewRuntime"), On("isolatedSession"), On("namedProfile"), On("isolatedCloudSync"),
+            On("resetSession"), On("showcase"), On("inMemoryCredentials"), On("onboardingWelcome"), On("desktopSetup"),
+            On("mobileSetup"), On("performanceHarness"), On("updateTestFeed"));
     }
 
-    private static JsonNode Plan(JsonObject environment, string platform = "desktop", bool gate = false) =>
-        JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(new JsonObject {
-            ["version"] = 1,
-            ["operation"] = "launch.plan",
-            ["platform"] = platform,
-            ["environment"] = environment,
-            ["hasActiveLaunchGate"] = gate
-        }.ToJsonString())))!;
+    /// The plan the core answers before any session exists.
+    private static LaunchDecision Plan(LaunchEnvironment environment, DevicePlatform? platform = null) =>
+        new StandaloneAnswers().Query(new LaunchIsolation(platform ?? DevicePlatform.Desktop, environment));
 
     [Fact]
     public void EveryTestFixtureAndHarnessLaunchStaysOutOfTheInstalledProfile() {
         foreach (var flag in FixtureFlags)
-            Assert.True(Plan(Environment(flag))["requiresIsolation"]!.GetValue<bool>(), flag);
+            Assert.True(Plan(Environment(flag)).RequiresIsolation, flag);
         var installed = Plan(Environment());
-        Assert.False(installed["requiresIsolation"]!.GetValue<bool>());
-        Assert.False(installed["usesEphemeralProfileStorage"]!.GetValue<bool>());
+        Assert.False(installed.RequiresIsolation);
+        Assert.False(installed.UsesEphemeralProfileStorage);
         // A profile name alone never isolates; it only keeps an isolated launch's storage.
-        Assert.False(Plan(Environment("namedProfile"))["requiresIsolation"]!.GetValue<bool>());
+        Assert.False(Plan(Environment("namedProfile")).RequiresIsolation);
     }
 
     [Fact]
     public void OnlyANamedIsolatedProfileKeepsPersistentWebStorage() {
-        Assert.True(Plan(Environment("isolatedSession"))["usesEphemeralProfileStorage"]!.GetValue<bool>());
-        Assert.False(Plan(Environment("isolatedSession", "namedProfile"))["usesEphemeralProfileStorage"]!.GetValue<bool>());
+        Assert.True(Plan(Environment("isolatedSession")).UsesEphemeralProfileStorage);
+        Assert.False(Plan(Environment("isolatedSession", "namedProfile")).UsesEphemeralProfileStorage);
     }
 
     [Fact]
     public void OnlyTheTestRuntimeSuppressesInstalledApplicationUI() {
-        Assert.False(Plan(Environment("testRuntime"))["presentsInstalledApplicationUI"]!.GetValue<bool>());
-        Assert.True(Plan(Environment("isolatedSession"))["presentsInstalledApplicationUI"]!.GetValue<bool>());
-        Assert.True(Plan(Environment("previewRuntime"))["presentsInstalledApplicationUI"]!.GetValue<bool>());
+        Assert.False(Plan(Environment("testRuntime")).PresentsInstalledApplicationUI);
+        Assert.True(Plan(Environment("isolatedSession")).PresentsInstalledApplicationUI);
+        Assert.True(Plan(Environment("previewRuntime")).PresentsInstalledApplicationUI);
     }
 
     [Theory]
-    [InlineData("desktop", false, "showStartPage")]
-    [InlineData("desktop", true, "lastActiveTab")]
-    [InlineData("mobile", false, "showStartPage")]
-    public void WithoutASessionALaunchOpensTheDefaultUnlessSetupOwnsTheFirstWindow(string platform, bool gate, string expected) =>
-        Assert.Equal(expected, Plan(Environment(), platform, gate)["startupBehavior"]!.GetValue<string>());
+    [InlineData("desktop", false, StartupBehavior.ShowStartPage)]
+    [InlineData("desktop", true, StartupBehavior.LastActiveTab)]
+    [InlineData("mobile", false, StartupBehavior.ShowStartPage)]
+    public void WithoutASessionALaunchOpensTheDefaultUnlessSetupOwnsTheFirstWindow(string platform, bool gate, StartupBehavior expected) =>
+        Assert.Equal(expected, LaunchPolicy.Plan(Environment(), DevicePlatform.Named(platform)!, storedStartup: null, gate).Startup);
 
     [Fact]
     public void IsolatedLaunchesRestoreTheirStagedTabExceptTheMobileShowcase() {
-        Assert.Equal("lastActiveTab", Plan(Environment("resetSession"), "mobile")["startupBehavior"]!.GetValue<string>());
-        Assert.Equal("lastActiveTab", Plan(Environment("showcase"), "desktop")["startupBehavior"]!.GetValue<string>());
-        Assert.Equal("showStartPage", Plan(Environment("showcase"), "mobile")["startupBehavior"]!.GetValue<string>());
+        Assert.Equal(StartupBehavior.LastActiveTab, Plan(Environment("resetSession"), DevicePlatform.Mobile).Startup);
+        Assert.Equal(StartupBehavior.LastActiveTab, Plan(Environment("showcase"), DevicePlatform.Desktop).Startup);
+        Assert.Equal(StartupBehavior.ShowStartPage, Plan(Environment("showcase"), DevicePlatform.Mobile).Startup);
         Assert.Equal(StartupBehavior.ShowStartPage, LaunchPolicy.DefaultStartup);
-    }
-
-    [Fact]
-    public void TheEnvironmentMustNameEveryFlag() {
-        var partial = Environment();
-        partial.Remove("updateTestFeed");
-        Assert.Throws<KeyNotFoundException>(() => Plan(partial));
-        var extra = Environment();
-        extra["futureFlag"] = true;
-        Assert.Equal(ProtocolErrorCodes.UnexpectedMember, Assert.Throws<ProtocolException>(() => Plan(extra)).Code);
     }
 }

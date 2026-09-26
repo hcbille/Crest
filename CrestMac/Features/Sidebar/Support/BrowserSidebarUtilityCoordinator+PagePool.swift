@@ -22,12 +22,12 @@ extension BrowserSidebarUtilityCoordinator {
                 openHistoryEntry: { url, assignment in
                     guard browser.openNewTab(url: url, matching: assignment) != nil
                     else { return }
-                    pages.select(session: browser.presented)
+                    pages.select()
                     pages.navigate(to: url.absoluteString)
                 },
                 selectRestoredTab: { tabID in
                     browser.selectTab(tabID)
-                    pages.select(session: browser.presented)
+                    pages.select()
                 },
                 openFinishedDownload: { item, destination in
                     guard item.phase.isComplete,

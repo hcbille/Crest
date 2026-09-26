@@ -18,9 +18,7 @@ struct BrowserRootLifecycleModifier: ViewModifier {
         self.persistSidebarWidth = persistSidebarWidth
         _storedSidebarWidth = storedSidebarWidth
         _runtimeSessionProjection = State(
-            initialValue: BrowserRuntimeSessionProjection(
-                session: model.browser.session
-            )
+            initialValue: model.pages.runtimeProjection
         )
     }
 
@@ -51,7 +49,7 @@ struct BrowserRootLifecycleModifier: ViewModifier {
 
         let pageObservedContent =
             preparedContent
-            .onChange(of: model.browser.selectedTab?.url) { model.synchronizePageMetadata() }
+            .onChange(of: model.browser.shownTab?.url) { model.synchronizePageMetadata() }
             .onChange(of: model.pages.activePage?.live.displayURL) {
                 model.synchronizePageMetadata()
             }
@@ -59,9 +57,7 @@ struct BrowserRootLifecycleModifier: ViewModifier {
         let runtimeObservedContent =
             pageObservedContent
             .onChange(of: model.browser.sessionRevision, initial: true) {
-                runtimeSessionProjection = BrowserRuntimeSessionProjection(
-                    session: model.browser.session
-                )
+                runtimeSessionProjection = model.pages.runtimeProjection
                 model.reconcilePages()
             }
             .onChange(

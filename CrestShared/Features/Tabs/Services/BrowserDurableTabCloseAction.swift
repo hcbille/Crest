@@ -13,18 +13,21 @@ struct BrowserDurableTabCloseAction {
             let space = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
                 matching: BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID),
                 in: browser, accessController: spaceAccess
-            ), let tab = space.tabs.first(where: { $0.id == assignment.tabID }),
+            ), let tab = space.tabs.model(assignment.tabID),
             tab.placement.isDurable
         else { return false }
         // TRANSITIONAL until WP C slice (g) sequences before-unload in the core:
         // the engine closes the page first, keeping its state only when the
         // core will leave the tab where it is, which the same preference says.
-        let returnsToRoot = preferences.savedTabClosePolicy == .returnToSavedURL && tab.savedSiteURL != nil
+        let returnsToRoot = preferences.savedTabClosePolicy == .returnToSavedURL && (tab.savedURL ?? tab.url) != nil
         return browser.performPageDismissal(of: [assignment]) {
-            guard BrowserSidebarAccessPolicy.selectedUnlockedSpace(
-                matching: BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID),
-                in: browser, accessController: spaceAccess) != nil,
-                closePage(assignment, returnsToRoot) else { return false }
+            guard
+                BrowserSidebarAccessPolicy.selectedUnlockedSpace(
+                    matching: BrowserSpaceRuntimeAssignment(
+                        spaceID: assignment.spaceID, profileID: assignment.profileID),
+                    in: browser, accessController: spaceAccess) != nil,
+                closePage(assignment, returnsToRoot)
+            else { return false }
             return browser.closeDurableTab(assignment)
         }
     }

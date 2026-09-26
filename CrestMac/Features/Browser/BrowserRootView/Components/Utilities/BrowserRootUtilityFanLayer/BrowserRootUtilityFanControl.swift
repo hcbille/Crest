@@ -41,7 +41,9 @@ struct BrowserRootUtilityFanControl: View {
                 y: proxy.size.height / 2
             ),
             selectedSurface: model.chrome.utilityPresentation.surface,
-            badgeColor: model.browser.selectedSpace?.branding.colors.first?.color
+            badgeColor: model.browser.shownSpace.flatMap {
+                BrowserSpaceBranding(look: $0.settings.look).colors.first?.color
+            }
                 ?? .accentColor,
             downloads: model.selectedUtilityDownloads,
             newDownloadCount: model.newUtilityDownloads.count,

@@ -10,7 +10,6 @@ internal enum PolicyOperation {
     ExternalScheme,
     ExternalUrl,
     GeolocationOrigin,
-    LaunchPlan,
     Limits,
     MediaArbitrate,
     MediaSessionEvent,
@@ -28,13 +27,11 @@ internal enum PolicyOperation {
     SetupSpace,
     SetupTab,
     // Links, Quick Windows, presentation, branding and workspace routing.
-    BrandingNormalize,
     LinksRouteCreate,
     LinksRouteMove,
     LinksRouteRemove,
     LinksRouteUpdate,
     LinksSpaceRemoved,
-    PagePresentation,
     QuickWindowDismissal,
     QuickWindowRetarget,
 }
@@ -51,7 +48,6 @@ internal static class PolicyOperationCodes {
         "external.scheme" => PolicyOperation.ExternalScheme,
         "external.url" => PolicyOperation.ExternalUrl,
         "geolocation.origin" => PolicyOperation.GeolocationOrigin,
-        "launch.plan" => PolicyOperation.LaunchPlan,
         "limits" => PolicyOperation.Limits,
         "media.arbitrate" => PolicyOperation.MediaArbitrate,
         "media.session_event" => PolicyOperation.MediaSessionEvent,
@@ -69,13 +65,11 @@ internal static class PolicyOperationCodes {
         "setup.space" => PolicyOperation.SetupSpace,
         "setup.tab" => PolicyOperation.SetupTab,
         // Links, Quick Windows, presentation, branding and workspace routing.
-        "branding.normalize" => PolicyOperation.BrandingNormalize,
         "links.route_create" => PolicyOperation.LinksRouteCreate,
         "links.route_move" => PolicyOperation.LinksRouteMove,
         "links.route_remove" => PolicyOperation.LinksRouteRemove,
         "links.route_update" => PolicyOperation.LinksRouteUpdate,
         "links.space_removed" => PolicyOperation.LinksSpaceRemoved,
-        "page.presentation" => PolicyOperation.PagePresentation,
         "quick_window.dismissal" => PolicyOperation.QuickWindowDismissal,
         "quick_window.retarget" => PolicyOperation.QuickWindowRetarget,
         _ => PolicyOperation.Unknown

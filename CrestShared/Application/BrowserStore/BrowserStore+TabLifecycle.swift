@@ -5,7 +5,7 @@ import Foundation
 extension BrowserStore {
     @discardableResult
     func openNewTab() -> TabID? {
-        selectOrCreateStartPageDraft()
+        showStartPage(outsideSplits: false)
     }
 
     /// Presents the Start Page before the person chooses a restored tab.
@@ -15,29 +15,30 @@ extension BrowserStore {
     /// not turn the Start Page draft into the next "last active tab."
     @discardableResult
     func presentStartPageForLaunch() -> TabID? {
-        selectOrCreateStartPageDraft()
+        showStartPage(outsideSplits: false)
     }
 
     /// Like launch presentation, entering an unloaded Space keeps the
     /// remembered tab intact and does not persist a replacement selection.
     @discardableResult
     func presentStartPageForSpaceEntry() -> TabID? {
-        selectOrCreateStartPageDraft(excludingSplitGroups: true)
+        showStartPage(outsideSplits: true)
     }
 
-    private func selectOrCreateStartPageDraft(excludingSplitGroups: Bool = false) -> TabID? {
-        guard let space = selectedSpace else { return nil }
-        if let draft = space.currentTabs.first(where: {
-            $0.isStartPage && (!excludingSplitGroups || space.splitGroup(containing: $0.id) == nil)
-        }) {
-            return activateSessionTab(draft.id, in: space.id) ? draft.id : nil
-        }
-        return openSessionTab(.startPage, in: space.id, insertingAfter: selectedTabID(in: space.id))
+    /// Shows a Start Page in the Space this window shows, which the core
+    /// chooses or opens, and answers it.
+    private func showStartPage(outsideSplits: Bool) -> TabID? {
+        guard let space = shownSpace else { return nil }
+        let opening = ShowStartPage(
+            workspaceID: family.workspaceID, windowID: windowID, spaceID: space.id, tabID: TabID(),
+            outsideSplits: outsideSplits)
+        guard family.perform(opening, from: self) != nil else { return nil }
+        return selectedTabID(in: space.id)
     }
 
     @discardableResult
     func openNewTab(url: URL) -> TabID? {
-        guard let space = selectedSpace else { return nil }
+        guard let space = shownSpace else { return nil }
         return openSessionTab(.page(url), in: space.id, insertingAfter: selectedTabID(in: space.id))
     }
 
@@ -125,15 +126,22 @@ extension BrowserStore {
         }
     }
 
+    /// Opens an address another app handed Crest in the Space this window
+    /// shows, as `openAddress` does.
     @discardableResult
     func openExternalURL(_ url: URL) -> Bool {
-        guard BrowserCorePolicy.acceptsExternalURL(url) else { return false }
-        if selectedTab?.isStartPage == true {
-            navigateSelectedTab(to: url.absoluteString)
-        } else {
-            openNewTab(url: url)
-        }
-        return true
+        guard BrowserCorePolicy.acceptsExternalURL(url), let space = shownSpace else { return false }
+        return openAddress(url, in: space.id)
+    }
+
+    /// Opens `url` in a Space this window shows: the Start Page on show there
+    /// takes it, or a new tab opens it, which the core decides.
+    @discardableResult
+    func openAddress(_ url: URL, in spaceID: SpaceID) -> Bool {
+        let opening = OpenAddress(
+            workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID, tabID: TabID(),
+            address: url.absoluteString)
+        return family.perform(opening, from: self) != nil
     }
 
 }
@@ -143,9 +151,7 @@ extension BrowserStore {
 extension BrowserStore {
     @discardableResult
     func closeTab(_ id: TabID) -> Bool {
-        guard let space = selectedSpace,
-            space.currentTabs.contains(where: { $0.id == id })
-        else { return false }
+        guard let space = shownSpace, space.tabs.model(id)?.placement == .current else { return false }
         return closeTab(id, in: space.id)
     }
 
@@ -175,7 +181,8 @@ extension BrowserStore {
         return performPageDismissal(of: tabs) { [weak self] in
             guard let self, let current = self.space(matching: assignment),
                 Set(current.currentTabs.map(\.id)) == ids,
-                self.clearSessionTabs(in: assignment.spaceID) else { return false }
+                self.clearSessionTabs(in: assignment.spaceID)
+            else { return false }
             return true
         }
     }
@@ -243,7 +250,8 @@ extension BrowserStore {
         in spaceID: SpaceID
     ) {
         guard
-            setSessionTabIcon(.pulled, faviconData: faviconData,
+            setSessionTabIcon(
+                .pulled, faviconData: faviconData,
                 iconAccent: iconAccent, tabID: id, in: spaceID)
         else { return }
     }
@@ -257,7 +265,8 @@ extension BrowserStore {
     ) -> Bool {
         guard let space = space(matching: assignment),
             space.tabs.contains(where: { $0.id == id }),
-            setSessionTabIcon(.pulled, faviconData: faviconData,
+            setSessionTabIcon(
+                .pulled, faviconData: faviconData,
                 iconAccent: iconAccent, tabID: id, in: assignment.spaceID)
         else { return false }
         return true
@@ -296,13 +305,12 @@ extension BrowserStore {
         return session.space(id: spaceID)?.tabs.first(where: { $0.id == id })?.url
     }
 
+    /// Archives the tab this window shows, where the core allows it.
     @discardableResult
     func archiveSelectedTab() -> TabID? {
-        guard let tab = selectedTab,
-            !tab.placement.isDurable,
-            !tab.isStartPage
-        else { return nil }
-        guard closeTab(tab.id) else { return nil }
+        guard allows(.archiveTab), let space = shownSpace, let tab = shownTab, closeTab(tab.id, in: space.id) else {
+            return nil
+        }
         return tab.id
     }
 
@@ -316,12 +324,10 @@ extension BrowserStore {
     /// the input was blank, or a rule refused it.
     @discardableResult
     func navigateSelectedTab(to input: String) -> Bool {
-        guard selectedTab?.isWebPage == false,
-            let space = selectedSpace, let tabID = selectedTabID(in: space.id)
-        else { return false }
+        guard let space = shownSpace, let tab = shownTab, !tab.surface.showsPage else { return false }
         return family.send(
             NavigateTab(
-                workspaceID: family.workspaceID, spaceID: space.id, tabID: tabID, input: input),
+                workspaceID: family.workspaceID, spaceID: space.id, tabID: tab.id, input: input),
             from: self, failure: "Core navigation failed")
     }
 

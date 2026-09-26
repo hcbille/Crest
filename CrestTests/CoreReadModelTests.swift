@@ -146,7 +146,9 @@ final class CoreReadModelTests: XCTestCase {
         let value = WindowState(
             id: UUID(), workspaceID: UUID(), shownSpaceID: UUID(),
             shownTabs: [ShownTab(spaceID: UUID(), tabID: UUID())],
-            splitColumnShares: [SplitColumnShares(groupID: UUID(), shares: [0.5, 0.5])])
+            splitColumnShares: [SplitColumnShares(groupID: UUID(), shares: [0.5, 0.5])],
+            cards: [ShownCards(spaceID: UUID(), tabIDs: [UUID(), UUID()], splitGroupID: UUID())],
+            unavailableCommands: [.duplicateTab, .archiveTab])
         let model = WindowStateModel(value)
         let stored = Set(Mirror(reflecting: model).children.compactMap(\.label))
         for case let field? in Mirror(reflecting: value).children.map(\.label) {
@@ -157,7 +159,8 @@ final class CoreReadModelTests: XCTestCase {
         XCTAssertEqual(model.value, value)
         let next = WindowState(
             id: value.id, workspaceID: UUID(), shownSpaceID: UUID(),
-            shownTabs: [ShownTab(spaceID: UUID(), tabID: nil)], splitColumnShares: [])
+            shownTabs: [ShownTab(spaceID: UUID(), tabID: nil)], splitColumnShares: [], cards: [],
+            unavailableCommands: [.reloadPage])
         model.update(next)
         XCTAssertEqual(model.value, next)
         XCTAssertFalse(model.shownTabIDs.contains(value.shownTabs[0].tabID ?? UUID()))
@@ -284,7 +287,7 @@ final class CoreReadModelTests: XCTestCase {
                     WindowChanged(
                         window: WindowState(
                             id: windowID, workspaceID: workspaceID, shownSpaceID: UUID(), shownTabs: [],
-                            splitColumnShares: [])))
+                            splitColumnShares: [], cards: [], unavailableCommands: [])))
             })
         let pageID = UUID()
         assertStoredFirst(

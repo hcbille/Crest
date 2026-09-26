@@ -38,9 +38,11 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
             .flatMap(Self.normalizedIsolationID)
         requestsIsolatedCloudSync = values["CREST_ISOLATED_CLOUD_SYNC_ID"] != nil
         isolatedCloudSyncID = values["CREST_ISOLATED_CLOUD_SYNC_ID"].flatMap { value in
-            guard (1...48).contains(value.count), value.allSatisfy({
-                $0.isASCII && ($0.isLowercase || $0.isNumber || $0 == "-")
-            }) else { return nil }
+            guard (1...48).contains(value.count),
+                value.allSatisfy({
+                    $0.isASCII && ($0.isLowercase || $0.isNumber || $0 == "-")
+                })
+            else { return nil }
             return value
         }
         resetsSession = Self.isEnabled(.resetSession, in: values)
@@ -73,7 +75,11 @@ struct BrowserLaunchEnvironment: Equatable, Sendable {
         )
         self.isXCTestRuntime = isXCTestRuntime
         self.isSwiftUIPreviewRuntime = isSwiftUIPreviewRuntime
-        let plan = BrowserCorePolicy.launchPlan(for: self)
+        // Isolation is decided before any core exists, so the core answers it
+        // without an app.
+        let plan =
+            (try? CrestCore.answer(LaunchIsolation(platform: .current, environment: coreEnvironment)))
+            ?? LaunchDecision.unavailable
         requiresIsolation = plan.requiresIsolation
         usesEphemeralProfileStorage = plan.usesEphemeralProfileStorage
         presentsInstalledApplicationUI = plan.presentsInstalledApplicationUI

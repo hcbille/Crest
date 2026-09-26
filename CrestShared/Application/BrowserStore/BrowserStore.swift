@@ -90,6 +90,16 @@ final class BrowserStore {
         return next
     }
 
+    /// Shows the tab of this window's Space used most recently other than the
+    /// one it shows, which the core chooses. False when there is none.
+    @discardableResult
+    func showMostRecentTab() -> Bool {
+        let shown = shownTab?.id
+        guard sendWindowIntent(ShowMostRecentTab(windowID: windowID)), shownTab?.id != shown else { return false }
+        sessionRevision &+= 1
+        return true
+    }
+
     func clearPresentedTabSelection(in spaceID: SpaceID) {
         guard sendWindowIntent(ShowTab(windowID: windowID, spaceID: spaceID, tabID: nil)) else {
             return
@@ -173,7 +183,8 @@ final class BrowserStore {
         self.family = family
         localSyncErrorDescription = nil
         lastWindow = WindowState(
-            id: opening.id, workspaceID: UUID(), shownSpaceID: UUID(), shownTabs: [], splitColumnShares: [])
+            id: opening.id, workspaceID: UUID(), shownSpaceID: UUID(), shownTabs: [], splitColumnShares: [], cards: [],
+            unavailableCommands: [])
         let workspace = family.register(self)
         do {
             try core.send(

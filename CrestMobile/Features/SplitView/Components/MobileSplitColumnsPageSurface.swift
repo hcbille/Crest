@@ -22,8 +22,8 @@ struct MobileSplitColumnsPageSurface: View {
     @Environment(\.browserChromeAppearance) private var appearance
     @Environment(\.layoutDirection) private var layoutDirection
     let model: MobileBrowserRootModel
-    let space: BrowserSpace
-    let members: [BrowserTab]
+    let space: SpaceModel
+    let members: [TabStateModel]
     let adjoinsSidebar: Bool
     /// The slot a drag out of the sidebar would drop a card into.
     /// `MobileRegularPageSurface` owns the decision; the row only draws it.
@@ -32,9 +32,9 @@ struct MobileSplitColumnsPageSurface: View {
     var body: some View {
         BrowserSplitColumnsView(
             members: members,
-            focusedTabID: model.browser.selectedTab?.id,
+            focusedTabID: model.browser.shownTab?.id,
             frameInsets: appearance.pageInsets(docked: adjoinsSidebar, direction: layoutDirection),
-            accent: space.branding.primaryColor.color,
+            accent: BrowserSpaceBranding(look: space.settings.look).primaryColor.color,
             placeholderIndex: placeholderIndex,
             // "Fancy Move" is a pointer gesture: ⇧⌘-held mouse-down, and a
             // card that follows a cursor. iPadOS reorders its cards from the
@@ -85,16 +85,16 @@ struct MobileSplitColumnsPageSurface: View {
     /// The transparent-interior decision, made per card rather than once for the
     /// window: a start-page or not-yet-committed card shows the Space's atmosphere
     /// through it while loaded neighbours keep their page background.
-    private func usesTransparentInnerSurface(_ member: BrowserTab) -> Bool {
+    private func usesTransparentInnerSurface(_ member: TabStateModel) -> Bool {
         let page = model.pages.residentPage(
             matching: BrowserTabRuntimeAssignment(
                 tabID: member.id,
                 spaceID: space.id,
-                profileID: space.profile.id
+                profileID: space.profileID
             )
         )
         return BrowserPageSurfacePolicy.usesTransparentInnerSurface(
-            isStartPage: member.isStartPage,
+            isStartPage: member.surface == .startPage,
             hasActivePage: page != nil,
             completedNavigationCount: page?.completedNavigationCount ?? 0
         )

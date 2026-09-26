@@ -3,7 +3,7 @@ import SwiftUI
 struct BrowserWebPageSurface: View {
     let page: BrowserPage
     let browser: BrowserStore
-    let pagePresentation: BrowserPagePresentation
+    let pagePresentation: PagePresentation
     let isPageActive: Bool
     let focusRestorationGate: BrowserWebFocusRestorationGate
 

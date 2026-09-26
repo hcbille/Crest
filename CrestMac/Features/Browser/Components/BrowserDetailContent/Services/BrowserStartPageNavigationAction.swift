@@ -12,12 +12,12 @@ struct BrowserStartPageNavigationAction {
                 source,
                 in: browser,
                 accessController: spaceAccess
-            ), browser.selectedTab?.isStartPage == true
+            ), browser.shownTab?.surface == .startPage
         else { return false }
         browser.navigateSelectedTab(to: url.absoluteString)
         // A cold launch or unloaded Space has no active page to receive load().
         // Selecting materializes the draft's page and starts its initial URL.
-        pages.select(session: browser.presented)
+        pages.select()
         return true
     }
 }

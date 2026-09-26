@@ -212,6 +212,9 @@ struct MobilePageActionsContent: View {
     }
 
     private var contentBlockingActionTitle: LocalizedStringResource {
-        ContentBlockingPolicy.switchTitle(for: browser.selectedSpace?.browsingPreferences.contentBlockingPolicy)
+        ContentBlockingPolicy.switchTitle(
+            for: browser.shownSpace.map {
+                BrowserSpaceBrowsingPreferences(core: $0.settings.browsingPreferences).contentBlockingPolicy
+            })
     }
 }

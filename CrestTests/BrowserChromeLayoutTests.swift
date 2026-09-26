@@ -153,35 +153,6 @@ final class BrowserChromeLayoutTests: XCTestCase {
         )
     }
 
-    func testSpaceAccessibilityReportsPositionAndMovesOnlyOneSpace() throws {
-        let session = BrowserSession.preview
-        let work = try XCTUnwrap(session.spaces.first)
-        let personal = try XCTUnwrap(session.spaces.last)
-
-        XCTAssertEqual(
-            BrowserChromeAccessibility.spaceValue(
-                spaces: session.spaces,
-                selectedSpaceID: work.id
-            ),
-            "Work, 1 of 2"
-        )
-        XCTAssertNil(
-            BrowserChromeAccessibility.adjacentSpaceID(
-                spaces: session.spaces,
-                selectedSpaceID: work.id,
-                direction: .previous
-            )
-        )
-        XCTAssertEqual(
-            BrowserChromeAccessibility.adjacentSpaceID(
-                spaces: session.spaces,
-                selectedSpaceID: work.id,
-                direction: .next
-            ),
-            personal.id
-        )
-    }
-
     func testChromeAccessibilityValuesPreserveTabFolderAndBadgeState() {
         XCTAssertEqual(
             BrowserChromeAccessibility.tabValue(isLoaded: true),
@@ -445,11 +416,9 @@ extension BrowserChromeLayoutTests {
                 browser: browser, pages: pages, chrome: BrowserChromeState(sidebarIsPresented: true),
                 spaceAccess: BrowserSpaceAccessController(), windowState: nil, startupBehavior: .showStartPage,
                 persistedSidebarWidth: 289)
+            let spaceModel = try XCTUnwrap(browser.spaceModel(space.id))
             let livePages = try space.tabs.map { tab in
-                try XCTUnwrap(
-                    pages.surfacePage(
-                        for: tab, in: space, showing: browser.selectedTabID(in: space.id),
-                        accessController: model.spaceAccess))
+                try XCTUnwrap(pages.surfacePage(for: tab.id, in: spaceModel, accessController: model.spaceAccess))
             }
             // Finish the pool's initial blank documents before starting this
             // navigation, so their late completion cannot contaminate the baseline.

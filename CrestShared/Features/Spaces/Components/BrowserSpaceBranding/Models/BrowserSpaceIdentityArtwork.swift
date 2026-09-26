@@ -2,10 +2,10 @@ enum BrowserSpaceIdentityArtwork: Equatable {
     case crest
     case symbol(String)
 
-    init(space: BrowserSpace) {
+    init(_ identity: BrowserSpaceIdentity) {
         self =
-            space.branding.iconStyle == .layeredCrest
+            identity.branding.iconStyle == .layeredCrest
             ? .crest
-            : .symbol(space.symbol)
+            : .symbol(identity.symbol)
     }
 }

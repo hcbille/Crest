@@ -172,7 +172,8 @@ final class BrowserQuickWindowModel {
         else { return }
         activityClock.recordActivity(restartsTimerImmediately: true)
         let currentURL = currentSnapshot?.url ?? presentedRequest.initialURL
-        let retarget = BrowserCorePolicy.quickWindowRetarget(presentedRequest,
+        let retarget = BrowserCorePolicy.quickWindowRetarget(
+            presentedRequest,
             to: currentURL ?? presentedRequest.url, assignment: assignment, pageURL: currentURL)
         guard
             revisePresentedRequest(
@@ -195,8 +196,10 @@ final class BrowserQuickWindowModel {
         guard isCurrentRequest, !wasPromoted, !wasArchived, let pages else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(space: destination)
         let url = currentSnapshot?.url ?? presentedRequest.initialURL
-        let remembersSpace = BrowserCorePolicy.quickWindowRetarget(presentedRequest,
-            to: url ?? presentedRequest.url, assignment: assignment, pageURL: url).remembersSpace
+        let remembersSpace = BrowserCorePolicy.quickWindowRetarget(
+            presentedRequest,
+            to: url ?? presentedRequest.url, assignment: assignment, pageURL: url
+        ).remembersSpace
         // A page memory pressure took back comes back to be kept.
         if pageLease?.page == nil { pageLease?.restore() }
         guard
@@ -215,7 +218,7 @@ final class BrowserQuickWindowModel {
         }
         wasPromoted = true
         if outcome != .adoptedLivePage { pageLease?.release() }
-        pages.select(session: browser.presented)
+        pages.select()
         return true
     }
 
@@ -236,8 +239,9 @@ final class BrowserQuickWindowModel {
     @discardableResult
     func archivePageIfNeeded() -> Bool {
         let snapshot = currentSnapshot
-        guard BrowserCorePolicy.quickWindowArchivesOnDismissal(
-            wasArchived: wasArchived, wasPromoted: wasPromoted, hasPage: snapshot != nil),
+        guard
+            BrowserCorePolicy.quickWindowArchivesOnDismissal(
+                wasArchived: wasArchived, wasPromoted: wasPromoted, hasPage: snapshot != nil),
             let snapshot
         else { return false }
         guard
@@ -325,8 +329,11 @@ final class BrowserQuickWindowModel {
         assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         let expected = presentedRequest
-        guard BrowserCorePolicy.quickWindowRetarget(presentedRequest, to: url,
-            assignment: assignment, pageURL: nil).revises
+        guard
+            BrowserCorePolicy.quickWindowRetarget(
+                presentedRequest, to: url,
+                assignment: assignment, pageURL: nil
+            ).revises
         else {
             return isCurrentRequest
         }

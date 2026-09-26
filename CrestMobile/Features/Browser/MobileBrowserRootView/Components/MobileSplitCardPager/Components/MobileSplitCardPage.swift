@@ -12,8 +12,8 @@ import SwiftUI
 /// and it has to travel as data because the carousel's `ScrollView` resolves its
 /// cells' safe area to zero.
 struct MobileSplitCardPage: View {
-    let member: BrowserTab
-    let space: BrowserSpace
+    let member: TabStateModel
+    let space: SpaceModel
     let pages: MobileBrowserPageStore
     let viewport: MobileBrowserPageViewport
     let prepareMember: (TabID) -> Void

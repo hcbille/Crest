@@ -1,8 +1,14 @@
+/// Switches content blocking for the Space of the page the window shows, and
+/// brings resident pages in line with it.
 @MainActor
 struct MobileContentBlockingAction {
+    // MARK: - Variables
+
     private let browser: BrowserStore
     private let pageAssignment: () -> BrowserTabRuntimeAssignment?
-    private let reconcile: (BrowserSession) async -> Void
+    private let reconcile: () async -> Void
+
+    // MARK: - Initializers
 
     init(
         browser: BrowserStore,
@@ -10,25 +16,22 @@ struct MobileContentBlockingAction {
     ) {
         self.browser = browser
         pageAssignment = { pages.pageAssignment }
-        reconcile = { session in
-            await pages.reconcileContentBlocking(in: session)
-        }
+        reconcile = { await pages.reconcileContentBlocking() }
     }
 
+    // MARK: - Actions - Switching
+
+    /// Switches the policy while the page the action was built for is still
+    /// the one the window shows, answering whether it did.
     @discardableResult
     func perform() async -> Bool {
-        guard let assignment = pageAssignment(),
-            let space = browser.selectedSpace,
-            let tab = browser.selectedTab,
-            tab.id == assignment.tabID,
-            space.id == assignment.spaceID,
-            space.profile.id == assignment.profileID
+        guard let assignment = pageAssignment(), browser.shownTabAssignment == assignment,
+            let space = browser.shownSpace
         else { return false }
-        var preferences = space.browsingPreferences
+        var preferences = BrowserSpaceBrowsingPreferences(core: space.settings.browsingPreferences)
         preferences.contentBlockingPolicy = preferences.contentBlockingPolicy.switched
         browser.updateBrowsingPreferences(preferences, in: space.id)
-        let committedSession = browser.session
-        await reconcile(committedSession)
+        await reconcile()
         return true
     }
 }

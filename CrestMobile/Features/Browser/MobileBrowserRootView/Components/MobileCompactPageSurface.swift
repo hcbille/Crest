@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MobileCompactPageSurface<Backdrop: View, Detail: View>: View {
-    let selectedTab: BrowserTab?
+    let selectedTab: TabStateModel?
     let isURLCopiedFeedbackVisible: Bool
     let pageZoomFeedbackLabel: String?
     let reduceMotion: Bool

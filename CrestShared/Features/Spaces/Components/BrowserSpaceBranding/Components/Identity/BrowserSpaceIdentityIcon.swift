@@ -1,15 +1,28 @@
 import SwiftUI
 
 struct BrowserSpaceIdentityIcon: View {
-    let space: BrowserSpace
+    let identity: BrowserSpaceIdentity
     var size: CGFloat = 24
+
+    init(space: BrowserSpace, size: CGFloat = 24) {
+        self.init(identity: BrowserSpaceIdentity(space: space), size: size)
+    }
+
+    init(space: SpaceModel, size: CGFloat = 24) {
+        self.init(identity: BrowserSpaceIdentity(space: space), size: size)
+    }
+
+    init(identity: BrowserSpaceIdentity, size: CGFloat = 24) {
+        self.identity = identity
+        self.size = size
+    }
 
     var body: some View {
         Group {
-            switch BrowserSpaceIdentityArtwork(space: space) {
+            switch BrowserSpaceIdentityArtwork(identity) {
             case .crest:
                 BrowserSpaceCrestIcon(
-                    branding: space.branding,
+                    branding: identity.branding,
                     size: size
                 )
             case .symbol(let systemImage):
@@ -20,7 +33,7 @@ struct BrowserSpaceIdentityIcon: View {
                 } else {
                     Image(systemName: systemImage)
                         .font(.system(size: size * 0.56, weight: .semibold))
-                        .foregroundStyle(space.branding.resolvedSymbolColor.color)
+                        .foregroundStyle(identity.branding.resolvedSymbolColor.color)
                         .frame(width: size, height: size)
                 }
             }

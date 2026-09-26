@@ -192,6 +192,14 @@ internal static class RecordedIntents {
             Flag("performanceHarness"), Flag("updateTestFeed")), request["hasActiveLaunchGate"]!.GetValue<bool>());
     }
 
+    /// A launch plan in the spelling the recorded answers compare against.
+    public static JsonObject Encode(LaunchDecision plan) => new() {
+        ["requiresIsolation"] = plan.RequiresIsolation,
+        ["usesEphemeralProfileStorage"] = plan.UsesEphemeralProfileStorage,
+        ["presentsInstalledApplicationUI"] = plan.PresentsInstalledApplicationUI,
+        ["startupBehavior"] = StoredSessionCodec.Spelling(plan.Startup)
+    };
+
     /// `current` with the one preference a recorded `preferences.set` named
     /// set to the value it recorded, in its stored spelling.
     private static AppPreferences Preferred(AppPreferences current, string preference, JsonNode value) => preference switch {

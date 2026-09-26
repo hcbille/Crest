@@ -146,11 +146,12 @@ struct BrowserSpaceBranding: Codable, Equatable, Sendable {
         )
     }
 
-    /// The core's branding rules applied to this value; see
-    /// `BrowserCorePolicy.normalizedBranding`. Construction and decoding keep
-    /// their own range tolerance so stored branding loads unchanged.
+    /// The core's branding rules applied to this value. Construction and
+    /// decoding keep their own range tolerance so stored branding loads
+    /// unchanged. A core that cannot answer keeps the value as it is.
     func normalized() -> BrowserSpaceBranding {
-        BrowserCorePolicy.normalizedBranding(self)
+        (try? CrestCore.answer(NormalizeBranding(branding: core))).map { BrowserSpaceBranding(look: $0.branding) }
+            ?? self
     }
 
     func color(for role: BrowserSpaceBrandColorRole) -> BrowserSpaceBrandColor? {

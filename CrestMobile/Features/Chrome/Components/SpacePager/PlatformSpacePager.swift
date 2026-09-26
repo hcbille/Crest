@@ -3,11 +3,11 @@ import SwiftUI
 /// Touch follows the native scroll view continuously. The shared sidebar still
 /// owns selection and page activation; neither is changed for every drag frame.
 struct PlatformSpacePager<Content: View>: View {
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
     let selectedSpaceID: SpaceID
     let isInteractionLocked: Bool
     let selectSpace: (SpaceID) -> SpaceID
-    @ViewBuilder let content: (BrowserSpace, Bool) -> Content
+    @ViewBuilder let content: (SpaceModel, Bool) -> Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.spacePagerPresentation) private var presentation
@@ -15,11 +15,11 @@ struct PlatformSpacePager<Content: View>: View {
     @State private var visibleSpaceID: SpaceID?
 
     init(
-        spaces: [BrowserSpace],
+        spaces: [SpaceModel],
         selectedSpaceID: SpaceID,
         isInteractionLocked: Bool = false,
         selectSpace: @escaping (SpaceID) -> SpaceID,
-        @ViewBuilder content: @escaping (BrowserSpace, Bool) -> Content
+        @ViewBuilder content: @escaping (SpaceModel, Bool) -> Content
     ) {
         self.spaces = spaces
         self.selectedSpaceID = selectedSpaceID

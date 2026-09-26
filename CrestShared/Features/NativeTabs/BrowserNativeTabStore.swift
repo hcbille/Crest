@@ -31,11 +31,28 @@ final class BrowserNativeTabStore {
 
     func load(tab: BrowserTab, space: BrowserSpace, at time: Date = .now) {
         guard let content = tab.nativeContent else { return }
-        let assignment = BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profile.id)
+        load(
+            content,
+            matching: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profile.id),
+            at: time)
+    }
+
+    /// Loads the native content a tab of the read model shows.
+    func load(tab: TabStateModel, space: SpaceModel, at time: Date = .now) {
+        guard let content = tab.nativeTabContent else { return }
+        load(
+            content,
+            matching: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID),
+            at: time)
+    }
+
+    private func load(
+        _ content: BrowserNativeTabContent, matching assignment: BrowserTabRuntimeAssignment, at time: Date
+    ) {
         if let runtime = runtime(matching: assignment, content: content) {
             runtime.lastPresented = time
         } else {
-            runtimes[tab.id] = BrowserNativeTabRuntime(assignment: assignment, content: content, at: time)
+            runtimes[assignment.tabID] = BrowserNativeTabRuntime(assignment: assignment, content: content, at: time)
             residencyRevision &+= 1
         }
     }

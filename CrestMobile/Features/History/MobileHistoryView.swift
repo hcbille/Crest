@@ -16,7 +16,7 @@ struct MobileHistoryView: View {
     }
 
     private var space: BrowserSpace? {
-        BrowserSidebarAccessPolicy.selectedUnlockedSpace(
+        BrowserSidebarAccessPolicy.selectedUnlockedSpaceCopy(
             matching: assignment,
             in: browser,
             accessController: spaceAccess

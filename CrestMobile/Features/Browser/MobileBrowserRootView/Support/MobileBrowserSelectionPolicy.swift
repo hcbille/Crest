@@ -39,29 +39,9 @@ enum MobileTabPromotionPolicy {
         BrowserTabPromotionID.value(for: tabID)
     }
 
-    static func isTransitionSource(
-        _ tab: BrowserTab,
-        selectedTabID: TabID?
-    ) -> Bool {
-        BrowserTabPromotionSourcePolicy.isPromotionSource(
-            tab,
-            isSelected: tab.id == selectedTabID
-        )
-    }
-
-    static func target(
-        for tab: BrowserTab?,
-        selectedTabID: TabID?
-    ) -> MobileTabPromotionTarget? {
-        guard let tab,
-            isTransitionSource(tab, selectedTabID: selectedTabID)
-        else {
-            return nil
-        }
-        return MobileTabPromotionTarget(
-            tabID: tab.id,
-            placement: tab.placement
-        )
+    @MainActor
+    static func isTransitionSource(_ tab: TabStateModel, selectedTabID: TabID?) -> Bool {
+        BrowserTabPromotionSourcePolicy.isPromotionSource(tab, isSelected: tab.id == selectedTabID)
     }
 
     /// The target the shown tab of the read model promotes from: the tab the

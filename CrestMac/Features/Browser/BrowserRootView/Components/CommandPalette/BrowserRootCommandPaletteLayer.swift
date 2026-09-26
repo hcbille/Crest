@@ -17,7 +17,7 @@ struct BrowserRootCommandPaletteLayer: View {
             BrowserCommandPalette(
                 browser: model.browser,
                 space: paletteSpace,
-                selectedTabID: model.browser.selectedTab?.id,
+                selectedTabID: model.browser.shownTab?.id,
                 initialQuery: mode.initialQuery,
                 commands: commandActions.paletteRegistry(shortcuts: shortcuts),
                 isSourceAvailable: model.isPaletteSourceAvailable,
@@ -44,7 +44,7 @@ struct BrowserRootCommandPaletteLayer: View {
 
     /// The Space the window shows, unless it is being deleted.
     private var paletteSpace: SpaceModel? {
-        model.browser.selectedSpace.flatMap { model.browser.spaceModel($0.id) }
+        model.browser.shownSpace
     }
 
     private var commandActions: BrowserCommandActions {

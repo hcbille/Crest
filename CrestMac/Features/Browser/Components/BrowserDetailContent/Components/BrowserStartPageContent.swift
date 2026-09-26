@@ -8,8 +8,8 @@ struct BrowserStartPageContent: View {
     /// through `BrowserCommandPaletteActionPolicy`, which answers "unavailable"
     /// for a card that is not the focused one — an unfocused start page reads
     /// but does not act until a click makes it the focused card.
-    let tab: BrowserTab?
-    let space: BrowserSpace?
+    let tab: TabStateModel?
+    let space: SpaceModel?
     let browser: BrowserStore
     let pages: BrowserPagePool
     let spaceAccess: BrowserSpaceAccessController
@@ -23,7 +23,7 @@ struct BrowserStartPageContent: View {
         if let space {
             BrowserStartPage(
                 browser: browser,
-                space: browser.spaceModel(space.id),
+                space: space,
                 isPrivateBrowsing: browser.isPrivateBrowsing,
                 selectedTabID: tab?.id,
                 isSourceAvailable: isSourceAvailable,
@@ -31,7 +31,7 @@ struct BrowserStartPageContent: View {
                 openURL: openStartPageURL,
                 isCommandPaletteObscured: isCommandPalettePresented,
                 layout: .macOSPage,
-                focusRequest: space.id == browser.selectedSpaceID && tab?.id == browser.selectedTab?.id
+                focusRequest: space.id == browser.selectedSpaceID && tab != nil && tab?.id == browser.shownTab?.id
                     ? focusRequest
                     : nil,
                 promotion: tab.map { tab in
@@ -78,7 +78,7 @@ struct BrowserStartPageContent: View {
         else { return false }
         browser.selectSpace(destination.space.id)
         browser.selectTab(destination.tab.id)
-        pages.select(session: browser.presented)
+        pages.select()
         return true
     }
 

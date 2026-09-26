@@ -106,7 +106,8 @@ public sealed partial class BrowserContractsTests {
         var saved = JsonNode.Parse(core.Checkpoint().Read("core"))!["spaces"]![0]!;
         // The tab the window shows survives the sweep, and the window keeps showing it.
         Assert.Single(saved["tabs"]!.AsArray());
-        Assert.Equal(shown, device.Shown(window));
+        Assert.Equal((shown.ShownSpaceId, shown.ShownTabs), (device.Shown(window).ShownSpaceId, device.Shown(window).ShownTabs),
+            new ShownComparer());
         Assert.Equal(currentId, Guid.Parse(Assert.Single(saved["archivedTabs"]!.AsArray())!["tab"]!["id"]!["rawValue"]!.GetValue<string>()));
         Assert.Empty(SavedHistory(core, f.Space));
     }

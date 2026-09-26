@@ -31,8 +31,8 @@ import SwiftUI
 struct BrowserSplitCardView: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
 
-    let tab: BrowserTab
-    let space: BrowserSpace
+    let tab: TabStateModel
+    let space: SpaceModel
     let browser: BrowserStore
     let pages: BrowserPagePool
     let spaceAccess: BrowserSpaceAccessController
@@ -57,7 +57,7 @@ struct BrowserSplitCardView: View {
             page: page,
             tab: tab,
             space: space,
-            pagePresentation: pagePresentation(for: page),
+            pagePresentation: .of(tab.surface, page: page),
             browser: browser,
             pages: pages,
             spaceAccess: spaceAccess,
@@ -87,20 +87,6 @@ struct BrowserSplitCardView: View {
     }
 
     private var presentedPage: BrowserPage? {
-        pages.surfacePage(for: tab, in: space, showing: browser.selectedTabID(in: space.id), accessController: spaceAccess)
-    }
-
-    private func pagePresentation(
-        for page: BrowserPage?
-    ) -> BrowserPagePresentation {
-        BrowserCorePolicy.pagePresentation(
-            BrowserPagePresentationInput(
-                selection: tab.pagePresentationSelection,
-                hasActivePage: page != nil,
-                hasNavigationFailure: page?.live.failure != nil,
-                hasProcessFailure: page?.webContentFailureMessage != nil,
-                unloadedBehavior: .remainUnloaded
-            )
-        )
+        pages.surfacePage(for: tab.id, in: space, accessController: spaceAccess)
     }
 }

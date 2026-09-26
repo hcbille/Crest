@@ -500,7 +500,8 @@ final class MobileBrowserNavigationTests: XCTestCase {
             if !page.webView.isLoading, page.completedNavigationCount > 0 { break }
             try await Task.sleep(for: .milliseconds(20))
         }
-        let controller = UIHostingController(rootView: MobileChromeContinuityShell(page: page, space: space))
+        let controller = UIHostingController(
+            rootView: MobileChromeContinuityShell(page: page, space: browser.spaceModel(space.id)))
         controller.additionalSafeAreaInsets.bottom = 24
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1200, height: 800))
         window.rootViewController = controller
@@ -513,7 +514,8 @@ final class MobileBrowserNavigationTests: XCTestCase {
         for direction in [LayoutDirection.leftToRight, .rightToLeft] {
             for right in [true, false] {
                 controller.rootView = MobileChromeContinuityShell(
-                    page: page, space: space, appearance: .init(sidebarOnRight: right, borderless: true),
+                    page: page, space: browser.spaceModel(space.id),
+                    appearance: .init(sidebarOnRight: right, borderless: true),
                     direction: direction)
                 window.layoutIfNeeded()
                 try await Task.sleep(for: .milliseconds(100))
@@ -1586,7 +1588,8 @@ final class MobileBrowserNavigationTests: XCTestCase {
             usesEphemeralWebsiteDataStores: true
         )
         pages.select(
-            session: presented(BrowserSession(spaces: [replacement]), showing: replacement.id, tabs: [replacement.id: pinned.id])
+            session: presented(
+                BrowserSession(spaces: [replacement]), showing: replacement.id, tabs: [replacement.id: pinned.id])
         )
 
         XCTAssertFalse(
@@ -2261,7 +2264,7 @@ private final class RecordingMobileWebsiteDataStoreRemover:
 
 private struct MobileChromeContinuityShell: View {
     let page: MobileBrowserPage
-    let space: BrowserSpace
+    let space: SpaceModel?
     var appearance = BrowserChromeAppearance()
     var direction = LayoutDirection.leftToRight
 

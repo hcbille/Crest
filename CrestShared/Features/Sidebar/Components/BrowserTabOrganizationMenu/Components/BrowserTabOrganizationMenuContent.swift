@@ -346,7 +346,7 @@ struct BrowserTabOrganizationMenuContent: View {
         return members.indices.contains(index + offset)
     }
 
-    private var availableDestinationSpaces: [BrowserSpace] {
+    private var availableDestinationSpaces: [SpaceModel] {
         BrowserSidebarAccessPolicy.availableTabMoveDestinationSpaces(
             from: sourceAssignment,
             in: browser,

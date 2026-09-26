@@ -23,7 +23,7 @@ struct BrowserCommands: Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings…", systemImage: "gearshape") {
                 commandBrowser.openSettings()
-                commandPages.select(session: commandBrowser.presented)
+                commandPages.select()
                 if focusedContext == nil { openWindow(id: BrowserSceneID.browser.rawValue) }
             }
             .keyboardShortcut(",", modifiers: .command)
@@ -109,10 +109,10 @@ struct BrowserCommands: Commands {
                 "Reload Page",
                 systemImage: ShortcutCommand.reloadPage.symbol
             ) {
-                commandPages.reloadOrStop(in: commandBrowser.presented)
+                commandPages.reloadOrStop()
             }
             .keyboardShortcut(shortcut(.reloadPage))
-            .disabled(!actions.canReloadSelectedTab)
+            .disabled(!actions.canPerform(.reloadPage))
             Button(
                 "Stop Loading",
                 systemImage: ShortcutCommand.stopLoading.symbol,
@@ -124,10 +124,10 @@ struct BrowserCommands: Commands {
                 "Reload from Origin",
                 systemImage: ShortcutCommand.reloadFromOrigin.symbol
             ) {
-                commandPages.reloadFromOrigin(in: commandBrowser.presented)
+                commandPages.reloadFromOrigin()
             }
             .keyboardShortcut(shortcut(.reloadFromOrigin))
-            .disabled(!actions.canReloadSelectedTab)
+            .disabled(!actions.canPerform(.reloadFromOrigin))
         }
 
         CommandMenu("Tabs") {
@@ -137,21 +137,21 @@ struct BrowserCommands: Commands {
                 action: actions.toggleSelectedTabPinned
             )
             .keyboardShortcut(shortcut(.toggleSelectedTabPinned))
-            .disabled(commandBrowser.selectedTab == nil)
+            .disabled(!actions.canPerform(.toggleSelectedTabPinned))
             Button(
                 "Duplicate Tab",
                 systemImage: ShortcutCommand.duplicateTab.symbol,
                 action: actions.duplicateSelectedTab
             )
             .keyboardShortcut(shortcut(.duplicateTab))
-            .disabled(!actions.canDuplicateSelectedTab)
+            .disabled(!actions.canPerform(.duplicateTab))
             Button(
                 "Reopen Closed Tab",
                 systemImage: ShortcutCommand.reopenClosedTab.symbol,
                 action: actions.reopenClosedTab
             )
             .keyboardShortcut(shortcut(.reopenClosedTab))
-            .disabled(commandBrowser.selectedSpace?.archivedTabs.isEmpty != false)
+            .disabled(!actions.canPerform(.reopenClosedTab))
             Button(
                 "Clear Unpinned Tabs",
                 systemImage: ShortcutCommand.clearUnpinnedTabs.symbol,
@@ -164,7 +164,7 @@ struct BrowserCommands: Commands {
                 action: actions.archiveSelectedTab
             )
             .keyboardShortcut(shortcut(.archiveTab))
-            .disabled(!actions.canArchiveSelectedTab)
+            .disabled(!actions.canPerform(.archiveTab))
             Divider()
             Button(
                 "Previous Tab",
@@ -192,7 +192,7 @@ struct BrowserCommands: Commands {
                 action: actions.splitWithNextTab
             )
             .keyboardShortcut(shortcut(.splitWithNextTab))
-            .disabled(!actions.canSplitWithNextTab)
+            .disabled(!actions.canPerform(.splitWithNextTab))
             Button(
                 "Focus Next Split Card",
                 systemImage: ShortcutCommand.focusNextSplitCard.symbol
@@ -200,7 +200,7 @@ struct BrowserCommands: Commands {
                 actions.focusAdjacentSplitCard(offset: 1)
             }
             .keyboardShortcut(shortcut(.focusNextSplitCard))
-            .disabled(!actions.isSelectedTabInSplit)
+            .disabled(!actions.canPerform(.focusNextSplitCard))
             Button(
                 "Focus Previous Split Card",
                 systemImage: ShortcutCommand.focusPreviousSplitCard.symbol
@@ -208,7 +208,7 @@ struct BrowserCommands: Commands {
                 actions.focusAdjacentSplitCard(offset: -1)
             }
             .keyboardShortcut(shortcut(.focusPreviousSplitCard))
-            .disabled(!actions.isSelectedTabInSplit)
+            .disabled(!actions.canPerform(.focusPreviousSplitCard))
             Button(
                 "Move Split Card Left",
                 systemImage: ShortcutCommand.moveSplitCardLeft.symbol
@@ -216,7 +216,7 @@ struct BrowserCommands: Commands {
                 actions.moveFocusedSplitCard(.left)
             }
             .keyboardShortcut(shortcut(.moveSplitCardLeft))
-            .disabled(!actions.canMoveFocusedSplitCard(.left))
+            .disabled(!actions.canPerform(.moveSplitCardLeft))
             Button(
                 "Move Split Card Right",
                 systemImage: ShortcutCommand.moveSplitCardRight.symbol
@@ -224,21 +224,21 @@ struct BrowserCommands: Commands {
                 actions.moveFocusedSplitCard(.right)
             }
             .keyboardShortcut(shortcut(.moveSplitCardRight))
-            .disabled(!actions.canMoveFocusedSplitCard(.right))
+            .disabled(!actions.canPerform(.moveSplitCardRight))
             Button(
                 "Remove Tab From Split",
                 systemImage: ShortcutCommand.removeTabFromSplit.symbol,
                 action: actions.removeSelectedTabFromSplit
             )
             .keyboardShortcut(shortcut(.removeTabFromSplit))
-            .disabled(!actions.isSelectedTabInSplit)
+            .disabled(!actions.canPerform(.removeTabFromSplit))
             Button(
                 "Separate All Tabs",
                 systemImage: ShortcutCommand.separateSplitTabs.symbol,
                 action: actions.separateSplitTabs
             )
             .keyboardShortcut(shortcut(.separateSplitTabs))
-            .disabled(!actions.isSelectedTabInSplit)
+            .disabled(!actions.canPerform(.separateSplitTabs))
 
             Divider()
             let tabSelections = actions.numberedSelections
@@ -302,7 +302,7 @@ struct BrowserCommands: Commands {
                     action: actions.toggleContentBlocking
                 )
                 .keyboardShortcut(shortcut(.toggleContentBlocking))
-                .disabled(commandBrowser.selectedSpace == nil)
+                .disabled(!actions.canPerform(.toggleContentBlocking))
             }
             Divider()
             Button(
@@ -422,7 +422,7 @@ struct BrowserCommands: Commands {
         CommandGroup(replacing: .help) {
             Button("Getting Started with Crest") {
                 commandBrowser.openGettingStarted()
-                commandPages.select(session: commandBrowser.presented)
+                commandPages.select()
             }
         }
 
@@ -439,7 +439,7 @@ struct BrowserCommands: Commands {
                 action: actions.presentArchive
             )
             .keyboardShortcut(shortcut(.showArchive))
-            .disabled(commandBrowser.selectedSpace == nil)
+            .disabled(!actions.canPerform(.showArchive))
             Button(
                 "Show Downloads",
                 systemImage: ShortcutCommand.showDownloads.symbol,

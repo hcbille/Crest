@@ -13,8 +13,8 @@
 /// placeholder and extension panel have distinct identities without tabs:
 /// on release the placeholder leaves and the joining member arrives in the same
 /// position at the same width, and every other column holds still.
-enum BrowserSplitColumnSlot: Identifiable {
-    case member(BrowserTab)
+enum BrowserSplitColumnSlot<Member: Identifiable>: Identifiable where Member.ID == TabID {
+    case member(Member)
     /// The column a drag in flight would drop into.
     case placeholder
     case panel
@@ -27,7 +27,7 @@ enum BrowserSplitColumnSlot: Identifiable {
         }
     }
 
-    var member: BrowserTab? {
+    var member: Member? {
         switch self {
         case .member(let tab): tab
         case .placeholder, .panel: nil
@@ -40,7 +40,7 @@ enum BrowserSplitColumnSlot: Identifiable {
     /// An index outside `0...members.count` is not a slot, so the row lays out
     /// as though no drag were in flight.
     static func slots(
-        members: [BrowserTab],
+        members: [Member],
         placeholderIndex: Int?,
         includesPanel: Bool = false
     ) -> [BrowserSplitColumnSlot] {

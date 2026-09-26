@@ -208,3 +208,12 @@ public sealed partial class BrowserContractsTests {
         }, space, tab);
     }
 }
+
+/// Compares what two windows show, the Space and the tab in each Space,
+/// leaving out what the core derives from them.
+internal sealed class ShownComparer : IEqualityComparer<(Guid Space, IReadOnlyList<ShownTab> Tabs)> {
+    public bool Equals((Guid Space, IReadOnlyList<ShownTab> Tabs) left, (Guid Space, IReadOnlyList<ShownTab> Tabs) right) =>
+        left.Space == right.Space && left.Tabs.SequenceEqual(right.Tabs);
+
+    public int GetHashCode((Guid Space, IReadOnlyList<ShownTab> Tabs) value) => value.Space.GetHashCode();
+}

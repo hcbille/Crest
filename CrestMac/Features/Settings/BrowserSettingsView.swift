@@ -93,7 +93,7 @@ struct BrowserSettingsView: View {
                 else { return }
                 spaceSettingsPresentation.present(
                     assignment: BrowserSpaceRuntimeAssignment(spaceID: selected.spaceID, profileID: selected.profileID))
-                pages.select(session: browser.presented)
+                pages.select()
             }
         )
         .onChange(of: scenePhase) { previousPhase, phase in

@@ -9,13 +9,13 @@ struct BrowserSettingsSpaceSelectionAction {
             let sourceSpace = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
                 matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID),
                 in: browser, accessController: spaceAccess),
-            sourceSpace.tabs.contains(where: { $0.id == source.tabID && $0.nativeContent == .settings }),
+            sourceSpace.tabs.model(source.tabID)?.nativeTabContent == .settings,
             let destination = BrowserSidebarAccessPolicy.availableSpaces(in: browser).first(where: { $0.id == id }),
             !spaceAccess.isLocked(destination)
         else { return nil }
 
         browser.selectSpace(id)
         guard let tabID = browser.openSettings() else { return nil }
-        return BrowserTabRuntimeAssignment(tabID: tabID, spaceID: destination.id, profileID: destination.profile.id)
+        return BrowserTabRuntimeAssignment(tabID: tabID, spaceID: destination.id, profileID: destination.profileID)
     }
 }

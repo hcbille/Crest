@@ -122,6 +122,13 @@ public sealed partial class NativeSessionAuthority {
 
     #region Actions - Archive
 
+    /// Reopens the tab the Space archived last, which the issuing window shows.
+    private SessionEdit ReopeningClosedTab(SessionState basis, ReopenClosedTab intent, DateTimeOffset now) {
+        var space = Editable(basis, intent.SpaceId);
+        var newest = space.ArchivedTabs.MaxBy(archived => archived.ArchivedAt) ?? throw new Rejected(new NoArchivedTabs(space.Id));
+        return Restoring(basis, new RestoreArchivedTab(intent.WorkspaceId, intent.WindowId, space.Id, newest.Tab.Id), now);
+    }
+
     /// Reopens the archived tab as an open tab, which the issuing window shows.
     private SessionEdit Restoring(SessionState basis, RestoreArchivedTab intent, DateTimeOffset now) {
         var space = Editable(basis, intent.SpaceId);

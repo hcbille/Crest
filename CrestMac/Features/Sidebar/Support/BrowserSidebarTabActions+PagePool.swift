@@ -20,8 +20,8 @@ extension BrowserSidebarTabActions {
             reorderState: reorderState,
             spaceAccess: spaceAccess,
             syncPagesAfterMutation: {
-                pages.reconcile(session: browser.session)
-                pages.select(session: browser.presented)
+                pages.reconcile()
+                pages.select()
             },
             pullFavicon: { tabID, assignment in
                 await pages.pullFavicon(for: tabID, matching: assignment)

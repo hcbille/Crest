@@ -233,15 +233,17 @@ final class MobileBrowserTransientOverlayModel {
 
         if case .quickWindow(let quickWindowRequest) = request {
             let pageURL = page.live.documentURL ?? quickWindowRequest.initialURL
-            if BrowserCorePolicy.quickWindowRetarget(quickWindowRequest, to: pageURL ?? quickWindowRequest.url,
-                assignment: destinationAssignment, pageURL: pageURL).remembersSpace, let pageURL {
+            if BrowserCorePolicy.quickWindowRetarget(
+                quickWindowRequest, to: pageURL ?? quickWindowRequest.url,
+                assignment: destinationAssignment, pageURL: pageURL
+            ).remembersSpace, let pageURL {
                 preferences.rememberSpace(destinationAssignment.spaceID, for: pageURL)
             }
         }
         wasPromoted = true
         if outcome == .openedNewPage {
             pageLease.release()
-            pages.select(session: browser.presented)
+            pages.select()
         }
         dismissCoordinatorRequest()
         didPromote()
@@ -344,7 +346,8 @@ final class MobileBrowserTransientOverlayModel {
         else { return }
         let pageURL = currentSnapshot?.url ?? quickWindowRequest.initialURL
         let currentURL = pageURL ?? quickWindowRequest.url
-        let retarget = BrowserCorePolicy.quickWindowRetarget(quickWindowRequest, to: currentURL,
+        let retarget = BrowserCorePolicy.quickWindowRetarget(
+            quickWindowRequest, to: currentURL,
             assignment: destinationAssignment, pageURL: pageURL)
         guard retarget.revises else { return }
         if retarget.remembersSpace, let pageURL {

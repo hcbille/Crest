@@ -71,22 +71,13 @@ struct BrowserWebContentView: View {
         )
     }
 
-    private var pagePresentation: BrowserPagePresentation {
-        BrowserCorePolicy.pagePresentation(
-            BrowserPagePresentationInput(
-                selection: .webPage,
-                hasActivePage: true,
-                hasNavigationFailure: page.live.failure != nil,
-                hasProcessFailure: page.webContentFailureMessage != nil,
-                unloadedBehavior: .remainUnloaded
-            )
-        )
+    private var pagePresentation: PagePresentation {
+        .of(.webPage, page: page)
     }
 
-
-
     private var isSelectedSpace: Bool {
-        browser.selectedSpace?.id == page.spaceID && browser.selectedSpace?.profile.id == page.profileID
+        guard let space = browser.shownSpace else { return false }
+        return space.id == page.spaceID && space.profileID == page.profileID
     }
 
     private func dismissDeveloperFeedback(after revision: Int) {

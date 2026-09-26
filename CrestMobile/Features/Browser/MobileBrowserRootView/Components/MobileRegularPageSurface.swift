@@ -36,13 +36,11 @@ struct MobileRegularPageSurface: View {
     let compactTransitionEnded: (CGSize) -> Void
 
     private var pageSurfacePresentation: BrowserPageSurfacePresentation {
-        let selectedSpace = model.browser.selectedSpace
+        let space = model.browser.shownSpace
         return BrowserPageSurfaceBranchPolicy.resolve(
-            selectedSpace: selectedSpace,
-            isSelectedSpaceLocked: selectedSpace.map {
-                model.spaceAccess.isLocked($0)
-            } ?? false,
-            selectedTabID: model.browser.selectedTab?.id,
+            space: space,
+            isLocked: space.map(model.spaceAccess.isLocked) ?? false,
+            cards: model.browser.shownCards,
             hasEnteredSplitContent:
                 model.sidebarInteraction.sidebarReorderState.hasEnteredSplitContent,
             resolvedTarget: model.sidebarInteraction.sidebarReorderState.resolvedTarget,
@@ -83,11 +81,11 @@ struct MobileRegularPageSurface: View {
             BrowserRootDetailSurface(
                 adjoinsLeadingSidebar: adjoinsSidebar,
                 usesBorderlessFrame: usesBorderlessPageFrame,
-                isStartPage: model.browser.selectedTab?.isStartPage != false,
+                isStartPage: model.browser.shownTab.map { $0.surface == .startPage } ?? true,
                 hasActivePage: model.selectedPage != nil,
                 completedNavigationCount:
                     model.selectedPage?.completedNavigationCount ?? 0,
-                hasSelectedSpace: model.browser.selectedSpace != nil,
+                hasSelectedSpace: model.browser.shownSpace != nil,
                 handleWebContentInteraction: {
                     model.navigation.utilityPresentation
                         .handleInteraction(.webContent)

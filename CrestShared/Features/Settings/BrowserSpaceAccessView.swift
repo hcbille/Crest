@@ -1,14 +1,40 @@
 import SwiftUI
 
 struct BrowserSpaceAccessView: View {
-    let space: BrowserSpace
-    let spaces: [BrowserSpace]
+    let space: BrowserSpaceIdentity
+    let spaces: [BrowserSpaceIdentity]
     let accessController: BrowserSpaceAccessController
     let selectSpace: (BrowserSpaceRuntimeAssignment) -> Void
     var presentation: BrowserSpaceAccessPresentation = .standalone
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    init(
+        space: SpaceModel, spaces: [SpaceModel], accessController: BrowserSpaceAccessController,
+        selectSpace: @escaping (BrowserSpaceRuntimeAssignment) -> Void,
+        presentation: BrowserSpaceAccessPresentation = .standalone
+    ) {
+        self.space = BrowserSpaceIdentity(space: space)
+        self.spaces = spaces.map(BrowserSpaceIdentity.init(space:))
+        self.accessController = accessController
+        self.selectSpace = selectSpace
+        self.presentation = presentation
+    }
+
+    /// A lock over Spaces of the session copy. TRANSITIONAL until the Quick
+    /// Window and Peek read their Space from the read model.
+    init(
+        space: BrowserSpace, spaces: [BrowserSpace], accessController: BrowserSpaceAccessController,
+        selectSpace: @escaping (BrowserSpaceRuntimeAssignment) -> Void,
+        presentation: BrowserSpaceAccessPresentation = .standalone
+    ) {
+        self.space = BrowserSpaceIdentity(space: space)
+        self.spaces = spaces.map(BrowserSpaceIdentity.init(space:))
+        self.accessController = accessController
+        self.selectSpace = selectSpace
+        self.presentation = presentation
+    }
 
     var body: some View {
         ScrollView {
@@ -33,7 +59,7 @@ struct BrowserSpaceAccessView: View {
         VStack(spacing: 24) {
             VStack(spacing: 16) {
                 BrowserSpaceSymbolArtwork(
-                    space: space,
+                    identity: space,
                     size: BrowserSpaceAccessLayout.iconSize,
                     lockSize: 16
                 )
@@ -98,11 +124,9 @@ struct BrowserSpaceAccessView: View {
                     Menu {
                         ForEach(spaces.filter { $0.id != space.id }) { candidate in
                             Button {
-                                selectSpace(
-                                    BrowserSpaceRuntimeAssignment(space: candidate)
-                                )
+                                selectSpace(candidate.assignment)
                             } label: {
-                                BrowserSpaceIdentityLabel(space: candidate)
+                                BrowserSpaceIdentityLabel(identity: candidate)
                             }
                         }
                         .crestMenuActionLabelStyle()

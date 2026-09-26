@@ -68,17 +68,17 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     navigation.regularSidebarIsDocked,
                 sidebarPresentation: navigation.regularSidebarPresentation,
                 preferredSidebarWidth: model.sidebarWidthBinding,
-                space: browser.selectedSpace,
+                space: browser.shownSpace,
                 spaces: BrowserSidebarAccessPolicy.availableSpaces(in: browser),
                 reduceTransparency: reduceTransparency,
                 layoutDirection: layoutDirection,
                 usesBorderlessFloatingPageFrame:
                     usesBorderlessPageFrame,
-                isStartPage: browser.selectedTab?.isStartPage != false,
+                isStartPage: showsStartPage,
                 hasActivePage: model.selectedPage != nil,
                 completedNavigationCount:
                     model.selectedPage?.completedNavigationCount ?? 0,
-                hasSelectedSpace: browser.selectedSpace != nil,
+                hasSelectedSpace: browser.shownSpace != nil,
                 showSidebar: showRegularSidebar,
                 handlePageInteraction: navigation.handleRegularPageInteraction,
                 commitSidebarWidth: commitRegularSidebarWidth,
@@ -168,7 +168,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     }
                 ),
                 page: MobileCompactPageSurface(
-                    selectedTab: browser.selectedTab,
+                    selectedTab: browser.shownTab,
                     isURLCopiedFeedbackVisible: isURLCopiedFeedbackVisible,
                     pageZoomFeedbackLabel: visiblePageZoomFeedbackLabel,
                     reduceMotion: reduceMotion,
@@ -176,14 +176,13 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     completePagePresentation:
                         navigation.completePagePresentation,
                     backdrop: MobileCompactPageBackdrop(
-                        isStartPage:
-                            browser.selectedTab?.isStartPage != false,
+                        isStartPage: showsStartPage,
                         hasSelectedPage: model.selectedPage != nil,
                         pageThemeColor: model.selectedPage?.themeColor,
                         underPageBackgroundColor:
                             model.selectedPage?.webView
                             .underPageBackgroundColor,
-                        space: browser.selectedSpace
+                        space: browser.shownSpace
                     ),
                     detail: MobileBrowserDetailSurface(
                         browser: browser,
@@ -228,7 +227,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     preferredSidebarWidth: model.sidebarWidthBinding,
                     reduceTransparency: reduceTransparency,
                     layoutDirection: layoutDirection,
-                    space: browser.selectedSpace,
+                    space: browser.shownSpace,
                     spaces: BrowserSidebarAccessPolicy.availableSpaces(in: browser),
                     showSidebar: showRegularSidebar,
                     commitSidebarWidth: commitRegularSidebarWidth,
@@ -314,13 +313,14 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                         isExpanded: navigation.utilityPresentation
                             .isSwitcherExpanded,
                         selectedSurface: navigation.utilityPresentation.surface,
-                        badgeColor: browser.selectedSpace?.branding.colors.first?
-                            .color ?? .accentColor,
+                        badgeColor: browser.shownSpace.flatMap {
+                            BrowserSpaceBranding(look: $0.settings.look).colors.first?.color
+                        } ?? .accentColor,
                         downloads: model.selectedUtilityDownloads,
                         newDownloadCount: model.newUtilityDownloads.count,
                         downloadCenter: pages.downloadCenter,
-                        profileID: browser.selectedSpace?.profile.id,
-                        spaceID: browser.selectedSpace?.id,
+                        profileID: browser.shownSpace?.profileID,
+                        spaceID: browser.shownSpace?.id,
                         select: navigation.utilityPresentation.present
                     )
                 }
@@ -329,8 +329,8 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                 MobileBrowserCommandPaletteLayer(
                     mode: commandPaletteMode,
                     browser: browser,
-                    space: browser.selectedSpace.flatMap { browser.spaceModel($0.id) },
-                    selectedTabID: browser.selectedTab?.id,
+                    space: browser.shownSpace,
+                    selectedTabID: browser.shownTab?.id,
                     commands: mobileBrowserCommandContext.paletteRegistry,
                     isSourceAvailable: model.isPaletteSourceAvailable,
                     selectTab: model.selectPaletteTab,
@@ -374,7 +374,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
         .modifier(
             MobileDownloadRiskConfirmationModifier(
                 confirmation: pages.downloadRiskConfirmation,
-                profileIDs: Set(browser.session.spaces.map(\.profile.id))
+                profileIDs: Set(browser.spaceModels.map(\.profileID))
             )
         )
         .onChange(of: pages.urlCopyFeedbackRevision) { _, revision in

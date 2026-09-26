@@ -21,6 +21,8 @@ extension WindowState {
         WindowState(
             id: UUID(), workspaceID: UUID(), shownSpaceID: spaceID,
             shownTabs: tabs.map { ShownTab(spaceID: $0.key, tabID: $0.value) },
-            splitColumnShares: [])
+            splitColumnShares: [],
+            cards: tabs.map { ShownCards(spaceID: $0.key, tabIDs: [$0.value], splitGroupID: nil) },
+            unavailableCommands: [])
     }
 }

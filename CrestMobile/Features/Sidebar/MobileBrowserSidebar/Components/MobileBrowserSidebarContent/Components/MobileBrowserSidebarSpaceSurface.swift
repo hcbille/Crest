@@ -2,13 +2,16 @@ import SwiftUI
 
 struct MobileBrowserSidebarSpaceSurface: View {
     let configuration: MobileBrowserSidebarContentConfiguration
+    /// The Space as the session copy holds it, for the sidebar content that
+    /// still draws a copy. TRANSITIONAL until the Space pass.
     let space: BrowserSpace
+    let spaceModel: SpaceModel
     let isSelected: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let isLocked = configuration.context.spaceAccess.isLocked(space)
+        let isLocked = configuration.context.spaceAccess.isLocked(spaceModel)
 
         MobileBrowserSidebarSpaceContent(
             configuration: configuration,
@@ -27,7 +30,7 @@ struct MobileBrowserSidebarSpaceSurface: View {
         .overlay {
             if isLocked {
                 BrowserSpaceAccessView(
-                    space: space,
+                    space: spaceModel,
                     spaces: configuration.context.availableSpaces,
                     accessController: configuration.context.spaceAccess,
                     selectSpace: selectUnlockedSpace,

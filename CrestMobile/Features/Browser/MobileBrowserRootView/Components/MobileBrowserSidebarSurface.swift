@@ -195,13 +195,13 @@ struct MobileBrowserSidebarSurface: View {
 
     private var selectedSidebarColorScheme: ColorScheme {
         guard MobileBrowserSidebarAppearancePolicy.usesSpaceForeground(),
-            let space = browser.selectedSpace
+            let space = browser.shownSpace
         else { return colorScheme }
-        return BrowserSpaceForegroundPolicy.colorScheme(for: space.branding)
+        return BrowserSpaceForegroundPolicy.colorScheme(for: BrowserSpaceBranding(look: space.settings.look))
     }
 
     private var selectedSpaceAssignment: BrowserSpaceRuntimeAssignment? {
-        browser.selectedSpace.map(BrowserSpaceRuntimeAssignment.init(space:))
+        browser.shownSpace.map(BrowserSpaceRuntimeAssignment.init(space:))
     }
 
     private func presentHistory() {
@@ -239,11 +239,11 @@ struct MobileBrowserSidebarSurface: View {
     /// locked or vanished Space empties it, a placement that shows the page next
     /// to the sidebar takes the new Space's URL, and editing always ends because
     /// whatever was being typed belonged to the Space that was left.
-    private func synchronizeAddress(for space: BrowserSpace?) {
+    private func synchronizeAddress(for space: SpaceModel?) {
         if space == nil {
             address = ""
         } else if presentsSelectedSpacePage {
-            address = browser.selectedTab?.url?.absoluteString ?? ""
+            address = browser.shownTab?.url ?? ""
         }
         isAddressEditing = false
     }

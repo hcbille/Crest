@@ -25,7 +25,7 @@ struct MobileBrowserRootSurface<Compact: View, Regular: View, Palette: View>:
             if presentation == .regular {
                 SpaceBackdropBlend(
                     spaces: BrowserSidebarAccessPolicy.availableSpaces(in: browser),
-                    selectedSpace: browser.selectedSpace
+                    selectedSpace: browser.shownSpace
                 ) {
                     BrowserWindowAtmosphere(space: $0)
                 }

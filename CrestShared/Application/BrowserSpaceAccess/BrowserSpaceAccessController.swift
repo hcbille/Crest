@@ -63,8 +63,27 @@ final class BrowserSpaceAccessController {
         return core?.state.spaceAccess[assignment]?.isUnlocked != true
     }
 
+    /// Whether a Space, as its identity views draw it, shows only once this
+    /// process holds the grant for its profile.
+    func isLocked(_ space: BrowserSpaceIdentity) -> Bool {
+        guard space.accessPolicy.requiresAuthentication else { return false }
+        return core?.state.spaceAccess[space.assignment]?.isUnlocked != true
+    }
+
+    func isAuthenticating(_ space: BrowserSpaceIdentity) -> Bool {
+        isAuthenticating(space.assignment)
+    }
+
     func isAuthenticating(_ space: BrowserSpace) -> Bool {
-        core?.state.spaceAccess[BrowserSpaceRuntimeAssignment(space: space)]?.isAuthenticating == true
+        isAuthenticating(BrowserSpaceRuntimeAssignment(space: space))
+    }
+
+    func isAuthenticating(_ space: SpaceModel) -> Bool {
+        isAuthenticating(BrowserSpaceRuntimeAssignment(space: space))
+    }
+
+    private func isAuthenticating(_ assignment: BrowserSpaceRuntimeAssignment) -> Bool {
+        core?.state.spaceAccess[assignment]?.isAuthenticating == true
     }
 
     /// Authentication authorizes one profile identity. A window may replace or
@@ -93,24 +112,45 @@ final class BrowserSpaceAccessController {
     @discardableResult
     func unlock(_ space: BrowserSpace) async -> Bool {
         guard isLocked(space) else { return true }
-        guard let core, let workspace = workspace(showing: BrowserSpaceRuntimeAssignment(space: space)) else {
+        return await unlock(BrowserSpaceRuntimeAssignment(space: space), named: space.name)
+    }
+
+    /// Asks the device owner to unlock a Space of the read model, answering
+    /// whether it is unlocked afterwards.
+    @discardableResult
+    func unlock(_ space: SpaceModel) async -> Bool {
+        guard isLocked(space) else { return true }
+        return await unlock(BrowserSpaceRuntimeAssignment(space: space), named: space.settings.name)
+    }
+
+    /// Asks the device owner to unlock a Space its identity views draw.
+    @discardableResult
+    func unlock(_ space: BrowserSpaceIdentity) async -> Bool {
+        guard isLocked(space) else { return true }
+        return await unlock(space.assignment, named: space.name)
+    }
+
+    /// Unlocks the locked Space profile `assignment` names.
+    private func unlock(_ assignment: BrowserSpaceRuntimeAssignment, named name: String) async -> Bool {
+        guard let core, let workspace = workspace(showing: assignment) else {
             failure = .authenticationUnavailable
             return false
         }
+        let space = assignment.spaceID
         let request = UUID()
         do throws(Rejection) {
-            try core.send(BeginUnlockingSpace(workspaceID: workspace, spaceID: space.id, requestID: request))
+            try core.send(BeginUnlockingSpace(workspaceID: workspace, spaceID: space, requestID: request))
         } catch {
             if case .authenticationBusy = error { return false }
             failure = .authenticationUnavailable
             return false
         }
-        guard isAuthenticating(space) else { return !isLocked(space) }
+        guard isAuthenticating(assignment) else { return core.state.spaceAccess[assignment]?.isUnlocked == true }
         failure = nil
         do {
             let authenticated = try await authenticator.authenticate(
                 reason: String(
-                    localized: "Authenticate to unlock the \(space.name) Space in Crest."
+                    localized: "Authenticate to unlock the \(name) Space in Crest."
                 )
             )
             guard finish(request, for: space, authenticated: authenticated) else { return false }
@@ -142,9 +182,9 @@ final class BrowserSpaceAccessController {
 
     /// Answers the core's waiting request, and whether it was still the one
     /// waiting.
-    private func finish(_ request: UUID, for space: BrowserSpace, authenticated: Bool) -> Bool {
+    private func finish(_ request: UUID, for spaceID: SpaceID, authenticated: Bool) -> Bool {
         (try? core?.send(
-            FinishUnlockingSpace(spaceID: space.id, requestID: request, authenticated: authenticated))) != nil
+            FinishUnlockingSpace(spaceID: spaceID, requestID: request, authenticated: authenticated))) != nil
     }
 
     /// The workspace of an attached store that shows the Space profile.

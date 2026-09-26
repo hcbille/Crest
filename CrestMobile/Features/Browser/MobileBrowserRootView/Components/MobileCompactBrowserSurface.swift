@@ -10,8 +10,8 @@ struct MobileCompactBrowserSurface<
     let usesDockedDetailPresentation: Bool
     let sidebarPresentation: BrowserSidebarPresentation
     @Binding var preferredSidebarWidth: CGFloat
-    let space: BrowserSpace?
-    let spaces: [BrowserSpace]
+    let space: SpaceModel?
+    let spaces: [SpaceModel]
     @State private var floatingPagerPresentation = SpacePagerPresentation()
     let reduceTransparency: Bool
     let layoutDirection: LayoutDirection

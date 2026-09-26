@@ -27,9 +27,13 @@ final class MobileBrowserPageStoreTests: XCTestCase {
         let activePage = pages.activePage
         let history = page.webView.backForwardList.backList.map(\.url)
 
-        XCTAssertEqual(pages.linkURL(for: target, in: space), current)
-        XCTAssertEqual(pages.linkURL(for: unloaded, in: space), root)
-        XCTAssertNil(pages.linkURL(for: selected, in: space))
+        XCTAssertEqual(
+            pages.liveLinkURL(
+                for: BrowserTabRuntimeAssignment(tabID: target.id, spaceID: space.id, profileID: space.profile.id)),
+            current)
+        XCTAssertNil(
+            pages.liveLinkURL(
+                for: BrowserTabRuntimeAssignment(tabID: unloaded.id, spaceID: space.id, profileID: space.profile.id)))
         XCTAssertEqual(pages.residentPageCount, before)
         XCTAssertFalse(pages.containsResidentPage(for: unloaded.id))
         XCTAssertEqual(page.webView.backForwardList.backList.map(\.url), history)

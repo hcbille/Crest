@@ -5,13 +5,27 @@ import SwiftUI
 /// flatten a layered crest into one template symbol or interpret its layers as
 /// separate control elements.
 struct BrowserSpaceSymbolArtwork: View {
-    let space: BrowserSpace
+    let identity: BrowserSpaceIdentity
     let size: CGFloat
     let lockSize: CGFloat
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale
     @State private var renderedArtwork: BrowserSpaceRenderedSymbolArtwork?
+
+    init(space: BrowserSpace, size: CGFloat, lockSize: CGFloat) {
+        self.init(identity: BrowserSpaceIdentity(space: space), size: size, lockSize: lockSize)
+    }
+
+    init(space: SpaceModel, size: CGFloat, lockSize: CGFloat) {
+        self.init(identity: BrowserSpaceIdentity(space: space), size: size, lockSize: lockSize)
+    }
+
+    init(identity: BrowserSpaceIdentity, size: CGFloat, lockSize: CGFloat) {
+        self.identity = identity
+        self.size = size
+        self.lockSize = lockSize
+    }
 
     var body: some View {
         Group {
@@ -22,25 +36,25 @@ struct BrowserSpaceSymbolArtwork: View {
                     .renderingMode(.original)
                     .interpolation(.high)
             } else {
-                if let emoji = BrowserIconSymbol.emoji(from: space.symbol) {
+                if let emoji = BrowserIconSymbol.emoji(from: identity.symbol) {
                     Text(emoji)
                         .font(.system(size: size * 0.68))
                 } else {
-                    Image(systemName: space.symbol)
+                    Image(systemName: identity.symbol)
                         .resizable()
                         .scaledToFit()
-                        .foregroundStyle(space.branding.resolvedSymbolColor.color)
+                        .foregroundStyle(identity.branding.resolvedSymbolColor.color)
                         .padding(size * 0.2)
                 }
             }
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
-        .task(id: identity) {
+        .task(id: artworkIdentity) {
             guard !Task.isCancelled else { return }
-            let currentIdentity = identity
+            let currentIdentity = artworkIdentity
             let content = BrowserSpaceSymbolArtworkContent(
-                space: space,
+                identity: identity,
                 size: size,
                 lockSize: lockSize
             )
@@ -50,10 +64,10 @@ struct BrowserSpaceSymbolArtwork: View {
                     for: content,
                     size: size,
                     scale: displayScale,
-                    fallbackSystemImage: space.symbol
+                    fallbackSystemImage: identity.symbol
                 )
             }
-            guard !Task.isCancelled, currentIdentity == identity else { return }
+            guard !Task.isCancelled, currentIdentity == artworkIdentity else { return }
             renderedArtwork = BrowserSpaceRenderedSymbolArtwork(
                 identity: currentIdentity,
                 image: image
@@ -61,11 +75,11 @@ struct BrowserSpaceSymbolArtwork: View {
         }
     }
 
-    private var identity: BrowserSpaceSymbolArtworkIdentity {
+    private var artworkIdentity: BrowserSpaceSymbolArtworkIdentity {
         BrowserSpaceSymbolArtworkIdentity(
-            branding: space.branding,
-            symbol: space.symbol,
-            accessPolicy: space.accessPolicy,
+            branding: identity.branding,
+            symbol: identity.symbol,
+            accessPolicy: identity.accessPolicy,
             size: size,
             lockSize: lockSize,
             colorScheme: colorScheme,

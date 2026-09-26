@@ -4,9 +4,9 @@ struct BrowserRootSidebarSurfaceLayer<Content: View>: View {
     let presentation: BrowserSidebarPresentation
     let width: CGFloat
     let edge: HorizontalEdge
-    let space: BrowserSpace?
+    let space: SpaceModel?
     let reduceTransparency: Bool
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
     let hoverChanged: @MainActor @Sendable (Bool) -> Void
     let content: Content
 
@@ -16,9 +16,9 @@ struct BrowserRootSidebarSurfaceLayer<Content: View>: View {
         presentation: BrowserSidebarPresentation,
         width: CGFloat,
         edge: HorizontalEdge = .leading,
-        space: BrowserSpace?,
+        space: SpaceModel?,
         reduceTransparency: Bool,
-        spaces: [BrowserSpace] = [],
+        spaces: [SpaceModel] = [],
         hoverChanged: @escaping @MainActor @Sendable (Bool) -> Void,
         @ViewBuilder content: () -> Content
     ) {

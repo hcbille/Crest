@@ -22,6 +22,8 @@ final class BrowserStoreFamily {
     var deletingSpaceIDs: Set<SpaceID> {
         activeSpaceDeletions.union(authoritativeSession.spaceDeletions?.map(\.spaceID) ?? [])
     }
+    /// The Spaces this device began deleting before the core records it.
+    var locallyDeletingSpaceIDs: Set<SpaceID> { activeSpaceDeletions }
     @ObservationIgnored private weak var spaceDataDeleter: (any BrowserSpaceDataDeleting)?
     @ObservationIgnored private weak var spaceCleanupStore: BrowserStore?
     @ObservationIgnored private(set) var spaceCleanupTask: Task<Void, Never>?

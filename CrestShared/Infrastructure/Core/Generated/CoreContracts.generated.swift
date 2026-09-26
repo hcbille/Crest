@@ -152,6 +152,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidTabIcon(InvalidTabIcon)
     case languageTooLong(LanguageTooLong)
     case lastStartPage(LastStartPage)
+    case noArchivedTabs(NoArchivedTabs)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
     case noSavedAddress(NoSavedAddress)
@@ -183,6 +184,7 @@ enum Rejection: Equatable, Error, Sendable {
     case splitNeedsTwoTabs(SplitNeedsTwoTabs)
     case staleCredentialComparison(StaleCredentialComparison)
     case staleUnlockRequest(StaleUnlockRequest)
+    case startPageNotCopied(StartPageNotCopied)
     case storageFromNewerApp(StorageFromNewerApp)
     case storageRestoreInterrupted(StorageRestoreInterrupted)
     case storageUnreadable(StorageUnreadable)
@@ -1852,6 +1854,13 @@ struct LaunchEnvironment: Equatable, Sendable {
     let usesUpdateTestFeed: Bool
 }
 
+struct LaunchIsolation: Query, Equatable, Sendable {
+    typealias Answer = LaunchDecision
+
+    let platform: DevicePlatform
+    let environment: LaunchEnvironment
+}
+
 struct LaunchPlan: Query, Equatable, Sendable {
     typealias Answer = LaunchDecision
 
@@ -2121,6 +2130,10 @@ struct NavigationStarted: EngineEvent, Equatable, Sendable {
     let sameDocument: Bool
 }
 
+struct NoArchivedTabs: Equatable, Sendable {
+    let spaceID: UUID
+}
+
 struct NoCurrentTabs: Equatable, Sendable {
     let spaceID: UUID
 }
@@ -2136,6 +2149,16 @@ struct NoSavedAddress: Equatable, Sendable {
 }
 
 struct NoStoredSession: Equatable, Sendable {
+}
+
+struct NormalizeBranding: Query, Equatable, Sendable {
+    typealias Answer = NormalizedBranding
+
+    let branding: SpaceBranding
+}
+
+struct NormalizedBranding: Equatable, Sendable {
+    let branding: SpaceBranding
 }
 
 struct NotPrivateWorkspace: Equatable, Sendable {
@@ -2157,6 +2180,14 @@ struct NumberedSelections: Query, Equatable, Sendable {
     typealias Answer = NumberedSelectionList
 
     let windowID: UUID
+}
+
+struct OpenAddress: Intent, SessionIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let windowID: UUID
+    let spaceID: UUID
+    let tabID: UUID
+    let address: String
 }
 
 struct OpenInspector: PageRequest, Equatable, Sendable {
@@ -2393,6 +2424,10 @@ struct PageOpened: Equatable, Sendable {
     let page: PageState
 }
 
+struct PagePresented: Equatable, Sendable {
+    let presentation: PagePresentation
+}
+
 struct PageProfileMismatch: Equatable, Sendable {
     let pageID: UUID
     let spaceID: UUID
@@ -2597,6 +2632,16 @@ struct PrepareProfile: PageRequest, Equatable, Sendable {
     let preparationID: UUID
 }
 
+struct PresentPage: Query, Equatable, Sendable {
+    typealias Answer = PagePresented
+
+    let surface: TabSurface?
+    let hasPage: Bool
+    let hasNavigationFailure: Bool
+    let hasProcessFailure: Bool
+    let restoresUnloaded: Bool
+}
+
 struct PrivateWorkspaceBoundary: Equatable, Sendable {
     let destinationWorkspaceID: UUID
 }
@@ -2739,6 +2784,12 @@ struct RenameTab: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let tabID: UUID
     let title: String?
+}
+
+struct ReopenClosedTab: Intent, SessionIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let windowID: UUID
+    let spaceID: UUID
 }
 
 struct ReorderSpaces: Intent, SessionIntent, Equatable, Sendable {
@@ -3074,6 +3125,10 @@ struct ShowBlockedPopups: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct ShowMostRecentTab: Intent, WindowIntent, Equatable, Sendable {
+    let windowID: UUID
+}
+
 struct ShowPage: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -3085,10 +3140,24 @@ struct ShowSpace: Intent, WindowIntent, Equatable, Sendable {
     let spaceID: UUID
 }
 
+struct ShowStartPage: Intent, SessionIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let windowID: UUID
+    let spaceID: UUID
+    let tabID: UUID
+    let outsideSplits: Bool
+}
+
 struct ShowTab: Intent, WindowIntent, Equatable, Sendable {
     let windowID: UUID
     let spaceID: UUID
     let tabID: UUID?
+}
+
+struct ShownCards: Equatable, Sendable {
+    let spaceID: UUID
+    let tabIDs: [UUID]
+    let splitGroupID: UUID?
 }
 
 struct ShownTab: Equatable, Sendable {
@@ -3442,6 +3511,10 @@ struct StaleUnlockRequest: Equatable, Sendable {
     let requestID: UUID
 }
 
+struct StartPageNotCopied: Equatable, Sendable {
+    let tabID: UUID
+}
+
 struct StepSplitMember: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -3650,6 +3723,7 @@ struct TabState: Equatable, Sendable, Identifiable {
     let displayTitle: String
     let isAwayFromSavedAddress: Bool
     let pageIconIsCurrent: Bool
+    let surface: TabSurface
 }
 
 struct TabsChanged: Equatable, Sendable {
@@ -3816,6 +3890,8 @@ struct WindowState: Equatable, Sendable, Identifiable {
     let shownSpaceID: UUID
     let shownTabs: [ShownTab]
     let splitColumnShares: [SplitColumnShares]
+    let cards: [ShownCards]
+    let unavailableCommands: [ShortcutCommand]
 }
 
 struct WorkspaceBusy: Equatable, Sendable {
@@ -5957,6 +6033,49 @@ struct PagePhase: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `PagePresentation`. A member's wire tag is its index in `all`.
+struct PagePresentation: Hashable, Sendable {
+    let tag: Int
+    let name: String
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        self.name = name
+    }
+
+    static let noSelection = PagePresentation(tag: 0, name: "noSelection")
+    static let startPage = PagePresentation(tag: 1, name: "startPage")
+    static let nativeContent = PagePresentation(tag: 2, name: "nativeContent")
+    static let livePage = PagePresentation(tag: 3, name: "livePage")
+    static let navigationFailure = PagePresentation(tag: 4, name: "navigationFailure")
+    static let processFailure = PagePresentation(tag: 5, name: "processFailure")
+    static let unloaded = PagePresentation(tag: 6, name: "unloaded")
+    static let automaticRestore = PagePresentation(tag: 7, name: "automaticRestore")
+
+    static let all: [PagePresentation] = [
+        noSelection,
+        startPage,
+        nativeContent,
+        livePage,
+        navigationFailure,
+        processFailure,
+        unloaded,
+        automaticRestore
+    ]
+
+    static func named(_ name: String?) -> PagePresentation? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: PagePresentation, rhs: PagePresentation) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `PageSecurity`. A member's wire tag is its index in `all`.
 struct PageSecurity: Hashable, Sendable {
     let tag: Int
@@ -6588,6 +6707,7 @@ struct SearchProvider: Hashable, Sendable {
 }
 
 /// The members of the core's `ShortcutCommand`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `availableWhen`.
 struct ShortcutCommand: Hashable, Sendable {
     enum Kinds: Sendable {
         case newWindow
@@ -9836,6 +9956,37 @@ struct TabPlacement: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `TabSurface`. A member's wire tag is its index in `all`.
+struct TabSurface: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let showsPage: Bool
+
+    private init(tag: Int, name: String, showsPage: Bool) {
+        self.tag = tag
+        self.name = name
+        self.showsPage = showsPage
+    }
+
+    static let startPage = TabSurface(tag: 0, name: "startPage", showsPage: false)
+    static let nativeView = TabSurface(tag: 1, name: "nativeView", showsPage: false)
+    static let webPage = TabSurface(tag: 2, name: "webPage", showsPage: true)
+
+    static let all: [TabSurface] = [startPage, nativeView, webPage]
+
+    static func named(_ name: String?) -> TabSurface? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: TabSurface, rhs: TabSurface) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `WebScheme`. A member's wire tag is its index in `all`.
 struct WebScheme: Hashable, Sendable {
     let tag: Int
@@ -10380,6 +10531,10 @@ final class TabStateModel: ObservedModel, Identifiable {
         access(keyPath: \.pageIconIsCurrent)
         return pageIconIsCurrentStorage
     }
+    var surface: TabSurface {
+        access(keyPath: \.surface)
+        return surfaceStorage
+    }
 
     @ObservationIgnored private var titleStorage: String
     @ObservationIgnored private var urlStorage: String?
@@ -10401,6 +10556,7 @@ final class TabStateModel: ObservedModel, Identifiable {
     @ObservationIgnored private var displayTitleStorage: String
     @ObservationIgnored private var isAwayFromSavedAddressStorage: Bool
     @ObservationIgnored private var pageIconIsCurrentStorage: Bool
+    @ObservationIgnored private var surfaceStorage: TabSurface
 
     var value: TabState {
         TabState(
@@ -10424,7 +10580,8 @@ final class TabStateModel: ObservedModel, Identifiable {
             iconMode: iconMode,
             displayTitle: displayTitle,
             isAwayFromSavedAddress: isAwayFromSavedAddress,
-            pageIconIsCurrent: pageIconIsCurrent
+            pageIconIsCurrent: pageIconIsCurrent,
+            surface: surface
         )
     }
 
@@ -10450,6 +10607,7 @@ final class TabStateModel: ObservedModel, Identifiable {
         displayTitleStorage = value.displayTitle
         isAwayFromSavedAddressStorage = value.isAwayFromSavedAddress
         pageIconIsCurrentStorage = value.pageIconIsCurrent
+        surfaceStorage = value.surface
     }
 
     func update(_ value: TabState) {
@@ -10533,6 +10691,10 @@ final class TabStateModel: ObservedModel, Identifiable {
         if pageIconIsCurrentStorage != value.pageIconIsCurrent {
             pageIconIsCurrentStorage = value.pageIconIsCurrent
             withMutation(keyPath: \.pageIconIsCurrent) {}
+        }
+        if surfaceStorage != value.surface {
+            surfaceStorage = value.surface
+            withMutation(keyPath: \.surface) {}
         }
     }
 }

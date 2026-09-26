@@ -131,7 +131,7 @@ struct SpaceSidebarBrowsingContent: View {
         BrowserTabActivationPolicy.activate(
             tabID,
             selectTab: browser.selectTab,
-            presentPage: { pages.select(session: browser.presented) }
+            presentPage: { pages.select() }
         )
     }
 

@@ -53,9 +53,9 @@ extension MobileBrowserPage: WKUIDelegate {
                 }
             ) { [weak self] suggested in
                 guard let self, isCurrent(),
-                    let space = linkDestinationHost.browser?.session.space(id: source.spaceID)
+                    let space = linkDestinationHost.browser?.spaceModel(source.spaceID)
                 else { return UIMenu(children: suggested) }
-                @MainActor func icon(for space: BrowserSpace) -> UIImage? {
+                @MainActor func icon(for space: SpaceModel) -> UIImage? {
                     let renderer = ImageRenderer(content: BrowserSpaceIdentityIcon(space: space))
                     renderer.scale = window.traitCollection.displayScale
                     return renderer.uiImage?.withRenderingMode(.alwaysOriginal)
@@ -73,7 +73,7 @@ extension MobileBrowserPage: WKUIDelegate {
                             title: String(localized: "Open in Other Space"),
                             image: UIImage(systemName: "square.stack"),
                             children: spaces.map { space in
-                                UIAction(title: space.name, image: icon(for: space)) { _ in
+                                UIAction(title: space.settings.name, image: icon(for: space)) { _ in
                                     open(BrowserSpaceRuntimeAssignment(space: space))
                                 }
                             }

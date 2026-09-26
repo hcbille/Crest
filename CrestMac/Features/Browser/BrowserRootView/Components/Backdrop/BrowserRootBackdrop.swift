@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct BrowserRootBackdrop: View, BrowserChromeAnimating {
-    let space: BrowserSpace?
-    let spaces: [BrowserSpace]
+    let space: SpaceModel?
+    let spaces: [SpaceModel]
     let transparencyIsEnabled: Bool
     let transparencyStrength: Double
     let isWindowFocused: Bool

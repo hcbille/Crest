@@ -116,9 +116,10 @@ final class BrowserPagePool:
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored private let hostedNotificationCenter: (any BrowserHostedWebNotificationCentering)?
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
-    @ObservationIgnored private var selectPictureInPictureSource: (BrowserTabRuntimeAssignment) -> BrowserPresentedSession? = {
-        _ in nil
-    }
+    @ObservationIgnored private var selectPictureInPictureSource:
+        (BrowserTabRuntimeAssignment) -> BrowserPresentedSession? = {
+            _ in nil
+        }
     @ObservationIgnored private let activateHostedNotificationSource: (SpaceID, TabID) -> Void
     @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
     @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
@@ -442,7 +443,7 @@ final class BrowserPagePool:
                 let space = BrowserSidebarAccessPolicy.unlockedSpace(
                     matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID),
                     in: browser, accessController: spaceAccess),
-                space.tabs.contains(where: { $0.id == source.tabID })
+                space.tabs.model(source.tabID) != nil
             else { return nil }
             browser.selectSpace(space.id)
             browser.selectTab(source.tabID)
@@ -1091,9 +1092,11 @@ final class BrowserPagePool:
         let profile = adoption.profileID
         let destination: SpaceID
         if let sourceID = adoption.sourcePageID {
-            guard let opener = tabRuntimes.values.compactMap(\.page)
-                .first(where: { $0.corePage.id == UUID(uuidString: sourceID) }),
-                opener.profileID == profile else { return false }
+            guard
+                let opener = tabRuntimes.values.compactMap(\.page)
+                    .first(where: { $0.corePage.id == UUID(uuidString: sourceID) }),
+                opener.profileID == profile
+            else { return false }
             destination = opener.spaceID
         } else {
             guard adoption.windowID == windowID else { return false }
@@ -1103,11 +1106,14 @@ final class BrowserPagePool:
                 destination = target
             } else if let opener = activePage, opener.profileID == profile {
                 destination = opener.spaceID
-            } else { return false }
+            } else {
+                return false
+            }
         }
         guard !browser.deletingSpaceIDs.contains(destination),
             let registration = popupTabHost.openTab(adoption.url, destination, adoption.foreground),
-            registration.space.profile.id == profile else { return false }
+            registration.space.profile.id == profile
+        else { return false }
         guard let page = makePage(space: registration.space, tabID: registration.tab.id) else {
             popupTabHost.closeTab(registration.tab.id, registration.space.id)
             return false
@@ -1700,7 +1706,8 @@ final class BrowserPagePool:
         let departures = ([activeTabID].compactMap { $0 } + presentedTabIDs)
             .filter { departed.contains($0) }
         var requested: Set<TabID> = []
-        for tabID in departures where requested.insert(tabID).inserted
+        for tabID in departures
+        where requested.insert(tabID).inserted
             && !runtimeStore.isPresented(tabID, outside: windowID)
         {
             tabRuntimes[tabID]?.page.pictureInPicture?.leaveTab()
@@ -1875,8 +1882,6 @@ final class BrowserPagePool:
         peekPageLeases.removeAll()
     }
 
-
-
     func pruneTransientLeases() {
         transientLeases = transientLeases.filter { $0.value.value != nil }
     }
@@ -1930,12 +1935,10 @@ extension BrowserPagePool: BrowserTabCopying {
 }
 
 extension BrowserPagePool: BrowserTabLinkProviding {
-    func linkURL(for tab: BrowserTab, in space: BrowserSpace) -> URL? {
-        guard tab.isWebPage else { return nil }
-        guard let page = tabRuntimes[tab.id]?.page,
-            page.spaceID == space.id,
-            page.profileID == space.profile.id
-        else { return tab.url }
+    func liveLinkURL(for assignment: BrowserTabRuntimeAssignment) -> URL? {
+        guard let page = tabRuntimes[assignment.tabID]?.page, page.spaceID == assignment.spaceID,
+            page.profileID == assignment.profileID
+        else { return nil }
         return page.live.documentURL
     }
 }

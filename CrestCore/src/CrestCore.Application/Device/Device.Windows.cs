@@ -17,6 +17,7 @@ internal sealed partial class Device {
             case ShowTab showing: Show(showing, changes); break;
             case ShowAdjacentTab stepping: Show(stepping, changes); break;
             case ShowAdjacentSpace stepping: Show(stepping, changes); break;
+            case ShowMostRecentTab recent: Show(recent, changes); break;
             case DismissShownTab dismissing: Dismiss(dismissing, changes); break;
             case ResizeSplitColumns resizing: Resize(resizing, changes); break;
             case AdoptWindowRecords adoption: Adopt(adoption, changes); break;
@@ -29,7 +30,8 @@ internal sealed partial class Device {
         var session = authority.Current;
         lock (gate) {
             if (open.TryGetValue(intent.WindowId, out var existing)) {
-                changes.Publish(new WindowChanged(existing.State));
+                Publishing(existing, session);
+                changes.Publish(new WindowChanged(published[existing.Id]));
                 return;
             }
             if (intent.Saved && intent.WorkspaceId != persistentWorkspace)
@@ -45,14 +47,14 @@ internal sealed partial class Device {
             if (intent.ShowingSpaceId is { } showing && session.Spaces.Any(space => space.Id == showing)) window.MoveTo(showing);
             window.Repair(session);
             open[window.Id] = window;
-            if (window.Saved) Record(window);
-            changes.Publish(new WindowChanged(window.State));
+            changes.Publish(Publishing(window, session)!);
         }
     }
 
     private void Close(CloseWindow intent, ChangeFeed changes) {
         lock (gate) {
             if (!open.Remove(intent.WindowId)) return;
+            published.Remove(intent.WindowId);
         }
         changes.Publish(new WindowClosed(intent.WindowId));
     }
@@ -61,7 +63,7 @@ internal sealed partial class Device {
         var window = Opened(intent.WindowId);
         var session = Workspace(window.WorkspaceId).Current;
         if (Available(session, intent.SpaceId) is not { } space || window.ShownSpaceId == space.Id) return;
-        lock (gate) Publish(Changing([window], shown => shown.ShowSpace(space)), changes);
+        lock (gate) Publish(Changing([window], shown => shown.ShowSpace(space), session), changes);
     }
 
     /// Showing a tab records its use first, as its own change to the
@@ -76,7 +78,8 @@ internal sealed partial class Device {
             if (authority.Touch(intent.SpaceId, tabId, DateTimeOffset.UtcNow) is { } touched)
                 Publish(SessionChanges.Publish(window.WorkspaceId, touched.Previous, touched.Next), changes);
         }
-        lock (gate) Publish(Changing([window], shown => shown.ShowTab(intent.SpaceId, intent.TabId, moves: true)), changes);
+        var session = authority.Current;
+        lock (gate) Publish(Changing([window], shown => shown.ShowTab(intent.SpaceId, intent.TabId, moves: true), session), changes);
     }
 
     /// Steps the window's tab through its Space's sidebar, showing the tab the
@@ -93,6 +96,22 @@ internal sealed partial class Device {
         if (Available(session, spaceId) is not { } space || shown is not { } tabId || space.Step(tabId, intent.Direction) is not { } next)
             return;
         Show(new ShowTab(intent.WindowId, space.Id, next), changes);
+    }
+
+    /// Shows the tab of the window's Space used most recently other than the
+    /// one it shows, the way `ShowTab` does.
+    private void Show(ShowMostRecentTab intent, ChangeFeed changes) {
+        var window = Opened(intent.WindowId);
+        var session = Workspace(window.WorkspaceId).Current;
+        Guid spaceId;
+        Guid? shown;
+        lock (gate) {
+            spaceId = window.ShownSpaceId;
+            shown = window.Tab(spaceId);
+        }
+        if (Available(session, spaceId) is not { } space || shown is not { } tabId
+            || space.Tabs.Where(tab => tab.Id != tabId).MaxBy(tab => tab.LastActivatedAt) is not { } recent) return;
+        Show(new ShowTab(intent.WindowId, space.Id, recent.Id), changes);
     }
 
     /// Steps the window through the Spaces it may show, showing the one the
@@ -119,7 +138,8 @@ internal sealed partial class Device {
         }
         if (fallback is { } tabId && authority.Touch(space.Id, tabId, DateTimeOffset.UtcNow) is { } touched)
             Publish(SessionChanges.Publish(window.WorkspaceId, touched.Previous, touched.Next), changes);
-        lock (gate) Publish(Changing([window], shown => shown.ShowTab(space.Id, fallback, moves: false)), changes);
+        var session = authority.Current;
+        lock (gate) Publish(Changing([window], shown => shown.ShowTab(space.Id, fallback, moves: false), session), changes);
     }
 
     private void Resize(ResizeSplitColumns intent, ChangeFeed changes) {
@@ -129,7 +149,7 @@ internal sealed partial class Device {
         lock (gate) Publish(Changing([window], resized => {
             resized.Resize(intent.GroupId, intent.Shares);
             resized.Repair(session);
-        }), changes);
+        }, session), changes);
     }
 
     private static void Publish(IEnumerable<Change> published, ChangeFeed changes) {

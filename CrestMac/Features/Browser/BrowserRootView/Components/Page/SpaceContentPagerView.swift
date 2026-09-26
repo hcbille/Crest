@@ -6,7 +6,7 @@ import SwiftUI
 /// web history gestures continue to belong to WebKit.
 @MainActor
 final class SpaceContentPagerView<Content: View>: NSView {
-    private var spaces: [BrowserSpace] = []
+    private var spaces: [SpaceModel] = []
     private var selectedSpaceID: SpaceID?
     private var lockedSpaceIDs: Set<SpaceID> = []
     private var layoutDirection = LayoutDirection.leftToRight
@@ -14,7 +14,7 @@ final class SpaceContentPagerView<Content: View>: NSView {
     private var snapshot: SpacePagerPresentation.Snapshot?
     private var transition: SpacePagerSettlement?
     private var hosts: [BrowserSpaceRuntimeAssignment: SpacePageHost<Content>] = [:]
-    private var makeRoot: ((BrowserSpace, Bool) -> SpacePageRoot<Content>)?
+    private var makeRoot: ((SpaceModel, Bool) -> SpacePageRoot<Content>)?
     private var lastSize = CGSize.zero
     private var preparedDestination: SpaceID?
 
@@ -32,9 +32,9 @@ final class SpaceContentPagerView<Content: View>: NSView {
     }
 
     func update(
-        spaces: [BrowserSpace], selectedSpaceID: SpaceID, lockedSpaceIDs: Set<SpaceID>,
+        spaces: [SpaceModel], selectedSpaceID: SpaceID, lockedSpaceIDs: Set<SpaceID>,
         layoutDirection: LayoutDirection, presentation: SpacePagerPresentation?,
-        makeRoot: @escaping (BrowserSpace, Bool) -> SpacePageRoot<Content>
+        makeRoot: @escaping (SpaceModel, Bool) -> SpacePageRoot<Content>
     ) {
         let changedLocks = self.lockedSpaceIDs.symmetricDifference(lockedSpaceIDs)
         let assignments = Set(spaces.map(BrowserSpaceRuntimeAssignment.init(space:)))

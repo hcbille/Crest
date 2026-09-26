@@ -71,6 +71,24 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void AWindowShowsTheSplitItsTabIsInAsCardsAndATabOutsideOneAlone() {
+        var (session, space, member, partner, plain) = SplitSession();
+        using var device = new TestDevice(session);
+        var window = device.Open(space, (space, member));
+
+        var split = device.Shown(window).Cards.Single(cards => cards.SpaceId == space);
+        Assert.Equal([member, partner], split.TabIds);
+        Assert.NotNull(split.SplitGroupId);
+        Assert.DoesNotContain(ShortcutCommand.SeparateSplitTabs, device.Shown(window).UnavailableCommands);
+
+        device.Send(new ShowTab(window, space, plain));
+        var alone = device.Shown(window).Cards.Single(cards => cards.SpaceId == space);
+        Assert.Equal([plain], alone.TabIds);
+        Assert.Null(alone.SplitGroupId);
+        Assert.Contains(ShortcutCommand.SeparateSplitTabs, device.Shown(window).UnavailableCommands);
+    }
+
+    [Fact]
     public void TheSpacesPinnedTabsStopAtTheirCapacity() {
         var f = SavedSession(); var session = f.Document["session"]!; var space = session["spaces"]![0]!;
         for (var index = 0; index < TabPlacement.PinnedCapacity; index++)

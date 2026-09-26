@@ -97,6 +97,14 @@ extension BrowserStore {
                 tabID: id))
     }
 
+    /// Reopens the tab the Space this window shows archived last, which the
+    /// core chooses, and shows it here. False when it keeps none.
+    @discardableResult
+    func reopenClosedTab() -> Bool {
+        guard let space = shownSpace else { return false }
+        return sendRecords(ReopenClosedTab(workspaceID: family.workspaceID, windowID: windowID, spaceID: space.id))
+    }
+
     /// Runs a history, archive or retention intent from this window, and
     /// answers whether it changed the session.
     @discardableResult
