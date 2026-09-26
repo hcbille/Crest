@@ -48,7 +48,8 @@ final class BrowserMacApplication {
     ///   - siteControlAnchor: A view an engine anchors its popups to behind
     ///     each window's Site Controls button.
     ///   - reviewPersistenceID: The isolated store a review build of this
-    ///     composition keeps, so each engine's review app has its own.
+    ///     composition keeps, so each engine's review app has its own. A test
+    ///     run the review build hosts keeps nothing, as in every other host.
     init(
         profileRemover: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
         defaultEngine: (any NativeEngineBinding)? = nil,
@@ -57,8 +58,12 @@ final class BrowserMacApplication {
     ) throws {
         self.siteControlAnchor = siteControlAnchor
         #if CREST_REVIEW_BUILD
-            setenv("CREST_ISOLATED_SESSION", "1", 1)
-            setenv("CREST_ISOLATED_PERSISTENCE_ID", reviewPersistenceID, 0)
+            // Naming the review's isolation under a test run would open the
+            // review app's own session, credentials and website data stores.
+            if !BrowserLaunchEnvironment.current.isXCTestRuntime {
+                setenv("CREST_ISOLATED_SESSION", "1", 1)
+                setenv("CREST_ISOLATED_PERSISTENCE_ID", reviewPersistenceID, 0)
+            }
         #endif
         let launchEnvironment = BrowserLaunchEnvironment.current
         let usesIsolatedLaunch = launchEnvironment.requiresIsolation

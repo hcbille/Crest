@@ -2833,6 +2833,10 @@
     "2026-09-26-native-core-test-target": {
       "category": "internal",
       "message": "The native core's test target builds with the support files its tests use"
+    },
+    "2026-09-26-review-build-tests-stay-unnamed": {
+      "category": "internal",
+      "message": "Test runs hosted by review builds no longer open the review app's own session and stores"
     }
   }
 }
