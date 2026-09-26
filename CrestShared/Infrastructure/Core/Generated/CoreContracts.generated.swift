@@ -1879,6 +1879,39 @@ struct EngineRegistration: Equatable, Sendable {
 }
 
 struct EngineRoster: Equatable, Sendable {
+    static let unregistered = EngineRoster(
+        engines: [],
+        offered: [
+            EngineCapability.pages,
+            EngineCapability.navigation,
+            EngineCapability.find,
+            EngineCapability.zoom,
+            EngineCapability.interactionState,
+            EngineCapability.pageResidency,
+            EngineCapability.popups,
+            EngineCapability.workspaceProfiles,
+            EngineCapability.workspaceTransfer,
+            EngineCapability.profileDeletion,
+            EngineCapability.contentBlocking,
+            EngineCapability.downloads,
+            EngineCapability.permissions,
+            EngineCapability.reader,
+            EngineCapability.translation,
+            EngineCapability.selectionTranslation,
+            EngineCapability.localFiles,
+            EngineCapability.extensions,
+            EngineCapability.viewportCapture,
+            EngineCapability.fullPageCapture,
+            EngineCapability.pdf,
+            EngineCapability.webArchive,
+            EngineCapability.print,
+            EngineCapability.inspector,
+            EngineCapability.featureFlags,
+            EngineCapability.beforeUnload,
+            EngineCapability.internalPages
+        ]
+    )
+
     let engines: [EngineState]
     let offered: [EngineCapability]
 }

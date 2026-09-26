@@ -20,8 +20,8 @@ struct MobileBrowserCommandContext {
     /// Which way the cards are laid out, so a command that names a side of the
     /// screen resolves to the right member. See `BrowserSplitCardMoveDirection`.
     let layoutDirection: LayoutDirection
-    /// Whether the device offers a command at all: some engine it registered
-    /// supports the command's feature.
+    /// Whether the device offers a command at all: the default engine or an
+    /// engine a page is open on supports the command's feature.
     let isOffered: @MainActor (ShortcutCommand) -> Bool
     let readerModeActionTitle: LocalizedStringResource
     let canToggleReaderMode: Bool

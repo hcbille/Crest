@@ -2853,6 +2853,10 @@
     "2026-09-26-site-engine-choices": {
       "category": "internal",
       "message": "Crest can remember which engine each site's pages open on, per device, and keeps private windows' choices in memory only"
+    },
+    "2026-09-26-offer-default-and-live-engines": {
+      "category": "internal",
+      "message": "Features appear in menus and settings only for the default engine or an engine a page is open on"
     }
   }
 }

@@ -40,6 +40,9 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     private const int MaximumRestoreStates = 64;
     private readonly List<(Guid WorkspaceId, Guid TabId)> restoreOrder = [];
 
+    /// The engines a page is open on.
+    public IReadOnlySet<EngineKind> HostingEngines => open.Values.Select(page => page.Engine.Kind).ToHashSet();
+
     /// Whether the engine new pages open on shows internal pages, such as an
     /// engine's settings.
     public bool OpensInternalPages => engines.Default?.Supports(EngineCapability.InternalPages) == true;

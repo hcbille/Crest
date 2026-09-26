@@ -10,9 +10,9 @@ extension CoreState {
     // MARK: - Actions - Capabilities
 
     /// Whether the device offers `capability` anywhere a person can find a
-    /// feature, such as a menu or a settings page: some registered engine
-    /// supports it, or no engine has registered yet. Whether a page can use it
-    /// is its own engine's answer.
+    /// feature, such as a menu or a settings page: the default engine or an
+    /// engine a page is open on supports it, or no engine has registered yet.
+    /// Whether a page can use it is its own engine's answer.
     func offers(_ capability: EngineCapability) -> Bool {
         engines?.offered.contains(capability) ?? true
     }

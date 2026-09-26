@@ -164,9 +164,10 @@ through `crest_engine.h`: WebKit always, and Chromium as the default in the
 Chromium product. Registration carries the capabilities the engine supports, is
 local to the process, and is excluded from persistence and sync, so a restored
 session accepts the destination device's engine without changing shared browser
-records. The core publishes the registered engines to the read model; a
-feature is offered when some registered engine supports it and enabled by the
-engine of the page it acts on. Every engine must support the required page, navigation and profile
+records. The core publishes the registered engines to the read model with
+what the device offers: what the default engine supports, and what each
+engine a page is open on supports. A feature is offered on that rule and
+enabled by the engine of the page it acts on. Every engine must support the required page, navigation and profile
 contracts; unverified, unavailable and unknown capabilities do not authorize a
 feature. The native page port exposes this declaration without crossing the ABI
 for each interaction. The core owns page identity: a pool or page store opens

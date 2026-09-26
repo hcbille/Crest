@@ -16,6 +16,9 @@ public sealed partial class CrestApp {
     /// inside a binding or on another, only adds to the queue.
     private bool delivering;
 
+    /// The engines as the core last published them.
+    private EngineRoster publishedEngines = EngineRoster.Unregistered;
+
     #endregion
 
     #region Actions - Engines
@@ -24,14 +27,11 @@ public sealed partial class CrestApp {
     /// in the order it issued them, never while it holds a lock. Throws
     /// `Rejected` when the engine lacks a required capability, is already
     /// registered, or asks to be the default beside another default.
-    /// The engines are published again, and so are the shortcut bindings when
-    /// the commands the engines offer change.
     public Engine RegisterEngine(EngineRegistration registration, Action<EngineCommand> run) {
         Engine engine;
         lock (gate) {
-            var offered = engines.OfferedCommands();
             engine = engines.Register(registration, run);
-            AnnounceEngines(offered);
+            PublishEngines(Announce);
         }
         WakeIfOwed();
         return engine;
@@ -40,19 +40,28 @@ public sealed partial class CrestApp {
     /// Removes a binding. Commands still waiting for it are dropped.
     public void UnregisterEngine(Engine engine) {
         lock (gate) {
-            var offered = engines.OfferedCommands();
             engines.Unregister(engine);
-            AnnounceEngines(offered);
+            PublishEngines(Announce);
         }
         WakeIfOwed();
     }
 
-    /// Announces the engines registered now, then the bindings when the
-    /// commands this device offers are no longer `before`. The caller holds
-    /// the lock.
-    private void AnnounceEngines(IReadOnlyList<ShortcutCommand> before) {
-        Announce(new EnginesChanged(engines.Roster()));
-        if (device.ShortcutsAfter(before, engines.OfferedCommands()) is { } changed) Announce(changed);
+    /// The engines as they stand, and what they offer with the pages open now.
+    /// The caller holds the lock.
+    private EngineRoster RegisteredEngines() => engines.Roster(pages.HostingEngines);
+
+    /// Hands `publish` the engines when they changed since the core last
+    /// published them: one registered or went away, or what they offer
+    /// changed because a page opened on an engine no page used or an engine's
+    /// last page went. The shortcut bindings follow when the commands they
+    /// offer changed. The caller holds the lock.
+    private void PublishEngines(Action<Change> publish) {
+        var current = RegisteredEngines();
+        if (current.SameAs(publishedEngines)) return;
+        var before = Engines.OfferedCommands(publishedEngines);
+        publishedEngines = current;
+        publish(new EnginesChanged(current));
+        if (device.ShortcutsAfter(before, Engines.OfferedCommands(current)) is { } changed) publish(changed);
     }
 
     /// Applies what an engine saw happen to one of its pages. A report is

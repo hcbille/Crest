@@ -19,6 +19,34 @@ public sealed partial class BrowserContractsTests {
         : throw new InvalidOperationException("No engine created the page.");
 
     [Fact]
+    public void AnEngineOffersItsFeaturesAsTheDefaultOrWhileAPageIsOpenOnIt() {
+        var session = SavedSession();
+        var (app, _, _, workspace, window) = PageHost(session.Document["session"]!);
+        using var disposal = app;
+        IReadOnlyList<Change> Offering(IReadOnlyList<Change> changes) => [.. changes.Where(change => change is EnginesChanged or ShortcutsChanged)];
+        bool OffersReader(IReadOnlyList<Change> changes) =>
+            Assert.Single(changes.OfType<EnginesChanged>()).Roster.Offered.Contains(EngineCapability.Reader)
+            && Assert.Single(changes.OfType<ShortcutsChanged>()).Bindings.Any(binding => binding.Command == ShortcutCommand.ToggleReaderMode);
+
+        // PageHost's default WebKit lacks Reader, so a registered engine with it that no page uses adds nothing.
+        var chromium = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium, [.. EngineCapability.Required, EngineCapability.Reader],
+            IsDefault: false), _ => { });
+        var registered = Assert.Single(app.Drain().OfType<EnginesChanged>()).Roster;
+        Assert.Equal([EngineKind.Chromium, EngineKind.WebKit], registered.Engines.Select(engine => engine.Kind));
+        Assert.Equal(EngineCapability.Required, registered.Offered);
+
+        // Its first page offers what it supports, and its last page going takes that back.
+        var tab = app.Workspace(workspace).Current.Spaces.Single(space => space.Id == session.Space).Tabs.Single(held => held.Id == session.Tab);
+        var site = new WebAddress(tab.Url!).Origin!;
+        app.Send(new ChooseSiteEngine(session.Space, site, EngineKind.Chromium));
+        var page = Guid.NewGuid();
+        var opened = Offering(app.Send(new OpenPage(page, workspace, session.Space, session.Tab, window)));
+        Assert.True(OffersReader(opened));
+        app.Report(chromium, new PageCreated(page));
+        Assert.False(OffersReader(Offering(app.Send(new ReleasePage(page, KeepsState: false)))));
+    }
+
+    [Fact]
     public void ATabsPageOpensOnTheEngineChosenForItsSiteAndOnlyThePersistentSessionsChoicesAreKept() {
         using var directory = new StorageDirectory();
         Guid spaceId, chosenTab, otherTab;

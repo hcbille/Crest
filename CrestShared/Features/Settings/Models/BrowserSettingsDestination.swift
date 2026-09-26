@@ -145,7 +145,7 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
     // MARK: - Actions - Platform capability
 
     /// The destinations this platform can present, in catalog order, whose
-    /// subject some engine the device registered provides.
+    /// subject the device offers.
     ///
     /// Shells iterate this rather than `all` so a destination that only one
     /// platform can host stays out of the other's list.
@@ -154,13 +154,13 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
         BrowserPlatformSettingsDestinationCatalog.cases.filter { $0.isProvided(in: state) }
     }
 
-    /// Whether some engine the device registered provides the destination's
-    /// subject at all.
+    /// Whether the device offers the destination's subject at all: the
+    /// default engine or an engine a page is open on provides it.
     ///
     /// The set is fixed: accessibility identifiers derive from it and the
     /// automation suites pin it, so a destination never disappears from the
     /// catalog because of which engines this process registered. Only its
-    /// availability follows their declared capabilities.
+    /// availability follows what they offer.
     @MainActor
     func isProvided(in state: CoreState) -> Bool {
         requiredCapability.map(state.offers) ?? true

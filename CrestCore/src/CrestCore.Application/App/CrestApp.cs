@@ -140,7 +140,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                     device.Choose(choice);
                     break;
                 case ShortcutIntent shortcut:
-                    device.Handle(shortcut, engines.OfferedCommands(), changes);
+                    device.Handle(shortcut, Engines.OfferedCommands(RegisteredEngines()), changes);
                     break;
                 case LinkIntent link:
                     device.Handle(link, changes);
@@ -156,6 +156,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                     break;
                 case PageIntent page:
                     pages.Handle(page, changes, Issue);
+                    PublishEngines(changes.Publish);
                     break;
                 case SessionIntent session:
                     device.Workspace(session.WorkspaceId).Handle(session, clock.Now, ids, pages);

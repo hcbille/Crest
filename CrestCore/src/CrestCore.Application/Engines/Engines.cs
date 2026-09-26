@@ -13,14 +13,22 @@ internal sealed class Engines {
     /// The engine new pages open on, or null while none is registered.
     public Engine? Default => registered.Values.FirstOrDefault(engine => engine.IsDefault);
 
-    /// Every registered engine, as the read model shows them.
-    public EngineRoster Roster() => new([.. EngineKind.All.Where(registered.ContainsKey).Select(kind => registered[kind].State)]);
+    /// Every registered engine, as the read model shows them, and what the
+    /// device offers where `hosting` names the engines a page is open on: what
+    /// the default engine supports, and what each engine that hosts a page
+    /// supports.
+    public EngineRoster Roster(IReadOnlySet<EngineKind> hosting) {
+        if (registered.Count == 0) return EngineRoster.Unregistered;
+        var offering = registered.Values.Where(engine => engine.IsDefault || hosting.Contains(engine.Kind)).ToArray();
+        return new([.. EngineKind.All.Where(registered.ContainsKey).Select(kind => registered[kind].State)],
+            [.. EngineCapability.All.Where(capability => offering.Any(engine => engine.Supports(capability)))]);
+    }
 
-    /// The commands this device offers, in catalog order: those whose whole
-    /// feature some registered engine supports, or every command before one
-    /// registers. A page's own engine decides whether the command can act on it.
-    public IReadOnlyList<ShortcutCommand> OfferedCommands() {
-        var offered = Roster().Offered;
+    /// The commands `roster` offers, in catalog order: those whose whole
+    /// feature it offers. A page's own engine decides whether the command can
+    /// act on it.
+    public static IReadOnlyList<ShortcutCommand> OfferedCommands(EngineRoster roster) {
+        var offered = roster.Offered;
         return [.. ShortcutCommand.All.Where(command => command.IsOffered(offered.Contains))];
     }
 

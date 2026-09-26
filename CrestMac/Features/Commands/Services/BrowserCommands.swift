@@ -278,7 +278,7 @@ struct BrowserCommands: Commands {
         }
 
         CommandMenu("Page") {
-            // Features no registered engine supports are left out of the menu
+            // Features the device does not offer are left out of the menu
             // rather than shown permanently dimmed; the shown page's engine
             // decides whether one is enabled.
             if ShortcutCommand.toggleTranslationToolbar.isOffered(in: browser.core.state) {

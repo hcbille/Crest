@@ -104,7 +104,7 @@ struct BrowserPrivacySettingsPane: View {
     }
 
     /// Crest's own blocking is a WebKit content-rule list. An engine either
-    /// applies it or it does not, and a preference that cannot reach any engine
+    /// applies it or it does not, and a preference that cannot reach any page
     /// is worse than an absent one: where blocking comes only from an extension,
     /// the section says so instead.
     private var supportsContentBlocking: Bool {

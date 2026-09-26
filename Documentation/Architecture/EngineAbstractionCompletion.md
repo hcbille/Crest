@@ -232,11 +232,14 @@ Remaining. The Chromium registration declares both limits:
 
 ### WP6. Capability truth and UI hygiene. Done
 
-- The core publishes the registered engines, with what each supports, as
-  `EnginesChanged`. Menus, the launcher and the shortcut settings offer a
-  command some registered engine supports, and the shown page's engine enables
-  it, so Reader is offered on a WebKit page and extensions on a Chromium page.
-  The Chromium product's own menu still reads its composition's engine.
+- The core publishes the registered engines, with what each supports and
+  what the device offers, as `EnginesChanged`. The device offers what the
+  default engine supports and what each engine a page is open on supports, so
+  an engine no page uses adds nothing. Menus, the launcher, settings and the
+  shortcut settings offer what the device offers, and the shown page's engine
+  enables it: Reader appears on the Chromium product once a WebKit page is
+  open, dimmed on Chromium pages. The Chromium product's own menu still reads
+  its composition's engine.
 - Settings destinations filter on `isProvided(in:)`, which covers Feature
   Flags.
 - When content blocking is unavailable, the Privacy pane says that blocking
