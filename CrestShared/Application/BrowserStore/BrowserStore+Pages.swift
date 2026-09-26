@@ -5,12 +5,12 @@ import Foundation
 extension BrowserStore {
     /// Opens a page through the core, from this window, for `tabID` in
     /// `spaceID`, or for a transient request presenting as `transient` when
-    /// `tabID` is nil. `webKit` builds the page when WebKit hosts it. Nil when
-    /// a rule refuses it, such as a locked Space, one being deleted, or a tab
-    /// that already has a page.
+    /// `tabID` is nil. WebKit builds the page from `webKit` when it hosts it.
+    /// Nil when a rule refuses it, such as a locked Space, one being deleted,
+    /// or a tab that already has a page.
     func openPage(
         in spaceID: SpaceID, for tabID: TabID?, presenting transient: TransientPresentation? = nil,
-        webKit: @escaping @MainActor (CorePage) -> AnyObject?
+        webKit: WebKitPageInputs
     ) -> Engines.OpenedPage? {
         core.engines.open(
             OpenPage(

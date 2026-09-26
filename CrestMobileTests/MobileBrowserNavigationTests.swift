@@ -2014,15 +2014,16 @@ final class MobileBrowserNavigationTests: XCTestCase {
     ) throws -> MobileBrowserPage {
         let tab = try XCTUnwrap(space.tabs.first)
         return try XCTUnwrap(
-            browser.openPage(in: space.id, for: tab.id) { corePage in
+            browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
-                    corePage: corePage,
+                    corePage: opened.core,
+                    enginePage: opened.webKit,
                     tab: tab,
                     space: space,
                     loadsInitialURL: loadsInitialURL,
                     openNewTab: { _ in }
                 )
-            }?.built as? MobileBrowserPage
+            }
         )
     }
 

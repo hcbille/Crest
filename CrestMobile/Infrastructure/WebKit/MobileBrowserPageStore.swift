@@ -717,43 +717,55 @@ final class MobileBrowserPageStore:
         in space: BrowserSpace,
         presenting presentation: TransientPresentation
     ) -> MobileBrowserPage? {
-        opened(
-            browser.openPage(in: space.id, for: nil, presenting: presentation) { [self] corePage in
-                MobileBrowserPage(
-                    corePage: corePage,
-                    tab: tab,
-                    space: space,
-                    downloadCenter: downloadCenter,
-                    permissionCenter: permissionCenter,
-                    serverTrustOverrides: serverTrustOverrides,
-                    websiteDataStore: websiteDataStore(for: space.profile),
-                    contentRuleLists: contentRuleLists(for: space),
-                    allowsCredentialAccess: !browsingMode.isPrivate,
-                    isCredentialAccessEnabled: space.credentialPreferences.isEnabled,
-                    defaultPageZoom: pageZoomPreferences.defaultZoom,
-                    loadsInitialURL: false,
-                    loadHTTPAuthenticationCredential: { [loadHTTPAuthenticationCredential] protectionSpace in
-                        try await loadHTTPAuthenticationCredential(protectionSpace, space.id)
-                    },
-                    saveHTTPAuthenticationCredential: { [saveHTTPAuthenticationCredential] request in
-                        try await saveHTTPAuthenticationCredential(request, space.id)
-                    },
-                    linkDestinationHost: linkDestinationHost,
-                    openNewTab: openNewTab,
-                    openModifiedLink: openModifiedLink,
-                    openPeek: openPeek
-                )
-            })
+        guard
+            let opening = browser.openPage(
+                in: space.id, for: nil, presenting: presentation, webKit: webKitInputs(for: space))
+        else { return nil }
+        return host(
+            MobileBrowserPage(
+                corePage: opening.page,
+                enginePage: webKitPage(opening),
+                tab: tab,
+                space: space,
+                downloadCenter: downloadCenter,
+                permissionCenter: permissionCenter,
+                serverTrustOverrides: serverTrustOverrides,
+                allowsCredentialAccess: !browsingMode.isPrivate,
+                isCredentialAccessEnabled: space.credentialPreferences.isEnabled,
+                defaultPageZoom: pageZoomPreferences.defaultZoom,
+                loadsInitialURL: false,
+                loadHTTPAuthenticationCredential: { [loadHTTPAuthenticationCredential] protectionSpace in
+                    try await loadHTTPAuthenticationCredential(protectionSpace, space.id)
+                },
+                saveHTTPAuthenticationCredential: { [saveHTTPAuthenticationCredential] request in
+                    try await saveHTTPAuthenticationCredential(request, space.id)
+                },
+                linkDestinationHost: linkDestinationHost,
+                openNewTab: openNewTab,
+                openModifiedLink: openModifiedLink,
+                openPeek: openPeek
+            ))
     }
 
-    /// The page the core opened and WebKit built, now hosted by this store.
-    private func opened(_ opening: Engines.OpenedPage?) -> MobileBrowserPage? {
-        guard let opening else { return nil }
-        guard let page = opening.built as? MobileBrowserPage else {
-            preconditionFailure("WebKit built something other than a mobile page.")
+    /// What WebKit's binding built for a page the core opened.
+    private func webKitPage(_ opening: Engines.OpenedPage) -> WebKitEnginePage {
+        guard let page = opening.built as? WebKitEnginePage else {
+            preconditionFailure("WebKit built something other than its page.")
         }
+        return page
+    }
+
+    /// A page the core opened, now hosted by this store.
+    private func host(_ page: MobileBrowserPage) -> MobileBrowserPage {
         page.host = self
         return page
+    }
+
+    /// What WebKit's binding builds a page of `space` from: the Space's
+    /// content rules and, where this store keeps nothing, its profile's
+    /// ephemeral website data store.
+    private func webKitInputs(for space: BrowserSpace) -> WebKitPageInputs {
+        WebKitPageInputs(websiteDataStore: websiteDataStore(for: space.profile), contentRuleLists: contentRuleLists(for: space))
     }
 
     @discardableResult
@@ -1189,45 +1201,46 @@ final class MobileBrowserPageStore:
         return dataStore
     }
 
-    /// Opens a page for `tab` in `space` through the core and builds it; nil when
-    /// the core refuses the tab a page. `adoptedConfiguration` is WebKit's own
-    /// popup configuration, which must be used exactly as handed over; passing it
-    /// replaces the configuration the page would otherwise assemble and leaves
-    /// the first navigation to WebKit.
+    /// Opens a page for `tab` in `space` through the core and hosts what WebKit
+    /// built; nil when the core refuses the tab a page. `adoptedConfiguration`
+    /// is WebKit's own popup configuration, which must be used exactly as
+    /// handed over; passing it replaces the configuration the binding would
+    /// otherwise assemble and leaves the first navigation to WebKit.
     private func makeResidentPage(
         for tab: BrowserTab,
         in space: BrowserSpace,
         adoptedConfiguration: WKWebViewConfiguration? = nil,
         loadsInitialURL: Bool = true
     ) -> MobileBrowserPage? {
-        var archivedState: Data?
-        let opening = browser.openPage(in: space.id, for: tab.id) { [self] corePage in
-            // Restoring WebKit's session state performs its own navigation, so the
-            // page must not also start the tab's URL: whichever path runs, exactly one
-            // navigation begins. Read only once the core opened the page, so a
-            // refused page leaves the archive as it was.
-            archivedState =
-                loadsInitialURL && adoptedConfiguration == nil
-                ? tab.url.flatMap {
-                    archivedInteractionState(
-                        for: tab,
-                        spaceID: space.id,
-                        profileID: space.profile.id,
-                        expecting: $0
-                    )
-                }
-                : nil
-            return MobileBrowserPage(
-                corePage: corePage,
+        let inputs =
+            adoptedConfiguration.map { .popup($0, contentRuleLists: contentRuleLists(for: space)) }
+            ?? webKitInputs(for: space)
+        guard let opening = browser.openPage(in: space.id, for: tab.id, webKit: inputs) else { return nil }
+        // Restoring WebKit's session state performs its own navigation, so the
+        // page must not also start the tab's URL: whichever path runs, exactly one
+        // navigation begins. Read only once the core opened the page, so a
+        // refused page leaves the archive as it was.
+        let archivedState =
+            loadsInitialURL && adoptedConfiguration == nil
+            ? tab.url.flatMap {
+                archivedInteractionState(
+                    for: tab,
+                    spaceID: space.id,
+                    profileID: space.profile.id,
+                    expecting: $0
+                )
+            }
+            : nil
+        let page = host(
+            MobileBrowserPage(
+                corePage: opening.page,
+                enginePage: webKitPage(opening),
                 tab: tab,
                 space: space,
                 downloadCenter: downloadCenter,
                 permissionCenter: permissionCenter,
                 serverTrustOverrides: serverTrustOverrides,
                 mediaSessionStore: mediaSessionStore,
-                websiteDataStore: websiteDataStore(for: space.profile),
-                adoptedConfiguration: adoptedConfiguration,
-                contentRuleLists: contentRuleLists(for: space),
                 allowsCredentialAccess: !browsingMode.isPrivate,
                 isCredentialAccessEnabled: space.credentialPreferences.isEnabled,
                 defaultPageZoom: pageZoomPreferences.defaultZoom,
@@ -1243,9 +1256,7 @@ final class MobileBrowserPageStore:
                 openNewTab: openNewTab,
                 openModifiedLink: openModifiedLink,
                 openPeek: openPeek
-            )
-        }
-        guard let page = opened(opening) else { return nil }
+            ))
         // Anything WebKit will not take falls through to the plain load the page
         // would otherwise start, which the core asks its engine for.
         if loadsInitialURL, adoptedConfiguration == nil, let url = tab.url,

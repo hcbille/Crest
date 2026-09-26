@@ -11,6 +11,9 @@ import WebKit
 final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     // MARK: - Variables
 
+    /// What WebKit's binding built for the page, which this adapter keeps
+    /// while the page lives.
+    let enginePage: WebKitEnginePage
     let webKit: BrowserWebKitPageEngine
     let webView: BrowserDesktopWebView
     var engine: any BrowserPageEngine { webKit }
@@ -76,27 +79,25 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
 
     // MARK: - Initializers
 
+    /// The adapter over the page WebKit's binding built. `contentRuleList` is
+    /// a rule list the page applies beside its Space's.
     init(
-        configuration: WKWebViewConfiguration,
+        page enginePage: WebKitEnginePage,
         contentRuleList: WKContentRuleList? = nil,
-        contentRuleLists: [WKContentRuleList] = [],
-        ownsUserContentController: Bool = true,
         geolocationService: any BrowserGeolocationServicing = BrowserGeolocationSystemService(),
         recoverGeolocationSystemAuthorization: BrowserGeolocationCoordinator.RecoverSystemAuthorization? = nil
     ) {
-        let interval = BrowserPage.lifecycleSignposter.beginInterval("Initialize WKWebView")
-        BrowserWebInspectorAccess.enableDeveloperExtras(in: configuration.preferences)
-        BrowserDesktopPictureInPictureAccess.enable(in: configuration.preferences)
-        BrowserPictureInPictureContentBridge.shared.install(in: configuration.userContentController)
-        webView = BrowserDesktopWebView(frame: .zero, configuration: configuration)
-        webKit = BrowserWebKitPageEngine(webView: webView)
-        webView.underPageBackgroundColor = .clear
-        BrowserPage.lifecycleSignposter.endInterval("Initialize WKWebView", interval)
+        guard let webView = enginePage.webView as? BrowserDesktopWebView else {
+            preconditionFailure("WebKit's binding built a web view other than the desktop one.")
+        }
+        self.enginePage = enginePage
+        self.webView = webView
+        webKit = enginePage.engine
         contentRuleSession = BrowserPageContentRuleSession(
-            ruleLists: contentRuleLists,
+            ruleLists: enginePage.contentRuleLists,
             additionalRuleList: contentRuleList
         )
-        self.ownsUserContentController = ownsUserContentController
+        ownsUserContentController = enginePage.ownsUserContentController
         self.geolocationService = geolocationService
         self.recoverGeolocationSystemAuthorization = recoverGeolocationSystemAuthorization
     }

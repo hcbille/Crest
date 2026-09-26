@@ -167,10 +167,11 @@ final class BrowserContentBlockingTests: XCTestCase {
             )
             configuration.userContentController.add(extensionRuleList)
             let page = try XCTUnwrap(
-                browser.openPage(in: space.id, for: nil) { corePage in
+                browser.openWebKitPage(in: space.id, for: nil, webKit: WebKitPageInputs(configuration: configuration)).map {
+                    opened in
                     BrowserPage(
-                        corePage: corePage,
-                        configuration: configuration,
+                        corePage: opened.core,
+                        enginePage: opened.webKit,
                         dialogPresenter: BrowserDialogPresenter(),
                         downloadCenter: BrowserDownloadCenter(),
                         permissionCenter: BrowserSitePermissionCenter(),
@@ -180,7 +181,7 @@ final class BrowserContentBlockingTests: XCTestCase {
                         contentRuleList: crestRuleList,
                         openNewTab: { _ in }
                     )
-                }?.built as? BrowserPage)
+                })
             defer { page.release(keepingState: false) }
 
             page.applyContentBlocking(policy: .off, balancedRuleList: crestRuleList)

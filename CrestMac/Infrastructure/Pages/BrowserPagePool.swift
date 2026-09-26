@@ -1027,8 +1027,8 @@ final class BrowserPagePool:
     }
 
     /// Adopts a page the opener's engine created for a popup as a new tab in
-    /// the opener's Space, selected unless `selecting` is false. `makeWebKitEngine`
-    /// builds the popup's WebKit adapter once the tab exists.
+    /// the opener's Space, selected unless `selecting` is false. WebKit builds
+    /// the popup's page from what `webKit` gives it for the tab's Space.
     ///
     /// Declines — leaving the coordinator to route the destination into an
     /// ordinary tab — when the opener is not a resident page of this pool.
@@ -1038,7 +1038,7 @@ final class BrowserPagePool:
         requestedURL: URL?,
         opener: BrowserPage,
         selecting: Bool,
-        makeWebKitEngine: @escaping @MainActor (BrowserSpace) -> any BrowserPageEngineAdapter
+        webKit: (BrowserSpace) -> WebKitPageInputs
     ) -> BrowserPage? {
         guard tabID(for: opener) != nil,
             !browser.deletingSpaceIDs.contains(opener.spaceID),
@@ -1051,7 +1051,7 @@ final class BrowserPagePool:
             let page = makePage(
                 space: registration.space,
                 tabID: registration.tab.id,
-                webKit: { makeWebKitEngine(registration.space) }
+                webKit: webKit(registration.space)
             )
         else {
             popupTabHost.closeTab(registration.tab.id, registration.space.id)
@@ -1399,11 +1399,14 @@ final class BrowserPagePool:
     /// the engine the core chooses, and hosts it. `webKit` builds the page when WebKit hosts it, and this
     /// pool's own WebKit configuration builds it otherwise. Nil when the core
     /// refuses the page.
+    /// A page the core opens for `tabID` in `space`, or for a transient request
+    /// presenting as `presentation`; WebKit builds it from `webKit`, or from
+    /// the Space's own inputs. Nil when the core refuses it.
     private func makePage(
         space: BrowserSpace,
         tabID: TabID? = nil,
         presentation: TransientPresentation? = nil,
-        webKit: (@MainActor () -> any BrowserPageEngineAdapter)? = nil
+        webKit: WebKitPageInputs? = nil
     ) -> BrowserPage? {
         let interval = Self.lifecycleSignposter.beginInterval("Create Browser Page")
         defer {
@@ -1412,11 +1415,15 @@ final class BrowserPagePool:
 
         guard
             let opened = browser.openPage(
-                in: space.id, for: tabID, presenting: presentation,
-                webKit: { [weak self] _ in webKit?() ?? self?.makeWebKitPageEngine(for: space) })
+                in: space.id, for: tabID, presenting: presentation, webKit: webKit ?? webKitInputs(for: space))
         else { return nil }
-        guard let engine = opened.built as? any BrowserPageEngineAdapter else {
-            preconditionFailure("An engine built something other than a desktop page adapter.")
+        let engine: any BrowserPageEngineAdapter
+        if let enginePage = opened.built as? WebKitEnginePage {
+            engine = BrowserWebKitPageAdapter(page: enginePage)
+        } else if let adapter = opened.built as? any BrowserPageEngineAdapter {
+            engine = adapter
+        } else {
+            preconditionFailure("An engine built something other than a desktop page.")
         }
         let routing = BrowserPageWindowRouting(pool: self)
         let page = BrowserPage(

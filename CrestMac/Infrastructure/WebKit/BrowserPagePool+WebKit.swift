@@ -7,24 +7,11 @@ import WebKit
 extension BrowserPagePool {
     // MARK: - Actions - Pages
 
-    /// A WebKit page for `space`, or for a popup WebKit configured from its
-    /// opener. A popup keeps the opener's configuration, which carries its
-    /// website data store, content controller and web extension controller.
-    func makeWebKitPageEngine(
-        for space: BrowserSpace,
-        adoptedConfiguration: WKWebViewConfiguration? = nil
-    ) -> any BrowserPageEngineAdapter {
-        let contentRuleLists = contentRuleLists(for: space)
-        return BrowserWebKitPageAdapter(
-            configuration: adoptedConfiguration
-                ?? BrowserPageConfiguration.make(
-                    for: space.profile,
-                    websiteDataStore: websiteDataStore(for: space.profile),
-                    contentRuleLists: contentRuleLists
-                ),
-            contentRuleLists: contentRuleLists,
-            ownsUserContentController: adoptedConfiguration == nil
-        )
+    /// What WebKit's binding builds a page of `space` from: the Space's
+    /// content rules and, where this pool keeps nothing, its profile's
+    /// ephemeral website data store.
+    func webKitInputs(for space: BrowserSpace) -> WebKitPageInputs {
+        WebKitPageInputs(websiteDataStore: websiteDataStore(for: space.profile), contentRuleLists: contentRuleLists(for: space))
     }
 
     /// Adopts the web view WebKit pre-made for a popup as a new tab in the
@@ -40,10 +27,10 @@ extension BrowserPagePool {
         opener: BrowserPage,
         selecting: Bool = true
     ) -> WKWebView? {
-        adoptPopupPage(requestedURL: requestedURL, opener: opener, selecting: selecting) { [weak self] space in
-            // The pool is alive while it adopts, and the core asks for the page before this returns.
-            guard let self else { preconditionFailure("A pool built a popup page after it went away.") }
-            return makeWebKitPageEngine(for: space, adoptedConfiguration: configuration)
+        // A popup keeps the opener's configuration, which carries its website
+        // data store, content controller and web extension controller.
+        adoptPopupPage(requestedURL: requestedURL, opener: opener, selecting: selecting) { space in
+            .popup(configuration, contentRuleLists: contentRuleLists(for: space))
         }?.webKitView
     }
 

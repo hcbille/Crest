@@ -29,5 +29,18 @@
         ) -> BrowserStore {
             BrowserStore(session: session, showing: spaceID, tabs: tabs, browsingMode: browsingMode, core: core)
         }
+
+        /// Opens a page through the core for `tabID` in `spaceID`, and answers
+        /// it with the page WebKit built from `webKit`, for a test that hosts
+        /// the page itself. Nil when a rule refuses it.
+        func openWebKitPage(
+            in spaceID: SpaceID, for tabID: TabID?, webKit: WebKitPageInputs = WebKitPageInputs()
+        ) -> (core: CorePage, webKit: WebKitEnginePage)? {
+            guard let opened = openPage(in: spaceID, for: tabID, webKit: webKit) else { return nil }
+            guard let page = opened.built as? WebKitEnginePage else {
+                preconditionFailure("A test opened a page on an engine other than WebKit.")
+            }
+            return (opened.page, page)
+        }
     }
 #endif

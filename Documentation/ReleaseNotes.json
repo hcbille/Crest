@@ -2725,6 +2725,10 @@
     "2026-09-26-page-pool-bookkeeping-cleanup": {
       "category": "internal",
       "message": "The page pool drops bookkeeping the core's residency made unused, and the core keeps a page another window shows loaded"
+    },
+    "2026-09-26-webkit-binding-builds-pages": {
+      "category": "internal",
+      "message": "WebKit's engine binding builds each page, with thin Mac and iOS layers, instead of the page pool and store"
     }
   }
 }

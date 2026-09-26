@@ -19,15 +19,14 @@ final class Engines {
     /// engine to create it.
     final class PageRequest {
         let page: CorePage
-        /// TRANSITIONAL until the WebKit binding builds its own pages: how the
-        /// page's owner builds it when WebKit hosts it.
-        let makeWebKitPage: @MainActor (CorePage) -> AnyObject?
+        /// What WebKit's binding builds the page from when WebKit hosts it.
+        let webKit: WebKitPageInputs
         /// What the engine's binding built for the platform to host.
         var built: AnyObject?
 
-        init(page: CorePage, makeWebKitPage: @escaping @MainActor (CorePage) -> AnyObject?) {
+        init(page: CorePage, webKit: WebKitPageInputs) {
             self.page = page
-            self.makeWebKitPage = makeWebKitPage
+            self.webKit = webKit
         }
     }
 
@@ -49,7 +48,8 @@ final class Engines {
     private typealias RecordObserver = (owner: WeakOwner, handler: @MainActor (PageRecords) -> Void)
 
     /// A page the core opened, with what its engine's binding built for the
-    /// platform to host: the Mac page adapter, or iOS's page.
+    /// platform to host: WebKit's page, or the platform's host of a page an
+    /// engine the core runs directly created.
     struct OpenedPage {
         let page: CorePage
         let built: AnyObject
@@ -130,10 +130,10 @@ final class Engines {
     // MARK: - Actions - Pages
 
     /// Opens a page through the core and answers it with what its engine built,
-    /// or nil when a rule refused it or the engine built nothing. `webKit` builds
-    /// the page when WebKit hosts it.
-    func open(_ intent: OpenPage, webKit: @escaping @MainActor (CorePage) -> AnyObject?) -> OpenedPage? {
-        let request = PageRequest(page: CorePage(id: intent.pageID, core: core), makeWebKitPage: webKit)
+    /// or nil when a rule refused it or the engine built nothing. WebKit builds
+    /// the page from `webKit` when it hosts it.
+    func open(_ intent: OpenPage, webKit: WebKitPageInputs) -> OpenedPage? {
+        let request = PageRequest(page: CorePage(id: intent.pageID, core: core), webKit: webKit)
         requests[intent.pageID] = request
         defer { requests[intent.pageID] = nil }
         do {

@@ -85,15 +85,15 @@ final class MobileBrowserPageRecoveryTests: XCTestCase {
     private func openPage(in space: BrowserSpace, through browser: BrowserStore) throws -> MobileBrowserPage {
         let tab = try XCTUnwrap(space.tabs.first)
         return try XCTUnwrap(
-            browser.openPage(in: space.id, for: tab.id) { corePage in
+            browser.openWebKitPage(in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: WKWebsiteDataStore.nonPersistent())).map { opened in
                 MobileBrowserPage(
-                    corePage: corePage,
+                    corePage: opened.core,
+                    enginePage: opened.webKit,
                     tab: tab,
                     space: space,
-                    websiteDataStore: WKWebsiteDataStore.nonPersistent(),
                     openNewTab: { _ in }
                 )
-            }?.built as? MobileBrowserPage
+            }
         )
     }
 

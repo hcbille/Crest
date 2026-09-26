@@ -18,12 +18,15 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
     private(set) var tabID: TabID
     let spaceID: SpaceID
     let profileID: UUID
+    /// What WebKit's binding built for the page, which it keeps while it
+    /// lives.
+    @ObservationIgnored let enginePage: WebKitEnginePage
     let webView: WKWebView
     var webKitView: WKWebView? { webView }
     // iOS composes one engine. Naming its type here keeps the page port in
     // play everywhere it is used while removing the force-cast the history
     // accessor needed to reach a WebKit-only service.
-    @ObservationIgnored lazy var pageEngine = BrowserWebKitPageEngine(webView: webView)
+    @ObservationIgnored let pageEngine: BrowserWebKitPageEngine
 
     /// The store that owns this page. Weak because the store owns the page.
     weak var host: (any MobileBrowserPageHosting)?
@@ -151,8 +154,12 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
     @ObservationIgnored private var defaultPageZoom: CGFloat
     @ObservationIgnored private var hasTemporaryPageZoomOverride = false
 
+    /// The page hosting what WebKit's binding built as `enginePage`, for
+    /// `tab` in `space`. `contentRuleList` is a rule list the page applies
+    /// beside its Space's.
     init(
         corePage: CorePage,
+        enginePage: WebKitEnginePage,
         tab: BrowserTab,
         space: BrowserSpace,
         downloadCenter: BrowserDownloadCenter = BrowserDownloadCenter(),
@@ -163,10 +170,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
             BrowserGeolocationCoordinator.RecoverSystemAuthorization? = nil,
         serverTrustOverrides: BrowserServerTrustOverrideStore = BrowserServerTrustOverrideStore(),
         mediaSessionStore: BrowserMediaSessionStore? = nil,
-        websiteDataStore: WKWebsiteDataStore? = nil,
-        adoptedConfiguration: WKWebViewConfiguration? = nil,
         contentRuleList: WKContentRuleList? = nil,
-        contentRuleLists: [WKContentRuleList] = [],
         allowsCredentialAccess: Bool = true,
         isCredentialAccessEnabled: Bool = true,
         defaultPageZoom: CGFloat = BrowserPageZoomPolicy.defaultLevel,
@@ -196,7 +200,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         self.openModifiedLink = openModifiedLink
         self.openPeek = openPeek
         contentRuleSession = BrowserPageContentRuleSession(
-            ruleLists: contentRuleLists,
+            ruleLists: enginePage.contentRuleLists,
             additionalRuleList: contentRuleList
         )
         spaceName = space.name
@@ -254,40 +258,19 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
             httpAuthentication: httpAuthenticationSession
         )
 
-        // WebKit hands popups a configuration derived from their opener's, and it
-        // has to be used exactly as given. That copy also shares the opener's
-        // user content controller, so its scripts, rule lists, and message
-        // handlers are already installed: adding them again throws.
-        ownsUserContentController = adoptedConfiguration == nil
-        let configuration: WKWebViewConfiguration
-        if let adoptedConfiguration {
-            configuration = adoptedConfiguration
-        } else {
-            // The shared factory owns every setting both platforms want — the
-            // inactive scheduling policy above all, which is what lets WebKit
-            // suspend a resident background tab on the platform that jetsams.
-            // Only what is genuinely mobile is decorated on top of it.
-            var installedLinkActivationProxy: MobileLinkActivationScriptMessageProxy?
-            configuration = BrowserPageConfiguration.make(
-                for: space.profile,
-                websiteDataStore: websiteDataStore,
-                contentRuleLists: contentRuleSession.ruleLists,
-                preferredContentMode: .recommended
-            ) { configuration in
-                configuration.allowsInlineMediaPlayback = true
-                configuration.allowsPictureInPictureMediaPlayback = true
-                configuration.mediaTypesRequiringUserActionForPlayback = .all
-                configuration.userContentController.addUserScript(
-                    MobileMediaPlaybackPolicy.inlineVideoScript
-                )
-                installedLinkActivationProxy = MobileLinkActivationContentBridge.install(
-                    in: configuration.userContentController
-                )
-            }
-            linkActivationMessageProxy = installedLinkActivationProxy
+        // A popup's configuration is the one WebKit derived from its opener's,
+        // which shares the opener's user content controller, so its scripts,
+        // rule lists, and message handlers are already installed: adding them
+        // again throws.
+        ownsUserContentController = enginePage.ownsUserContentController
+        self.enginePage = enginePage
+        webView = enginePage.webView
+        pageEngine = enginePage.engine
+        if ownsUserContentController {
+            linkActivationMessageProxy = MobileLinkActivationContentBridge.install(
+                in: webView.configuration.userContentController
+            )
         }
-        webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.underPageBackgroundColor = .clear
 
         super.init()
         if normalizedDefaultPageZoom != BrowserPageZoomPolicy.defaultLevel {

@@ -21,17 +21,17 @@ final class MobileBrowserInteropTests: XCTestCase {
         )
         let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
         let page = try XCTUnwrap(
-            browser.openPage(in: space.id, for: tab.id) { corePage in
+            browser.openWebKitPage(in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())).map { opened in
                 MobileBrowserPage(
-                    corePage: corePage,
+                    corePage: opened.core,
+                    enginePage: opened.webKit,
                     tab: tab,
                     space: space,
-                    websiteDataStore: .nonPersistent(),
                     allowsCredentialAccess: false,
                     loadsInitialURL: false,
                     openNewTab: { _ in }
                 )
-            }?.built as? MobileBrowserPage
+            }
         )
         let operatingSystemMajorVersion = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
 
@@ -76,15 +76,16 @@ final class MobileBrowserInteropTests: XCTestCase {
         )
         let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
         let page = try XCTUnwrap(
-            browser.openPage(in: space.id, for: tab.id) { corePage in
+            browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
-                    corePage: corePage,
+                    corePage: opened.core,
+                    enginePage: opened.webKit,
                     tab: tab,
                     space: space,
                     downloadCenter: center,
                     openNewTab: { _ in }
                 )
-            }?.built as? MobileBrowserPage
+            }
         )
         defer {
             server.stop()
@@ -242,15 +243,16 @@ final class MobileBrowserInteropTests: XCTestCase {
         )
         let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
         let page = try XCTUnwrap(
-            browser.openPage(in: space.id, for: tab.id) { corePage in
+            browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
-                    corePage: corePage,
+                    corePage: opened.core,
+                    enginePage: opened.webKit,
                     tab: tab,
                     space: space,
                     downloadCenter: center,
                     openNewTab: { _ in }
                 )
-            }?.built as? MobileBrowserPage
+            }
         )
         defer {
             server.stop()

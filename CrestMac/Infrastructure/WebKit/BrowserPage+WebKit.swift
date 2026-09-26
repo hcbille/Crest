@@ -5,11 +5,11 @@ import WebKit
 /// The page's WebKit-only state, read by its WebKit delegate conformances and
 /// bridges. Each is empty when another engine hosts the page.
 extension BrowserPage {
-    /// A page hosted by a desktop `WKWebView` built from `configuration`, for
-    /// a page the core opened on WebKit.
+    /// A page hosting the desktop `WKWebView` WebKit's binding built as
+    /// `enginePage`, for a page the core opened on WebKit.
     convenience init(
         corePage: CorePage,
-        configuration: WKWebViewConfiguration,
+        enginePage: WebKitEnginePage,
         dialogPresenter: BrowserDialogPresenter,
         downloadCenter: BrowserDownloadCenter,
         permissionCenter: BrowserSitePermissionCenter,
@@ -27,8 +27,6 @@ extension BrowserPage {
         profileID: UUID,
         spaceName: String,
         contentRuleList: WKContentRuleList? = nil,
-        contentRuleLists: [WKContentRuleList] = [],
-        ownsUserContentController: Bool = true,
         allowsCredentialAccess: Bool = true,
         isCredentialAccessEnabled: Bool = true,
         defaultPageZoom: CGFloat = BrowserPageZoomPolicy.defaultLevel,
@@ -47,10 +45,8 @@ extension BrowserPage {
         self.init(
             corePage: corePage,
             engine: BrowserWebKitPageAdapter(
-                configuration: configuration,
+                page: enginePage,
                 contentRuleList: contentRuleList,
-                contentRuleLists: contentRuleLists,
-                ownsUserContentController: ownsUserContentController,
                 geolocationService: geolocationService,
                 recoverGeolocationSystemAuthorization: recoverGeolocationSystemAuthorization
             ),

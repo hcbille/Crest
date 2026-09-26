@@ -255,16 +255,13 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
         let service = TestBrowserGeolocationService(
             authorization: systemAuthorization
         )
-        let configuration = BrowserPageConfiguration.make(
-            for: space.profile,
-            websiteDataStore: .nonPersistent()
-        )
         let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
         let page = try XCTUnwrap(
-            browser.openPage(in: space.id, for: nil) { corePage in
+            browser.openWebKitPage(in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())).map {
+                opened in
                 BrowserPage(
-                    corePage: corePage,
-                    configuration: configuration,
+                    corePage: opened.core,
+                    enginePage: opened.webKit,
                     dialogPresenter: BrowserDialogPresenter(),
                     downloadCenter: BrowserDownloadCenter(),
                     permissionCenter: permissionCenter,
@@ -280,7 +277,7 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
                     spaceName: space.name,
                     openNewTab: { _ in }
                 )
-            }?.built as? BrowserPage)
+            })
         return (page, service, url, browser)
     }
 
