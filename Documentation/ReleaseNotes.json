@@ -2633,6 +2633,10 @@
     "2026-09-25-chromium-typed-ui-protocol": {
       "category": "internal",
       "message": "Chromium asks Crest's interface through a typed protocol instead of finding it by name"
+    },
+    "2026-09-25-chromium-windows-join-crest-window": {
+      "category": "improved",
+      "message": "Windows Chromium opens for a page now open in the Crest window you're using"
     }
   }
 }

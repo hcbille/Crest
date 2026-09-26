@@ -12,8 +12,8 @@ final class ChromiumMacUI: NSObject, CrestMacUI {
         CrestChromiumRoot.window(for: id)
     }
 
-    func reserveEngineWindow(profile: UUID) -> (any CrestEngineWindowPlacement)? {
-        CrestChromiumRoot.reserveEngineWindow(forProfile: profile).map {
+    func reserveEngineWindow(profile: UUID, ownWindow: Bool) -> (any CrestEngineWindowPlacement)? {
+        CrestChromiumRoot.reserveEngineWindow(forProfile: profile, ownWindow: ownWindow).map {
             Placement(window: $0.window, space: $0.space)
         }
     }

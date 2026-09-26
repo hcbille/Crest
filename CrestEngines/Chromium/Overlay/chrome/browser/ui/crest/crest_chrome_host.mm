@@ -518,6 +518,10 @@ struct HostState {
   Browser* quit_browser = nullptr;
   void (^quit_preflight)(BOOL);
   std::string creating_window;
+  // The profile `chrome.windows.create` is about to create a Browser in, for
+  // the one turn between asking and creating: that Browser gets a Crest window
+  // of its own. Every other Browser the engine creates joins an open window.
+  Profile* own_window_profile = nullptr;
   std::map<std::string, std::unique_ptr<BrowserOwner>> browsers;
   std::map<std::string, std::unique_ptr<Page>> pages;
   // The action popup opened from a Space that has no page. A page's own popup
@@ -788,15 +792,21 @@ Browser* BrowserFor(const std::string& profile_id, const std::string& window_id)
 // composition and is declined when that window is closed.
 bool RegisterEngineBrowser(Browser* browser) {
   auto& state = State();
+  const bool own_window = state.own_window_profile == browser->GetProfile();
+  state.own_window_profile = nullptr;
   const auto& profiles = crest::EngineBinding::Get().Profiles();
   const std::string profile_id = profiles.IdFor(browser->GetProfile());
   if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
   NSUUID* profile = UUIDFor(profile_id);
-  id<CrestEngineWindowPlacement> placement = profile ? [UI() reserveEngineWindowForProfile:profile] : nil;
+  id<CrestEngineWindowPlacement> placement =
+      profile ? [UI() reserveEngineWindowForProfile:profile ownWindow:own_window ? YES : NO] : nil;
   if (!placement) return false;
   const std::string window = base::SysNSStringToUTF8(placement.window.UUIDString);
-  const std::string key = profile_id + "/" + window;
-  if (state.browsers.contains(key)) return false;
+  // A window that already has a Browser keeps it for its own pages. This one
+  // is keyed apart, and each tab it offers moves into that Browser once the
+  // window adopts it.
+  std::string key = profile_id + "/" + window;
+  if (state.browsers.contains(key)) key = "engine/" + base::Uuid::GenerateRandomV4().AsLowercaseString();
   auto owner = std::make_unique<BrowserOwner>(browser, window);
   owner->space = base::SysNSStringToUTF8(placement.space.UUIDString);
   owner->engine_window = true;
@@ -1918,7 +1928,13 @@ bool CanCreateEngineBrowser(Profile* profile) {
   const std::string profile_id = profiles.IdFor(profile);
   if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
   NSUUID* space_profile = UUIDFor(profile_id);
-  return space_profile && [UI() reserveEngineWindowForProfile:space_profile] != nil;
+  if (!space_profile || ![UI() reserveEngineWindowForProfile:space_profile ownWindow:YES]) return false;
+  // The Browser is created in this same turn; a creation that fails leaves
+  // nothing to hand the window to.
+  State().own_window_profile = profile;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce([] { State().own_window_profile = nullptr; }));
+  return true;
 }
 NSWindow* WindowForBrowser(Browser* browser) {
   if (!State().started) return nil;

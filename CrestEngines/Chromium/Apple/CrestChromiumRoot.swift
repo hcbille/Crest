@@ -717,18 +717,20 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     // MARK: - Engine-created windows
 
     /// Reserves the Crest window that will host a Browser the engine created
-    /// for itself — `chrome.windows.create`, an extension app window — and
-    /// names the Space its tabs belong to.
+    /// for itself and names the Space its tabs belong to.
     ///
-    /// Nothing is presented here: the engine creates the Browser first and
-    /// offers its tabs afterwards, and a renderer popup keeps its opener's
-    /// window instead. A profile with no Space to host it is declined, so the
+    /// Crest is one window. The Browser's tabs join the window the person is
+    /// using, and only `chrome.windows.create` (`ownWindow`) opens another,
+    /// because that extension asked for a window by name. Nothing is
+    /// presented here: the engine creates the Browser first and offers its
+    /// tabs afterwards, and a renderer popup keeps its opener's window
+    /// instead. A profile with no Space to host it is declined, so the
     /// engine drops those tabs rather than routing them into an unrelated
     /// Space. An off-the-record profile belongs to the private window and is
     /// declined outright when that window is closed. A Space that is locked or
     /// being deleted is declined as well, so engine-created tabs never appear
     /// inside one the user has not unlocked.
-    static func reserveEngineWindow(forProfile profile: UUID) -> (window: UUID, space: UUID)? {
+    static func reserveEngineWindow(forProfile profile: UUID, ownWindow: Bool) -> (window: UUID, space: UUID)? {
         guard let instance, !instance.quitting else { return nil }
         // A profile belongs to exactly one Space. Resolve that Space instead of
         // accepting whichever one matched first, and refuse an ambiguous answer.
@@ -748,7 +750,16 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             return (identifier, space.id)
         }
         guard let space = host(in: instance.application.browser) else { return nil }
+        if !ownWindow, let window = instance.engineWindowTarget { return (window, space.id) }
         return (BrowserWindowID(), space.id)
+    }
+
+    /// The open window an engine-created Browser's tabs join: the normal
+    /// window in front, or else the one opened last. A tear-off window owns a
+    /// disposable workspace, so it never receives them.
+    private var engineWindowTarget: BrowserWindowID? {
+        if let active = activeModel, !active.isTemporary { return active.id }
+        return restorableWindowIDs.last { windows[$0] != nil }
     }
 
     /// Opens the window reserved for an engine-created Browser, just before its

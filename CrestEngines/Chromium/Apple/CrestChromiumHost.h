@@ -41,11 +41,14 @@ NS_SWIFT_UI_ACTOR
 // The Crest window named `windowID`, or with none, the window an engine
 // surface with no window of its own is shown in.
 - (nullable NSWindow *)windowWithID:(nullable NSUUID *)windowID NS_SWIFT_NAME(window(id:));
-// Reserves the Crest window for a Browser the engine created for itself —
-// `chrome.windows.create`, an extension app window — and names the Space its
-// tabs belong to. None when no Space can host the profile's tabs.
+// Reserves the Crest window for a Browser the engine created for itself and
+// names the Space its tabs belong to. Crest is one window: the Browser joins
+// the window the person is using, and only a window `chrome.windows.create`
+// asked for (`ownWindow`) opens another. None when no Space can host the
+// profile's tabs.
 - (nullable id<CrestEngineWindowPlacement>)reserveEngineWindowForProfile:(NSUUID *)profileID
-    NS_SWIFT_NAME(reserveEngineWindow(profile:));
+                                                              ownWindow:(BOOL)ownWindow
+    NS_SWIFT_NAME(reserveEngineWindow(profile:ownWindow:));
 // Opens the reserved window just before its first tab is offered.
 - (void)presentEngineWindow:(NSUUID *)windowID space:(NSUUID *)spaceID focused:(BOOL)focused
     NS_SWIFT_NAME(presentEngineWindow(_:space:focused:));
