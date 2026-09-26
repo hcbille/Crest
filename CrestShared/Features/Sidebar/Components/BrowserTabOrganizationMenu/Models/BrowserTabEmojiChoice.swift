@@ -95,7 +95,6 @@ enum BrowserEmojiPlatformSupport {
 }
 
 enum BrowserTabEmojiChoices {
-
     /// Every fully-qualified sequence supported by the running platform.
     /// Browsing groups tone variations in the Apple keyboard style, while
     /// search returns these exact choices so no composed sequence is hidden.

@@ -1,7 +1,6 @@
 import CoreGraphics
 
 enum BrowserPageSurfacePolicy {
-    static let showsUnloadedPlaceholder = false
     static let startPageUsesSpaceAtmosphere = true
     static let startPageUsesTransparentInnerSurface = true
     static let shadowOpacity = 0.11

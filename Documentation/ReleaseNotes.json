@@ -2945,6 +2945,10 @@
     "remove-unused-catalog-strings": {
       "category": "internal",
       "message": "Unused localized strings removed from the catalog"
+    },
+    "delete-unread-policy-flags-dead-core-rules": {
+      "category": "internal",
+      "message": "Unread policy flags and unused core rules removed"
     }
   }
 }

@@ -33,9 +33,6 @@ internal sealed class IncomingSyncRecords {
     /// record was read.
     public IReadOnlyList<Change> Receipt => Unreadable + FromNewerBuild == 0 ? [] : [new SyncRecordsSkipped(Unreadable, FromNewerBuild)];
 
-    /// Whether every record was read.
-    public bool IsWhole => firstSkipped is null;
-
     /// Whether no record was read.
     public bool IsEmpty => nodes.Count == 0;
 

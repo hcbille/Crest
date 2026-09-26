@@ -65,12 +65,6 @@ public sealed class BrowserTab {
         if (!string.IsNullOrEmpty(title)) State = State with { Title = title };
     }
 
-    /// A copy starts from what its source page showed, including an empty title.
-    public void AdoptObservation(string? url, string title) {
-        if (url is not null) State = State with { Url = url };
-        State = State with { Title = title };
-    }
-
     /// A closed saved tab reopens at the address it was saved with.
     public void ReturnToSavedUrl() {
         if (SavedUrl is { } saved) State = State with { Url = saved };

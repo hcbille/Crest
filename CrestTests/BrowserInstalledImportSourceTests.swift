@@ -213,22 +213,6 @@ final class BrowserInstalledImportSourceTests: XCTestCase {
         return url
     }
 
-    private func createFixture(
-        at url: URL,
-        modifiedAt: Date = Date(),
-        data: Data = Data("fixture".utf8)
-    ) throws {
-        try FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try data.write(to: url)
-        try FileManager.default.setAttributes(
-            [.modificationDate: modifiedAt],
-            ofItemAtPath: url.path
-        )
-    }
-
     private func createLoginDatabase(
         at url: URL,
         encryptedPassword: Data

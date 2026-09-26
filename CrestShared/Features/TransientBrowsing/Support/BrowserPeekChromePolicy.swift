@@ -14,7 +14,6 @@ enum BrowserPeekChromePolicy {
     static let separatorWidth: CGFloat = 0.5
     static let separatorHeight: CGFloat = 22
     static let openInTitle = "Open In…"
-    static let showsTrailingSpaceMenu = true
 
     static var controlBarWidth: CGFloat {
         closeControlWidth + controlSpacing + openControlWidth

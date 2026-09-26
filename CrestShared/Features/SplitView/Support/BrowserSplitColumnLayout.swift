@@ -14,7 +14,6 @@ import CoreGraphics
 ///
 /// Fractions are shares of that available width and always sum to one.
 enum BrowserSplitColumnLayout {
-
     /// The fractions of a split nobody has resized yet: equal columns.
     static func equalFractions(count: Int) -> [Double] {
         guard count > 0 else { return [] }

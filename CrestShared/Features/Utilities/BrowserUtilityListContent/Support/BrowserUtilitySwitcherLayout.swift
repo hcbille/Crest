@@ -23,11 +23,6 @@ enum BrowserUtilitySwitcherLayout {
         (CGFloat(index) - CGFloat(count - 1) / 2) * step
     }
 
-    static func expandedHeight(for count: Int) -> CGFloat {
-        guard count > 1 else { return buttonSize }
-        return buttonSize + CGFloat(count - 1) * step
-    }
-
     static func expansionDelay(for index: Int) -> Double {
         Double(max(index, 0)) * staggerInterval
     }

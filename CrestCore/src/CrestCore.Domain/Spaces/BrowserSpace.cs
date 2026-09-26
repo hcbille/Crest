@@ -12,12 +12,6 @@ public static class BrowserSpace {
 
     #region Actions - Validation
 
-    public static string ValidName(string name) {
-        name = name.Trim();
-        if (name.Length is 0 or > MaximumNameLength) throw new BrowserRuleException(BrowserRuleCodes.InvalidName);
-        return name;
-    }
-
     public static void ValidateUrl(string? url, bool allowsInternalPages = false) {
         if (url is null || url.Length > 16384 || !Uri.TryCreate(url, UriKind.Absolute, out var parsed)
             || ((parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps)

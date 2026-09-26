@@ -394,10 +394,6 @@ struct SidebarMeasurement {
 
     func maximum(_ kind: SidebarBody) -> Int { evaluations.map { $0[kind] ?? 0 }.max() ?? 0 }
 
-    func mean(_ kind: SidebarBody) -> Double {
-        evaluations.isEmpty ? 0 : Double(evaluations.map { $0[kind] ?? 0 }.reduce(0, +)) / Double(evaluations.count)
-    }
-
     func maximumMounts(_ kind: SidebarBody) -> Int { mounts.map { $0[kind] ?? 0 }.max() ?? 0 }
 }
 

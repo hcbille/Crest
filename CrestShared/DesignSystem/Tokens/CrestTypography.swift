@@ -11,7 +11,6 @@ enum CrestTypography {
     /// The humanist sans used for supporting copy and control labels.
     static let sansFontName = "Avenir Next"
 
-    static let sectionTitle = Font.title3.weight(.semibold)
     static let controlTitle = Font.body.weight(.medium)
     static let metadata = Font.caption
     static let compactMetadata = Font.caption2

@@ -1,8 +1,6 @@
 import SwiftUI
 
 enum BrowserChromeLayout {
-    static let showsWindowToolbarBackground = false
-    static let windowControlsMoveWithSidebar = true
     static let sidebarTitlebarHeight: CGFloat = 48
     static let sidebarNavigationControlHitTarget: CGFloat = 30
     static let sidebarNavigationSymbolPointSize: CGFloat = 15

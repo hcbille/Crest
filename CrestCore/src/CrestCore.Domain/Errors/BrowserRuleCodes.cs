@@ -6,7 +6,6 @@ public static class BrowserRuleCodes {
 
     public const string AccessAlreadyAttached = "access_already_attached";
     public const string BorrowedProfileRequiresOwner = "borrowed_profile_requires_owner";
-    public const string DeletionRequiresCommand = "deletion_requires_command";
     public const string DuplicateSyncRecord = "duplicate_sync_record";
     public const string InvalidAddress = "invalid_address";
     public const string InvalidDeletionIntent = "invalid_deletion_intent";
@@ -16,11 +15,8 @@ public static class BrowserRuleCodes {
     public const string InvalidIdentity = "invalid_identity";
     public const string InvalidName = "invalid_name";
     public const string InvalidNativeKind = "invalid_native_kind";
-    public const string InvalidPlacement = "invalid_placement";
     public const string InvalidRecordDate = "invalid_record_date";
-    public const string InvalidRecordOrder = "invalid_record_order";
     public const string InvalidRecoveryIdentity = "invalid_recovery_identity";
-    public const string InvalidRetention = "invalid_retention";
     public const string InvalidRetentionInterval = "invalid_retention_interval";
     public const string InvalidSavedDate = "invalid_saved_date";
     public const string InvalidSavedIdentity = "invalid_saved_identity";
@@ -39,16 +35,11 @@ public static class BrowserRuleCodes {
     public const string InvalidSyncSessionOwner = "invalid_sync_session_owner";
     public const string InvalidSyncTransaction = "invalid_sync_transaction";
     public const string InvalidTabContent = "invalid_tab_content";
-    public const string InvalidTabCount = "invalid_tab_count";
     public const string InvalidTerminationCount = "invalid_termination_count";
     public const string NotBorrowedWorkspace = "not_borrowed_workspace";
-    public const string PinnedLimitReached = "pinned_limit_reached";
     public const string ProfileLeaseRevoked = "profile_lease_revoked";
-    public const string SessionEditLimit = "session_edit_limit";
     public const string SessionReleased = "session_released";
-    public const string SessionSizeLimit = "session_size_limit";
     public const string SessionTransactionInProgress = "session_transaction_in_progress";
-    public const string SpaceDeletionInProgress = "space_deletion_in_progress";
     public const string SpaceLimitReached = "space_limit_reached";
     public const string SpaceLocked = "space_locked";
     public const string StaleBorrowedSource = "stale_borrowed_source";
@@ -59,10 +50,8 @@ public static class BrowserRuleCodes {
     public const string SyncTransactionNotSealed = "sync_transaction_not_sealed";
     public const string UnknownCurrentTab = "unknown_current_tab";
     public const string UnknownFolder = "unknown_folder";
-    public const string UnknownSearchProvider = "unknown_search_provider";
     public const string UnsupportedUrl = "unsupported_url";
     public const string VersionMismatch = "version_mismatch";
-    public const string WrongSpaceIdentity = "wrong_space_identity";
 
     // Site permissions and origins.
 

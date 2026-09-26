@@ -25,13 +25,6 @@ public sealed class SpaceAccessAuthority {
     /// Whether a request to unlock `assignment` is waiting.
     public bool IsAuthenticating(SpaceAccessAssignment assignment) => pending?.Assignment == assignment;
 
-    /// Command gate for the session authority. A Space whose durable policy
-    /// requires authentication stays unreadable and unwritable in this process
-    /// until a matching grant exists, independent of what any view believes.
-    public void RequireAccessible(SpaceAccessAssignment assignment, bool requiresAuthentication) {
-        if (IsLocked(assignment, requiresAuthentication)) throw new BrowserRuleException(BrowserRuleCodes.SpaceLocked);
-    }
-
     /// Makes `request` the one waiting to unlock `assignment`, and answers the
     /// assignments whose access changed: none when the Space needs no
     /// authentication. Throws `Rejected` with `AuthenticationBusy` while
