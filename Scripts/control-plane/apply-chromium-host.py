@@ -55,19 +55,23 @@ def main():
     for name, hashes in inputs.items():
         if hashlib.sha256((source / name).read_bytes()).hexdigest() != hashes["after"]:
             parser.error(f"Host patch did not produce its reviewed output: {name}")
+    # An installed file takes the time it was installed, never its source's:
+    # an object built after the source was edited, from the previous install,
+    # must still be older than the file that replaces its input, or Ninja
+    # links it again.
     for path in (host / "Overlay").rglob("*"):
         if path.is_file():
             destination = source / path.relative_to(host / "Overlay")
             destination.parent.mkdir(parents=True, exist_ok=True)
             if not destination.is_file() or destination.read_bytes() != path.read_bytes():
-                shutil.copy2(path, destination)
+                shutil.copy(path, destination)
     # The host header, and the engine contract the binding implements: the C
     # ABI it registers through and the generated C++ codec.
     headers = [host / "Apple/CrestChromiumHost.h"] + [repo / "CrestContracts/include" / name for name in ENGINE_CONTRACT]
     for header in headers:
         destination = source / "chrome/browser/ui/crest" / header.name
         if not destination.is_file() or destination.read_bytes() != header.read_bytes():
-            shutil.copy2(header, destination)
+            shutil.copy(header, destination)
     print("Installed host sources. Regenerate GN and build before packaging the native UI framework.")
 
 

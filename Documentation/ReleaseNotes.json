@@ -2597,6 +2597,10 @@
     "2026-09-25-chromium-binding-extensions": {
       "category": "internal",
       "message": "Chromium lists and changes a profile's extensions from its own C++ binding"
+    },
+    "2026-09-25-chromium-host-install-stamp": {
+      "category": "internal",
+      "message": "Installing the Chromium host sources stamps them with the install time, so an engine build never links a stale object"
     }
   }
 }
