@@ -145,7 +145,7 @@ public sealed class SessionIdentitiesTests {
 
     /// A Space with `tabs` current tabs, each with its own identity.
     private static SpaceState Space(int tabs) {
-        var space = SpaceTemplate.For(privateBrowsing: false).Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), number: 1, Now);
+        var space = SpaceTemplate.For(privateBrowsing: false).Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid, number: 1, Now);
         var template = space.Tabs[0];
         return space with { Tabs = [.. Enumerable.Range(0, tabs).Select(_ => template with { Id = Guid.NewGuid() })] };
     }

@@ -8291,6 +8291,73 @@ struct PasskeyAccessStatus: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `PracticeTab`. A member's wire tag is its index in `all`.
+struct PracticeTab: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: String
+    let url: String
+    let placement: TabPlacement
+
+    private init(tag: Int, name: String, title: String, url: String, placement: TabPlacement) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+        self.url = url
+        self.placement = placement
+    }
+
+    static let calendar = PracticeTab(
+        tag: 0,
+        name: "calendar",
+        title: "Calendar",
+        url: "https://calendar.google.com",
+        placement: TabPlacement.pinned
+    )
+    static let reading = PracticeTab(
+        tag: 1,
+        name: "reading",
+        title: "Wikipedia",
+        url: "https://wikipedia.org",
+        placement: TabPlacement.saved
+    )
+    static let mail = PracticeTab(
+        tag: 2,
+        name: "mail",
+        title: "Gmail",
+        url: "https://mail.google.com",
+        placement: TabPlacement.current
+    )
+    static let trail = PracticeTab(
+        tag: 3,
+        name: "trail",
+        title: "A weekend away",
+        url: "https://www.alltrails.com",
+        placement: TabPlacement.current
+    )
+    static let packing = PracticeTab(
+        tag: 4,
+        name: "packing",
+        title: "Packing list",
+        url: "https://todoist.com",
+        placement: TabPlacement.current
+    )
+
+    static let all: [PracticeTab] = [calendar, reading, mail, trail, packing]
+
+    static func named(_ name: String?) -> PracticeTab? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: PracticeTab, rhs: PracticeTab) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `QuickWindowArchivePolicy`. A member's wire tag is its index in `all`.
 struct QuickWindowArchivePolicy: Hashable, Sendable {
     let tag: Int
@@ -12063,6 +12130,7 @@ struct WorkspaceKind: Hashable, Sendable {
     let isPrivate: Bool
     let ownsSpaces: Bool
     let keepsAppPreferences: Bool
+    let isPractice: Bool
 
     private init(
         tag: Int,
@@ -12071,7 +12139,8 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: Bool,
         isPrivate: Bool,
         ownsSpaces: Bool,
-        keepsAppPreferences: Bool
+        keepsAppPreferences: Bool,
+        isPractice: Bool
     ) {
         self.tag = tag
         self.name = name
@@ -12080,6 +12149,7 @@ struct WorkspaceKind: Hashable, Sendable {
         self.isPrivate = isPrivate
         self.ownsSpaces = ownsSpaces
         self.keepsAppPreferences = keepsAppPreferences
+        self.isPractice = isPractice
     }
 
     static let persistent = WorkspaceKind(
@@ -12089,7 +12159,8 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: true,
         isPrivate: false,
         ownsSpaces: true,
-        keepsAppPreferences: true
+        keepsAppPreferences: true,
+        isPractice: false
     )
     static let `private` = WorkspaceKind(
         tag: 1,
@@ -12098,7 +12169,8 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: false,
         isPrivate: true,
         ownsSpaces: true,
-        keepsAppPreferences: false
+        keepsAppPreferences: false,
+        isPractice: false
     )
     static let borrowed = WorkspaceKind(
         tag: 2,
@@ -12107,10 +12179,21 @@ struct WorkspaceKind: Hashable, Sendable {
         keepsFile: false,
         isPrivate: false,
         ownsSpaces: false,
-        keepsAppPreferences: false
+        keepsAppPreferences: false,
+        isPractice: false
+    )
+    static let practice = WorkspaceKind(
+        tag: 3,
+        name: "practice",
+        opensDirectly: true,
+        keepsFile: false,
+        isPrivate: false,
+        ownsSpaces: true,
+        keepsAppPreferences: false,
+        isPractice: true
     )
 
-    static let all: [WorkspaceKind] = [persistent, `private`, borrowed]
+    static let all: [WorkspaceKind] = [persistent, `private`, borrowed, practice]
 
     static func named(_ name: String?) -> WorkspaceKind? {
         all.first { $0.name == name }

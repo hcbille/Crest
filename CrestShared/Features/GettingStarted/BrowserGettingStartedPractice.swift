@@ -1,73 +1,102 @@
 import Observation
 import SwiftUI
 
-/// A completely separate store family with memory-only persistence. Reusing the
-/// real sidebar here must never let a practice gesture reach the person's tabs.
+/// The Getting Started practice: a practice workspace in a core of its own,
+/// which starts from the core's practice Space and keeps nothing. Reusing the
+/// real sidebar here must never let a practice gesture reach the person's
+/// tabs. Its pages never load, so each practice tab wears the icon bundled
+/// for it.
 @Observable @MainActor
 final class BrowserGettingStartedPractice {
+    // MARK: - Static Variables
+
+    /// The bundled icon each practice tab wears.
+    private static let artwork: [PracticeTab: String] = [
+        .calendar: "GuideCalendar", .reading: "GuideWikipedia", .mail: "GuideGmail", .trail: "GuideAllTrails",
+        .packing: "GuideTodoist",
+    ]
+
+    // MARK: - Variables
+
     private(set) var sidebarInteraction: BrowserSidebarInteractionState
     private(set) var browser: BrowserStore
     let spaceAccess = BrowserSpaceAccessController()
     let downloads = BrowserDownloadCenter(
         permissionCenter: BrowserSitePermissionCenter())
-    let mailID: TabID
-    let trailID: TabID
-    let packingID: TabID
     let sidebarScroll = BrowserNativeScrollState()
     var splitWidths = BrowserSplitWidthTransaction(persistedFractions: [1])
     private var splitWidthMembers: [TabID] = []
-    private let seed: BrowserSession
+    /// Each practice tab's identity in the practice the store holds.
+    private var practiceTabIDs: [PracticeTab: TabID]
 
-    init() {
-        let calendar = BrowserTab(
-            title: "Calendar", url: URL(string: "https://calendar.google.com"),
-            faviconData: BrowserGettingStartedArtwork.favicon("GuideCalendar"), placement: .pinned)
-        let reading = BrowserTab(
-            title: "Wikipedia", url: URL(string: "https://wikipedia.org"),
-            faviconData: BrowserGettingStartedArtwork.favicon("GuideWikipedia"), placement: .saved
-        )
-        let mail = BrowserTab(
-            title: "Gmail", url: URL(string: "https://mail.google.com"),
-            faviconData: BrowserGettingStartedArtwork.favicon("GuideGmail"), placement: .current)
-        let trail = BrowserTab(
-            title: "A weekend away", url: URL(string: "https://www.alltrails.com"),
-            faviconData: BrowserGettingStartedArtwork.favicon("GuideAllTrails"),
-            placement: .current)
-        let packing = BrowserTab(
-            title: "Packing list", url: URL(string: "https://todoist.com"),
-            faviconData: BrowserGettingStartedArtwork.favicon("GuideTodoist"), placement: .current
-        )
-        mailID = mail.id
-        trailID = trail.id
-        packingID = packing.id
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Practice", symbol: "leaf.fill", accent: .indigo,
-            branding: .house(.winter, symbol: "leaf.fill"), folders: [],
-            tabs: [calendar, reading, mail, trail, packing])
-        seed = BrowserSession(spaces: [space])
-        let practiceBrowser = BrowserStore(session: seed)
-        browser = practiceBrowser
-        sidebarInteraction = BrowserSidebarInteractionState.connected(to: practiceBrowser)
+    /// The practice Space as the core holds it, drawn with the icons its tabs wear.
+    var space: BrowserSpace {
+        guard let model = browser.workspaceModel?.spaces.models.first else {
+            preconditionFailure("The practice workspace always holds its one Space.")
+        }
+        return BrowserSpace(core: model.value, image: browser.core.state.favicons.image(of:))
     }
 
-    var space: BrowserSpace { browser.session.spaces[0] }
     var assignment: BrowserSpaceRuntimeAssignment { BrowserSpaceRuntimeAssignment(space: space) }
     var selectedTabID: TabID? { browser.selectedTabID(in: space.id) }
     var members: [BrowserTab] { space.presentedSplitMembers(for: selectedTabID) }
+
+    // MARK: - Initializers
+
+    init() {
+        let opened = Self.opened()
+        browser = opened.browser
+        practiceTabIDs = opened.tabIDs
+        sidebarInteraction = BrowserSidebarInteractionState.connected(to: opened.browser)
+    }
+
+    // MARK: - Actions - Practice
+
+    /// The identity `tab` has in this practice.
+    func tabID(_ tab: PracticeTab) -> TabID? {
+        practiceTabIDs[tab]
+    }
+
+    /// Starts the practice over in a new practice workspace.
+    func reset() {
+        sidebarInteraction.cancel()
+        let opened = Self.opened()
+        browser = opened.browser
+        practiceTabIDs = opened.tabIDs
+        sidebarInteraction = BrowserSidebarInteractionState.connected(to: browser)
+        splitWidthMembers = []
+        reconcileSplitWidths()
+    }
+
+    /// A window over a new practice workspace, with each practice tab wearing
+    /// its icon as a loaded page would leave it, and the practice tabs'
+    /// identities in it.
+    private static func opened() -> (browser: BrowserStore, tabIDs: [PracticeTab: TabID]) {
+        let core = CrestCore()
+        let browser = BrowserStore(
+            credentialVault: InMemoryCredentialVault(), browsingMode: .standard,
+            family: BrowserStoreFamily(startingAs: .practice, in: core), core: core)
+        var identities: [PracticeTab: TabID] = [:]
+        guard let space = browser.workspaceModel?.spaces.models.first else { return (browser, identities) }
+        for tab in space.tabs.models {
+            guard let practiceTab = PracticeTab.all.first(where: { $0.url == tab.url }) else { continue }
+            identities[practiceTab] = tab.id
+            if let icon = icon(of: practiceTab) {
+                browser.setTabFavicon(icon, iconAccent: nil, for: tab.id, in: space.id)
+            }
+        }
+        return (browser, identities)
+    }
+
+    private static func icon(of tab: PracticeTab) -> Data? {
+        artwork[tab].flatMap(BrowserGettingStartedArtwork.favicon)
+    }
 
     func reconcileSplitWidths() {
         let ids = members.map(\.id)
         guard ids != splitWidthMembers else { return }
         splitWidthMembers = ids
         splitWidths.begin(fractions: Array(repeating: 1, count: max(1, ids.count)))
-    }
-
-    func reset() {
-        sidebarInteraction.cancel()
-        browser = BrowserStore(session: seed)
-        sidebarInteraction = BrowserSidebarInteractionState.connected(to: browser)
-        splitWidthMembers = []
-        reconcileSplitWidths()
     }
 
     func addFolder(nested: Bool) {
@@ -80,7 +109,8 @@ final class BrowserGettingStartedPractice {
     }
 
     func makeSplit() {
-        guard space.tabs.contains(where: { $0.id == packingID }), space.tabs.contains(where: { $0.id == trailID })
+        guard let packingID = tabID(.packing), let trailID = tabID(.trail),
+            space.tabs.contains(where: { $0.id == packingID }), space.tabs.contains(where: { $0.id == trailID })
         else { return }
         browser.selectTab(trailID)
         _ = browser.addTabToSplit(
@@ -91,10 +121,10 @@ final class BrowserGettingStartedPractice {
     /// The practice has no pages, so the example tab opens as a loaded page
     /// would leave it: titled, and wearing the site's icon.
     func openExampleTab() {
-        guard
-            let id = browser.openSessionTab(
-                .page(URL(string: "https://wikipedia.org")!, title: "Wikipedia"), in: space.id),
-            let favicon = BrowserGettingStartedArtwork.favicon("GuideWikipedia")
+        let example = PracticeTab.reading
+        guard let url = URL(string: example.url),
+            let id = browser.openSessionTab(.page(url, title: example.title), in: space.id),
+            let favicon = Self.icon(of: example)
         else { return }
         _ = browser.setTabFavicon(favicon, iconAccent: nil, for: id, matching: assignment)
     }
@@ -108,6 +138,8 @@ final class BrowserGettingStartedPractice {
         guard let id = browser.selectedTabID(in: space.id) else { return }
         _ = browser.moveSplitMember(id, by: offset, matching: assignment)
     }
+
+    // MARK: - Actions - Sidebar
 
     /// The practice Space as the read model holds it, and what its rows act
     /// through, in the practice's own memory-only store.

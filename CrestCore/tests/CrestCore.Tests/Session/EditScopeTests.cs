@@ -15,11 +15,11 @@ public sealed partial class BrowserContractsTests {
     public void AnEditToOneSpaceChecksOnlyThatSpace() {
         var now = StoredSessionCodec.Date(StoredSessionCodec.Seconds(DateTimeOffset.UtcNow));
         var template = SpaceTemplate.For(privateBrowsing: false);
-        var browsing = template.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), number: 1, now);
+        var browsing = template.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid, number: 1, now);
         browsing = browsing with {
             Tabs = [browsing.Tabs[0] with { Url = "https://example.com/", Title = "Example" }]
         };
-        var other = template.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), number: 2, now);
+        var other = template.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid, number: 2, now);
         other = other with { Tabs = [.. Enumerable.Range(0, 300).Select(_ => other.Tabs[0] with { Id = Guid.NewGuid() })] };
         var session = StoredSessionCodec.Encode(new SessionState([browsing, other], DefaultSpaceId: null, DisposableSeedMarker: null,
             SpaceDeletions: [], AppPreferences: null));

@@ -18,7 +18,7 @@ enum BrowserPasswordImportCommitter {
                 skippedCount += 1
                 continue
             }
-            for spaceID in destinationIDs where browser.session.space(id: spaceID) != nil {
+            for spaceID in destinationIDs where browser.spaceModel(spaceID) != nil {
                 recordsBySpace[spaceID, default: []].append(
                     BrowserCredentialCSVImportRecord(
                         rowNumber: index + 2,
@@ -32,7 +32,7 @@ enum BrowserPasswordImportCommitter {
         }
 
         for (spaceID, records) in recordsBySpace {
-            guard let space = browser.session.space(id: spaceID) else {
+            guard let space = browser.spaceModel(spaceID) else {
                 skippedCount += records.count
                 continue
             }
@@ -43,9 +43,8 @@ enum BrowserPasswordImportCommitter {
                     records: records,
                     rejections: [],
                     existingCredentials: existing,
-                    destination: BrowserSpaceRuntimeAssignment(space: space),
-                    synchronizesWithICloud: space.credentialPreferences
-                        .syncsCrestPasswordsWithICloud,
+                    destination: BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID),
+                    synchronizesWithICloud: space.settings.credentialPreferences.syncsCrestPasswordsWithICloud,
                     core: browser.core
                 )
                 let resolution = try importPlan.resolvedInventory()

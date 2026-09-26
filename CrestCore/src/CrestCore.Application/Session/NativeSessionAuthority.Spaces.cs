@@ -30,7 +30,7 @@ public sealed partial class NativeSessionAuthority {
         if (basis.Spaces.Any(space => space.Id == intent.SpaceId)) throw new Rejected(new SpaceAlreadyExists(intent.SpaceId));
         if (basis.Spaces.Count >= BrowserLimits.Spaces) throw new Rejected(new SpaceLimitReached(BrowserLimits.Spaces));
         var space = SpaceTemplate.For(workspaceKind.IsPrivate)
-            .Make(intent.SpaceId, ids.Next(), ids.Next(), basis.Spaces.Count + 1, now);
+            .Make(intent.SpaceId, ids.Next(), ids.Next, basis.Spaces.Count + 1, now);
         // A new Space is the one its window shows next, on its only tab.
         var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId)).ShowSpace(space.Id).ShowTab(space.Id, space.Tabs[0].Id);
         return new(basis with { Spaces = [.. basis.Spaces, space] }, SyncStaging.Creation, followUp);
@@ -138,7 +138,7 @@ public sealed partial class NativeSessionAuthority {
     /// the window that asked shows. Nothing it held ever synced.
     private SessionEdit ResettingPrivateBrowsing(SessionState basis, ResetPrivateBrowsing intent, DateTimeOffset now, IIdSource ids) {
         if (!workspaceKind.IsPrivate) throw new Rejected(new NotPrivateWorkspace(workspaceId));
-        var space = SpaceTemplate.Private.Make(ids.Next(), ids.Next(), ids.Next(), number: 1, now);
+        var space = SpaceTemplate.Private.Make(ids.Next(), ids.Next(), ids.Next, number: 1, now);
         var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId)).ShowSpace(space.Id).ShowTab(space.Id, space.Tabs[0].Id);
         return new(basis with { Spaces = [space], SpaceDeletions = [], DefaultSpaceId = null }, Staging: null, followUp);
     }

@@ -177,7 +177,7 @@ struct MobileBrowserOnboardingView: View {
         if action == .open {
             return "Your existing Spaces are ready."
         }
-        if !browser.session.hasDisposableSeedState {
+        if browser.workspaceModel?.isDisposableSeed != true {
             return "Your existing Spaces are ready to customize."
         }
         if case .failed = cloudSync.phase {

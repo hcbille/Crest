@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BrowserOnboardingReviewSpaceControls: View {
     let flow: BrowserOnboardingFlow
-    let browserSession: BrowserSession
     let application: ImportSource?
     let spaces: [BrowserImportSpaceReview]
     let review: BrowserImportSpaceReview
@@ -36,7 +35,7 @@ struct BrowserOnboardingReviewSpaceControls: View {
                 )
 
                 BrowserOnboardingReviewDestinationPicker(
-                    spaces: browserSession.spaces,
+                    spaces: flow.destinationSpaces,
                     destination: destinationBinding,
                     destinationName: flow.destinationName(
                         for: review.destination
@@ -146,7 +145,7 @@ private struct BrowserOnboardingReviewSourcePicker: View {
 }
 
 private struct BrowserOnboardingReviewDestinationPicker: View {
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
     @Binding var destination: BrowserImportDestination
     let destinationName: String
 
@@ -159,7 +158,7 @@ private struct BrowserOnboardingReviewDestinationPicker: View {
             Picker("Destination Space", selection: $destination) {
                 Text("New Space").tag(BrowserImportDestination.newSpace)
                 ForEach(spaces) { space in
-                    Text(space.name).tag(
+                    Text(space.settings.name).tag(
                         BrowserImportDestination.existing(space.id)
                     )
                 }

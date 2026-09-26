@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x0f, 0x52, 0xd2, 0x5c, 0xfe, 0x3d, 0x1e, 0x6c, 0xf5, 0x17, 0xfe, 0xbb, 0xe7, 0xa5, 0x96, 0x58, 0x46, 0x29, 0x87, 0xf1, 0xfa, 0xff, 0x65, 0xa4, 0x15, 0x49, 0x2e, 0x8a, 0xf7, 0x52, 0xc4, 0x53
+        0xc6, 0x2d, 0x3d, 0xcc, 0x7e, 0xa3, 0x18, 0x57, 0xf4, 0xd0, 0x2d, 0x74, 0x62, 0x3f, 0x8b, 0x91, 0x3b, 0xb9, 0xde, 0x62, 0xe1, 0x22, 0x86, 0x52, 0x2f, 0x46, 0x0c, 0x3b, 0xab, 0x4f, 0x62, 0xfd
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -20017,6 +20017,20 @@ extension PasskeyAccessStatus {
         let tag = try reader.readEnum()
         guard Self.all.indices.contains(tag) else {
             throw WireError.malformed("Unknown PasskeyAccessStatus \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
+extension PracticeTab {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown PracticeTab \(tag)")
         }
         self = Self.all[tag]
     }

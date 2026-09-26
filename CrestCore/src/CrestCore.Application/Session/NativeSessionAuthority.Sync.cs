@@ -174,7 +174,7 @@ public sealed partial class NativeSessionAuthority {
         bool replacing, DateTimeOffset now, IIdSource ids) {
         var journal = transaction.Journal;
         var seconds = StoredSessionCodec.Seconds(now);
-        var emptySpace = SpaceTemplate.Ordinary.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), number: 1, now);
+        var emptySpace = SpaceTemplate.Ordinary.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid, number: 1, now);
         var removals = (transaction.Superseded?.Removals ?? SyncRemovals.None).Reasons(SyncDeletionReason.Superseded);
         var result = NativeSyncSessionTransition.Prepare(journal, StoredSessionCodec.Encode(basis), records.Batch(), replacing,
             seconds, StoredSessionCodec.Encode(emptySpace), Access, ids, removals);

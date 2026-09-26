@@ -187,11 +187,15 @@
         @ViewBuilder private var lessonActions: some View {
             switch lesson {
             case 0:
-                Button("Pin Gmail", systemImage: "pin.fill") { practice.browser.pinTab(practice.mailID) }
-                    .buttonStyle(.crestPrimary(tint: CrestBrandPalette.butter))
+                Button("Pin Gmail", systemImage: "pin.fill") {
+                    if let mail = practice.tabID(.mail) { practice.browser.pinTab(mail) }
+                }
+                .buttonStyle(.crestPrimary(tint: CrestBrandPalette.butter))
             case 1:
-                Button("Save this tab", systemImage: "bookmark.fill") { practice.browser.saveTab(practice.trailID) }
-                    .buttonStyle(.crestPrimary(tint: CrestBrandPalette.butter))
+                Button("Save this tab", systemImage: "bookmark.fill") {
+                    if let trail = practice.tabID(.trail) { practice.browser.saveTab(trail) }
+                }
+                .buttonStyle(.crestPrimary(tint: CrestBrandPalette.butter))
             case 2:
                 HStack {
                     Button("Add folder", systemImage: "folder.badge.plus") { practice.addFolder(nested: false) }

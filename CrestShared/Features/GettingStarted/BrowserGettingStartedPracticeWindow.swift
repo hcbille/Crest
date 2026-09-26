@@ -92,7 +92,7 @@
                 Spacer(minLength: 0)
                 if showsSplit {
                     splitInstructions(tab)
-                } else if tab.id == practice.packingID || tab.title == "Packing list" {
+                } else if tab.id == practice.tabID(.packing) || tab.title == PracticeTab.packing.title {
                     Text("Packing list").font(CrestTypography.display(27))
                     ForEach(["Walking shoes", "Water bottle", "Trail map"], id: \.self) { item in
                         Label(item, systemImage: "checkmark.circle").font(CrestTypography.sans(12)).foregroundStyle(

@@ -102,7 +102,7 @@ public sealed class SessionChangesInPartTests {
     /// A session of one Space with `tabs` tabs and `history` entries, after a
     /// first edit to both lists, so the feed has read them whole once.
     private static (SessionState Session, SpaceState Space) Opened(int tabs, int history) {
-        var space = SpaceTemplate.For(privateBrowsing: false).Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), number: 1, Now);
+        var space = SpaceTemplate.For(privateBrowsing: false).Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid, number: 1, Now);
         space = space with {
             Tabs = [.. Enumerable.Range(0, tabs).Select(_ => NewTab())],
             History = [.. Enumerable.Range(0, history).Select(index => new HistoryEntryState(Guid.NewGuid(), $"https://visited-{index}.example/",

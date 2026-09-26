@@ -88,11 +88,12 @@ public sealed partial class CrestApp {
     }
 
     /// The session a workspace of `kind` starts with when it keeps no file and
-    /// has no seed: one Space of its kind's template, showing a Start Page
-    /// stamped as the session stores the time.
+    /// has no seed: one Space of its kind's template, or the practice Space
+    /// for the practice, stamped as the session stores the time.
     private SessionState Template(WorkspaceKind kind) {
         var now = StoredSessionCodec.Date(StoredSessionCodec.Seconds(clock.Now));
-        var space = SpaceTemplate.For(kind.IsPrivate).Make(ids.Next(), ids.Next(), ids.Next(), number: 1, now);
+        var template = kind.IsPractice ? SpaceTemplate.Practice : SpaceTemplate.For(kind.IsPrivate);
+        var space = template.Make(ids.Next(), ids.Next(), ids.Next, number: 1, now);
         return new([space], DefaultSpaceId: null, DisposableSeedMarker: null, SpaceDeletions: [], AppPreferences: null);
     }
 

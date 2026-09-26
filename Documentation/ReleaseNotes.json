@@ -2813,6 +2813,10 @@
     "2026-09-26-setup-flow-in-core": {
       "category": "fixed",
       "message": "Setup's Back button returns to the right step"
+    },
+    "2026-09-26-practice-workspace-in-core": {
+      "category": "internal",
+      "message": "The Getting Started practice starts from Crest's shared core"
     }
   }
 }

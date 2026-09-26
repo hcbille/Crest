@@ -65,17 +65,13 @@ final class BrowserSettingsPrivacyPolicyTests: XCTestCase {
         )
         browser.attachSpaceAccess(access)
 
+        let export = BrowserDataPortabilityModel(browser: browser, spaceAccess: access)
+        XCTAssertEqual(export.lockedSpaceIDs, [spaces[0].id, spaces[1].id])
+
         let unlocked = await access.unlock(spaces[0])
 
         XCTAssertTrue(unlocked)
-
-        XCTAssertEqual(
-            BrowserSettingsPrivacyPolicy.lockedSpaces(
-                in: spaces,
-                accessController: access
-            ).map(\.id),
-            [spaces[1].id]
-        )
+        XCTAssertEqual(export.lockedSpaceIDs, [spaces[1].id])
     }
 
     func testCredentialMetadataLoadsOnlyWhilePrivateSpaceIsUnlocked() async throws {

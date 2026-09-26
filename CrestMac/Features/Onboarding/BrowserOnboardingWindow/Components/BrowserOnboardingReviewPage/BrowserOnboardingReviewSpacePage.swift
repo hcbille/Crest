@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BrowserOnboardingReviewSpacePage: View {
     let flow: BrowserOnboardingFlow
-    let browserSession: BrowserSession
     let application: ImportSource?
     let spaces: [BrowserImportSpaceReview]
     let review: BrowserImportSpaceReview
@@ -54,7 +53,6 @@ struct BrowserOnboardingReviewSpacePage: View {
 
             BrowserOnboardingReviewSpaceControls(
                 flow: flow,
-                browserSession: browserSession,
                 application: application,
                 spaces: spaces,
                 review: review

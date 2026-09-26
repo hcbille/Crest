@@ -374,12 +374,22 @@ final class BrowserOnboardingFlow {
     }
 
     func duplicateDestinationName(for review: BrowserImportSpaceReview) -> String? {
-        review.destination.spaceID.flatMap { browser.session.space(id: $0)?.name }
+        review.destination.spaceID.flatMap { browser.spaceModel($0)?.settings.name }
     }
 
     func destinationName(for destination: BrowserImportDestination) -> String {
         guard let spaceID = destination.spaceID else { return String(localized: "New Space") }
-        return browser.session.space(id: spaceID)?.name ?? String(localized: "Existing Space")
+        return browser.spaceModel(spaceID)?.settings.name ?? String(localized: "Existing Space")
+    }
+
+    /// The workspace's Spaces, which a reviewed Space may join.
+    var destinationSpaces: [SpaceModel] {
+        browser.workspaceModel?.spaces.models ?? []
+    }
+
+    /// Whether the workspace is still the first launch's disposable Spaces.
+    var hasDisposableSeedState: Bool {
+        browser.workspaceModel?.isDisposableSeed ?? false
     }
 
     func reviewProgressLabel(for review: BrowserImportSpaceReview) -> String {

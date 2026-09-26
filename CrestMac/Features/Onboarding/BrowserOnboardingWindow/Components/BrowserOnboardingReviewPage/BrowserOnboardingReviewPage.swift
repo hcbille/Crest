@@ -5,7 +5,6 @@ struct BrowserOnboardingReviewPage: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let flow: BrowserOnboardingFlow
-    let browserSession: BrowserSession
     let sources: [BrowserInstalledImportSource]
     @Binding var customizationSpaceID: SpaceID?
     let back: BrowserOnboardingBackAction
@@ -29,7 +28,6 @@ struct BrowserOnboardingReviewPage: View {
                             ForEach(spaces) { item in
                                 BrowserOnboardingReviewSpacePage(
                                     flow: flow,
-                                    browserSession: browserSession,
                                     application: setupReview.source,
                                     spaces: spaces,
                                     review: item

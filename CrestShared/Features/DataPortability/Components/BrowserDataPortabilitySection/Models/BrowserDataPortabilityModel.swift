@@ -20,11 +20,10 @@ final class BrowserDataPortabilityModel {
     var isImporting = false
     var status: BrowserDataPortabilityOperationStatus?
 
-    var lockedSpaces: [BrowserSpace] {
-        BrowserSettingsPrivacyPolicy.lockedSpaces(
-            in: browser.session.spaces,
-            accessController: spaceAccess
-        )
+    /// The workspace's Spaces that ask for authentication and are locked,
+    /// which keep an export from being written.
+    var lockedSpaces: [SpaceModel] {
+        (browser.workspaceModel?.spaces.models ?? []).filter(spaceAccess.isLocked)
     }
 
     var lockedSpaceIDs: [SpaceID] {

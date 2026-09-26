@@ -53,10 +53,16 @@ final class BrowserStoreFamily {
     /// A family over a new private workspace in `crest`, which starts from the
     /// core's private template.
     convenience init(privateIn crest: CrestCore) {
+        self.init(startingAs: .private, in: crest)
+    }
+
+    /// A family over a new workspace of `kind` in `crest`, which starts from
+    /// the core's template for it and keeps nothing.
+    convenience init(startingAs kind: WorkspaceKind, in crest: CrestCore) {
         do {
-            self.init(memory: try BrowserCoreSessionAuthority.open(.private, seed: nil, in: crest))
+            self.init(memory: try BrowserCoreSessionAuthority.open(kind, seed: nil, in: crest))
         } catch {
-            preconditionFailure("The core refused to open a private workspace: \(error)")
+            preconditionFailure("The core refused to open a \(kind.name) workspace: \(error)")
         }
     }
 

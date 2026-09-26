@@ -21,7 +21,7 @@ struct BrowserOnboardingStepContent: View {
                     flow: flow.state, cloudPhase: cloudSync.phase, forcesSetup: progress.forcesSetup),
                 cloudPhase: cloudSync.phase,
                 hasCompletedSetup: progress.hasCompletedSetup,
-                hasDisposableSeedState: flow.browser.session.hasDisposableSeedState,
+                hasDisposableSeedState: flow.hasDisposableSeedState,
                 continueSetup: {
                     if let next = flow.state?.nextStep { transition(to: next) }
                 },
@@ -43,7 +43,6 @@ struct BrowserOnboardingStepContent: View {
         case .review:
             BrowserOnboardingReviewPage(
                 flow: flow,
-                browserSession: flow.browser.session,
                 sources: flow.installedSources,
                 customizationSpaceID: $customizationSpaceID,
                 back: back

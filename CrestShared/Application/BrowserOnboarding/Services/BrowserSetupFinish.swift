@@ -30,8 +30,7 @@ enum BrowserSetupFinish {
         do {
             return completed(try browser.family.commit(finishing, from: browser), in: browser)
         } catch let rejection {
-            guard case .guideSpaceLocked(let locked) = rejection,
-                let space = browser.session.space(id: locked.spaceID)
+            guard case .guideSpaceLocked(let locked) = rejection, let space = browser.spaceModel(locked.spaceID)
             else { return .refused(rejection.explanation) }
             guard await spaceAccess.unlock(space), !Task.isCancelled else { return .cancelled }
             do {
@@ -48,10 +47,11 @@ enum BrowserSetupFinish {
             if case .setupFinished(let finished) = change { return finished }
             return nil
         }.first
-        guard let spaceID = finished?.guideSpaceID, let space = browser.session.space(id: spaceID) else {
+        guard let spaceID = finished?.guideSpaceID, let space = browser.spaceModel(spaceID) else {
             return .completed(guide: nil)
         }
         return .completed(
-            guide: browser.openGettingStartedAfterSetup(matching: BrowserSpaceRuntimeAssignment(space: space)))
+            guide: browser.openGettingStartedAfterSetup(
+                matching: BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID)))
     }
 }
