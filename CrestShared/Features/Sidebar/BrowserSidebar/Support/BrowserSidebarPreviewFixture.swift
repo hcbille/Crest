@@ -9,18 +9,14 @@ import Foundation
 enum BrowserSidebarPreviewFixture {
     static let folderID = uuid(0x31)
     static let spaceID = uuid(0x21)
-    static let space = BrowserSpace(
+    static let space = SpaceState.Seed(
         id: spaceID,
-        profile: BrowsingProfile(id: uuid(0x11)),
+        profileID: uuid(0x11),
         name: "Studio",
         symbol: "paintpalette.fill",
         accent: .indigo,
-        branding: .initial(
-            accent: .indigo,
-            symbol: "paintpalette.fill"
-        ),
         folders: [
-            BrowserFolder(
+            FolderState.Seed(
                 id: folderID,
                 title: "Design References",
                 symbol: "folder.fill"
@@ -49,7 +45,7 @@ enum BrowserSidebarPreviewFixture {
                 symbol: "note.text",
                 placement: .current
             ),
-            BrowserTab.startPage(
+            TabState.Seed.startPage(
                 id: uuid(0x44),
                 lastActivatedAt: Date(timeIntervalSince1970: 0)
             ),
@@ -59,9 +55,7 @@ enum BrowserSidebarPreviewFixture {
     @MainActor
     static func makeBrowser() -> BrowserStore {
         BrowserStore(
-            session: BrowserSession(
-                spaces: [space]
-            ),
+            seed: SessionState.Seed(spaces: [space]),
             browsingMode: .privateBrowsing
         )
     }
@@ -146,8 +140,8 @@ enum BrowserSidebarPreviewFixture {
         symbol: String,
         placement: TabPlacement,
         folderID: FolderID? = nil
-    ) -> BrowserTab {
-        BrowserTab(
+    ) -> TabState.Seed {
+        TabState.Seed(
             id: uuid(idByte),
             title: title,
             url: URL(fileURLWithPath: path),

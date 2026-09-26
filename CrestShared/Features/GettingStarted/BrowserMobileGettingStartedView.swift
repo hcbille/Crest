@@ -76,7 +76,7 @@
             }
             .environment(practice.sidebarInteraction)
             .onDisappear { practice.sidebarInteraction.cancel() }
-            .animation(reduceMotion ? nil : CrestMotion.collection, value: practice.space.tabs)
+            .animation(reduceMotion ? nil : CrestMotion.collection, value: practice.space.sidebar.lists.map(\.rows))
 
         }
 

@@ -1608,6 +1608,12 @@ struct DeleteTabs: Intent, SessionIntent, Equatable, Sendable {
     let selection: TabSelection
 }
 
+struct DetachedSession: Query, Equatable, Sendable {
+    typealias Answer = SessionState
+
+    let seed: SessionState.Seed
+}
+
 struct DiscardStagedLink: Intent, PageIntent, Equatable, Sendable {
     let sourcePageID: UUID
     let stagedLinkID: UUID

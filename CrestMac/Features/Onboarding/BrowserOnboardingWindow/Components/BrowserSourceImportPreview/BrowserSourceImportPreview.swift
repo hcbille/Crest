@@ -11,7 +11,7 @@ struct BrowserSourceImportPreview: View {
     let setPlacement: (TabID, TabPlacement) -> Void
 
     var body: some View {
-        BrowserImportSidebarFrame(branding: review.sourceSpace.branding) {
+        BrowserImportSidebarFrame(branding: BrowserSpaceBranding(look: review.sourceSpace.settings.look)) {
             BrowserSourceImportContent(
                 application: application,
                 review: review,
@@ -26,7 +26,7 @@ struct BrowserSourceImportPreview: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            "\(application?.title ?? "Source browser") \(review.sourceSpace.name) sidebar before import"
+            "\(application?.title ?? "Source browser") \(review.sourceSpace.settings.name) sidebar before import"
         )
     }
 }

@@ -13,7 +13,7 @@ struct BrowserOnboardingReviewSpaceControls: View {
                     applicationName: application?.title ?? "browser",
                     spaces: spaces,
                     currentSpaceID: review.id,
-                    sourceSpaceName: review.sourceSpace.name,
+                    sourceSpaceName: review.sourceSpace.settings.name,
                     show: { flow.shownReviewSpaceID = $0 }
                 )
 
@@ -66,7 +66,7 @@ struct BrowserOnboardingReviewSpaceControls: View {
                 .foregroundStyle(BrowserOnboardingPalette.inkSoft)
 
                 Toggle(
-                    "Import passwords for \(review.sourceSpace.name)",
+                    "Import passwords for \(review.sourceSpace.settings.name)",
                     isOn: passwordInclusionBinding
                 )
                 .labelsHidden()
@@ -124,7 +124,7 @@ private struct BrowserOnboardingReviewSourcePicker: View {
 
             Picker("Source Space", selection: selection) {
                 ForEach(spaces) { item in
-                    Text(item.sourceSpace.name).tag(item.id)
+                    Text(item.sourceSpace.settings.name).tag(item.id)
                 }
             }
             .labelsHidden()

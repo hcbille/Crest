@@ -5,7 +5,7 @@ import SwiftUI
 struct BrowserImportSpaceCustomizationView: View {
     let flow: BrowserOnboardingFlow
     let spaceID: SpaceID
-    let previewSpace: BrowserSpace?
+    let previewSpace: SpaceModel?
     let done: () -> Void
 
     @ViewBuilder
@@ -13,6 +13,7 @@ struct BrowserImportSpaceCustomizationView: View {
         if review != nil {
             BrowserImportSpaceCustomizationContent(
                 previewSpace: previewSpace,
+                previewFavicons: flow.previewFavicons,
                 name: binding(get: \.name) { current, name in
                     SpaceCustomization(
                         name: name, symbol: current.symbol, accent: current.accent, branding: current.branding)
@@ -50,7 +51,7 @@ struct BrowserImportSpaceCustomizationView: View {
         Binding(
             get: {
                 review.map { BrowserSpaceBranding(look: $0.customization.branding) }
-                    ?? previewSpace?.branding
+                    ?? previewSpace.map { BrowserSpaceBranding(look: $0.settings.look) }
                     ?? .initial(accent: .indigo, symbol: "square.grid.2x2")
             },
             set: { branding in

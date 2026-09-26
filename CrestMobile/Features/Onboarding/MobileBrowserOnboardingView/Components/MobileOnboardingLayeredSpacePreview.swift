@@ -2,8 +2,8 @@ import SwiftUI
 
 struct MobileOnboardingLayeredSpacePreview: View {
     let previewWidth: CGFloat
-    let personalSpace: BrowserSpace
-    let workSpace: BrowserSpace
+    let personalSpace: SpaceModel
+    let workSpace: SpaceModel
 
     var body: some View {
         ZStack {

@@ -4,41 +4,37 @@ import Foundation
 enum BrowserCommandPalettePreviewFixture {
     static let selectedTabID = uuid(finalByte: 0x11)
 
-    static let currentSpace = BrowserSpace(
+    static let currentSpace = SpaceState.Seed(
         id: uuid(finalByte: 0x21),
-        profile: BrowsingProfile(id: uuid(finalByte: 0x31)),
+        profileID: uuid(finalByte: 0x31),
         name: "Work",
         symbol: "briefcase.fill",
         accent: .indigo,
-        folders: [],
         tabs: [
-            BrowserTab(
+            TabState.Seed(
                 id: selectedTabID,
                 title: "Crest",
                 url: url("https://crestbrowser.com"),
-                faviconData: faviconData,
                 placement: .current,
                 lastActivatedAt: date(offset: 400)
             ),
-            BrowserTab(
+            TabState.Seed(
                 id: uuid(finalByte: 0x12),
                 title: "Swift Evolution",
                 url: url("https://www.swift.org/swift-evolution"),
-                faviconData: faviconData,
                 placement: .current,
                 lastActivatedAt: date(offset: 300)
             ),
-            BrowserTab(
+            TabState.Seed(
                 id: uuid(finalByte: 0x13),
                 title: "GitHub",
                 url: url("https://github.com"),
-                faviconData: faviconData,
                 placement: .pinned,
                 lastActivatedAt: date(offset: 200)
             ),
         ],
         history: [
-            BrowserHistoryEntry(
+            HistoryEntryState(
                 id: uuid(finalByte: 0x41),
                 url: url("https://forums.swift.org"),
                 title: "Swift Forums",
@@ -62,7 +58,10 @@ enum BrowserCommandPalettePreviewFixture {
     )
 
     /// A window over the preview Space on a memory-only core.
-    static let browser = BrowserStore(session: BrowserSession(spaces: [currentSpace]), showing: currentSpace.id)
+    static let browser = BrowserStore(
+        seed: SessionState.Seed(spaces: [currentSpace]),
+        images: Dictionary(uniqueKeysWithValues: currentSpace.tabs.map { ($0.id, faviconData) }),
+        showing: currentSpace.id)
 
     static var space: SpaceModel? { browser.spaceModel(currentSpace.id) }
 

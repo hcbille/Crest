@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MobileOnboardingTabsFeaturePage: View {
-    let workSpace: BrowserSpace
+    let workSpace: SpaceModel
     let secondaryTitle: String?
     let secondaryAction: (() -> Void)?
     let primaryAction: () -> Void

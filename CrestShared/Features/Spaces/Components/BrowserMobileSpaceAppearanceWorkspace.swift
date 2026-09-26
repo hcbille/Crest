@@ -6,7 +6,7 @@
         @Binding var branding: BrowserSpaceBranding
         @Binding var symbol: String
         @Binding var name: String
-        var space: BrowserSpace? = nil
+        var space: BrowserSpaceAppearance? = nil
         var spacePicker: BrowserSpaceCustomizationPicker? = nil
         @Environment(\.browserSettingsUsesLiveSidebar) private var usesLiveSidebar
         @Environment(\.horizontalSizeClass) private var horizontalSizeClass

@@ -86,8 +86,8 @@ struct CrestSpaceChipRail: View {
 
 #if DEBUG
     #Preview("Select a Space") {
-        @Previewable @State var selection: SpaceID? = BrowserSession.preview.spaces[0].id
-        CrestSpaceChipRail(spaces: CrestSpaceIdentity.list(BrowserSession.preview.spaces), selection: $selection)
+        @Previewable @State var selection: SpaceID? = SessionState.Seed.preview.spaces[0].id
+        CrestSpaceChipRail(spaces: CrestSpaceIdentity.list(SpaceModel.previewSpaces), selection: $selection)
             .padding().frame(width: 360)
     }
 #endif

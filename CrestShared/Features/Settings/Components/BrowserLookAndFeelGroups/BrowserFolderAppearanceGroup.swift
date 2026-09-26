@@ -3,7 +3,7 @@ import SwiftUI
 /// How folders read in every Space on this device. A Space's own folder color
 /// travels with its branding and stays in the Space editor.
 struct BrowserFolderAppearanceGroup: View {
-    var space: BrowserSpace?
+    var space: BrowserSpaceAppearance?
     var showsPreview = false
 
     @AppStorage(BrowserFolderAppearancePreference.alwaysVisibleKey, store: BrowserFolderAppearancePreference.defaults)

@@ -9,60 +9,52 @@ struct MobileBrowserPreviewFixture {
     let spaceAccess: BrowserSpaceAccessController
     let passkeyAccess: BrowserPasskeyAccessController
     let windowState: BrowserWindowStateStore
-    let space: BrowserSpace
-    let alternateSpace: BrowserSpace
+    let space: SpaceModel
+    let alternateSpace: SpaceModel
 
     init() {
-        let space = BrowserSpace(
+        let space = SpaceState.Seed(
             id: UUID(
                 uuid: (
                     0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
                     0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
                 )
             ),
-            profile: BrowsingProfile(
-                id: UUID(
-                    uuid: (
-                        0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
-                        0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-                    )
+            profileID: UUID(
+                uuid: (
+                    0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
+                    0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
                 )
             ),
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
-            branding: .house(.lion, symbol: "briefcase.fill"),
-            folders: [],
+            branding: BrowserSpaceBranding.house(.lion, symbol: "briefcase.fill").core,
             tabs: []
         )
-        let alternateSpace = BrowserSpace(
+        let alternateSpace = SpaceState.Seed(
             id: UUID(
                 uuid: (
                     0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
                     0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
                 )
             ),
-            profile: BrowsingProfile(
-                id: UUID(
-                    uuid: (
-                        0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
-                        0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
-                    )
+            profileID: UUID(
+                uuid: (
+                    0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
+                    0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02
                 )
             ),
             name: "Personal",
             symbol: "house.fill",
             accent: .orange,
-            branding: .house(.winter, symbol: "house.fill"),
-            folders: [],
+            branding: BrowserSpaceBranding.house(.winter, symbol: "house.fill").core,
             tabs: []
         )
         let browser = BrowserStore(
-            session: BrowserSession(
-                spaces: [space, alternateSpace]
-            ),
-            browsingMode: .privateBrowsing
-        )
+            seed: SessionState.Seed(spaces: [space, alternateSpace]), browsingMode: .privateBrowsing)
+        guard let workSpace = browser.spaceModel(space.id), let personalSpace = browser.spaceModel(alternateSpace.id)
+        else { preconditionFailure("The preview store must open both preview Spaces.") }
         let contentRuleListProvider = BrowserContentRuleListProvider(
             core: browser.core,
             ruleListStore: nil
@@ -76,8 +68,8 @@ struct MobileBrowserPreviewFixture {
             contentRuleListProvider: contentRuleListProvider
         )
 
-        self.space = space
-        self.alternateSpace = alternateSpace
+        self.space = workSpace
+        self.alternateSpace = personalSpace
         self.browser = browser
         self.pages = pages
         windowState = BrowserWindowStateStore(

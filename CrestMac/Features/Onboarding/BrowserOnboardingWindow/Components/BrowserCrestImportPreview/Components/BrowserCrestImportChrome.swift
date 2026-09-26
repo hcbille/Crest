@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserCrestImportChrome: View {
-    let space: BrowserSpace
+    let space: SpaceModel
     let highlightedTabID: TabID?
 
     var body: some View {
@@ -33,7 +33,7 @@ struct BrowserCrestImportChrome: View {
 
     private var selectedHost: String? {
         highlightedTabID.flatMap { id in
-            space.tabs.first { $0.id == id }?.url?.host
+            space.tabs.model(id)?.address?.host
         }
     }
 }

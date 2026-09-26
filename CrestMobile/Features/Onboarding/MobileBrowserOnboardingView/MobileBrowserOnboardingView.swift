@@ -9,8 +9,8 @@ struct MobileBrowserOnboardingView: View {
     @Bindable var cloudSync: BrowserCloudSyncController
     @Bindable var progress: BrowserOnboardingProgressStore
     @Bindable var coordinator: BrowserOnboardingCoordinator
-    let tutorialPersonalSpace: BrowserSpace
-    let tutorialWorkSpace: BrowserSpace
+    let tutorialPersonalSpace: SpaceModel
+    let tutorialWorkSpace: SpaceModel
     let spaceAccess: BrowserSpaceAccessController
     let didOpenGettingStarted: (BrowserTabRuntimeAssignment) -> Void
 
@@ -33,9 +33,9 @@ struct MobileBrowserOnboardingView: View {
         coordinator: BrowserOnboardingCoordinator,
         spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
         didOpenGettingStarted: @escaping (BrowserTabRuntimeAssignment) -> Void = { _ in },
-        tutorialPersonalSpace: BrowserSpace =
+        tutorialPersonalSpace: SpaceModel =
             MobileOnboardingPreviewFixtures.tutorialPersonalSpace,
-        tutorialWorkSpace: BrowserSpace =
+        tutorialWorkSpace: SpaceModel =
             MobileOnboardingPreviewFixtures.tutorialWorkSpace
     ) {
         self.request = request

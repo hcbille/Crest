@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSourceImportTabPlacementMenu: View {
-    let tab: BrowserTab
+    let tab: TabStateModel
     let setPlacement: (TabID, TabPlacement) -> Void
 
     var body: some View {

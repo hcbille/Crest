@@ -43,6 +43,18 @@ extension SpaceState.Seed {
             tabs: [.startPage()])
     }
 
+    // MARK: - Actions - Drafting
+
+    /// This Space as a draft shows it before it is saved: named `name` and
+    /// wearing `branding` and `symbol`.
+    func wearing(_ branding: SpaceBranding, symbol: String, name: String) -> SpaceState.Seed {
+        var draft = self
+        draft.settings.branding = branding
+        draft.settings.symbol = symbol
+        draft.settings.name = name
+        return draft
+    }
+
     // MARK: - Actions - Reading
 
     /// The tab the seed holds open with this identity.

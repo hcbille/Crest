@@ -46,7 +46,7 @@
             .onChange(of: practice.members.map(\.id), initial: true) { _, _ in
                 practice.reconcileSplitWidths()
             }
-            .animation(reduceMotion ? nil : CrestMotion.collection, value: practice.space.tabs)
+            .animation(reduceMotion ? nil : CrestMotion.collection, value: practice.space.sidebar.lists.map(\.rows))
         }
 
         private var sidebar: some View {
@@ -82,10 +82,12 @@
                     assignment: practice.assignment, state: practice.sidebarInteraction.sidebarReorderState)
         }
 
-        private func practiceDocument(_ tab: BrowserTab) -> some View {
+        private func practiceDocument(_ tab: TabStateModel) -> some View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    TabFaviconView(tab: tab, profileID: practice.space.profile.id, size: 18)
+                    TabStateFaviconView(
+                        tab: tab, favicons: practice.browser.core.state.favicons, profileID: practice.space.profileID,
+                        size: 18)
                     Text(tab.displayTitle).font(CrestTypography.sans(12, weight: .semibold)).lineLimit(1)
                 }
                 Divider()
@@ -115,7 +117,7 @@
             .background(CrestBrandTheme.canvas)
         }
 
-        @ViewBuilder private func splitInstructions(_ tab: BrowserTab) -> some View {
+        @ViewBuilder private func splitInstructions(_ tab: TabStateModel) -> some View {
             if practice.members.count < 2 {
                 Image(systemName: "rectangle.split.2x1")
                     .font(.system(size: 44, weight: .ultraLight)).foregroundStyle(CrestBrandPalette.sky)
@@ -161,7 +163,7 @@
             }
         }
 
-        @ViewBuilder private func moveButtons(_ tab: BrowserTab) -> some View {
+        @ViewBuilder private func moveButtons(_ tab: TabStateModel) -> some View {
             Button("Move left", systemImage: "arrow.left") { practice.move(tab.id, by: -1) }
                 .buttonStyle(.crestSecondary)
                 .disabled(!practice.browser.canMoveSplitMember(tab.id, by: -1, matching: practice.assignment))

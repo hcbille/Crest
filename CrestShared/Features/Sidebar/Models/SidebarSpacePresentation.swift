@@ -16,14 +16,6 @@ struct SidebarSpacePresentation: Equatable {
         branding = BrowserSpaceBranding(look: space.settings.look)
     }
 
-    /// TRANSITIONAL until S6.6e gives the setup and settings previews a
-    /// detached read model: a preview Space that never reached the core.
-    init(space: BrowserSpace, isUnlocked: Bool) {
-        assignment = BrowserSpaceRuntimeAssignment(space: space)
-        self.isUnlocked = isUnlocked
-        branding = space.branding
-    }
-
     func isAvailable(matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
         self.assignment == assignment && isUnlocked
     }

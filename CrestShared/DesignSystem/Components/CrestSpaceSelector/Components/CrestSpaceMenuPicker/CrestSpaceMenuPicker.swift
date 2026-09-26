@@ -32,9 +32,9 @@ struct CrestSpaceMenuPicker<Tag: Hashable>: View {
 
 #if DEBUG
     #Preview("Select a Space") {
-        @Previewable @State var selection: SpaceID? = BrowserSession.preview.spaces[0].id
+        @Previewable @State var selection: SpaceID? = SessionState.Seed.preview.spaces[0].id
         CrestSpaceMenuPicker(
-            "Default Space", selection: $selection, spaces: CrestSpaceIdentity.list(BrowserSession.preview.spaces)
+            "Default Space", selection: $selection, spaces: CrestSpaceIdentity.list(SpaceModel.previewSpaces)
         )
         .padding().frame(width: 320)
     }

@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct BrowserCrestImportPinnedGrid: View {
-    let space: BrowserSpace
+    let space: SpaceModel
+    let favicons: FaviconAssets
     let matchedTabIDs: Set<TabID>
     let highlightedTabID: TabID?
 
@@ -9,9 +10,10 @@ struct BrowserCrestImportPinnedGrid: View {
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(space.pinnedTabs) { tab in
                 let isMatched = matchedTabIDs.contains(tab.id)
-                TabFaviconView(
+                TabStateFaviconView(
                     tab: tab,
-                    profileID: space.profile.id,
+                    favicons: favicons,
+                    profileID: space.profileID,
                     size: 19
                 )
                 .frame(maxWidth: .infinity)

@@ -1,8 +1,8 @@
 #if DEBUG
     import Foundation
 
-    /// A draft tab for the previews of the setup and import rows, which draw
-    /// tabs that never reached the core.
+    /// A tab for the previews of the setup and import rows, which draw tabs
+    /// no window shows, as the core resolves it.
     @MainActor
     enum BrowserSidebarTabRowPreviewFixture {
         // MARK: - Static Variables
@@ -13,15 +13,12 @@
 
         // MARK: - Actions - Fixtures
 
-        static func tab(placement: TabPlacement = .current) -> BrowserTab {
-            BrowserTab(
-                id: tabID,
-                title: "Example",
-                url: URL(fileURLWithPath: "/preview/example"),
-                symbol: "globe",
-                placement: placement,
-                lastActivatedAt: fixedDate
-            )
+        static func tab(placement: TabPlacement = .current) -> TabStateModel {
+            let tab = TabState.Seed(
+                id: tabID, title: "Example", url: URL(fileURLWithPath: "/preview/example"), placement: placement,
+                lastActivatedAt: fixedDate)
+            return SpaceModel.detached(SpaceState.Seed(profileID: profileID, name: "Example", tabs: [tab])).tabs
+                .models[0]
         }
 
         private static func uuid(_ suffix: UInt8) -> UUID {

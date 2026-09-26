@@ -400,8 +400,8 @@ extension BrowserChromeLayoutTests {
     @MainActor
     func testChromeAppearanceChangesPreserveLivePageHostsAndDocumentState() async throws {
         for split in [false, true] {
-            var space = BrowserRootPreviewFixture.space.seed
-            let members = BrowserRootPreviewFixture.splitMembers.map(\.seed)
+            var space = BrowserRootPreviewFixture.space
+            let members = BrowserRootPreviewFixture.splitMembers
             space.tabs = split ? members : [members[0]]
             for index in space.tabs.indices {
                 space.tabs[index].url = "about:blank"

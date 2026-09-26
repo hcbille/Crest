@@ -87,3 +87,11 @@ extension SessionState.Seed {
         return session
     }
 }
+
+extension SpaceModel {
+    // MARK: - Static Variables
+
+    /// The preview session's Spaces as the core resolves them, held by no
+    /// workspace: what a preview that draws Spaces without a window shows.
+    static let previewSpaces = SpaceModel.detached(SessionState.Seed.preview)
+}

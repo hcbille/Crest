@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct BrowserImportSpaceCustomizationPreviewPane: View {
-    let space: BrowserSpace?
+    let space: SpaceModel?
+    let favicons: FaviconAssets
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -12,6 +13,7 @@ struct BrowserImportSpaceCustomizationPreviewPane: View {
                 .padding(.leading, 6)
             BrowserCrestImportPreview(
                 space: space,
+                favicons: favicons,
                 sourceName: "this Space"
             )
             .frame(width: 340)

@@ -12,7 +12,7 @@ import SwiftUI
 /// top of a card it takes a fixed height instead, so a compact pane still
 /// scrolls like a form.
 struct BrowserLookAndFeelPreview: View {
-    var space: BrowserSpace?
+    var space: BrowserSpaceAppearance?
     var focus: BrowserLookAndFeelPreviewFocus = .window
     var fillsHeight = false
 

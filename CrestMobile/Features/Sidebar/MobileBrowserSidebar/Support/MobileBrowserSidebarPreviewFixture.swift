@@ -5,19 +5,12 @@ struct MobileBrowserSidebarPreviewFixture {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let spaceAccess: BrowserSpaceAccessController
-    let space: BrowserSpace
-    let protectedSpace: BrowserSpace
-    let folder: BrowserFolder
-    let pinnedTab: BrowserTab
-    let savedTab: BrowserTab
-    let unfiledSavedTab: BrowserTab
-    let currentTab: BrowserTab
 
     init() {
-        let folder = BrowserFolder(
+        let folder = FolderState.Seed(
             id: Self.uuid(0x21),
             title: "Reading",
-            color: .ocean,
+            color: BrowserSpaceBrandColor.ocean.core,
             isCollapsed: false,
             collapseModifiedAt: Self.epoch
         )
@@ -43,22 +36,22 @@ struct MobileBrowserSidebarPreviewFixture {
             emoji: "📚",
             placement: .saved
         )
-        let currentTab = BrowserTab.startPage(
+        let currentTab = TabState.Seed.startPage(
             id: Self.uuid(0x34),
             placement: .current,
             lastActivatedAt: Self.epoch
         )
-        let space = BrowserSpace(
+        let space = SpaceState.Seed(
             id: Self.uuid(0x11),
-            profile: BrowsingProfile(id: Self.uuid(0x12)),
+            profileID: Self.uuid(0x12),
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
-            branding: .house(.lion, symbol: "briefcase.fill"),
+            branding: BrowserSpaceBranding.house(.lion, symbol: "briefcase.fill").core,
             folders: [folder],
             tabs: [pinnedTab, savedTab, unfiledSavedTab, currentTab],
             history: [
-                BrowserHistoryEntry(
+                HistoryEntryState(
                     id: Self.uuid(0x41),
                     url: URL(filePath: "/CrestPreview/history.html"),
                     title: "Crest History",
@@ -68,30 +61,20 @@ struct MobileBrowserSidebarPreviewFixture {
                 )
             ]
         )
-        let protectedSpace = BrowserSpace(
+        let protectedSpace = SpaceState.Seed(
             id: Self.uuid(0x13),
-            profile: BrowsingProfile(id: Self.uuid(0x14)),
+            profileID: Self.uuid(0x14),
             name: "Personal",
             symbol: "lock.fill",
             accent: .orange,
-            branding: .house(.winter, symbol: "lock.fill"),
-            folders: [],
+            branding: BrowserSpaceBranding.house(.winter, symbol: "lock.fill").core,
             tabs: [],
             accessPolicy: .deviceOwnerAuthentication
         )
         let base = MobileBrowserPreviewFixture()
 
-        self.folder = folder
-        self.pinnedTab = pinnedTab
-        self.savedTab = savedTab
-        self.unfiledSavedTab = unfiledSavedTab
-        self.currentTab = currentTab
-        self.space = space
-        self.protectedSpace = protectedSpace
         browser = BrowserStore(
-            session: BrowserSession(
-                spaces: [space, protectedSpace]
-            ),
+            seed: SessionState.Seed(spaces: [space, protectedSpace]),
             credentialVault: InMemoryCredentialVault(),
             browsingMode: .privateBrowsing
         )
@@ -119,8 +102,8 @@ struct MobileBrowserSidebarPreviewFixture {
         emoji: String,
         placement: TabPlacement,
         folderID: FolderID? = nil
-    ) -> BrowserTab {
-        BrowserTab(
+    ) -> TabState.Seed {
+        TabState.Seed(
             id: uuid(id),
             title: title,
             url: URL(filePath: path),

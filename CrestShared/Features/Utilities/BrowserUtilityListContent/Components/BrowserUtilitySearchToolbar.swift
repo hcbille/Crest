@@ -61,7 +61,7 @@ struct BrowserUtilitySearchToolbar: View {
         @Previewable @Namespace var namespace
         BrowserUtilitySearchToolbar(
             surface: .history, searchText: $query, filter: $filter, morphNamespace: namespace,
-            morph: .utilitySearch(spaceID: BrowserSession.preview.spaces[0].id),
+            morph: .utilitySearch(spaceID: SessionState.Seed.preview.spaces[0].id),
             clearHistory: {}
         )
         .padding().frame(width: 360)

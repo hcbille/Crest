@@ -6,8 +6,8 @@ struct MobileOnboardingPageContext {
     let welcomePrimaryTitle: String
     let welcomeStatus: String
     let previewWidth: CGFloat
-    let personalSpace: BrowserSpace
-    let workSpace: BrowserSpace
+    let personalSpace: SpaceModel
+    let workSpace: SpaceModel
     let featureCloseTitle: String?
     let featureCloseAction: (() -> Void)?
     let setup: BrowserManualSetupModel

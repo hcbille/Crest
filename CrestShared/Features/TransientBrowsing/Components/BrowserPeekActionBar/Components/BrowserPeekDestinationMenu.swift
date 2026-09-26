@@ -40,7 +40,7 @@ struct BrowserPeekDestinationMenu: View {
 
 #if DEBUG
     #Preview("Component") {
-        let spaces = BrowserSession.preview.spaces.map(\.identity)
+        let spaces = SpaceModel.previewSpaces.map(\.identity)
         BrowserPeekDestinationMenu(spaces: spaces, selectedSpace: spaces[0], openInSpace: { _ in }).padding()
     }
 #endif

@@ -48,7 +48,7 @@ struct BrowserSpaceEditorView: View {
                         spacePicker
                         BrowserCrestStudioPreview(
                             branding: branding.wrappedValue, symbol: symbol.wrappedValue,
-                            name: space.settings.name, space: BrowserSpace(appearanceOf: space),
+                            name: space.settings.name, space: BrowserSpaceAppearance(space: space),
                             heroSize: geometry.size.height < 480 ? 96 : 140,
                             sidebarHeight: max(100, min(230, geometry.size.height - 344)))
                         Spacer(minLength: 0)

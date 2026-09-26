@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The address field's color, fill, and border, on every Space on this device.
 struct BrowserAddressAppearanceGroup: View {
-    var space: BrowserSpace?
+    var space: BrowserSpaceAppearance?
     var showsPreview = false
 
     @Bindable private var appearance = BrowserDeviceAppearanceStore.shared

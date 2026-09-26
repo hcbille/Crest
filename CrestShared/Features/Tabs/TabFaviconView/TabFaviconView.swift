@@ -14,11 +14,6 @@ struct TabFaviconView: View {
         self.size = size
     }
 
-    /// TRANSITIONAL until S6.6d/S6.6e: a tab of the session copy or a draft.
-    init(tab: BrowserTab, profileID: UUID? = nil, size: CGFloat = TabFaviconMetrics.defaultSize) {
-        self.init(subject: BrowserTabFaviconSubject(tab: tab), profileID: profileID, size: size)
-    }
-
     var body: some View {
         let request = BrowserFaviconTaskIdentityPolicy.renderRequest(
             for: subject,

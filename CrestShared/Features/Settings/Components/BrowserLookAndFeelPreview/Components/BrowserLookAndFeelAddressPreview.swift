@@ -3,7 +3,7 @@ import SwiftUI
 /// The shipping address field on this Space's atmosphere, holding a friendly
 /// sample rather than whatever is open behind the settings window.
 struct BrowserLookAndFeelAddressPreview: View {
-    var space: BrowserSpace?
+    var space: BrowserSpaceAppearance?
     var showsBackground = true
 
     @Namespace private var namespace

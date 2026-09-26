@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct BrowserCrestImportPreview: View {
-    let space: BrowserSpace?
+    let space: SpaceModel?
+    /// The images the Space's tabs would wear.
+    let favicons: FaviconAssets
     let sourceName: String
     var isSpaceIncluded = true
     var matchedTabIDs: Set<TabID> = []
@@ -19,14 +21,15 @@ struct BrowserCrestImportPreview: View {
             }
             .accessibilityLabel("Space skipped")
         } else if let space {
-            BrowserImportSidebarFrame(branding: space.branding) {
+            BrowserImportSidebarFrame(branding: BrowserSpaceBranding(look: space.settings.look)) {
                 BrowserCrestImportContent(
                     space: space,
+                    favicons: favicons,
                     matchedTabIDs: matchedTabIDs
                 )
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Crest \(space.name) sidebar after import")
+            .accessibilityLabel("Crest \(space.settings.name) sidebar after import")
         } else {
             BrowserImportSidebarFrame(
                 branding: .neutralImport(symbol: "square.grid.2x2")

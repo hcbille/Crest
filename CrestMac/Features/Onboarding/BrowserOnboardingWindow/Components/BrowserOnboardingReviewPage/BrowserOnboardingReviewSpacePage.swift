@@ -67,6 +67,7 @@ struct BrowserOnboardingReviewSpacePage: View {
                 )
                 BrowserCrestImportPreview(
                     space: flow.previewDestinationSpace(for: review),
+                    favicons: flow.previewFavicons,
                     sourceName: application?.title ?? "Browser",
                     isSpaceIncluded: review.isIncluded,
                     matchedTabIDs: analysis.matchedTabIDs(for: review.id)

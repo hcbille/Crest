@@ -7,7 +7,7 @@ import SwiftUI
 /// and Space page motion — as extra rows and the settings that go with them, so
 /// the group's own Reset covers them too.
 struct BrowserWindowAppearanceGroup<Extra: View>: View {
-    var space: BrowserSpace?
+    var space: BrowserSpaceAppearance?
     var showsPreview = false
     var extraSettings: [CrestResettableSetting] = []
     @ViewBuilder var extraRows: () -> Extra

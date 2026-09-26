@@ -10,7 +10,7 @@ struct BrowserGettingStartedPracticeSidebar: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 9) {
-                    BrowserSpaceCrestIcon(branding: space.branding, size: 30)
+                    BrowserSpaceCrestIcon(branding: BrowserSpaceBranding(look: space.settings.look), size: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Practice").font(CrestTypography.sans(14, weight: .semibold))
                         Text("Your example Space").font(CrestTypography.sans(10)).foregroundStyle(.secondary)

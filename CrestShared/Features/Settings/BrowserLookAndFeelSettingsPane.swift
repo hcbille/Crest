@@ -3,7 +3,7 @@ import SwiftUI
 /// Device appearance edits the visible sidebar in a browser tab. Sheets retain
 /// detached component previews because their browser is covered.
 struct BrowserLookAndFeelSettingsPane: View {
-    var space: BrowserSpace? = nil
+    var space: BrowserSpaceAppearance? = nil
     @Environment(\.browserSettingsUsesLiveSidebar) private var usesLiveSidebar
 
     var body: some View {

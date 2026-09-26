@@ -1,14 +1,15 @@
 import SwiftUI
 
 struct BrowserImportSpaceCustomizationEditor: View {
-    let previewSpace: BrowserSpace?
+    let previewSpace: SpaceModel?
+    let previewFavicons: FaviconAssets
     @Binding var name: String
     @Binding var symbol: String
     @Binding var branding: BrowserSpaceBranding
 
     var body: some View {
         HStack(alignment: .top, spacing: 44) {
-            BrowserImportSpaceCustomizationPreviewPane(space: previewSpace)
+            BrowserImportSpaceCustomizationPreviewPane(space: previewSpace, favicons: previewFavicons)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {

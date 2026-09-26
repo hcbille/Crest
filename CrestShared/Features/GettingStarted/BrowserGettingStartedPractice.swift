@@ -29,17 +29,23 @@ final class BrowserGettingStartedPractice {
     /// Each practice tab's identity in the practice the store holds.
     private var practiceTabIDs: [PracticeTab: TabID]
 
-    /// The practice Space as the core holds it, drawn with the icons its tabs wear.
-    var space: BrowserSpace {
+    /// The practice Space as the read model holds it.
+    var space: SpaceModel {
         guard let model = browser.workspaceModel?.spaces.models.first else {
             preconditionFailure("The practice workspace always holds its one Space.")
         }
-        return BrowserSpace(core: model.value, image: browser.core.state.favicons.image(of:))
+        return model
     }
 
     var assignment: BrowserSpaceRuntimeAssignment { BrowserSpaceRuntimeAssignment(space: space) }
     var selectedTabID: TabID? { browser.selectedTabID(in: space.id) }
-    var members: [BrowserTab] { space.presentedSplitMembers(for: selectedTabID) }
+    /// The cards the practice shows: the members of the split the selected
+    /// tab shows in, or the selected tab alone, or none.
+    var members: [TabStateModel] {
+        guard let selectedTabID, let tab = space.tabs.model(selectedTabID) else { return [] }
+        guard let groupID = space.shownSplit(containing: selectedTabID) else { return [tab] }
+        return space.splitMembers(of: groupID)
+    }
 
     // MARK: - Initializers
 
@@ -101,20 +107,20 @@ final class BrowserGettingStartedPractice {
 
     func addFolder(nested: Bool) {
         let parent =
-            space.folders.first { $0.title == "Weekends" && $0.parentID == nil }?.id
+            space.folders.models.first { $0.title == "Weekends" && $0.parentID == nil }?.id
             ?? browser.addFolder(title: "Weekends", in: space.id)
-        if nested, let parent, !space.folders.contains(where: { $0.parentID == parent }) {
+        if nested, let parent, !space.folders.models.contains(where: { $0.parentID == parent }) {
             _ = browser.addFolder(title: "Ideas", parentID: parent, in: space.id)
         }
     }
 
     func makeSplit() {
         guard let packingID = tabID(.packing), let trailID = tabID(.trail),
-            space.tabs.contains(where: { $0.id == packingID }), space.tabs.contains(where: { $0.id == trailID })
+            space.tabs.contains(packingID), space.tabs.contains(trailID)
         else { return }
         browser.selectTab(trailID)
         _ = browser.addTabToSplit(
-            BrowserTabDragItem(tabID: packingID, spaceID: space.id, profileID: space.profile.id), joining: trailID,
+            BrowserTabDragItem(tabID: packingID, spaceID: space.id, profileID: space.profileID), joining: trailID,
             at: nil)
     }
 

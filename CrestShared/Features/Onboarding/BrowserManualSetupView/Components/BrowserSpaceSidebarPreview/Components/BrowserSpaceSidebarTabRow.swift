@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct BrowserSpaceSidebarTabRow: View {
-    let tab: BrowserTab
+    let tab: TabStateModel
+    let favicons: FaviconAssets
     let profileID: UUID
     let isSelected: Bool
 
@@ -10,7 +11,7 @@ struct BrowserSpaceSidebarTabRow: View {
 
     var body: some View {
         BrowserSpaceSidebarTabRowContent(
-            tab: tab, profileID: profileID, isSelected: isSelected,
+            tab: tab, favicons: favicons, profileID: profileID, isSelected: isSelected,
             tabScale: tabScale, appearance: BrowserDeviceAppearanceStore.shared.tabs
         )
     }

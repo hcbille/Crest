@@ -22,7 +22,7 @@ struct BrowserSourceImportSavedTabs: View {
             )
             .padding(.horizontal, 13)
 
-            ForEach(review.sourceSpace.folders) { folder in
+            ForEach(review.sourceSpace.folders.models) { folder in
                 let tabs = sections.savedTabsByFolderID[folder.id, default: []]
                 if !tabs.isEmpty {
                     BrowserImportSidebarFolderRow(folder: folder)
@@ -37,7 +37,7 @@ struct BrowserSourceImportSavedTabs: View {
         }
     }
 
-    private func tabRow(_ tab: BrowserTab) -> some View {
+    private func tabRow(_ tab: TabStateModel) -> some View {
         BrowserSourceImportTabRow(
             review: review,
             tab: tab,

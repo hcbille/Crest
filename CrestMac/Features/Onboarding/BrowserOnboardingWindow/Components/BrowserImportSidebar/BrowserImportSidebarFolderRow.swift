@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserImportSidebarFolderRow: View {
-    let folder: BrowserFolder
+    let folder: FolderStateModel
 
     var body: some View {
         HStack(spacing: 7) {
@@ -24,7 +24,11 @@ struct BrowserImportSidebarFolderRow: View {
 
 #if DEBUG
     #Preview("Component") {
-        BrowserImportSidebarFolderRow(folder: BrowserFolder(title: "Research", symbol: "folder.fill")).padding().frame(
+        BrowserImportSidebarFolderRow(
+            folder: SpaceModel.detached(
+                SpaceState.Seed(name: "Research", folders: [FolderState.Seed(title: "Research")], tabs: [])
+            ).folders.models[0]
+        ).padding().frame(
             width: 300)
     }
 #endif

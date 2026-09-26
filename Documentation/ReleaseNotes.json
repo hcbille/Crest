@@ -2921,6 +2921,10 @@
     "credentials-read-spaces-from-read-model": {
       "category": "internal",
       "message": "Passwords and their prompts read Spaces from the core's read model"
+    },
+    "previews-draw-detached-read-model": {
+      "category": "internal",
+      "message": "Previews, setup drafts and import reviews draw Spaces the core resolves"
     }
   }
 }

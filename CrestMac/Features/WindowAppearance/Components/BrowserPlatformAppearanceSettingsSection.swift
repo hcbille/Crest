@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The shared Window group, plus the two window choices only the desktop has.
 struct BrowserPlatformAppearanceSettingsSection: View {
-    var space: BrowserSpace?
+    var space: BrowserSpaceAppearance?
     var showsPreview = false
 
     @AppStorage(SpacePageMotionPreference.key)

@@ -81,18 +81,16 @@ extension BrowserStore {
     }
 
     /// The session importing the review setup holds would leave this
-    /// workspace with, the imported tabs wearing what `sources` wear. Throws
-    /// the rule that would refuse it.
-    func reviewedImportPreview(of sources: [BrowserSpace]) throws(Rejection) -> BrowserSession {
-        try importPreview(ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID), of: sources)
+    /// workspace with. Throws the rule that would refuse it.
+    func reviewedImportPreview() throws(Rejection) -> BrowserSessionPreview {
+        try importPreview(ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID))
     }
 
-    /// The session `intent`, an import of `sources`, would leave this
-    /// workspace with, wearing the images each tab would wear. Nothing
-    /// changes. Throws the rule that would refuse the import.
-    func importPreview(_ intent: some ImportWorkspace, of sources: [BrowserSpace]) throws(Rejection) -> BrowserSession {
-        let preview = try core.query(ImportPreview(import: intent))
-        return BrowserSession(preview: preview, sources: sources, images: core.state.favicons)
+    /// The session `intent` would leave this workspace with, wearing the
+    /// images each tab would wear. Nothing changes. Throws the rule that
+    /// would refuse the import.
+    func importPreview(_ intent: some ImportWorkspace) throws(Rejection) -> BrowserSessionPreview {
+        BrowserSessionPreview(importing: try core.query(ImportPreview(import: intent)), images: core.state.favicons)
     }
 
     func updateSpaceIdentity(

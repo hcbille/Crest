@@ -16,13 +16,12 @@ enum BrowserUtilityListPreviewFixture {
         visitCount: 3
     )
 
-    private static let archivedPreviewTab = ArchivedTab(
-        tab: BrowserTab(
+    private static let archivedPreviewTab = ArchivedTabState.Seed(
+        tab: TabState.Seed(
             id: identifier(0x41),
             title: "Architecture Notes",
             url: previewURL("archive"),
             symbol: "doc.text.fill",
-            faviconData: inlineFaviconData,
             iconMode: .pulled,
             placement: .saved,
             lastActivatedAt: referenceDate.addingTimeInterval(-7_200)
@@ -31,33 +30,38 @@ enum BrowserUtilityListPreviewFixture {
         reason: .closed
     )
 
-    static let historySpace = BrowserSpace(
+    static let historySpace = SpaceState.Seed(
         id: assignment.spaceID,
-        profile: BrowsingProfile(id: assignment.profileID),
+        profileID: assignment.profileID,
         name: "Research",
         symbol: "books.vertical.fill",
         accent: .indigo,
         folders: [],
         tabs: [
-            BrowserTab(
+            TabState.Seed(
                 id: identifier(0x42),
                 title: "Current Notes",
                 url: previewURL("current"),
                 symbol: "doc.text",
-                faviconData: inlineFaviconData,
                 iconMode: .pulled,
                 placement: .current,
                 lastActivatedAt: referenceDate
             )
         ],
         archivedTabs: [archivedPreviewTab],
-        history: [BrowserHistoryEntry(core: historyEntry)].compactMap { $0 }
+        history: [historyEntry]
     )
 
     /// The history Space as the read model of a preview store holds it.
     @MainActor
     static var historySpaceModel: SpaceModel? {
-        BrowserStore(session: BrowserSession(spaces: [historySpace]), showing: historySpace.id).spaceModel(
+        BrowserStore(
+            seed: SessionState.Seed(spaces: [historySpace]),
+            images: Dictionary(
+                uniqueKeysWithValues: (historySpace.tabs.map(\.id) + historySpace.archivedTabs.map(\.tab.id)).map {
+                    ($0, inlineFaviconData)
+                }), showing: historySpace.id
+        ).spaceModel(
             historySpace.id)
     }
 

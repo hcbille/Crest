@@ -5,19 +5,15 @@ struct BrowserCrestStudioPreview: View {
     let branding: BrowserSpaceBranding
     let symbol: String
     var name: String = ""
-    var space: BrowserSpace? = nil
+    var space: BrowserSpaceAppearance? = nil
     var compact = false
     var showsSidebar = true
     var heroSize: CGFloat = 140
     var sidebarHeight: CGFloat = 190
-    @State private var sample = BrowserSession.showcase.spaces[0]
 
-    private var preview: BrowserSpace {
-        var value = space ?? sample
-        value.branding = branding
-        value.symbol = symbol
-        value.name = name.isEmpty ? String(localized: "Your Space") : name
-        return value
+    private var preview: BrowserSpaceAppearance {
+        (space ?? .studioSample).wearing(
+            branding, symbol: symbol, name: name.isEmpty ? String(localized: "Your Space") : name)
     }
 
     @Environment(\.browserInteractionCapabilities) private var capabilities
@@ -25,8 +21,8 @@ struct BrowserCrestStudioPreview: View {
     var body: some View {
         VStack(spacing: 18) {
             VStack(spacing: 8) {
-                BrowserSpaceIdentityIcon(space: preview, size: compact ? 96 : heroSize)
-                Text(preview.name).font(.headline).lineLimit(1)
+                BrowserSpaceIdentityIcon(identity: preview.identity, size: compact ? 96 : heroSize)
+                Text(preview.identity.name).font(.headline).lineLimit(1)
             }
             .padding(20)
             .frame(maxWidth: .infinity)
@@ -39,7 +35,7 @@ struct BrowserCrestStudioPreview: View {
                     BrowserLookAndFeelAddressPreview(space: preview, showsBackground: false)
                         .padding(.horizontal, 8).padding(.top, 10)
                     BrowserSpaceHeader(
-                        space: preview, isPrivateBrowsing: false, isSavedTabsExpanded: .constant(true),
+                        space: preview.identity, isPrivateBrowsing: false, isSavedTabsExpanded: .constant(true),
                         capabilities: BrowserInteractionCapabilities(
                             supportsTouch: capabilities.supportsTouch,
                             pairsRowWithPromotedSurface: false, supportsOrganization: false),
@@ -66,13 +62,19 @@ struct BrowserCrestStudioMark: View {
     let branding: BrowserSpaceBranding
     let symbol: String
     var size: CGFloat
-    @State private var sample = BrowserSession.showcase.spaces[0]
     var body: some View {
-        var space = sample
-        space.branding = branding
-        space.symbol = symbol
-        return BrowserSpaceIdentityIcon(space: space, size: size)
+        BrowserSpaceIdentityIcon(
+            identity: BrowserSpaceAppearance.studioSample.identity.wearing(
+                branding, symbol: symbol, name: BrowserSpaceAppearance.studioSample.identity.name),
+            size: size)
     }
+}
+
+extension BrowserSpaceAppearance {
+    /// The Space the studio dresses in the look being edited when it edits no
+    /// Space of its own: the showcase's first Space.
+    @MainActor static let studioSample = BrowserSpaceAppearance(
+        space: SpaceModel.detached(SessionState.Seed.showcase.spaces[0]))
 }
 
 #if DEBUG

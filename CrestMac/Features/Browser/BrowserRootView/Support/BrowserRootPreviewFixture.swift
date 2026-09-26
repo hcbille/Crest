@@ -3,19 +3,14 @@ import Foundation
 enum BrowserRootPreviewFixture {
     static let spaceID = uuid(0x21)
     static let startTabID = uuid(0x41)
-    static let space = BrowserSpace(
+    static let space = SpaceState.Seed(
         id: spaceID,
-        profile: BrowsingProfile(id: uuid(0x11)),
+        profileID: uuid(0x11),
         name: "Research",
         symbol: "books.vertical.fill",
         accent: .indigo,
-        branding: .initial(
-            accent: .indigo,
-            symbol: "books.vertical.fill"
-        ),
-        folders: [],
         tabs: [
-            BrowserTab(
+            TabState.Seed(
                 id: uuid(0x42),
                 title: "Apple Developer",
                 url: URL(fileURLWithPath: "/preview/apple-developer"),
@@ -23,7 +18,7 @@ enum BrowserRootPreviewFixture {
                 placement: .pinned,
                 lastActivatedAt: Date(timeIntervalSince1970: 0)
             ),
-            BrowserTab(
+            TabState.Seed(
                 id: uuid(0x43),
                 title: "WebKit Notes",
                 url: URL(fileURLWithPath: "/preview/webkit-notes"),
@@ -31,7 +26,7 @@ enum BrowserRootPreviewFixture {
                 placement: .current,
                 lastActivatedAt: Date(timeIntervalSince1970: 0)
             ),
-            BrowserTab.startPage(
+            TabState.Seed.startPage(
                 id: startTabID,
                 lastActivatedAt: Date(timeIntervalSince1970: 0)
             ),
@@ -43,8 +38,8 @@ enum BrowserRootPreviewFixture {
     /// Two grouped current tabs, for previewing the split content area. Kept
     /// beside the fixture Space rather than inside it so every existing preview
     /// keeps rendering the single-page path it was written for.
-    static let splitMembers: [BrowserTab] = [
-        BrowserTab(
+    static let splitMembers: [TabState.Seed] = [
+        TabState.Seed(
             id: uuid(0x62),
             title: "WebKit Notes",
             url: URL(fileURLWithPath: "/preview/webkit-notes"),
@@ -53,7 +48,7 @@ enum BrowserRootPreviewFixture {
             splitGroupID: splitGroupID,
             lastActivatedAt: Date(timeIntervalSince1970: 0)
         ),
-        BrowserTab(
+        TabState.Seed(
             id: uuid(0x63),
             title: "Layout Research",
             url: URL(fileURLWithPath: "/preview/layout-research"),
@@ -67,9 +62,7 @@ enum BrowserRootPreviewFixture {
     @MainActor
     static func makeBrowser() -> BrowserStore {
         BrowserStore(
-            session: BrowserSession(
-                spaces: [space]
-            )
+            seed: SessionState.Seed(spaces: [space])
         )
     }
 

@@ -2,7 +2,8 @@ import SwiftUI
 
 struct BrowserSpaceSidebarSection: View {
     let title: String
-    let tabs: [BrowserTab]
+    let tabs: [TabStateModel]
+    let favicons: FaviconAssets
     let profileID: UUID
     let selectedTabID: TabID?
 
@@ -23,6 +24,7 @@ struct BrowserSpaceSidebarSection: View {
                 ForEach(tabs) { tab in
                     BrowserSpaceSidebarTabRow(
                         tab: tab,
+                        favicons: favicons,
                         profileID: profileID,
                         isSelected: tab.id == selectedTabID
                     )

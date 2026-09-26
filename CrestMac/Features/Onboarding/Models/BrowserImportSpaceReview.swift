@@ -15,16 +15,15 @@ enum BrowserImportDestination: Equatable, Hashable, Sendable {
 }
 
 /// One Space of the review the core holds, as the review views draw it: the
-/// Space the browser brought as a `BrowserSpace`, with the person's choices
+/// Space the browser brought, held by no workspace, with the person's choices
 /// and what the core says they mean. It holds nothing of its own; the flow
 /// builds it from the core's review each time the review changes.
-/// TRANSITIONAL until the review views draw the core's records directly.
 struct BrowserImportSpaceReview: Identifiable, Equatable {
     // MARK: - Variables
 
     let record: SetupReviewSpace
     /// The Space the browser brought, as the review views draw it.
-    let sourceSpace: BrowserSpace
+    let sourceSpace: SpaceModel
 
     var id: SpaceID { record.source.id }
     var isIncluded: Bool { record.included }
@@ -39,16 +38,24 @@ struct BrowserImportSpaceReview: Identifiable, Equatable {
 
     // MARK: - Initializers
 
+    @MainActor
     init(_ record: SetupReviewSpace) {
         self.record = record
-        sourceSpace = BrowserSpace(core: record.source, image: { _ in nil })
+        sourceSpace = SpaceModel(record.source)
     }
 
     // MARK: - Actions - Tabs
 
     /// The placement `tab` comes in with: the one the person chose, or its own.
-    func placement(for tab: BrowserTab) -> TabPlacement {
+    @MainActor
+    func placement(for tab: TabStateModel) -> TabPlacement {
         record.placements.last { $0.tabID == tab.id }?.placement ?? tab.placement
+    }
+
+    /// Two reviews are equal when the core's records are: the Space drawn
+    /// is read from the record.
+    static func == (lhs: BrowserImportSpaceReview, rhs: BrowserImportSpaceReview) -> Bool {
+        lhs.record == rhs.record
     }
 }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserCrestImportSpaceSwitcher: View {
-    let space: BrowserSpace
+    let space: SpaceModel
 
     var body: some View {
         ZStack {

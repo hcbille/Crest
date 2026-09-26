@@ -8,7 +8,7 @@ import SwiftUI
 /// nothing else — the sidebar here is for looking at, so it declines to be
 /// rearranged or organized.
 struct BrowserSidebarCustomizationPreview: View {
-    var space: BrowserSpace? = nil
+    var space: BrowserSpaceAppearance? = nil
     var showsPins = true
     var showsCurrentTabs = true
     var followsHighlightPreference = true
@@ -87,14 +87,14 @@ private final class BrowserAppearancePreviewState {
     private let siteAccents: [TabID: BrowserTabIconAccent]
 
     init() {
-        let folder = BrowserFolder(title: String(localized: "Example folder"), symbol: "book.closed")
-        let reading = BrowserTab(
+        let folder = FolderState.Seed(title: String(localized: "Example folder"), symbol: "book.closed")
+        let reading = TabState.Seed(
             title: String(localized: "Reading list"), url: URL(string: "https://preview.invalid/reading"),
             symbol: "book.closed", placement: .saved, folderID: folder.id)
-        let plans = BrowserTab(
+        let plans = TabState.Seed(
             title: String(localized: "Weekend plans"), url: URL(string: "https://preview.invalid/plans"),
             symbol: "sun.max", placement: .saved, folderID: folder.id)
-        let recipes = BrowserTab(
+        let recipes = TabState.Seed(
             title: String(localized: "Recipes"), url: URL(string: "https://preview.invalid/recipes"),
             symbol: "fork.knife", placement: .saved)
         let pinSources: [(String, String, BrowserTabIconAccent)] = [
@@ -104,31 +104,30 @@ private final class BrowserAppearancePreviewState {
             ("Books", "book.fill", BrowserTabIconAccent(red: 0.96, green: 0.60, blue: 0.14)),
         ]
         let pins = pinSources.map { title, symbol, accent in
-            BrowserTab(
-                title: title, url: URL(string: "https://preview.invalid/" + title.lowercased()),
-                symbol: symbol, iconAccent: accent, placement: .pinned)
+            TabState.Seed(
+                title: title, url: URL(string: "https://preview.invalid/" + title.lowercased()), symbol: symbol,
+                iconAccent: TabIconAccent(red: accent.red, green: accent.green, blue: accent.blue), placement: .pinned)
         }
-        let notes = BrowserTab(
+        let notes = TabState.Seed(
             title: String(localized: "Meeting notes"), url: URL(string: "https://preview.invalid/notes"),
             symbol: "note.text", placement: .current)
-        let tickets = BrowserTab(
+        let tickets = TabState.Seed(
             title: String(localized: "Flight tickets"), url: URL(string: "https://preview.invalid/tickets"),
             symbol: "airplane", placement: .current)
-        let splitGroupID = SplitGroupID()
-        let docs = BrowserTab(
+        let split = SplitGroupState.Seed()
+        let docs = TabState.Seed(
             title: String(localized: "Draft"), url: URL(string: "https://preview.invalid/draft"),
-            symbol: "doc.text", placement: .current, splitGroupID: splitGroupID)
-        let research = BrowserTab(
+            symbol: "doc.text", placement: .current, splitGroupID: split.id)
+        let research = TabState.Seed(
             title: String(localized: "Research"), url: URL(string: "https://preview.invalid/research"),
-            symbol: "magnifyingglass", placement: .current, splitGroupID: splitGroupID)
-        var space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Preview", symbol: "paintpalette",
-            accent: .indigo, branding: .house(.winter, symbol: "paintpalette"),
-            folders: [folder], tabs: pins + [reading, plans, recipes, notes, tickets, docs, research])
-        space.splitGroups = [BrowserSplitGroupMetadata(id: splitGroupID)]
+            symbol: "magnifyingglass", placement: .current, splitGroupID: split.id)
+        let space = SpaceState.Seed(
+            name: "Preview", symbol: "paintpalette", accent: .indigo, branding: SpaceAccent.indigo.house,
+            folders: [folder], tabs: pins + [reading, plans, recipes, notes, tickets, docs, research],
+            splitGroups: [split])
         siteAccents = Dictionary(uniqueKeysWithValues: zip(pins.map(\.id), pinSources.map(\.2)))
         browser = BrowserStore(
-            session: BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: notes.id],
+            seed: SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: notes.id],
             browsingMode: .privateBrowsing)
         sidebarInteraction = BrowserSidebarInteractionState.connected(to: browser)
     }
@@ -157,12 +156,12 @@ private final class BrowserAppearancePreviewState {
 
     /// Wears the look and first folder's color and icon of `source`, the Space
     /// being edited, by changing this preview's own memory-only Space.
-    func applyTheme(_ source: BrowserSpace?) {
+    func applyTheme(_ source: BrowserSpaceAppearance?) {
         guard let source, let space = browser.workspaceModel?.spaces.models.first else { return }
         browser.updateSpaceBranding(source.branding, in: space.id)
-        if let folder = source.folders.first, let sample = space.folders.models.first {
-            browser.setFolderColor(sample.id, in: space.id, color: folder.color)
-            browser.setFolderSymbol(sample.id, in: space.id, symbol: folder.symbol)
+        if let folder = source.leadingFolder, let sample = space.folders.models.first {
+            browser.setFolderColor(sample.id, in: space.id, color: BrowserSpaceBrandColor(core: folder.displayColor))
+            browser.setFolderSymbol(sample.id, in: space.id, symbol: folder.displaySymbol)
         }
     }
 

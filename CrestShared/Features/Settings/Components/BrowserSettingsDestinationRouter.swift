@@ -42,7 +42,7 @@ struct BrowserSettingsDestinationRouter: View {
         case .general:
             BrowserGeneralSettingsPane(browser: browser, spaceAccess: spaceAccess)
         case .lookAndFeel:
-            BrowserLookAndFeelSettingsPane(space: browser.shownSpace.map(BrowserSpace.init(appearanceOf:)))
+            BrowserLookAndFeelSettingsPane(space: browser.shownSpace.map(BrowserSpaceAppearance.init(space:)))
         case .links:
             BrowserLinkSettingsPane(
                 browser: browser,

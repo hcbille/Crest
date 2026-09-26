@@ -9,7 +9,7 @@ struct BrowserDefaultPageZoomSettingsSection: View {
     static let controlIdentifier = "default-page-zoom-slider"
 
     @Bindable var preferences: BrowserDefaultPageZoomStore
-    var space: BrowserSpace? = nil
+    var space: BrowserSpaceAppearance? = nil
     var showsPreview = false
 
     var body: some View {

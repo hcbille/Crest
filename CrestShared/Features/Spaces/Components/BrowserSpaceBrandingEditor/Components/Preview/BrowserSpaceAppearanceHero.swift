@@ -6,18 +6,16 @@ struct BrowserSpaceAppearanceHero: View {
     let symbol: String
     var name = ""
     var compact = false
-    var space: BrowserSpace? = nil
     var editableName: Binding<String>? = nil
     var showsNameHint = false
     var spacePicker: BrowserSpaceCustomizationPicker? = nil
-    @State private var exampleTab = BrowserTab(title: String(localized: "Start Page"), url: nil, placement: .current)
+    @State private var favicons = FaviconAssets()
 
-    private var preview: BrowserSpace {
-        var value = space ?? BrowserSession.showcase.spaces[0]
-        value.branding = branding
-        value.symbol = symbol
-        value.name = name.isEmpty ? String(localized: "Your Space") : name
-        return value
+    /// The showcase's first Space dressed in the draft, as the core resolves it.
+    private var preview: SpaceModel {
+        SpaceModel.detached(
+            SessionState.Seed.showcase.spaces[0].wearing(
+                branding.core, symbol: symbol, name: name.isEmpty ? String(localized: "Your Space") : name))
     }
 
     private var nameHint: LocalizedStringKey {
@@ -29,6 +27,7 @@ struct BrowserSpaceAppearanceHero: View {
     }
 
     var body: some View {
+        let preview = preview
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 BrowserSpaceIdentityIcon(space: preview, size: 26)
@@ -38,7 +37,7 @@ struct BrowserSpaceAppearanceHero: View {
                         name: editableName, size: 16,
                         titleFont: CrestTypography.sans(16, weight: .semibold))
                 } else {
-                    Text(preview.name).font(CrestTypography.sans(16, weight: .semibold)).lineLimit(1)
+                    Text(preview.settings.name).font(CrestTypography.sans(16, weight: .semibold)).lineLimit(1)
                     Spacer()
                 }
             }
@@ -56,17 +55,21 @@ struct BrowserSpaceAppearanceHero: View {
                 BrowserSpaceSidebarPreview(space: preview)
             } else {
                 #if os(iOS)
-                    BrowserSpaceSidebarTabRow(tab: exampleTab, profileID: preview.profile.id, isSelected: true)
-                        .font(.subheadline)
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 18)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+                    BrowserSpaceSidebarTabRow(
+                        tab: Self.exampleTab, favicons: favicons, profileID: preview.profileID, isSelected: true
+                    )
+                    .font(.subheadline)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 18)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 #else
                     let assignment = BrowserSpaceRuntimeAssignment(space: preview)
-                    PinnedTabGrid(drafts: preview.pinnedTabs, assignment: assignment)
-                        .padding(.horizontal, 14).padding(.bottom, 12)
-                        .allowsHitTesting(false)
+                    PinnedTabGrid(
+                        tabs: preview.pinnedTabs, favicons: favicons, assignment: assignment, select: { _ in }
+                    )
+                    .padding(.horizontal, 14).padding(.bottom, 12)
+                    .allowsHitTesting(false)
                 #endif
             }
             if let spacePicker {
@@ -82,8 +85,13 @@ struct BrowserSpaceAppearanceHero: View {
         }
         .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
         .accessibilityElement(children: editableName == nil && spacePicker == nil ? .ignore : .contain)
-        .accessibilityLabel("Live sidebar preview for \(preview.name)")
+        .accessibilityLabel("Live sidebar preview for \(preview.settings.name)")
     }
+
+    /// The tab a compact preview shows under the name: a Start Page.
+    @MainActor private static let exampleTab = SpaceModel.detached(
+        SpaceState.Seed(name: String(localized: "Your Space"), tabs: [.startPage()])
+    ).tabs.models[0]
 }
 
 #if DEBUG

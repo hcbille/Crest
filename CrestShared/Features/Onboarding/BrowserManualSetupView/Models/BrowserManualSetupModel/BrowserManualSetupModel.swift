@@ -22,8 +22,8 @@ final class BrowserManualSetupModel {
     /// The setup's Spaces in its order.
     var spaces: [SetupDraftSpace] { draft?.spaces ?? [] }
 
-    /// The setup's Spaces as the Space picker and previews draw them.
-    var previewSpaces: [BrowserSpace] { spaces.map(Self.preview) }
+    /// The setup's Spaces as the Space picker draws them.
+    var previewSpaces: [BrowserSpaceIdentity] { spaces.map(BrowserSpaceIdentity.init(draft:)) }
 
     // MARK: - Initializers
 
@@ -115,15 +115,5 @@ final class BrowserManualSetupModel {
             errorMessage = error.explanation
             return false
         }
-    }
-
-    /// `space` as a Space the previews draw: its identity, name and look,
-    /// holding nothing yet.
-    private static func preview(_ space: SetupDraftSpace) -> BrowserSpace {
-        let customization = space.customization
-        return BrowserSpace(
-            id: space.spaceID, profile: BrowsingProfile(id: space.profileID), name: space.shownName,
-            symbol: customization.symbol, accent: customization.accent,
-            branding: BrowserSpaceBranding(look: customization.branding), folders: [], tabs: [])
     }
 }

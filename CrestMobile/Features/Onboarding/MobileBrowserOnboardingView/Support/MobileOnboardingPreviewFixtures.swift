@@ -1,18 +1,11 @@
 import Foundation
 
-/// The Spaces the feature pages draw, taken from the preview session.
+/// The Spaces the feature pages draw: the preview session's, as the core
+/// resolves them, held by no workspace.
+@MainActor
 enum MobileOnboardingPreviewFixtures {
-    @MainActor static var tutorialWorkSpace: BrowserSpace {
-        guard let space = BrowserSession.preview.spaces.first else {
-            preconditionFailure("The onboarding work preview requires one Space.")
-        }
-        return space
-    }
+    // MARK: - Static Variables
 
-    @MainActor static var tutorialPersonalSpace: BrowserSpace {
-        guard let space = BrowserSession.preview.spaces.dropFirst().first else {
-            preconditionFailure("The onboarding personal preview requires two Spaces.")
-        }
-        return space
-    }
+    static var tutorialWorkSpace: SpaceModel { SpaceModel.previewSpaces[0] }
+    static var tutorialPersonalSpace: SpaceModel { SpaceModel.previewSpaces[1] }
 }

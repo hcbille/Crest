@@ -174,28 +174,6 @@ extension FaviconAssets.Offer {
     }
 }
 
-extension BrowserSession {
-    /// The session an import would leave, as `preview` answers it: each tab
-    /// it would place from `sources` wears the image its source tab wears
-    /// there, each of the workspace's own tabs the image `images` holds for
-    /// it, or for the tab it would be a new identity of.
-    @MainActor
-    init(preview: ImportedWorkspace, sources: [BrowserSpace], images: FaviconAssets) {
-        var placed: [UUID: Data] = [:]
-        let offered = FaviconAssets.Offer(importing: sources).imported
-        for tab in preview.imported where offered.indices.contains(tab.source) {
-            placed[tab.tabID] = offered[tab.source][tab.sourceTabID]
-        }
-        var copies: [UUID: UUID] = [:]
-        for copy in preview.copied { copies[copy.copyTabID] = copy.sourceTabID }
-        let imported = Set(preview.imported.map(\.tabID))
-        self.init(core: preview.session) { tabID in
-            if imported.contains(tabID) { return placed[tabID] }
-            return images.image(of: copies[tabID] ?? tabID)
-        }
-    }
-}
-
 // MARK: - Reading records
 
 extension BrowserSession {

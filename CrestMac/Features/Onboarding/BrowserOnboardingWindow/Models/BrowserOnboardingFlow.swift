@@ -36,7 +36,7 @@ final class BrowserOnboardingFlow {
     /// last published, so a view's body builds them once per change.
     @ObservationIgnored private var reviewCache: (review: SetupImportReview, spaces: [BrowserImportSpaceReview])?
     /// The session the review would leave, until the review changes.
-    @ObservationIgnored private var previewCache: (review: SetupImportReview, session: BrowserSession?)?
+    @ObservationIgnored private var previewCache: (review: SetupImportReview, session: BrowserSessionPreview?)?
     @ObservationIgnored private var operationGeneration = 0
 
     /// Setup as the core holds it, or nil before it opens.
@@ -351,19 +351,24 @@ final class BrowserOnboardingFlow {
 
     /// The session the review would leave. The core answers once each time
     /// the review changes.
-    private func reviewPreview() -> BrowserSession? {
+    private func reviewPreview() -> BrowserSessionPreview? {
         guard let review else { return nil }
         if let previewCache, previewCache.review == review { return previewCache.session }
-        let session = try? browser.reviewedImportPreview(of: reviewSpaces.map(\.sourceSpace))
+        let session = try? browser.reviewedImportPreview()
         previewCache = (review, session)
         return session
     }
 
-    func previewDestinationSpace(for review: BrowserImportSpaceReview) -> BrowserSpace? {
+    /// The images the tabs of the session the review would leave wear.
+    var previewFavicons: FaviconAssets {
+        reviewPreview()?.favicons ?? FaviconAssets()
+    }
+
+    func previewDestinationSpace(for review: BrowserImportSpaceReview) -> SpaceModel? {
         reviewPreview()?.space(id: review.destination.spaceID ?? review.id)
     }
 
-    func customizationPreviewSpace(_ spaceID: SpaceID) -> BrowserSpace? {
+    func customizationPreviewSpace(_ spaceID: SpaceID) -> SpaceModel? {
         reviewSpaces.first { $0.id == spaceID }.flatMap(previewDestinationSpace)
     }
 

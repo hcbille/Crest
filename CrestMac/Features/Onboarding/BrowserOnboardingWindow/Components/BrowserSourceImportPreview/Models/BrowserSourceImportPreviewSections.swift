@@ -1,18 +1,20 @@
+/// The reviewed Space's tabs by the placement each comes in with.
+@MainActor
 struct BrowserSourceImportPreviewSections {
-    let pinnedTabs: [BrowserTab]
-    let savedTabs: [BrowserTab]
-    let currentTabs: [BrowserTab]
-    let savedTabsByFolderID: [FolderID: [BrowserTab]]
-    let unfiledSavedTabs: [BrowserTab]
+    let pinnedTabs: [TabStateModel]
+    let savedTabs: [TabStateModel]
+    let currentTabs: [TabStateModel]
+    let savedTabsByFolderID: [FolderID: [TabStateModel]]
+    let unfiledSavedTabs: [TabStateModel]
 
     init(review: BrowserImportSpaceReview) {
-        var pinnedTabs: [BrowserTab] = []
-        var savedTabs: [BrowserTab] = []
-        var currentTabs: [BrowserTab] = []
-        var savedTabsByFolderID: [FolderID: [BrowserTab]] = [:]
-        var unfiledSavedTabs: [BrowserTab] = []
+        var pinnedTabs: [TabStateModel] = []
+        var savedTabs: [TabStateModel] = []
+        var currentTabs: [TabStateModel] = []
+        var savedTabsByFolderID: [FolderID: [TabStateModel]] = [:]
+        var unfiledSavedTabs: [TabStateModel] = []
 
-        for tab in review.sourceSpace.tabs {
+        for tab in review.sourceSpace.tabs.models {
             let placement = review.placement(for: tab)
             if !placement.isDurable {
                 currentTabs.append(tab)

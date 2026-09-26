@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserSourceImportTabRow: View {
     let review: BrowserImportSpaceReview
-    let tab: BrowserTab
+    let tab: TabStateModel
     let overflowTabIDs: Set<TabID>
     let duplicateTabIDs: Set<TabID>
     let duplicateDestinationName: String?
@@ -15,8 +15,8 @@ struct BrowserSourceImportTabRow: View {
                 setIncluded(tab.id, !included)
             } label: {
                 TabFaviconView(
-                    tab: tab,
-                    profileID: review.sourceSpace.profile.id,
+                    subject: BrowserTabFaviconSubject(tab: tab, image: nil),
+                    profileID: review.sourceSpace.profileID,
                     size: 18
                 )
                 Text(tab.title)

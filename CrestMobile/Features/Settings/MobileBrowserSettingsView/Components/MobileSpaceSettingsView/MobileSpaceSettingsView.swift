@@ -128,7 +128,7 @@ struct MobileSpaceSettingsView: View {
             BrowserMobileSpaceAppearanceWorkspace(
                 branding: browser.spaceBrandingBinding(in: currentSpace),
                 symbol: browser.spaceSymbolBinding(in: currentSpace),
-                name: browser.spaceNameBinding(in: currentSpace), space: BrowserSpace(appearanceOf: currentSpace))
+                name: browser.spaceNameBinding(in: currentSpace), space: BrowserSpaceAppearance(space: currentSpace))
         }
     }
 

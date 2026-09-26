@@ -39,7 +39,7 @@ struct BrowserQuickWindowDestinationPickerButton: View {
 #if DEBUG
     #Preview("Destination picker") {
         @Previewable @State var presented = false
-        let spaces = BrowserSession.preview.spaces.map(\.identity)
+        let spaces = SpaceModel.previewSpaces.map(\.identity)
         BrowserQuickWindowDestinationPickerButton(
             spaces: spaces, selectedSpaceID: spaces[0].id, isPresented: $presented, promote: { _ in }
         ).padding()

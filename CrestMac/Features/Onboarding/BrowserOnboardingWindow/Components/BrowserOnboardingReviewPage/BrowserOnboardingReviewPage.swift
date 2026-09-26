@@ -186,7 +186,7 @@ private struct BrowserOnboardingReviewSpaceStepper: View {
                             motion(CrestMotion.onboardingProgress),
                             value: selectedSpaceID
                         )
-                        .accessibilityLabel(item.sourceSpace.name)
+                        .accessibilityLabel(item.sourceSpace.settings.name)
                         .accessibilityValue(
                             isCurrent ? "Current Space" : "Space in review"
                         )

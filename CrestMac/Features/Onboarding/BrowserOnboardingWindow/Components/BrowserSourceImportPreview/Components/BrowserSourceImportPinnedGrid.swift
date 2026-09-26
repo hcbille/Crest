@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserSourceImportPinnedGrid: View {
     let review: BrowserImportSpaceReview
-    let tabs: [BrowserTab]
+    let tabs: [TabStateModel]
     let overflowTabIDs: Set<TabID>
     let duplicateTabIDs: Set<TabID>
     let duplicateDestinationName: String?
@@ -18,8 +18,8 @@ struct BrowserSourceImportPinnedGrid: View {
                     setIncluded(tab.id, !included)
                 } label: {
                     TabFaviconView(
-                        tab: tab,
-                        profileID: review.sourceSpace.profile.id,
+                        subject: BrowserTabFaviconSubject(tab: tab, image: nil),
+                        profileID: review.sourceSpace.profileID,
                         size: 20
                     )
                     .frame(maxWidth: .infinity)
@@ -75,7 +75,7 @@ struct BrowserSourceImportPinnedGrid: View {
         )
     }
 
-    private func accessibilityValue(for tab: BrowserTab) -> String {
+    private func accessibilityValue(for tab: TabStateModel) -> String {
         let included = review.includedTabIDs.contains(tab.id)
         if overflowTabIDs.contains(tab.id), included {
             return "Included, pinned capacity full, moves to Imported Pinned Tabs"

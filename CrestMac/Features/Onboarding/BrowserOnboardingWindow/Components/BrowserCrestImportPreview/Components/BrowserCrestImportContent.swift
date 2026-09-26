@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct BrowserCrestImportContent: View {
-    let space: BrowserSpace
+    let space: SpaceModel
+    let favicons: FaviconAssets
     let matchedTabIDs: Set<TabID>
     @Environment(CrestCore.self) private var core: CrestCore?
 
@@ -16,6 +17,7 @@ struct BrowserCrestImportContent: View {
             if !space.pinnedTabs.isEmpty {
                 BrowserCrestImportPinnedGrid(
                     space: space,
+                    favicons: favicons,
                     matchedTabIDs: matchedTabIDs,
                     highlightedTabID: highlightedTabID
                 )
@@ -27,6 +29,7 @@ struct BrowserCrestImportContent: View {
             BrowserCrestImportSpaceHeader(space: space)
             BrowserCrestImportTabList(
                 space: space,
+                favicons: favicons,
                 matchedTabIDs: matchedTabIDs,
                 highlightedTabID: highlightedTabID
             )

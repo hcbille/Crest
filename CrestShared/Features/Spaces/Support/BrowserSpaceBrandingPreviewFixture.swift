@@ -42,7 +42,8 @@ enum BrowserSpaceBrandingPreviewFixture {
         )
     )
 
-    static let simpleSpace = makeSpace(
+    /// A Space wearing the banner look, as the core resolves it.
+    @MainActor static let simpleSpace = makeSpace(
         idByte: 0x11,
         profileByte: 0x21,
         name: "Winter",
@@ -52,7 +53,8 @@ enum BrowserSpaceBrandingPreviewFixture {
         accessPolicy: .open
     )
 
-    static let crestSpace = makeSpace(
+    /// A guarded Space wearing the layered crest, as the core resolves it.
+    @MainActor static let crestSpace = makeSpace(
         idByte: 0x12,
         profileByte: 0x22,
         name: "Lion",
@@ -62,6 +64,7 @@ enum BrowserSpaceBrandingPreviewFixture {
         accessPolicy: .deviceOwnerAuthentication
     )
 
+    @MainActor
     private static func makeSpace(
         idByte: UInt8,
         profileByte: UInt8,
@@ -69,19 +72,13 @@ enum BrowserSpaceBrandingPreviewFixture {
         symbol: String,
         accent: SpaceAccent,
         branding: BrowserSpaceBranding,
-        accessPolicy: BrowserSpaceAccessPolicy
-    ) -> BrowserSpace {
-        BrowserSpace(
-            id: deterministicUUID(finalByte: idByte),
-            profile: BrowsingProfile(id: deterministicUUID(finalByte: profileByte)),
-            name: name,
-            symbol: symbol,
-            accent: accent,
-            branding: branding,
-            folders: [],
-            tabs: [],
-            accessPolicy: accessPolicy
-        )
+        accessPolicy: SpaceAccessPolicy
+    ) -> SpaceModel {
+        SpaceModel.detached(
+            SpaceState.Seed(
+                id: deterministicUUID(finalByte: idByte), profileID: deterministicUUID(finalByte: profileByte),
+                name: name, symbol: symbol, accent: accent, branding: branding.core, tabs: [],
+                accessPolicy: accessPolicy))
     }
 
     private static func deterministicUUID(finalByte: UInt8) -> UUID {
