@@ -1,8 +1,7 @@
 namespace CrestCore.Contracts;
 
-/// How hard the system is asking for memory back. JSON policy requests spell
-/// a level as its `Name`. A level travels as its index in `All`, so `All` is
-/// append-only.
+/// How hard the system is asking for memory back. A level travels as its
+/// index in `All`, so `All` is append-only.
 public sealed class MemoryPressureLevel {
     #region Variables
 
@@ -30,12 +29,6 @@ public sealed class MemoryPressureLevel {
         Severity = severity;
         ReleasesActiveTransientPages = releasesActiveTransientPages;
     }
-
-    #endregion
-
-    #region Actions - Lookup
-
-    public static MemoryPressureLevel? Named(string? name) => All.FirstOrDefault(level => level.Name == name);
 
     #endregion
 }

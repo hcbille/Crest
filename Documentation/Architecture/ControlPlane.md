@@ -118,14 +118,7 @@ application API (`crest_app_create`, `dispatch`, `query`, `drain`,
 contract (`crest_engine_register`, `report`, `unregister`), and
 `crest_core.h` the version and the standalone answers. `crest_app_create`
 takes the schema fingerprint and refuses any other, so a stale prebuilt core
-fails at launch instead of misreading data.
-
-TRANSITIONAL until the JSON policy boundary is deleted:
-`crest_core_evaluate_policy` still answers two JSON policy operations,
-`residency.release_limit` and `residency.release_plan`, which no platform
-calls since iPhone and iPad report memory pressure to the core.
-`BrowserCoreErrorCode` keeps one code for the manual-setup tab policy.
-Nothing else crosses as JSON.
+fails at launch instead of misreading data. Nothing crosses as JSON.
 
 ## The read model
 

@@ -47,15 +47,6 @@ typedef int32_t crest_status_t;
 /* Returns the ABI major supported by this image. */
 CREST_API uint32_t CREST_CALL crest_core_abi_version(void);
 
-/* Bounded pure domain evaluation for incremental migration of synchronous
- * native APIs. No core handle, retained state, I/O, callbacks, or executor wait.
- * Input <= 16 KiB, output <= 64 KiB. Capacity 0 reports required size without
- * mutation; repeating the same request is deterministic. Caller owns buffers.
- */
-CREST_API crest_status_t CREST_CALL crest_core_evaluate_policy(
-    const uint8_t* input_utf8, size_t input_length,
-    uint8_t* destination, size_t capacity, size_t* out_length);
-
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

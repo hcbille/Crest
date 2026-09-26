@@ -221,11 +221,6 @@ These stay in Swift by design: heraldry vocabulary and composition, favicon
 palette extraction, sidebar widgets, Peek motion and presentation phases,
 tear-off placement geometry, drag geometry and default-browser prompt cadence.
 
-Remaining, TRANSITIONAL: `crest_core_evaluate_policy` still answers the
-`residency.release_limit` and `residency.release_plan` JSON policy operations,
-the last JSON the core answers, though no platform calls them since iPhone and
-iPad report memory pressure to the core.
-
 ### WP9. Verification and release gates. Partly done
 
 Done:

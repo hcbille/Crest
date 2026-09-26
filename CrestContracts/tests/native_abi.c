@@ -56,24 +56,6 @@ static void app_boundary(void) {
     assert(crest_app_dispatch(app, acknowledge, sizeof(acknowledge), &buffer) == CREST_INVALID_HANDLE);
     assert(crest_app_destroy(app) == CREST_INVALID_HANDLE);
 }
-static void policy_boundary(void) {
-    const char *request = "{\"version\":1,\"operation\":\"residency.release_limit\",\"level\":\"warning\","
-        "\"platform\":\"desktop\",\"eligiblePageCount\":0}";
-    size_t length = 0;
-    assert(crest_core_evaluate_policy(NULL, 0, NULL, 0, &length) == CREST_INVALID_ARGUMENT);
-    assert(crest_core_evaluate_policy((const uint8_t*)request, strlen(request), NULL, 0, &length) == CREST_BUFFER_TOO_SMALL);
-    assert(length > 0 && length < 256);
-    uint8_t output[257]; memset(output, 0xa5, sizeof(output));
-    size_t required = length;
-    assert(crest_core_evaluate_policy((const uint8_t*)request, strlen(request), output, length - 1, &length) == CREST_BUFFER_TOO_SMALL);
-    assert(length == required && output[0] == 0xa5);
-    assert(crest_core_evaluate_policy((const uint8_t*)request, strlen(request), output, 256, &length) == CREST_OK);
-    assert(output[length] == 0xa5); output[length] = 0;
-    assert(strstr((const char*)output, "\"limit\":0"));
-    const uint8_t invalid[] = { 0xff };
-    assert(crest_core_evaluate_policy(invalid, sizeof(invalid), output, 256, &length) == CREST_INVALID_MESSAGE);
-    assert(length == 0);
-}
 static const char* space_id = "44444444-4444-4444-4444-444444444444";
 static const char* profile_id = "55555555-5555-5555-5555-555555555555";
 /* A byte string: its LEB128 length, then the bytes. */
@@ -518,11 +500,10 @@ static void storage_boundary(void) {
 }
 int main(void) {
     assert(crest_core_abi_version() == CREST_ABI_VERSION);
-    policy_boundary();
     app_boundary();
     session_boundary();
     engine_boundary();
     storage_boundary();
-    puts("Native ABI buffer ownership, size retry, handle, session and engine checks passed.");
+    puts("Native ABI buffer ownership, handle, session and engine checks passed.");
     return 0;
 }

@@ -66,12 +66,10 @@ request owns each page, which engine hosts it, what an address the person
 typed resolves to, and the lock, deletion and one-page-per-tab rules. Pages are
 never saved or synced.
 
-`CrestCore.Contracts.Protocol` defines the current JSON contract. It parses bounded UTF-8 JSON directly and
-builds JSON nodes without reflection. The application and domain have no native
-engine references.
+The application and domain have no native engine references.
 
 The native Crest apps use the `crest_app_*` entry points, plus
-`crest_core_evaluate_policy`. The cloud transport sends its
+`crest_core_answer` for questions that need no app. The cloud transport sends its
 `CloudSyncIntent`s through `crest_app_dispatch` from its own thread, and asks
 `PendingUploads`, `RecordsToUpload` and `CloudComparison` through
 `crest_app_query`; what a cloud intent changed arrives in the next
@@ -112,26 +110,13 @@ gated.
 The asynchronous message-based kernel (`crest_core_create` through
 `crest_core_destroy`, envelopes and adapter message routing) has been retired.
 Its browsing, records, deletion, transfer, residency and content-blocking rules
-are now owned by the synchronous session, sync, app and policy entry points
-above. `Documentation/Architecture/ControlPlane.md` describes that live path.
-`CrestCore.Contracts.Protocol` retains the shared JSON parsing helpers.
+are now owned by the synchronous session, sync and app entry points above.
+`Documentation/Architecture/ControlPlane.md` describes that live path.
 
-`crest_core_evaluate_policy` is a separate pure-function entry point for the
-native store APIs. Requests use `version: 1` and an
-`operation`, with a 16 KiB input and 64 KiB output limit. It retains no state or
-executor. Address intent returns domain values. History visits, range removal
-and retention are session edits (the `history.visit` command and the
-`RemoveHistoryRange` and `SweepExpiredRecords` intents), not policy
-operations; retention uses a strict age cutoff and explicit history ranges
-include their start and exclude their end. `limits` answers every capacity the
-core enforces (pinned tabs, folders and depth, history entries, split members,
-brand colors, crest palette, Spaces, tabs per Space, sync records).
-`address.intent` and `search.url` name the engine as `{"id":"google"}` for a
-built-in or a `custom:<uuid>` identity with its stored templates; the core owns the
-built-in catalog, template validation and query encoding, and a stored custom
-engine that no longer validates resolves to Google. `search.custom_providers`
-applies the restore rule to stored engines. `translation.rule` and `translation.matches`
-answer automatic page-translation choices in their persisted native shape. The
+History visits, range removal and retention are session edits (the
+`history.visit` command and the `RemoveHistoryRange` and `SweepExpiredRecords`
+intents); retention uses a strict age cutoff and explicit history ranges
+include their start and exclude their end. The
 `AddSearchEngine`, `UpdateSearchEngine`, `RemoveSearchEngine` and
 `SelectSearchEngine` intents edit a Space's engines and its choice, refusing with
 `DuplicateSearchEngineName`, `SearchEngineLimitReached`, `InvalidSearchEngine` or

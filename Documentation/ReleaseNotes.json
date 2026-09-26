@@ -2897,6 +2897,10 @@
     "2026-09-26-architecture-docs-current": {
       "category": "internal",
       "message": "The architecture documents describe the core, its contract and its engines as they are now"
+    },
+    "core-json-policy-boundary-removed": {
+      "category": "internal",
+      "message": "The core's last JSON policy entry point is gone; iPhone and iPad hand memory pressure to the core like the Mac."
     }
   }
 }

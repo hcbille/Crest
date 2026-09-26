@@ -3,8 +3,6 @@ namespace CrestCore.Contracts;
 /// The device class a rule answers for: desktop is the Mac, mobile is iPhone
 /// and iPad. A platform carries every budget that differs by device, so a rule
 /// asks the platform rather than naming one.
-///
-/// JSON policy requests spell a platform as its `Name`.
 public sealed class DevicePlatform {
     #region Variables
 
