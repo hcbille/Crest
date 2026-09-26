@@ -238,14 +238,15 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
     private func makeFixture(
         systemAuthorization: BrowserGeolocationSystemAuthorization = .authorized,
         recoversSystemAuthorization: Bool = false,
-        center: BrowserSitePermissionCenter? = nil,
         url: URL? = nil,
         space: BrowserSpace? = nil
     ) throws -> Fixture {
         let url = try XCTUnwrap(url ?? URL(string: "https://location.crest.test/"))
         let origin = try XCTUnwrap(SiteOrigin(url: url))
         let space = try XCTUnwrap(space ?? BrowserSession.preview.spaces.first)
-        let permissionCenter = center ?? BrowserSitePermissionCenter()
+        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        // The Space's choices live in the core that hosts the page, as in the app.
+        let permissionCenter = BrowserSitePermissionCenter(core: browser.core)
         permissionCenter.setDecision(
             .grantPersistently,
             for: .location,
@@ -255,7 +256,6 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
         let service = TestBrowserGeolocationService(
             authorization: systemAuthorization
         )
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
         let page = try XCTUnwrap(
             browser.openWebKitPage(in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())).map {
                 opened in

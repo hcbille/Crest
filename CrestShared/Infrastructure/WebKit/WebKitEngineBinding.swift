@@ -162,14 +162,24 @@ final class WebKitEngineBinding: EngineBinding {
         engines.report(AuthenticationChallenged(promptID: promptID, pageID: pageID, question: question), from: self)
     }
 
-    /// Raises with the core a site's request in page `pageID` for a
-    /// capability. The core answers it from the Space's choices, or settles it
-    /// with the person's answer.
-    func raise(_ question: PermissionQuestion, for pageID: UUID, answer: @escaping @MainActor (Bool) -> Void) {
+    /// Raises with the core, as `promptID`, a site's request in page `pageID`
+    /// for a capability. The core answers it from the Space's choices, or
+    /// settles it with the person's answer.
+    func raise(
+        _ question: PermissionQuestion, for pageID: UUID, promptID: UUID = UUID(),
+        answer: @escaping @MainActor (Bool) -> Void
+    ) {
         guard let engines else { return answer(false) }
-        let promptID = UUID()
         prompts[promptID] = .permission(pageID: pageID, answer: answer)
         engines.report(PermissionRequested(promptID: promptID, pageID: pageID, question: question), from: self)
+    }
+
+    /// Takes back a question a page no longer asks: WebKit hears it declined,
+    /// and the core stops waiting for it and records nothing.
+    func withdraw(_ promptID: UUID) {
+        guard let prompt = prompts.removeValue(forKey: promptID) else { return }
+        prompt.decline()
+        engines?.report(PromptWithdrawn(promptID: promptID), from: self)
     }
 
     /// Shows a question the core asks about one of this binding's pages on

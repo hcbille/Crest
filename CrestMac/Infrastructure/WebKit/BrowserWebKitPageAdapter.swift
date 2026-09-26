@@ -165,14 +165,9 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
             permissionCenter: page.permissionCenter,
             service: geolocationService,
             spaceID: page.spaceID,
-            spaceName: page.spaceName,
-            prompt: { [weak page] origin, topLevelURL, requestedSpaceName in
-                guard let page else { return .denyOnce }
-                return await page.sitePermissionRequests.response(
-                    to: .location, origin: origin,
-                    topLevelOrigin: topLevelURL.flatMap(SiteOrigin.init(url:)) ?? origin,
-                    spaceName: requestedSpaceName
-                )
+            askSite: { [enginePage] origin, topLevelOrigin in
+                await enginePage.ask(
+                    PermissionQuestion(permission: .location, origin: origin, topLevelOrigin: topLevelOrigin))
             },
             recoverSystemAuthorization:
                 recoverGeolocationSystemAuthorization

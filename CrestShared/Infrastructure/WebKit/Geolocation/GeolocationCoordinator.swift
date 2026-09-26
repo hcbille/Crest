@@ -6,20 +6,21 @@ import WebKit
 /// lifetime, and web-standard behavior cannot drift.
 @MainActor
 final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
-    typealias Prompt =
+    /// Asks the core whether a site in a page showing another may use the
+    /// person's location: the Space's choice answers, or the person does, and
+    /// the core records what they ask it to remember.
+    typealias AskSite =
         @MainActor (
             _ origin: SiteOrigin,
-            _ topLevelURL: URL?,
-            _ spaceName: String
-        ) async -> BrowserSitePermissionPromptResponse
+            _ topLevelOrigin: SiteOrigin
+        ) async -> Bool
     typealias RecoverSystemAuthorization = @MainActor () async -> Void
 
     private let webView: WKWebView
     private let permissionCenter: BrowserSitePermissionCenter
     private let service: any BrowserGeolocationServicing
     private let spaceID: SpaceID
-    private let spaceName: String
-    private let prompt: Prompt
+    private let askSite: AskSite
     private let recoverSystemAuthorization: RecoverSystemAuthorization
 
     private var documentIdentifier = UUID().uuidString
@@ -56,16 +57,14 @@ final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
         permissionCenter: BrowserSitePermissionCenter,
         service: any BrowserGeolocationServicing,
         spaceID: SpaceID,
-        spaceName: String,
-        prompt: @escaping Prompt,
+        askSite: @escaping AskSite,
         recoverSystemAuthorization: @escaping RecoverSystemAuthorization
     ) {
         self.webView = webView
         self.permissionCenter = permissionCenter
         self.service = service
         self.spaceID = spaceID
-        self.spaceName = spaceName
-        self.prompt = prompt
+        self.askSite = askSite
         self.recoverSystemAuthorization = recoverSystemAuthorization
         permissionCenter.addObserver(self)
     }
@@ -230,22 +229,13 @@ final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
     private func authorize(_ request: Request) async -> Bool {
         guard isCurrentRequest(request), !Task.isCancelled else { return false }
         let origin = request.origin
-        var decisionToPersist: SitePermissionDecision?
         let decision = permissionCenter.decision(for: .location, origin: origin, in: spaceID)
         if decision.denies { return false }
         if decision.verdict == .ask {
-            let response = await prompt(origin, webView.url, spaceName)
-            guard isCurrentRequest(request) && !Task.isCancelled else { return false }
-            guard !permissionCenter.decision(for: .location, origin: origin, in: spaceID).denies else { return false }
-            // A saved block applies at once; a saved grant waits for the
-            // system's consent.
-            guard response.grants else {
-                if let savedDecision = response.savedDecision {
-                    permissionCenter.setDecision(savedDecision, for: .location, origin: origin, in: spaceID)
-                }
-                return false
-            }
-            decisionToPersist = response.savedDecision
+            // The core asks the person and records what they ask it to
+            // remember; the system's consent still gates every position.
+            let grants = await askSite(origin, webView.url.flatMap(SiteOrigin.init(url:)) ?? origin)
+            guard isCurrentRequest(request) && !Task.isCancelled, grants else { return false }
         }
 
         guard isCurrentRequest(request) && !Task.isCancelled else { return false }
@@ -265,14 +255,6 @@ final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
             isCurrentRequest(request) && !Task.isCancelled
         else { return false }
         guard !permissionCenter.decision(for: .location, origin: origin, in: spaceID).denies else { return false }
-        if let decisionToPersist {
-            permissionCenter.setDecision(
-                decisionToPersist,
-                for: .location,
-                origin: origin,
-                in: spaceID
-            )
-        }
         return true
     }
 

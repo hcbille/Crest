@@ -188,21 +188,11 @@ extension BrowserPage {
             )
         case .promptForSitePermission:
             let generation = sitePermissionRequests.generation
-            let response = await withCheckedContinuation { continuation in
-                sitePermissionRequests.request(
-                    .notifications, origin: origin, topLevelOrigin: origin,
-                    spaceName: spaceName
-                ) { response in
-                    continuation.resume(returning: response)
-                }
-            }
-            guard let response else {
-                sendHostedNotificationPermissionResponse(
-                    requestID: requestID, permission: "default",
-                    documentIdentifier: documentIdentifier, origin: origin, frame: frame
-                )
-                return
-            }
+            // The core asks the person and records what they ask it to
+            // remember; the system's consent still decides what the page hears.
+            let grants =
+                await webKitAdapter?.enginePage.ask(
+                    PermissionQuestion(permission: .notifications, origin: origin, topLevelOrigin: origin)) ?? false
             guard
                 isCurrentHostedNotificationDocument(
                     documentIdentifier,
@@ -210,12 +200,12 @@ extension BrowserPage {
                 )
             else { return }
             guard generation == sitePermissionRequests.generation else { return }
-            guard response.grants else {
-                if let savedDecision = response.savedDecision {
-                    permissionCenter.setDecision(savedDecision, for: .notifications, origin: origin, in: spaceID)
-                }
+            guard grants else {
+                // A block the person asked the core to remember denies the
+                // site; a decline that saves nothing leaves it free to ask.
+                let denies = permissionCenter.decision(for: .notifications, origin: origin, in: spaceID).denies
                 sendHostedNotificationPermissionResponse(
-                    requestID: requestID, permission: "denied",
+                    requestID: requestID, permission: denies ? "denied" : "default",
                     documentIdentifier: documentIdentifier, origin: origin, frame: frame
                 )
                 return
@@ -251,13 +241,11 @@ extension BrowserPage {
                 )
                 return
             }
-            // A granted request is remembered for the session at least.
-            permissionCenter.setDecision(
-                response.savedDecision ?? .grantForSession,
-                for: .notifications,
-                origin: origin,
-                in: spaceID
-            )
+            // A granted request is remembered for the session at least; a
+            // grant the person asked the core to remember is already kept.
+            if !permissionCenter.decision(for: .notifications, origin: origin, in: spaceID).grants {
+                permissionCenter.setDecision(.grantForSession, for: .notifications, origin: origin, in: spaceID)
+            }
             sendHostedNotificationPermissionResponse(
                 requestID: requestID,
                 permission: "granted",

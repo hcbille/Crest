@@ -322,14 +322,9 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
             permissionCenter: permissionCenter,
             service: geolocationService,
             spaceID: space.id,
-            spaceName: space.name,
-            prompt: { [weak self] origin, topLevelURL, requestedSpaceName in
-                guard let self else { return .denyOnce }
-                return await self.sitePermissionRequests.response(
-                    to: .location, origin: origin,
-                    topLevelOrigin: topLevelURL.flatMap(SiteOrigin.init(url:)) ?? origin,
-                    spaceName: requestedSpaceName
-                )
+            askSite: { [enginePage] origin, topLevelOrigin in
+                await enginePage.ask(
+                    PermissionQuestion(permission: .location, origin: origin, topLevelOrigin: topLevelOrigin))
             },
             recoverSystemAuthorization:
                 recoverGeolocationSystemAuthorization

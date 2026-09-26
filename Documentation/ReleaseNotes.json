@@ -2769,6 +2769,10 @@
     "2026-09-26-cloud-sync-decisions-in-core": {
       "category": "internal",
       "message": "Crest decides each step of iCloud sync in its core: starting, pausing for an account change, applying your choice and retrying"
+    },
+    "2026-09-26-webkit-location-notifications-through-core": {
+      "category": "internal",
+      "message": "WebKit pages' location and notification requests go through the core, and a page that stops waiting withdraws its question"
     }
   }
 }
