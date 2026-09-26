@@ -46,7 +46,7 @@ extension BrowserStore {
     }
 
     static func preview() -> BrowserStore {
-        BrowserStore(session: .preview)
+        BrowserStore(seed: .preview)
     }
 
     static func isolatedLaunch(core: CrestCore, launchEnvironment: BrowserLaunchEnvironment) throws -> BrowserStore {
@@ -168,7 +168,7 @@ extension BrowserStore {
 
     /// The session an isolated launch starts from, or nil for the one a first
     /// launch starts with, which an isolated run of cloud sync or onboarding
-    /// takes. TRANSITIONAL until the fixtures build seeds of their own.
+    /// takes.
     private static func isolatedFixtureSeed(for launchEnvironment: BrowserLaunchEnvironment) -> SessionState.Seed? {
         if launchEnvironment.requestsIsolatedCloudSync
             || launchEnvironment.forcesOnboardingWelcome
@@ -178,16 +178,16 @@ extension BrowserStore {
             return nil
         }
         #if CREST_PERFORMANCE_HARNESS
-            if let performanceSession = BrowserPerformanceSoakFixture.makeSession(
+            if let performanceSeed = BrowserPerformanceSoakFixture.makeSeed(
                 baseURLString: launchEnvironment.performanceBaseURLString,
                 rawTabCount: launchEnvironment.performanceTabCount,
                 isHeavy: launchEnvironment.performanceHeavySession,
                 runID: launchEnvironment.performanceRunID
             ) {
-                return performanceSession.seed
+                return performanceSeed
             }
         #endif
-        return (launchEnvironment.presentsShowcaseSession ? BrowserSession.showcase : .preview).seed
+        return launchEnvironment.presentsShowcaseSession ? .showcase : .preview
     }
 
     /// A window over a new private workspace, which starts from the core's

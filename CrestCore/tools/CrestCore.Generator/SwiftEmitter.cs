@@ -124,7 +124,8 @@ internal static class SwiftEmitter {
     /// A record that holds [Resolved] values, itself or in its fields, has a
     /// seed: its fields alone, with seeds in them, which a platform builds to
     /// send and the core resolves when it reads it. A seed has no resolved
-    /// value to read. A published record gives its own as `seed`.
+    /// value to read, and a platform builds it field by field, so its fields
+    /// are variables. A published record gives its own as `seed`.
     private static void EmitSeed(StringBuilder code, ContractSchema schema, ContractRecord record, HashSet<Type> equatable) {
         if (record.IsNormalizedOnConstruction || record.Fields.Any(field => Naming.SwiftMember(field.Name) == "seed"))
             throw new ContractSchemaException($"{record.Name}: a record with a seed cannot be normalized on construction "
@@ -136,7 +137,7 @@ internal static class SwiftEmitter {
         code.Append('\n').Append($"    /// The fields of a `{record.Name}` alone, as a platform builds one to send. The\n");
         code.Append("    /// core resolves the rest when it reads it.\n");
         code.Append($"    struct Seed: {string.Join(", ", conformances)} {{\n");
-        foreach (var field in record.Fields) code.Append($"        let {Local(field.Name)}: {TypeName(field.Type, schema, seeds: true)}\n");
+        foreach (var field in record.Fields) code.Append($"        var {Local(field.Name)}: {TypeName(field.Type, schema, seeds: true)}\n");
         code.Append("    }\n\n    /// The record's fields alone, as a platform sends it back.\n    var seed: Seed {\n");
         code.Append(Wrapped("        Seed(", ")", [.. record.Fields.Select(field =>
             $"{Naming.SwiftMember(field.Name)}: {SeedValue(field.Type, schema, Local(field.Name))}")])).Append("\n    }\n");

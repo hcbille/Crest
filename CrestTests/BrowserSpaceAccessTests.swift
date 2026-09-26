@@ -9,7 +9,7 @@ import XCTest
 final class BrowserSpaceAccessTests: XCTestCase {
 
     func testChosenDefaultSpaceBecomesTheLaunchSelection() throws {
-        let store = BrowserStore(session: .preview)
+        let store = BrowserStore(seed: .preview)
         let work = try XCTUnwrap(store.session.spaces.first)
         let personal = try XCTUnwrap(store.session.spaces.last)
 
@@ -18,7 +18,9 @@ final class BrowserSpaceAccessTests: XCTestCase {
 
         XCTAssertEqual(store.session.defaultSpaceID, personal.id)
         XCTAssertEqual(store.selectedSpaceID, work.id)
-        XCTAssertEqual(BrowserStore(session: store.session).selectedSpaceID, personal.id)
+        let relaunched = SessionState.Seed(
+            spaces: store.spaceModels.map(\.value.seed), defaultSpaceID: store.workspaceModel?.defaultSpaceID)
+        XCTAssertEqual(BrowserStore(seed: relaunched).selectedSpaceID, personal.id)
     }
 
     func testLegacySessionAndSpaceDecodeWithSafeAccessDefaults() throws {
@@ -50,9 +52,9 @@ final class BrowserSpaceAccessTests: XCTestCase {
     private func guardedStore(authenticator: any BrowserDeviceAuthenticating) throws
         -> (store: BrowserStore, access: BrowserSpaceAccessController, space: BrowserSpace)
     {
-        var session = BrowserSession.preview
-        session.spaces[0].accessPolicy = .deviceOwnerAuthentication
-        let store = BrowserStore(session: session)
+        var session = SessionState.Seed.preview
+        session.spaces[0].settings.accessPolicy = .deviceOwnerAuthentication
+        let store = BrowserStore(seed: session)
         stores.append(store)
         let access = BrowserSpaceAccessController(authenticator: authenticator)
         store.attachSpaceAccess(access)

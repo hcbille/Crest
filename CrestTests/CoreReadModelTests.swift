@@ -14,11 +14,10 @@ final class CoreReadModelTests: XCTestCase {
         let core = CrestCore.hostingPages()
         var batches: [[Change]] = []
         core.batchApplied = { batches.append($0) }
-        var original = BrowserSession.preview
+        var original = SessionState.Seed.preview
         let icon = Data([7, 7, 7])
-        original.spaces[0].tabs[0].faviconData = icon
         original.spaces[0].tabs[0].faviconURL = original.spaces[0].tabs[0].url
-        let store = BrowserStore(session: original, core: core)
+        let store = BrowserStore(seed: original, images: [original.spaces[0].tabs[0].id: icon], core: core)
         let spaceID = original.spaces[0].id
         let first = original.spaces[0].tabs[0].id
 
@@ -74,7 +73,7 @@ final class CoreReadModelTests: XCTestCase {
 
     func testAChangeNotifiesOnlyTheObjectsWhoseValuesItChanges() throws {
         let core = CrestCore()
-        let store = BrowserStore(session: .preview, core: core)
+        let store = BrowserStore(seed: .preview, core: core)
         let other = store.makeWindowStore()
         let space = try XCTUnwrap(core.state.workspaces[store.window.workspaceID]?.spaces.models.first)
         let tabs = space.tabs.models
@@ -174,9 +173,8 @@ final class CoreReadModelTests: XCTestCase {
         let core = CrestCore.hostingPages()
         var batches: [[Change]] = []
         core.batchApplied = { batches.append($0) }
-        var session = BrowserSession.preview
-        session.spaces[0].tabs[7].faviconData = Data([1])
-        let store = BrowserStore(session: session, core: core)
+        let session = SessionState.Seed.preview
+        let store = BrowserStore(seed: session, images: [session.spaces[0].tabs[7].id: Data([1])], core: core)
         let state = core.state
         let workspace = try XCTUnwrap(state.workspaces[store.window.workspaceID])
         let space = try XCTUnwrap(workspace.spaces.model(session.spaces[0].id))

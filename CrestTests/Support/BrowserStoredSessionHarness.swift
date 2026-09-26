@@ -34,6 +34,30 @@ final class BrowserStoredSessionHarness {
         try self.init(session: session, journalData: syncDeviceID.map { StoredSyncJournal.fresh(deviceID: $0) }, favicons: favicons)
     }
 
+    /// Gives a new file the session a core opens from `seed` as its first
+    /// session, as above. TRANSITIONAL: the installed release's format carries
+    /// it, until the harness adopts seeds with their journals.
+    convenience init(
+        seed: SessionState.Seed, syncDeviceID: UUID? = nil,
+        favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
+    ) throws {
+        try self.init(session: BrowserSession(opening: seed), syncDeviceID: syncDeviceID, favicons: favicons)
+    }
+
+    /// `staged(_:syncDeviceID:)` from a seed.
+    static func staged(seed: SessionState.Seed, syncDeviceID: UUID = UUID()) async throws
+        -> BrowserStoredSessionHarness
+    {
+        try await staged(BrowserSession(opening: seed), syncDeviceID: syncDeviceID)
+    }
+
+    /// `uploaded(_:syncDeviceID:)` from a seed.
+    static func uploaded(seed: SessionState.Seed, syncDeviceID: UUID = UUID()) async throws
+        -> BrowserStoredSessionHarness
+    {
+        try await uploaded(BrowserSession(opening: seed), syncDeviceID: syncDeviceID)
+    }
+
     /// A file of device `syncDeviceID` whose first session is `session`, opened
     /// as above, once its launch staged it: its journal holds every record of
     /// `session`, none of them uploaded yet.

@@ -2821,6 +2821,10 @@
     "2026-09-26-typed-session-seeds": {
       "category": "internal",
       "message": "Crest hands its core typed sessions for new and test workspaces, and the core describes the first-launch session itself"
+    },
+    "2026-09-26-seeded-fixtures": {
+      "category": "internal",
+      "message": "Preview, showcase and test sessions are built as typed seeds the core opens"
     }
   }
 }

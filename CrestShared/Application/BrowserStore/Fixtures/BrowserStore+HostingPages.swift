@@ -13,15 +13,30 @@
 
     extension BrowserStore {
         /// A window that hosts pages the way the app composes one, for tests: a
-        /// family holding `session` on a core that hosts pages,
-        /// and a window open over it that shows `spaceID` and `tabs` as
-        /// `init(session:showing:tabs:)` does. A page pool or store over this
-        /// window opens every page through that core, so a page can only live
-        /// in one of the session's Spaces. Pass `core` to put another workspace
-        /// on a core that already hosts one, as private and temporary windows
-        /// share the app's core.
+        /// family the core opens from `seed`, whose tabs wear `images`, on a
+        /// core that hosts pages, and a window open over it that shows
+        /// `spaceID` and `tabs` as `init(seed:images:showing:tabs:)` does. A
+        /// page pool or store over this window opens every page through that
+        /// core, so a page can only live in one of the session's Spaces. Pass
+        /// `core` to put another workspace on a core that already hosts one, as
+        /// private and temporary windows share the app's core.
         static func hostingPages(
-            _ session: BrowserSession = .preview,
+            _ seed: SessionState.Seed = .preview,
+            images: [UUID: Data] = [:],
+            showing spaceID: SpaceID? = nil,
+            tabs: [SpaceID: TabID] = [:],
+            browsingMode: BrowserBrowsingMode = .standard,
+            core: CrestCore = .hostingPages()
+        ) -> BrowserStore {
+            BrowserStore(
+                seed: seed, images: images, showing: spaceID, tabs: tabs, browsingMode: browsingMode, core: core)
+        }
+
+        /// TRANSITIONAL until the tests that still build the session copy's
+        /// values seed with `SessionState.Seed`: the window above over
+        /// `session`, whose tabs wear the images it carries.
+        static func hostingPages(
+            _ session: BrowserSession,
             showing spaceID: SpaceID? = nil,
             tabs: [SpaceID: TabID] = [:],
             browsingMode: BrowserBrowsingMode = .standard,

@@ -8,7 +8,7 @@ final class BrowserStoreTests: XCTestCase {
     func testCrossSpaceMovesPreserveSelectionsAndReturnToThePreviouslyActiveSourceTab() throws {
         for route in 0..<3 {
             for movesSelectedTab in [false, true] {
-                let session = BrowserSession.preview
+                let session = SessionState.Seed.preview
                 let source = try XCTUnwrap(session.spaces.first)
                 let destination = try XCTUnwrap(session.spaces.last)
                 let previous = try XCTUnwrap(source.pinnedTabs.last)
@@ -16,14 +16,14 @@ final class BrowserStoreTests: XCTestCase {
                 let preferences = BrowserLinkPreferenceStore()
                 preferences.setBehavior(.followsMovedTabs, isOn: false)
                 let store = BrowserStore(
-                    session: session, linkPreferences: preferences)
+                    seed: session, linkPreferences: preferences)
                 store.selectSpace(destination.id)
                 let destinationSelection = try XCTUnwrap(store.selectedTabID(in: destination.id))
                 store.selectSpace(source.id)
                 store.selectTab(previous.id)
                 if movesSelectedTab { store.selectTab(moved.id) }
                 let item = BrowserTabDragItem(
-                    tabID: moved.id, spaceID: source.id, profileID: source.profile.id)
+                    tabID: moved.id, spaceID: source.id, profileID: source.profileID)
                 if route != 0 { store.selectSpace(destination.id) }
 
                 switch route {
@@ -39,14 +39,15 @@ final class BrowserStoreTests: XCTestCase {
                 XCTAssertEqual(store.selectedTabID(in: source.id), previous.id)
                 XCTAssertEqual(store.selectedTabID(in: destination.id), destinationSelection)
                 XCTAssertEqual(
-                    store.session.space(id: destination.id)?.tabs.first { $0.id == moved.id }?.url, moved.url)
+                    store.session.space(id: destination.id)?.tabs.first { $0.id == moved.id }?.url?.absoluteString,
+                    moved.url)
             }
         }
     }
 
     func testMovingTheOnlyTabRespectsFollowPreferenceWithoutSelectingAnEmptyDestination() throws {
         for follows in [true, false] {
-            var session = BrowserSession.preview
+            var session = SessionState.Seed.preview
             let moved = try XCTUnwrap(session.spaces[0].currentTabs.first)
             session.spaces[0].tabs = [moved]
             session.spaces[1].tabs = []
@@ -56,7 +57,7 @@ final class BrowserStoreTests: XCTestCase {
             XCTAssertTrue(preferences.preferences.followsMovedTabs)
             preferences.setBehavior(.followsMovedTabs, isOn: follows)
             let store = BrowserStore(
-                session: session, linkPreferences: preferences)
+                seed: session, linkPreferences: preferences)
 
             XCTAssertTrue(store.moveTab(moved.id, from: sourceID, into: destinationID))
 
@@ -70,14 +71,12 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testSuccessiveClosesWalkBackThroughActualTabActivationHistory() throws {
-        let first = BrowserTab(
+        let first = TabState.Seed(
             title: "First",
             url: URL(string: "https://first.example"),
             placement: .current
         )
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let space = SpaceState.Seed(
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
@@ -85,7 +84,7 @@ final class BrowserStoreTests: XCTestCase {
             tabs: [first]
         )
         let store = BrowserStore(
-            session: BrowserSession(spaces: [space])
+            seed: SessionState.Seed(spaces: [space])
         )
         let secondID = try XCTUnwrap(
             store.openNewTab(url: try XCTUnwrap(URL(string: "https://second.example")))
@@ -103,26 +102,24 @@ final class BrowserStoreTests: XCTestCase {
 
     func testNewTabsOpenAfterTheFocusedSplitGroup() throws {
         let groupID = SplitGroupID()
-        let head = BrowserTab(
+        let head = TabState.Seed(
             title: "Head",
             url: URL(string: "https://head.example"),
             placement: .current,
             splitGroupID: groupID
         )
-        let tail = BrowserTab(
+        let tail = TabState.Seed(
             title: "Tail",
             url: URL(string: "https://tail.example"),
             placement: .current,
             splitGroupID: groupID
         )
-        let trailing = BrowserTab(
+        let trailing = TabState.Seed(
             title: "Trailing",
             url: URL(string: "https://trailing.example"),
             placement: .current
         )
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let space = SpaceState.Seed(
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
@@ -131,7 +128,7 @@ final class BrowserStoreTests: XCTestCase {
         )
 
         let startPageStore = BrowserStore(
-            session: BrowserSession(spaces: [space])
+            seed: SessionState.Seed(spaces: [space])
         )
         let startPageID = try XCTUnwrap(startPageStore.openNewTab())
         XCTAssertEqual(
@@ -140,7 +137,7 @@ final class BrowserStoreTests: XCTestCase {
         )
 
         let navigatedStore = BrowserStore(
-            session: BrowserSession(spaces: [space])
+            seed: SessionState.Seed(spaces: [space])
         )
         let navigatedID = try XCTUnwrap(
             navigatedStore.openNewTab(
@@ -275,7 +272,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testOpeningABackgroundTabPreservesSelectionAndUsesTheExactOwningSpace() throws {
-        let store = BrowserStore(session: .preview)
+        let store = BrowserStore(seed: .preview)
         let selectedSpaceID = store.selectedSpaceID
         let targetSpace = try XCTUnwrap(
             store.session.spaces.first { $0.id != selectedSpaceID }
@@ -310,7 +307,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testOpeningNewTabReusesTheSpacesUncommittedStartPageDraft() throws {
-        let store = BrowserStore(session: .preview)
+        let store = BrowserStore(seed: .preview)
         let draft = try XCTUnwrap(store.selectedSpace?.currentTabs.first(where: \.isStartPage))
         let originalCount = try XCTUnwrap(store.selectedSpace).currentTabs.count
 
@@ -361,10 +358,10 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testClearHistoryStagesExplicitTombstones() async throws {
-        var session = BrowserSession.preview
+        var session = SessionState.Seed.preview
         let visitedAt = Date(timeIntervalSince1970: 100)
         session.spaces[0].history = [
-            BrowserHistoryEntry(
+            HistoryEntryState(
                 url: try XCTUnwrap(URL(string: "https://example.com/private")),
                 title: "Private",
                 firstVisitedAt: visitedAt,
@@ -372,7 +369,7 @@ final class BrowserStoreTests: XCTestCase {
             )
         ]
         let historyID = try XCTUnwrap(session.spaces[0].history.first?.id)
-        let harness = try await BrowserStoredSessionHarness.uploaded(session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!)
         let store = harness.store
 
         store.clearHistory()
@@ -384,8 +381,8 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testCloseAndRestoreUseRecoverableSupersessionRatherThanPermanentDelete() async throws {
-        let session = BrowserSession.preview
-        let harness = try await BrowserStoredSessionHarness.uploaded(session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!)
+        let session = SessionState.Seed.preview
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!)
         let store = harness.store
         let tabID = try XCTUnwrap(store.selectedSpace?.currentTabs.first?.id)
 
@@ -403,7 +400,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testDeletingAPinnedTabStagesItsExplicitTombstoneAndArchiveAudit() async throws {
-        let session = BrowserSession.preview
+        let session = SessionState.Seed.preview
         let pinnedTab = try XCTUnwrap(session.spaces[0].pinnedTabs.first)
         let deviceID = UUID(
             uuid: (
@@ -411,7 +408,7 @@ final class BrowserStoreTests: XCTestCase {
                 0x44, 0x49, 0x54, 0x00, 0x00, 0x00, 0x00, 0x01
             )
         )
-        let harness = try await BrowserStoredSessionHarness.uploaded(session, syncDeviceID: deviceID)
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: session, syncDeviceID: deviceID)
         let store = harness.store
 
         store.deleteTab(pinnedTab.id, in: session.spaces[0].id)
@@ -431,7 +428,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testModifiedLinkOpensImmediatelyBelowItsOriginTab() throws {
         let store = BrowserStore(
-            session: .preview
+            seed: .preview
         )
         let spaceID = store.selectedSpaceID
         let originID = try XCTUnwrap(
@@ -457,20 +454,18 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testArchiveSelectedTabOnlyClosesACommittedCurrentTab() throws {
-        let pinned = BrowserTab(
+        let pinned = TabState.Seed(
             title: "Pinned",
             url: try XCTUnwrap(URL(string: "https://example.com/pinned")),
             placement: .pinned
         )
-        let current = BrowserTab(
+        let current = TabState.Seed(
             title: "Current",
             url: try XCTUnwrap(URL(string: "https://example.com/current")),
             placement: .current
         )
-        let draft = BrowserTab.startPage()
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let draft = TabState.Seed.startPage()
+        let space = SpaceState.Seed(
             name: "Commands",
             symbol: "keyboard",
             accent: .teal,
@@ -478,7 +473,7 @@ final class BrowserStoreTests: XCTestCase {
             tabs: [pinned, current, draft]
         )
         let store = BrowserStore(
-            session: BrowserSession(spaces: [space])
+            seed: SessionState.Seed(spaces: [space])
         )
 
         XCTAssertEqual(store.archiveSelectedTab(), current.id)
@@ -498,7 +493,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testAdjacentTabSelectionWrapsInsideTheSelectedSpace() throws {
         let tabs = try ["First", "Second", "Third"].map { title in
-            BrowserTab(
+            TabState.Seed(
                 title: title,
                 url: try XCTUnwrap(
                     URL(string: "https://example.com/\(title.lowercased())")
@@ -506,23 +501,19 @@ final class BrowserStoreTests: XCTestCase {
                 placement: .current
             )
         }
-        let selectedSpace = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let selectedSpace = SpaceState.Seed(
             name: "Selected",
             symbol: "1.circle",
             accent: .indigo,
             folders: [],
             tabs: tabs
         )
-        let untouchedTab = BrowserTab(
+        let untouchedTab = TabState.Seed(
             title: "Untouched",
             url: try XCTUnwrap(URL(string: "https://example.com/untouched")),
             placement: .current
         )
-        let untouchedSpace = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let untouchedSpace = SpaceState.Seed(
             name: "Untouched",
             symbol: "2.circle",
             accent: .orange,
@@ -530,7 +521,7 @@ final class BrowserStoreTests: XCTestCase {
             tabs: [untouchedTab]
         )
         let store = BrowserStore(
-            session: BrowserSession(spaces: [selectedSpace, untouchedSpace]),
+            seed: SessionState.Seed(spaces: [selectedSpace, untouchedSpace]),
             showing: selectedSpace.id, tabs: [selectedSpace.id: tabs[0].id, untouchedSpace.id: untouchedTab.id]
         )
 
@@ -546,7 +537,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testFocusedWindowTabArchivePreservesAnotherWindowsSpaceSelection() throws {
         let root = BrowserStore(
-            session: .preview
+            seed: .preview
         )
         let focusedWindow = root.makeWindowStore()
         let otherWindow = root.makeWindowStore()
@@ -574,19 +565,17 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testDuplicatingSelectedTabCreatesASelectedCurrentCopyInItsOwningSpace() throws {
-        let source = BrowserTab(
+        let source = TabState.Seed(
             title: "Reference",
             url: try XCTUnwrap(URL(string: "https://example.com/reference")),
             placement: .saved
         )
-        let other = BrowserTab(
+        let other = TabState.Seed(
             title: "Other",
             url: try XCTUnwrap(URL(string: "https://example.com/other")),
             placement: .current
         )
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let space = SpaceState.Seed(
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
@@ -594,7 +583,7 @@ final class BrowserStoreTests: XCTestCase {
             tabs: [source, other]
         )
         let store = BrowserStore(
-            session: BrowserSession(spaces: [space]),
+            seed: SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: source.id]
         )
 
@@ -606,16 +595,14 @@ final class BrowserStoreTests: XCTestCase {
         XCTAssertEqual(store.selectedSpace?.id, space.id)
         XCTAssertEqual(store.selectedTab?.id, duplicateID)
         XCTAssertEqual(duplicate.title, source.title)
-        XCTAssertEqual(duplicate.url, source.url)
+        XCTAssertEqual(duplicate.url?.absoluteString, source.url)
         XCTAssertEqual(duplicate.placement, .current)
         XCTAssertEqual(store.selectedSpace?.tabs.count, 3)
     }
 
     func testDuplicatingSelectedTabRejectsTransientStartPageDraft() throws {
-        let draft = BrowserTab.startPage()
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let draft = TabState.Seed.startPage()
+        let space = SpaceState.Seed(
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
@@ -623,11 +610,11 @@ final class BrowserStoreTests: XCTestCase {
             tabs: [draft]
         )
         let store = BrowserStore(
-            session: BrowserSession(spaces: [space])
+            seed: SessionState.Seed(spaces: [space])
         )
 
         XCTAssertNil(store.duplicateSelectedTab())
-        XCTAssertEqual(store.selectedSpace?.tabs, [draft])
+        XCTAssertEqual(store.selectedSpace?.tabs.map(\.id), [draft.id])
         XCTAssertEqual(store.selectedTab?.id, draft.id)
     }
 
@@ -701,7 +688,7 @@ final class BrowserStoreTests: XCTestCase {
     func testDataStoreFailureKeepsTheSpaceAndItsCredentialsRetryable() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
         let deletedSpace = try XCTUnwrap(store.session.spaces.first)
@@ -733,10 +720,10 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testDeletingTheLastSpaceIsRefusedBeforeAnyDataStoreMutation() async throws {
-        var session = BrowserSession.preview
+        var session = SessionState.Seed.preview
         session.spaces = [try XCTUnwrap(session.spaces.first)]
         let store = BrowserStore(
-            session: session
+            seed: session
         )
         let deleter = RecordingSpaceDataDeleter()
 
@@ -754,9 +741,9 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testOpeningATabInASpaceBeingDeletedIsRefusedWithoutChangingSelection() async throws {
-        let originalSession = BrowserSession.preview
+        let originalSession = SessionState.Seed.preview
         let store = BrowserStore(
-            session: originalSession
+            seed: originalSession
         )
         let destination = try XCTUnwrap(
             store.session.spaces.first {
@@ -804,7 +791,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testMovingATabIntoASpaceBeingDeletedIsRefusedWithoutChangingEitherSpace() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             browsingMode: .privateBrowsing
         )
         let source = try XCTUnwrap(store.selectedSpace)
@@ -849,7 +836,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testSelectedSpaceBecomesUnavailableWhileItsDataDeletionIsInFlight() throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             browsingMode: .privateBrowsing
         )
         let selectedSpace = try XCTUnwrap(store.selectedSpace)
@@ -868,7 +855,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testStaleDragCannotMoveATabFromAReplacementBrowsingProfile() throws {
-        let store = BrowserStore(session: .preview)
+        let store = BrowserStore(seed: .preview)
         let source = try XCTUnwrap(store.session.spaces.first)
         let destination = try XCTUnwrap(
             store.session.spaces.first { $0.id != source.id }
@@ -896,7 +883,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testWindowStateStorePersistsChromeOnlyForItsOwningWindow() {
-        let browser = BrowserStore(session: .preview)
+        let browser = BrowserStore(seed: .preview)
         let layouts = BrowserWindowLayouts(defaults: nil)
         let firstWindow = BrowserWindowStateStore(id: BrowserWindowID(), browser: browser, layouts: layouts)
         let secondWindow = BrowserWindowStateStore(id: BrowserWindowID(), browser: browser, layouts: layouts)
@@ -911,7 +898,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testWindowStoresShareBrowserMutationsButKeepIndependentSelections() throws {
-        let firstWindow = BrowserStore(session: .preview)
+        let firstWindow = BrowserStore(seed: .preview)
         let secondWindow = firstWindow.makeWindowStore()
         let work = try XCTUnwrap(firstWindow.session.spaces.first)
         let personal = try XCTUnwrap(firstWindow.session.spaces.last)
@@ -940,14 +927,14 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testDelayedStageFromAnotherWindowCannotDeleteANewerPinnedTab() async throws {
-        let session = BrowserSession.preview
+        let session = SessionState.Seed.preview
         let deviceID = UUID(
             uuid: (
                 0x4D, 0x55, 0x4C, 0x54, 0x49, 0x57, 0x49, 0x4E,
                 0x44, 0x4F, 0x57, 0x53, 0x00, 0x00, 0x00, 0x01
             )
         )
-        let harness = try await BrowserStoredSessionHarness.uploaded(session, syncDeviceID: deviceID)
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: session, syncDeviceID: deviceID)
         let firstWindow = harness.store
         let secondWindow = firstWindow.makeWindowStore()
         let existingTab = try XCTUnwrap(secondWindow.selectedTab)
@@ -978,8 +965,8 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testIncomingSyncPreservesCustomizationWaitingForCoalescedPersistence() async throws {
-        let session = BrowserSession.preview
-        let harness = try await BrowserStoredSessionHarness.uploaded(session)
+        let session = SessionState.Seed.preview
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: session)
         // Another device that holds what this one uploaded opens a tab.
         let remote = try await harness.joiningDevice()
         let newTab = try XCTUnwrap(
@@ -991,7 +978,7 @@ final class BrowserStoreTests: XCTestCase {
         let store = harness.store
         let otherWindow = store.makeWindowStore()
         let spaceID = session.spaces[0].id
-        var branding = session.spaces[0].branding
+        var branding = try XCTUnwrap(store.session.space(id: spaceID)).branding
         branding.iconStyle = .layeredCrest
         branding.crest.symbol = .direwolf
         branding.crest.palette = [.ink, .gold, .ocean]
@@ -1013,7 +1000,7 @@ final class BrowserStoreTests: XCTestCase {
     func testSceneActivationSweepArchivesExpiredCurrentTabsInALongLivedSession() throws {
         let now = Date.now
         let fixture = Self.makeCleanupSweepFixture(now: now)
-        let store = BrowserStore(session: fixture.session)
+        let store = BrowserStore(seed: fixture.session)
 
         // Only launch and explicit actions used to sweep, so a store that is
         // already running still holds the expired tab before activation.
@@ -1037,7 +1024,7 @@ final class BrowserStoreTests: XCTestCase {
     func testSceneActivationSweepRespectsEverySpaceCleanupPolicy() throws {
         let fixture = Self.makeCleanupSweepFixture(now: .now)
         let store = BrowserStore(
-            session: fixture.session
+            seed: fixture.session
         )
 
         store.sweepExpiredBrowsingData()
@@ -1053,21 +1040,21 @@ final class BrowserStoreTests: XCTestCase {
 
     func testReleaseSoakFixtureRejectsNonLoopbackAndMalformedInputs() {
         XCTAssertNil(
-            BrowserPerformanceSoakFixture.makeSession(
+            BrowserPerformanceSoakFixture.makeSeed(
                 baseURLString: "https://example.com/",
                 rawTabCount: "13",
                 runID: "release-run"
             )
         )
         XCTAssertNil(
-            BrowserPerformanceSoakFixture.makeSession(
+            BrowserPerformanceSoakFixture.makeSeed(
                 baseURLString: "http://127.0.0.1:18768/",
                 rawTabCount: "1",
                 runID: "release-run"
             )
         )
         XCTAssertNil(
-            BrowserPerformanceSoakFixture.makeSession(
+            BrowserPerformanceSoakFixture.makeSeed(
                 baseURLString: "http://127.0.0.1:18768/",
                 rawTabCount: "13",
                 runID: "../../hostile"
@@ -1076,7 +1063,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     private struct CleanupSweepFixture {
-        let session: BrowserSession
+        let session: SessionState.Seed
         let sweepingSpaceID: SpaceID
         let neverSpaceID: SpaceID
         let expiredTabID: TabID
@@ -1089,30 +1076,28 @@ final class BrowserStoreTests: XCTestCase {
     /// Space on the default 12 hour policy holding a stale selected tab, a stale
     /// start page and a stale unselected tab, plus one Space set to `.never`.
     private static func makeCleanupSweepFixture(now: Date) -> CleanupSweepFixture {
-        let selected = BrowserTab(
+        let selected = TabState.Seed(
             title: "Reading now",
             url: URL(string: "https://example.com/selected"),
             placement: .current,
             lastActivatedAt: now.addingTimeInterval(-13 * 60 * 60)
         )
-        let startPage = BrowserTab.startPage(
+        let startPage = TabState.Seed.startPage(
             lastActivatedAt: now.addingTimeInterval(-30 * 24 * 60 * 60)
         )
-        let expired = BrowserTab(
+        let expired = TabState.Seed(
             title: "Old research",
             url: URL(string: "https://example.com/old"),
             placement: .current,
             lastActivatedAt: now.addingTimeInterval(-13 * 60 * 60)
         )
-        let pinned = BrowserTab(
+        let pinned = TabState.Seed(
             title: "Pinned",
             url: URL(string: "https://example.com/pinned"),
             placement: .pinned,
             lastActivatedAt: now.addingTimeInterval(-40 * 24 * 60 * 60)
         )
-        let sweepingSpace = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let sweepingSpace = SpaceState.Seed(
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
@@ -1121,23 +1106,21 @@ final class BrowserStoreTests: XCTestCase {
             browsingPreferences: BrowserSpaceBrowsingPreferences(
                 searchProvider: .google,
                 currentTabCleanupPolicy: .after12Hours
-            )
+            ).core
         )
-        let neverSelected = BrowserTab(
+        let neverSelected = TabState.Seed(
             title: "Personal",
             url: URL(string: "https://example.com/personal"),
             placement: .current,
             lastActivatedAt: now
         )
-        let neverPolicyTab = BrowserTab(
+        let neverPolicyTab = TabState.Seed(
             title: "Kept indefinitely",
             url: URL(string: "https://example.com/keep"),
             placement: .current,
             lastActivatedAt: now.addingTimeInterval(-31 * 24 * 60 * 60)
         )
-        let neverSpace = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+        let neverSpace = SpaceState.Seed(
             name: "Personal",
             symbol: "house.fill",
             accent: .teal,
@@ -1146,10 +1129,10 @@ final class BrowserStoreTests: XCTestCase {
             browsingPreferences: BrowserSpaceBrowsingPreferences(
                 searchProvider: .duckDuckGo,
                 currentTabCleanupPolicy: .never
-            )
+            ).core
         )
         return CleanupSweepFixture(
-            session: BrowserSession(spaces: [sweepingSpace, neverSpace]),
+            session: SessionState.Seed(spaces: [sweepingSpace, neverSpace]),
             sweepingSpaceID: sweepingSpace.id,
             neverSpaceID: neverSpace.id,
             expiredTabID: expired.id,
@@ -1239,12 +1222,12 @@ final class BrowserStoreMutationTests: XCTestCase {
     func testSelectedPageKeepsProvisionalMetadataVisual() throws {
         let originalURL = try XCTUnwrap(URL(string: "https://example.com/old"))
         let nextURL = try XCTUnwrap(URL(string: "https://example.com/new"))
-        let tab = BrowserTab(title: "Old", url: originalURL, placement: .current)
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Test", symbol: "circle",
+        let tab = TabState.Seed(title: "Old", url: originalURL, placement: .current)
+        let space = SpaceState.Seed(
+            name: "Test", symbol: "circle",
             accent: .indigo, folders: [], tabs: [tab])
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [space]))
+            seed: SessionState.Seed(spaces: [space]))
 
         XCTAssertFalse(browser.navigateSelectedTab(to: nextURL.absoluteString))
         XCTAssertEqual(browser.selectedTab?.url, originalURL)
@@ -1253,7 +1236,7 @@ final class BrowserStoreMutationTests: XCTestCase {
     }
 
     func testClearingHistoryEmptiesOnlyTheSelectedSpace() throws {
-        let store = BrowserStore(session: .preview, core: .hostingPages())
+        let store = BrowserStore(seed: .preview, core: .hostingPages())
         let selectedSpaceID = store.selectedSpaceID
         store.seedVisit(
             to: try XCTUnwrap(URL(string: "https://example.com/read")),
@@ -1266,7 +1249,7 @@ final class BrowserStoreMutationTests: XCTestCase {
     }
 
     func testClearingCapturedSpaceHistoryDoesNotRetargetAfterSelectionChanges() throws {
-        let store = BrowserStore(session: .preview, core: .hostingPages())
+        let store = BrowserStore(seed: .preview, core: .hostingPages())
         let initiatingSpace = try XCTUnwrap(store.selectedSpace)
         let laterSelectedSpace = try XCTUnwrap(
             store.session.spaces.first { $0.id != initiatingSpace.id }
@@ -1301,7 +1284,7 @@ final class BrowserStoreMutationTests: XCTestCase {
     }
 
     func testClearingCapturedHistoryRejectsAReplacementBrowsingProfile() throws {
-        let store = BrowserStore(session: .preview, core: .hostingPages())
+        let store = BrowserStore(seed: .preview, core: .hostingPages())
         let initiatingSpace = try XCTUnwrap(store.selectedSpace)
         store.seedVisit(
             to: try XCTUnwrap(URL(string: "https://example.com/private")),
@@ -1323,7 +1306,7 @@ final class BrowserStoreMutationTests: XCTestCase {
     }
 
     func testRestoringCapturedArchiveRejectsAReplacementBrowsingProfile() throws {
-        let store = BrowserStore(session: .preview)
+        let store = BrowserStore(seed: .preview)
         let url = try XCTUnwrap(URL(string: "https://example.com/archive"))
         let tabID = try XCTUnwrap(store.openNewTab(url: url))
         store.closeTab(tabID)
@@ -1340,7 +1323,7 @@ final class BrowserStoreMutationTests: XCTestCase {
     }
 
     func testSavedTabsAndFolderDisclosureChangeTheirSpace() throws {
-        let store = BrowserStore(session: .preview)
+        let store = BrowserStore(seed: .preview)
         let spaceID = try XCTUnwrap(store.selectedSpace?.id)
         let folderID = try XCTUnwrap(store.selectedSpace?.folders.first?.id)
 

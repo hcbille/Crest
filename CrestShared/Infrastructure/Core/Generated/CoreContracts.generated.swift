@@ -660,9 +660,9 @@ struct ArchivedTabState: Equatable, Sendable {
     /// The fields of a `ArchivedTabState` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable {
-        let tab: TabState.Seed
-        let archivedAt: Date
-        let reason: ArchiveReason
+        var tab: TabState.Seed
+        var archivedAt: Date
+        var reason: ArchiveReason
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -2068,15 +2068,15 @@ struct FolderState: Equatable, Sendable, Identifiable {
     /// The fields of a `FolderState` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable, Identifiable {
-        let id: UUID
-        let location: TabPlacement
-        let title: String
-        let symbol: String?
-        let color: BrandColor?
-        let parentID: UUID?
-        let isCollapsed: Bool
-        let collapseModifiedAt: Date?
-        let orderAnchorTabID: UUID?
+        var id: UUID
+        var location: TabPlacement
+        var title: String
+        var symbol: String?
+        var color: BrandColor?
+        var parentID: UUID?
+        var isCollapsed: Bool
+        var collapseModifiedAt: Date?
+        var orderAnchorTabID: UUID?
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -4029,11 +4029,11 @@ struct SessionState: Equatable, Sendable {
     /// The fields of a `SessionState` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable {
-        let spaces: [SpaceState.Seed]
-        let defaultSpaceID: UUID?
-        let disposableSeedMarker: UUID?
-        let spaceDeletions: [SpaceDeletionState]
-        let appPreferences: AppPreferences?
+        var spaces: [SpaceState.Seed]
+        var defaultSpaceID: UUID?
+        var disposableSeedMarker: UUID?
+        var spaceDeletions: [SpaceDeletionState]
+        var appPreferences: AppPreferences?
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -4603,15 +4603,15 @@ struct SpaceSettings: Equatable, Sendable {
     /// The fields of a `SpaceSettings` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable {
-        let name: String
-        let symbol: String
-        let accent: SpaceAccent
-        let branding: SpaceBranding?
-        let browsingPreferences: BrowsingPreferences
-        let credentialPreferences: CredentialPreferences
-        let accessPolicy: SpaceAccessPolicy
-        let isSavedTabsExpanded: Bool
-        let savedTabsExpansionModifiedAt: Date?
+        var name: String
+        var symbol: String
+        var accent: SpaceAccent
+        var branding: SpaceBranding?
+        var browsingPreferences: BrowsingPreferences
+        var credentialPreferences: CredentialPreferences
+        var accessPolicy: SpaceAccessPolicy
+        var isSavedTabsExpanded: Bool
+        var savedTabsExpansionModifiedAt: Date?
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -4650,14 +4650,14 @@ struct SpaceState: Equatable, Sendable, Identifiable {
     /// The fields of a `SpaceState` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable, Identifiable {
-        let id: UUID
-        let profileID: UUID
-        let settings: SpaceSettings.Seed
-        let folders: [FolderState.Seed]
-        let tabs: [TabState.Seed]
-        let splitGroups: [SplitGroupState.Seed]
-        let archivedTabs: [ArchivedTabState.Seed]
-        let history: [HistoryEntryState]
+        var id: UUID
+        var profileID: UUID
+        var settings: SpaceSettings.Seed
+        var folders: [FolderState.Seed]
+        var tabs: [TabState.Seed]
+        var splitGroups: [SplitGroupState.Seed]
+        var archivedTabs: [ArchivedTabState.Seed]
+        var history: [HistoryEntryState]
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -4715,13 +4715,13 @@ struct SplitGroupState: Equatable, Sendable, Identifiable {
     /// The fields of a `SplitGroupState` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable, Identifiable {
-        let id: UUID
-        let customTitle: String?
-        let titleModifiedAt: Date?
-        let customIconSymbol: String?
-        let iconModifiedAt: Date?
-        let tint: BrandColor?
-        let tintModifiedAt: Date?
+        var id: UUID
+        var customTitle: String?
+        var titleModifiedAt: Date?
+        var customIconSymbol: String?
+        var iconModifiedAt: Date?
+        var tint: BrandColor?
+        var tintModifiedAt: Date?
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -5004,23 +5004,23 @@ struct TabState: Equatable, Sendable, Identifiable {
     /// The fields of a `TabState` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
     struct Seed: Equatable, Sendable, Identifiable {
-        let id: UUID
-        let title: String
-        let url: String?
-        let nativeContent: NativeTabContent?
-        let savedURL: String?
-        let symbol: String
-        let faviconURL: String?
-        let iconAccent: TabIconAccent?
-        let storedIconMode: TabIconMode?
-        let placement: TabPlacement
-        let folderID: UUID?
-        let splitGroupID: UUID?
-        let lastActivatedAt: Date
-        let positionModifiedAt: Date?
-        let customTitle: String?
-        let titleModifiedAt: Date?
-        let keepsPageLoaded: Bool
+        var id: UUID
+        var title: String
+        var url: String?
+        var nativeContent: NativeTabContent?
+        var savedURL: String?
+        var symbol: String
+        var faviconURL: String?
+        var iconAccent: TabIconAccent?
+        var storedIconMode: TabIconMode?
+        var placement: TabPlacement
+        var folderID: UUID?
+        var splitGroupID: UUID?
+        var lastActivatedAt: Date
+        var positionModifiedAt: Date?
+        var customTitle: String?
+        var titleModifiedAt: Date?
+        var keepsPageLoaded: Bool
     }
 
     /// The record's fields alone, as a platform sends it back.

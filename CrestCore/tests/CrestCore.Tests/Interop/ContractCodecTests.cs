@@ -312,8 +312,8 @@ public sealed unsafe class ContractCodecTests {
         string core = CSharpCodecEmitter.Emit(schema);
 
         Assert.Contains("struct KeepTab: Intent, Equatable, Sendable {\n    let archived: ArchivedTabState.Seed\n}\n", swift, StringComparison.Ordinal);
-        Assert.Contains("    struct Seed: Equatable, Sendable {\n        let tab: TabState.Seed\n        let archivedAt: Date\n"
-            + "        let reason: ArchiveReason\n    }\n", swift, StringComparison.Ordinal);
+        Assert.Contains("    struct Seed: Equatable, Sendable {\n        var tab: TabState.Seed\n        var archivedAt: Date\n"
+            + "        var reason: ArchiveReason\n    }\n", swift, StringComparison.Ordinal);
         Assert.Contains("    var seed: Seed {\n        Seed(tab: tab.seed, archivedAt: archivedAt, reason: reason)\n    }\n", swift,
             StringComparison.Ordinal);
         string tabSeed = codec[codec.IndexOf("extension TabState.Seed {", StringComparison.Ordinal)..];

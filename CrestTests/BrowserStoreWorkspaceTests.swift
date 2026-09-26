@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class BrowserStoreWorkspaceTests: XCTestCase {
     func testAnEmptyWindowSelectionSurvivesOtherWindowsPublishingAndDeletingTabs() throws {
-        let first = BrowserStore(session: .preview, core: .hostingPages())
+        let first = BrowserStore(seed: .preview, core: .hostingPages())
         let empty = first.makeWindowStore(BrowserWindowOpening(restoresTabs: false))
         let tab = try XCTUnwrap(first.selectedSpace?.tabs.first)
         let ids = first.session.tabIDs
@@ -57,7 +57,7 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
     }
 
     func testTemporaryWorkspaceFollowsItsSourceKeepingLocalOrganizationAndClosesOnAReplacedProfile() throws {
-        let source = BrowserStore(session: .preview)
+        let source = BrowserStore(seed: .preview)
         let assignment = BrowserSpaceRuntimeAssignment(space: try XCTUnwrap(source.selectedSpace))
         let temporary = try XCTUnwrap(source.makeTemporaryWindowStore(in: assignment))
         let url = try XCTUnwrap(URL(string: "https://temporary.crest.test/keep"))
@@ -82,7 +82,7 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
     }
 
     func testTemporaryProfileSettingsUseTheSourceAuthorityImmediately() throws {
-        let source = BrowserStore(session: .preview)
+        let source = BrowserStore(seed: .preview)
         let assignment = BrowserSpaceRuntimeAssignment(space: try XCTUnwrap(source.selectedSpace))
         let temporary = try XCTUnwrap(source.makeTemporaryWindowStore(in: assignment))
         let originalTabs = source.session.tabIDs
@@ -111,7 +111,7 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
     }
 
     func testTemporaryWorkspaceCannotDeleteItsBorrowedProfile() async throws {
-        let source = BrowserStore(session: .preview)
+        let source = BrowserStore(seed: .preview)
         let assignment = BrowserSpaceRuntimeAssignment(space: try XCTUnwrap(source.selectedSpace))
         let temporary = try XCTUnwrap(source.makeTemporaryWindowStore(in: assignment))
         let deleter = WorkspaceDataDeleter()
@@ -130,22 +130,22 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
     }
 
     func testTransferMovesTheSameTabBetweenFamiliesWithoutArchivingOrFillingTheEmptySource() throws {
-        let folder = BrowserFolder(title: "Source folder", symbol: "folder")
-        let tab = BrowserTab(
+        let folder = FolderState.Seed(title: "Source folder", symbol: "folder")
+        let tab = TabState.Seed(
             title: "Move me", url: URL(string: "https://transfer.crest.test/live"),
             savedURL: URL(string: "https://transfer.crest.test/saved"),
-            faviconData: Data("icon".utf8),
             placement: .saved, folderID: folder.id)
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Source", symbol: "globe", accent: .indigo,
+        let icon = Data("icon".utf8)
+        let space = SpaceState.Seed(
+            name: "Source", symbol: "globe", accent: .indigo,
             folders: [folder], tabs: [tab])
-        let companionTab = BrowserTab(
+        let companionTab = TabState.Seed(
             title: "Other Space", url: URL(string: "https://transfer.crest.test/other"), placement: .current)
-        let companion = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Companion", symbol: "globe", accent: .orange,
+        let companion = SpaceState.Seed(
+            name: "Companion", symbol: "globe", accent: .orange,
             folders: [], tabs: [companionTab])
         let source = BrowserStore(
-            session: BrowserSession(spaces: [space, companion]),
+            seed: SessionState.Seed(spaces: [space, companion]), images: [tab.id: icon],
             showing: space.id, tabs: [space.id: tab.id, companion.id: companionTab.id])
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         let temporary = try XCTUnwrap(source.makeTemporaryWindowStore(in: assignment))
@@ -160,8 +160,8 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(source.selectedSpace).archivedTabs.isEmpty)
         XCTAssertEqual(source.selectedSpace?.folders.map(\.id), [folder.id])
         XCTAssertEqual(temporary.selectedTab?.id, tab.id)
-        XCTAssertEqual(temporary.selectedTab?.faviconData, tab.faviconData)
-        XCTAssertEqual(temporary.selectedTab?.url, tab.url)
+        XCTAssertEqual(temporary.selectedTab?.faviconData, icon)
+        XCTAssertEqual(temporary.selectedTab?.url?.absoluteString, tab.url)
         XCTAssertEqual(temporary.selectedTab?.placement, .current)
         XCTAssertNil(temporary.selectedTab?.folderID)
         XCTAssertNil(temporary.selectedTab?.savedURL)
@@ -176,7 +176,7 @@ final class BrowserStoreWorkspaceTests: XCTestCase {
     }
 
     func testTransferRejectsStaleAssignmentsAtomically() throws {
-        let source = BrowserStore(session: .preview)
+        let source = BrowserStore(seed: .preview)
         let space = try XCTUnwrap(source.selectedSpace)
         let tab = try XCTUnwrap(space.tabs.first)
         let assignment = BrowserSpaceRuntimeAssignment(space: space)

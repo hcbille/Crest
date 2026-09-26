@@ -95,3 +95,26 @@ extension BrowserSplitGroupMetadata {
             iconModifiedAt: iconModifiedAt, tint: tint?.core, tintModifiedAt: tintModifiedAt)
     }
 }
+
+// MARK: - Fixtures
+
+extension BrowserSession {
+    /// The preview session as a core opens it. TRANSITIONAL until the
+    /// previews and fixtures that take the session copy's values read the
+    /// seed.
+    @MainActor static let preview = BrowserSession(opening: .preview)
+
+    /// The showcase session as a core opens it. TRANSITIONAL as `preview` is.
+    @MainActor static let showcase = BrowserSession(opening: .showcase)
+
+    /// `seed` as a core opens it, in the session copy's values.
+    @MainActor init(opening seed: SessionState.Seed) {
+        do {
+            let opened = try BrowserCoreSessionAuthority.open(.persistent, seed: seed, in: CrestCore())
+            defer { opened.close() }
+            self = opened.projection
+        } catch {
+            preconditionFailure("The core refused to open a fixture session: \(error)")
+        }
+    }
+}

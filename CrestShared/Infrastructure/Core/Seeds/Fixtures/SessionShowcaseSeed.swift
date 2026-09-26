@@ -1,16 +1,19 @@
 import Foundation
 
-enum BrowserShowcaseSessionFactory {
-    static func make() -> BrowserSession {
-        let work = makeWorkSpace()
-        let personal = makePersonalSpace()
-        return BrowserSession(spaces: [work, personal])
+/// The session screenshots and the showcase show: a Work Space with pinned,
+/// saved and split current tabs and an archive, and a Personal one, each
+/// page drawn in place from its own markup.
+enum SessionShowcaseSeed {
+    // MARK: - Actions - Building
+
+    static func make() -> SessionState.Seed {
+        SessionState.Seed(spaces: [makeWorkSpace(), makePersonalSpace()])
     }
 
-    private static func makeWorkSpace() -> BrowserSpace {
-        let folder = BrowserFolder(title: "Launch Atlas", symbol: "folder.fill")
-        let splitGroupID = SplitGroupID()
-        let secondSplitGroupID = SplitGroupID()
+    private static func makeWorkSpace() -> SpaceState.Seed {
+        let folder = FolderState.Seed(title: "Launch Atlas", symbol: "folder.fill")
+        let splitGroupID = UUID()
+        let secondSplitGroupID = UUID()
         let tabs = [
             tab("Brief", page(.work, title: "Brief", activeCard: 0), "🧭", .pinned),
             tab("Projects", page(.work, title: "Projects", activeCard: 1), "📐", .pinned),
@@ -20,72 +23,36 @@ enum BrowserShowcaseSessionFactory {
             tab("Launch plan", page(.work, title: "Launch plan", activeCard: 2), "🚩", .saved, folder.id),
             tab("Design review", page(.work, title: "Design review", activeCard: 3), "🎨", .saved, folder.id),
             tab(
-                "Monday overview",
-                page(.work, title: "Monday overview", activeCard: 0),
-                "✨",
-                .current,
-                splitGroupID: splitGroupID
-            ),
+                "Monday overview", page(.work, title: "Monday overview", activeCard: 0), "✨", .current,
+                splitGroupID: splitGroupID),
             tab(
-                "Launch notes",
-                page(.work, title: "Launch notes", activeCard: 3),
-                "🗒️",
-                .current,
-                splitGroupID: splitGroupID
-            ),
+                "Launch notes", page(.work, title: "Launch notes", activeCard: 3), "🗒️", .current,
+                splitGroupID: splitGroupID),
             tab(
-                "Decision log",
-                page(.work, title: "Decision log", activeCard: 1),
-                "🧠",
-                .current,
-                splitGroupID: secondSplitGroupID
-            ),
+                "Decision log", page(.work, title: "Decision log", activeCard: 1), "🧠", .current,
+                splitGroupID: secondSplitGroupID),
             tab(
-                "Launch checklist",
-                page(.work, title: "Launch checklist", activeCard: 2),
-                "✅",
-                .current,
-                splitGroupID: secondSplitGroupID
-            ),
+                "Launch checklist", page(.work, title: "Launch checklist", activeCard: 2), "✅", .current,
+                splitGroupID: secondSplitGroupID),
         ]
         let archivedTabs = [
             archivedTab(
-                "Remote launch brief",
-                page(.work, title: "Remote launch brief", activeCard: 0),
-                "☁️",
-                reason: .synced,
-                secondsAgo: 90
-            ),
+                "Remote launch brief", page(.work, title: "Remote launch brief", activeCard: 0), "☁️",
+                reason: .synced, secondsAgo: 90),
             archivedTab(
-                "Completed design review",
-                page(.work, title: "Completed design review", activeCard: 3),
-                "🎨",
-                reason: .closed,
-                secondsAgo: 240
-            ),
+                "Completed design review", page(.work, title: "Completed design review", activeCard: 3), "🎨",
+                reason: .closed, secondsAgo: 240),
             archivedTab(
-                "Idle research notes",
-                page(.work, title: "Idle research notes", activeCard: 1),
-                "📦",
-                reason: .autoCleanup,
-                secondsAgo: 540
-            ),
+                "Idle research notes", page(.work, title: "Idle research notes", activeCard: 1), "📦",
+                reason: .autoCleanup, secondsAgo: 540),
         ]
-        return BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Work",
-            symbol: "hammer.fill",
-            accent: .indigo,
-            branding: .house(.lion, symbol: "hammer.fill"),
-            folders: [folder],
-            tabs: tabs,
-            archivedTabs: archivedTabs
-        )
+        return SpaceState.Seed(
+            name: "Work", symbol: "hammer.fill", accent: .indigo, branding: SpaceAccent.rose.house, folders: [folder],
+            tabs: tabs, archivedTabs: archivedTabs)
     }
 
-    private static func makePersonalSpace() -> BrowserSpace {
-        let folder = BrowserFolder(title: "Weekend Plans", symbol: "folder.fill")
+    private static func makePersonalSpace() -> SpaceState.Seed {
+        let folder = FolderState.Seed(title: "Weekend Plans", symbol: "folder.fill")
         let tabs = [
             tab("Home", page(.personal, title: "Home", activeCard: 0), "🏡", .pinned),
             tab("Trips", page(.personal, title: "Trips", activeCard: 1), "🗺️", .pinned),
@@ -96,16 +63,9 @@ enum BrowserShowcaseSessionFactory {
             tab("Sunday reading", page(.personal, title: "Sunday reading", activeCard: 3), "📖", .saved, folder.id),
             tab("A slower Saturday", page(.personal, title: "A slower Saturday", activeCard: 0), "☀️", .current),
         ]
-        return BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Personal",
-            symbol: "leaf.fill",
-            accent: .teal,
-            branding: .house(.winter, symbol: "leaf.fill"),
-            folders: [folder],
-            tabs: tabs
-        )
+        return SpaceState.Seed(
+            name: "Personal", symbol: "leaf.fill", accent: .teal, branding: SpaceAccent.indigo.house, folders: [folder],
+            tabs: tabs)
     }
 
     private static func page(
@@ -136,37 +96,19 @@ enum BrowserShowcaseSessionFactory {
     }
 
     private static func tab(
-        _ title: String,
-        _ url: URL,
-        _ symbol: String,
-        _ placement: TabPlacement,
-        _ folderID: FolderID? = nil,
-        splitGroupID: SplitGroupID? = nil
-    ) -> BrowserTab {
-        BrowserTab(
-            title: title,
-            url: url,
-            symbol: BrowserTab.symbol(forEmoji: symbol),
-            iconMode: .emoji,
-            placement: placement,
-            folderID: folderID,
-            splitGroupID: splitGroupID,
-            lastActivatedAt: .now
-        )
+        _ title: String, _ url: URL, _ symbol: String, _ placement: TabPlacement, _ folderID: UUID? = nil,
+        splitGroupID: UUID? = nil
+    ) -> TabState.Seed {
+        TabState.Seed(
+            title: title, url: url, symbol: BrowserIconSymbol.symbol(forEmoji: symbol), iconMode: .emoji,
+            placement: placement, folderID: folderID, splitGroupID: splitGroupID)
     }
 
     private static func archivedTab(
-        _ title: String,
-        _ url: URL,
-        _ symbol: String,
-        reason: ArchiveReason,
-        secondsAgo: TimeInterval
-    ) -> ArchivedTab {
-        ArchivedTab(
-            tab: tab(title, url, symbol, .current),
-            archivedAt: .now.addingTimeInterval(-secondsAgo),
-            reason: reason
-        )
+        _ title: String, _ url: URL, _ symbol: String, reason: ArchiveReason, secondsAgo: TimeInterval
+    ) -> ArchivedTabState.Seed {
+        ArchivedTabState.Seed(
+            tab: tab(title, url, symbol, .current), archivedAt: .now.addingTimeInterval(-secondsAgo), reason: reason)
     }
 }
 
@@ -211,8 +153,9 @@ enum BrowserShowcasePageStyle {
     }
 }
 
-// MARK: - Browser Session
+extension SessionState.Seed {
+    // MARK: - Variables
 
-extension BrowserSession {
-    static let showcase: BrowserSession = BrowserShowcaseSessionFactory.make()
+    /// The session screenshots and the showcase show.
+    static let showcase = SessionShowcaseSeed.make()
 }

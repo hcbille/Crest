@@ -125,7 +125,7 @@ final class BrowserSessionTests: XCTestCase {
     }
 
     func testRestoringAnArchivedTabReturnsItOnlyToItsSpaceAndSelectsIt() throws {
-        let store = makeStore(.cleanupFixture(now: .now))
+        let store = BrowserStore(seed: .cleanupFixture(now: .now))
         let personalID = try XCTUnwrap(store.session.spaces.last?.id)
 
         store.sweepExpiredBrowsingData()
