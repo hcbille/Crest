@@ -11,6 +11,7 @@
         let native: ChromiumNativePage
         private weak var page: BrowserPage?
         var engine: any BrowserPageEngine { native }
+        let enginePage: EnginePage
 
         /// The engine reports hovered links itself.
         private(set) lazy var linkHover: BrowserLinkHoverController? =
@@ -33,7 +34,10 @@
 
         // MARK: - Initializers
 
-        init(_ native: ChromiumNativePage) { self.native = native }
+        init(_ native: ChromiumNativePage) {
+            self.native = native
+            enginePage = native.makeEnginePage()
+        }
 
         // MARK: - Actions - Lifecycle
 

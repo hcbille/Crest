@@ -6,10 +6,10 @@ import WebKit
 /// bridges. Each is empty when another engine hosts the page.
 extension BrowserPage {
     /// A page hosting the desktop `WKWebView` WebKit's binding built as
-    /// `enginePage`, for a page the core opened on WebKit.
+    /// `webKitPage`, for a page the core opened on WebKit.
     convenience init(
         corePage: CorePage,
-        enginePage: WebKitEnginePage,
+        webKitPage: WebKitEnginePage,
         dialogPresenter: BrowserDialogPresenter,
         downloadCenter: BrowserDownloadCenter,
         permissionCenter: BrowserSitePermissionCenter,
@@ -45,7 +45,7 @@ extension BrowserPage {
         self.init(
             corePage: corePage,
             engine: BrowserWebKitPageAdapter(
-                page: enginePage,
+                page: webKitPage,
                 contentRuleList: contentRuleList,
                 geolocationService: geolocationService,
                 recoverGeolocationSystemAuthorization: recoverGeolocationSystemAuthorization

@@ -7,12 +7,14 @@ import Foundation
 /// later. Both cross the binding's `crest_engine_pages_t` table in the
 /// generated wire format; the core never sees them.
 @MainActor
-final class NativeEnginePages {
+final class NativeEnginePages: EnginePages {
     // MARK: - Variables
 
     private let table: crest_engine_pages_t
     /// Hears each presentation the binding sends.
     private let present: @MainActor (EnginePresentation) -> Void
+    /// The pages that hear the presentations about them.
+    private var attached = AttachedEnginePages()
 
     // MARK: - Initializers
 
@@ -57,6 +59,10 @@ final class NativeEnginePages {
         }
     }
 
+    func attach(_ page: EnginePage) {
+        attached.attach(page)
+    }
+
     // MARK: - Actions - Presentations
 
     fileprivate func receive(_ bytes: [UInt8]) {
@@ -68,6 +74,7 @@ final class NativeEnginePages {
         } catch {
             preconditionFailure("The engine's presentation does not decode (\(error)). Rebuild the engine.")
         }
+        attached.present(presentation)
         present(presentation)
     }
 }

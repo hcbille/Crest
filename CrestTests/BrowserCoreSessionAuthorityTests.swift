@@ -125,7 +125,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         let harness = try await BrowserStoredSessionHarness.staged(original)
         let store = harness.store
         let other = store.makeWindowStore()
-        let failing = DeletionAdapter { space in
+        let failing = DeletionAdapter(core: store.core) { space in
             // The intent is on disk before the engine erases anything.
             let intent = try XCTUnwrap(try harness.stored().session.spaceDeletions?.first)
             XCTAssertEqual(intent.spaceID, space.id)
@@ -154,7 +154,9 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         let restarted = relaunched.store
         XCTAssertTrue(restarted.deletingSpaceIDs.contains(target.id))
         XCTAssertNotEqual(restarted.selectedSpace?.id, target.id)
-        let succeeding = DeletionAdapter { space in XCTAssertEqual(space.profile.id, target.profile.id) }
+        let succeeding = DeletionAdapter(core: restarted.core) { space in
+            XCTAssertEqual(space.profile.id, target.profile.id)
+        }
         await restarted.resumePendingSpaceDeletions(dataDeleter: succeeding)
         XCTAssertEqual(succeeding.calls, [target.id])
         XCTAssertNil(restarted.session.space(id: target.id))
@@ -174,7 +176,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         let store = harness.store
         let other = store.makeWindowStore()
         var fail = true
-        let adapter = DeletionAdapter { space in
+        let adapter = DeletionAdapter(core: store.core) { space in
             XCTAssertEqual(space.profile.id, target.profile.id)
             let stored = try harness.stored()
             XCTAssertEqual(stored.session.spaceDeletions?.first?.spaceID, target.id)
@@ -187,7 +189,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         store.family.configureSpaceDataCleanup(adapter, from: store)
         // Another device that holds the same records deletes the Space.
         let remote = try await harness.joiningDevice()
-        try await remote.store.deleteSpace(target.id, dataDeleter: DeletionAdapter { _ in })
+        try await remote.store.deleteSpace(target.id, dataDeleter: DeletionAdapter(core: remote.store.core) { _ in })
         let incoming = try await remote.pendingRecords()
         // The adapter checks that the deletion and its tombstone are on disk
         // before any cleanup runs.
@@ -228,11 +230,16 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
     private enum DeletionFailure: Error { case interrupted }
     private final class DeletionAdapter: BrowserSpaceDataDeleting {
         var calls: [SpaceID] = []
+        let core: CrestCore
         let action: (BrowserSpace) throws -> Void
-        init(action: @escaping (BrowserSpace) throws -> Void) { self.action = action }
+        init(core: CrestCore, action: @escaping (BrowserSpace) throws -> Void) {
+            self.core = core
+            self.action = action
+        }
         func deleteData(for space: BrowserSpace) async throws {
             calls.append(space.id)
             try action(space)
+            try await core.eraseProfile(of: space)
         }
     }
 

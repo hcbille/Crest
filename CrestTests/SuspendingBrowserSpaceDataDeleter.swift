@@ -1,10 +1,16 @@
+import Foundation
 @testable import Crest
 
 @MainActor
 final class SuspendingBrowserSpaceDataDeleter: BrowserSpaceDataDeleting {
+    private let core: CrestCore
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
     private var deletionContinuation: CheckedContinuation<Void, Never>?
     private var hasStarted = false
+
+    init(core: CrestCore) {
+        self.core = core
+    }
 
     func deleteData(for space: BrowserSpace) async throws {
         hasStarted = true
@@ -16,6 +22,7 @@ final class SuspendingBrowserSpaceDataDeleter: BrowserSpaceDataDeleting {
         await withCheckedContinuation { continuation in
             deletionContinuation = continuation
         }
+        try await core.eraseProfile(of: space)
     }
 
     func waitUntilDeletionStarts() async {
@@ -28,5 +35,14 @@ final class SuspendingBrowserSpaceDataDeleter: BrowserSpaceDataDeleting {
     func finishDeletion() {
         deletionContinuation?.resume()
         deletionContinuation = nil
+    }
+}
+
+extension CrestCore {
+    /// Has every engine erase `space`'s profile, which keeps nothing on disk
+    /// in a test, as the app's deleter does before the Space may go.
+    func eraseProfile(of space: BrowserSpace) async throws {
+        guard await deleteData(DeleteProfileData(requestID: UUID(), profileID: space.profile.id, ephemeral: true))
+        else { throw BrowserSpaceDeletionError.dataNotErased }
     }
 }

@@ -34,6 +34,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly EngineDownloads engineDownloads;
     /// Close and quit preparations, which ask each page whether it may go.
     private readonly ClosePreparations closePreparations;
+    /// Erasing what every engine keeps for a profile.
+    private readonly DataDeletions dataDeletions;
     /// Which Spaces this process may show.
     private readonly SpaceAccess access;
     /// The cloud transport's state on this device.
@@ -67,6 +69,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         this.clock = clock;
         this.ids = ids;
         portability = new(configuration.ImportNames, clock, ids);
+        dataDeletions = new(engines, ids);
         // One grant authority for the process: every session the device shows
         // consults it, so a borrowed workspace unlocks with its source.
         var grants = new SpaceAccessAuthority();
@@ -158,7 +161,11 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                     pages.Handle(page, changes, Issue);
                     PublishEngines(changes.Publish);
                     break;
+                case DataDeletionIntent deletion:
+                    dataDeletions.Handle(deletion, changes, Issue);
+                    break;
                 case SessionIntent session:
+                    if (session is FinishDeletingSpace finishing) RequireErased(finishing);
                     device.Workspace(session.WorkspaceId).Handle(session, clock.Now, ids, pages);
                     if (session is PromoteTransientPage promoted) pages.Completed(promoted.PageId);
                     else if (session is ArchiveTransientPage archived) pages.Completed(archived.PageId);
@@ -196,6 +203,15 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         Deliver();
         WakeForRequestedTurn();
         return published;
+    }
+
+    /// A Space's deletion finishes only once this run erased its profile's
+    /// data on every registered engine. Throws `Rejected` otherwise; a Space
+    /// the session no longer holds is the session's to refuse.
+    private void RequireErased(FinishDeletingSpace finishing) {
+        if (device.Workspace(finishing.WorkspaceId).Current.Spaces.FirstOrDefault(space => space.Id == finishing.SpaceId) is { } space
+            && !dataDeletions.Erased(space.ProfileId))
+            throw new Rejected(new SpaceDataNotErased(space.Id));
     }
 
     #endregion

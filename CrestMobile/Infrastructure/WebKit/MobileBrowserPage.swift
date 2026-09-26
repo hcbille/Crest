@@ -20,7 +20,10 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     let profileID: UUID
     /// What WebKit's binding built for the page, which it keeps while it
     /// lives.
-    @ObservationIgnored let enginePage: WebKitEnginePage
+    @ObservationIgnored let webKitPage: WebKitEnginePage
+    /// The page's direct path to WebKit: going back, reloading, zooming,
+    /// finding text and keeping its history.
+    @ObservationIgnored let enginePage: EnginePage
     let webView: WKWebView
     var webKitView: WKWebView? { webView }
     // iOS composes one engine. Naming its type here keeps the page port in
@@ -156,12 +159,12 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored private var defaultPageZoom: CGFloat
     @ObservationIgnored private var hasTemporaryPageZoomOverride = false
 
-    /// The page hosting what WebKit's binding built as `enginePage`, for
+    /// The page hosting what WebKit's binding built as `webKitPage`, for
     /// `tab` in `space`. `contentRuleList` is a rule list the page applies
     /// beside its Space's.
     init(
         corePage: CorePage,
-        enginePage: WebKitEnginePage,
+        webKitPage: WebKitEnginePage,
         tab: BrowserTab,
         space: BrowserSpace,
         downloadCenter: BrowserDownloadCenter = BrowserDownloadCenter(),
@@ -202,7 +205,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.openModifiedLink = openModifiedLink
         self.openPeek = openPeek
         contentRuleSession = BrowserPageContentRuleSession(
-            ruleLists: enginePage.contentRuleLists,
+            ruleLists: webKitPage.contentRuleLists,
             additionalRuleList: contentRuleList
         )
         spaceName = space.name
@@ -264,10 +267,11 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         // which shares the opener's user content controller, so its scripts,
         // rule lists, and message handlers are already installed: adding them
         // again throws.
-        ownsUserContentController = enginePage.ownsUserContentController
-        self.enginePage = enginePage
-        webView = enginePage.webView
-        pageEngine = enginePage.engine
+        ownsUserContentController = webKitPage.ownsUserContentController
+        self.webKitPage = webKitPage
+        enginePage = webKitPage.makeEnginePage()
+        webView = webKitPage.webView
+        pageEngine = webKitPage.engine
         if ownsUserContentController {
             linkActivationMessageProxy = MobileLinkActivationContentBridge.install(
                 in: webView.configuration.userContentController
@@ -275,7 +279,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
 
         super.init()
-        enginePage.presenter = self
+        webKitPage.presenter = self
         if normalizedDefaultPageZoom != BrowserPageZoomPolicy.defaultLevel {
             webView.pageZoom = normalizedDefaultPageZoom
         }
@@ -327,8 +331,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             permissionCenter: permissionCenter,
             service: geolocationService,
             spaceID: space.id,
-            askSite: { [enginePage] origin, topLevelOrigin in
-                await enginePage.ask(
+            askSite: { [webKitPage] origin, topLevelOrigin in
+                await webKitPage.ask(
                     PermissionQuestion(permission: .location, origin: origin, topLevelOrigin: topLevelOrigin))
             },
             recoverSystemAuthorization:
@@ -406,7 +410,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// answers `interactionState` with an empty session, and archiving that would
     /// replace a real state with one that restores nothing.
     var interactionState: Data? {
-        pageEngine.interactionState
+        enginePage.savedHistory()
     }
 
     /// Restores a previously archived `interactionState` instead of starting `url`
@@ -424,7 +428,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         guard !isAwaitingPopupNavigation, !wasOpenedAsPopup else { return false }
         appInitiatedURL = url
         prepareForNavigation(to: url)
-        guard pageEngine.restoreInteractionState(state, expecting: url) else {
+        guard enginePage.restoreHistory(state, expecting: url) else {
             reporter.interrupted()
             return false
         }
@@ -504,7 +508,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         translation.reset()
         readerModeSession.invalidate()
         mediaSessionCoordinator?.prepareForRemoval()
-        enginePage.resetAutomaticDownloads()
+        webKitPage.resetAutomaticDownloads()
         webView.stopLoading()
         webView.removeFromSuperview()
         webView.navigationDelegate = nil
@@ -612,11 +616,11 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     }
 
     func dismissFind() {
-        findSession.dismiss(using: pageEngine)
+        findSession.dismiss(using: enginePage)
     }
 
     func find(_ query: String, direction: BrowserFindDirection = .forward) {
-        findSession.find(query, direction: direction, using: pageEngine)
+        findSession.find(query, direction: direction, using: enginePage)
     }
 
     @discardableResult
@@ -941,7 +945,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             return false
         }
         pageZoom = zoom
-        pageEngine.setZoom(zoom)
+        enginePage.zoom(to: zoom)
         return true
     }
 

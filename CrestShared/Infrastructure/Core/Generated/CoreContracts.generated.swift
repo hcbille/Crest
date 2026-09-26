@@ -41,6 +41,9 @@ protocol CloudSyncIntent: Intent {}
 /// The members of `Intent` that derive from the core's `CloudTransportIntent`.
 protocol CloudTransportIntent: Intent {}
 
+/// The members of `Intent` that derive from the core's `DataDeletionIntent`.
+protocol DataDeletionIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `DownloadIntent`.
 protocol DownloadIntent: Intent {}
 
@@ -92,6 +95,7 @@ enum Change: Equatable, Sendable {
     case cloudMergeBegan(CloudMergeBegan)
     case cloudSyncAdvanced(CloudSyncAdvanced)
     case cloudTransportChanged(CloudTransportChanged)
+    case dataDeleted(DataDeleted)
     case downloadApprovalAsked(DownloadApprovalAsked)
     case downloadDestinationAsked(DownloadDestinationAsked)
     case downloadUpdated(DownloadUpdated)
@@ -198,6 +202,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidSearchEngine(InvalidSearchEngine)
     case invalidSession(InvalidSession)
     case invalidShortcut(InvalidShortcut)
+    case invalidSiteHost(InvalidSiteHost)
     case invalidSiteOrigin(InvalidSiteOrigin)
     case invalidSitePermissionDetail(InvalidSitePermissionDetail)
     case invalidSpaceOrder(InvalidSpaceOrder)
@@ -247,6 +252,7 @@ enum Rejection: Equatable, Error, Sendable {
     case sitePermissionLimitReached(SitePermissionLimitReached)
     case spaceAlreadyExists(SpaceAlreadyExists)
     case spaceBeingDeleted(SpaceBeingDeleted)
+    case spaceDataNotErased(SpaceDataNotErased)
     case spaceLimitReached(SpaceLimitReached)
     case spaceLocked(SpaceLocked)
     case spaceProfileChanged(SpaceProfileChanged)
@@ -349,6 +355,8 @@ enum EngineCommand: Equatable, Sendable {
     case checkBeforeUnload(CheckBeforeUnload)
     case closePage(ClosePage)
     case createPage(CreatePage)
+    case eraseProfileData(EraseProfileData)
+    case eraseSiteData(EraseSiteData)
     case loadPage(LoadPage)
     case recoverPage(RecoverPage)
     case removeEngineDownload(RemoveEngineDownload)
@@ -387,11 +395,9 @@ enum EnginePresentation: Equatable, Sendable {
     case pageViewReady(PageViewReady)
     case pageViewUnavailable(PageViewUnavailable)
     case popupBlocked(PopupBlocked)
-    case profileDeleted(ProfileDeleted)
     case profilePrepared(ProfilePrepared)
     case profileReleased(ProfileReleased)
     case sidePanelRequested(SidePanelRequested)
-    case siteDataCleared(SiteDataCleared)
     case stagedLinkUnavailable(StagedLinkUnavailable)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
@@ -408,6 +414,7 @@ extension CoreState {
         case .cloudMergeBegan(let change): apply(change)
         case .cloudSyncAdvanced(let change): apply(change)
         case .cloudTransportChanged(let change): apply(change)
+        case .dataDeleted(let change): apply(change)
         case .downloadApprovalAsked(let change): apply(change)
         case .downloadDestinationAsked(let change): apply(change)
         case .downloadUpdated(let change): apply(change)
@@ -1039,13 +1046,6 @@ struct ClearHistory: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID?
 }
 
-struct ClearSiteData: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let pageID: UUID
-    let clearanceID: UUID
-}
-
 struct CloseInspector: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -1531,6 +1531,16 @@ struct CustomizeSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
     let customization: SpaceCustomization
 }
 
+struct DataDeleted: Equatable, Sendable {
+    let requestID: UUID
+    let deleted: Bool
+}
+
+struct DataErased: EngineEvent, Equatable, Sendable {
+    let erasureID: UUID
+    let erased: Bool
+}
+
 struct DataRetentionPreferences: Equatable, Sendable {
     let history: DataRetention
     let archive: DataRetention
@@ -1555,12 +1565,17 @@ struct DeleteFolder: Intent, SessionIntent, Equatable, Sendable {
     let folderID: UUID
 }
 
-struct DeleteProfile: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
+struct DeleteProfileData: Intent, DataDeletionIntent, Equatable, Sendable {
+    let requestID: UUID
     let profileID: UUID
     let ephemeral: Bool
-    let deletionID: UUID
+}
+
+struct DeleteSiteData: Intent, DataDeletionIntent, Equatable, Sendable {
+    let requestID: UUID
+    let profileID: UUID
+    let ephemeral: Bool
+    let host: String
 }
 
 struct DeleteTab: Intent, SessionIntent, Equatable, Sendable {
@@ -1932,6 +1947,19 @@ struct EnterPictureInPicture: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct EraseProfileData: Equatable, Sendable {
+    let profileID: UUID
+    let ephemeral: Bool
+    let erasureID: UUID
+}
+
+struct EraseSiteData: Equatable, Sendable {
+    let profileID: UUID
+    let ephemeral: Bool
+    let host: String
+    let erasureID: UUID
+}
+
 struct EvaluateContentScript: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -2097,7 +2125,7 @@ struct FileUnreadable: Equatable, Sendable {
 
 struct FindFinished: Equatable, Sendable {
     let pageID: UUID
-    let matches: Int
+    let matches: Int?
     let activeMatch: Int
 }
 
@@ -2559,6 +2587,9 @@ struct InvalidSession: Equatable, Sendable {
 
 struct InvalidShortcut: Equatable, Sendable {
     let keys: KeyCombination
+}
+
+struct InvalidSiteHost: Equatable, Sendable {
 }
 
 struct InvalidSiteOrigin: Equatable, Sendable {
@@ -3706,11 +3737,6 @@ struct PrivateWorkspaceBoundary: Equatable, Sendable {
     let destinationWorkspaceID: UUID
 }
 
-struct ProfileDeleted: Equatable, Sendable {
-    let deletionID: UUID
-    let deleted: Bool
-}
-
 struct ProfileInUse: Equatable, Sendable {
     let profileID: UUID
 
@@ -4573,12 +4599,6 @@ struct SidebarRow: Equatable, Sendable, Identifiable {
     let members: [UUID]
 }
 
-struct SiteDataCleared: Equatable, Sendable {
-    let pageID: UUID
-    let clearanceID: UUID
-    let cleared: Bool
-}
-
 struct SiteDecision: Query, Equatable, Sendable {
     typealias Answer = SitePermissionAnswer
 
@@ -4716,6 +4736,10 @@ struct SpaceCustomization: Equatable, Sendable {
     let symbol: String
     let accent: SpaceAccent
     let branding: SpaceBranding
+}
+
+struct SpaceDataNotErased: Equatable, Sendable {
+    let spaceID: UUID
 }
 
 struct SpaceDeletionState: Equatable, Sendable, Identifiable {

@@ -46,7 +46,7 @@ extension BrowserPage: WKNavigationDelegate {
         // return to history keeps the entries the person may go forward to.
         navigationHistory.documentDidCommit(in: webView.backForwardList)
         refreshNavigationState()
-        webKitAdapter?.enginePage.resetAutomaticDownloads()
+        webKitAdapter?.webKitPage.resetAutomaticDownloads()
         Task { [weak self] in
             guard let self, let passkeyAccess = self.passkeyAccess,
                 self.webKitView?.url?.scheme == "https",
@@ -256,7 +256,7 @@ extension BrowserPage: WKNavigationDelegate {
         _ download: WKDownload, in webView: WKWebView, isUserInitiated: Bool,
         feedbackSource: BrowserDownloadFeedbackSource? = nil
     ) {
-        guard let enginePage = webKitAdapter?.enginePage else {
+        guard let webKitPage = webKitAdapter?.webKitPage else {
             download.cancel { _ in }
             return
         }
@@ -267,7 +267,7 @@ extension BrowserPage: WKNavigationDelegate {
                     filename: download.originalRequest?.url?.lastPathComponent.nilIfEmpty ?? "download",
                     source: source))
         }
-        enginePage.startDownload(download, isUserInitiated: isUserInitiated)
+        webKitPage.startDownload(download, isUserInitiated: isUserInitiated)
     }
 
     func discardDownloadOnlySurfaceIfNeeded() {
@@ -315,7 +315,7 @@ extension BrowserPage: WKNavigationDelegate {
             }
             return
         }
-        answerSignIn(challenge, from: webKitAdapter?.enginePage, completionHandler: completionHandler)
+        answerSignIn(challenge, from: webKitAdapter?.webKitPage, completionHandler: completionHandler)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {

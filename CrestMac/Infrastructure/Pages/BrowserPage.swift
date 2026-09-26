@@ -22,6 +22,9 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// goes through it or through `pageEngine`.
     @ObservationIgnored let engineAdapter: any BrowserPageEngineAdapter
     @ObservationIgnored let pageEngine: any BrowserPageEngine
+    /// The page's direct path to its engine: going back, reloading, zooming,
+    /// finding text and keeping its history.
+    var enginePage: EnginePage { engineAdapter.enginePage }
     var pictureInPicture: (any BrowserPagePictureInPictureController)? { engineAdapter.pictureInPicture }
     var linkHover: BrowserLinkHoverController? { engineAdapter.linkHover }
     var linkDrag: BrowserLinkDragController? { engineAdapter.linkDrag }
@@ -138,7 +141,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     // Session-only presentation state belongs to the live page, including in splits.
     private var developerToolbarVisibilityOverride: Bool?
     var developerViewport: BrowserDeveloperViewport? {
-        didSet { pageEngine.setZoom(renderedPageZoom) }
+        didSet { enginePage.zoom(to: renderedPageZoom) }
     }
 
     var renderedPageZoom: CGFloat { developerViewport == nil ? pageZoom : 1 }
@@ -296,7 +299,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         sitePermissionSession.siteDecisionDidChange = { [weak self] in self?.sitePermissionDidChange($0) }
         // The Space's default zoom; an engine that creates its page later
         // replays it then.
-        pageEngine.setZoom(pageZoom)
+        enginePage.zoom(to: pageZoom)
         engineAdapter.attach(to: self, allowsCredentialAccess: allowsCredentialAccess)
         if let mediaSessionStore {
             mediaSessionCoordinator =
@@ -369,7 +372,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// an empty renderer cannot overwrite a useful archive.
     var interactionState: Data? {
         guard pageEngine.registration.supports(.interactionState) else { return nil }
-        return pageEngine.interactionState
+        return enginePage.savedHistory()
     }
 
     /// Lets the adapter restore its own history instead of starting `url` afresh.
@@ -384,7 +387,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         else { return false }
         appInitiatedURL = url
         prepareForNavigation(to: url)
-        guard pageEngine.restoreInteractionState(state, expecting: url) else {
+        guard enginePage.restoreHistory(state, expecting: url) else {
             engineAdapter.reporter?.interrupted()
             return false
         }
@@ -464,7 +467,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         userActivityHandler = nil
         linkContextCapture.clear()
         sitePermissionSession.resetMediaGrants()
-        webKitAdapter?.enginePage.resetAutomaticDownloads()
+        webKitAdapter?.webKitPage.resetAutomaticDownloads()
         engineAdapter.detach(from: self)
         mediaSessionCoordinator = nil
     }
@@ -472,7 +475,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// Tries again to show a page its engine couldn't create.
     func retryAfterProcessFailure() {
         webContentFailureMessage = nil
-        pageEngine.reload(bypassingCache: false)
+        enginePage.reload(bypassingCache: false)
     }
 
     // MARK: - Actions - Find and developer tools
@@ -582,7 +585,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     }
 
     private var findExecutor: any BrowserFindExecuting {
-        pageEngine
+        enginePage
     }
 
     func dismissFind() {
@@ -936,7 +939,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             return false
         }
         pageZoom = zoom
-        pageEngine.setZoom(renderedPageZoom)
+        enginePage.zoom(to: renderedPageZoom)
         return true
     }
 

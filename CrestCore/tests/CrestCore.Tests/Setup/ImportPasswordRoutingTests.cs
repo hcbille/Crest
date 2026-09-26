@@ -40,6 +40,7 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal([locked.Id], Routes().Routes[2].SpaceIds);
         var deleting = Guid.NewGuid();
         device.Send(new BeginDeletingSpace(device.Workspace, window, open.Id, deleting));
+        device.Send(new DeleteProfileData(Guid.NewGuid(), open.ProfileId, Ephemeral: false));
         device.Send(new FinishDeletingSpace(device.Workspace, window, open.Id, deleting));
         Assert.Equal([[], [], [locked.Id], [], []], Routes().Routes.Select(route => route.SpaceIds));
 

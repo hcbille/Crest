@@ -76,25 +76,19 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
         return true
     }
 
-    var interactionState: Data? {
-        guard webView.backForwardList.currentItem != nil,
-            let state = webView.interactionState as? Data
-        else { return nil }
-        return BrowserEngineInteractionState(
-            engine: .webKit,
-            version: BrowserTabStateEnvelope.currentOSBuild, payload: state
-        ).encoded()
+    /// WebKit's own history of the page, once a document committed; a web
+    /// view that never loaded has nothing worth keeping.
+    func savedHistory() -> Data? {
+        guard webView.backForwardList.currentItem != nil else { return nil }
+        return webView.interactionState as? Data
     }
 
-    func restoreInteractionState(_ state: Data, expecting url: URL) -> Bool {
+    /// Restores history `savedHistory()` kept; false when WebKit dropped it,
+    /// which leaves the web view with no current entry.
+    func restoreHistory(_ state: Data) -> Bool {
         // Supplements describe the list being replaced.
         history = BrowserPageNavigationHistory()
-        guard
-            let payload = BrowserEngineInteractionState.payload(
-                state, engine: .webKit,
-                version: BrowserTabStateEnvelope.currentOSBuild)
-        else { return false }
-        webView.interactionState = payload
+        webView.interactionState = state
         return webView.backForwardList.currentItem != nil
     }
 
@@ -123,11 +117,6 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
 
     func evaluateInMainFrame(_ body: String) async -> Any? {
         try? await webView.callAsyncJavaScript(body, arguments: [:], contentWorld: .defaultClient)
-    }
-
-    func clearSiteData(for url: URL) async -> Bool {
-        await BrowserWebsiteDataStore.clearSiteData(for: url, in: webView.configuration.websiteDataStore)
-        return true
     }
 
     var backHistory: [BrowserNavigationHistoryItem] {
@@ -169,14 +158,6 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
     }
     func reload(bypassingCache: Bool) {
         if bypassingCache { webView.reloadFromOrigin() } else { webView.reload() }
-    }
-    func stop() { webView.stopLoading() }
-    func setZoom(_ zoom: CGFloat) { webView.pageZoom = zoom }
-    func performFind(
-        _ query: String, configuration: BrowserFindConfiguration,
-        completion: @escaping @MainActor (BrowserFindResult) -> Void
-    ) {
-        webView.performFind(query, configuration: configuration, completion: completion)
     }
     private static func item(_ item: WKBackForwardListItem, depth: Int) -> BrowserNavigationHistoryItem {
         let title = item.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

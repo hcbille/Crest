@@ -228,7 +228,7 @@ final class Engines {
         case .createPage(let creation): hosts[creation.pageID] = kind
         case .loadPage, .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission,
             .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
-            .approveEngineDownload, .checkBeforeUnload:
+            .approveEngineDownload, .checkBeforeUnload, .eraseProfileData, .eraseSiteData:
             break
         case .closePage(let closing): forget(closing.pageID)
         }

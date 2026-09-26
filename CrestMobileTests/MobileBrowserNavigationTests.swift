@@ -1336,10 +1336,10 @@ final class MobileBrowserNavigationTests: XCTestCase {
         let permissionCenter = BrowserSitePermissionCenter()
         let remover = RecordingMobileWebsiteDataStoreRemover()
         let pages = MobileBrowserPageStore(
-            browser: .hostingPages(BrowserSession(spaces: [deletedSpace, retainedSpace])),
+            browser: .hostingPages(
+                BrowserSession(spaces: [deletedSpace, retainedSpace]), core: .hostingPages(profileStores: remover)),
             usesEphemeralWebsiteDataStores: false,
-            permissionCenter: permissionCenter,
-            profileRemover: remover
+            permissionCenter: permissionCenter
         )
         let origin = SiteOrigin(
             scheme: "https",
@@ -1394,17 +1394,16 @@ final class MobileBrowserNavigationTests: XCTestCase {
         let space = makeSpace(index: 35)
         let tabID = try XCTUnwrap(space.tabs.first?.id)
         let remover = RecordingMobileWebsiteDataStoreRemover()
-        let primaryBrowser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let primaryBrowser = BrowserStore.hostingPages(
+            BrowserSession(spaces: [space]), core: .hostingPages(profileStores: remover))
         let primaryPages = MobileBrowserPageStore(
             browser: primaryBrowser,
-            usesEphemeralWebsiteDataStores: false,
-            profileRemover: remover
+            usesEphemeralWebsiteDataStores: false
         )
         // Another window of the same workspace, which keeps pages of its own.
         let secondaryPages = MobileBrowserPageStore(
             browser: primaryBrowser.makeWindowStore(),
-            usesEphemeralWebsiteDataStores: true,
-            profileRemover: remover
+            usesEphemeralWebsiteDataStores: true
         )
         let registry = MobileBrowserPageStoreRegistry(primary: primaryPages)
         registry.register(secondaryPages)
@@ -1433,11 +1432,11 @@ final class MobileBrowserNavigationTests: XCTestCase {
         let deletedSpace = makeSpace(index: 33)
         let retainedSpace = makeSpace(index: 34)
         let remover = SuspendingMobileWebsiteDataStoreRemover()
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [deletedSpace, retainedSpace]))
+        let browser = BrowserStore.hostingPages(
+            BrowserSession(spaces: [deletedSpace, retainedSpace]), core: .hostingPages(profileStores: remover))
         let pages = MobileBrowserPageStore(
             browser: browser,
-            usesEphemeralWebsiteDataStores: false,
-            profileRemover: remover
+            usesEphemeralWebsiteDataStores: false
         )
         let deletedSession = presented(browser.session, showing: deletedSpace.id)
         pages.select(session: deletedSession)
@@ -1995,7 +1994,7 @@ final class MobileBrowserNavigationTests: XCTestCase {
             browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
                     corePage: opened.core,
-                    enginePage: opened.webKit,
+                    webKitPage: opened.webKit,
                     tab: tab,
                     space: space,
                     loadsInitialURL: loadsInitialURL,

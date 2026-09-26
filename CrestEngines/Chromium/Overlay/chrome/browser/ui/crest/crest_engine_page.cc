@@ -997,7 +997,7 @@ bool EnginePage::Find(const std::string& query, bool backwards, bool case_sensit
   if (query.empty()) {
     find_pending_ = false;
     find_helper_->StopFinding(find_in_page::SelectionAction::kClear);
-    Present(engine::FindFinished{.page_id = id_});
+    Present(engine::FindFinished{.page_id = id_, .matches = 0});
     return true;
   }
   find_pending_ = true;
@@ -1208,26 +1208,6 @@ engine::CertificateChain EnginePage::CertificateChain() const {
     append(intermediate.get());
   }
   return chain;
-}
-
-bool EnginePage::ClearSiteData(const engine::Guid& clearance_id) {
-  if (!web_contents()) {
-    return false;
-  }
-  const GURL url = web_contents()->GetLastCommittedURL();
-  if (!url.SchemeIsHTTPOrHTTPS()) {
-    return false;
-  }
-  crest::ClearSiteData(Profile::FromBrowserContext(web_contents()->GetBrowserContext()), url,
-                       base::BindOnce(
-                           [](base::WeakPtr<EnginePage> page, engine::Guid clearance, bool cleared) {
-                             if (page) {
-                               page->Present(engine::SiteDataCleared{
-                                   .page_id = page->id(), .clearance_id = clearance, .cleared = cleared});
-                             }
-                           },
-                           weak_factory_.GetWeakPtr(), clearance_id));
-  return true;
 }
 
 // The content settings the engine enforces for Crest's record: allowed,

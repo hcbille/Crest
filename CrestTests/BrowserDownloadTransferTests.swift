@@ -167,7 +167,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
             browser.openWebKitPage(
                 in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
         let page = BrowserPage(
-            corePage: opened.core, enginePage: opened.webKit, dialogPresenter: BrowserDialogPresenter(),
+            corePage: opened.core, webKitPage: opened.webKit, dialogPresenter: BrowserDialogPresenter(),
             downloadCenter: BrowserDownloadCenter(core: browser.core), permissionCenter: permissions,
             spaceID: space.id, profileID: space.profile.id, spaceName: space.name, openNewTab: { _ in })
         defer {

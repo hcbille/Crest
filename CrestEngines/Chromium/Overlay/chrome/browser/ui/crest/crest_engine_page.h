@@ -173,7 +173,6 @@ class EnginePage final : public content::WebContentsObserver,
   bool Inspected() const;
   engine::InspectorLayout LayoutInspector(double width, double height) const;
   engine::CertificateChain CertificateChain() const;
-  bool ClearSiteData(const engine::Guid& clearance_id);
   bool SetSitePermission(engine::SitePermission permission, std::optional<bool> allowed);
   // How often the same server and realm asked in this document before now.
   int AuthenticationAttempt(const std::string& challenge);

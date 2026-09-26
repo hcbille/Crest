@@ -104,6 +104,9 @@ public sealed partial class BrowserContractsTests {
         var resumed = relaunched.Current;
         again.Send(new BeginDeletingSpace(again.Workspace, shown, first, operation));
         Assert.Same(resumed, relaunched.Current);
+        // The relaunch erases the profile's data again before the deletion finishes.
+        again.Send(new DeleteProfileData(Guid.NewGuid(),
+            relaunched.Current.Spaces.First(space => space.Id == first).ProfileId, Ephemeral: false));
         Assert.Equal(new WrongDeletionOperation(first), Assert.Throws<Rejected>(() =>
             again.Send(new FinishDeletingSpace(again.Workspace, shown, first, Guid.NewGuid()))).Rejection);
 

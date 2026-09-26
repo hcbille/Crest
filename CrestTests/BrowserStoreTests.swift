@@ -659,7 +659,7 @@ final class BrowserStoreTests: XCTestCase {
         )
         try await vault.save(deletedCredential, in: deletedSpace.id)
         try await vault.save(retainedCredential, in: retainedSpace.id)
-        let deleter = RecordingSpaceDataDeleter()
+        let deleter = RecordingSpaceDataDeleter(core: store.core)
 
         try await store.deleteSpace(deletedSpace.id, dataDeleter: deleter)
         await store.flushPendingSyncPersistence()
@@ -697,7 +697,7 @@ final class BrowserStoreTests: XCTestCase {
             username: "still-private"
         )
         try await vault.save(credential, in: deletedSpace.id)
-        let deleter = RecordingSpaceDataDeleter(error: TestSpaceDeletionError.failed)
+        let deleter = RecordingSpaceDataDeleter(core: store.core, error: TestSpaceDeletionError.failed)
 
         await assertThrowsErrorAsync {
             try await store.deleteSpace(
@@ -725,7 +725,7 @@ final class BrowserStoreTests: XCTestCase {
         let store = BrowserStore(
             seed: session
         )
-        let deleter = RecordingSpaceDataDeleter()
+        let deleter = RecordingSpaceDataDeleter(core: store.core)
 
         await assertThrowsErrorAsync(
             expected: Rejection.cannotDeleteLastSpace(CannotDeleteLastSpace())
@@ -755,7 +755,7 @@ final class BrowserStoreTests: XCTestCase {
             store.session.space(id: sourceSpaceID)?.tabs.count
         )
         let destinationTabCount = destination.tabs.count
-        let deleter = SuspendingBrowserSpaceDataDeleter()
+        let deleter = SuspendingBrowserSpaceDataDeleter(core: store.core)
         let deletion = Task {
             try await store.deleteSpace(
                 destination.id,
@@ -801,7 +801,7 @@ final class BrowserStoreTests: XCTestCase {
         )
         let sourceTabIDs = source.tabs.map(\.id)
         let destinationTabIDs = destination.tabs.map(\.id)
-        let deleter = SuspendingBrowserSpaceDataDeleter()
+        let deleter = SuspendingBrowserSpaceDataDeleter(core: store.core)
         let deletion = Task {
             try await store.deleteSpace(
                 destination.id,
@@ -1167,9 +1167,11 @@ final class BrowserStoreTests: XCTestCase {
 @MainActor
 private final class RecordingSpaceDataDeleter: BrowserSpaceDataDeleting {
     private(set) var deletedSpaces: [BrowserSpace] = []
+    private let core: CrestCore
     private let error: Error?
 
-    init(error: Error? = nil) {
+    init(core: CrestCore, error: Error? = nil) {
+        self.core = core
         self.error = error
     }
 
@@ -1178,6 +1180,7 @@ private final class RecordingSpaceDataDeleter: BrowserSpaceDataDeleting {
         if let error {
             throw error
         }
+        try await core.eraseProfile(of: space)
     }
 }
 

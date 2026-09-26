@@ -63,7 +63,7 @@ extension MobileBrowserPage: WKNavigationDelegate {
         // return to history keeps the entries the person may go forward to.
         navigationHistory.documentDidCommit(in: webView.backForwardList)
         refreshNavigationState()
-        enginePage.resetAutomaticDownloads()
+        webKitPage.resetAutomaticDownloads()
     }
 
     func webView(
@@ -219,7 +219,7 @@ extension MobileBrowserPage: WKNavigationDelegate {
                     filename: download.originalRequest?.url?.lastPathComponent.nilIfEmpty ?? "download",
                     source: feedbackSource))
         }
-        enginePage.startDownload(
+        webKitPage.startDownload(
             download,
             isUserInitiated: BrowserDownloadInitiationPolicy.userInitiatedOverride(
                 hasTrustedSource: feedbackSource != nil) ?? false)
@@ -262,7 +262,7 @@ extension MobileBrowserPage: WKNavigationDelegate {
             }
             return
         }
-        answerSignIn(challenge, from: enginePage, completionHandler: completionHandler)
+        answerSignIn(challenge, from: webKitPage, completionHandler: completionHandler)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {

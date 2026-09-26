@@ -161,7 +161,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         self.host = host
         let chromium = ChromiumEngine(host: host, table: binding, fingerprint: fingerprint, pages: pages)
         self.chromium = chromium
-        application = try BrowserMacApplication(profileRemover: ChromiumProfileRemover(engine: chromium),
+        application = try BrowserMacApplication(
             defaultEngine: chromium,
             // Site Controls is where a keyboard-triggered extension popup opens
             // when the extension has no pinned tile to anchor to.

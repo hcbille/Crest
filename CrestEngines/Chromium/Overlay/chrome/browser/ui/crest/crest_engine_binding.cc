@@ -181,6 +181,10 @@ void EngineBinding::Perform(engine::EngineCommand command) {
     Downloads().Remove(*removal);
   } else if (const auto* approval = std::get_if<engine::ApproveEngineDownload>(&command)) {
     Downloads().Approve(*approval);
+  } else if (const auto* erasing = std::get_if<engine::EraseProfileData>(&command)) {
+    Erase(*erasing);
+  } else if (const auto* clearing = std::get_if<engine::EraseSiteData>(&command)) {
+    Erase(*clearing);
   }
 }
 
@@ -718,11 +722,6 @@ engine::CertificateChain EngineBinding::Handle(const engine::PageCertificates& r
   return page ? page->CertificateChain() : engine::CertificateChain{};
 }
 
-bool EngineBinding::Handle(const engine::ClearSiteData& request) {
-  EnginePage* page = Find(GuidText(request.page_id));
-  return page && !disposing_ && page->ClearSiteData(request.clearance_id);
-}
-
 bool EngineBinding::Handle(const engine::SetSitePermission& request) {
   EnginePage* page = Find(GuidText(request.page_id));
   return page && page->SetSitePermission(request.permission, request.allowed);
@@ -750,15 +749,14 @@ bool EngineBinding::Handle(const engine::PrepareProfile& request) {
   return true;
 }
 
-// Its pages, Browsers and extensions go at once; its data after.
-bool EngineBinding::Handle(const engine::DeleteProfile& request) {
-  if (disposing_) {
-    return false;
-  }
-  const std::string id = GuidText(request.profile_id);
-  const auto released = Profiles().BeginDeletion(id, request.ephemeral);
+// Its pages, Browsers and extensions go at once; its data after, loaded
+// from disk when nothing had loaded it.
+void EngineBinding::Erase(const engine::EraseProfileData& erasing) {
+  const std::string id = GuidText(erasing.profile_id);
+  const auto released = Profiles().BeginDeletion(id, erasing.ephemeral);
   if (!released) {
-    return false;
+    Report(engine::DataErased{.erasure_id = erasing.erasure_id, .erased = false});
+    return;
   }
   if (shell_) {
     shell_->ReleaseProfiles(*released);
@@ -767,16 +765,47 @@ bool EngineBinding::Handle(const engine::DeleteProfile& request) {
     Extensions().Forget(profile);
     Profiles().Release(profile);
   }
-  Present(engine::ProfileReleased{.profile_id = request.profile_id});
-  Profiles().Delete(id, request.ephemeral,
+  Present(engine::ProfileReleased{.profile_id = erasing.profile_id});
+  Profiles().Delete(id, erasing.ephemeral,
                     base::BindOnce(
-                        [](base::WeakPtr<EngineBinding> binding, engine::Guid deletion, bool deleted) {
+                        [](base::WeakPtr<EngineBinding> binding, engine::Guid erasure, bool erased) {
                           if (binding) {
-                            binding->Present(engine::ProfileDeleted{.deletion_id = deletion, .deleted = deleted});
+                            binding->Report(engine::DataErased{.erasure_id = erasure, .erased = erased});
                           }
                         },
-                        weak_factory_.GetWeakPtr(), request.deletion_id));
-  return true;
+                        weak_factory_.GetWeakPtr(), erasing.erasure_id));
+}
+
+// A private profile keeps a site's data only while it is open; a regular one
+// on disk is loaded to clear it, and one never created has nothing to clear.
+void EngineBinding::Erase(const engine::EraseSiteData& erasing) {
+  const std::string id = GuidText(erasing.profile_id);
+  auto done = base::BindOnce(
+      [](base::WeakPtr<EngineBinding> binding, engine::Guid erasure, bool erased) {
+        if (binding) {
+          binding->Report(engine::DataErased{.erasure_id = erasure, .erased = erased});
+        }
+      },
+      weak_factory_.GetWeakPtr(), erasing.erasure_id);
+  const GURL site("https://" + erasing.host + "/");
+  if (Profile* loaded = Profiles().Find(id)) {
+    crest::ClearSiteData(loaded, site, std::move(done));
+    return;
+  }
+  if (erasing.ephemeral || !Profiles().HasStore(id)) {
+    std::move(done).Run(true);
+    return;
+  }
+  Profiles().Load(id, /*is_private=*/false, id,
+                  base::BindOnce(
+                      [](GURL site, base::OnceCallback<void(bool)> done, Profile* profile) {
+                        if (!profile) {
+                          std::move(done).Run(false);
+                          return;
+                        }
+                        crest::ClearSiteData(profile, site, std::move(done));
+                      },
+                      site, std::move(done)));
 }
 
 bool EngineBinding::Handle(const engine::AdoptOfferedPage& request) {

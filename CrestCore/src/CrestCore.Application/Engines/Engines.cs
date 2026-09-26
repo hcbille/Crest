@@ -10,6 +10,9 @@ internal sealed class Engines {
 
     private readonly Dictionary<EngineKind, Engine> registered = [];
 
+    /// Every registered engine, whether or not it has started.
+    public IReadOnlyCollection<Engine> All => registered.Values;
+
     /// The engine new pages open on, or null while none is registered.
     public Engine? Default => registered.Values.FirstOrDefault(engine => engine.IsDefault);
 

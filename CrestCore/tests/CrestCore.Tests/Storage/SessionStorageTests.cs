@@ -187,6 +187,7 @@ public sealed unsafe partial class BrowserContractsTests {
         app.Send(new BeginDeletingSpace(workspace, Guid.NewGuid(), deleting, operation));
         // The deletion is on disk before the platform erases the profile's data.
         Assert.NotNull(JsonNode.Parse(StoredParts(directory.File)["core"])!["spaceDeletions"]);
+        app.Send(new DeleteProfileData(Guid.NewGuid(), Guid.Parse(second["profile"]!["id"]!.GetValue<string>()), Ephemeral: false));
         var staged = sync.Snapshot;
         var before = StoredParts(directory.File);
 

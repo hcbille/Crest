@@ -2861,6 +2861,10 @@
     "2026-09-26-sidebar-lift-speed": {
       "category": "improved",
       "message": "Picking up tabs, folders and multi-selections in the sidebar responds faster, especially with many tabs"
+    },
+    "2026-09-26-space-deletion-erases-every-engine": {
+      "category": "improved",
+      "message": "Deleting a Space erases its website data in every browser engine Crest runs, including one that never opened a page for it"
     }
   }
 }

@@ -11,7 +11,7 @@ typealias BrowserEngineView = UIView
 /// The native page port used by the existing UI. The engine owns rendering and
 /// navigation; portable session commands never receive a platform view.
 @MainActor
-protocol BrowserPageEngine: BrowserFindExecuting {
+protocol BrowserPageEngine: AnyObject {
     var registration: BrowserAdapterRegistration { get }
     var nativeView: BrowserEngineView { get }
     var backHistory: [BrowserNavigationHistoryItem] { get }
@@ -32,11 +32,6 @@ protocol BrowserPageEngine: BrowserFindExecuting {
     /// One-shot, engine-owned request metadata for a newly created native page.
     /// Tokens never enter the core session, persistence or sync.
     func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool
-    func navigateHistory(by offset: Int)
-    func reload(bypassingCache: Bool)
-    func stop()
-    var interactionState: Data? { get }
-    func restoreInteractionState(_ state: Data, expecting url: URL) -> Bool
     /// What media the page runs now, or nil when the engine cannot tell.
     func mediaActivity() async -> PageMediaActivity?
     /// Content bridges run by the engine itself, or nil when the page installs
@@ -59,10 +54,6 @@ protocol BrowserPageEngine: BrowserFindExecuting {
     func showBlockedPopups() -> Bool
     /// Asks an engine that owns its favicon pipeline to fetch the icon again.
     func refreshFavicon()
-    /// Removes the site's cookies, storage and cache. `url` names the site the
-    /// page is showing, which an engine that tracks its own site may ignore;
-    /// false when nothing was cleared.
-    func clearSiteData(for url: URL) async -> Bool
     /// Answers a bar the engine raised for the page; false when there is no
     /// such bar.
     func respondToInfoBar(_ id: Int, response: String) -> Bool
@@ -83,28 +74,24 @@ protocol BrowserPageEngine: BrowserFindExecuting {
     func transferOwnership(to windowID: BrowserWindowID) -> Bool
     func capture(rect: CGRect?, width: CGFloat?, completion: @escaping @MainActor (NSImage?) -> Void)
     #endif
-    func setZoom(_ zoom: CGFloat)
 }
 
 extension BrowserPageEngine {
     var reportsNavigationState: Bool { false }
     @discardableResult func synchronizeHistory() -> URL? { nil }
     func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool { false }
-    var interactionState: Data? { nil }
     var contentScripting: (any BrowserPageContentScripting)? { nil }
     func applyAutomaticPopups(_ allowed: Bool) -> Bool { false }
     func applySitePermission(_ permission: SitePermission, allowed: Bool?) -> Bool { false }
     func stopMediaCapture(_ media: SitePermission) {}
     func showBlockedPopups() -> Bool { false }
     func refreshFavicon() {}
-    func clearSiteData(for url: URL) async -> Bool { false }
     func respondToInfoBar(_ id: Int, response: String) -> Bool { false }
     var serverTrust: SecTrust? { nil }
     var mediaSessionTransport: (any BrowserMediaSessionTransport)? { nil }
     func evaluateInMainFrame(_ body: String) async -> Any? {
         await contentScripting?.callAsyncJavaScriptInMainFrame(body)
     }
-    func restoreInteractionState(_ state: Data, expecting url: URL) -> Bool { false }
     #if os(macOS)
     var documentServices: (any BrowserPageDocumentServices)? { nil }
     func showInspector() -> Bool { false }

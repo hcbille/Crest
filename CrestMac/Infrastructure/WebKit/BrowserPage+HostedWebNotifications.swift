@@ -191,7 +191,7 @@ extension BrowserPage {
             // The core asks the person and records what they ask it to
             // remember; the system's consent still decides what the page hears.
             let grants =
-                await webKitAdapter?.enginePage.ask(
+                await webKitAdapter?.webKitPage.ask(
                     PermissionQuestion(permission: .notifications, origin: origin, topLevelOrigin: origin)) ?? false
             guard
                 isCurrentHostedNotificationDocument(

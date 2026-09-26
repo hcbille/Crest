@@ -24,7 +24,7 @@ final class MobileBrowserInteropTests: XCTestCase {
             browser.openWebKitPage(in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())).map { opened in
                 MobileBrowserPage(
                     corePage: opened.core,
-                    enginePage: opened.webKit,
+                    webKitPage: opened.webKit,
                     tab: tab,
                     space: space,
                     allowsCredentialAccess: false,
@@ -77,7 +77,7 @@ final class MobileBrowserInteropTests: XCTestCase {
             browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
                     corePage: opened.core,
-                    enginePage: opened.webKit,
+                    webKitPage: opened.webKit,
                     tab: tab,
                     space: space,
                     downloadCenter: downloads.center,
@@ -91,7 +91,7 @@ final class MobileBrowserInteropTests: XCTestCase {
         }
 
         page.webView.startDownload(using: URLRequest(url: sourceURL)) { download in
-            page.enginePage.startDownload(download, isUserInitiated: true)
+            page.webKitPage.startDownload(download, isUserInitiated: true)
         }
 
         let center = downloads.center
@@ -147,7 +147,7 @@ final class MobileBrowserInteropTests: XCTestCase {
         // User initiation bypasses the extra prompt for ordinary installers.
         // An executable disguised as an image still requires confirmation.
         page.webView.startDownload(using: URLRequest(url: sourceURL)) { download in
-            page.enginePage.startDownload(download, isUserInitiated: true)
+            page.webKitPage.startDownload(download, isUserInitiated: true)
         }
 
         try await waitUntil(timeout: 5) {
@@ -210,7 +210,7 @@ final class MobileBrowserInteropTests: XCTestCase {
             browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
                     corePage: opened.core,
-                    enginePage: opened.webKit,
+                    webKitPage: opened.webKit,
                     tab: tab,
                     space: space,
                     downloadCenter: downloads.center,
@@ -220,14 +220,14 @@ final class MobileBrowserInteropTests: XCTestCase {
         )
         // The page's host answers the core's question with the member's sign-in.
         let host = SigningInPromptHost(core: browser.core)
-        page.enginePage.presenter = host
+        page.webKitPage.presenter = host
         defer {
             server.stop()
             try? FileManager.default.removeItem(at: destination)
         }
 
         page.webView.startDownload(using: URLRequest(url: sourceURL)) { download in
-            page.enginePage.startDownload(download, isUserInitiated: true)
+            page.webKitPage.startDownload(download, isUserInitiated: true)
         }
 
         let center = downloads.center
@@ -864,9 +864,9 @@ final class MobileBrowserInteropTests: XCTestCase {
             tabID: survivingTabID
         )
         let pages = MobileBrowserPageStore(
-            browser: .hostingPages(BrowserSession(spaces: [space])),
+            browser: .hostingPages(
+                BrowserSession(spaces: [space]), core: .hostingPages(profileStores: MobileRecordingWebsiteDataStoreRemover())),
             usesEphemeralWebsiteDataStores: false,
-            profileRemover: MobileRecordingWebsiteDataStoreRemover(),
             tabStateArchive: archive
         )
 

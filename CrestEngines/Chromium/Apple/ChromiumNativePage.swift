@@ -46,13 +46,10 @@
         private var opening = false
         private var created = false
         private var disposed = false
-        /// What waits for the engine: the latest find, and each capture and
-        /// export by its identity.
-        private var findCompletion: (@MainActor (BrowserFindResult) -> Void)?
+        /// What waits for the engine: each capture and export by its identity.
         private var captures: [UUID: @MainActor (NSImage?) -> Void] = [:]
         private var exports: [UUID: CheckedContinuation<Data, any Error>] = [:]
         private var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
-        private var clearances: [UUID: CheckedContinuation<Bool, Never>] = [:]
 
         /// A page the core opened, which Chromium's binding creates.
         init(id: UUID, engine: ChromiumEngine) {
@@ -87,6 +84,16 @@
         /// The page's direct path to the binding, while the engine is running.
         private var pages: NativeEnginePages? { disposed ? nil : engine?.pages }
 
+        /// The shared direct path to this page: going back, reloading, zooming,
+        /// finding text and keeping its history, which Chromium restores in
+        /// place of the page's first load.
+        func makeEnginePage() -> EnginePage {
+            guard let engine else { preconditionFailure("A Chromium page came without its engine.") }
+            return EnginePage(
+                id: pageID, pages: engine.pages, historyFamily: .chromium,
+                historyVersion: { [weak self] in self?.host?.engineVersion() })
+        }
+
         var nativeView: NSView { surface }
         func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool {
             guard !isStandalone, !created, !disposed, let host,
@@ -120,24 +127,6 @@
             // Network request opens DevTools wherever it was, so report no panel
             // rather than claiming a selection the engine did not make.
             return .opened(panel == .network ? nil : panel)
-        }
-        var interactionState: Data? {
-            guard created, let host, let state = pages?.request(SaveInteractionState(pageID: pageID)).state else {
-                return nil
-            }
-            return BrowserEngineInteractionState(engine: .chromium, version: host.engineVersion(), payload: state)
-                .encoded()
-        }
-
-        /// The binding restores the history in place of the page's first load,
-        /// once the page exists.
-        func restoreInteractionState(_ state: Data, expecting url: URL) -> Bool {
-            guard !isStandalone, let host, let pages,
-                let payload = BrowserEngineInteractionState.payload(
-                    state, engine: .chromium, version: host.engineVersion())
-            else { return false }
-            return pages.request(
-                RestoreInteractionState(pageID: pageID, state: payload, expectedURL: url.absoluteString))
         }
         private(set) var backHistory: [BrowserNavigationHistoryItem] = []
         private(set) var forwardHistory: [BrowserNavigationHistoryItem] = []
@@ -184,19 +173,6 @@
             guard let url = request.url else { return }
             load(url)
         }
-        func navigateHistory(by offset: Int) {
-            guard created, offset != 0 else { return }
-            pages?.request(GoToHistoryOffset(pageID: pageID, offset: offset))
-        }
-        func reload(bypassingCache: Bool) {
-            guard created else { return }
-            pages?.request(ReloadPage(pageID: pageID, bypassesCache: bypassingCache))
-        }
-        func stop() {
-            guard created else { return }
-            pages?.request(StopLoading(pageID: pageID))
-        }
-
         /// The app's own load of `url`, which the binding runs as it runs the
         /// core's LoadPage. A standalone page opens at it.
         func load(_ url: URL) {
@@ -246,31 +222,6 @@
 
         /// The engine's find wraps at the end of the page, as Crest's find always
         /// does, and counts every match.
-        func performFind(
-            _ query: String, configuration: BrowserFindConfiguration,
-            completion: @escaping @MainActor (BrowserFindResult) -> Void
-        ) {
-            // A new find replaces the one waiting for its count.
-            findCompletion = nil
-            guard created, let pages,
-                pages.request(
-                    FindInPage(
-                        pageID: pageID, query: query, backwards: configuration.backwards,
-                        caseSensitive: configuration.caseSensitive))
-            else {
-                completion(.notFound)
-                return
-            }
-            findCompletion = completion
-        }
-
-        /// The engine counted the page's latest find.
-        func receive(_ finished: FindFinished) {
-            let completion = findCompletion
-            findCompletion = nil
-            completion?(BrowserFindResult(matchCount: Int(finished.matches), activeMatch: Int(finished.activeMatch)))
-        }
-
         // MARK: Content bridges
 
         private var contentScripts: [BrowserContentScript] = []
@@ -343,18 +294,6 @@
         /// Answers the engine's site permission requests from Crest's record and
         /// prompt.
         /// The engine clears the site its page is showing.
-        func clearSiteData(for url: URL) async -> Bool {
-            guard created, let pages else { return false }
-            let clearanceID = UUID()
-            return await withCheckedContinuation { continuation in
-                guard pages.request(ClearSiteData(pageID: pageID, clearanceID: clearanceID)) else {
-                    continuation.resume(returning: false)
-                    return
-                }
-                clearances[clearanceID] = continuation
-            }
-        }
-
         func refreshFavicon() {
             guard created else { return }
             pages?.request(RefreshPageIcon(pageID: pageID))
@@ -467,10 +406,6 @@
         }
 
         /// A page still being created takes the zoom once it exists.
-        func setZoom(_ zoom: CGFloat) {
-            pages?.request(ZoomPage(pageID: pageID, factor: Double(zoom)))
-        }
-
         func detach() {
             guard created else { return }
             pages?.request(HidePage(pageID: pageID))
@@ -485,15 +420,12 @@
             surface.devToolsView = nil
             for subview in surface.subviews { subview.removeFromSuperview() }
             host = nil
-            findCompletion = nil
             for (_, completion) in captures { completion(nil) }
             captures = [:]
             for (_, export) in exports { export.resume(throwing: BrowserPageExportError.pageUnavailable) }
             exports = [:]
             for (_, evaluation) in evaluations { evaluation.resume(returning: nil) }
             evaluations = [:]
-            for (_, clearance) in clearances { clearance.resume(returning: false) }
-            clearances = [:]
         }
 
         private func history(_ entries: [PageHistoryEntry]) -> [BrowserNavigationHistoryItem] {
@@ -562,12 +494,11 @@
                 observer(.progressChanged(1))
             case .inspectorLayoutChanged: refreshDevTools()
             case .inspectorClosed: developerPanelDidClose()
-            case .siteDataCleared(let cleared):
-                clearances.removeValue(forKey: cleared.clearanceID)?.resume(returning: cleared.cleared)
-            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileDeleted, .profileReleased,
-                .pageOffered:
+            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileReleased, .pageOffered:
                 break
-            case .findFinished(let finished): receive(finished)
+            case .findFinished:
+                // The page's shared direct path hears its finds.
+                break
             case .pageCaptured(let captured): receive(captured)
             case .pageExported(let exported): receive(exported)
             }

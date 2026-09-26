@@ -149,8 +149,8 @@ extension BrowserPage: WKUIDelegate {
         _ kind: JavaScriptDialogKind, message: String, defaultText: String?, frame: WKFrameInfo,
         answer: @escaping @MainActor (Bool, String?) -> Void
     ) {
-        guard let enginePage = webKitAdapter?.enginePage else { return answer(false, nil) }
-        enginePage.ask(
+        guard let webKitPage = webKitAdapter?.webKitPage else { return answer(false, nil) }
+        webKitPage.ask(
             ScriptDialogQuestion(
                 kind: kind, message: message, defaultText: defaultText ?? "",
                 sourceURL: frame.request.url?.absoluteString ?? ""),
@@ -201,7 +201,7 @@ extension BrowserPage: WKUIDelegate {
             return
         }
         answerPermission(
-            SitePermission(type), origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitAdapter?.enginePage,
+            SitePermission(type), origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitAdapter?.webKitPage,
             decisionHandler: decisionHandler)
     }
 
@@ -219,7 +219,7 @@ extension BrowserPage: WKUIDelegate {
             return
         }
         answerPermission(
-            .location, origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitAdapter?.enginePage,
+            .location, origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitAdapter?.webKitPage,
             decisionHandler: decisionHandler)
     }
 }

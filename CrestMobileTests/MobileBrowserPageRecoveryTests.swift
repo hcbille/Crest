@@ -66,7 +66,7 @@ final class MobileBrowserPageRecoveryTests: XCTestCase {
             browser.openWebKitPage(in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: WKWebsiteDataStore.nonPersistent())).map { opened in
                 MobileBrowserPage(
                     corePage: opened.core,
-                    enginePage: opened.webKit,
+                    webKitPage: opened.webKit,
                     tab: tab,
                     space: space,
                     openNewTab: { _ in }

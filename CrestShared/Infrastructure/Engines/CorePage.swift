@@ -39,6 +39,16 @@ final class CorePage {
         self.core = core
     }
 
+    // MARK: - Actions - Data
+
+    /// Erases the site at `host` from every engine's store for profile
+    /// `profileID`, the page's, and answers whether each engine erased all of it.
+    func eraseSiteData(host: String, profileID: UUID) async -> Bool {
+        guard let core else { return false }
+        return await core.deleteData(
+            DeleteSiteData(requestID: UUID(), profileID: profileID, ephemeral: false, host: host))
+    }
+
     // MARK: - Actions - Ownership
 
     /// Gives the page to `tabID` in a Space of `workspaceID`, or to a transient

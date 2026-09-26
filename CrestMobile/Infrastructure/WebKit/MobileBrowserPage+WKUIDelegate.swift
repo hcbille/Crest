@@ -176,7 +176,7 @@ extension MobileBrowserPage: WKUIDelegate {
         _ kind: JavaScriptDialogKind, message: String, defaultText: String?, frame: WKFrameInfo,
         answer: @escaping @MainActor (Bool, String?) -> Void
     ) {
-        enginePage.ask(
+        webKitPage.ask(
             ScriptDialogQuestion(
                 kind: kind, message: message, defaultText: defaultText ?? "",
                 sourceURL: frame.request.url?.absoluteString ?? ""),
@@ -202,7 +202,7 @@ extension MobileBrowserPage: WKUIDelegate {
             return
         }
         answerPermission(
-            SitePermission(type), origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: enginePage,
+            SitePermission(type), origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitPage,
             decisionHandler: decisionHandler)
     }
 
@@ -220,7 +220,7 @@ extension MobileBrowserPage: WKUIDelegate {
             return
         }
         answerPermission(
-            .location, origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: enginePage,
+            .location, origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitPage,
             decisionHandler: decisionHandler)
     }
 }

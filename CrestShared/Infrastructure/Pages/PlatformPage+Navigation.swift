@@ -7,12 +7,12 @@ extension BrowserPlatformPage {
             returnFromNavigationFailure()
             return
         }
-        pageEngine.navigateHistory(by: -1)
+        enginePage.goToHistory(offset: -1)
     }
 
     func goForward() {
         refreshNavigationState()
-        pageEngine.navigateHistory(by: 1)
+        enginePage.goToHistory(offset: 1)
     }
 
     var backHistory: [BrowserNavigationHistoryItem] { pageEngine.backHistory }
@@ -21,13 +21,13 @@ extension BrowserPlatformPage {
     func goBack(toDepth depth: Int) {
         guard depth > 0, backHistory.contains(where: { $0.depth == depth }) else { return }
         corePage.leaveFailure()
-        pageEngine.navigateHistory(by: -depth)
+        enginePage.goToHistory(offset: -depth)
     }
 
     func goForward(toDepth depth: Int) {
         guard depth > 0, forwardHistory.contains(where: { $0.depth == depth }) else { return }
         corePage.leaveFailure()
-        pageEngine.navigateHistory(by: depth)
+        enginePage.goToHistory(offset: depth)
     }
 
     /// Intercepted, same-document navigations have no didFinish callback.
@@ -38,28 +38,30 @@ extension BrowserPlatformPage {
         if pageEngine.currentURL == currentEntryURL { navigationReporter?.arrived(at: currentEntryURL) }
     }
 
-    func reload() { pageEngine.reload(bypassingCache: false) }
+    func reload() { enginePage.reload(bypassingCache: false) }
 
     func clearSiteDataAndReload() async {
-        guard let targetURL = live.displayURL ?? pageEngine.currentURL,
-            await pageEngine.clearSiteData(for: targetURL)
+        // Every engine clears the site from the page's profile, not only the
+        // engine that shows it.
+        guard let targetURL = live.displayURL ?? pageEngine.currentURL, let host = targetURL.host(), !host.isEmpty,
+            await corePage.eraseSiteData(host: host, profileID: profileID)
         else { return }
         if pageEngine.currentURL == nil {
             corePage.navigate(to: targetURL.absoluteString)
         } else {
-            pageEngine.reload(bypassingCache: true)
+            enginePage.reload(bypassingCache: true)
         }
     }
 
     func performReload(_ mode: BrowserPageReloadMode) {
         switch BrowserPageReloadPolicy.action(isLoading: live.isLoading, mode: mode) {
-        case .stop: pageEngine.stop()
-        case .reload: pageEngine.reload(bypassingCache: false)
-        case .reloadFromOrigin: pageEngine.reload(bypassingCache: true)
+        case .stop: enginePage.stop()
+        case .reload: enginePage.reload(bypassingCache: false)
+        case .reloadFromOrigin: enginePage.reload(bypassingCache: true)
         }
     }
 
-    func stopLoading() { pageEngine.stop() }
+    func stopLoading() { enginePage.stop() }
 
     func retryAfterNavigationFailure() {
         guard let url = live.displayURL else { return }
@@ -86,7 +88,7 @@ extension BrowserPlatformPage {
         let shouldNavigateBack = failure.replacedDocument && pageEngine.canGoBack
         corePage.leaveFailure()
         if shouldNavigateBack {
-            pageEngine.navigateHistory(by: -1)
+            enginePage.goToHistory(offset: -1)
         }
     }
 

@@ -81,6 +81,8 @@ public sealed partial class CrestApp {
                 engineDownloads.Report(engine, report, changes, Issue, clock.Now);
             } else if (ClosePreparations.Concerns(report)) {
                 closePreparations.Report(engine, report, changes, Issue);
+            } else if (DataDeletions.Concerns(report)) {
+                dataDeletions.Report(engine, report, changes);
             } else {
                 pages.Report(engine, report, changes, Issue);
                 prompts.Prune(changes);

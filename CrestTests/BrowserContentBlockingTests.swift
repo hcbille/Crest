@@ -171,7 +171,7 @@ final class BrowserContentBlockingTests: XCTestCase {
                     opened in
                     BrowserPage(
                         corePage: opened.core,
-                        enginePage: opened.webKit,
+                        webKitPage: opened.webKit,
                         dialogPresenter: BrowserDialogPresenter(),
                         downloadCenter: BrowserDownloadCenter(),
                         permissionCenter: BrowserSitePermissionCenter(),

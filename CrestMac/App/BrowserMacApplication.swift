@@ -51,7 +51,6 @@ final class BrowserMacApplication {
     ///     composition keeps, so each engine's review app has its own. A test
     ///     run the review build hosts keeps nothing, as in every other host.
     init(
-        profileRemover: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
         defaultEngine: (any NativeEngineBinding)? = nil,
         siteControlAnchor: BrowserSiteControlAnchor? = nil,
         reviewPersistenceID: String = "core-native-ui-review"
@@ -181,7 +180,6 @@ final class BrowserMacApplication {
                     replacing: request.replacing
                 )
             },
-            profileRemover: profileRemover,
             tabStateArchive: tabStateArchive,
             popupTabHost: browser.popupTabHost,
             openNewTab: { url in browser.openNewTab(url: url) },
@@ -215,7 +213,6 @@ final class BrowserMacApplication {
             browsingMode: .privateBrowsing,
             permissionCenter: permissionCenter,
             passkeyAccess: passkeyAccess,
-            profileRemover: profileRemover,
             // The private pool answers to the private store, so a popup from a
             // private page can only ever land in a private tab.
             popupTabHost: privateBrowser.popupTabHost,

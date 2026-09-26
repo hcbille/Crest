@@ -29,6 +29,16 @@ final class WebKitEnginePage {
     /// core.
     weak var binding: WebKitEngineBinding?
 
+    /// The platform's direct path to the page: going back, reloading, zooming,
+    /// finding text and keeping its history.
+    func makeEnginePage() -> EnginePage {
+        guard let pages = binding?.enginePages else {
+            preconditionFailure("A WebKit page came without the binding that built it.")
+        }
+        return EnginePage(
+            id: id, pages: pages, historyFamily: .webKit, historyVersion: { BrowserTabStateEnvelope.currentOSBuild })
+    }
+
     // MARK: - Initializers
 
     init(

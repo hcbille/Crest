@@ -9,6 +9,9 @@ import Foundation
 @MainActor
 protocol BrowserPageEngineAdapter: AnyObject {
     var engine: any BrowserPageEngine { get }
+    /// The page's direct path to its engine: going back, reloading, zooming,
+    /// finding text and keeping its history.
+    var enginePage: EnginePage { get }
 
     var linkHover: BrowserLinkHoverController? { get }
     var linkDrag: BrowserLinkDragController? { get }

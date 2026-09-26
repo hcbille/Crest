@@ -211,10 +211,8 @@ class EngineBinding {
   bool Handle(const engine::ChangeExtension& request);
   bool Handle(const engine::HasSidePanel& request);
   engine::CertificateChain Handle(const engine::PageCertificates& request);
-  bool Handle(const engine::ClearSiteData& request);
   bool Handle(const engine::SetSitePermission& request);
   bool Handle(const engine::PrepareProfile& request);
-  bool Handle(const engine::DeleteProfile& request);
   bool Handle(const engine::AdoptOfferedPage& request);
   bool Handle(const engine::RejectOfferedPage& request);
 
@@ -226,6 +224,10 @@ class EngineBinding {
   void Created(const std::string& page, content::WebContents* contents);
   void Live(EnginePage& page, content::WebContents* contents);
   void Close(const engine::ClosePage& closing);
+  // Erases what the engine keeps for a profile the core names, all of it or
+  // one site's, whether or not any page shows it, and reports DataErased.
+  void Erase(const engine::EraseProfileData& erasing);
+  void Erase(const engine::EraseSiteData& erasing);
   void Forget(const std::string& page);
   void ScheduleFlush();
   void Flush();

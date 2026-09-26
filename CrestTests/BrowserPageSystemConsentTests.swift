@@ -18,7 +18,7 @@ final class BrowserPageSystemConsentTests: XCTestCase {
                 fixture.page.systemConsent = consent
                 fixture.page.sitePermissionRequests.setPresentationAvailable(true)
                 let asking = Task {
-                    await fixture.enginePage.ask(
+                    await fixture.webKitPage.ask(
                         PermissionQuestion(permission: permission, origin: origin, topLevelOrigin: origin))
                 }
                 try await waitUntil("the \(permission.name) prompt") {
@@ -43,7 +43,7 @@ final class BrowserPageSystemConsentTests: XCTestCase {
 
     /// The page, the WebKit page it hosts, and the window that opened it
     /// through the core, which lives as long as the page.
-    private typealias Fixture = (page: BrowserPage, enginePage: WebKitEnginePage, browser: BrowserStore)
+    private typealias Fixture = (page: BrowserPage, webKitPage: WebKitEnginePage, browser: BrowserStore)
 
     private func makeFixture() throws -> Fixture {
         let space = try XCTUnwrap(BrowserSession.preview.spaces.first)
@@ -52,7 +52,7 @@ final class BrowserPageSystemConsentTests: XCTestCase {
             browser.openWebKitPage(in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
         let page = BrowserPage(
             corePage: opened.core,
-            enginePage: opened.webKit,
+            webKitPage: opened.webKit,
             dialogPresenter: BrowserDialogPresenter(),
             downloadCenter: BrowserDownloadCenter(),
             // The Space's choices live in the core that hosts the page, as in the app.

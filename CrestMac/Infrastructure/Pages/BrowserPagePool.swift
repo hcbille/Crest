@@ -109,7 +109,6 @@ final class BrowserPagePool:
     @ObservationIgnored private let activateHostedNotificationSource: (SpaceID, TabID) -> Void
     @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
     @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
-    @ObservationIgnored private let profileRemover: any BrowserEngineProfileRemoving
     /// Built-in content blocking, which only the WebKit engine applies.
     @ObservationIgnored let contentBlocking: BrowserContentBlockingController
     @ObservationIgnored private var peekPageLeases:
@@ -145,8 +144,6 @@ final class BrowserPagePool:
             @escaping HTTPAuthenticationCredentialLoader = { _, _ in nil },
         saveHTTPAuthenticationCredential:
             @escaping HTTPAuthenticationCredentialSaver = { _, _ in },
-        profileRemover:
-            any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
         contentRuleListProvider: (any BrowserContentRuleListProviding)? = nil,
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
         popupTabHost: BrowserPopupTabHost = .unavailable,
@@ -185,7 +182,6 @@ final class BrowserPagePool:
         self.popupTabHost = popupTabHost
         self.loadHTTPAuthenticationCredential = loadHTTPAuthenticationCredential
         self.saveHTTPAuthenticationCredential = saveHTTPAuthenticationCredential
-        self.profileRemover = profileRemover
         contentBlocking = BrowserContentBlockingController(provider: contentRuleListProvider)
         self.openNewTab = openNewTab
         self.openModifiedLink = openModifiedLink
@@ -353,7 +349,6 @@ final class BrowserPagePool:
                     username: request.username, password: request.password, protectionSpace: request.protectionSpace,
                     in: spaceID, replacing: request.replacing)
             },
-            profileRemover: profileRemover,
             contentRuleListProvider: contentRuleListProvider,
             popupTabHost: browser.popupTabHost,
             openNewTab: { [weak browser] url in browser?.openNewTab(url: url) },
@@ -752,7 +747,12 @@ final class BrowserPagePool:
         // of its tabs goes with it: nothing may outlive the profile it describes.
         tabState.removeStates(profileID: space.profile.id)
         serverTrustOverrides.removeApprovals(for: space.profile.id)
-        try await profileRemover.removeProfile(space.profile, ephemeral: usesEphemeralWebsiteDataStores)
+        // Every engine erases the profile, started or not; the Space's deletion
+        // finishes only once each has.
+        let erased = await browser.core.deleteData(
+            DeleteProfileData(
+                requestID: UUID(), profileID: space.profile.id, ephemeral: usesEphemeralWebsiteDataStores))
+        guard erased else { throw BrowserSpaceDeletionError.dataNotErased }
         permissionCenter.reset(spaceID: space.id)
     }
 
@@ -1406,8 +1406,8 @@ final class BrowserPagePool:
                 in: space.id, for: tabID, presenting: presentation, webKit: webKit ?? webKitInputs(for: space))
         else { return nil }
         let engine: any BrowserPageEngineAdapter
-        if let enginePage = opened.built as? WebKitEnginePage {
-            engine = BrowserWebKitPageAdapter(page: enginePage)
+        if let webKitPage = opened.built as? WebKitEnginePage {
+            engine = BrowserWebKitPageAdapter(page: webKitPage)
         } else if let adapter = opened.built as? any BrowserPageEngineAdapter {
             engine = adapter
         } else {

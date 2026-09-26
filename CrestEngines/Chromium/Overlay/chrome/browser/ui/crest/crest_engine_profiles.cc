@@ -255,6 +255,15 @@ void EngineProfiles::ReleaseAll() {
   deletion_holds_.clear();
 }
 
+bool EngineProfiles::HasStore(const std::string& id) const {
+  auto* manager = g_browser_process->profile_manager();
+  if (!manager || !IsProfileIdentity(id)) {
+    return false;
+  }
+  const base::FilePath path = ProfilePath(manager, id);
+  return manager->GetProfileAttributesStorage().GetProfileAttributesWithPath(path) || base::PathExists(path);
+}
+
 std::optional<std::set<std::string>> EngineProfiles::BeginDeletion(const std::string& id, bool ephemeral) {
   auto* manager = g_browser_process->profile_manager();
   if (!manager || disposing_ || !IsProfileIdentity(id) || deletions_.contains(id)) {

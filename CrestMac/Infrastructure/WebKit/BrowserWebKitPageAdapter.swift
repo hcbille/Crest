@@ -13,10 +13,11 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
 
     /// What WebKit's binding built for the page, which this adapter keeps
     /// while the page lives.
-    let enginePage: WebKitEnginePage
+    let webKitPage: WebKitEnginePage
     let webKit: BrowserWebKitPageEngine
     let webView: BrowserDesktopWebView
     var engine: any BrowserPageEngine { webKit }
+    let enginePage: EnginePage
 
     /// False when this page shares the opener's `WKUserContentController`, which
     /// every popup does: WebKit copies the opener's configuration and the copy
@@ -82,22 +83,23 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     /// The adapter over the page WebKit's binding built. `contentRuleList` is
     /// a rule list the page applies beside its Space's.
     init(
-        page enginePage: WebKitEnginePage,
+        page webKitPage: WebKitEnginePage,
         contentRuleList: WKContentRuleList? = nil,
         geolocationService: any BrowserGeolocationServicing = BrowserGeolocationSystemService(),
         recoverGeolocationSystemAuthorization: BrowserGeolocationCoordinator.RecoverSystemAuthorization? = nil
     ) {
-        guard let webView = enginePage.webView as? BrowserDesktopWebView else {
+        guard let webView = webKitPage.webView as? BrowserDesktopWebView else {
             preconditionFailure("WebKit's binding built a web view other than the desktop one.")
         }
-        self.enginePage = enginePage
+        self.webKitPage = webKitPage
+        enginePage = webKitPage.makeEnginePage()
         self.webView = webView
-        webKit = enginePage.engine
+        webKit = webKitPage.engine
         contentRuleSession = BrowserPageContentRuleSession(
-            ruleLists: enginePage.contentRuleLists,
+            ruleLists: webKitPage.contentRuleLists,
             additionalRuleList: contentRuleList
         )
-        ownsUserContentController = enginePage.ownsUserContentController
+        ownsUserContentController = webKitPage.ownsUserContentController
         self.geolocationService = geolocationService
         self.recoverGeolocationSystemAuthorization = recoverGeolocationSystemAuthorization
     }
@@ -122,7 +124,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
 
     func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
         self.page = page
-        enginePage.presenter = page
+        webKitPage.presenter = page
         reporter = EnginePageReporter(page: page.corePage) { [weak self] pendingURL in
             self?.snapshot(pendingURL: pendingURL)
                 ?? PageSnapshot(
@@ -165,8 +167,8 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
             permissionCenter: page.permissionCenter,
             service: geolocationService,
             spaceID: page.spaceID,
-            askSite: { [enginePage] origin, topLevelOrigin in
-                await enginePage.ask(
+            askSite: { [webKitPage] origin, topLevelOrigin in
+                await webKitPage.ask(
                     PermissionQuestion(permission: .location, origin: origin, topLevelOrigin: topLevelOrigin))
             },
             recoverSystemAuthorization:

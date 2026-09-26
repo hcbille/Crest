@@ -82,7 +82,6 @@ final class MobileBrowserPageStore:
     @ObservationIgnored private let pageZoomPreferences: BrowserDefaultPageZoomStore
     @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
     @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
-    @ObservationIgnored private let profileRemover: any BrowserEngineProfileRemoving
     @ObservationIgnored private let contentBlocking: BrowserContentBlockingController
     @ObservationIgnored private var memoryPressureSource: (any DispatchSourceMemoryPressure)?
     @ObservationIgnored private var memoryPressureCoalescer = BrowserMemoryPressureCoalescer()
@@ -112,8 +111,6 @@ final class MobileBrowserPageStore:
             @escaping HTTPAuthenticationCredentialLoader = { _, _ in nil },
         saveHTTPAuthenticationCredential:
             @escaping HTTPAuthenticationCredentialSaver = { _, _ in },
-        profileRemover:
-            any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
         contentRuleListProvider: (any BrowserContentRuleListProviding)? = nil,
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
         popupTabHost: BrowserPopupTabHost = .unavailable,
@@ -141,7 +138,6 @@ final class MobileBrowserPageStore:
         self.permissionCenter = permissionCenter
         self.loadHTTPAuthenticationCredential = loadHTTPAuthenticationCredential
         self.saveHTTPAuthenticationCredential = saveHTTPAuthenticationCredential
-        self.profileRemover = profileRemover
         self.linkDestinationHost = linkDestinationHost
         self.openNewTab = openNewTab
         self.openModifiedLink = openModifiedLink
@@ -565,7 +561,12 @@ final class MobileBrowserPageStore:
         // of its tabs goes with it: nothing may outlive the profile it describes.
         tabState.removeStates(profileID: space.profile.id)
         serverTrustOverrides.removeApprovals(for: space.profile.id)
-        try await profileRemover.removeProfile(space.profile, ephemeral: usesEphemeralWebsiteDataStores)
+        // Every engine erases the profile, started or not; the Space's deletion
+        // finishes only once each has.
+        let erased = await browser.core.deleteData(
+            DeleteProfileData(
+                requestID: UUID(), profileID: space.profile.id, ephemeral: usesEphemeralWebsiteDataStores))
+        guard erased else { throw BrowserSpaceDeletionError.dataNotErased }
         permissionCenter.reset(spaceID: space.id)
     }
 
@@ -723,7 +724,7 @@ final class MobileBrowserPageStore:
         return host(
             MobileBrowserPage(
                 corePage: opening.page,
-                enginePage: webKitPage(opening),
+                webKitPage: webKitPage(opening),
                 tab: tab,
                 space: space,
                 downloadCenter: downloadCenter,
@@ -1233,7 +1234,7 @@ final class MobileBrowserPageStore:
         let page = host(
             MobileBrowserPage(
                 corePage: opening.page,
-                enginePage: webKitPage(opening),
+                webKitPage: webKitPage(opening),
                 tab: tab,
                 space: space,
                 downloadCenter: downloadCenter,

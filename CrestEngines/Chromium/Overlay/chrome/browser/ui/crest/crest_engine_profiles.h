@@ -38,6 +38,8 @@ class EngineProfiles final {
   void SetRoot(Profile* root);
 
   Profile* Find(const std::string& id) const;
+  // Whether the regular profile `id` names has anything on disk.
+  bool HasStore(const std::string& id) const;
   // The Crest identity of an engine profile, or an empty string for one Crest
   // does not own.
   std::string IdFor(const content::BrowserContext* context) const;

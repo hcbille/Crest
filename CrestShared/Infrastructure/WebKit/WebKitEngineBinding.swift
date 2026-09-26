@@ -10,6 +10,8 @@ import WebKit
 /// questions a page's document asks go to the core, which the page's host
 /// shows the person, and come back as the core settles them. The files its
 /// pages download run as WebKit's own downloads, which it reports to the core.
+/// It erases what WebKit keeps for a profile when the core asks, whether or
+/// not any page of it opened this run.
 /// TRANSITIONAL until WP C (j1): a page the core unloads hands it no restore
 /// state; its owner archives WebKit's state from the live web view instead.
 @MainActor
@@ -18,6 +20,10 @@ final class WebKitEngineBinding: EngineBinding {
 
     private struct WeakPage {
         weak var value: WebKitEnginePage?
+    }
+
+    private struct WeakStore {
+        weak var value: WKWebsiteDataStore?
     }
 
     /// A question one of this binding's pages raised with the core, until the
@@ -56,8 +62,15 @@ final class WebKitEngineBinding: EngineBinding {
 
     let integration = BrowserEngineRegistration.webKit
     private weak var engines: Engines?
+    /// Removes a profile's stores, which WebKit keeps on disk across runs.
+    private let profileStores: any BrowserEngineProfileRemoving
+    /// The store each profile's pages use, while one holds it, which a site's
+    /// data is cleared from.
+    private var liveStores: [UUID: WeakStore] = [:]
     /// The files this binding's pages download, which the core records.
     private(set) lazy var downloads = WebKitDownloads(binding: self)
+    /// The pages' direct path to the views this binding built.
+    private(set) lazy var enginePages = WebKitEnginePages(binding: self)
     /// The pages this binding built, while their owners keep them.
     private var pages: [UUID: WeakPage] = [:]
     /// The questions this binding's pages raised, by prompt, until the core
@@ -66,6 +79,13 @@ final class WebKitEngineBinding: EngineBinding {
     /// How to close what each page's host shows for a question, until the
     /// question no longer waits.
     private var dismissals: [UUID: BrowserPromptDismissal] = [:]
+
+    // MARK: - Initializers
+
+    /// A binding whose profiles' stores `profileStores` removes.
+    init(profileStores: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover()) {
+        self.profileStores = profileStores
+    }
 
     // MARK: - Actions - Binding
 
@@ -121,6 +141,10 @@ final class WebKitEngineBinding: EngineBinding {
             // WebKit warns about nothing itself, so the only download the core
             // approves is a blocked one the person retried.
             downloads.approve(approval.downloadID)
+        case .eraseProfileData(let erasing):
+            erase(erasing)
+        case .eraseSiteData(let erasing):
+            erase(erasing)
         case .settleExtensionInstall:
             // WebKit has no extensions, so the core never asks it to.
             break
@@ -129,6 +153,11 @@ final class WebKitEngineBinding: EngineBinding {
 
     /// The core this binding reports to, while it is attached.
     var core: CrestCore? { engines?.core }
+
+    /// The page this binding built as `pageID`, while its owner keeps it.
+    func page(_ pageID: UUID) -> WebKitEnginePage? {
+        pages[pageID]?.value
+    }
 
     /// Reports what one of this binding's pages or downloads did.
     func report(_ event: some EngineEvent) {
@@ -148,12 +177,60 @@ final class WebKitEngineBinding: EngineBinding {
                 contentRuleLists: inputs.contentRuleLists,
                 preferredContentMode: BrowserPlatformWebKit.preferredContentMode,
                 decorate: BrowserPlatformWebKit.decorate)
+        liveStores = liveStores.filter { $0.value.value != nil }
+        liveStores[creation.profileID] = WeakStore(value: configuration.websiteDataStore)
         return WebKitEnginePage(
             id: creation.pageID,
             profileID: creation.profileID,
             webView: BrowserPlatformWebKit.makeWebView(configuration: configuration),
             contentRuleLists: inputs.contentRuleLists,
             ownsUserContentController: !inputs.sharesUserContentController)
+    }
+
+    // MARK: - Actions - Data
+
+    /// Erases every store WebKit keeps for the profile; one that keeps
+    /// nothing on disk has nothing to erase.
+    private func erase(_ erasing: EraseProfileData) {
+        // An ephemeral profile keeps nothing on disk: its stores went with the
+        // pages that held them.
+        guard !erasing.ephemeral else {
+            report(DataErased(erasureID: erasing.erasureID, erased: true))
+            return
+        }
+        let stores = profileStores
+        Task { [weak self] in
+            let erased: Bool
+            do {
+                try await stores.removeProfile(BrowsingProfile(id: erasing.profileID), ephemeral: erasing.ephemeral)
+                erased = true
+            } catch {
+                erased = false
+            }
+            self?.report(DataErased(erasureID: erasing.erasureID, erased: erased))
+        }
+    }
+
+    /// Clears the site from the store the profile's pages use, or from its
+    /// store on disk, without creating one the profile does not have.
+    private func erase(_ erasing: EraseSiteData) {
+        let live = liveStores[erasing.profileID]?.value
+        Task { [weak self] in
+            guard let site = URL(string: "https://\(erasing.host)/") else {
+                self?.report(DataErased(erasureID: erasing.erasureID, erased: false))
+                return
+            }
+            let onDisk = erasing.ephemeral || live != nil ? nil : await Self.storeOnDisk(for: erasing.profileID)
+            if let store = live ?? onDisk { await BrowserWebsiteDataStore.clearSiteData(for: site, in: store) }
+            self?.report(DataErased(erasureID: erasing.erasureID, erased: true))
+        }
+    }
+
+    /// The profile's store on disk, when it has one.
+    private static func storeOnDisk(for profileID: UUID) async -> WKWebsiteDataStore? {
+        let identifier = BrowserLaunchEnvironment.current.websiteDataStoreIdentifier(forProfileID: profileID)
+        guard await WKWebsiteDataStore.allDataStoreIdentifiers.contains(identifier) else { return nil }
+        return WKWebsiteDataStore(forIdentifier: identifier)
     }
 
     // MARK: - Actions - Prompts

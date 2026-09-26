@@ -71,6 +71,8 @@ final class CrestCore {
     @ObservationIgnored private var unloadFollowers: [Follower<PageUnloaded>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
+    /// What waits for each data deletion to end, by its request.
+    @ObservationIgnored private var dataDeletionWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     #if DEBUG
         /// Hears each batch of changes once `state` has applied it, so a test
         /// can apply the same batch again.
@@ -151,6 +153,20 @@ final class CrestCore {
             try send(request)
         } catch {
             closeWaiters.removeValue(forKey: request.requestID)?(false)
+        }
+    }
+
+    /// Erases what every registered engine keeps for a profile, as `request`
+    /// asks, and answers whether each of them erased all of it. A request the
+    /// core refuses erases nothing.
+    func deleteData(_ request: some DataDeletionRequest) async -> Bool {
+        await withCheckedContinuation { continuation in
+            dataDeletionWaiters[request.requestID] = { continuation.resume(returning: $0) }
+            do {
+                try send(request)
+            } catch {
+                dataDeletionWaiters.removeValue(forKey: request.requestID)?(false)
+            }
         }
     }
 
@@ -260,16 +276,19 @@ final class CrestCore {
     // MARK: - Actions - Changes
 
     /// Applies the changes the core started itself since the last drain, then
-    /// answers the callers waiting for them.
-    func drain() {
+    /// answers the callers waiting for them. Answers the changes it applied.
+    @discardableResult
+    func drain() -> [Change] {
         var buffer = crest_buffer_t()
         let status = crest_app_drain(handle, &buffer)
         defer { crest_buffer_free(&buffer) }
         guard status == CREST_OK else { Self.buildBug(status, "drain its changes") }
         let length = buffer.length
         var reader = WireReader(buffer.bytes.map { Array(UnsafeBufferPointer(start: $0, count: length)) } ?? [])
-        apply(Self.decodeChanges(from: &reader, "its own work"))
+        let changes = Self.decodeChanges(from: &reader, "its own work")
+        apply(changes)
         resumeSaveWaiters()
+        return changes
     }
 
     /// Applies one batch to `state`, in order, and reports a failed save the
@@ -281,6 +300,7 @@ final class CrestCore {
         var downloadChanges: [DownloadState] = []
         var unloadedPages: [PageUnloaded] = []
         var closesReady: [CloseReady] = []
+        var dataDeleted: [DataDeleted] = []
         for change in changes {
             state.apply(change)
             switch change {
@@ -295,6 +315,7 @@ final class CrestCore {
             case .downloadUpdated(let updated): downloadChanges.append(updated.download)
             case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
             case .closeReady(let ready): closesReady.append(ready)
+            case .dataDeleted(let deleted): dataDeleted.append(deleted)
             default: break
             }
         }
@@ -312,6 +333,7 @@ final class CrestCore {
         #endif
         // Last, because a waiter may send the intent its close was waiting for.
         for ready in closesReady { closeWaiters.removeValue(forKey: ready.requestID)?(ready.allowed) }
+        for deleted in dataDeleted { dataDeletionWaiters.removeValue(forKey: deleted.requestID)?(deleted.deleted) }
     }
 
     /// Calls `handler` with the workspaces whose session each batch changed,

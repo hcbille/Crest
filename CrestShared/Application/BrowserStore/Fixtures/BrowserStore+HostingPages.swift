@@ -3,10 +3,13 @@
 
     extension CrestCore {
         /// A memory-only core that hosts pages the way the app composes one, for
-        /// tests: WebKit is registered as its default engine.
-        static func hostingPages() -> CrestCore {
+        /// tests: WebKit is registered as its default engine, erasing its
+        /// profiles' stores with `profileStores`.
+        static func hostingPages(
+            profileStores: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover()
+        ) -> CrestCore {
             let core = CrestCore()
-            core.engines.register(WebKitEngineBinding(), isDefault: true)
+            core.engines.register(WebKitEngineBinding(profileStores: profileStores), isDefault: true)
             return core
         }
     }

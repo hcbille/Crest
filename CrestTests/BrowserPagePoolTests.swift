@@ -1349,10 +1349,9 @@ final class BrowserPagePoolTests: XCTestCase {
         let permissionCenter = BrowserSitePermissionCenter()
         let remover = RecordingWebsiteDataStoreRemover()
         let pool = BrowserPagePool(
-            browser: hosting(deletedSpace, retainedSpace),
+            browser: hosting(deletedSpace, retainedSpace, on: .hostingPages(profileStores: remover)),
             usesEphemeralWebsiteDataStores: false,
-            permissionCenter: permissionCenter,
-            profileRemover: remover
+            permissionCenter: permissionCenter
         )
         let origin = SiteOrigin(
             scheme: "https",
@@ -1387,18 +1386,20 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertEqual(remover.removedProfileIDs, [deletedSpace.profile.id])
     }
 
-    func testDeletingAPrivateSpaceStillReleasesItsEngineProfile() async throws {
+    /// A private Space's data goes with its pages: the deletion releases them
+    /// and finishes without touching any store on disk.
+    func testDeletingAPrivateSpaceReleasesItsPagesAndLeavesDiskAlone() async throws {
         let tab = BrowserTab.startPage()
         let space = makeSpace(tabs: [tab], selectedTabID: tab.id)
         let remover = RecordingWebsiteDataStoreRemover()
-        let pool = BrowserPagePool(browser: hosting(space), browsingMode: .privateBrowsing, profileRemover: remover)
+        let pool = BrowserPagePool(
+            browser: hosting(space, on: .hostingPages(profileStores: remover)), browsingMode: .privateBrowsing)
         pool.select(tab: tab, space: space)
 
         try await pool.deleteData(for: space)
 
         XCTAssertTrue(pool.retainedTabIDs.isEmpty)
-        XCTAssertEqual(remover.removedProfileIDs, [space.profile.id])
-        XCTAssertEqual(remover.ephemeralRemovals, [true])
+        XCTAssertTrue(remover.removedProfileIDs.isEmpty)
     }
 
     func testDeletingSpaceThroughRegistryReleasesEveryWindowBeforeRemovingSharedDataOnce() async throws {
@@ -1410,23 +1411,20 @@ final class BrowserPagePoolTests: XCTestCase {
         fixtureSelections[temporarySpace.id] = temporaryTab.id
         let remover = RecordingWebsiteDataStoreRemover()
         let sharedRuntime = BrowserPageRuntimeStore()
-        let browser = hosting(space)
+        let browser = hosting(space, on: .hostingPages(profileStores: remover))
         let primaryPool = BrowserPagePool(
             browser: browser,
             runtimeStore: sharedRuntime,
-            usesEphemeralWebsiteDataStores: false,
-            profileRemover: remover
+            usesEphemeralWebsiteDataStores: false
         )
         let secondaryPool = BrowserPagePool(
             browser: browser.makeWindowStore(),
             runtimeStore: sharedRuntime,
-            usesEphemeralWebsiteDataStores: false,
-            profileRemover: remover
+            usesEphemeralWebsiteDataStores: false
         )
         // A temporary window is another workspace on the app's core.
         let temporaryPool = BrowserPagePool(
-            browser: hosting(temporarySpace, on: browser.core), usesEphemeralWebsiteDataStores: false,
-            profileRemover: remover)
+            browser: hosting(temporarySpace, on: browser.core), usesEphemeralWebsiteDataStores: false)
         let registry = BrowserPagePoolRegistry(primary: primaryPool)
         registry.register(secondaryPool)
         registry.register(temporaryPool)
@@ -1468,12 +1466,12 @@ final class BrowserPagePoolTests: XCTestCase {
         let space = makeSpace(tabs: [tab], selectedTabID: tab.id)
         let otherTab = BrowserTab.startPage()
         // A Space can only be deleted beside another one.
-        let browser = hosting(space, makeSpace(tabs: [otherTab], selectedTabID: otherTab.id))
         let remover = SuspendingWebsiteDataStoreRemover()
+        let browser = hosting(
+            space, makeSpace(tabs: [otherTab], selectedTabID: otherTab.id), on: .hostingPages(profileStores: remover))
         let pool = BrowserPagePool(
             browser: browser,
-            usesEphemeralWebsiteDataStores: false,
-            profileRemover: remover
+            usesEphemeralWebsiteDataStores: false
         )
         pool.select(tab: tab, space: space)
         XCTAssertNotNil(pool.activePage)
@@ -2365,9 +2363,8 @@ final class BrowserPagePoolTests: XCTestCase {
             tabID: survivingTabID
         )
         let pool = BrowserPagePool(
-            browser: hosting(space),
+            browser: hosting(space, on: .hostingPages(profileStores: RecordingWebsiteDataStoreRemover())),
             usesEphemeralWebsiteDataStores: false,
-            profileRemover: RecordingWebsiteDataStoreRemover(),
             tabStateArchive: archive
         )
 
@@ -3040,11 +3037,9 @@ private final class RecordingWebsiteDataStoreRemover:
     BrowserEngineProfileRemoving
 {
     private(set) var removedProfileIDs: [UUID] = []
-    private(set) var ephemeralRemovals: [Bool] = []
 
     func removeProfile(_ profile: BrowsingProfile, ephemeral: Bool) async throws {
         removedProfileIDs.append(profile.id)
-        ephemeralRemovals.append(ephemeral)
     }
 }
 

@@ -72,7 +72,7 @@ final class MobileBrowserCredentialTests: XCTestCase {
         let tab = try XCTUnwrap(space.tabs.first)
         return try XCTUnwrap(
             browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
-                MobileBrowserPage(corePage: opened.core, enginePage: opened.webKit, tab: tab, space: space, openNewTab: { _ in })
+                MobileBrowserPage(corePage: opened.core, webKitPage: opened.webKit, tab: tab, space: space, openNewTab: { _ in })
             }
         )
     }
