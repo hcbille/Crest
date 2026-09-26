@@ -1,8 +1,9 @@
 import Foundation
 
 /// Credential questions over the vault's descriptors. Only identities, dates
-/// and, where accounts are matched, usernames cross to the core; passwords
-/// never do.
+/// and, where accounts are matched, usernames cross to the core. Passwords
+/// cross only for a password file the core reads for an import or writes for
+/// an export, and the core keeps none of them.
 extension CrestCore {
     // MARK: - Variables
 
@@ -69,5 +70,29 @@ extension CredentialRecord {
             username: includesUsername ? descriptor.username : nil,
             updatedAt: descriptor.updatedAt.timeIntervalSince1970,
             lastUsedAt: descriptor.lastUsedAt?.timeIntervalSince1970)
+    }
+}
+
+extension ExistingCredential {
+    /// A saved password an import is compared against. Only a web form's
+    /// password stands for an account a file imports.
+    init(_ credential: BrowserCredential) {
+        let descriptor = credential.descriptor
+        self.init(
+            id: descriptor.id.rawValue, origin: descriptor.origin, username: descriptor.username,
+            isWebForm: descriptor.scope == .webForm, updatedAt: descriptor.updatedAt.timeIntervalSince1970,
+            lastUsedAt: descriptor.lastUsedAt?.timeIntervalSince1970, password: credential.password)
+    }
+}
+
+extension ExportedCredential {
+    /// A saved password as a Space's password file writes it, with the note
+    /// naming how an HTTP authentication password is used.
+    init(_ credential: BrowserCredential) {
+        let descriptor = credential.descriptor
+        self.init(
+            id: descriptor.id.rawValue, origin: descriptor.origin, username: descriptor.username,
+            displayName: descriptor.displayName, password: credential.password,
+            note: descriptor.scope.settingsLabel ?? "")
     }
 }

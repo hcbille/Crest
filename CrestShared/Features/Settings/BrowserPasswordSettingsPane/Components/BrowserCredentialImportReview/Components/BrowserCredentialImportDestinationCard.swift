@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserCredentialImportDestinationCard: View {
     let space: BrowserSpaceIdentity
-    let format: BrowserCredentialCSVImportFormat
+    let format: CredentialFileFormat
 
     var body: some View {
         HStack(alignment: .top, spacing: CrestSpacing.large) {
@@ -35,13 +35,17 @@ struct BrowserCredentialImportDestinationCard: View {
 
             Spacer(minLength: CrestSpacing.small)
 
-            Label(format.rawValue, systemImage: "doc.text")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, CrestSpacing.small)
-                .padding(.vertical, BrowserCredentialImportReviewMetrics.formatBadgeVerticalPadding)
-                .background(
-                    Color.primary.opacity(BrowserCredentialImportReviewMetrics.destinationFillOpacity), in: Capsule())
+            Label {
+                Text(format.title)
+            } icon: {
+                Image(systemName: "doc.text")
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, CrestSpacing.small)
+            .padding(.vertical, BrowserCredentialImportReviewMetrics.formatBadgeVerticalPadding)
+            .background(
+                Color.primary.opacity(BrowserCredentialImportReviewMetrics.destinationFillOpacity), in: Capsule())
         }
         .padding(CrestSpacing.large)
         .background(

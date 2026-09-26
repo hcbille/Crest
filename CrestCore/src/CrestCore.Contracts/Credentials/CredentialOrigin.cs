@@ -14,5 +14,14 @@ public sealed record CredentialOrigin(string Scheme, string Host, int Port) {
 
     public bool IsSecure => Scheme == "https";
 
+    /// The origin as an address spells it: its scheme and host, an IPv6 host
+    /// in brackets, and its port only where it is not the scheme's default.
+    public string Spelling {
+        get {
+            string host = Host.Contains(':', StringComparison.Ordinal) ? $"[{Host}]" : Host;
+            return Port == (IsSecure ? 443 : 80) ? $"{Scheme}://{host}" : $"{Scheme}://{host}:{Port}";
+        }
+    }
+
     #endregion
 }

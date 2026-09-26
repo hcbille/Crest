@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserCredentialImportSummaryView: View {
-    let plan: BrowserCredentialImportPlan
+    let review: BrowserCredentialImportReview
 
     var body: some View {
         VStack(alignment: .leading, spacing: CrestSpacing.medium) {
@@ -28,25 +28,25 @@ struct BrowserCredentialImportSummaryView: View {
     private var metrics: some View {
         BrowserCredentialImportMetric(
             title: "Ready to import",
-            value: plan.proposedImportCount,
+            value: review.proposedImportCount,
             systemImage: "checkmark.circle.fill",
             color: .green
         )
         BrowserCredentialImportMetric(
             title: "Need review",
-            value: plan.conflictCount,
+            value: review.conflictCount,
             systemImage: "arrow.triangle.branch",
             color: .orange
         )
         BrowserCredentialImportMetric(
             title: "Warnings",
-            value: plan.warnings.count,
+            value: review.plan.warnings.count,
             systemImage: "exclamationmark.shield.fill",
             color: .orange
         )
         BrowserCredentialImportMetric(
             title: "Rejected rows",
-            value: plan.rejections.count,
+            value: review.plan.rejections.count,
             systemImage: "xmark.octagon.fill",
             color: .red
         )

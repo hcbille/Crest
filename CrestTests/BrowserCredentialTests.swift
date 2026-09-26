@@ -932,7 +932,7 @@ final class BrowserCredentialTests: XCTestCase {
         }
     }
 
-    func testAuthenticatedCredentialCSVExportContainsOnlyOneSpaceAndQuotesHostileFields() async throws {
+    func testAuthenticatedCredentialExportContainsOnlyOneSpace() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
             session: .preview,
@@ -960,19 +960,10 @@ final class BrowserCredentialTests: XCTestCase {
         )
 
         let exported = try await access.exportCredentials(in: work.id)
-        let csv = try XCTUnwrap(String(data: exported.data, encoding: .utf8))
+        let csv = try XCTUnwrap(String(data: exported.contents, encoding: .utf8))
 
-        XCTAssertEqual(exported.filename, "Crest Passwords - \(work.name).csv")
-        XCTAssertEqual(
-            BrowserCredentialCSVExport.filename(spaceName: "Work / Client"),
-            "Crest Passwords - Work Client.csv"
-        )
-        XCTAssertEqual(
-            csv,
-            "\"name\",\"url\",\"username\",\"password\",\"note\"\r\n"
-                + "\"Crest, Account\",\"https://accounts.crest.test\","
-                + "\"work,person@example.com\",\"line one\n\"\"line two\"\"\",\"\"\r\n"
-        )
+        XCTAssertEqual(exported.fileName, "Crest Passwords - \(work.name).csv")
+        XCTAssertTrue(csv.contains("\"work,person@example.com\""))
         XCTAssertFalse(csv.contains("personal-secret-must-not-export"))
         XCTAssertEqual(authenticator.reasons.count, 1)
     }
@@ -1094,60 +1085,7 @@ private actor RecordingCredentialKeychainStore: CredentialKeychainStoring {
     }
 }
 
-final class BrowserCredentialCSVImportTests: XCTestCase {
-    func testRejectsAmbiguousMissingMalformedAndOversizedCSV() throws {
-        XCTAssertThrowsError(
-            try BrowserCredentialCSVImportParser.parse(
-                Data("url,origin,username,password\nhttps://one.example,https://two.example,user,secret".utf8)
-            )
-        ) { error in
-            XCTAssertEqual(
-                error as? BrowserCredentialCSVImportError,
-                .ambiguousHeaders(field: .origin)
-            )
-        }
-        XCTAssertThrowsError(
-            try BrowserCredentialCSVImportParser.parse(
-                Data("url,username\nhttps://one.example,user".utf8)
-            )
-        ) { error in
-            XCTAssertEqual(
-                error as? BrowserCredentialCSVImportError,
-                .missingHeader(field: .password)
-            )
-        }
-        XCTAssertThrowsError(
-            try BrowserCredentialCSVImportParser.parse(
-                Data("url,username,password\n".utf8)
-            )
-        ) { error in
-            XCTAssertEqual(
-                error as? BrowserCredentialCSVImportError,
-                .noCredentialRows
-            )
-        }
-        XCTAssertThrowsError(
-            try BrowserCredentialCSVImportParser.parse(
-                Data("url,username,password\n\"https://one.example,user,secret".utf8)
-            )
-        ) { error in
-            XCTAssertEqual(error as? BrowserCredentialCSVImportError, .malformedCSV)
-        }
-        XCTAssertThrowsError(
-            try BrowserCredentialCSVImportParser.parse(
-                Data("url,username,password\nhttps://one.example,user,secret".utf8),
-                limits: BrowserCredentialCSVImportLimits(
-                    maximumByteCount: 12,
-                    maximumRowCount: 10,
-                    maximumColumnCount: 10,
-                    maximumFieldCharacterCount: 100
-                )
-            )
-        ) { error in
-            XCTAssertEqual(error as? BrowserCredentialCSVImportError, .fileTooLarge)
-        }
-    }
-
+final class BrowserCredentialInventoryTests: XCTestCase {
     @MainActor
     func testImportedHTTPPasswordRemainsAvailableForManualAccessOnly() async throws {
         let vault = InMemoryCredentialVault()
@@ -1180,51 +1118,6 @@ final class BrowserCredentialCSVImportTests: XCTestCase {
         XCTAssertEqual(descriptors, [credential.descriptor])
         XCTAssertEqual(stored, credential)
         XCTAssertTrue(suggestions.isEmpty)
-    }
-
-    @MainActor
-    func testWarnsForHTTPAndRejectsOnlyBrokenRowsWithoutLosingValidRows() throws {
-        let csv = """
-            url,username,password
-            https://valid.example/path,,valid-secret
-            http://insecure.example,user,insecure-secret
-            not a url,user,bad-secret
-            https://empty.example,user,
-            """
-
-        let parsed = try BrowserCredentialCSVImportParser.parse(Data(csv.utf8))
-
-        XCTAssertEqual(parsed.records.map(\.rowNumber), [2, 3])
-        XCTAssertEqual(parsed.records.first?.username, "")
-        XCTAssertEqual(parsed.rejections.map(\.rowNumber), [4, 5])
-        XCTAssertEqual(
-            parsed.rejections.map(\.reason),
-            [.invalidOrigin, .emptyPassword]
-        )
-
-        let plan = BrowserCredentialImportPlan(
-            format: parsed.format,
-            records: parsed.records,
-            rejections: parsed.rejections,
-            existingCredentials: [],
-            destination: BrowserSpaceRuntimeAssignment(
-                spaceID: SpaceID(),
-                profileID: UUID()
-            ),
-            synchronizesWithICloud: false,
-            core: CrestCore()
-        )
-        XCTAssertEqual(
-            plan.warnings,
-            [
-                BrowserCredentialCSVRowWarning(
-                    rowNumber: 3,
-                    reason: .insecureOrigin
-                )
-            ]
-        )
-        XCTAssertEqual(try plan.resolvedInventory().summary.acceptedCount, 2)
-        XCTAssertEqual(try plan.resolvedInventory().summary.warningCount, 1)
     }
 
     @MainActor

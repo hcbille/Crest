@@ -4,7 +4,7 @@ struct BrowserCredentialImportReviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
-    let initialPlanID: UUID
+    let initialReviewID: UUID
     let credentials: BrowserCredentialSpaceStore
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
@@ -14,9 +14,9 @@ struct BrowserCredentialImportReviewView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if let plan = credentials.importPlan,
-                    plan.id == initialPlanID,
-                    let space = browser.spaceModel(matching: plan.destination)
+                if let review = credentials.importReview,
+                    review.id == initialReviewID,
+                    let space = browser.spaceModel(matching: review.destination)
                 {
                     VStack(spacing: 0) {
                         ScrollView {
@@ -26,11 +26,11 @@ struct BrowserCredentialImportReviewView: View {
                             ) {
                                 BrowserCredentialImportDestinationCard(
                                     space: space.identity,
-                                    format: plan.format
+                                    format: review.plan.format
                                 )
-                                BrowserCredentialImportSummaryView(plan: plan)
+                                BrowserCredentialImportSummaryView(review: review)
 
-                                if !plan.groups.isEmpty {
+                                if !review.groups.isEmpty {
                                     VStack(alignment: .leading, spacing: CrestSpacing.medium) {
                                         BrowserCredentialImportReviewSectionHeader(
                                             title: "Accounts",
@@ -46,27 +46,29 @@ struct BrowserCredentialImportReviewView: View {
                                         )
                                     }
 
-                                    let matchingGroups = plan.groups(matching: searchText)
+                                    let matchingGroups = review.groups(matching: searchText)
                                     if matchingGroups.isEmpty {
                                         ContentUnavailableView.search(text: searchText)
                                             .frame(maxWidth: .infinity)
                                     } else {
-                                        ForEach(matchingGroups) { group in
+                                        ForEach(matchingGroups, id: \.reviewID) { group in
                                             BrowserCredentialImportAccountRow(
                                                 group: group,
+                                                selection: review.selection(for: group),
+                                                existingPassword: review.existingPassword(for: group),
                                                 revealsPasswords:
-                                                    revealedGroupIDs.contains(group.id),
+                                                    revealedGroupIDs.contains(group.reviewID),
                                                 select: { selection in
                                                     credentials.selectImport(
                                                         selection,
-                                                        for: group.id
+                                                        for: group.reviewID
                                                     )
                                                 },
                                                 togglePasswordVisibility: {
-                                                    if !revealedGroupIDs.insert(group.id)
+                                                    if !revealedGroupIDs.insert(group.reviewID)
                                                         .inserted
                                                     {
-                                                        revealedGroupIDs.remove(group.id)
+                                                        revealedGroupIDs.remove(group.reviewID)
                                                     }
                                                 }
                                             )
@@ -74,15 +76,15 @@ struct BrowserCredentialImportReviewView: View {
                                     }
                                 }
 
-                                if !plan.warnings.isEmpty {
+                                if !review.plan.warnings.isEmpty {
                                     BrowserCredentialImportWarningRows(
-                                        warnings: plan.warnings
+                                        warnings: review.plan.warnings
                                     )
                                 }
 
-                                if !plan.rejections.isEmpty {
+                                if !review.plan.rejections.isEmpty {
                                     BrowserCredentialImportRejectedRows(
-                                        rejections: plan.rejections
+                                        rejections: review.plan.rejections
                                     )
                                 }
 
@@ -97,7 +99,7 @@ struct BrowserCredentialImportReviewView: View {
                         }
 
                         Divider()
-                        importFooter(plan: plan, space: space)
+                        importFooter(review: review, space: space)
                     }
                 } else {
                     ContentUnavailableView(
@@ -120,14 +122,14 @@ struct BrowserCredentialImportReviewView: View {
     }
 
     private func importFooter(
-        plan: BrowserCredentialImportPlan,
+        review: BrowserCredentialImportReview,
         space: SpaceModel
     ) -> some View {
         HStack(spacing: CrestSpacing.medium) {
             VStack(alignment: .leading, spacing: CrestSpacing.extraSmall) {
                 Text("Ready for \(space.settings.name)")
                     .font(.subheadline.weight(.semibold))
-                Text(importSummary(plan))
+                Text(importSummary(review))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -153,7 +155,7 @@ struct BrowserCredentialImportReviewView: View {
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
             .disabled(
-                credentials.importPlan == nil
+                credentials.importReview == nil
                     || credentials.isCommittingImport
             )
         }
@@ -162,8 +164,8 @@ struct BrowserCredentialImportReviewView: View {
         .background(.bar)
     }
 
-    private func importSummary(_ plan: BrowserCredentialImportPlan) -> String {
-        guard let summary = try? plan.resolvedInventory().summary else {
+    private func importSummary(_ review: BrowserCredentialImportReview) -> String {
+        guard let summary = try? review.resolvedInventory().summary else {
             return "Review the file before importing."
         }
         return
@@ -181,11 +183,11 @@ struct BrowserCredentialImportReviewView: View {
             await credentials.commitImport(
                 accessController: spaceAccess,
                 isStillSelected: {
-                    guard let plan = credentials.importPlan else { return false }
-                    return browser.spaceModel(matching: plan.destination) != nil
+                    guard let review = credentials.importReview else { return false }
+                    return browser.spaceModel(matching: review.destination) != nil
                 }
             )
-            if credentials.importPlan == nil { dismiss() }
+            if credentials.importReview == nil { dismiss() }
         }
     }
 }

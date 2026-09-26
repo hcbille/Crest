@@ -115,9 +115,9 @@ struct BrowserPasswordSettingsPane: View {
             )
             .id(request.id)
         }
-        .sheet(item: $credentials.importPlan) { plan in
+        .sheet(item: $credentials.importReview) { review in
             BrowserCredentialImportReviewView(
-                initialPlanID: plan.id,
+                initialReviewID: review.id,
                 credentials: credentials,
                 browser: browser,
                 spaceAccess: spaceAccess

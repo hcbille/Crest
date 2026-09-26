@@ -44,7 +44,7 @@ public static class ImportReviewPolicy {
     /// disposable Spaces are no destination, so everything comes in new.
     /// `passwords` counts the saved passwords that belong with each Space.
     public static SetupImportReview Started(ImportSource source, IReadOnlyList<SpaceState> spaces,
-        IReadOnlyList<ImportPasswordCount> passwords, SessionState session) {
+        IReadOnlyDictionary<Guid, int> passwords, SessionState session) {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(spaces);
         ArgumentNullException.ThrowIfNull(passwords);
@@ -56,7 +56,7 @@ public static class ImportReviewPolicy {
             var duplicates = match is null ? [] : Duplicates(space, match).ToHashSet();
             return new SetupReviewSpace(space, Included: true, match?.Id, Customization(match ?? space),
                 [.. space.Tabs.Where(tab => !duplicates.Contains(tab.Id)).Select(tab => tab.Id)], [], [], [], IncludesPasswords: true,
-                passwords.Where(count => count.SourceSpaceId == space.Id).Sum(count => count.Count));
+                passwords.GetValueOrDefault(space.Id));
         }).ToArray();
         return Analyzed(new SetupImportReview(source, reviews, [], spaces.FirstOrDefault()?.Id), session);
     }

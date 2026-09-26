@@ -214,6 +214,9 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             FindImportData find => portability.Answer(find),
             ReadImport import => portability.Answer(import),
             ReadArchive archive => portability.Answer(archive),
+            CredentialImportPreview preview => credentials.Answer(preview),
+            PasswordImportPreview imported => credentials.Answer(imported),
+            CredentialExport passwords => credentials.Answer(passwords),
             _ => null
         };
         if (read is not null) return (TAnswer)read;
@@ -238,6 +241,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 OpenedWindowSelection selection => device.Answer(selection),
                 CanTearOff tearOff => device.Answer(tearOff),
                 SiteDecision decision => device.Answer(decision),
+                ImportPasswordDestinations destinations => device.Answer(destinations),
                 CaptureDecision capture => device.Answer(capture),
                 NumberedSelections numbered => device.Answer(numbered),
                 SplitJoinCandidate candidate => device.Answer(candidate, clock.Now, pages),

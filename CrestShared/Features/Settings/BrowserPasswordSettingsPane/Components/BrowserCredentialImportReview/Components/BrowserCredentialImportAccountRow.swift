@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct BrowserCredentialImportAccountRow: View {
-    let group: BrowserCredentialImportGroup
+    let group: CredentialImportGroup
+    let selection: BrowserCredentialImportSelection
+    /// The saved password the account would change, for comparison.
+    let existingPassword: String?
     let revealsPasswords: Bool
     let select: (BrowserCredentialImportSelection) -> Void
     let togglePasswordVisibility: () -> Void
@@ -33,7 +36,7 @@ struct BrowserCredentialImportAccountRow: View {
             if revealsPasswords {
                 Divider()
                 VStack(alignment: .leading, spacing: CrestSpacing.small) {
-                    if let password = group.existingPasswordForReview {
+                    if let password = existingPassword {
                         BrowserCredentialImportPasswordValue(
                             label: "Current",
                             password: password
@@ -101,7 +104,7 @@ struct BrowserCredentialImportAccountRow: View {
                 .orange
             )
         }
-        if group.hasExistingCredential {
+        if group.existingID != nil {
             return ("Already saved", "checkmark.circle", .secondary)
         }
         return ("New", "plus.circle.fill", .green)
@@ -109,7 +112,7 @@ struct BrowserCredentialImportAccountRow: View {
 
     private var selectionPicker: some View {
         Picker("Password to keep", selection: selectionBinding) {
-            if group.hasExistingCredential {
+            if group.existingID != nil {
                 Text("Keep current password")
                     .tag(BrowserCredentialImportSelection.existing)
             }
@@ -166,7 +169,7 @@ struct BrowserCredentialImportAccountRow: View {
 
     private var selectionBinding: Binding<BrowserCredentialImportSelection> {
         Binding(
-            get: { group.selection },
+            get: { selection },
             set: { selection in select(selection) }
         )
     }

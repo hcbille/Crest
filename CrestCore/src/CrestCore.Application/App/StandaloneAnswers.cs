@@ -56,7 +56,7 @@ public sealed class StandaloneAnswers : IQueryAnswers {
             download.SavedDecision, download.HasAllowedAutomaticDownload),
         EnforcedLimits => new CapacityLimits(BrowserLimits.Folders, BrowserLimits.FolderDepth, BrowserLimits.HistoryEntries,
             BrowserLimits.SplitMembers, BrowserLimits.BrandColors, BrowserLimits.CrestPalette, BrowserLimits.Spaces,
-            BrowserLimits.TabsPerSpace, NativeSyncJournal.MaximumRecords),
+            BrowserLimits.TabsPerSpace, NativeSyncJournal.MaximumRecords, CredentialFile.MaximumBytes),
         _ => throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "No area answers this query.")
     };
 

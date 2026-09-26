@@ -177,6 +177,7 @@ enum Rejection: Equatable, Error, Sendable {
     case incompleteSplit(IncompleteSplit)
     case invalidBlockedPopup(InvalidBlockedPopup)
     case invalidCredentialDate(InvalidCredentialDate)
+    case invalidCredentialFile(InvalidCredentialFile)
     case invalidCredentialOrigin(InvalidCredentialOrigin)
     case invalidCredentialRecord(InvalidCredentialRecord)
     case invalidCredentialUsername(InvalidCredentialUsername)
@@ -934,6 +935,7 @@ struct CapacityLimits: Equatable, Sendable {
     let spaces: Int
     let tabsPerSpace: Int
     let syncRecords: Int
+    let credentialFileBytes: Int
 }
 
 struct CaptureDecision: Query, Equatable, Sendable {
@@ -1328,6 +1330,19 @@ struct CredentialChoice: Equatable, Sendable {
     let credentialID: UUID?
 }
 
+struct CredentialExport: Query, Equatable, Sendable {
+    typealias Answer = CredentialExportFile
+
+    let credentials: [ExportedCredential]
+    let spaceName: String
+    let fallbackName: String
+}
+
+struct CredentialExportFile: Equatable, Sendable {
+    let fileName: String
+    let contents: Data
+}
+
 struct CredentialFill: Query, Equatable, Sendable {
     typealias Answer = CredentialFillDecision
 
@@ -1350,6 +1365,39 @@ struct CredentialFormFacts: Equatable, Sendable {
     let passwordKind: CredentialPasswordKind?
     let hasVisiblePasswordField: Bool?
     let hasFillTarget: Bool
+}
+
+struct CredentialImportCandidate: Equatable, Sendable {
+    let rowNumber: Int
+    let username: String
+    let displayName: String?
+    let password: String
+    let effect: CredentialImportEffect
+}
+
+struct CredentialImportGroup: Equatable, Sendable {
+    let origin: CredentialOrigin
+    let username: String
+    let candidates: [CredentialImportCandidate]
+    let collapsedDuplicateRowCount: Int
+    let existingID: UUID?
+    let suggestedRow: Int?
+    let requiresChoice: Bool
+}
+
+struct CredentialImportPlan: Equatable, Sendable {
+    let format: CredentialFileFormat
+    let groups: [CredentialImportGroup]
+    let rejections: [CredentialRowRejection]
+    let warnings: [CredentialRowWarning]
+    let validRowCount: Int
+}
+
+struct CredentialImportPreview: Query, Equatable, Sendable {
+    typealias Answer = CredentialImportPlan
+
+    let document: Data
+    let existing: [ExistingCredential]
 }
 
 struct CredentialOrigin: Equatable, Sendable {
@@ -1380,6 +1428,16 @@ struct CredentialRecord: Equatable, Sendable, Identifiable {
 
 struct CredentialRecordLimitReached: Equatable, Sendable {
     let limit: Int
+}
+
+struct CredentialRowRejection: Equatable, Sendable {
+    let rowNumber: Int
+    let flaw: CredentialRowFlaw
+}
+
+struct CredentialRowWarning: Equatable, Sendable {
+    let rowNumber: Int
+    let caution: CredentialRowCaution
 }
 
 struct CredentialSave: Query, Equatable, Sendable {
@@ -1826,6 +1884,16 @@ struct EvaluateContentScript: PageRequest, Equatable, Sendable {
     let frameID: String
 }
 
+struct ExistingCredential: Equatable, Sendable, Identifiable {
+    let id: UUID
+    let origin: CredentialOrigin
+    let username: String
+    let isWebForm: Bool
+    let updatedAt: Double
+    let lastUsedAt: Double?
+    let password: String
+}
+
 struct ExpandSavedTabs: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1851,6 +1919,15 @@ struct ExportWorkspace: Query, Equatable, Sendable {
 
     let workspaceID: UUID
     let format: ExportFormat
+}
+
+struct ExportedCredential: Equatable, Sendable, Identifiable {
+    let id: UUID
+    let origin: CredentialOrigin
+    let username: String
+    let displayName: String?
+    let password: String
+    let note: String
 }
 
 struct ExportedDocument: Equatable, Sendable {
@@ -2188,9 +2265,24 @@ struct ImportData: Equatable, Sendable {
     let passwordStores: [ImportPasswordStore]
 }
 
-struct ImportPasswordCount: Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let count: Int
+struct ImportPasswordDestinations: Query, Equatable, Sendable {
+    typealias Answer = ImportPasswordRoutes
+
+    let workspaceID: UUID
+    let passwords: [ImportPasswordSource]
+}
+
+struct ImportPasswordRoute: Equatable, Sendable {
+    let spaceIDs: [UUID]
+}
+
+struct ImportPasswordRoutes: Equatable, Sendable {
+    let routes: [ImportPasswordRoute]
+}
+
+struct ImportPasswordSource: Equatable, Sendable {
+    let profileName: String
+    let host: String
 }
 
 struct ImportPasswordStore: Equatable, Sendable, Identifiable {
@@ -2227,6 +2319,14 @@ struct ImportSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable
     let workspaceID: UUID
     let windowID: UUID
     let spaces: [SpaceState.Seed]
+}
+
+struct ImportedCredential: Equatable, Sendable {
+    let rowNumber: Int
+    let displayName: String?
+    let origin: CredentialOrigin
+    let username: String
+    let password: String
 }
 
 struct ImportedSpaces: Equatable, Sendable {
@@ -2326,6 +2426,10 @@ struct InvalidBlockedPopup: Equatable, Sendable {
 }
 
 struct InvalidCredentialDate: Equatable, Sendable {
+}
+
+struct InvalidCredentialFile: Equatable, Sendable {
+    let flaw: CredentialFileFlaw
 }
 
 struct InvalidCredentialOrigin: Equatable, Sendable {
@@ -3408,6 +3512,13 @@ struct PasskeyAccessVerdict: Equatable, Sendable {
     let status: PasskeyAccessStatus
 }
 
+struct PasswordImportPreview: Query, Equatable, Sendable {
+    typealias Answer = CredentialImportPlan
+
+    let credentials: [ImportedCredential]
+    let existing: [ExistingCredential]
+}
+
 struct PendingSave: Query, Equatable, Sendable {
     typealias Answer = PendingSaveRevision
 
@@ -3835,7 +3946,7 @@ struct ReturnToSavedAddress: Intent, SessionIntent, Equatable, Sendable {
 struct ReviewImport: Intent, SetupFlowIntent, Equatable, Sendable {
     let source: ImportSource
     let spaces: [SpaceState.Seed]
-    let passwordCounts: [ImportPasswordCount]
+    let passwords: [ImportPasswordSource]
 }
 
 struct RouteExternalLink: Query, Equatable, Sendable {
@@ -6532,6 +6643,262 @@ struct ContentBlockingPolicy: Hashable, Sendable {
     }
 
     static func == (lhs: ContentBlockingPolicy, rhs: ContentBlockingPolicy) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CredentialFileFlaw`. A member's wire tag is its index in `all`.
+struct CredentialFileFlaw: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let message: LocalizedStringResource
+
+    private init(tag: Int, name: String, message: LocalizedStringResource) {
+        self.tag = tag
+        self.name = name
+        self.message = message
+    }
+
+    static let tooLarge = CredentialFileFlaw(
+        tag: 0,
+        name: "tooLarge",
+        message: LocalizedStringResource("This password file is larger than Crest’s 16 MB import limit.")
+    )
+    static let notText = CredentialFileFlaw(
+        tag: 1,
+        name: "notText",
+        message: LocalizedStringResource("This password file is not valid UTF-8 text.")
+    )
+    static let empty = CredentialFileFlaw(
+        tag: 2,
+        name: "empty",
+        message: LocalizedStringResource("This password file is empty.")
+    )
+    static let noRows = CredentialFileFlaw(
+        tag: 3,
+        name: "noRows",
+        message: LocalizedStringResource("This password file contains supported headers but no credential rows.")
+    )
+    static let malformed = CredentialFileFlaw(
+        tag: 4,
+        name: "malformed",
+        message: LocalizedStringResource("This password file contains malformed CSV quoting or columns.")
+    )
+    static let tooManyRows = CredentialFileFlaw(
+        tag: 5,
+        name: "tooManyRows",
+        message: LocalizedStringResource("This password file contains more than 10,000 credential rows.")
+    )
+    static let tooManyColumns = CredentialFileFlaw(
+        tag: 6,
+        name: "tooManyColumns",
+        message: LocalizedStringResource("This password file contains too many columns.")
+    )
+    static let fieldTooLarge = CredentialFileFlaw(
+        tag: 7,
+        name: "fieldTooLarge",
+        message: LocalizedStringResource("A field in this password file is too large to import safely.")
+    )
+    static let noSiteColumn = CredentialFileFlaw(
+        tag: 8,
+        name: "noSiteColumn",
+        message: LocalizedStringResource("This password file has no supported site column.")
+    )
+    static let noUsernameColumn = CredentialFileFlaw(
+        tag: 9,
+        name: "noUsernameColumn",
+        message: LocalizedStringResource("This password file has no supported username column.")
+    )
+    static let noPasswordColumn = CredentialFileFlaw(
+        tag: 10,
+        name: "noPasswordColumn",
+        message: LocalizedStringResource("This password file has no supported password column.")
+    )
+    static let severalSiteColumns = CredentialFileFlaw(
+        tag: 11,
+        name: "severalSiteColumns",
+        message: LocalizedStringResource("This password file has more than one possible site column. Remove the ambiguity and try again.")
+    )
+    static let severalUsernameColumns = CredentialFileFlaw(
+        tag: 12,
+        name: "severalUsernameColumns",
+        message: LocalizedStringResource("This password file has more than one possible username column. Remove the ambiguity and try again.")
+    )
+    static let severalPasswordColumns = CredentialFileFlaw(
+        tag: 13,
+        name: "severalPasswordColumns",
+        message: LocalizedStringResource("This password file has more than one possible password column. Remove the ambiguity and try again.")
+    )
+
+    static let all: [CredentialFileFlaw] = [
+        tooLarge,
+        notText,
+        empty,
+        noRows,
+        malformed,
+        tooManyRows,
+        tooManyColumns,
+        fieldTooLarge,
+        noSiteColumn,
+        noUsernameColumn,
+        noPasswordColumn,
+        severalSiteColumns,
+        severalUsernameColumns,
+        severalPasswordColumns
+    ]
+
+    static func named(_ name: String?) -> CredentialFileFlaw? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CredentialFileFlaw, rhs: CredentialFileFlaw) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CredentialFileFormat`. A member's wire tag is its index in `all`.
+struct CredentialFileFormat: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: LocalizedStringResource
+
+    private init(tag: Int, name: String, title: LocalizedStringResource) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+    }
+
+    static let browser = CredentialFileFormat(tag: 0, name: "browser", title: LocalizedStringResource("Browser CSV"))
+    static let firefox = CredentialFileFormat(tag: 1, name: "firefox", title: LocalizedStringResource("Firefox CSV"))
+    static let safari = CredentialFileFormat(tag: 2, name: "safari", title: LocalizedStringResource("Safari CSV"))
+    static let bitwarden = CredentialFileFormat(
+        tag: 3,
+        name: "bitwarden",
+        title: LocalizedStringResource("Bitwarden CSV")
+    )
+
+    static let all: [CredentialFileFormat] = [browser, firefox, safari, bitwarden]
+
+    static func named(_ name: String?) -> CredentialFileFormat? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CredentialFileFormat, rhs: CredentialFileFormat) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CredentialImportEffect`. A member's wire tag is its index in `all`.
+struct CredentialImportEffect: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let changesPasswords: Bool
+
+    private init(tag: Int, name: String, changesPasswords: Bool) {
+        self.tag = tag
+        self.name = name
+        self.changesPasswords = changesPasswords
+    }
+
+    static let adds = CredentialImportEffect(tag: 0, name: "adds", changesPasswords: true)
+    static let replaces = CredentialImportEffect(tag: 1, name: "replaces", changesPasswords: true)
+    static let matches = CredentialImportEffect(tag: 2, name: "matches", changesPasswords: false)
+
+    static let all: [CredentialImportEffect] = [adds, replaces, matches]
+
+    static func named(_ name: String?) -> CredentialImportEffect? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CredentialImportEffect, rhs: CredentialImportEffect) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CredentialRowCaution`. A member's wire tag is its index in `all`.
+struct CredentialRowCaution: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let message: LocalizedStringResource
+
+    private init(tag: Int, name: String, message: LocalizedStringResource) {
+        self.tag = tag
+        self.name = name
+        self.message = message
+    }
+
+    static let insecureOrigin = CredentialRowCaution(
+        tag: 0,
+        name: "insecureOrigin",
+        message: LocalizedStringResource("This HTTP site is not encrypted. Crest will import the password for manual access but will not autofill it on an insecure connection.")
+    )
+
+    static let all: [CredentialRowCaution] = [insecureOrigin]
+
+    static func named(_ name: String?) -> CredentialRowCaution? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CredentialRowCaution, rhs: CredentialRowCaution) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CredentialRowFlaw`. A member's wire tag is its index in `all`.
+struct CredentialRowFlaw: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let message: LocalizedStringResource
+
+    private init(tag: Int, name: String, message: LocalizedStringResource) {
+        self.tag = tag
+        self.name = name
+        self.message = message
+    }
+
+    static let invalidOrigin = CredentialRowFlaw(
+        tag: 0,
+        name: "invalidOrigin",
+        message: LocalizedStringResource("The site is not a valid web address.")
+    )
+    static let emptyPassword = CredentialRowFlaw(
+        tag: 1,
+        name: "emptyPassword",
+        message: LocalizedStringResource("The password is empty.")
+    )
+    static let malformedRow = CredentialRowFlaw(
+        tag: 2,
+        name: "malformedRow",
+        message: LocalizedStringResource("The row does not match the detected columns.")
+    )
+
+    static let all: [CredentialRowFlaw] = [invalidOrigin, emptyPassword, malformedRow]
+
+    static func named(_ name: String?) -> CredentialRowFlaw? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CredentialRowFlaw, rhs: CredentialRowFlaw) -> Bool {
         lhs.tag == rhs.tag
     }
 

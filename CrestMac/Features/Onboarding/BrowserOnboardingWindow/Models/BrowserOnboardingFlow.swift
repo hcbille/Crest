@@ -281,23 +281,17 @@ final class BrowserOnboardingFlow {
             })
     }
 
-    /// Hands the core what the read brought, with how many of the browser's
-    /// passwords belong with each Space, or why it failed.
+    /// Hands the core what the read brought, with where each of the
+    /// browser's passwords belongs, or why it failed.
     private func completeRead(
         _ result: Result<BrowserOnboardingImportReadOutput, any Error>, from application: ImportSource
     ) {
         do {
             let output = try result.get()
-            var counts: [SpaceID: Int] = [:]
-            for candidate in output.passwordCandidates {
-                for spaceID in BrowserPasswordImportCommitter.sourceSpaceIDs(for: candidate, among: output.imported) {
-                    counts[spaceID, default: 0] += 1
-                }
-            }
             _ = try browser.core.send(
                 ReviewImport(
                     source: application, spaces: output.imported.map(\.seed),
-                    passwordCounts: counts.map { ImportPasswordCount(sourceSpaceID: $0.key, count: $0.value) }))
+                    passwords: output.passwordCandidates.map(\.routingSource)))
         } catch {
             send(FailImport(source: application, reason: .read, detail: error.personFacingDescription))
         }

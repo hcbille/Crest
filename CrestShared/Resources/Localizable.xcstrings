@@ -19752,6 +19752,72 @@
     },
     "Wait for setup to finish reading or importing." : {
 
+    },
+    "A field in this password file is too large to import safely." : {
+
+    },
+    "Bitwarden CSV" : {
+
+    },
+    "Browser CSV" : {
+
+    },
+    "Firefox CSV" : {
+
+    },
+    "Safari CSV" : {
+
+    },
+    "The password is empty." : {
+
+    },
+    "The row does not match the detected columns." : {
+
+    },
+    "The site is not a valid web address." : {
+
+    },
+    "This HTTP site is not encrypted. Crest will import the password for manual access but will not autofill it on an insecure connection." : {
+
+    },
+    "This password file contains malformed CSV quoting or columns." : {
+
+    },
+    "This password file contains more than 10,000 credential rows." : {
+
+    },
+    "This password file contains supported headers but no credential rows." : {
+
+    },
+    "This password file contains too many columns." : {
+
+    },
+    "This password file has more than one possible password column. Remove the ambiguity and try again." : {
+
+    },
+    "This password file has more than one possible site column. Remove the ambiguity and try again." : {
+
+    },
+    "This password file has more than one possible username column. Remove the ambiguity and try again." : {
+
+    },
+    "This password file has no supported password column." : {
+
+    },
+    "This password file has no supported site column." : {
+
+    },
+    "This password file has no supported username column." : {
+
+    },
+    "This password file is empty." : {
+
+    },
+    "This password file is larger than Crest’s 16 MB import limit." : {
+
+    },
+    "This password file is not valid UTF-8 text." : {
+
     }
   },
   "version" : "1.3"

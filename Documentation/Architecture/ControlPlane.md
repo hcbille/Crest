@@ -697,6 +697,17 @@ record's stored secret and passes only the answer. The strong-password
 query returns a recipe, and the native layer draws the password from the
 system's secure random source. Keychain storage, secrets and prompts stay
 native; without a core answer nothing is captured, saved or filled.
+Password files are the one exception, where passwords do cross.
+`CredentialImportPreview` reads a Browser, Firefox, Safari or Bitwarden CSV
+file within its limits, and `PasswordImportPreview` takes another browser's
+passwords; both plan each account against the passwords the Space keeps,
+which the platform passes with the question. `CredentialExport` writes a
+Space's file and names it. The core keeps nothing of either: every record
+that holds a password is marked `HoldsSecrets`, names no secret in its text,
+and is reachable from no change, intent, stored session, device record or
+sync journal, which a containment test checks, and an answer's buffer is
+cleared when it is freed. The platform authenticates, reads the Keychain,
+shows the review and writes the choices.
 
 Search follows the same split: `SearchProvider` is an open set whose static
 instances are the built-in engines with their titles, logos and templates; it

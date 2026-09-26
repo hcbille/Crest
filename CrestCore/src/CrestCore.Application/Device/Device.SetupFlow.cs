@@ -178,7 +178,8 @@ internal sealed partial class Device {
         return flow with {
             Step = SetupStep.Review,
             Phase = SetupPhase.Reviewing,
-            Review = ImportReviewPolicy.Started(intent.Source, intent.Spaces, intent.PasswordCounts, session),
+            Review = ImportReviewPolicy.Started(intent.Source, intent.Spaces,
+                ImportPasswordRouting.Counts(intent.Source, intent.Passwords, intent.Spaces), session),
             Failure = null
         };
     }
@@ -235,6 +236,17 @@ internal sealed partial class Device {
     /// imports, or null when there is none.
     public SetupImportReview? ImportReview(Guid workspaceId) {
         lock (gate) return setupFlow is { } flow && flow.WorkspaceId == workspaceId ? flow.Review : null;
+    }
+
+    /// Where each of the query's passwords goes once the review setup holds
+    /// for its workspace is imported, leaving out Spaces that are gone or
+    /// locked. Throws `Rejected` with `NoSetup` when setup holds no review for
+    /// the workspace.
+    public ImportPasswordRoutes Answer(ImportPasswordDestinations query) {
+        ArgumentNullException.ThrowIfNull(query);
+        var review = ImportReview(query.WorkspaceId) ?? throw new Rejected(new NoSetup());
+        var authority = Workspace(query.WorkspaceId);
+        return ImportPasswordRouting.Destinations(review, query.Passwords, authority.Current, authority.IsLocked);
     }
 
     #endregion

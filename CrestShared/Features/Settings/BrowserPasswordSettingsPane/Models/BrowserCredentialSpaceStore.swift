@@ -25,7 +25,7 @@ final class BrowserCredentialSpaceStore {
     var errorMessage: String?
     var exportDocument: BrowserCredentialCSVDocument?
     var exportFilename = "Crest Passwords.csv"
-    var importPlan: BrowserCredentialImportPlan?
+    var importReview: BrowserCredentialImportReview?
     var importSummary: BrowserCredentialImportSummary?
 
     @ObservationIgnored private let browser: BrowserStore
@@ -48,7 +48,8 @@ final class BrowserCredentialSpaceStore {
         accessController: BrowserSpaceAccessController
     ) async {
         guard let spaceID,
-              unlockedSpace(spaceID, accessController: accessController) != nil else {
+            unlockedSpace(spaceID, accessController: accessController) != nil
+        else {
             clearSensitiveData()
             return
         }
@@ -58,14 +59,16 @@ final class BrowserCredentialSpaceStore {
         do {
             let loadedDescriptors = try await browser.savedCredentialDescriptors(in: spaceID)
             guard !Task.isCancelled,
-                  unlockedSpace(spaceID, accessController: accessController) != nil else {
+                unlockedSpace(spaceID, accessController: accessController) != nil
+            else {
                 clearSensitiveData()
                 return
             }
             descriptors = loadedDescriptors
         } catch {
             guard !Task.isCancelled,
-                  unlockedSpace(spaceID, accessController: accessController) != nil else {
+                unlockedSpace(spaceID, accessController: accessController) != nil
+            else {
                 clearSensitiveData()
                 return
             }
@@ -79,7 +82,7 @@ final class BrowserCredentialSpaceStore {
         deletingCredentialIDs = []
         errorMessage = nil
         exportDocument = nil
-        importPlan = nil
+        importReview = nil
         importSummary = nil
     }
 
@@ -158,10 +161,10 @@ final class BrowserCredentialSpaceStore {
             let export = try await BrowserCredentialSensitiveAccess(browser: browser)
                 .exportCredentials(in: spaceID)
             guard isStillSelected(),
-                  unlockedSpace(spaceID, accessController: accessController) != nil
+                unlockedSpace(spaceID, accessController: accessController) != nil
             else { return false }
-            exportDocument = BrowserCredentialCSVDocument(data: export.data)
-            exportFilename = export.filename
+            exportDocument = BrowserCredentialCSVDocument(data: export.contents)
+            exportFilename = export.fileName
             return true
         } catch {
             errorMessage = "Crest couldn’t authenticate and export this Space’s passwords."
@@ -180,11 +183,12 @@ final class BrowserCredentialSpaceStore {
         isStillSelected: () -> Bool
     ) async {
         guard let space = unlockedSpace(spaceID, accessController: accessController),
-              space.settings.credentialPreferences.isEnabled else { return }
+            space.settings.credentialPreferences.isEnabled
+        else { return }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         isPreparingImport = true
         errorMessage = nil
-        importPlan = nil
+        importReview = nil
         defer { isPreparingImport = false }
 
         let didStartAccess = url.startAccessingSecurityScopedResource()
@@ -203,47 +207,71 @@ final class BrowserCredentialSpaceStore {
             guard isStillSelected(), browser.spaceModel(matching: assignment) != nil else {
                 throw BrowserCredentialSensitiveAccessError.missingCredential
             }
-            let parsed = try BrowserCredentialCSVImportParser.parse(contentsOf: url)
+            let plan = try await Self.plan(
+                importing: try Self.document(at: url), against: existing, core: browser.core)
             guard isStillSelected(),
-                  let currentSpace = browser.spaceModel(matching: assignment) else {
+                let currentSpace = browser.spaceModel(matching: assignment)
+            else {
                 throw BrowserCredentialSensitiveAccessError.missingCredential
             }
-            importPlan = BrowserCredentialImportPlan(
-                format: parsed.format,
-                records: parsed.records,
-                rejections: parsed.rejections,
+            importReview = BrowserCredentialImportReview(
+                plan: plan,
                 existingCredentials: existing,
                 destination: assignment,
-                synchronizesWithICloud: currentSpace.settings.credentialPreferences.syncsCrestPasswordsWithICloud,
-                core: browser.core
+                synchronizesWithICloud: currentSpace.settings.credentialPreferences.syncsCrestPasswordsWithICloud
             )
-        } catch let error as BrowserCredentialCSVImportError {
-            errorMessage = error.localizedDescription
+        } catch let rejection as Rejection {
+            if case .invalidCredentialFile(let invalid) = rejection {
+                errorMessage = String(localized: invalid.flaw.message)
+            } else {
+                errorMessage = rejection.explanation
+            }
         } catch {
             errorMessage =
                 "Crest couldn’t authenticate and read that password file for this Space."
         }
     }
 
+    /// The file at `url`, read no further than one byte past the largest
+    /// password file the core imports, so a larger one is refused as such
+    /// without reading it whole.
+    private static func document(at url: URL) throws -> Data {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        return try handle.read(upToCount: CapacityLimits.current.credentialFileBytes + 1) ?? Data()
+    }
+
+    /// The core's plan for importing `document` against `existing`, read away
+    /// from the main thread.
+    private static func plan(
+        importing document: Data,
+        against existing: [BrowserCredential],
+        core: CrestCore
+    ) async throws -> CredentialImportPlan {
+        let query = CredentialImportPreview(document: document, existing: existing.map(ExistingCredential.init))
+        return try await Task.detached(priority: .userInitiated) { try core.query(query) }.value
+    }
+
     func selectImport(
         _ selection: BrowserCredentialImportSelection,
         for id: BrowserCredentialImportGroupID
     ) {
-        importPlan?.select(selection, for: id)
+        importReview?.select(selection, for: id)
     }
 
     func cancelImport() {
-        importPlan = nil
+        importReview = nil
     }
 
     func commitImport(
         accessController: BrowserSpaceAccessController,
         isStillSelected: () -> Bool
     ) async {
-        guard let plan = importPlan,
-              let space = browser.spaceModel(matching: plan.destination),
-              !accessController.isLocked(space),
-              isStillSelected() else { return }
+        guard let plan = importReview,
+            let space = browser.spaceModel(matching: plan.destination),
+            !accessController.isLocked(space),
+            isStillSelected()
+        else { return }
         isCommittingImport = true
         errorMessage = nil
         defer { isCommittingImport = false }
@@ -258,7 +286,7 @@ final class BrowserCredentialSpaceStore {
             guard plan.matchesExistingInventory(currentInventory) else {
                 errorMessage =
                     "This Space’s saved passwords changed during review. No passwords were imported; choose the file again to refresh conflicts."
-                importPlan = nil
+                importReview = nil
                 return
             }
             let resolution = try plan.resolvedInventory()
@@ -275,7 +303,7 @@ final class BrowserCredentialSpaceStore {
                 throw BrowserCredentialSensitiveAccessError.missingCredential
             }
             importSummary = resolution.summary
-            importPlan = nil
+            importReview = nil
             await load(
                 in: plan.destination.spaceID,
                 accessController: accessController
@@ -296,7 +324,8 @@ final class BrowserCredentialSpaceStore {
         isStillSelected: () -> Bool
     ) async -> Bool {
         guard !ids.isEmpty,
-              let space = unlockedSpace(spaceID, accessController: accessController) else { return false }
+            let space = unlockedSpace(spaceID, accessController: accessController)
+        else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         isDeletingSelection = true
         errorMessage = nil

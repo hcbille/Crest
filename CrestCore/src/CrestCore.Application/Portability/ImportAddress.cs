@@ -77,6 +77,25 @@ internal readonly record struct ImportAddress {
         }
     }
 
+    /// The scheme, as spelled.
+    public string Scheme => Spelling[..Spelling.IndexOf("://", StringComparison.Ordinal)];
+
+    /// The port the address names, or null when it names none; one too large
+    /// for any port reads as `int.MaxValue`.
+    public int? Port {
+        get {
+            int start = Spelling.IndexOf("://", StringComparison.Ordinal) + 3;
+            int end = start;
+            while (end < Spelling.Length && Spelling[end] is not ('/' or '?' or '#')) end++;
+            string authority = Spelling[start..end];
+            int hostEnd = authority.StartsWith('[') ? authority.IndexOf(']', StringComparison.Ordinal) + 1 : 0;
+            int colon = authority.IndexOf(':', hostEnd);
+            if (colon < 0) return null;
+            string digits = authority[(colon + 1)..];
+            return digits.Length > 9 ? int.MaxValue : int.Parse(digits, CultureInfo.InvariantCulture);
+        }
+    }
+
     private static ImportAddress? Parsed(string? source, bool lowercasesScheme, bool removesFragment) {
         if (source is null || new StringInfo(source).LengthInTextElements > MaximumLength) return null;
         int colon = source.IndexOf(':', StringComparison.Ordinal);

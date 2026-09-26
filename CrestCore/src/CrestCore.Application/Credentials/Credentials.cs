@@ -4,10 +4,20 @@ using CrestCore.Domain;
 namespace CrestCore.Application;
 
 /// The credentials and passkeys area: capture, fill and save decisions, the
-/// generated-password recipe, passkey access and the system Passwords offer.
-/// It holds no state. Only identities and metadata arrive: form facts say
-/// whether a username or password is present, never what it is, and the save
-/// plan takes the platform's comparison instead of a stored secret.
+/// generated-password recipe, passkey access, the system Passwords offer, and
+/// password files read for an import and written for an export.
+///
+/// It holds no state. Capture, fill and save take only identities and
+/// metadata: form facts say whether a username or password is present, never
+/// what it is, and the save plan takes the platform's comparison instead of a
+/// stored secret. Importing and exporting a password file are the only
+/// questions that carry passwords: the file itself, the passwords the Space
+/// keeps that an import is compared against, the passwords another browser
+/// brings, and the passwords an export writes. The core answers them from the
+/// question alone and keeps none of it: every record that holds a password
+/// is marked `HoldsSecrets`, names no secret in its text form, and is
+/// reachable from no change, stored session or sync journal record, and the
+/// buffer an answer crosses in is cleared when it is freed.
 public sealed class Credentials {
     #region Actions - Capture and fill
 
@@ -49,6 +59,28 @@ public sealed class Credentials {
         ArgumentNullException.ThrowIfNull(query);
         return StrongPasswordPolicy.Recipe(query.Length);
     }
+
+    #endregion
+
+    #region Actions - Password files
+
+    /// What importing the password file the query holds means. Throws
+    /// `Rejected` with `InvalidCredentialFile` for a file that cannot import.
+    public CredentialImportPlan Answer(CredentialImportPreview query) {
+        ArgumentNullException.ThrowIfNull(query);
+        var file = CredentialFile.Read(query.Document);
+        return CredentialImportPlanning.Plan(file.Format, file.Credentials, file.Rejections, query.Existing);
+    }
+
+    /// What importing another browser's passwords means, as its own password
+    /// file would.
+    public CredentialImportPlan Answer(PasswordImportPreview query) {
+        ArgumentNullException.ThrowIfNull(query);
+        return CredentialImportPlanning.Plan(CredentialFileFormat.Browser, query.Credentials, [], query.Existing);
+    }
+
+    /// The Space's password file.
+    public CredentialExportFile Answer(CredentialExport query) => CredentialExporting.File(query);
 
     #endregion
 

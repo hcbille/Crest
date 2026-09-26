@@ -14,6 +14,13 @@ public sealed class WireWriter {
 
     #endregion
 
+    #region Actions - Clearing
+
+    /// Zeroes what was written and starts over.
+    public void Clear() => buffer.Clear();
+
+    #endregion
+
     #region Actions - Structure
 
     public void WriteTag(int tag) => WriteVarint(checked((ulong)tag));

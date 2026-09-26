@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct BrowserCredentialImportRejectedRows: View {
-    let rejections: [BrowserCredentialCSVRowRejection]
+    let rejections: [CredentialRowRejection]
 
-    private var visibleRejections: [BrowserCredentialCSVRowRejection] {
+    private var visibleRejections: [CredentialRowRejection] {
         Array(rejections.prefix(BrowserCredentialImportReviewMetrics.maximumVisibleRejections))
     }
 
@@ -19,7 +19,7 @@ struct BrowserCredentialImportRejectedRows: View {
                 ForEach(visibleRejections, id: \.rowNumber) { rejection in
                     BrowserCredentialImportNoticeRow(
                         rowNumber: rejection.rowNumber,
-                        message: rejection.reason.message,
+                        message: String(localized: rejection.flaw.message),
                         tint: .red
                     )
 

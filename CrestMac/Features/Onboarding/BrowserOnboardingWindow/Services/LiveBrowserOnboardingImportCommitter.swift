@@ -29,11 +29,7 @@ struct LiveBrowserOnboardingImportCommitter:
         browser: BrowserStore
     ) async throws -> BrowserPasswordImportResult {
         try browser.importReviewedSpaces()
-        return await BrowserPasswordImportCommitter.commit(
-            preparedImport.passwords,
-            review: review,
-            browser: browser
-        )
+        return await BrowserPasswordImportCommitter.commit(preparedImport.passwords, browser: browser)
     }
 
     /// The passwords the review brings, read only when it brings any.

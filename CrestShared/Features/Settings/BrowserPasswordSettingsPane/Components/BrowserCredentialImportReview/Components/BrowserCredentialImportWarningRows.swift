@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserCredentialImportWarningRows: View {
-    let warnings: [BrowserCredentialCSVRowWarning]
+    let warnings: [CredentialRowWarning]
 
     var body: some View {
         VStack(alignment: .leading, spacing: CrestSpacing.medium) {
@@ -15,7 +15,7 @@ struct BrowserCredentialImportWarningRows: View {
                 ForEach(warnings, id: \.rowNumber) { warning in
                     BrowserCredentialImportNoticeRow(
                         rowNumber: warning.rowNumber,
-                        message: warning.reason.message,
+                        message: String(localized: warning.caution.message),
                         tint: .orange
                     )
 

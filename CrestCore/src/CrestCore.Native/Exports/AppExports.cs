@@ -134,9 +134,12 @@ public static unsafe partial class Exports {
             ContractCodec.WriteAnswer(writer, Standalone, Finished(ContractCodec.ReadQuery(reader), reader)));
     }
 
+    /// Clears the buffer's bytes before it releases them, since an answer may
+    /// hold passwords the core read or wrote for the caller.
     [UnmanagedCallersOnly(EntryPoint = "crest_buffer_free", CallConvs = [typeof(CallConvCdecl)])]
     public static void BufferFree(CrestBuffer* buffer) {
         if (buffer == null) return;
+        if (buffer->Bytes != null) NativeMemory.Clear(buffer->Bytes, buffer->Length);
         NativeMemory.Free(buffer->Bytes);
         *buffer = default;
     }
@@ -185,14 +188,17 @@ public static unsafe partial class Exports {
         return Run(input, length, output, maximumBytes, (reader, writer) => run(crest, reader, writer));
     }
 
-    /// Decodes one message and runs it, as `Call` does, without an app.
+    /// Decodes one message and runs it, as `Call` does, without an app. The
+    /// core's copies of the message and its answer are cleared once the
+    /// caller holds the answer, since either may hold passwords.
     private static int Run(byte* input, nuint length, CrestBuffer* output, Func<int, int> maximumBytes, Action<WireReader, WireWriter> run) {
         if (input == null && length != 0) return CoreStatus.InvalidArgument;
         int tag = WireReader.PeekTag(new ReadOnlySpan<byte>(input, (int)Math.Min(length, (nuint)WireReader.MaximumTagBytes)));
         if (length > (nuint)maximumBytes(tag)) return CoreStatus.LimitExceeded;
+        byte[] message = new ReadOnlySpan<byte>(input, (int)length).ToArray();
+        var writer = new WireWriter();
         try {
-            var reader = new WireReader(new ReadOnlySpan<byte>(input, (int)length).ToArray());
-            var writer = new WireWriter();
+            var reader = new WireReader(message);
             try {
                 run(reader, writer);
             } catch (Rejected rejected) {
@@ -207,6 +213,9 @@ public static unsafe partial class Exports {
             return CoreStatus.InvalidMessage;
         } catch {
             return CoreStatus.InternalError;
+        } finally {
+            Array.Clear(message);
+            writer.Clear();
         }
     }
 
