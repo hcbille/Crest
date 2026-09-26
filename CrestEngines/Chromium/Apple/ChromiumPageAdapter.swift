@@ -2,8 +2,9 @@
     import AppKit
 
     /// The desktop Chromium adapter for one page. The engine presents its page
-    /// through `ChromiumNativePage` as the page's engine-neutral events and asks
-    /// through its handlers; this connects both to the page.
+    /// through `ChromiumNativePage` as the page's engine-neutral events; this
+    /// connects them, the page's context menu rows and its link drags to the
+    /// page.
     @MainActor
     final class ChromiumPageAdapter: BrowserPageEngineAdapter {
         // MARK: - Variables
@@ -56,27 +57,9 @@
             self.page = page
             native.profileID = page.profileID
             native.observer = { [weak page] event in page?.receive(event) }
-            native.linkHandler = { [weak page] name, destination, label in
-                guard let page, let action = ChromiumLinkAction(rawValue: name) else { return false }
-                return page.performEngineLinkAction(action.pageAction, destination: destination, label: label)
-            }
-            native.contextMenuActions = { [weak page] url, selection in
-                page?.contextMenuActions(linkURL: url, selectionText: selection).map(\.engineValues) ?? []
-            }
-            native.contextMenuAction = { [weak page] identifier, url, selection in
-                page?.performContextMenuAction(
-                    identifier: identifier, linkURL: url, selectionText: selection) ?? false
-            }
             native.promptPresenter = page
-            native.protectedLinkHandler = { [weak page] destination in
-                page?.protectedLinkAction(to: destination)
-            }
-            native.modifiedLinkHandler = { [weak page, weak native] destination, modifiers, token in
-                guard let page else { return (.navigate, nil) }
-                return page.modifiedLinkDecision(
-                    to: destination, modifiers: BrowserEngineLinkModifiers(rawValue: modifiers),
-                    navigationToken: token, discard: { native?.discardNavigation(token) })
-            }
+            native.menuHost = page
+            native.linkDrag = linkDrag
             linkDrag?.observeNativeMouseDown()
         }
 
@@ -87,7 +70,6 @@
         }
 
         func setPrivateBrowsing(_ isPrivate: Bool) { native.isPrivateBrowsing = isPrivate }
-        func adoptEngineCreatedPage(_ token: String) -> Bool { native.adopt(token) }
 
         // MARK: - Actions - Engine-owned services
 
@@ -103,48 +85,11 @@
         func sitePermissionDidChange(_ permission: SitePermission, on page: BrowserPage) {}
     }
 
-    /// The link actions the engine's own context menu and drag ask about.
-    private enum ChromiumLinkAction: String {
-        case canSearch = "can_search"
-        case search
-        case canPeek = "can_peek"
-        case peek
-        case canSplit = "can_split"
-        case split
-        case drag
-
-        var pageAction: BrowserEngineLinkAction {
-            switch self {
-            case .canSearch: .canSearch
-            case .search: .search
-            case .canPeek: .canPeek
-            case .peek: .peek
-            case .canSplit: .canSplit
-            case .split: .split
-            case .drag: .drag
-            }
-        }
-    }
-
     extension BrowserPage {
         /// The Chromium page behind this page, or nil when another engine hosts it.
         var chromiumPage: ChromiumNativePage? { (engineAdapter as? ChromiumPageAdapter)?.native }
     }
 
-    extension BrowserEnginePageAdoption {
-        /// The page the engine offered.
-        init(offer: PageOffered) {
-            self.init(
-                token: offer.adoptionID.uuidString,
-                profileID: offer.profileID,
-                sourcePageID: offer.sourcePageID?.uuidString,
-                windowID: offer.windowID,
-                spaceID: offer.spaceID,
-                url: URL(string: offer.url),
-                foreground: offer.foreground
-            )
-        }
-    }
     /// Chromium's browser Media Session can ask the active video player to enter
     /// PiP without page JavaScript or a synthetic click. The floating surface is
     /// still Chromium-owned; this controller only follows Crest's tab lifecycle.

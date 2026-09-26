@@ -6,7 +6,7 @@ import Foundation
 /// AppKit builds and tears the menu down on the main thread while the
 /// right-click is still being handled, so every answer here is synchronous.
 @MainActor
-protocol BrowserDesktopWebViewMenuHost: AnyObject {
+protocol BrowserDesktopWebViewMenuHost: BrowserPageContextMenuHost {
     var opensLinksInCurrentSpace: Bool { get }
 
     /// The content the right-click that is opening this menu landed on.
@@ -14,9 +14,6 @@ protocol BrowserDesktopWebViewMenuHost: AnyObject {
     /// Consumes the capture: nil means no fresh page report arrived, and
     /// the same report is never handed to a second menu.
     func takeMenuContext() -> BrowserDesktopWebViewMenuContext?
-
-    func contextMenuActions(linkURL: URL?, selectionText: String?) -> [BrowserPageContextMenuAction]
-    func performContextMenuAction(identifier: String, linkURL: URL?, selectionText: String?) -> Bool
 
     /// Starts a person-requested image transfer in this page's WebKit context.
     func downloadImage(from url: URL)

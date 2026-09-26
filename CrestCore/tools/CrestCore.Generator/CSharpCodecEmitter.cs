@@ -39,6 +39,7 @@ internal static class CSharpCodecEmitter {
         foreach (var narrowed in schema.Bases) EmitBase(code, schema, narrowed);
         foreach (var root in ContractRoot.All.Where(root => root.TravelsToCore)) EmitLimits(code, schema, root);
         EmitAnswers(code, schema);
+        EmitEngineAnswers(code, schema);
         var direct = DirectOnly(schema);
         foreach (var record in schema.Records.Where(record => !direct.Contains(record.Type))) EmitRecord(code, schema, record);
         foreach (var item in schema.Enums.Where(item => !direct.Contains(item.Type))) EmitEnum(code, item);
@@ -106,6 +107,23 @@ internal static class CSharpCodecEmitter {
             code.Append("                break;\n");
         }
         code.Append("            default: throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, \"Not a contract Query.\");\n");
+        code.Append("        }\n    }\n");
+    }
+
+    /// Writes the answer to a decoded engine question, which the app answers
+    /// for the engine that asked it, so each question reaches its answer
+    /// through its own type.
+    private static void EmitEngineAnswers(StringBuilder code, ContractSchema schema) {
+        code.Append('\n').Append("    public static void WriteEngineAnswer(WireWriter writer, IEngineAnswers answers, Engine engine, object question) {\n");
+        code.Append("        ArgumentNullException.ThrowIfNull(answers);\n        ArgumentNullException.ThrowIfNull(question);\n");
+        code.Append("        switch (question) {\n");
+        foreach (var member in schema.Members(ContractRoot.EngineQuestion)) {
+            code.Append($"            case {member.Name} asked:\n");
+            code.Append($"                var answer{member.Tag} = answers.Ask(engine, asked);\n");
+            code.Append(Write(member.Answer!, $"answer{member.Tag}", "                ", $"Answer{member.Tag}"));
+            code.Append("                break;\n");
+        }
+        code.Append("            default: throw new ArgumentOutOfRangeException(nameof(question), question.GetType().Name, \"Not a contract EngineQuestion.\");\n");
         code.Append("        }\n    }\n");
     }
 

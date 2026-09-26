@@ -212,13 +212,15 @@ static void session_boundary(void) {
 typedef struct {
     uint64_t app, engine;
     crest_engine_report_t report;
+    crest_engine_ask_t ask;
     int commands;
     uint8_t last[64];
     size_t last_length;
 } engine_fixture_t;
-static void CREST_CALL attach_engine(void* context, uint64_t app, uint64_t engine, crest_engine_report_t report) {
+static void CREST_CALL attach_engine(void* context, uint64_t app, uint64_t engine, crest_engine_report_t report,
+    crest_engine_ask_t ask) {
     engine_fixture_t* fixture = context;
-    fixture->app = app; fixture->engine = engine; fixture->report = report;
+    fixture->app = app; fixture->engine = engine; fixture->report = report; fixture->ask = ask;
 }
 static void CREST_CALL run_engine(void* context, const uint8_t* command, size_t length) {
     engine_fixture_t* fixture = context;
@@ -246,7 +248,8 @@ static void engine_boundary(void) {
         &engine, &buffer) == CREST_VERSION_MISMATCH && engine == 0 && fixture.engine == 0);
     assert(crest_engine_register(app, engine_fingerprint, sizeof(engine_fingerprint), registration, sizeof(registration),
         &binding, &engine, &buffer) == CREST_OK && engine != 0 && buffer.bytes == NULL);
-    assert(fixture.app == app && fixture.engine == engine && fixture.report == crest_engine_report);
+    assert(fixture.app == app && fixture.engine == engine && fixture.report == crest_engine_report
+        && fixture.ask == crest_engine_ask);
     assert(crest_engine_register(app, engine_fingerprint, sizeof(engine_fingerprint), registration, sizeof(registration),
         &binding, &engine, &buffer) == CREST_REJECTED && buffer.bytes[0] == CREST_REJECTION_ENGINE_ALREADY_REGISTERED);
     crest_buffer_free(&buffer);

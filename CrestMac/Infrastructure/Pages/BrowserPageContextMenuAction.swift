@@ -5,34 +5,17 @@ import Foundation
 /// their own editing and extension rows; these actions use Crest's Space and
 /// tab routing after the menu closes.
 struct BrowserPageContextMenuAction {
-    enum Kind {
+    // MARK: - Types
+
+    /// What the row does, with what it does it to.
+    enum Kind: Equatable {
         case search
         case peek
         case split
         case space(SpaceID)
-
-        init?(identifier: String) {
-            switch identifier {
-            case "search": self = .search
-            case "peek": self = .peek
-            case "split": self = .split
-            default:
-                guard identifier.hasPrefix("space:"),
-                    let id = UUID(uuidString: String(identifier.dropFirst("space:".count)))
-                else { return nil }
-                self = .space(id)
-            }
-        }
-
-        var identifier: String {
-            switch self {
-            case .search: "search"
-            case .peek: "peek"
-            case .split: "split"
-            case .space(let id): "space:\(id.uuidString)"
-            }
-        }
     }
+
+    // MARK: - Variables
 
     let kind: Kind
     let title: String
@@ -44,17 +27,85 @@ struct BrowserPageContextMenuAction {
         if case .space = kind { return true }
         return false
     }
+}
 
-    var engineValues: [String: String] {
-        [
-            "id": kind.identifier, "title": title, "symbol": symbolName,
-            "group": isSpaceDestination ? "spaces" : "primary",
-            "groupTitle": String(localized: "Open Link in Another Space"),
-        ]
+/// A page that puts Crest's rows in an engine's context menu and runs the one
+/// the person picks.
+@MainActor
+protocol BrowserPageContextMenuHost: AnyObject {
+    func contextMenuActions(linkURL: URL?, selectionText: String?) -> [BrowserPageContextMenuAction]
+    @discardableResult func performContextMenuAction(_ action: BrowserPageContextMenuAction) -> Bool
+}
+
+/// Crest's rows in an engine's context menu for one page: the other Spaces a
+/// link opens in grouped under one row, then the page's own rows, ahead of the
+/// engine's rows. A row runs only while the page's view is still in the window
+/// the menu opened in.
+@MainActor
+struct BrowserPageContextMenu {
+    // MARK: - Types
+
+    /// One row's action, which its menu item keeps and runs.
+    @MainActor
+    private final class Row: NSObject {
+        let action: BrowserPageContextMenuAction
+        weak var host: (any BrowserPageContextMenuHost)?
+        weak var view: NSView?
+        let windowNumber: Int?
+
+        init(_ action: BrowserPageContextMenuAction, host: any BrowserPageContextMenuHost, view: NSView) {
+            self.action = action
+            self.host = host
+            self.view = view
+            windowNumber = view.window?.windowNumber
+        }
+
+        @objc func perform(_ sender: NSMenuItem) {
+            guard let view, view.window?.windowNumber == windowNumber else { return }
+            host?.performContextMenuAction(action)
+        }
+    }
+
+    // MARK: - Variables
+
+    let actions: [BrowserPageContextMenuAction]
+    let host: any BrowserPageContextMenuHost
+    /// The page's view, whose window the menu opened in.
+    let view: NSView
+
+    // MARK: - Actions - Menu
+
+    /// Puts the rows ahead of what `menu` holds, with a separator between.
+    func insert(into menu: NSMenu) {
+        guard !actions.isEmpty else { return }
+        var items: [NSMenuItem] = []
+        let spaceActions = actions.filter(\.isSpaceDestination)
+        if !spaceActions.isEmpty {
+            let group = NSMenuItem(
+                title: String(localized: "Open Link in Another Space"), action: nil, keyEquivalent: "")
+            group.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: nil)
+            let submenu = NSMenu()
+            for action in spaceActions { submenu.addItem(item(for: action)) }
+            group.submenu = submenu
+            items.append(group)
+        }
+        items.append(contentsOf: actions.filter { !$0.isSpaceDestination }.map(item(for:)))
+        for (index, item) in items.enumerated() { menu.insertItem(item, at: index) }
+        if menu.items.count > items.count { menu.insertItem(.separator(), at: items.count) }
+    }
+
+    private func item(for action: BrowserPageContextMenuAction) -> NSMenuItem {
+        let row = Row(action, host: host, view: view)
+        let item = NSMenuItem(title: action.title, action: #selector(Row.perform(_:)), keyEquivalent: "")
+        item.target = row
+        // The menu item keeps its row alive.
+        item.representedObject = row
+        item.image = NSImage(systemSymbolName: action.symbolName, accessibilityDescription: nil)
+        return item
     }
 }
 
-extension BrowserPage {
+extension BrowserPage: BrowserPageContextMenuHost {
     func contextMenuActions(linkURL: URL?, selectionText: String?) -> [BrowserPageContextMenuAction] {
         guard let context = navigationContext else { return [] }
         let source = BrowserTabRuntimeAssignment(
@@ -93,38 +144,38 @@ extension BrowserPage {
         return actions
     }
 
+    /// Runs a row the menu offered, while the page still offers it for the
+    /// same link or selection.
     @discardableResult
-    func performContextMenuAction(
-        identifier: String, linkURL: URL?, selectionText: String?
-    ) -> Bool {
-        guard let kind = BrowserPageContextMenuAction.Kind(identifier: identifier),
-            contextMenuActions(linkURL: linkURL, selectionText: selectionText)
-                .contains(where: { $0.kind.identifier == kind.identifier }),
+    func performContextMenuAction(_ action: BrowserPageContextMenuAction) -> Bool {
+        guard
+            contextMenuActions(linkURL: action.linkURL, selectionText: action.selectionText)
+                .contains(where: { $0.kind == action.kind }),
             let context = navigationContext
         else { return false }
         let source = BrowserTabRuntimeAssignment(
             tabID: context.tabID, spaceID: context.spaceID,
             profileID: context.assignment.profileID)
-        switch kind {
+        switch action.kind {
         case .search:
-            guard let selectionText,
+            guard let selectionText = action.selectionText,
                 let search = linkDestinationHost.selectionSearch(for: selectionText, from: source)
             else { return false }
             return linkDestinationHost.openLink(
                 search.url, from: source, in: context.assignment)
         case .peek:
-            guard let linkURL else { return false }
+            guard let linkURL = action.linkURL else { return false }
             openPeek(
                 BrowserPeekRequest(
                     url: linkURL, sourceTabID: context.tabID, sourceTitle: context.title,
                     spaceAssignment: context.assignment, trigger: .contextMenu))
             return true
         case .split:
-            guard let linkURL else { return false }
+            guard let linkURL = action.linkURL else { return false }
             openLinkInSplitView(linkURL)
             return true
         case .space(let id):
-            guard let linkURL,
+            guard let linkURL = action.linkURL,
                 let space = linkDestinationHost.otherSpaces(from: source).first(where: { $0.id == id })
             else { return false }
             return linkDestinationHost.openLink(

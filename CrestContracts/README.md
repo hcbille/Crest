@@ -43,7 +43,13 @@ the stack of the report that caused them. The binding reports `EngineEvent`s
 `PageStateChanged`) with `crest_engine_report`, which never refuses one. A
 binding reports a page's `PageSnapshot` at most once per turn and only when it
 changed; the core keeps it with the page's failure as `PageLiveState` and
-publishes `PageChanged` only when that differs. `CreatePage` names the window
+publishes `PageChanged` only when that differs. While its engine waits, a
+binding asks the core an `EngineQuestion` about one of its pages with
+`crest_engine_ask`, such as what a person's click on a link does
+(`LinkActivation`); the core answers at once from its state, through the
+callback the binding passes, and changes nothing. A page the engine opens by
+itself is reported as `PageOffered`, and the core adopts it for a tab it opens
+(`AdoptOfferedPage`) or refuses it (`RejectOfferedPage`). `CreatePage` names the window
 that hosts the page, so a binding creates the page there as soon as the core
 asks. The engine fingerprint covers only the wire of the engine roots and the
 registration, so an edit elsewhere in the contracts, or to a fixed set's data
@@ -51,8 +57,8 @@ and texts, leaves it unchanged. The generator also writes
 `include/crest_engine_contract.h`, the engine contract and its codec in
 portable C++20 that uses the standard library alone and never throws.
 Chromium's binding, which is C++, registers with its `kFingerprint`, decodes
-its commands and encodes its reports with it, and reports to the core through
-the function `attach` hands it; `tests/engine_abi.cc` does the same against
+its commands and encodes its reports and questions with it, and reports to and
+asks the core through the functions `attach` hands it; `tests/engine_abi.cc` does the same against
 the shared library. `crest_engine.h` also describes the platform's direct path
 to a binding written outside the platform's language, `crest_engine_pages_t`:
 the `PageRequest`s the UI makes of a page's engine for view work (history,

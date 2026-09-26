@@ -1129,6 +1129,8 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             linkHover?.receiveEngineHover(destination)
         case .popupBlocked(let pageURL):
             recordEngineBlockedPopup(pageURL: pageURL, documentIdentifier: String(committedNavigationCount))
+        case .peekRequested(let destination, let decision, let stagedLink):
+            openRequestedPeek(to: destination, decision: decision, stagedLink: stagedLink)
         case .favicon(let data, let source):
             if let source {
                 guard let url = pageEngine.currentURL,

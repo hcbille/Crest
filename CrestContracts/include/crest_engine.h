@@ -5,10 +5,13 @@
  * hands it commands (CreatePage, LoadPage, ClosePage) and the binding reports
  * what happens to its pages (PageCreated, PageCreationFailed, PageClosed, the
  * navigation events and PageStateChanged, at most once per page per turn).
- * Registrations, commands and reports cross in the same generated wire format
- * as crest_app.h; crest_contracts.h names the EngineCommand and EngineEvent
- * tags and the engine contract's own fingerprint, which changes only when the
- * engine contract does.
+ * While its engine waits, a binding may also ask the core a question about one
+ * of its pages (LinkActivation), which the core answers at once from its state
+ * without changing it. Registrations, commands, reports, questions and answers
+ * cross in the same generated wire format as crest_app.h; crest_contracts.h
+ * names the EngineCommand, EngineEvent and EngineQuestion tags and the engine
+ * contract's own fingerprint, which changes only when the engine contract
+ * does.
  *
  * The core delivers commands in the order it issued them, never while it holds
  * a lock and never on the stack of the report that caused them: an intent or a
@@ -26,14 +29,23 @@ extern "C" {
 /* Reports one encoded EngineEvent: crest_engine_report itself. */
 typedef crest_status_t (CREST_CALL *crest_engine_report_t)(uint64_t app, uint64_t engine, const uint8_t* event, size_t length);
 
+/* Receives the encoded answer to an engine question, borrowed for the call,
+ * with the context the question was asked with. */
+typedef void (CREST_CALL *crest_engine_answer_t)(void* context, const uint8_t* answer, size_t length);
+
+/* Asks one encoded EngineQuestion: crest_engine_ask itself. */
+typedef crest_status_t (CREST_CALL *crest_engine_ask_t)(uint64_t app, uint64_t engine, const uint8_t* question, size_t length,
+    crest_engine_answer_t answer, void* context);
+
 /* A binding's function table, copied at registration. context is the
  * binding's own and comes back with every call. attach, which may be NULL,
  * runs once when registration succeeds, before crest_engine_register returns,
- * with the engine's handle and the function to report through. run receives
- * one encoded EngineCommand; the bytes are borrowed for the call. */
+ * with the engine's handle and the functions to report and ask through. run
+ * receives one encoded EngineCommand; the bytes are borrowed for the call. */
 typedef struct {
     void* context;
-    void (CREST_CALL *attach)(void* context, uint64_t app, uint64_t engine, crest_engine_report_t report);
+    void (CREST_CALL *attach)(void* context, uint64_t app, uint64_t engine, crest_engine_report_t report,
+        crest_engine_ask_t ask);
     void (CREST_CALL *run)(void* context, const uint8_t* command, size_t length);
 } crest_engine_binding_t;
 
@@ -68,6 +80,13 @@ CREST_API crest_status_t CREST_CALL crest_engine_register(uint64_t app, const ui
  * this app did not register. What the report changed arrives through
  * crest_app_drain. */
 CREST_API crest_status_t CREST_CALL crest_engine_report(uint64_t app, uint64_t engine, const uint8_t* event, size_t length);
+/* Answers one encoded EngineQuestion at once: OK after answer ran once with
+ * the encoded answer, which changes nothing in the core. A binding asks while
+ * its engine waits, on the thread that runs its commands. INVALID_MESSAGE for bytes
+ * that do not decode, INVALID_HANDLE for an engine this app did not register;
+ * answer does not run for either. */
+CREST_API crest_status_t CREST_CALL crest_engine_ask(uint64_t app, uint64_t engine, const uint8_t* question, size_t length,
+    crest_engine_answer_t answer, void* context);
 /* The binding hears nothing more once this returns on the thread that runs
  * its commands; commands still queued for it are dropped. Destroying the app
  * unregisters every binding. */

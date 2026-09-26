@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -24,14 +25,17 @@ struct Binding {
   uint64_t app = 0;
   uint64_t engine = 0;
   crest_engine_report_t report = nullptr;
+  crest_engine_ask_t ask = nullptr;
   std::vector<engine::EngineCommand> commands;
 };
 
-void CREST_CALL Attach(void* context, uint64_t app, uint64_t engine_handle, crest_engine_report_t report) {
+void CREST_CALL Attach(void* context, uint64_t app, uint64_t engine_handle, crest_engine_report_t report,
+                       crest_engine_ask_t ask) {
   auto* binding = static_cast<Binding*>(context);
   binding->app = app;
   binding->engine = engine_handle;
   binding->report = report;
+  binding->ask = ask;
 }
 
 void CREST_CALL Run(void* context, const uint8_t* bytes, size_t length) {
@@ -43,6 +47,22 @@ void CREST_CALL Run(void* context, const uint8_t* bytes, size_t length) {
 crest_status_t Report(const Binding& binding, const engine::EngineEvent& event) {
   const std::vector<uint8_t> bytes = engine::Encode(event);
   return binding.report(binding.app, binding.engine, bytes.data(), bytes.size());
+}
+
+// Keeps the encoded answer the core handed back.
+void CREST_CALL Received(void* context, const uint8_t* bytes, size_t length) {
+  static_cast<std::vector<uint8_t>*>(context)->assign(bytes, bytes + length);
+}
+
+// What the core answered `question`, or nothing when it could not.
+template <typename Question>
+std::optional<typename engine::EngineQuestionAnswer<Question>::Type> Ask(const Binding& binding, const Question& question) {
+  const std::vector<uint8_t> bytes = engine::Encode(engine::EngineQuestion{question});
+  std::vector<uint8_t> answer;
+  if (binding.ask(binding.app, binding.engine, bytes.data(), bytes.size(), Received, &answer) != CREST_OK) {
+    return std::nullopt;
+  }
+  return engine::Decode<typename engine::EngineQuestionAnswer<Question>::Type>(answer.data(), answer.size());
 }
 
 engine::Guid Filled(uint8_t value) {
@@ -183,6 +203,13 @@ void CodecRoundTrips() {
       engine::PageCreated{.page_id = page},
       engine::PageCreationFailed{.page_id = page},
       engine::PageIconChanged{.page_id = page, .url = "https://example.com/", .accent = engine::TabIconAccent{0.25, 0.5, 1}},
+      engine::PageOffered{.offer_id = Filled(0x78),
+                          .profile_id = Filled(0x76),
+                          .source_page_id = page,
+                          .window_id = Filled(0x73),
+                          .space_id = std::nullopt,
+                          .url = "https://example.com/popup",
+                          .foreground = true},
       engine::PageStateChanged{.page_id = page,
                                .snapshot = {.url = "https://example.com/",
                                             .pending_url = std::nullopt,
@@ -203,6 +230,7 @@ void CodecRoundTrips() {
                                  .page_id = page,
                                  .question = {.kind = engine::JavaScriptDialogKind::kBeforeUnload,
                                               .source_url = "https://example.com/"}},
+      engine::StagedLinkUnavailable{.page_id = page},
   };
   for (size_t tag = 0; tag < events.size(); ++tag) {
     assert(events[tag].index() == tag);
@@ -218,7 +246,7 @@ void CodecRoundTrips() {
   assert(!engine::Decode<engine::EngineEvent>(finished.data(), finished.size()));
   const uint8_t overlong[] = {0x80, 0x00};
   assert(!engine::Decode<engine::EngineEvent>(overlong, sizeof(overlong)));
-  const uint8_t unknown[] = {CREST_ENGINE_EVENT_SCRIPT_DIALOG_OPENED + 1};
+  const uint8_t unknown[] = {CREST_ENGINE_EVENT_STAGED_LINK_UNAVAILABLE + 1};
   assert(!engine::Decode<engine::EngineEvent>(unknown, sizeof(unknown)));
 }
 
@@ -243,7 +271,8 @@ void EngineBoundary() {
   uint64_t handle = 0;
   assert(crest_engine_register(app, engine::kFingerprint.data(), engine::kFingerprint.size(), registration.data(),
                                registration.size(), &table, &handle, &buffer) == CREST_OK);
-  assert(handle != 0 && binding.engine == handle && binding.app == app && binding.report == crest_engine_report);
+  assert(handle != 0 && binding.engine == handle && binding.app == app && binding.report == crest_engine_report &&
+         binding.ask == crest_engine_ask);
   Drained(app);
 
   // A workspace opened from a seed, with a window open over it.
@@ -286,15 +315,37 @@ void EngineBoundary() {
       CREST_OK);
   const std::vector<uint8_t> drained = Drained(app);
   assert(!drained.empty() && drained[0] > 0);
+
+  // The binding asks what a click on a link does while its engine waits: a
+  // plain click in a page without a tab loads in the page.
+  const auto followed = Ask(binding, engine::LinkActivation{
+      .page_id = page, .url = "https://example.com/next", .gesture = {.user_activated = true, .top_level = true}});
+  assert(followed && followed->decision == engine::LinkNavigationDecision::kNavigate);
+  // A page a page without a tab opened stays in it: the core closes the offer
+  // and the page loads its address.
+  const engine::Guid offer = Filled(0x62);
+  assert(Report(binding, engine::PageOffered{.offer_id = offer,
+                                             .profile_id = Filled(0x55),
+                                             .source_page_id = page,
+                                             .window_id = window,
+                                             .url = "https://example.com/popup",
+                                             .foreground = true}) == CREST_OK);
+  assert(binding.commands.size() == 4);
+  assert(std::get<engine::RejectOfferedPage>(binding.commands[2]).offer_id == offer);
+  assert(std::get<engine::LoadPage>(binding.commands[3]).url == "https://example.com/popup");
+
   // The page's release closes what the engine holds.
   Dispatched(app, Intent(CREST_INTENT_RELEASE_PAGE, page, false));
-  assert(binding.commands.size() == 3);
-  assert(std::get<engine::ClosePage>(binding.commands[2]) == (engine::ClosePage{.page_id = page}));
+  assert(binding.commands.size() == 5);
+  assert(std::get<engine::ClosePage>(binding.commands[4]) == (engine::ClosePage{.page_id = page}));
   assert(Report(binding, engine::PageClosed{.page_id = page}) == CREST_OK);
 
   // A report that does not decode is malformed, never a rejection.
   const uint8_t garbage[] = {0x7f, 0x01};
   assert(binding.report(app, handle, garbage, sizeof(garbage)) == CREST_INVALID_MESSAGE);
+  std::vector<uint8_t> unanswered;
+  assert(binding.ask(app, handle, garbage, sizeof(garbage), Received, &unanswered) == CREST_INVALID_MESSAGE &&
+         unanswered.empty());
   assert(crest_engine_unregister(app, handle) == CREST_OK);
   assert(crest_app_destroy(app) == CREST_OK);
 }

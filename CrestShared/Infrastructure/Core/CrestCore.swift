@@ -72,6 +72,9 @@ final class CrestCore {
     /// Who hears each page the core moved to another engine, once its batch
     /// is applied.
     @ObservationIgnored private var rehostFollowers: [Follower<PageRehosted>] = []
+    /// Who hears each page an engine opened by itself that the core adopted
+    /// for a tab, once its batch is applied.
+    @ObservationIgnored private var adoptionFollowers: [Follower<OfferedPageAdopted>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     /// What waits for each data deletion to end, by its request.
@@ -303,6 +306,7 @@ final class CrestCore {
         var downloadChanges: [DownloadState] = []
         var unloadedPages: [PageUnloaded] = []
         var rehostedPages: [PageRehosted] = []
+        var adoptedPages: [OfferedPageAdopted] = []
         var closesReady: [CloseReady] = []
         var dataDeleted: [DataDeleted] = []
         var movedPages: [UUID] = []
@@ -325,6 +329,7 @@ final class CrestCore {
             case .downloadUpdated(let updated): downloadChanges.append(updated.download)
             case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
             case .pageRehosted(let rehosted): rehostedPages.append(rehosted)
+            case .offeredPageAdopted(let adopted): adoptedPages.append(adopted)
             case .closeReady(let ready): closesReady.append(ready)
             case .dataDeleted(let deleted): dataDeleted.append(deleted)
             default: break
@@ -342,6 +347,7 @@ final class CrestCore {
         // The page's owner hosts it on its new engine before anyone hears it moved.
         if !movedPages.isEmpty { engines.pagesMoved(movedPages) }
         if !rehostedPages.isEmpty { pagesRehosted(rehostedPages) }
+        if !adoptedPages.isEmpty { pagesAdopted(adoptedPages) }
         #if DEBUG
             batchApplied?(changes)
         #endif
@@ -403,6 +409,22 @@ final class CrestCore {
     private func pagesRehosted(_ pages: [PageRehosted]) {
         rehostFollowers.removeAll { $0.owner == nil }
         let followers = rehostFollowers
+        for page in pages {
+            for follower in followers { follower.handler(page) }
+        }
+    }
+
+    /// Calls `handler` with each page an engine opened by itself that the core
+    /// adopted for a tab, once its batch is applied, so the window that hosts
+    /// the page shows it. The registration lasts as long as `owner`.
+    func followAdoptedPages(_ owner: AnyObject, _ handler: @escaping @MainActor (OfferedPageAdopted) -> Void) {
+        adoptionFollowers.removeAll { $0.owner == nil }
+        adoptionFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    private func pagesAdopted(_ pages: [OfferedPageAdopted]) {
+        adoptionFollowers.removeAll { $0.owner == nil }
+        let followers = adoptionFollowers
         for page in pages {
             for follower in followers { follower.handler(page) }
         }

@@ -60,6 +60,16 @@ final class ChromiumMacUI: NSObject, CrestMacUI {
         CrestChromiumRoot.showNativeNotice(message, icon: kind == .linkCopied ? "link" : "checkmark.circle")
     }
 
+    // MARK: - Pages
+
+    func addPageMenuItems(to menu: NSMenu, page pageID: UUID, link: URL?, selection: String?) {
+        CrestChromiumRoot.chromiumEngine?.page(pageID)?.addMenuItems(to: menu, link: link, selection: selection)
+    }
+
+    func beginLinkDrag(_ url: URL, title: String, page pageID: UUID) -> Bool {
+        CrestChromiumRoot.chromiumEngine?.page(pageID)?.beginLinkDrag(url, title: title) == true
+    }
+
     private final class Placement: NSObject, CrestEngineWindowPlacement {
         let window: UUID
         let space: UUID

@@ -280,10 +280,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     /// A private WebKit page is private through its website data store.
     func setPrivateBrowsing(_ isPrivate: Bool) {}
 
-    /// WebKit hands Crest a popup's web view through `createWebViewWith`
-    /// instead; it never names a page it created.
-    func adoptEngineCreatedPage(_ token: String) -> Bool { false }
-
     func applyContentBlocking(
         policy: ContentBlockingPolicy,
         balancedRuleLists: [WKContentRuleList],

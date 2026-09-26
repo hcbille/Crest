@@ -124,6 +124,30 @@
             return dismissal
         }
 
+        // MARK: - Actions - Links
+
+        /// The app's own load of `url` in `pageID`, which the core resolves by
+        /// the page's Space and asks the binding to run.
+        func navigate(_ pageID: UUID, to url: URL) {
+            _ = try? core?.send(Navigate(pageID: pageID, input: url.absoluteString))
+        }
+
+        /// Makes the link the binding staged as `stagedLinkID` in `sourcePageID`
+        /// the first load of `pageID`, when it loads `url`. False when the core
+        /// refuses it, such as for pages of another engine or profile.
+        func stage(_ stagedLinkID: UUID, from sourcePageID: UUID, into pageID: UUID, expecting url: URL) -> Bool {
+            guard let core else { return false }
+            do {
+                try core.send(
+                    StageLink(
+                        pageID: pageID, sourcePageID: sourcePageID, stagedLinkID: stagedLinkID,
+                        url: url.absoluteString))
+                return true
+            } catch {
+                return false
+            }
+        }
+
         // MARK: - Actions - Profiles
 
         /// Loads a Space's profile so its extensions can be listed before anything
@@ -149,6 +173,12 @@
             UUID(uuidString: id).flatMap { hosted[$0]?.page }
         }
 
+        /// The live page the core names `pageID`, for what the Mac shell asks
+        /// of it, such as its context menu's rows.
+        func page(_ pageID: UUID) -> ChromiumNativePage? {
+            hosted[pageID]?.page
+        }
+
         private func hold(_ native: ChromiumNativePage) {
             hosted = hosted.filter { $0.value.page != nil }
             hosted[native.pageID] = WeakNativePage(page: native)
@@ -162,7 +192,6 @@
             case .profilePrepared(let prepared):
                 preparations.removeValue(forKey: prepared.preparationID)?.resume(returning: prepared.ready)
             case .profileReleased(let released): CrestChromiumRoot.profileReleased(released.profileID)
-            case .pageOffered(let offer): CrestChromiumRoot.pageOffered(offer)
             case .sidePanelRequested(let requested): CrestChromiumRoot.routeSidePanel(requested)
             default:
                 guard let pageID = presentation.pageID else { return }

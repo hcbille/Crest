@@ -23,6 +23,10 @@ extension CoreState {
     /// hears of it through `CrestCore.followUnloadedPages`.
     func apply(_ change: PageUnloaded) {}
 
+    /// An adopted page arrives through the `PageOpened` before it; the window
+    /// that hosts it hears of it through `CrestCore.followAdoptedPages`.
+    func apply(_ change: OfferedPageAdopted) {}
+
     /// A recorded navigation changes no page: the session changes before it
     /// carry what it recorded, and `CrestCore` tells the engines' observers.
     func apply(_ change: NavigationRecorded) {}

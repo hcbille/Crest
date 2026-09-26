@@ -195,6 +195,7 @@ final class BrowserPagePool:
         self.runtimeStore.register(self)
         core.engines.observeRecords(self) { [weak self] in self?.restyleVisitedLinks(after: $0) }
         core.followUnloadedPages(self) { [weak self] in self?.host.pageUnloaded($0) }
+        core.followAdoptedPages(self) { [weak self] in self?.pageAdopted($0) }
     }
 
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
@@ -809,51 +810,6 @@ final class BrowserPagePool:
         return BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
     }
 
-    /// Retains a page the engine created itself — its opener, history,
-    /// JavaScript state and extension tab identity — in the shared tab runtime.
-    func adoptEnginePage(_ adoption: BrowserEnginePageAdoption) -> Bool {
-        let profile = adoption.profileID
-        let destination: SpaceID
-        if let sourceID = adoption.sourcePageID {
-            guard
-                let opener = tabRuntimes.values.compactMap(\.page)
-                    .first(where: { $0.corePage.id == UUID(uuidString: sourceID) }),
-                opener.profileID == profile
-            else { return false }
-            destination = opener.spaceID
-        } else {
-            guard adoption.windowID == windowID else { return false }
-            // A window Crest opened for an engine-created window names the
-            // Space it was opened for: it has no page yet to treat as opener.
-            if let target = adoption.spaceID {
-                destination = target
-            } else if let opener = activePage, opener.profileID == profile {
-                destination = opener.spaceID
-            } else {
-                return false
-            }
-        }
-        guard !browser.deletingSpaceIDs.contains(destination),
-            let registration = popupTabHost.openTab(adoption.url, destination, adoption.foreground),
-            registration.space.profile.id == profile
-        else { return false }
-        guard let page = makePage(space: registration.space, tabID: registration.tab.id) else {
-            popupTabHost.closeTab(registration.tab.id, registration.space.id)
-            return false
-        }
-        page.markOpenedAsPopup()
-        page.updateNavigationContext(tab: registration.tab)
-        guard page.engineAdapter.adoptEngineCreatedPage(adoption.token) else {
-            page.release(keepingState: false)
-            popupTabHost.closeTab(registration.tab.id, registration.space.id)
-            return false
-        }
-        retainResidentPage(page, for: registration.tab.id)
-        residencyRevision &+= 1
-        if adoption.foreground { activate(registration.tab.id) }
-        return true
-    }
-
     /// Adopts a page the opener's engine created for a popup as a new tab in
     /// the opener's Space, selected unless `selecting` is false. WebKit builds
     /// the popup's page from what `webKit` gives it for the tab's Space.
@@ -1099,6 +1055,24 @@ final class BrowserPagePool:
         host.relieveMemoryPressure(level, presenting: Array(runtimeStore.presentedTabIDs))
     }
 
+    /// Hosts the page an engine opened by itself that the core adopted for a
+    /// tab it opened in this window, keeping its opener, history, JavaScript
+    /// state and extension tab identity, as the tab's resident page, and
+    /// brings the tab forward when the core showed it.
+    private func pageAdopted(_ adopted: OfferedPageAdopted) {
+        guard adopted.windowID == windowID, adopted.workspaceID == browser.window.workspaceID,
+            tabRuntimes[adopted.tabID] == nil,
+            let space = browser.session.space(id: adopted.spaceID),
+            let tab = space.tabs.first(where: { $0.id == adopted.tabID }),
+            let page = makePage(space: space, tabID: tab.id, hosting: adopted.pageID)
+        else { return }
+        page.markOpenedAsPopup()
+        page.updateNavigationContext(tab: tab)
+        retainResidentPage(page, for: tab.id)
+        residencyRevision &+= 1
+        if adopted.shows { activate(tab.id) }
+    }
+
     /// The tab's resident page, or a new one the core opened for it; nil when
     /// the core refuses the tab a page.
     private func page(for tab: BrowserTab, space: BrowserSpace) -> BrowserPage? {
@@ -1135,22 +1109,28 @@ final class BrowserPagePool:
     /// refuses the page.
     /// A page the core opens for `tabID` in `space`, or for a transient request
     /// presenting as `presentation`; WebKit builds it from `webKit`, or from
-    /// the Space's own inputs. Nil when the core refuses it.
+    /// the Space's own inputs. With `pageID`, the page the core already opened
+    /// for the tab instead. Nil when the core refuses it.
     private func makePage(
         space: BrowserSpace,
         tabID: TabID? = nil,
         presentation: TransientPresentation? = nil,
-        webKit: WebKitPageInputs? = nil
+        webKit: WebKitPageInputs? = nil,
+        hosting pageID: UUID? = nil
     ) -> BrowserPage? {
         let interval = Self.lifecycleSignposter.beginInterval("Create Browser Page")
         defer {
             Self.lifecycleSignposter.endInterval("Create Browser Page", interval)
         }
 
-        guard
-            let opened = browser.openPage(
-                in: space.id, for: tabID, presenting: presentation, webKit: webKit ?? webKitInputs(for: space))
-        else { return nil }
+        let hosted =
+            if let pageID {
+                browser.core.engines.host(pageID)
+            } else {
+                browser.openPage(
+                    in: space.id, for: tabID, presenting: presentation, webKit: webKit ?? webKitInputs(for: space))
+            }
+        guard let opened = hosted else { return nil }
         let engine: any BrowserPageEngineAdapter
         if let webKitPage = opened.built as? WebKitEnginePage {
             engine = BrowserWebKitPageAdapter(page: webKitPage)

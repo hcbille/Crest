@@ -203,6 +203,10 @@ internal sealed class Page {
         shown = shown with { PendingUrl = url };
     }
 
+    /// The load the page was heading to will not happen, so it shows the
+    /// document it had.
+    public void CancelLoad() => shown = shown with { PendingUrl = null, IsLoading = false };
+
     /// The person left the page's failure for the document behind it.
     public void LeaveFailure() => failure = null;
 

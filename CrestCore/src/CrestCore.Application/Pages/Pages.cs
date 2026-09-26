@@ -21,7 +21,7 @@ namespace CrestCore.Application;
 ///
 /// A page's report is stamped with the core's `clock`, and a visit it records
 /// takes its identity from `ids`.
-internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSource ids) {
+internal sealed partial class Pages(Device device, Engines engines, IClock clock, IIdSource ids) {
     #region Variables
 
     private readonly Dictionary<Guid, Page> open = [];
@@ -69,6 +69,8 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             case Navigate navigation: Load(navigation, changes, issue); break;
             case LeavePageFailure leaving: LeaveFailure(leaving, changes); break;
             case ReportMemoryPressure pressure: Relieve(pressure.Level, changes, issue); break;
+            case StageLink staging: Stage(staging, issue); break;
+            case DiscardStagedLink discarding: Discard(discarding, issue); break;
             default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Pages do not handle this intent.");
         }
     }
@@ -261,6 +263,10 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(issue);
+        if (report is PageOffered offer) {
+            Offered(engine, offer, changes, issue);
+            return;
+        }
         if (report is PageClosed closedKeeping && keeping.Remove(closedKeeping.PageId, out var kept) && ReferenceEquals(kept.Engine, engine)
             && closedKeeping.RestoreState is { } restoreState)
             Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, engine.Kind, restoreState);
@@ -276,6 +282,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             PageIconChanged icon => icon.PageId,
             PageStateChanged state => state.PageId,
             PageCrashed crashed => crashed.PageId,
+            StagedLinkUnavailable unavailable => unavailable.PageId,
             _ => throw new ArgumentOutOfRangeException(nameof(report), report.GetType().Name, "Pages do not handle this report.")
         };
         if (!open.TryGetValue(pageId, out var page) || !ReferenceEquals(page.Engine, engine)) return;
@@ -318,6 +325,9 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
                 if (recovers) issue(page.Engine, new RecoverPage(page.Id));
                 break;
             case PageCrashed: break;
+            // A stale link is never retried as a bare address, so the page
+            // stops heading there and shows what it had.
+            case StagedLinkUnavailable: Update(page, changes, page.CancelLoad); break;
         }
     }
 

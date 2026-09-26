@@ -2901,6 +2901,10 @@
     "core-json-policy-boundary-removed": {
       "category": "internal",
       "message": "The core's last JSON policy entry point is gone; iPhone and iPad hand memory pressure to the core like the Mac."
+    },
+    "core-engine-link-questions": {
+      "category": "internal",
+      "message": "The core decides where Chromium's links and self-opened pages go; context-menu rows are typed."
     }
   }
 }

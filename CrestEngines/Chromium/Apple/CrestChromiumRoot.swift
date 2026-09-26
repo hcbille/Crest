@@ -178,20 +178,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         chromium.follow(application.browser.core)
     }
 
-    /// The engine offered a page of its own: a window that can take it adopts it
-    /// as a tab, and one no window takes closes.
-    static func pageOffered(_ offer: PageOffered) {
-        guard let instance else { return }
-        let adoption = BrowserEnginePageAdoption(offer: offer)
-        for id in instance.windows.keys {
-            if instance.application.windowCoordinator.existingModel(for: id)?.pages.adoptEnginePage(adoption) == true {
-                return
-            }
-        }
-        if instance.privateWindow != nil, instance.application.privatePages.adoptEnginePage(adoption) { return }
-        instance.chromium.pages.request(RejectOfferedPage(adoptionID: offer.adoptionID))
-    }
-
     /// The engine let go of a profile: its Space's extensions went with it, and
     /// a private window derived from it has nothing left to browse in.
     static func profileReleased(_ profileID: UUID) {

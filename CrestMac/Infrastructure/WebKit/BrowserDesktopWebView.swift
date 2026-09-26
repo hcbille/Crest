@@ -53,10 +53,11 @@ final class BrowserDesktopWebView: WKWebView {
             BrowserDesktopWebViewMenuPolicy.relabelLinkDestination(in: menu)
         }
         BrowserDesktopWebViewMenuPolicy.removeDefaultSelectionSearch(in: menu)
-        guard let context = menuHost?.takeMenuContext() else { return }
-        let actions = menuHost?.contextMenuActions(
-            linkURL: context.linkURL, selectionText: context.selectionText) ?? []
-        addCrestActions(actions, to: menu)
+        guard let menuHost, let context = menuHost.takeMenuContext() else { return }
+        BrowserPageContextMenu(
+            actions: menuHost.contextMenuActions(linkURL: context.linkURL, selectionText: context.selectionText),
+            host: menuHost, view: self
+        ).insert(into: menu)
         if let imageDownloadURL = context.imageDownloadURL,
             let item = BrowserDesktopWebViewMenuPolicy.downloadImageItem(in: menu)
         {
@@ -74,52 +75,9 @@ final class BrowserDesktopWebView: WKWebView {
         menuHost?.discardSplitViewLinkCapture()
     }
 
-    @objc private func performCrestMenuAction(_ sender: NSMenuItem) {
-        guard let action = sender.representedObject as? CrestMenuAction,
-            window?.windowNumber == action.windowNumber else { return }
-        _ = menuHost?.performContextMenuAction(
-            identifier: action.value.kind.identifier, linkURL: action.value.linkURL,
-            selectionText: action.value.selectionText)
-    }
-
     @objc private func downloadImage(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
         menuHost?.downloadImage(from: url)
-    }
-
-    private func addCrestActions(_ actions: [BrowserPageContextMenuAction], to menu: NSMenu) {
-        guard !actions.isEmpty else { return }
-        var items: [NSMenuItem] = []
-        let spaceActions = actions.filter(\.isSpaceDestination)
-        if !spaceActions.isEmpty {
-            let group = NSMenuItem(title: String(localized: "Open Link in Another Space"), action: nil, keyEquivalent: "")
-            group.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: nil)
-            let submenu = NSMenu()
-            for action in spaceActions { submenu.addItem(menuItem(for: action)) }
-            group.submenu = submenu
-            items.append(group)
-        }
-        items.append(contentsOf: actions.filter { !$0.isSpaceDestination }.map(menuItem(for:)))
-        for (index, item) in items.enumerated() { menu.insertItem(item, at: index) }
-        if menu.items.count > items.count { menu.insertItem(.separator(), at: items.count) }
-    }
-
-    private func menuItem(for action: BrowserPageContextMenuAction) -> NSMenuItem {
-        let item = NSMenuItem(title: action.title, action: #selector(performCrestMenuAction(_:)), keyEquivalent: "")
-        item.target = self
-        item.representedObject = CrestMenuAction(action, windowNumber: window?.windowNumber)
-        item.image = NSImage(systemSymbolName: action.symbolName, accessibilityDescription: nil)
-        return item
-    }
-
-    private final class CrestMenuAction: NSObject {
-        let value: BrowserPageContextMenuAction
-        let windowNumber: Int?
-
-        init(_ value: BrowserPageContextMenuAction, windowNumber: Int?) {
-            self.value = value
-            self.windowNumber = windowNumber
-        }
     }
 }
 

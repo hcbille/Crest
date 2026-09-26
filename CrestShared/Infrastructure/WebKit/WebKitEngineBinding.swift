@@ -149,6 +149,12 @@ final class WebKitEngineBinding: EngineBinding {
         case .settleExtensionInstall:
             // WebKit has no extensions, so the core never asks it to.
             break
+        case .adoptOfferedPage(let adoption):
+            // WebKit hands Crest its popups while it waits and offers no page.
+            engines.report(PageCreationFailed(pageID: adoption.pageID), from: self)
+        case .rejectOfferedPage, .stageNavigation, .dropStagedLink:
+            // WebKit offers no page, and keeps the links it stages itself.
+            break
         }
     }
 

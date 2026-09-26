@@ -49,8 +49,6 @@ protocol BrowserPageEngineAdapter: AnyObject {
     /// engine, so bridges the adapter runs inside the page follow it.
     func sitePermissionDidChange(_ permission: SitePermission, on page: BrowserPage)
     func setPrivateBrowsing(_ isPrivate: Bool)
-    /// Takes over a page the engine created itself, named by `token`.
-    func adoptEngineCreatedPage(_ token: String) -> Bool
 }
 
 /// The page's PiP lifecycle follows tab presentation, regardless of which
@@ -104,6 +102,9 @@ enum BrowserPageEngineEvent {
     case userActivity
     case linkHovered(URL?)
     case popupBlocked(pageURL: URL)
+    /// The engine kept a link in the page for the Peek the core chose, with
+    /// the link it staged for the Peek's first load, if any.
+    case peekRequested(URL, decision: LinkNavigationDecision, stagedLink: BrowserEngineNavigation?)
     /// An icon the engine fetched. `source` names the document it belongs
     /// to; nil means the current one.
     case favicon(Data?, source: URL?)

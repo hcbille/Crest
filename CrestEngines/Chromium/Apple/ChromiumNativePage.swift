@@ -29,16 +29,14 @@
         /// The engine that hosts the page, which its direct requests go to.
         private weak var engine: ChromiumEngine?
         var observer: (BrowserPageEngineEvent) -> Void
-        var linkHandler: (String, URL, String) -> Bool = { _, _, _ in false }
-        var contextMenuActions: (URL?, String?) -> [[String: String]] = { _, _ in [] }
-        var contextMenuAction: (String, URL?, String?) -> Bool = { _, _, _ in false }
         /// The platform's page hosting this one, which shows the person the
         /// core's questions about it.
         weak var promptPresenter: (any BrowserPromptPresenting)?
-        var protectedLinkHandler: (URL) -> (() -> Void)? = { _ in nil }
-        var modifiedLinkHandler: (URL, Int, String) -> (LinkNavigationDecision, (() -> Void)?) = { _, _, _ in
-            (.navigate, nil)
-        }
+        /// The platform's page hosting this one, which puts Crest's rows in the
+        /// engine's context menu for it.
+        weak var menuHost: (any BrowserPageContextMenuHost)?
+        /// Crest's own drag of a link out of the page.
+        weak var linkDrag: BrowserLinkDragController?
         private var host: (any CrestMacShell)?
         /// What a standalone page loads once it opens.
         private var requestedURL: URL?
@@ -93,15 +91,15 @@
         }
 
         var nativeView: NSView { surface }
+        /// The link the engine staged in another page becomes this page's first
+        /// load, through the core, which checks the two pages share an engine
+        /// and a profile.
         func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool {
-            guard !isStandalone, !created, !disposed, let host,
+            guard !isStandalone, !created, !disposed, let engine,
                 navigation.implementation == registration.implementationId,
-                UUID(uuidString: navigation.token) != nil
+                let stagedLinkID = UUID(uuidString: navigation.token), let sourcePageID = navigation.sourcePageID
             else { return false }
-            return host.stageNavigation(navigation.token, page: pageID, url: url.absoluteString)
-        }
-        func discardNavigation(_ token: String) {
-            (host ?? CrestChromiumRoot.engineHost)?.discardPendingNavigation(token)
+            return engine.stage(stagedLinkID, from: sourcePageID, into: pageID, expecting: url)
         }
         private(set) var backHistory: [BrowserNavigationHistoryItem] = []
         private(set) var forwardHistory: [BrowserNavigationHistoryItem] = []
@@ -116,14 +114,16 @@
             guard let url = request.url else { return }
             load(url)
         }
-        /// The app's own load of `url`, which the binding runs as it runs the
-        /// core's LoadPage. A standalone page opens at it.
+        /// The app's own load of `url`, which the core resolves and asks the
+        /// binding to run. A standalone page, which the core never hears of,
+        /// opens at it, and keeps the address it is opening at.
         func load(_ url: URL) {
             guard !disposed else { return }
-            guard isStandalone, !opening else {
-                host?.loadPage(pageID, url: url.absoluteString)
+            guard isStandalone else {
+                engine?.navigate(pageID, to: url)
                 return
             }
+            guard !opening else { return }
             requestedURL = url
             attachIfPossible()
         }
@@ -154,13 +154,6 @@
                     pageID: pageID, profileID: profileID, windowID: windowID,
                     url: ChromiumInternalURL.engine(requestedURL.absoluteString)))
             if !opened { creationFailed() }
-        }
-
-        /// Makes the page the engine offered as `token` this page, which the
-        /// binding then follows instead of creating one.
-        func adopt(_ token: String) -> Bool {
-            guard !isStandalone, !created, let pages, let adoptionID = UUID(uuidString: token) else { return false }
-            return pages.request(AdoptOfferedPage(pageID: pageID, adoptionID: adoptionID))
         }
 
         // MARK: Content bridges
@@ -364,14 +357,19 @@
                 evaluations.removeValue(forKey: evaluated.evaluationID)?.resume(returning: evaluated.json)
             case .storeInstallRequested(let request): performStoreRequest(request.extensionID, removes: false)
             case .storeRemovalRequested(let request): performStoreRequest(request.extensionID, removes: true)
-            case .stagedLinkUnavailable:
-                // A stale link is never retried as a bare address, which would
-                // lose the initiating frame's security and referrer.
-                observer(.loadingChanged(false))
-                observer(.progressChanged(1))
+            case .peekRequested(let requested):
+                guard let url = URL(string: requested.url) else { return }
+                observer(
+                    .peekRequested(
+                        url, decision: requested.decision,
+                        stagedLink: requested.stagedLinkID.map {
+                            BrowserEngineNavigation(
+                                implementation: registration.implementationId, token: $0.uuidString,
+                                sourcePageID: pageID)
+                        }))
             case .inspectorLayoutChanged: refreshDevTools()
             case .inspectorClosed: developerPanelDidClose()
-            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileReleased, .pageOffered:
+            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileReleased:
                 break
             case .findFinished, .pageCaptured, .pageExported:
                 // The page's shared direct path hears what it asked for.
@@ -408,8 +406,8 @@
             promptPresenter.ask(asked, dismissal: dismissal)
         }
 
-        /// The engine created the page: the page's handlers and scripts go in,
-        /// and its view goes on screen if it has a window to go in.
+        /// The engine created the page: the page's scripts go in, and its view
+        /// goes on screen if it has a window to go in.
         private func viewReady() {
             guard !created else { return }
             created = true
@@ -418,7 +416,6 @@
                 pages?.request(
                     AddContentScript(pageID: pageID, source: script.source, mainFrameOnly: script.mainFrameOnly))
             }
-            installHandlers()
             attachIfPossible()
         }
 
@@ -427,66 +424,23 @@
             observer(.creationFailed(message: String(localized: "Chromium couldn’t create this page.")))
         }
 
-        /// The handlers the Mac shell asks for what Chromium needs answered on
-        /// its own stack. TRANSITIONAL until link questions travel as
-        /// presentations (WP C (l)).
-        private func installHandlers() {
-            host?.setLinkHandler(page: pageID) { [weak self] action, address, label in
-                MainActor.assumeIsolated {
-                    guard let self, !self.disposed, let url = URL(string: address) else { return false }
-                    return self.linkHandler(action, url, label)
-                }
-            }
-            host?.setContextMenuHandler(
-                page: pageID,
-                provider: { [weak self] address, selection in
-                    MainActor.assumeIsolated {
-                        guard let self, !self.disposed else { return [] }
-                        let url = address == "about:blank" ? nil : URL(string: address)
-                        return self.contextMenuActions(url, selection.isEmpty ? nil : selection)
-                    }
-                },
-                action: { [weak self] identifier, address, selection in
-                    MainActor.assumeIsolated {
-                        guard let self, !self.disposed else { return false }
-                        let url = address == "about:blank" ? nil : URL(string: address)
-                        return self.contextMenuAction(identifier, url, selection.isEmpty ? nil : selection)
-                    }
-                })
-            host?.setProtectedLinkHandler(page: pageID) { [weak self] address in
-                var deferred: CrestDeferredNavigation?
-                MainActor.assumeIsolated {
-                    guard let self, !self.disposed, let url = URL(string: address),
-                        let action = self.protectedLinkHandler(url)
-                    else { return }
-                    deferred = { [weak self] in
-                        MainActor.assumeIsolated {
-                            guard let self, !self.disposed else { return }
-                            action()
-                        }
-                    }
-                }
-                return deferred
-            }
-            host?.setModifiedLinkHandler(page: pageID) { [weak self] address, modifiers, token, reply in
-                MainActor.assumeIsolated {
-                    guard let self, !self.disposed, let url = URL(string: address) else {
-                        reply(LinkNavigationDecision.navigate.name, nil)
-                        return
-                    }
-                    let (decision, action) = self.modifiedLinkHandler(url, Int(modifiers), token)
-                    var deferred: CrestDeferredNavigation?
-                    if let action {
-                        deferred = { [weak self] in
-                            MainActor.assumeIsolated {
-                                guard let self, !self.disposed else { return }
-                                action()
-                            }
-                        }
-                    }
-                    reply(decision.name, deferred)
-                }
-            }
+        // MARK: Menus and drags
+
+        /// Puts Crest's rows for `link` or `selection` in the engine's context
+        /// menu for this page.
+        func addMenuItems(to menu: NSMenu, link: URL?, selection: String?) {
+            guard !disposed, let menuHost else { return }
+            BrowserPageContextMenu(
+                actions: menuHost.contextMenuActions(linkURL: link, selectionText: selection), host: menuHost,
+                view: surface
+            ).insert(into: menu)
+        }
+
+        /// Starts Crest's own drag of the link to `url` out of the page; false
+        /// leaves the drag to the engine.
+        func beginLinkDrag(_ url: URL, title: String) -> Bool {
+            guard !disposed, BrowserCorePolicy.acceptsExternalURL(url) else { return false }
+            return linkDrag?.beginNativeLink(url: url, label: title) == true
         }
     }
 

@@ -29,6 +29,13 @@ protocol PageRequest: Sendable {
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer
 }
 
+/// What an engine binding asks the core about one of its pages while the engine waits, answered at once.
+protocol EngineQuestion: Sendable {
+    associatedtype Answer: Sendable
+    func encodeEngineQuestion(into writer: inout WireWriter)
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer
+}
+
 /// The members of `Intent` that derive from the core's `CloseIntent`.
 protocol CloseIntent: Intent {}
 
@@ -106,6 +113,7 @@ enum Change: Equatable, Sendable {
     case historyChanged(HistoryChanged)
     case linkPreferencesChanged(LinkPreferencesChanged)
     case navigationRecorded(NavigationRecorded)
+    case offeredPageAdopted(OfferedPageAdopted)
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
     case pageRehosted(PageRehosted)
@@ -260,6 +268,7 @@ enum Rejection: Equatable, Error, Sendable {
     case splitBoundary(SplitBoundary)
     case splitLimitReached(SplitLimitReached)
     case splitNeedsTwoTabs(SplitNeedsTwoTabs)
+    case stagedLinkElsewhere(StagedLinkElsewhere)
     case staleCredentialComparison(StaleCredentialComparison)
     case staleUnlockRequest(StaleUnlockRequest)
     case startPageNotCopied(StartPageNotCopied)
@@ -351,21 +360,25 @@ enum Rejection: Equatable, Error, Sendable {
 
 /// What the core asks an engine binding to do, run by `EngineBinding.run`.
 enum EngineCommand: Equatable, Sendable {
+    case adoptOfferedPage(AdoptOfferedPage)
     case approveEngineDownload(ApproveEngineDownload)
     case cancelEngineDownload(CancelEngineDownload)
     case checkBeforeUnload(CheckBeforeUnload)
     case closePage(ClosePage)
     case createPage(CreatePage)
+    case dropStagedLink(DropStagedLink)
     case eraseProfileData(EraseProfileData)
     case eraseSiteData(EraseSiteData)
     case loadPage(LoadPage)
     case recoverPage(RecoverPage)
+    case rejectOfferedPage(RejectOfferedPage)
     case removeEngineDownload(RemoveEngineDownload)
     case settleAuthentication(SettleAuthentication)
     case settleDownloadDestination(SettleDownloadDestination)
     case settleExtensionInstall(SettleExtensionInstall)
     case settlePermission(SettlePermission)
     case settleScriptDialog(SettleScriptDialog)
+    case stageNavigation(StageNavigation)
 }
 
 /// What an engine binding tells the platform directly about one of its pages.
@@ -389,17 +402,16 @@ enum EnginePresentation: Equatable, Sendable {
     case pageNavigationCommitted(PageNavigationCommitted)
     case pageNavigationFailed(PageNavigationFailed)
     case pageNavigationStarted(PageNavigationStarted)
-    case pageOffered(PageOffered)
     case pageRendererGone(PageRendererGone)
     case pageThemeChanged(PageThemeChanged)
     case pageViewClosed(PageViewClosed)
     case pageViewReady(PageViewReady)
     case pageViewUnavailable(PageViewUnavailable)
+    case peekRequested(PeekRequested)
     case popupBlocked(PopupBlocked)
     case profilePrepared(ProfilePrepared)
     case profileReleased(ProfileReleased)
     case sidePanelRequested(SidePanelRequested)
-    case stagedLinkUnavailable(StagedLinkUnavailable)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
 }
@@ -426,6 +438,7 @@ extension CoreState {
         case .historyChanged(let change): apply(change)
         case .linkPreferencesChanged(let change): apply(change)
         case .navigationRecorded(let change): apply(change)
+        case .offeredPageAdopted(let change): apply(change)
         case .pageChanged(let change): apply(change)
         case .pageOpened(let change): apply(change)
         case .pageRehosted(let change): apply(change)
@@ -524,11 +537,12 @@ struct AdoptLinkPreferences: Intent, LinkIntent, Equatable, Sendable {
     let preferences: Data?
 }
 
-struct AdoptOfferedPage: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
+struct AdoptOfferedPage: Equatable, Sendable {
     let pageID: UUID
-    let adoptionID: UUID
+    let offerID: UUID
+    let profileID: UUID
+    let isPrivate: Bool
+    let windowID: UUID
 }
 
 struct AdoptSetupCompletion: Intent, SetupFlowIntent, Equatable, Sendable {
@@ -1594,6 +1608,11 @@ struct DeleteTabs: Intent, SessionIntent, Equatable, Sendable {
     let selection: TabSelection
 }
 
+struct DiscardStagedLink: Intent, PageIntent, Equatable, Sendable {
+    let sourcePageID: UUID
+    let stagedLinkID: UUID
+}
+
 struct DismissShownTab: Intent, WindowIntent, Equatable, Sendable {
     let windowID: UUID
     let spaceID: UUID
@@ -1775,6 +1794,10 @@ struct DropOnSpace: Intent, SessionIntent, SidebarDrop, Equatable, Sendable {
     let selection: TabSelection
     let destinationSpaceID: UUID
     let follows: Bool
+}
+
+struct DropStagedLink: Equatable, Sendable {
+    let stagedLinkID: UUID
 }
 
 struct DropTargetList: Equatable, Sendable {
@@ -2778,6 +2801,14 @@ struct LegacySession: Equatable, Sendable {
     let journal: Data?
 }
 
+struct LinkActivation: EngineQuestion, Equatable, Sendable {
+    typealias Answer = LinkNavigationAnswer
+
+    let pageID: UUID
+    let url: String
+    let gesture: LinkGesture
+}
+
 struct LinkGesture: Equatable, Sendable {
     let userActivated: Bool
     let topLevel: Bool
@@ -3205,6 +3236,15 @@ struct OfferImportSources: Intent, SetupFlowIntent, Equatable, Sendable {
     let installed: [ImportSource]
 }
 
+struct OfferedPageAdopted: Equatable, Sendable {
+    let pageID: UUID
+    let workspaceID: UUID
+    let windowID: UUID
+    let spaceID: UUID
+    let tabID: UUID
+    let shows: Bool
+}
+
 struct OpenAddress: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -3456,12 +3496,12 @@ struct PageNotLoadable: Equatable, Sendable {
     let pageID: UUID
 }
 
-struct PageOffered: Equatable, Sendable {
-    let adoptionID: UUID
+struct PageOffered: EngineEvent, Equatable, Sendable {
+    let offerID: UUID
     let profileID: UUID
+    let sourcePageID: UUID?
     let windowID: UUID?
     let spaceID: UUID?
-    let sourcePageID: UUID?
     let url: String
     let foreground: Bool
 }
@@ -3617,6 +3657,13 @@ struct PasswordImportPreview: Query, Equatable, Sendable {
 
     let credentials: [ImportedCredential]
     let existing: [ExistingCredential]
+}
+
+struct PeekRequested: Equatable, Sendable {
+    let pageID: UUID
+    let url: String
+    let decision: LinkNavigationDecision
+    let stagedLinkID: UUID?
 }
 
 struct PendingSave: Query, Equatable, Sendable {
@@ -3857,10 +3904,8 @@ struct RehostPage: Intent, PageIntent, Equatable, Sendable {
     let engine: EngineKind
 }
 
-struct RejectOfferedPage: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let adoptionID: UUID
+struct RejectOfferedPage: Equatable, Sendable {
+    let offerID: UUID
 }
 
 struct ReleasePage: Intent, PageIntent, Equatable, Sendable {
@@ -4993,7 +5038,25 @@ struct SplitTabs: Intent, SessionIntent, Equatable, Sendable {
     let index: Int?
 }
 
-struct StagedLinkUnavailable: Equatable, Sendable {
+struct StageLink: Intent, PageIntent, Equatable, Sendable {
+    let pageID: UUID
+    let sourcePageID: UUID
+    let stagedLinkID: UUID
+    let url: String
+}
+
+struct StageNavigation: Equatable, Sendable {
+    let pageID: UUID
+    let stagedLinkID: UUID
+    let url: String
+}
+
+struct StagedLinkElsewhere: Equatable, Sendable {
+    let pageID: UUID
+    let sourcePageID: UUID
+}
+
+struct StagedLinkUnavailable: EngineEvent, Equatable, Sendable {
     let pageID: UUID
 }
 

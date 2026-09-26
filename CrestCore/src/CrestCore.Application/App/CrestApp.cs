@@ -17,7 +17,7 @@ namespace CrestCore.Application;
 /// engine bindings wait in a queue that is delivered once the lock is
 /// released, on the thread of the host's call that caused them, or of its next
 /// drain for those the transport caused.
-public sealed partial class CrestApp : IQueryAnswers, IDisposable {
+public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposable {
     #region Variables
 
     private readonly Lock gate = new();

@@ -155,6 +155,19 @@ final class Engines {
         return OpenedPage(page: request.page, built: built)
     }
 
+    /// Hosts a page the core opened itself, such as one an engine opened by
+    /// itself that the core adopted for a tab, on an engine the core runs
+    /// directly. Nil when the core holds no such page or the platform already
+    /// hosts it. TRANSITIONAL until the shared page host (WP C (j2)) hosts
+    /// every page the core opens, on either engine.
+    func host(_ pageID: UUID) -> OpenedPage? {
+        guard opened[pageID]?.value == nil else { return nil }
+        let page = CorePage(id: pageID, core: core)
+        guard let built = nativeHost(for: page) else { return nil }
+        opened[pageID] = WeakPage(value: page)
+        return OpenedPage(page: page, built: built)
+    }
+
     /// What the platform hosts for a page the core opened on an engine it runs
     /// directly, which creates the page on its own.
     private func nativeHost(for page: CorePage) -> AnyObject? {
@@ -262,7 +275,8 @@ final class Engines {
         case .createPage(let creation): hosts[creation.pageID] = kind
         case .loadPage, .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission,
             .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
-            .approveEngineDownload, .checkBeforeUnload, .eraseProfileData, .eraseSiteData:
+            .approveEngineDownload, .checkBeforeUnload, .eraseProfileData, .eraseSiteData, .adoptOfferedPage,
+            .rejectOfferedPage, .stageNavigation, .dropStagedLink:
             break
         case .closePage(let closing):
             if hosts[closing.pageID] == kind { hosts[closing.pageID] = nil }

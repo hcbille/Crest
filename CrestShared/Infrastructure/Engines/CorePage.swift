@@ -148,6 +148,13 @@ final class CorePage {
         (try? core?.query(OpenedWindowSelection(gesture: gesture)))?.selects ?? true
     }
 
+    /// Tells the core no page will load a link the page's engine staged, so
+    /// the engine forgets it. A link its engine keeps itself needs nothing.
+    func discardStagedLink(_ link: BrowserEngineNavigation) {
+        guard link.sourcePageID == id, let stagedLinkID = UUID(uuidString: link.token) else { return }
+        _ = try? core?.send(DiscardStagedLink(sourcePageID: id, stagedLinkID: stagedLinkID))
+    }
+
     /// Sends the person's answer to a question the core asked about the page.
     /// An answer to a question that no longer waits changes nothing.
     func answer(_ intent: some PromptIntent) {

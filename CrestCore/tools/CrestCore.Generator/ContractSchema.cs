@@ -12,8 +12,8 @@ namespace CrestCore.Generator;
 /// whose wire tag is the type's index in ordinal name order.
 ///
 /// A root travels one way. The core reads what travels to it (intents,
-/// queries and engine events), so each of those is a message on its own with
-/// a byte limit. The core writes changes, rejections and engine commands. A
+/// queries, engine events and engine questions), so each of those is a message
+/// on its own with a byte limit. The core writes changes, rejections and engine commands. A
 /// platform encodes what it sends through a protocol and decodes what it
 /// receives as the cases of one enum. The engine roots form the engine
 /// contract, which an engine binding checks by its own fingerprint; two of
@@ -41,10 +41,12 @@ internal sealed class ContractRoot {
     public static readonly ContractRoot EnginePresentation = new(typeof(EnginePresentation), travelsToCore: false, isEngine: true,
         reachesCore: false, platformSends: false,
         swiftDocumentation: "What an engine binding tells the platform directly about one of its pages.");
+    public static readonly ContractRoot EngineQuestion = new(typeof(EngineQuestion<>), travelsToCore: true, isEngine: true,
+        swiftDocumentation: "What an engine binding asks the core about one of its pages while the engine waits, answered at once.");
 
     /// Every root, in the order the canonical description lists them.
     public static IReadOnlyList<ContractRoot> All { get; } =
-        [Intent, Change, Rejection, Query, EngineCommand, EngineEvent, PageRequest, EnginePresentation];
+        [Intent, Change, Rejection, Query, EngineCommand, EngineEvent, PageRequest, EnginePresentation, EngineQuestion];
 
     /// The root's C# base type; a query's is the open `Query<>`.
     public Type Type { get; }

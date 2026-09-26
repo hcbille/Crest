@@ -14,8 +14,11 @@ namespace CrestCore.Native;
 public unsafe struct CrestEngineBinding {
     public nint Context;
     /// Called once when registration succeeds, with the app, the engine's
-    /// handle and the function to report through; may be null.
-    public delegate* unmanaged[Cdecl]<nint, ulong, ulong, delegate* unmanaged[Cdecl]<ulong, ulong, byte*, nuint, int>, void> Attach;
+    /// handle, the function to report through and the function to ask
+    /// through; may be null.
+    public delegate* unmanaged[Cdecl]<nint, ulong, ulong, delegate* unmanaged[Cdecl]<ulong, ulong, byte*, nuint, int>,
+        delegate* unmanaged[Cdecl]<ulong, ulong, byte*, nuint, delegate* unmanaged[Cdecl]<nint, byte*, nuint, void>, nint, int>,
+        void> Attach;
     /// Runs one encoded command; the bytes are borrowed for the call.
     public delegate* unmanaged[Cdecl]<nint, byte*, nuint, void> Run;
 }
@@ -62,7 +65,7 @@ public static unsafe partial class Exports {
                 return CoreStatus.InternalError;
             }
             *engine = id;
-            if (table.Attach != null) table.Attach(table.Context, app, id, &EngineReport);
+            if (table.Attach != null) table.Attach(table.Context, app, id, &EngineReport, &EngineAsk);
             return CoreStatus.Ok;
         } catch (WireFormatException) {
             return CoreStatus.InvalidMessage;
@@ -83,6 +86,31 @@ public static unsafe partial class Exports {
             if (!Engines.TryGetValue(engine, out var entry) || entry.AppHandle != app) return CoreStatus.InvalidHandle;
             var reader = new WireReader(new ReadOnlySpan<byte>(report, (int)length).ToArray());
             entry.App.Report(entry.Engine, Finished(ContractCodec.ReadEngineEvent(reader), reader));
+            return CoreStatus.Ok;
+        } catch (WireFormatException) {
+            return CoreStatus.InvalidMessage;
+        } catch {
+            return CoreStatus.InternalError;
+        }
+    }
+
+    /// Answers what an engine asks about one of its pages while it waits:
+    /// `answer` receives the encoded answer, borrowed for the call, with
+    /// `context`, before this returns OK. A binding's `attach` receives this
+    /// function too.
+    [UnmanagedCallersOnly(EntryPoint = "crest_engine_ask", CallConvs = [typeof(CallConvCdecl)])]
+    public static int EngineAsk(ulong app, ulong engine, byte* question, nuint length,
+        delegate* unmanaged[Cdecl]<nint, byte*, nuint, void> answer, nint context) {
+        if (question == null && length != 0 || answer == null) return CoreStatus.InvalidArgument;
+        int tag = WireReader.PeekTag(new ReadOnlySpan<byte>(question, (int)Math.Min(length, (nuint)WireReader.MaximumTagBytes)));
+        if (length > (nuint)ContractCodec.MaximumEngineQuestionBytes(tag)) return CoreStatus.LimitExceeded;
+        try {
+            if (!Engines.TryGetValue(engine, out var entry) || entry.AppHandle != app) return CoreStatus.InvalidHandle;
+            var reader = new WireReader(new ReadOnlySpan<byte>(question, (int)length).ToArray());
+            var asked = Finished(ContractCodec.ReadEngineQuestion(reader), reader);
+            var writer = new WireWriter();
+            ContractCodec.WriteEngineAnswer(writer, entry.App, entry.Engine, asked);
+            fixed (byte* bytes = writer.WrittenSpan) answer(context, bytes, (nuint)writer.WrittenSpan.Length);
             return CoreStatus.Ok;
         } catch (WireFormatException) {
             return CoreStatus.InvalidMessage;

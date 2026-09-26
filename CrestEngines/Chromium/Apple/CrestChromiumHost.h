@@ -1,7 +1,6 @@
 #import <AppKit/AppKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
-typedef void (^CrestDeferredNavigation)(void);
 
 // A Chromium feature whose own UI this build never shows. Crest says so in a
 // notice instead, in its own words.
@@ -73,6 +72,17 @@ NS_SWIFT_UI_ACTOR
 - (void)showTabSearch;
 - (void)showUnavailableFeature:(CrestUnavailableFeature)feature NS_SWIFT_NAME(showUnavailable(_:));
 - (void)showEngineNotice:(NSString *)message kind:(CrestEngineNoticeKind)kind NS_SWIFT_NAME(showEngineNotice(_:kind:));
+// Crest's own rows for the link or the selected text a page's context menu
+// was opened on, which Crest puts ahead of the engine's rows in `menu`.
+- (void)addPageMenuItems:(NSMenu *)menu
+                    page:(NSUUID *)pageID
+                    link:(nullable NSURL *)link
+               selection:(nullable NSString *)selection
+    NS_SWIFT_NAME(addPageMenuItems(to:page:link:selection:));
+// A person began dragging the link to `url`, titled `title`, out of a page.
+// Answers whether Crest's own drag took it; otherwise the engine's goes on.
+- (BOOL)beginLinkDrag:(NSURL *)url title:(NSString *)title page:(NSUUID *)pageID
+    NS_SWIFT_NAME(beginLinkDrag(_:title:page:));
 @end
 
 // What an extension's `chrome.commands` shortcut did. A named command has
@@ -92,30 +102,10 @@ NS_SWIFT_UI_ACTOR
 @protocol CrestMacShell <NSObject>
 // Crest's own UI, which the shell keeps for as long as it runs.
 - (void)attachUI:(id<CrestMacUI>)ui NS_SWIFT_NAME(attach(ui:));
-// TRANSITIONAL until engine-offered pages and link routing move (WP C (l)): the
-// app's own load and a link navigation staged for the page's first load; and
-// until the core owns the private window's profile: the regular profile a
-// private window's pages derive from.
-- (void)loadPage:(NSUUID *)pageID url:(NSString *)url;
-- (BOOL)stageNavigation:(NSString *)token page:(NSUUID *)pageID url:(NSString *)url;
+// TRANSITIONAL until the core owns the private window's profile: the regular
+// profile a private window's pages derive from.
 - (void)setPrivateSourceProfile:(NSUUID *)profileID;
 - (nullable NSView *)viewForPage:(NSUUID *)pageID;
-// TRANSITIONAL until link questions travel as presentations (WP C (l)).
-- (void)setLinkHandlerForPage:(NSUUID *)pageID
-                     handler:(BOOL (^)(NSString *action, NSString *url, NSString *label))handler
-    NS_SWIFT_NAME(setLinkHandler(page:handler:));
-- (void)setContextMenuHandlerForPage:(NSUUID *)pageID
-    provider:(NSArray<NSDictionary<NSString *, NSString *> *> * (^)(NSString *url, NSString *selection))provider
-    action:(BOOL (^)(NSString *identifier, NSString *url, NSString *selection))action
-    NS_SWIFT_NAME(setContextMenuHandler(page:provider:action:));
-- (void)setProtectedLinkHandlerForPage:(NSUUID *)pageID
-    handler:(CrestDeferredNavigation _Nullable (^)(NSString *url))handler
-    NS_SWIFT_NAME(setProtectedLinkHandler(page:handler:));
-- (void)setModifiedLinkHandlerForPage:(NSUUID *)pageID
-    handler:(void (^)(NSString *url, NSUInteger modifiers, NSString *token,
-        void (^reply)(NSString *decision, CrestDeferredNavigation _Nullable present)))handler
-    NS_SWIFT_NAME(setModifiedLinkHandler(page:handler:));
-- (void)discardPendingNavigation:(NSString *)token;
 - (BOOL)runExtension:(NSString *)extensionID page:(NSUUID *)pageID
          anchorView:(NSView *)anchorView anchorRect:(NSRect)anchorRect;
 // Runs a pinned action with no page open. Only an action carrying its own

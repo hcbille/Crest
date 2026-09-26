@@ -46,7 +46,7 @@ extension EnginePresentation {
     /// The page the presentation is about, or none for a profile's.
     var pageID: UUID? {
         switch self {
-        case .extensionsChanged, .profilePrepared, .profileReleased, .pageOffered:
+        case .extensionsChanged, .profilePrepared, .profileReleased:
             nil
         case .contentFullscreenChanged(let value): value.pageID
         case .contentMessagePosted(let value): value.pageID
@@ -72,8 +72,8 @@ extension EnginePresentation {
         case .pageViewClosed(let value): value.pageID
         case .pageViewReady(let value): value.pageID
         case .pageViewUnavailable(let value): value.pageID
+        case .peekRequested(let value): value.pageID
         case .popupBlocked(let value): value.pageID
-        case .stagedLinkUnavailable(let value): value.pageID
         case .storeInstallRequested(let value): value.pageID
         case .storeRemovalRequested(let value): value.pageID
         }

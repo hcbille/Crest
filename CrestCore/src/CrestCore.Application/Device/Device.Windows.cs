@@ -284,6 +284,17 @@ internal sealed partial class Device {
         lock (gate) return open.TryGetValue(windowId, out var window) ? window : throw new Rejected(new WindowNotOpen(windowId));
     }
 
+    /// Where the open window stands in `spaceId`, or in the Space it shows
+    /// when that is null: its workspace, that Space, and the tab it shows
+    /// there, if any. Null for a window that is not open.
+    internal (Guid WorkspaceId, Guid SpaceId, Guid? TabId)? Showing(Guid windowId, Guid? spaceId) {
+        lock (gate) {
+            if (!open.TryGetValue(windowId, out var window)) return null;
+            var shown = spaceId ?? window.ShownSpaceId;
+            return (window.WorkspaceId, shown, window.Tab(shown));
+        }
+    }
+
     /// The attached workspace, or `UnknownWorkspace`.
     internal NativeSessionAuthority Workspace(Guid workspaceId) {
         lock (gate)
