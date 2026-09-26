@@ -388,15 +388,8 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
                 && (page.Live.Media & keepsLoaded) == 0
                 && Tab(page) is { KeepsPageLoaded: false })
             .OrderBy(page => page.HiddenSince).ThenBy(page => page.Id)
-            .Take(PageResidencyPolicy.MaximumCandidates)
-            .ToDictionary(page => page.Id.ToString(), page => page);
-        var plan = PageResidencyPolicy.ReleasePlan(
-            [.. candidates.Select(entry => new ResidencyCandidate(entry.Key, entry.Value.HiddenSince!.Value.ToUnixTimeMilliseconds() / 1000.0,
-                KeepsPageLoaded: false, IsPresented: false, PresentedIndex: null))],
-            level, device.Platform, focusedIndex: null);
-        int limit = PageResidencyPolicy.ReleaseLimit(level, plan.OffScreen.Count, device.Platform);
-        foreach (var candidate in plan.OffScreen.Take(limit)) {
-            var page = candidates[candidate];
+            .ToArray();
+        foreach (var page in candidates.Take(device.Platform.ReleaseLimit(level, candidates.Length))) {
             open.Remove(page.Id);
             changes.Publish(new PageRemoved(page.Id));
             changes.Publish(new PageUnloaded(page.Id, page.WorkspaceId, page.TabId!.Value));

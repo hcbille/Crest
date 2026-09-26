@@ -11,17 +11,16 @@ public sealed class DevicePlatform {
     /// is never taken. A manual setup left unfinished starts over at the next
     /// launch, and setup imports from the browsers installed on it.
     public static readonly DevicePlatform Desktop = new(name: "desktop", warningReleaseLimit: _ => 1,
-        criticalReleaseLimit: eligible => Math.Max(1, (eligible + 1) / 2), reclaimsPresentedPagesAt: null, keepsSetupDraft: false,
-        importsBrowsers: true);
+        criticalReleaseLimit: eligible => Math.Max(1, (eligible + 1) / 2), keepsSetupDraft: false, importsBrowsers: true);
 
     /// iPhone and iPad hold on under warning pressure and give back one page
-    /// under critical pressure. Critical pressure may also take a carousel card
-    /// away from the focused one when nothing off screen could go. An
-    /// unfinished manual setup waits for the next launch, since the system may
-    /// end the app while it is in the background.
+    /// under critical pressure. Beyond that the system reclaims WebKit's page
+    /// processes itself, as it does for Safari, and a reclaimed page comes
+    /// back through crash recovery when it is shown. An unfinished manual setup
+    /// waits for the next launch, since the system may end the app while it is
+    /// in the background.
     public static readonly DevicePlatform Mobile = new(name: "mobile", warningReleaseLimit: _ => 0,
-        criticalReleaseLimit: _ => 1, reclaimsPresentedPagesAt: MemoryPressureLevel.Critical, keepsSetupDraft: true,
-        importsBrowsers: false);
+        criticalReleaseLimit: _ => 1, keepsSetupDraft: true, importsBrowsers: false);
 
     public static IReadOnlyList<DevicePlatform> All { get; } = [Desktop, Mobile];
 
@@ -40,16 +39,12 @@ public sealed class DevicePlatform {
     /// eligible pages.
     private readonly IReadOnlyDictionary<MemoryPressureLevel, Func<int, int>> releaseLimits;
 
-    /// The level at which pressure may reclaim presented cards, or null when a
-    /// page on screen is never taken.
-    private readonly MemoryPressureLevel? reclaimsPresentedPagesAt;
-
     #endregion
 
     #region Constructors
 
     private DevicePlatform(string name, Func<int, int> warningReleaseLimit, Func<int, int> criticalReleaseLimit,
-        MemoryPressureLevel? reclaimsPresentedPagesAt, bool keepsSetupDraft, bool importsBrowsers) {
+        bool keepsSetupDraft, bool importsBrowsers) {
         Name = name;
         KeepsSetupDraft = keepsSetupDraft;
         ImportsBrowsers = importsBrowsers;
@@ -57,7 +52,6 @@ public sealed class DevicePlatform {
             [MemoryPressureLevel.Warning] = warningReleaseLimit,
             [MemoryPressureLevel.Critical] = criticalReleaseLimit
         };
-        this.reclaimsPresentedPagesAt = reclaimsPresentedPagesAt;
     }
 
     #endregion
@@ -72,10 +66,6 @@ public sealed class DevicePlatform {
 
     /// How many of `eligiblePageCount` pages pressure at `level` may take back.
     public int ReleaseLimit(MemoryPressureLevel level, int eligiblePageCount) => releaseLimits[level](eligiblePageCount);
-
-    /// Whether pressure at `level` may take presented cards that sit away from
-    /// the focused one.
-    public bool ReclaimsPresentedPages(MemoryPressureLevel level) => reclaimsPresentedPagesAt == level;
 
     #endregion
 }

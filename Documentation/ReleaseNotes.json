@@ -2913,6 +2913,10 @@
     "2026-09-26-abi-check-unused-tag": {
       "category": "internal",
       "message": "The native ABI check sends a union tag far past every intent, so new intents never make it a real one"
+    },
+    "ios-residency-left-to-system": {
+      "category": "internal",
+      "message": "On iPhone and iPad, the system reclaims pages beyond the core's budget, as it does for Safari, and a reclaimed page reloads when shown."
     }
   }
 }
