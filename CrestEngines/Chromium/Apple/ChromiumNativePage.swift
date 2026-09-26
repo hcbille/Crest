@@ -111,10 +111,6 @@
         /// The binding presents the page's history, loading and failures, so the
         /// page reads them from its presentations.
         var reportsNavigationState: Bool { true }
-        func mediaActivity() async -> PageMediaActivity? {
-            guard created, let pages else { return nil }
-            return pages.request(PageMedia(pageID: pageID)).activity
-        }
 
         func load(_ request: URLRequest) {
             guard let url = request.url else { return }

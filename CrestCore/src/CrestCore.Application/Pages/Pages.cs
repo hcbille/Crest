@@ -303,15 +303,19 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     #region Actions - Residency
 
     /// Unloads the pages memory pressure may take back: off screen, live on
-    /// an engine that can bring them back, owned by a tab that does not keep
-    /// its page loaded, and running no media. The pages off screen longest go
-    /// first, as many as the device's platform gives back at `level`.
+    /// an engine that can bring them back, showing a document, owned by a tab
+    /// that does not keep its page loaded, and running no media. A page that
+    /// has shown no document yet stays: nothing of it could come back, and a
+    /// popup waiting for its first document would lose the page that opened
+    /// it. The pages off screen longest go first, as many as the device's
+    /// platform gives back at `level`.
     private void Relieve(MemoryPressureLevel level, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         Stamp(clock.Now);
         const PageMediaActivity keepsLoaded = PageMediaActivity.Playing | PageMediaActivity.Capturing | PageMediaActivity.PictureInPicture;
         var candidates = open.Values
             .Where(page => page.TabId is not null && page.Phase == PagePhase.Live && page.HiddenSince is not null
-                && page.Engine.Supports(EngineCapability.PageResidency) && (page.Live.Media & keepsLoaded) == 0
+                && page.Live.Url is not null && page.Engine.Supports(EngineCapability.PageResidency)
+                && (page.Live.Media & keepsLoaded) == 0
                 && Tab(page) is { KeepsPageLoaded: false })
             .OrderBy(page => page.HiddenSince).ThenBy(page => page.Id)
             .Take(PageResidencyPolicy.MaximumCandidates)

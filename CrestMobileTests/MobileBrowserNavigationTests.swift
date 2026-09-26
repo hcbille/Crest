@@ -1678,6 +1678,7 @@ final class MobileBrowserNavigationTests: XCTestCase {
         for tab in tabs {
             browser.selectTab(tab.id)
             pages.select(session: browser.presented)
+            try await showDocument(in: try XCTUnwrap(pages.activePage))
         }
 
         pages.handleMemoryPressure(.critical, at: squeeze)
@@ -1731,6 +1732,7 @@ final class MobileBrowserNavigationTests: XCTestCase {
         for tab in pinned + current {
             browser.selectTab(tab.id)
             pages.select(session: browser.presented)
+            try await showDocument(in: try XCTUnwrap(pages.activePage))
         }
         XCTAssertEqual(pages.residentPageCount, 5)
 
@@ -1742,6 +1744,14 @@ final class MobileBrowserNavigationTests: XCTestCase {
         XCTAssertFalse(pages.containsResidentPage(for: pinned[1].id))
         XCTAssertTrue(pages.containsResidentPage(for: current[2].id))
         XCTAssertEqual(pages.activePage?.tabID, current[2].id)
+    }
+
+    /// Has `page` show a document of its own, which the core then holds,
+    /// since memory pressure never unloads a page that showed none.
+    private func showDocument(in page: MobileBrowserPage) async throws {
+        let url = try XCTUnwrap(URL(string: "https://pressure.crest.test/\(page.tabID.uuidString)"))
+        page.webView.loadSimulatedRequest(URLRequest(url: url), responseHTML: "<p>Resident</p>")
+        try await waitUntil(timeout: .seconds(5)) { page.corePage.live.url != nil && !page.corePage.live.isLoading }
     }
 
     func testMobilePageStoreRoutesZoomCommandsToTheActivePage() throws {

@@ -7,22 +7,6 @@ import os
 enum BrowserCorePolicy {
     // MARK: - Types
 
-    /// One off-screen page as the native store sees it. `inactiveSince` is
-    /// missing for an engine tab that holds no Crest page of its own.
-    struct ResidencyCandidate {
-        let tabID: TabID
-        var inactiveSince: Date?
-        var keepsPageLoaded = false
-        var presentedIndex: Int?
-
-        init(tabID: TabID, inactiveSince: Date?, keepsPageLoaded: Bool = false, presentedIndex: Int? = nil) {
-            self.tabID = tabID
-            self.inactiveSince = inactiveSince
-            self.keepsPageLoaded = keepsPageLoaded
-            self.presentedIndex = presentedIndex
-        }
-    }
-
     /// Every policy request: the version and operation, then the operation's
     /// own members at the same level. The session answers some policies too,
     /// with the same request.
@@ -43,84 +27,9 @@ enum BrowserCorePolicy {
         }
     }
 
-    private struct ReleaseLimitRequest: Encodable {
-        let level: MemoryPressureLevel
-        let platform: DevicePlatform
-        let eligiblePageCount: Int
-    }
-
-    private struct ReleaseLimitAnswer: Decodable {
-        let limit: Int
-    }
-
-    private struct ReleasePlanRequest: Encodable {
-        struct Candidate: Encodable {
-            let tabID: String
-            @BrowserCoreNullable var inactiveSince: TimeInterval?
-            let keepsPageLoaded: Bool
-            let isPresented: Bool
-            @BrowserCoreNullable var presentedIndex: Int?
-        }
-
-        let level: MemoryPressureLevel
-        let platform: DevicePlatform
-        @BrowserCoreNullable var focusedIndex: Int?
-        let candidates: [Candidate]
-    }
-
-    private struct ReleasePlanAnswer: Decodable {
-        @BrowserCoreOptional var tabIDs: [String]?
-        @BrowserCoreOptional var fallbackTabIDs: [String]?
-    }
-
     // MARK: - Variables
 
     private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "CorePolicy")
-
-    // MARK: - Actions - Residency
-
-    /// How many eligible pages this squeeze may take back. A core that cannot
-    /// answer releases nothing rather than guessing at a budget.
-    static func memoryPressureReleaseLimit(
-        level: MemoryPressureLevel, eligiblePageCount: Int,
-        platform: DevicePlatform
-    ) -> Int {
-        let request = ReleaseLimitRequest(level: level, platform: platform, eligiblePageCount: eligiblePageCount)
-        guard let limit = evaluate(.residencyReleaseLimit, request, answer: ReleaseLimitAnswer.self)?.limit,
-            limit >= 0
-        else { return 0 }
-        return limit
-    }
-
-    /// The order in which release should be attempted. The caller still asks
-    /// each page's engine for the residency veto and re-validates ownership
-    /// after every await; `presentedFallback` is only used when the off-screen
-    /// sweep released nobody at all.
-    static func residencyReleasePlan(
-        level: MemoryPressureLevel, platform: DevicePlatform,
-        candidates: [ResidencyCandidate], focusedIndex: Int?
-    ) -> (offScreen: [TabID], presentedFallback: [TabID]) {
-        let request = ReleasePlanRequest(
-            level: level, platform: platform, focusedIndex: focusedIndex,
-            candidates: candidates.map { candidate in
-                ReleasePlanRequest.Candidate(
-                    tabID: candidate.tabID.coreIdentifier,
-                    inactiveSince: candidate.inactiveSince?.timeIntervalSinceReferenceDate,
-                    keepsPageLoaded: candidate.keepsPageLoaded, isPresented: candidate.presentedIndex != nil,
-                    presentedIndex: candidate.presentedIndex)
-            })
-        guard let answer = evaluate(.residencyReleasePlan, request, answer: ReleasePlanAnswer.self) else {
-            return ([], [])
-        }
-        let known = Dictionary(
-            uniqueKeysWithValues: candidates.map {
-                ($0.tabID.coreIdentifier, $0.tabID)
-            })
-        func tabIDs(_ identifiers: [String]?) -> [TabID] {
-            (identifiers ?? []).compactMap { known[$0] }
-        }
-        return (tabIDs(answer.tabIDs), tabIDs(answer.fallbackTabIDs))
-    }
 
     // MARK: - Actions - Evaluation
 

@@ -67,8 +67,7 @@ extension BrowserPagePool {
             )
         }
 
-        pruneTransientLeases()
-        for lease in transientLeases.values.compactMap(\.value) {
+        for lease in host.liveTransientLeases {
             lease.applyContentBlocking(
                 policy: update.policy(for: lease.spaceID),
                 balancedRuleLists: contentBlocking.balancedRuleLists ?? []

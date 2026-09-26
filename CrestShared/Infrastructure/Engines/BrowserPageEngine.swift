@@ -33,8 +33,6 @@ protocol BrowserPageEngine: AnyObject {
     /// One-shot, engine-owned request metadata for a newly created native page.
     /// Tokens never enter the core session, persistence or sync.
     func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool
-    /// What media the page runs now, or nil when the engine cannot tell.
-    func mediaActivity() async -> PageMediaActivity?
     /// Content bridges run by the engine itself, or nil when the page installs
     /// them through the engine's own API.
     var contentScripting: (any BrowserPageContentScripting)? { get }

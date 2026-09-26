@@ -7,8 +7,9 @@ using Xunit;
 namespace CrestCore.Tests;
 
 /// Memory pressure unloads the pages off screen longest, never one a window
-/// shows, one running media or one whose tab keeps its page loaded, and a tab
-/// whose page was unloaded restores it only while the tab is still open.
+/// shows, one running media, one showing no document yet or one whose tab
+/// keeps its page loaded, and a tab whose page was unloaded restores it only
+/// while the tab is still open.
 public sealed partial class BrowserContractsTests {
     /// A desktop host whose clock the test moves, on an engine that can bring
     /// pages back, with one window open over a saved session whose one tab
@@ -27,16 +28,17 @@ public sealed partial class BrowserContractsTests {
         return (app, engine, binding, clock, workspace, window, fixture.Space, fixture.Tab);
     }
 
-    /// A new open tab at `address` with a live page, which the window shows,
-    /// a minute after the last one.
+    /// A new open tab at `address` with a live page showing it, unless
+    /// `blank`, which the window shows, a minute after the last one.
     private static (Guid Tab, Guid Page) ShowNewTab(CrestApp app, Engine engine, TestClock clock, Guid workspace, Guid window,
-        Guid space, string address) {
+        Guid space, string address, bool blank = false) {
         clock.Now += TimeSpan.FromMinutes(1);
         var (tab, page) = (Guid.NewGuid(), Guid.NewGuid());
         app.Send(new OpenTab(workspace, window, space, tab, new TabContent(address, null, "Page", null), TabPlacement.Current, null,
             Shows: true));
         app.Send(new OpenPage(page, workspace, space, tab, window));
         app.Report(engine, new PageCreated(page));
+        if (!blank) app.Report(engine, new PageStateChanged(page, Showing(address)));
         app.Send(new ShowTab(window, space, tab));
         return (tab, page);
     }
@@ -50,6 +52,7 @@ public sealed partial class BrowserContractsTests {
         var kept = Guid.NewGuid();
         app.Send(new OpenPage(kept, workspace, space, keptTab, window));
         app.Report(engine, new PageCreated(kept));
+        var (_, blank) = ShowNewTab(app, engine, clock, workspace, window, space, "https://blank.example/", blank: true);
         var (_, first) = ShowNewTab(app, engine, clock, workspace, window, space, "https://first.example/");
         var (_, playing) = ShowNewTab(app, engine, clock, workspace, window, space, "https://playing.example/");
         var (_, second) = ShowNewTab(app, engine, clock, workspace, window, space, "https://second.example/");
@@ -60,16 +63,18 @@ public sealed partial class BrowserContractsTests {
         app.Drain();
 
         // A warning takes back one page on the desktop: the one off screen
-        // longest whose tab does not keep it loaded.
+        // longest that shows a document and whose tab does not keep it loaded.
         Assert.Equal([first], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Warning))));
         Assert.Equal(new ClosePage(first, KeepsState: true), binding.Commands[^1]);
 
         // Critical pressure takes half of what is left, at least one; the page
-        // playing and both cards of the split on screen stay whatever the level.
+        // playing, the page showing nothing yet and both cards of the split on
+        // screen stay whatever the level.
         Assert.Equal([second], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Critical))));
         Assert.Empty(Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Critical))));
         Assert.DoesNotContain(binding.Commands, command => command is ClosePage closing
-            && (closing.PageId == kept || closing.PageId == playing || closing.PageId == leftPage || closing.PageId == rightPage));
+            && (closing.PageId == kept || closing.PageId == blank || closing.PageId == playing || closing.PageId == leftPage
+                || closing.PageId == rightPage));
     }
 
     [Fact]

@@ -2,8 +2,9 @@ import AppKit
 import Observation
 import WebKit
 
-/// Normal windows share page ownership while their pools retain independent
-/// selection. A temporary workspace receives its own store.
+/// Normal windows share one page host while their pools keep independent
+/// selection; this store decides which window presents each tab's page. A
+/// temporary workspace receives its own store.
 @Observable
 @MainActor
 final class BrowserPageRuntimeStore {
@@ -11,20 +12,28 @@ final class BrowserPageRuntimeStore {
         weak var value: BrowserPagePool?
     }
 
-    @ObservationIgnored var spacesReleasingData: Set<SpaceID> = []
-    @ObservationIgnored var spacesDeletingData: Set<SpaceID> = []
-    @ObservationIgnored var runtimes: [TabID: BrowserTabRuntime] = [:]
+    /// The pages every window over the workspace shares.
+    let host: BrowserPageHost
     @ObservationIgnored private var pools: [BrowserWindowID: WeakPool] = [:]
     @ObservationIgnored private var presentations: [BrowserWindowID: [TabID]] = [:]
     @ObservationIgnored private var focusOrder: [BrowserWindowID: Int] = [:]
     @ObservationIgnored private var focusSequence = 0
-    let tabState: BrowserTabStateCoordinator
-    let nativeTabs = BrowserNativeTabStore()
-    var revision = 0
     var publishesPageMetadataCentrally = false
 
+    var runtimes: [TabID: BrowserTabRuntime] {
+        get { host.runtimes }
+        set { host.runtimes = newValue }
+    }
+    var revision: Int {
+        get { host.revision }
+        set { host.revision = newValue }
+    }
+    var tabState: BrowserTabStateCoordinator { host.tabState }
+    var nativeTabs: BrowserNativeTabStore { host.nativeTabs }
+
     init(archive: (any BrowserTabStateArchiving)? = nil) {
-        tabState = BrowserTabStateCoordinator(archive: archive)
+        host = BrowserPageHost(archive: archive)
+        host.dropPresentation = { [weak self] in self?.removePresentation(of: $0) }
     }
 
     var registeredPools: [BrowserPagePool] { pools.values.compactMap(\.value) }

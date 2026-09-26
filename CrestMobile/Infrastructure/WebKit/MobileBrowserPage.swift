@@ -501,6 +501,14 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         corePage.release(keepingState: keepingState)
     }
 
+    /// Ends a page the core unloaded under memory pressure: its web view comes
+    /// down as on any release, but the core already closed what its engine
+    /// held, so it hears nothing more.
+    func unloaded() {
+        tearDownWebView()
+        corePage.unloaded()
+    }
+
     private func tearDownWebView() {
         enginePage.close()
         faviconSession.stop()
