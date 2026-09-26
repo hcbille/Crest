@@ -10,8 +10,8 @@ import Foundation
 protocol BrowserEngineHostCommands: AnyObject {
     /// The persistent Spaces an engine may keep extension state for: every
     /// one that is neither locked nor being deleted.
-    var extensionSpaces: [BrowserSpace] { get }
-    func extensionSpace(forProfile profileID: UUID) -> BrowserSpace?
+    var extensionSpaces: [BrowserSpaceIdentity] { get }
+    func extensionSpace(forProfile profileID: UUID) -> BrowserSpaceIdentity?
 
     /// Shows `space` in `window` and opens `url` there as its selected tab.
     @discardableResult

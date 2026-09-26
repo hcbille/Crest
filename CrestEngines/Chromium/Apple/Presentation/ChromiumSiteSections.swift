@@ -28,7 +28,7 @@ struct BrowserEngineSitePermissionsSection: View {
 /// Per-site extension actions and access, alongside Crest's own site controls.
 struct BrowserEngineSiteControlsSection: View {
     let page: BrowserPage
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let url: URL?
     let dismiss: () -> Void
 
@@ -42,7 +42,7 @@ struct BrowserEngineSiteControlsSection: View {
 
 /// The pinned extension actions that sit above a Space's tab list.
 struct BrowserEngineSidebarAccessory: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     /// The window's own store. Extension ownership is decided against the store
     /// family that owns this window rather than against one global Space list.
     let browser: BrowserStore
@@ -57,7 +57,7 @@ struct BrowserEngineSidebarAccessory: View {
         guard let tabID = browser.selectedTabID(in: space.id) else { return nil }
         return pages.activePage(
             matching: BrowserTabRuntimeAssignment(
-                tabID: tabID, spaceID: space.id, profileID: space.profile.id)
+                tabID: tabID, spaceID: space.id, profileID: space.profileID)
         )?.chromiumPage
     }
 }

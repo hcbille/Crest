@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserExtensionSpaceSelectionList: View {
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     @Binding var selection: Set<SpaceID>
 
     private var availableIDs: Set<SpaceID> { Set(spaces.map(\.id)) }

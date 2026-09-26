@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserExtensionInstallSpacesPage: View {
     let primarySpaceName: String
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     @Binding var selection: Set<SpaceID>
     let goBack: () -> Void
 

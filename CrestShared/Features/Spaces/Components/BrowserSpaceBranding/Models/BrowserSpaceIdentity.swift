@@ -47,18 +47,6 @@ struct BrowserSpaceIdentity: Equatable, Identifiable {
         requiresAuthentication = false
     }
 
-    /// TRANSITIONAL until the Chromium extension store reads the read model
-    /// (WP C l/i): a Space of the session copy.
-    init(space: BrowserSpace) {
-        id = space.id
-        profileID = space.profile.id
-        name = space.name
-        symbol = space.symbol
-        accent = space.accent
-        branding = space.branding
-        requiresAuthentication = space.accessPolicy.requiresAuthentication
-    }
-
     // MARK: - Actions - Drafting
 
     /// This identity as a draft shows it before it is saved: named `name` and
@@ -85,11 +73,5 @@ extension BrowserSpaceIdentity: BrowserSpaceIdentifying {
 }
 
 extension SpaceModel: BrowserSpaceIdentifying {
-    var identity: BrowserSpaceIdentity { BrowserSpaceIdentity(space: self) }
-}
-
-/// TRANSITIONAL until the Chromium extension store reads the read model
-/// (WP C l/i).
-extension BrowserSpace: BrowserSpaceIdentifying {
     var identity: BrowserSpaceIdentity { BrowserSpaceIdentity(space: self) }
 }

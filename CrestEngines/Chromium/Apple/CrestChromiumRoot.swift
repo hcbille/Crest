@@ -185,7 +185,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         if instance?.privateSourceProfile == profileID { instance?.privateWindow?.close() }
     }
 
-    static var extensionSpaces: [BrowserSpace] { hostCommands?.extensionSpaces ?? [] }
+    static var extensionSpaces: [BrowserSpaceIdentity] { hostCommands?.extensionSpaces ?? [] }
     /// Whether this store is one of the persistent Spaces' own stores.
     ///
     /// Engine extension profiles belong to the application's persistent store
@@ -197,7 +197,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         return browser.family === instance.application.browser.family
             && !browser.isPrivateBrowsing && !browser.isTemporaryWorkspace
     }
-    static func isSpaceLocked(_ space: BrowserSpace) -> Bool {
+    static func isSpaceLocked(_ space: BrowserSpaceIdentity) -> Bool {
         guard let instance else { return true }
         return instance.application.browser.deletingSpaceIDs.contains(space.id)
             || instance.application.spaceAccess.isLocked(space)
@@ -207,12 +207,12 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         if let window = NSApp.keyWindow, instance.windows.values.contains(where: { $0 === window }) { return window }
         return instance.windows.values.first { $0.isMainWindow } ?? instance.windows.values.first
     }
-    static func openExtensionURL(_ url: URL, in space: BrowserSpace, window: NSWindow) -> Bool {
+    static func openExtensionURL(_ url: URL, in space: BrowserSpaceIdentity, window: NSWindow) -> Bool {
         guard let instance, let id = instance.windows.first(where: { $0.value === window })?.key,
               let destination = URL(string: ChromiumInternalURL.presented(url.absoluteString)) else { return false }
         // Settings and extension options are core-owned tabs even when no web
         // page is active. Do not fabricate an opener or borrow another Space.
-        return instance.commands.openTab(destination, in: BrowserSpaceRuntimeAssignment(space: space), window: id)
+        return instance.commands.openTab(destination, in: space.assignment, window: id)
     }
 
     static func openExtensionSettings() {
@@ -652,7 +652,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         }
         if window === privateWindow {
             for quick in Array(quickWindows.values) where quick.model.browser.isPrivateBrowsing { quick.window.closeAfterApproval() }
-            let profiles = application.privateBrowser.session.spaces.map(\.profile.id)
+            let profiles = application.privateBrowser.spaceModels.map(\.profileID)
             application.pagePoolRegistry.unregister(application.privatePages, for: application.privatePages.windowID)
             commands.closePrivateBrowsing()
             host.disposePages([], windows: [application.privatePages.windowID], releaseProfiles: profiles)
@@ -693,8 +693,8 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         guard let instance, !instance.quitting else { return nil }
         // A profile belongs to exactly one Space. Resolve that Space instead of
         // accepting whichever one matched first, and refuse an ambiguous answer.
-        func host(in browser: BrowserStore) -> BrowserSpace? {
-            let owners = browser.session.spaces.filter { $0.profile.id == profile }
+        func host(in browser: BrowserStore) -> SpaceModel? {
+            let owners = browser.spaceModels.filter { $0.profileID == profile }
             guard owners.count == 1, let space = owners.first,
                 !browser.deletingSpaceIDs.contains(space.id),
                 !instance.application.spaceAccess.isLocked(space)
@@ -702,7 +702,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             return space
         }
         let privateBrowser = instance.application.privateBrowser
-        if privateBrowser.session.spaces.contains(where: { $0.profile.id == profile }) {
+        if privateBrowser.spaceModels.contains(where: { $0.profileID == profile }) {
             guard let space = host(in: privateBrowser),
                 let identifier = instance.privateWindow?.identifier.flatMap({ UUID(uuidString: $0.rawValue) })
             else { return nil }

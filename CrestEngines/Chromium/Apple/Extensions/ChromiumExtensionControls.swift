@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserPinnedExtensionStrip: View {
     let page: ChromiumNativePage?
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let browser: BrowserStore
     private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -34,13 +34,14 @@ struct BrowserPinnedExtensionStrip: View {
                 .padding(
                     .top,
                     BrowserPinnedExtensionStripLayoutPolicy.adjacentSpacing
-                        + (space.pinnedTabs.isEmpty ? 0 : BrowserTabSelectionGlow.outset)
+                        + (browser.spaceModel(space.id)?.sidebar.section(.pinned).isEmpty ?? true
+                            ? 0 : BrowserTabSelectionGlow.outset)
                 )
                 .transition(.opacity)
             }
         }
         .animation(reduceMotion ? nil : SpacePagerSettlement.standardAnimation, value: actions.map(\.id))
-        .task(id: PreparationKey(space: space.id, profile: space.profile.id)) {
+        .task(id: PreparationKey(space: space.id, profile: space.profileID)) {
             await store.prepare(space, in: browser)
         }
     }
@@ -66,7 +67,7 @@ struct BrowserPinnedExtensionStrip: View {
 
 struct ChromiumExtensionControls: View {
     let page: ChromiumNativePage
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let url: URL?
     let dismiss: () -> Void
     private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }

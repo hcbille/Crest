@@ -7,16 +7,18 @@ struct BrowserExtensionSettingsPane: View {
     var requestRevision = 0
     @State private var selectedSpaceID: SpaceID?
     private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
-    private var space: BrowserSpace? { browser.session.space(id: selectedSpaceID ?? browser.selectedSpaceID) }
+    private var space: BrowserSpaceIdentity? {
+        browser.spaceModel(selectedSpaceID ?? browser.selectedSpaceID)?.identity
+    }
 
     var body: some View {
         BrowserSettingsPane(.extensions) {
             Section("Space", systemImage: "square.grid.2x2") {
                 CrestSpaceMenuPicker("Manage extensions for", selection: $selectedSpaceID,
-                    spaces: CrestSpaceIdentity.list(browser.session.spaces))
+                    spaces: CrestSpaceIdentity.list(browser.spaceModels))
             }
             if let space, !spaceAccess.isLocked(space) {
-                BrowserExtensionsView(space: space, store: store).id(space.profile.id)
+                BrowserExtensionsView(space: space, store: store).id(space.profileID)
             } else if let space {
                 BrowserSettingsPrivateSpaceAccessSection(space: space, accessController: spaceAccess,
                     detail: "Unlock this Space before viewing or changing its installed extensions.")
@@ -24,21 +26,23 @@ struct BrowserExtensionSettingsPane: View {
         }
         .onAppear { if selectedSpaceID == nil { selectedSpaceID = requestedSpaceID ?? browser.selectedSpaceID } }
         .onChange(of: requestRevision) { selectedSpaceID = requestedSpaceID ?? browser.selectedSpaceID }
-        .onChange(of: browser.session.spaces.map(\.id)) {
-            if !browser.session.spaces.contains(where: { $0.id == selectedSpaceID }) { selectedSpaceID = browser.selectedSpaceID }
+        .onChange(of: browser.spaceModels.map(\.id)) {
+            if !browser.spaceModels.contains(where: { $0.id == selectedSpaceID }) {
+                selectedSpaceID = browser.selectedSpaceID
+            }
         }
     }
 }
 
 struct BrowserExtensionsView: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let store: ChromiumExtensionStore
     @State private var failure: String?
     @State private var pendingRemoval: ChromiumExtensionStore.Installed?
     @State private var pendingCopy: ChromiumExtensionStore.Installed?
     @Environment(\.browserSettingsUsesLiveSidebar) private var usesLiveSidebar
     private var extensions: [ChromiumExtensionStore.Installed] {
-        (store.installed[space.profile.id] ?? []).sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        (store.installed[space.profileID] ?? []).sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
     var body: some View {
         Group {
@@ -54,7 +58,7 @@ struct BrowserExtensionsView: View {
             }
             if usesLiveSidebar { installedExtensions }
         }
-        .task(id: space.profile.id) { await store.load(space) }
+        .task(id: space.profileID) { await store.load(space) }
         .alert("Couldn’t Complete Extension Action", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK") { failure = nil }
         } message: { Text(failure ?? "") }
@@ -68,7 +72,7 @@ struct BrowserExtensionsView: View {
         Section("Installed in this Space", systemImage: "puzzlepiece.extension") {
             Label("Extensions and their data belong to \(space.name).", systemImage: "square.grid.2x2")
                 .font(.callout).foregroundStyle(.secondary)
-            if store.installed[space.profile.id] == nil { ProgressView() }
+            if store.installed[space.profileID] == nil { ProgressView() }
             else if extensions.isEmpty { ContentUnavailableView("No Extensions", systemImage: "puzzlepiece.extension", description: Text("Install an extension for this Space to get started.")) }
             else {
                 ForEach(extensions) { item in
@@ -131,13 +135,13 @@ struct BrowserExtensionRow: View {
 
 struct BrowserExtensionCopySheet: View {
     let item: ChromiumExtensionStore.Installed
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let store: ChromiumExtensionStore
     @Environment(\.dismiss) private var dismiss
     @State private var selectedSpaces: Set<SpaceID> = []
     @State private var loading = true
-    private var destinations: [BrowserSpace] {
-        store.spaces.filter { $0.id != space.id && !(store.installed[$0.profile.id] ?? []).contains { $0.id == item.id } }
+    private var destinations: [BrowserSpaceIdentity] {
+        store.spaces.filter { $0.id != space.id && !(store.installed[$0.profileID] ?? []).contains { $0.id == item.id } }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: CrestSpacing.large) {

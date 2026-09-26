@@ -16,19 +16,18 @@ extension BrowserMacApplication: BrowserEngineHostCommands {
 
     // MARK: - Variables
 
-    /// The Spaces the engine's extensions may act in, as the session copy
-    /// holds them. TRANSITIONAL until the Chromium extension store reads the
-    /// read model.
-    var extensionSpaces: [BrowserSpace] {
-        browser.session.spaces.filter {
+    /// The Spaces the engine's extensions may act in: every one this window
+    /// family holds that is neither locked nor being deleted.
+    var extensionSpaces: [BrowserSpaceIdentity] {
+        browser.spaceModels.filter {
             !browser.deletingSpaceIDs.contains($0.id) && !spaceAccess.isLocked($0)
-        }
+        }.map(\.identity)
     }
 
     // MARK: - Actions - Spaces
 
-    func extensionSpace(forProfile profileID: UUID) -> BrowserSpace? {
-        extensionSpaces.first { $0.profile.id == profileID }
+    func extensionSpace(forProfile profileID: UUID) -> BrowserSpaceIdentity? {
+        extensionSpaces.first { $0.profileID == profileID }
     }
 
     func selectSpace(_ spaceID: SpaceID, in window: BrowserWindowID) {

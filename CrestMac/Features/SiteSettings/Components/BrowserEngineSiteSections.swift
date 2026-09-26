@@ -31,7 +31,7 @@ struct BrowserEngineSitePermissionsSection: View {
 /// WebKit's port ships no extensions, so Site Controls has nothing to add.
 struct BrowserEngineSiteControlsSection: View {
     let page: BrowserPage
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let url: URL?
     let dismiss: () -> Void
 
@@ -40,7 +40,7 @@ struct BrowserEngineSiteControlsSection: View {
 
 /// No pinned extension actions without extensions.
 struct BrowserEngineSidebarAccessory: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let browser: BrowserStore
     let pages: BrowserPagePool
 

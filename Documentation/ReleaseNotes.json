@@ -2933,6 +2933,10 @@
     "tab-rules-off-session-copy": {
       "category": "internal",
       "message": "Tab title and icon rules and native tabs read from the read model"
+    },
+    "extension-store-space-identities": {
+      "category": "internal",
+      "message": "Extensions and site controls name Spaces from the read model"
     }
   }
 }
