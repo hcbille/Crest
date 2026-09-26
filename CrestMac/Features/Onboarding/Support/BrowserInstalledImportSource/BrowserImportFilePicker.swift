@@ -3,16 +3,14 @@ import AppKit
 @MainActor
 enum BrowserImportFilePicker {
     static func chooseDataFolder(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         completion: @escaping @MainActor (URL?) -> Void
     ) {
         let panel = NSOpenPanel()
-        let dataDirectory = BrowserImportDataLocator.defaultDataDirectory(
-            for: application
-        )
-        panel.title = "Allow Crest to Read \(application.name)"
+        let dataDirectory = application.defaultDataDirectory
+        panel.title = "Allow Crest to Read \(application.title)"
         panel.message =
-            "Crest has located \(application.name)'s data folder. Click Allow Access to build your review—there is nothing to find or choose."
+            "Crest has located \(application.title)'s data folder. Click Allow Access to build your review—there is nothing to find or choose."
         panel.prompt = "Allow Access"
         panel.directoryURL = dataDirectory
         panel.allowsMultipleSelection = false

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSourceImportChrome: View {
-    let application: BrowserImportApplication?
+    let application: ImportSource?
 
     var body: some View {
         VStack(spacing: 7) {
@@ -11,8 +11,8 @@ struct BrowserSourceImportChrome: View {
                     .opacity(0.45)
                 Spacer()
                 Label(
-                    application?.name ?? "Browser",
-                    systemImage: application?.migrationSource.symbol ?? "globe"
+                    application?.title ?? "Browser",
+                    systemImage: application?.symbol ?? "globe"
                 )
                 .labelStyle(.iconOnly)
                 .font(.headline)

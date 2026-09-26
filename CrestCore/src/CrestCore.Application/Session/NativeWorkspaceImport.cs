@@ -80,10 +80,10 @@ internal sealed class NativeWorkspaceImport {
 
     #region Constructors
 
-    /// Reads `spaces`, the imported Spaces in the stored format, against
-    /// `session`. Throws `Rejected` with `InvalidImport` for Spaces that do not
-    /// decode or hold a split repair would rewrite.
-    internal NativeWorkspaceImport(SessionState session, byte[] spaces) {
+    /// Takes `spaces`, the imported Spaces, against `session`. Throws
+    /// `Rejected` with `InvalidImport` for Spaces that hold a split repair
+    /// would rewrite.
+    internal NativeWorkspaceImport(SessionState session, IReadOnlyList<SpaceState> spaces) {
         this.session = session;
         defaultSpace = session.DefaultSpaceId;
         seedMarker = session.DisposableSeedMarker;
@@ -91,7 +91,7 @@ internal sealed class NativeWorkspaceImport {
         foreach (var space in this.spaces) Track(space.State, source: null);
         originalFolderIds = this.spaces.ToDictionary(space => space, space => space.State.Folders.Select(f => f.Id).ToHashSet());
         originalHistoryIds = this.spaces.ToDictionary(space => space, space => space.State.History.Select(h => h.Id).ToHashSet());
-        inputs = [.. Decoded(spaces).Select(space => new Draft(space, isOriginal: false))];
+        inputs = [.. spaces.Select(space => new Draft(space, isOriginal: false))];
         for (int index = 0; index < inputs.Count; index++) Track(inputs[index].State, index);
         foreach (var input in inputs)
             WorkspaceImportPolicy.RequireSplitMembership(
@@ -103,7 +103,8 @@ internal sealed class NativeWorkspaceImport {
     #region Actions - Reading
 
     /// The imported Spaces, as the stored format spells them in a JSON array.
-    private static IReadOnlyList<SpaceState> Decoded(byte[] spaces) {
+    /// Throws `Rejected` with `InvalidImport` for Spaces that do not decode.
+    internal static IReadOnlyList<SpaceState> Decoded(byte[] spaces) {
         try {
             return [.. JsonNode.Parse(spaces, documentOptions: SpacesDocument)!.AsArray().Select(StoredSessionCodec.DecodeSpace)];
         } catch (Exception error) when (StoredSession.IsUndecodable(error)) {

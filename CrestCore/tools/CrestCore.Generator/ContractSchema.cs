@@ -734,9 +734,13 @@ internal sealed class ContractSchema {
         object? value = property.GetValue(instance);
         if (!IsLocalized(property) || value is not string text) return value;
         int? argument = arguments.TryGetValue(property, out var source) ? (int?)source.GetValue(instance) : null;
-        if (text.Split(ArgumentFormat).Length - 1 != (argument is null ? 0 : 1))
+        bool isFormat = property.GetCustomAttribute<LocalizedAttribute>()!.IsFormat;
+        if (isFormat && arguments.ContainsKey(property))
+            throw new ContractSchemaException($"{instance.GetType().Name}.{property.Name}: a format takes its number from the core, "
+                + "not from an argument member.");
+        if (text.Split(ArgumentFormat).Length - 1 != (argument is null && !isFormat ? 0 : 1))
             throw new ContractSchemaException($"{instance.GetType().Name}.{property.Name}: \"{text}\" must spell {ArgumentFormat} exactly "
-                + "once when its argument has a value, and never otherwise.");
+                + "once when it is a format or its argument has a value, and never otherwise.");
         return new LocalizedText(text, comments.TryGetValue(property, out var comment) ? (string?)comment.GetValue(instance) : null,
             argument);
     }

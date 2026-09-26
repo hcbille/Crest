@@ -1,11 +1,11 @@
 import Foundation
 
-struct BrowserImportQueue: Codable, Equatable, Sendable {
-    private(set) var applications: [BrowserImportApplication]
+struct BrowserImportQueue: Equatable, Sendable {
+    private(set) var applications: [ImportSource]
     private(set) var currentIndex: Int
 
     init(
-        applications: [BrowserImportApplication],
+        applications: [ImportSource],
         currentIndex: Int = 0
     ) {
         self.applications = applications
@@ -13,13 +13,13 @@ struct BrowserImportQueue: Codable, Equatable, Sendable {
     }
 
     init(
-        selected: Set<BrowserImportApplication>,
-        availableOrder: [BrowserImportApplication]
+        selected: Set<ImportSource>,
+        availableOrder: [ImportSource]
     ) {
         self.init(applications: availableOrder.filter(selected.contains))
     }
 
-    var current: BrowserImportApplication? {
+    var current: ImportSource? {
         applications.indices.contains(currentIndex)
             ? applications[currentIndex]
             : nil
@@ -33,7 +33,7 @@ struct BrowserImportQueue: Codable, Equatable, Sendable {
 
     var isComplete: Bool { current == nil }
 
-    var remaining: ArraySlice<BrowserImportApplication> {
+    var remaining: ArraySlice<ImportSource> {
         applications.dropFirst(currentIndex)
     }
 

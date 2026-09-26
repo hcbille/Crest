@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSourceImportPreview: View {
-    let application: BrowserImportApplication?
+    let application: ImportSource?
     let review: BrowserImportSpaceReview
     let overflowTabIDs: Set<TabID>
     let duplicateTabIDs: Set<TabID>
@@ -26,7 +26,7 @@ struct BrowserSourceImportPreview: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            "\(application?.name ?? "Source browser") \(review.sourceSpace.name) sidebar before import"
+            "\(application?.title ?? "Source browser") \(review.sourceSpace.name) sidebar before import"
         )
     }
 }

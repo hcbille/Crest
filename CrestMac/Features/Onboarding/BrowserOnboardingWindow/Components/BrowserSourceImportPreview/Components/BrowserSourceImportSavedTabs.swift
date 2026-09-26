@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSourceImportSavedTabs: View {
-    let title: String
+    let title: LocalizedStringResource
     let review: BrowserImportSpaceReview
     let sections: BrowserSourceImportPreviewSections
     let overflowTabIDs: Set<TabID>

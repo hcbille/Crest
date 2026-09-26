@@ -1,11 +1,16 @@
 import Foundation
 
+/// Reads an installed browser's data for review: the core reads its profiles'
+/// bookmarks and sessions away from the main thread, and the password stores
+/// are counted where the browser keeps passwords Crest imports.
 struct LiveBrowserOnboardingImportReader: BrowserOnboardingImportReading {
+    let core: CrestCore
+
     func read(
         _ payload: BrowserDetectedImportPayload
     ) async throws -> BrowserOnboardingImportReadOutput {
         let passwordCandidates =
-            payload.application.supportsPasswordImport
+            payload.application.suppliesPasswords
             ? try await BrowserPasswordImportReader.candidates(
                 from: payload.passwordStores,
                 application: payload.application
@@ -13,12 +18,14 @@ struct LiveBrowserOnboardingImportReader: BrowserOnboardingImportReading {
             : []
         try Task.checkCancellation()
 
-        let imported = try await BrowserDetectedImportReader.read(payload)
+        let query = ReadImport(source: payload.application, profiles: payload.profiles)
+        let core = self.core
+        let imported = try await Task.detached(priority: .userInitiated) { try core.query(query) }.value
         try Task.checkCancellation()
 
         return BrowserOnboardingImportReadOutput(
             payload: payload,
-            imported: imported,
+            imported: imported.spaces.map { BrowserSpace(core: $0, image: { _ in nil }) },
             passwordCandidates: passwordCandidates
         )
     }

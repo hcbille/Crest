@@ -12,7 +12,7 @@ struct BrowserCredentialCSVDocument: FileDocument {
 
     init(configuration: ReadConfiguration) throws {
         guard let data = configuration.file.regularFileContents else {
-            throw BrowserPortableArchiveError.missingFileContents
+            throw CocoaError(.fileReadCorruptFile)
         }
         self.data = data
     }

@@ -135,7 +135,7 @@ final class BrowserGettingStartedTests: XCTestCase {
         XCTAssertTrue(converted.isWebPage)
     }
 
-    func testNativeTabsStayLocalWhilePortableExportPreservesContent() async throws {
+    func testNativeTabsStayLocalOnSync() async throws {
         let browser = BrowserStore.preview()
         let id = try XCTUnwrap(browser.openGettingStarted())
         let session = browser.session
@@ -148,10 +148,6 @@ final class BrowserGettingStartedTests: XCTestCase {
         XCTAssertEqual(
             device.store.session.space(id: browser.selectedSpaceID)?.tabs.first { $0.id == id }?.nativeContent,
             .gettingStarted)
-        let archive = try JSONDecoder().decode(
-            BrowserPortableArchive.self, from: JSONEncoder().encode(BrowserPortableArchive(session: session)))
-        let imported = try archive.materialize()
-        XCTAssertEqual(imported.spaces.flatMap(\.tabs).filter { $0.nativeContent == .gettingStarted }.count, 1)
     }
 
     func testNativeActionsRejectAStaleProfileAndKeepGuideWhenOpeningALink() throws {

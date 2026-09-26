@@ -29,19 +29,18 @@
         /// replacement may still do. The workspace takes imports, so it is a
         /// persistent one.
         func replaceProfileForTesting(of spaceID: SpaceID, with profileID: UUID = UUID()) {
-            guard let space = session.space(id: spaceID) else {
+            guard let copy = session.space(id: spaceID),
+                let space = workspaceModel?.spaces.models.first(where: { $0.id == spaceID })?.value
+            else {
                 preconditionFailure("A test replaced the profile of a Space the session does not hold.")
             }
             let order = session.spaces.map(\.id)
             let shownSpace = selectedSpaceID
             let shownTab = selectedTabID(in: spaceID)
-            let replacement = BrowserSpace(
-                id: space.id, profile: BrowsingProfile(id: profileID), name: space.name, symbol: space.symbol,
-                accent: space.accent, branding: space.branding, folders: space.folders, tabs: space.tabs,
+            let replacement = SpaceState(
+                id: space.id, profileID: profileID, settings: space.settings, folders: space.folders, tabs: space.tabs,
                 splitGroups: space.splitGroups, archivedTabs: space.archivedTabs, history: space.history,
-                browsingPreferences: space.browsingPreferences, credentialPreferences: space.credentialPreferences,
-                accessPolicy: space.accessPolicy, isSavedTabsExpanded: space.isSavedTabsExpanded,
-                savedTabsExpansionModifiedAt: space.savedTabsExpansionModifiedAt)
+                sidebar: space.sidebar)
             // A Space is never the last one while it goes.
             let placeholder = SpaceID()
             if session.spaces.count == 1 {
@@ -53,10 +52,8 @@
             removeSpaceForTesting(spaceID)
             do {
                 try family.importSpaces(
-                    ImportSpaces(
-                        workspaceID: family.workspaceID, windowID: windowID,
-                        spaces: try BrowserSpace.storedFormat([replacement])),
-                    from: [replacement], issuedBy: self)
+                    ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: [replacement]),
+                    from: [copy], issuedBy: self)
             } catch {
                 preconditionFailure("The core refused to bring a Space back for a test: \(error)")
             }

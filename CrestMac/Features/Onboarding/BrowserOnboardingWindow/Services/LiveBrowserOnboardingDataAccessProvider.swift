@@ -5,18 +5,18 @@ struct LiveBrowserOnboardingDataAccessProvider:
     BrowserOnboardingDataAccessProviding
 {
     func resolve(
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) -> BrowserImportDataDirectoryAccess? {
         BrowserImportAccessStore.resolve(for: application)
     }
 
-    func clear(for application: BrowserImportApplication) {
+    func clear(for application: ImportSource) {
         BrowserImportAccessStore.clear(for: application)
     }
 
     func remember(
         _ directoryURL: URL,
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) throws {
         try BrowserImportAccessStore.remember(
             directoryURL,
@@ -25,7 +25,7 @@ struct LiveBrowserOnboardingDataAccessProvider:
     }
 
     func chooseDataFolder(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         completion: @escaping @MainActor (URL?) -> Void
     ) {
         BrowserImportFilePicker.chooseDataFolder(
@@ -34,7 +34,7 @@ struct LiveBrowserOnboardingDataAccessProvider:
         )
     }
 
-    func hasSavedAccess(for application: BrowserImportApplication) -> Bool {
+    func hasSavedAccess(for application: ImportSource) -> Bool {
         BrowserImportAccessStore.bookmarkData(for: application) != nil
     }
 }

@@ -107,7 +107,7 @@ enum BrowserPasswordImportCommitter {
     }
 
     private static func sourceSpaceIDs(
-        sourceApplication: BrowserImportApplication,
+        sourceApplication: ImportSource,
         sourceProfileName: String,
         origin: CredentialOrigin,
         plan: BrowserImportReviewPlan,
@@ -127,18 +127,20 @@ enum BrowserPasswordImportCommitter {
                 ) == .orderedSame
             }
         }
+        // A browser whose Spaces are its profiles gives each password to its
+        // profile's Space; one that names its own Spaces, to every Space
+        // holding the password's site.
         let matches: [BrowserImportSpaceReview]
-        switch sourceApplication {
-        case .chrome:
+        if !sourceApplication.suppliesPasswords {
+            matches = []
+        } else if sourceApplication.namesItsSpaces {
+            matches = hostMatches
+        } else {
             matches =
                 profileMatch.map { [$0] }
                 ?? hostMatches.first.map { [$0] }
                 ?? eligibleReviews.first.map { [$0] }
                 ?? []
-        case .arc:
-            matches = hostMatches
-        case .zen, .safari, .firefox:
-            matches = []
         }
         return matches.map(\.id)
     }

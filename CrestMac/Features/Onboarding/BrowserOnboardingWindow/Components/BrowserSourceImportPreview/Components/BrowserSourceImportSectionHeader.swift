@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSourceImportSectionHeader: View {
-    let title: String
+    let title: LocalizedStringResource
     let tabs: [BrowserTab]
     let includedTabIDs: Set<TabID>
     let setIncluded: (Set<TabID>, Bool) -> Void

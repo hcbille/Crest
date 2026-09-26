@@ -8,11 +8,11 @@ struct BrowserImportReviewPlan: Codable, Equatable, Sendable {
     private(set) var spaces: [BrowserImportSpaceReview]
     private var destinationCustomizations: [SpaceID: BrowserImportSpaceCustomization]
 
-    /// The review a person starts from, as the core suggests it against
-    /// `browser`'s workspace. When the core cannot answer, everything imports
-    /// into new Spaces.
+    /// The review a person starts from for the imported `spaces`, as the core
+    /// suggests it against `browser`'s workspace. When the core cannot
+    /// answer, everything imports into new Spaces.
     @MainActor
-    init(imported: BrowserPortableImport, in browser: BrowserStore) {
+    init(spaces imported: [BrowserSpace], in browser: BrowserStore) {
         let existing = browser.session
         let destinationSpaces =
             existing.hasDisposableSeedState
@@ -26,10 +26,10 @@ struct BrowserImportReviewPlan: Codable, Equatable, Sendable {
         let suggestions =
             (try? browser.core.query(
                 ImportReviewSuggestions(
-                    workspaceID: browser.family.workspaceID, sources: imported.spaces.map(ImportReviewSpace.init))))?
+                    workspaceID: browser.family.workspaceID, sources: imported.map(ImportReviewSpace.init))))?
             .spaces ?? []
         let suggested = Dictionary(suggestions.map { ($0.sourceSpaceID, $0) }, uniquingKeysWith: { first, _ in first })
-        spaces = imported.spaces.map { sourceSpace in
+        spaces = imported.map { sourceSpace in
             let suggestion = suggested[sourceSpace.id]
             let matchingSpace = suggestion?.destinationID.flatMap { existing.space(id: $0) }
             return BrowserImportSpaceReview(

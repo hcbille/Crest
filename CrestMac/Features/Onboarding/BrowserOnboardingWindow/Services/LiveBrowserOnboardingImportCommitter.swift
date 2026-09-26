@@ -13,7 +13,7 @@ struct LiveBrowserOnboardingImportCommitter:
 
     func prepare(
         plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         payload: BrowserDetectedImportPayload?,
         passwordCountsBySourceSpace: [SpaceID: Int]
     ) async throws -> BrowserOnboardingPreparedImport {
@@ -45,7 +45,7 @@ struct LiveBrowserOnboardingImportCommitter:
 
     private func selectedPasswords(
         for plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         payload: BrowserDetectedImportPayload?,
         passwordCountsBySourceSpace: [SpaceID: Int]
     ) async throws -> [BrowserImportedPassword] {

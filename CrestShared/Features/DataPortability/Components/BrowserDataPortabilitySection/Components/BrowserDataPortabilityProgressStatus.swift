@@ -4,12 +4,8 @@ struct BrowserDataPortabilityProgressStatus: View {
     let model: BrowserDataPortabilityModel
 
     var body: some View {
-        if model.isPreparingExport || model.isPreparingBookmarkExport {
-            ProgressView(
-                model.isPreparingBookmarkExport
-                    ? "Preparing bookmarks…"
-                    : "Preparing browser data…"
-            )
+        if let format = model.preparingFormat {
+            ProgressView(format.preparingMessage)
         }
 
         if let status = model.status {

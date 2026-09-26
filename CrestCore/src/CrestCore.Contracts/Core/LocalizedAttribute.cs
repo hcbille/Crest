@@ -15,5 +15,11 @@ public sealed class LocalizedAttribute : Attribute {
     /// key: `Select Tab %lld` reaches Swift as "Select Tab \(3)".
     public string? Argument { get; set; }
 
+    /// The text is a format that spells `%lld` exactly once for a number the
+    /// core supplies when it writes the text into data, such as a Space's
+    /// ordinal. Swift receives the format whole, localizes it and hands it back
+    /// to the core, so the catalog key keeps its `%lld`.
+    public bool IsFormat { get; set; }
+
     #endregion
 }

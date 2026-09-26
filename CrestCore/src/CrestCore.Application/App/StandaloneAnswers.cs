@@ -30,6 +30,7 @@ public sealed class StandaloneAnswers : IQueryAnswers {
         TranslationChoice choice => Decided(choice),
         ResolveAddress { WorkspaceId: null } address => NativeSessionAuthority.Resolved(address.Input, SearchProvider.Google,
             allowsInternalPages: false),
+        FindImportData find => InstalledBrowser.Of(find.Source).Find(find.Folder),
         LaunchIsolation launch => LaunchPolicy.Plan(launch.Environment, launch.Platform, storedStartup: null, hasActiveLaunchGate: false),
         NormalizeBranding branding => new NormalizedBranding(SpaceBrandingPolicy.Normalize(branding.Branding)),
         PresentPage page => new PagePresented(PagePresentation.Of(page)),

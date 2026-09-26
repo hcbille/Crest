@@ -14,9 +14,13 @@ namespace CrestCore.Tests;
 /// imported tab came from, what is on disk when an import returns, and the
 /// rules that refuse one.
 public sealed partial class BrowserContractsTests {
-    /// Spaces in the stored format, as an import carries them.
+    /// Spaces in the stored format, as a review or manual setup carries them.
     private static byte[] ImportedSpaces(params JsonNode[] spaces) =>
         Encoding.UTF8.GetBytes(new JsonArray([.. spaces.Select(space => space.DeepClone())]).ToJsonString());
+
+    /// Spaces as `ImportSpaces` carries them, read from the stored format.
+    private static IReadOnlyList<SpaceState> ReadSpaces(params JsonNode[] spaces) =>
+        NativeWorkspaceImport.Decoded(ImportedSpaces(spaces));
 
     /// A stored-format Space with its own identities, named `name`, holding `tabs`.
     private static JsonObject ImportedSpace(string name, params JsonObject[] tabs) => new() {
@@ -57,7 +61,7 @@ public sealed partial class BrowserContractsTests {
         var window = device.Showing(session);
         var original = device.Authority.Current.Spaces[0];
         // The file holds this session's own Space, as an export of it does.
-        var changes = device.Send(new ImportSpaces(device.Workspace, window, ImportedSpaces(session["spaces"]![0]!)));
+        var changes = device.Send(new ImportSpaces(device.Workspace, window, ReadSpaces(session["spaces"]![0]!)));
 
         var current = device.Authority.Current;
         Assert.Equal((original.Id, original.Tabs[0].Id, original.Folders[0].Id, original.History[0].Id),
@@ -185,7 +189,7 @@ public sealed partial class BrowserContractsTests {
         var sync = app.StoredSync!;
         sync.Flush();
         _ = DrainLaunch(app, [.. answered, .. opened]);
-        var import = new ImportSpaces(workspace, Guid.NewGuid(), ImportedSpaces(ImportedSpace("Imported", ImportedTab("https://imported.example/"))));
+        var import = new ImportSpaces(workspace, Guid.NewGuid(), ReadSpaces(ImportedSpace("Imported", ImportedTab("https://imported.example/"))));
         var (stored, staged, kept) = (StoredParts(directory.File), sync.Snapshot, session.Current);
 
         RefuseWrites(directory.File, "journal");
@@ -212,13 +216,13 @@ public sealed partial class BrowserContractsTests {
         Rejection Refusal(Intent intent) => Assert.Throws<Rejected>(() => device.Send(intent)).Rejection;
         var space = ImportedSpace("Imported", ImportedTab("https://imported.example/"));
 
-        Assert.Equal(new InvalidImport(ImportFlaw.Unreadable), Refusal(new ImportSpaces(device.Workspace, window, "{}"u8.ToArray())));
+        Assert.Equal(new InvalidImport(ImportFlaw.Unreadable), Refusal(new ImportReviewedSpaces(device.Workspace, window, "{}"u8.ToArray(), [])));
         var group = SwiftId(Guid.NewGuid());
         var split = ImportedSpace("Split", ImportedTab("https://one.example/"), ImportedTab("https://two.example/", "saved"));
         foreach (var tab in split["tabs"]!.AsArray()) tab!["splitGroupID"] = group.DeepClone();
-        Assert.Equal(new InvalidImport(ImportFlaw.MalformedSplit), Refusal(new ImportSpaces(device.Workspace, window, ImportedSpaces(split))));
+        Assert.Equal(new InvalidImport(ImportFlaw.MalformedSplit), Refusal(new ImportSpaces(device.Workspace, window, ReadSpaces(split))));
         Assert.Equal(new SpaceLimitReached(WorkspaceImportPolicy.MaximumSpaces), Refusal(new ImportSpaces(device.Workspace, window,
-            ImportedSpaces([.. Enumerable.Range(0, WorkspaceImportPolicy.MaximumSpaces).Select(_ => ImportedSpace("Many"))]))));
+            ReadSpaces([.. Enumerable.Range(0, WorkspaceImportPolicy.MaximumSpaces).Select(_ => ImportedSpace("Many"))]))));
         Assert.Equal(new NoIncludedSpaces(), Refusal(new ImportReviewedSpaces(device.Workspace, window, ImportedSpaces(space),
             [new(SpaceId(space), false, null, Customization("Imported"), [], [])])));
         Assert.Equal(new InvalidImport(ImportFlaw.UnpairedChoices), Refusal(new ImportReviewedSpaces(device.Workspace, window,
@@ -226,7 +230,7 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(new InvalidImport(ImportFlaw.UnpairedChoices), Refusal(new ApplyManualSetup(device.Workspace, window,
             ImportedSpaces(space, space), [new(SpaceId(space), true, Customization("Imported"))], false)));
         var borrowing = device.Borrow(session["spaces"]![0]!);
-        Assert.Equal(new PersistentWorkspaceRequired(borrowing), Refusal(new ImportSpaces(borrowing, window, ImportedSpaces(space))));
+        Assert.Equal(new PersistentWorkspaceRequired(borrowing), Refusal(new ImportSpaces(borrowing, window, ReadSpaces(space))));
         Assert.Same(kept, device.Authority.Current);
 
         var profile = kept.Spaces[0].ProfileId;

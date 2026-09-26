@@ -2,10 +2,10 @@ import SwiftUI
 
 struct BrowserInstalledImportSourceGrid: View {
     let sources: [BrowserInstalledImportSource]
-    let selectedApplications: Set<BrowserImportApplication>
+    let selectedApplications: Set<ImportSource>
     let isLocked: Bool
     let accessLabel: (BrowserInstalledImportSource) -> String
-    let toggleSelection: (BrowserImportApplication) -> Void
+    let toggleSelection: (ImportSource) -> Void
 
     private var rows: [[BrowserInstalledImportSource]] {
         stride(from: 0, to: sources.count, by: 3).map { start in
@@ -63,12 +63,12 @@ private struct BrowserInstalledImportSourceCard: View {
                             .accessibilityHidden(true)
                     }
                 }
-                Text(source.application.name)
+                Text(source.application.title)
                     .font(
                         BrowserOnboardingTypography.sans(17, weight: .bold)
                     )
                     .foregroundStyle(BrowserOnboardingPalette.ink)
-                Text(source.application.sourceDescription)
+                Text(source.application.description)
                     .font(
                         BrowserOnboardingTypography.sans(13, weight: .medium)
                     )
@@ -104,7 +104,7 @@ private struct BrowserInstalledImportSourceCard: View {
         }
         .buttonStyle(.plain)
         .disabled(isLocked)
-        .accessibilityLabel("Import from \(source.application.name)")
+        .accessibilityLabel("Import from \(source.application.title)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHint(

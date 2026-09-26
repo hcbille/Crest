@@ -3,14 +3,12 @@ import SwiftUI
 struct BrowserDataPortabilitySection: View {
     @State private var model: BrowserDataPortabilityModel
 
-    let showsExternalBrowserImportControls: Bool
     let showsMacOSImportRequirement: Bool
     private let presentsSystemPanels: Bool
 
     init(
         browser: BrowserStore,
         spaceAccess: BrowserSpaceAccessController,
-        showsExternalBrowserImportControls: Bool = true,
         showsMacOSImportRequirement: Bool = false
     ) {
         _model = State(
@@ -19,21 +17,16 @@ struct BrowserDataPortabilitySection: View {
                 spaceAccess: spaceAccess
             )
         )
-        self.showsExternalBrowserImportControls =
-            showsExternalBrowserImportControls
         self.showsMacOSImportRequirement = showsMacOSImportRequirement
         presentsSystemPanels = true
     }
 
     init(
         model: BrowserDataPortabilityModel,
-        showsExternalBrowserImportControls: Bool = true,
         showsMacOSImportRequirement: Bool = false,
         presentsSystemPanels: Bool = false
     ) {
         _model = State(initialValue: model)
-        self.showsExternalBrowserImportControls =
-            showsExternalBrowserImportControls
         self.showsMacOSImportRequirement = showsMacOSImportRequirement
         self.presentsSystemPanels = presentsSystemPanels
     }
@@ -45,8 +38,6 @@ struct BrowserDataPortabilitySection: View {
         ) {
             BrowserDataPortabilityContent(
                 model: model,
-                showsExternalBrowserImportControls:
-                    showsExternalBrowserImportControls,
                 showsMacOSImportRequirement: showsMacOSImportRequirement
             )
         }

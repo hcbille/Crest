@@ -26,9 +26,9 @@ enum BrowserOnboardingFlowState: Equatable {
     case featureTabs
     case featureSync
     case importSelection
-    case reading(BrowserImportApplication)
-    case reviewing(BrowserImportApplication)
-    case committing(BrowserImportApplication)
+    case reading(ImportSource)
+    case reviewing(ImportSource)
+    case committing(ImportSource)
     case manualSetup
     case complete
 
@@ -56,7 +56,7 @@ enum BrowserOnboardingFlowState: Equatable {
 
 enum BrowserOnboardingFailure: Equatable {
     case sourceUnavailable
-    case dataDirectory(BrowserImportApplication)
+    case dataDirectory(ImportSource)
     case read(String)
     case importCommit(String)
     case manualCommit(String)
@@ -74,7 +74,7 @@ enum BrowserOnboardingFailure: Equatable {
         case .dataDirectory(let application):
             .localized(
                 LocalizedStringResource(
-                    "Crest could not read \(application.name) data there. Try Allow Access again, or choose the \(application.name) data folder if it moved.",
+                    "Crest could not read \(application.title) data there. Try Allow Access again, or choose the \(application.title) data folder if it moved.",
                     comment:
                         "Browser-import error. Both variables are the source browser name."
                 )

@@ -16,7 +16,6 @@ struct BrowserAdvancedSettingsPane: View {
             BrowserDataPortabilitySection(
                 browser: browser,
                 spaceAccess: spaceAccess,
-                showsExternalBrowserImportControls: false,
                 showsMacOSImportRequirement: showsMacOSImportRequirement
             )
         }

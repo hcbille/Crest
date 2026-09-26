@@ -4,7 +4,7 @@ enum BrowserImportAccessStore {
     private static let bookmarkKeyPrefix = "browser.import.access."
 
     static func bookmarkData(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         defaults: UserDefaults? = nil
     ) -> Data? {
         guard let defaults = launchDefaults(defaults) else { return nil }
@@ -13,7 +13,7 @@ enum BrowserImportAccessStore {
 
     static func saveBookmarkData(
         _ data: Data,
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         defaults: UserDefaults? = nil
     ) {
         guard let defaults = launchDefaults(defaults) else { return }
@@ -22,7 +22,7 @@ enum BrowserImportAccessStore {
 
     static func remember(
         _ directoryURL: URL,
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         defaults: UserDefaults? = nil
     ) throws {
         guard let defaults = launchDefaults(defaults) else { return }
@@ -35,7 +35,7 @@ enum BrowserImportAccessStore {
     }
 
     static func resolve(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         defaults: UserDefaults? = nil
     ) -> BrowserImportDataDirectoryAccess? {
         guard let data = bookmarkData(for: application, defaults: defaults) else {
@@ -60,7 +60,7 @@ enum BrowserImportAccessStore {
     }
 
     static func clear(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         defaults: UserDefaults? = nil
     ) {
         guard let defaults = launchDefaults(defaults) else { return }
@@ -68,9 +68,9 @@ enum BrowserImportAccessStore {
     }
 
     private static func bookmarkKey(
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) -> String {
-        bookmarkKeyPrefix + application.rawValue
+        bookmarkKeyPrefix + application.name
     }
 
     private static func launchDefaults(

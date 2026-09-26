@@ -50,7 +50,7 @@ final class BrowserSafeStorageIsolationTests: XCTestCase {
     private struct TestSafeStorage: BrowserSafeStorageSecretProviding {
         let secret: String
 
-        func secret(for application: BrowserImportApplication) throws -> String {
+        func secret(for application: ImportSource) throws -> String {
             secret
         }
     }

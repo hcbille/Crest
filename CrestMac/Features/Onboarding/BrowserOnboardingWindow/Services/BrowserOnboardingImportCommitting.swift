@@ -2,7 +2,7 @@
 protocol BrowserOnboardingImportCommitting {
     func prepare(
         plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         payload: BrowserDetectedImportPayload?,
         passwordCountsBySourceSpace: [SpaceID: Int]
     ) async throws -> BrowserOnboardingPreparedImport

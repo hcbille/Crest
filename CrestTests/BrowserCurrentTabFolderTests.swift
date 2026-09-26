@@ -167,23 +167,6 @@ final class BrowserCurrentTabFolderTests: XCTestCase {
         }
     }
 
-    func testPortableArchiveRebasesEmptyFolderBoundaryToImportedTabIDs() throws {
-        var space = BrowserSession.makeBlankSpace(number: 1)
-        let tab = BrowserTab(title: "After", url: URL(string: "https://example.com"), placement: .current)
-        let folder = BrowserFolder(title: "Before", location: .current, orderAnchorTabID: tab.id)
-        space.tabs = [tab]
-        space.folders = [folder]
-        let portable = try JSONDecoder().decode(PortableSpace.self, from: JSONEncoder().encode(PortableSpace(space)))
-        let result = try portable.materialize()
-        let importedTab = try XCTUnwrap(result.tabs.first)
-        let importedFolder = try XCTUnwrap(result.folders.first)
-        XCTAssertNotEqual(importedTab.id, tab.id)
-        XCTAssertEqual(
-            BrowserSession(spaces: [result], defaultSpaceID: result.id).sidebarRowIDs(
-                in: result.id, location: .current),
-            [.folder(importedFolder.id), .tab(importedTab.id)])
-    }
-
     func testSplitGroupDropsBetweenEmptyFoldersAsOneBlock() throws {
         for location in [BrowserFolderLocation.saved, .current] {
             var space = BrowserSession.makeBlankSpace(number: 1)
@@ -373,25 +356,6 @@ final class BrowserCurrentTabFolderTests: XCTestCase {
         let refreshed = device.store.session
         XCTAssertTrue(refreshed.spaces[0].folders.contains { $0.id == current && $0.location == .current })
         XCTAssertEqual(refreshed.spaces[0].tabs.first { $0.id == space.currentTabs[0].id }?.folderID, current)
-    }
-
-    func testPortableArchivePreservesCurrentFolderHierarchyAndContents() throws {
-        let root = BrowserFolder(title: "Root", location: .current)
-        let child = BrowserFolder(title: "Child", location: .current, parentID: root.id)
-        let browser = makeBrowser { space in
-            space.folders = [root, child]
-            space.tabs[1].folderID = child.id
-        }
-        let space = try XCTUnwrap(browser.selectedSpace)
-        let archive = BrowserPortableArchive(session: browser.session)
-        let restored = try JSONDecoder().decode(BrowserPortableArchive.self, from: JSONEncoder().encode(archive))
-            .materialize()
-        let imported = try XCTUnwrap(restored.spaces.first)
-        let importedRoot = try XCTUnwrap(imported.folders.first { $0.title == "Root" })
-        let importedChild = try XCTUnwrap(imported.folders.first { $0.title == "Child" })
-        XCTAssertEqual(importedChild.parentID, importedRoot.id)
-        XCTAssertTrue(imported.folders.allSatisfy { $0.location == .current })
-        XCTAssertEqual(imported.tabs.first { $0.title == space.currentTabs[0].title }?.folderID, importedChild.id)
     }
 
     /// One saved tab followed by four open tabs, showing the last one.

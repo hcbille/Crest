@@ -14,7 +14,7 @@ struct LaunchScopedBrowserSafeStorage: BrowserSafeStorageSecretProviding {
         }
     }
 
-    func secret(for application: BrowserImportApplication) throws -> String {
+    func secret(for application: ImportSource) throws -> String {
         guard let safeStorage else {
             throw BrowserPasswordImportError.safeStorageUnavailable
         }

@@ -41,7 +41,7 @@ final class BrowserOnboardingImportReadCoordinatorTests: XCTestCase {
     }
 
     private func payload(
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) -> BrowserDetectedImportPayload {
         BrowserDetectedImportPayload(application: application, profiles: [])
     }
@@ -62,7 +62,7 @@ final class BrowserOnboardingImportReadCoordinatorTests: XCTestCase {
 
 @MainActor
 private final class BrowserOnboardingImportReadRecorder {
-    private(set) var successfulApplications: [BrowserImportApplication] = []
+    private(set) var successfulApplications: [ImportSource] = []
     private(set) var errorDescriptions: [String] = []
     private(set) var finishCount = 0
 
@@ -94,8 +94,8 @@ private actor SuspendedBrowserOnboardingImportReader:
             >
     }
 
-    private var pendingReads: [BrowserImportApplication: PendingRead] = [:]
-    private var startWaiters: [BrowserImportApplication: [CheckedContinuation<Void, Never>]] = [:]
+    private var pendingReads: [ImportSource: PendingRead] = [:]
+    private var startWaiters: [ImportSource: [CheckedContinuation<Void, Never>]] = [:]
 
     func read(
         _ payload: BrowserDetectedImportPayload
@@ -110,30 +110,21 @@ private actor SuspendedBrowserOnboardingImportReader:
         }
     }
 
-    func waitUntilStarted(_ application: BrowserImportApplication) async {
+    func waitUntilStarted(_ application: ImportSource) async {
         guard pendingReads[application] == nil else { return }
         await withCheckedContinuation { continuation in
             startWaiters[application, default: []].append(continuation)
         }
     }
 
-    func complete(_ application: BrowserImportApplication) {
+    func complete(_ application: ImportSource) {
         guard let pending = pendingReads.removeValue(forKey: application) else {
             return
         }
         pending.continuation.resume(
             returning: BrowserOnboardingImportReadOutput(
                 payload: pending.payload,
-                imported: BrowserPortableImport(
-                    spaces: [],
-                    summary: BrowserPortableImportSummary(
-                        spaceCount: 0,
-                        folderCount: 0,
-                        liveTabCount: 0,
-                        archivedTabCount: 0,
-                        historyEntryCount: 0
-                    )
-                ),
+                imported: [],
                 passwordCandidates: []
             )
         )

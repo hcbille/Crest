@@ -2801,6 +2801,10 @@
     "2026-09-26-core-judges-downloads": {
       "category": "improved",
       "message": "Crest now checks a download before it's saved, in both engines, and shows its reasons, the site and the Space when it asks; a download blocked by a site's setting can be retried"
+    },
+    "2026-09-26-import-export-in-core": {
+      "category": "improved",
+      "message": "Importing from other browsers and Crest browser-data files, and exporting, now run in Crest's shared core on Mac and iPhone"
     }
   }
 }

@@ -9,9 +9,9 @@ final class BrowserOnboardingFlow {
     private(set) var request: BrowserOnboardingRequest
     private(set) var state: BrowserOnboardingFlowState
     private(set) var installedSources: [BrowserInstalledImportSource] = []
-    private(set) var selectedImportApplications: Set<BrowserImportApplication> = []
+    private(set) var selectedImportApplications: Set<ImportSource> = []
     private(set) var importQueue = BrowserImportQueue(applications: [])
-    private(set) var selectedApplication: BrowserImportApplication?
+    private(set) var selectedApplication: ImportSource?
     private(set) var plan: BrowserImportReviewPlan? {
         didSet {
             guard plan != oldValue else { return }
@@ -84,8 +84,7 @@ final class BrowserOnboardingFlow {
             LiveBrowserInstalledImportSourceDiscovery(),
         dataAccessProvider: any BrowserOnboardingDataAccessProviding =
             LiveBrowserOnboardingDataAccessProvider(),
-        importReader: any BrowserOnboardingImportReading =
-            LiveBrowserOnboardingImportReader(),
+        importReader: (any BrowserOnboardingImportReading)? = nil,
         importCommitter: any BrowserOnboardingImportCommitting =
             LiveBrowserOnboardingImportCommitter()
     ) {
@@ -95,7 +94,7 @@ final class BrowserOnboardingFlow {
         self.dataAccessProvider = dataAccessProvider
         self.importCommitter = importCommitter
         importReadCoordinator = BrowserOnboardingImportReadCoordinator(
-            reader: importReader
+            reader: importReader ?? LiveBrowserOnboardingImportReader(core: browser.core)
         )
 
         let initialManualPlan =
@@ -210,7 +209,7 @@ final class BrowserOnboardingFlow {
         }
     }
 
-    func toggleImportSelection(_ application: BrowserImportApplication) {
+    func toggleImportSelection(_ application: ImportSource) {
         guard !isImportSelectionLocked else { return }
         if selectedImportApplications.contains(application) {
             selectedImportApplications.remove(application)
@@ -535,20 +534,10 @@ final class BrowserOnboardingFlow {
         }
 
         if let access = dataAccessProvider.resolve(for: source.application) {
-            let profiles = BrowserImportDataLocator.importProfiles(
-                for: source.application,
-                dataDirectory: access.url
-            )
-            if !profiles.isEmpty {
+            let data = source.application.importData(in: access.url)
+            if !data.profiles.isEmpty {
                 readImport(
-                    BrowserDetectedImportPayload(
-                        application: source.application,
-                        profiles: profiles,
-                        passwordStores: BrowserImportDataLocator.passwordStores(
-                            for: source.application,
-                            dataDirectory: access.url
-                        )
-                    ),
+                    BrowserDetectedImportPayload(application: source.application, data: data),
                     activeDirectoryAccess: access
                 )
                 return
@@ -561,7 +550,7 @@ final class BrowserOnboardingFlow {
     }
 
     private func chooseBrowserDataAccess(
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) {
         failure = nil
         isChoosingDataAccess = true
@@ -578,25 +567,15 @@ final class BrowserOnboardingFlow {
                 let folderURL
             else { return }
             let access = BrowserImportDataDirectoryAccess(url: folderURL)
-            let profiles = BrowserImportDataLocator.importProfiles(
-                for: application,
-                dataDirectory: folderURL
-            )
-            guard !profiles.isEmpty else {
+            let data = application.importData(in: folderURL)
+            guard !data.profiles.isEmpty else {
                 access.stopAccessing()
                 failure = .dataDirectory(application)
                 return
             }
             try? dataAccessProvider.remember(folderURL, for: application)
             readImport(
-                BrowserDetectedImportPayload(
-                    application: application,
-                    profiles: profiles,
-                    passwordStores: BrowserImportDataLocator.passwordStores(
-                        for: application,
-                        dataDirectory: folderURL
-                    )
-                ),
+                BrowserDetectedImportPayload(application: application, data: data),
                 activeDirectoryAccess: access
             )
         }
@@ -635,20 +614,17 @@ final class BrowserOnboardingFlow {
                 application: output.payload.application
             )
         case .failure(let error):
-            failure = .read(error.localizedDescription)
+            failure = .read(error.personFacingDescription)
             state = .importSelection
         }
     }
 
     private func buildReviewPlan(
-        _ imported: BrowserPortableImport,
+        _ imported: [BrowserSpace],
         passwordCandidates: [BrowserPasswordImportCandidate],
-        application: BrowserImportApplication
+        application: ImportSource
     ) {
-        let reviewPlan = BrowserImportReviewPlan(
-            imported: imported,
-            in: browser
-        )
+        let reviewPlan = BrowserImportReviewPlan(spaces: imported, in: browser)
         passwordCountsBySourceSpace = mappedPasswordCounts(
             passwordCandidates,
             in: reviewPlan
@@ -660,7 +636,7 @@ final class BrowserOnboardingFlow {
 
     private func performImportCommit(
         plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         payload: BrowserDetectedImportPayload?,
         passwordCountsBySourceSpace: [SpaceID: Int],
         generation: Int
@@ -745,7 +721,7 @@ final class BrowserOnboardingFlow {
 
     private func completeImport(
         plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         passwordResult: BrowserPasswordImportResult
     ) {
         let selectedTabCount = plan.spaces.reduce(0) {

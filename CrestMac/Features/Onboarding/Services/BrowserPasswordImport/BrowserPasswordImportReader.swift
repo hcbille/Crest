@@ -5,7 +5,7 @@ enum BrowserPasswordImportReader {
     private static let maximumPasswordCount = 100_000
 
     static func count(
-        in stores: [BrowserDetectedPasswordStore]
+        in stores: [ImportPasswordStore]
     ) async throws -> Int {
         try await Task.detached(priority: .utility) {
             var total = 0
@@ -13,7 +13,7 @@ enum BrowserPasswordImportReader {
             for store in stores where total < maximumPasswordCount {
                 guard
                     let records = try? BrowserPasswordSQLiteDatabase(
-                        url: store.databaseURL
+                        url: URL(fileURLWithPath: store.path)
                     ).encryptedRecords(limit: maximumPasswordCount - total)
                 else {
                     continue
@@ -29,11 +29,11 @@ enum BrowserPasswordImportReader {
     }
 
     static func read(
-        from stores: [BrowserDetectedPasswordStore],
-        application: BrowserImportApplication,
+        from stores: [ImportPasswordStore],
+        application: ImportSource,
         safeStorage: any BrowserSafeStorageSecretProviding
     ) async throws -> [BrowserImportedPassword] {
-        guard application == .arc || application == .chrome else {
+        guard application.suppliesPasswords else {
             throw BrowserPasswordImportError.unsupportedBrowser
         }
         guard !stores.isEmpty else { return [] }
@@ -45,7 +45,7 @@ enum BrowserPasswordImportReader {
             imported.reserveCapacity(min(maximumPasswordCount, stores.count * 100))
             for store in stores where imported.count < maximumPasswordCount {
                 guard
-                    let records = try? BrowserPasswordSQLiteDatabase(url: store.databaseURL)
+                    let records = try? BrowserPasswordSQLiteDatabase(url: URL(fileURLWithPath: store.path))
                         .encryptedRecords(limit: maximumPasswordCount - imported.count)
                 else {
                     continue
@@ -79,10 +79,10 @@ enum BrowserPasswordImportReader {
     }
 
     static func candidates(
-        from stores: [BrowserDetectedPasswordStore],
-        application: BrowserImportApplication
+        from stores: [ImportPasswordStore],
+        application: ImportSource
     ) async throws -> [BrowserPasswordImportCandidate] {
-        guard application == .arc || application == .chrome else {
+        guard application.suppliesPasswords else {
             throw BrowserPasswordImportError.unsupportedBrowser
         }
         guard !stores.isEmpty else { return [] }
@@ -92,7 +92,7 @@ enum BrowserPasswordImportReader {
             candidates.reserveCapacity(min(maximumPasswordCount, stores.count * 100))
             for store in stores where candidates.count < maximumPasswordCount {
                 guard
-                    let records = try? BrowserPasswordSQLiteDatabase(url: store.databaseURL)
+                    let records = try? BrowserPasswordSQLiteDatabase(url: URL(fileURLWithPath: store.path))
                         .encryptedRecords(limit: maximumPasswordCount - candidates.count)
                 else {
                     continue

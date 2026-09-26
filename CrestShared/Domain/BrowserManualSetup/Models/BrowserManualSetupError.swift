@@ -15,7 +15,7 @@ enum BrowserManualSetupError: Error, Equatable, LocalizedError {
         case .pinnedLimitReached:
             "This Space already has the maximum of \(TabPlacement.pinnedCapacity) pinned tabs."
         case .spaceLimitReached:
-            "Crest supports up to \(BrowserPortableArchive.maximumSpaceCount) Spaces."
+            "Crest supports up to \(CapacityLimits.current.spaces) Spaces."
         }
     }
 }

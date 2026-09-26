@@ -3,7 +3,7 @@ import SwiftUI
 struct BrowserOnboardingReviewSpacePage: View {
     let flow: BrowserOnboardingFlow
     let browserSession: BrowserSession
-    let application: BrowserImportApplication?
+    let application: ImportSource?
     let plan: BrowserImportReviewPlan
     let review: BrowserImportSpaceReview
     @Binding var selectedSourceSpaceID: SpaceID?
@@ -71,7 +71,7 @@ struct BrowserOnboardingReviewSpacePage: View {
                 )
                 BrowserCrestImportPreview(
                     space: flow.previewDestinationSpace(for: review),
-                    sourceName: application?.name ?? "Browser",
+                    sourceName: application?.title ?? "Browser",
                     isSpaceIncluded: review.isIncluded,
                     matchedTabIDs: analysis.matchedTabIDs(for: review.id)
                 )

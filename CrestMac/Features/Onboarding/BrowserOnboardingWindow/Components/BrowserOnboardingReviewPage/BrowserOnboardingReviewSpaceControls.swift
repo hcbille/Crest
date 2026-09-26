@@ -3,7 +3,7 @@ import SwiftUI
 struct BrowserOnboardingReviewSpaceControls: View {
     let flow: BrowserOnboardingFlow
     let browserSession: BrowserSession
-    let application: BrowserImportApplication?
+    let application: ImportSource?
     let plan: BrowserImportReviewPlan
     let review: BrowserImportSpaceReview
     @Binding var selectedSourceSpaceID: SpaceID?
@@ -12,7 +12,7 @@ struct BrowserOnboardingReviewSpaceControls: View {
         VStack(spacing: 10) {
             HStack(alignment: .bottom, spacing: 14) {
                 BrowserOnboardingReviewSourcePicker(
-                    applicationName: application?.name ?? "browser",
+                    applicationName: application?.title ?? "browser",
                     spaces: plan.spaces,
                     currentSpaceID: review.id,
                     sourceSpaceName: review.sourceSpace.name,
@@ -55,7 +55,7 @@ struct BrowserOnboardingReviewSpaceControls: View {
                 .font(BrowserOnboardingTypography.sans(10, weight: .bold))
                 .foregroundStyle(BrowserOnboardingPalette.inkSoft)
 
-            if application?.supportsPasswordImport == true {
+            if application?.suppliesPasswords == true {
                 Divider()
                     .frame(width: 74)
                     .padding(.vertical, 4)

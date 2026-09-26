@@ -206,27 +206,20 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         XCTAssertEqual(other.session.spaces.map(\.id), store.session.spaces.map(\.id))
     }
 
-    func testPortableImportPreservesCollidingNativeImagesAndCommitsWithItsSyncJournal() async throws {
+    func testFileImportKeepsCollidingNativeImagesAndCommitsWithItsSyncJournal() async throws {
         var original = BrowserSession.preview
         original.spaces[0].tabs[0].faviconData = Data([1, 2])
-        var imported = original.spaces[0]
-        imported.tabs[0].faviconData = Data([3, 4])
         let harness = try await BrowserStoredSessionHarness.staged(original)
         let store = harness.store
         let other = store.makeWindowStore()
-        try store.importPortableArchive(
-            BrowserPortableImport(
-                spaces: [imported],
-                summary: .init(
-                    spaceCount: 1, folderCount: imported.folders.count, liveTabCount: imported.tabs.count,
-                    archivedTabCount: 0, historyEntryCount: 0)))
+        let imported = try XCTUnwrap(store.workspaceModel?.spaces.models.first?.value)
+        try store.importSpaces([imported])
         let added = try XCTUnwrap(store.session.spaces.last)
         XCTAssertNotEqual(added.id, imported.id)
         XCTAssertEqual(store.selectedSpaceID, added.id)
-        XCTAssertNotEqual(added.profile, imported.profile)
+        XCTAssertNotEqual(added.profile.id, imported.profileID)
         XCTAssertNotEqual(added.tabs[0].id, imported.tabs[0].id)
         XCTAssertEqual(store.session.spaces[0].tabs[0].faviconData, Data([1, 2]))
-        XCTAssertEqual(added.tabs[0].faviconData, Data([3, 4]))
         XCTAssertEqual(other.session.spaces, store.session.spaces)
         XCTAssertEqual(try harness.stored().session, store.session)
         XCTAssertTrue(try harness.storedJournalIsPublished())

@@ -3200,6 +3200,7 @@
       }
     },
     "Arc Sidebar or Session" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3856,6 +3857,7 @@
       }
     },
     "Bookmark HTML includes pinned and saved sites only. Imports from standard HTML, Safari, Chrome or Chromium, Firefox, and Arc always create fresh, isolated Crest Spaces." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3876,6 +3878,7 @@
       }
     },
     "Bookmarks HTML" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4704,6 +4707,7 @@
 
     },
     "Chrome or Chromium" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4714,6 +4718,7 @@
       }
     },
     "Chrome or Chromium Session" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5883,6 +5888,7 @@
       }
     },
     "Crest could not read this history database." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8347,6 +8353,7 @@
       }
     },
     "Firefox Session" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -8934,6 +8941,7 @@
       }
     },
     "History import accepts a copied Safari History.db, Chrome or Arc History database, or Firefox places.sqlite. Quit the source browser before copying; Crest imports up to 5,000 recent entries." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9269,6 +9277,7 @@
       }
     },
     "Import Bookmarks…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9329,6 +9338,7 @@
 
     },
     "Import History…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9345,6 +9355,7 @@
 
     },
     "Import Open Tabs…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9405,6 +9416,7 @@
 
     },
     "Imported %lld bookmarks in %lld Spaces from %@." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9415,6 +9427,7 @@
       }
     },
     "Imported %lld history entries from %@." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9797,6 +9810,7 @@
       }
     },
     "Imported %lld tabs in %lld Spaces from %@." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9827,6 +9841,7 @@
       }
     },
     "Imported Bookmarks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9837,6 +9852,7 @@
       }
     },
     "Imported Chrome Tabs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9847,6 +9863,7 @@
       }
     },
     "Imported Chrome Window %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9857,6 +9874,7 @@
       }
     },
     "Imported Firefox Tabs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9867,6 +9885,7 @@
       }
     },
     "Imported Firefox Window %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9880,6 +9899,7 @@
 
     },
     "Imported from Arc" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9890,6 +9910,7 @@
       }
     },
     "Imported from Chrome" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9900,6 +9921,7 @@
       }
     },
     "Imported from Firefox" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9910,6 +9932,7 @@
       }
     },
     "Imported from Safari" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9920,6 +9943,7 @@
       }
     },
     "Imported History from Arc" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9930,6 +9954,7 @@
       }
     },
     "Imported History from Chrome" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9940,6 +9965,7 @@
       }
     },
     "Imported History from Firefox" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9950,6 +9976,7 @@
       }
     },
     "Imported History from Safari" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9960,6 +9987,7 @@
       }
     },
     "Imported Safari Tabs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -9970,6 +9998,7 @@
       }
     },
     "Imported Safari Window %lld" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12250,6 +12279,7 @@
 
     },
     "Open-tab import accepts a copied Safari session property list, cleartext Chrome or Chromium Session_* file, Firefox recovery.jsonlz4 or sessionstore.jsonlz4, or Arc StorableSidebar.json. Each source window becomes a fresh, isolated Crest Space; profile-encrypted Chromium sessions cannot be imported." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13599,6 +13629,7 @@
       }
     },
     "Quit the source browser, copy its history database, and import the copy." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13671,6 +13702,7 @@
       }
     },
     "Reading %@ bookmarks…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13681,6 +13713,7 @@
       }
     },
     "Reading %@ history…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13691,6 +13724,7 @@
       }
     },
     "Reading %@ tabs…" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14708,6 +14742,7 @@
 
     },
     "Safari Session" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17663,6 +17698,7 @@
       }
     },
     "This database has no HTTP or HTTPS history Crest can import." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17729,6 +17765,7 @@
       }
     },
     "This file does not match the selected browser’s history format." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17762,6 +17799,7 @@
 
     },
     "This history database is larger than Crest’s 512 MB import limit." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19625,6 +19663,7 @@
 
     },
     "Zen Spaces or Session" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19653,6 +19692,39 @@
           }
         }
       }
+    },
+    "BOOKMARKS" : {
+
+    },
+    "Bookmarks, windows, and open tabs" : {
+
+    },
+    "ESSENTIALS" : {
+
+    },
+    "FAVORITES" : {
+
+    },
+    "OPEN TABS" : {
+
+    },
+    "PINNED" : {
+
+    },
+    "Profiles, bookmarks, open tabs, and passwords" : {
+
+    },
+    "SAVED" : {
+
+    },
+    "Spaces, Essentials, pinned tabs, folders, open tabs, and colors" : {
+
+    },
+    "Spaces, tabs, folders, colors, icons, and passwords" : {
+
+    },
+    "Windows, open tabs, and pinned tabs" : {
+
     }
   },
   "version" : "1.3"

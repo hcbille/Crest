@@ -10,7 +10,7 @@ internal sealed partial record SpacePayload {
 
     /// The palette colors builds before stored colors named, which a record may
     /// still spell by name.
-    private static readonly IReadOnlyDictionary<string, BrandColor> NamedColors = new Dictionary<string, BrandColor>(StringComparer.Ordinal) {
+    internal static readonly IReadOnlyDictionary<string, BrandColor> NamedColors = new Dictionary<string, BrandColor>(StringComparer.Ordinal) {
         ["ink"] = new(0.08, 0.15, 0.23),
         ["indigo"] = new(0.29, 0.25, 0.58),
         ["ocean"] = new(0.22, 0.42, 0.64),

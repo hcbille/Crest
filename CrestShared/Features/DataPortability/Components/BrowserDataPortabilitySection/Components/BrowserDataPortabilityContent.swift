@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BrowserDataPortabilityContent: View {
     let model: BrowserDataPortabilityModel
-    let showsExternalBrowserImportControls: Bool
     let showsMacOSImportRequirement: Bool
 
     var body: some View {
@@ -11,14 +10,8 @@ struct BrowserDataPortabilityContent: View {
                 BrowserDataPortabilityMacRequirement()
             }
             BrowserDataPortabilityExportControls(model: model)
-            if showsExternalBrowserImportControls {
-                BrowserDataPortabilityExternalImportControls(model: model)
-            }
             BrowserDataPortabilityProgressStatus(model: model)
-            BrowserDataPortabilityFootnotes(
-                showsExternalBrowserImportControls:
-                    showsExternalBrowserImportControls
-            )
+            BrowserDataPortabilityFootnotes()
         }
     }
 }

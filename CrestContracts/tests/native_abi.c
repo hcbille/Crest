@@ -15,8 +15,9 @@ static void app_boundary(void) {
     uint8_t stale[CREST_CONTRACTS_FINGERPRINT_LENGTH];
     memcpy(stale, fingerprint, sizeof(stale)); stale[0] ^= 1;
     /* AppConfiguration(StorageDirectory: null, Platform: Desktop): the optional
-     * string is absent, then the platform's index in DevicePlatform.All. */
-    const uint8_t memory_only[] = { 0, 0 };
+     * string is absent, then the platform's index in DevicePlatform.All, then
+     * the optional import names are absent. */
+    const uint8_t memory_only[] = { 0, 0, 0 };
     uint64_t app = 0;
     crest_buffer_t buffer = { (uint8_t*)1, 1 };
     assert(crest_app_create(stale, sizeof(stale), memory_only, sizeof(memory_only), &app, &buffer) == CREST_VERSION_MISMATCH
@@ -129,7 +130,7 @@ static void open_seeded(uint64_t app, uint8_t kind, const char* seed, size_t len
  * its borrowers first. */
 static void session_boundary(void) {
     const uint8_t fingerprint[CREST_CONTRACTS_FINGERPRINT_LENGTH] = CREST_CONTRACTS_FINGERPRINT;
-    const uint8_t memory_only[] = { 0, 0 };
+    const uint8_t memory_only[] = { 0, 0, 0 };
     uint64_t app = 0;
     crest_buffer_t buffer = { NULL, 0 };
     assert(crest_app_create(fingerprint, sizeof(fingerprint), memory_only, sizeof(memory_only), &app, &buffer) == CREST_OK);
@@ -205,7 +206,7 @@ static void CREST_CALL run_engine(void* context, const uint8_t* command, size_t 
 static void engine_boundary(void) {
     const uint8_t fingerprint[CREST_CONTRACTS_FINGERPRINT_LENGTH] = CREST_CONTRACTS_FINGERPRINT;
     const uint8_t engine_fingerprint[CREST_ENGINE_CONTRACT_FINGERPRINT_LENGTH] = CREST_ENGINE_CONTRACT_FINGERPRINT;
-    const uint8_t memory_only[] = { 0, 0 };
+    const uint8_t memory_only[] = { 0, 0, 0 };
     uint64_t app = 0, engine = 0;
     crest_buffer_t buffer = { NULL, 0 };
     assert(crest_app_create(fingerprint, sizeof(fingerprint), memory_only, sizeof(memory_only), &app, &buffer) == CREST_OK);
@@ -297,13 +298,15 @@ static void count_wake(void* context) {
 /* AppConfiguration with a storage directory: presence, varint length, UTF-8. */
 static size_t storage_configuration(const char* directory, uint8_t* output, size_t capacity) {
     size_t length = strlen(directory);
-    assert(length < 128 && length + 3 <= capacity);
+    assert(length < 128 && length + 4 <= capacity);
     output[0] = 1;
     output[1] = (uint8_t)length;
     memcpy(output + 2, directory, length);
     /* The platform: Desktop, the first of DevicePlatform.All. */
     output[length + 2] = 0;
-    return length + 3;
+    /* The import names are absent. */
+    output[length + 3] = 0;
+    return length + 4;
 }
 /* Saved(Revision: 1): its tag, then the file revision as a little-endian
  * int64. An adoption hands the file its first revision. The storage worker

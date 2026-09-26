@@ -6,7 +6,7 @@ struct BrowserOnboardingReviewPage: View {
 
     let flow: BrowserOnboardingFlow
     let browserSession: BrowserSession
-    let application: BrowserImportApplication?
+    let application: ImportSource?
     let sources: [BrowserInstalledImportSource]
     @Binding var selectedSourceSpaceID: SpaceID?
     @Binding var customizationSpaceID: SpaceID?

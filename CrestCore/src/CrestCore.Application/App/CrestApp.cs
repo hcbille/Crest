@@ -44,6 +44,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly IClock clock;
     /// Where the identities the core gives new records come from.
     private readonly IIdSource ids;
+    /// Reading other browsers' data and browser-data files, and exports.
+    private readonly Portability portability;
 
     #endregion
 
@@ -64,6 +66,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         ArgumentNullException.ThrowIfNull(ids);
         this.clock = clock;
         this.ids = ids;
+        portability = new(configuration.ImportNames, clock, ids);
         // One grant authority for the process: every session the device shows
         // consults it, so a borrowed workspace unlocks with its source.
         var grants = new SpaceAccessAuthority();
@@ -196,6 +199,14 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         };
         if (transport is not null) return (TAnswer)transport;
         if (query is PaletteSuggestions palette) return (TAnswer)(object)Suggesting(palette);
+        object? read = query switch {
+            FindImportData find => portability.Answer(find),
+            ReadImport import => portability.Answer(import),
+            ReadArchive archive => portability.Answer(archive),
+            _ => null
+        };
+        if (read is not null) return (TAnswer)read;
+        if (query is ExportWorkspace export) return (TAnswer)(object)Exporting(export);
         lock (gate) {
             object answer = query switch {
                 DownloadProgress progress => downloads.Answer(progress),
@@ -235,6 +246,14 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             };
             return (TAnswer)answer;
         }
+    }
+
+    /// The file an export writes. Only reading the session holds the lock;
+    /// writing the file reads immutable records outside it.
+    private ExportedDocument Exporting(ExportWorkspace export) {
+        SessionState session;
+        lock (gate) session = device.Workspace(export.WorkspaceId).Exported();
+        return portability.Export(session, export.Format);
     }
 
     /// What a window's palette offers. Only reading what the window shows

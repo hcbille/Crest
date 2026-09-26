@@ -133,7 +133,13 @@ enum Change: Equatable, Sendable {
 enum Rejection: Equatable, Error, Sendable {
     case alreadyInSpace(AlreadyInSpace)
     case alreadyInSplit(AlreadyInSplit)
+    case archiveInvalid(ArchiveInvalid)
+    case archiveTooLarge(ArchiveTooLarge)
     case authenticationBusy(AuthenticationBusy)
+    case bookmarksHaveNoLinks(BookmarksHaveNoLinks)
+    case bookmarksOverLimits(BookmarksOverLimits)
+    case bookmarksTooLarge(BookmarksTooLarge)
+    case bookmarksUnrecognized(BookmarksUnrecognized)
     case borrowedProfileRequiresOwner(BorrowedProfileRequiresOwner)
     case borrowedWorkspaceRequiresSpace(BorrowedWorkspaceRequiresSpace)
     case cannotDeleteLastSpace(CannotDeleteLastSpace)
@@ -152,6 +158,7 @@ enum Rejection: Equatable, Error, Sendable {
     case engineAlreadyRegistered(EngineAlreadyRegistered)
     case engineLacksCapability(EngineLacksCapability)
     case engineNotRegistered(EngineNotRegistered)
+    case fileUnreadable(FileUnreadable)
     case folderAlreadyExists(FolderAlreadyExists)
     case folderCycle(FolderCycle)
     case folderDepthLimitReached(FolderDepthLimitReached)
@@ -198,6 +205,7 @@ enum Rejection: Equatable, Error, Sendable {
     case noSavedAddress(NoSavedAddress)
     case noSplitStep(NoSplitStep)
     case noStoredSession(NoStoredSession)
+    case notAnArchive(NotAnArchive)
     case notPrivateWorkspace(NotPrivateWorkspace)
     case pageNotLoadable(PageNotLoadable)
     case pageProfileMismatch(PageProfileMismatch)
@@ -214,6 +222,11 @@ enum Rejection: Equatable, Error, Sendable {
     case searchEngineLimitReached(SearchEngineLimitReached)
     case selectionChanged(SelectionChanged)
     case selectionHoldsFolders(SelectionHoldsFolders)
+    case sessionEncrypted(SessionEncrypted)
+    case sessionHasNoTabs(SessionHasNoTabs)
+    case sessionOverLimits(SessionOverLimits)
+    case sessionTooLarge(SessionTooLarge)
+    case sessionUnrecognized(SessionUnrecognized)
     case shortcutInUse(ShortcutInUse)
     case sitePermissionLimitReached(SitePermissionLimitReached)
     case spaceAlreadyExists(SpaceAlreadyExists)
@@ -251,6 +264,7 @@ enum Rejection: Equatable, Error, Sendable {
     case unrelatedWorkspaces(UnrelatedWorkspaces)
     case unsavedWorkspace(UnsavedWorkspace)
     case unsupportedAddress(UnsupportedAddress)
+    case unsupportedArchiveVersion(UnsupportedArchiveVersion)
     case webPagesOnly(WebPagesOnly)
     case windowNotOpen(WindowNotOpen)
     case workspaceBusy(WorkspaceBusy)
@@ -258,16 +272,24 @@ enum Rejection: Equatable, Error, Sendable {
 
     var message: LocalizedStringResource? {
         switch self {
+        case .archiveInvalid(let value): value.message
+        case .archiveTooLarge(let value): value.message
+        case .bookmarksHaveNoLinks(let value): value.message
+        case .bookmarksOverLimits(let value): value.message
+        case .bookmarksTooLarge(let value): value.message
+        case .bookmarksUnrecognized(let value): value.message
         case .cannotDeleteLastSpace(let value): value.message
         case .cannotMoveSplitAcrossSpaces(let value): value.message
         case .cannotPinSplit(let value): value.message
         case .currentTabsOnly(let value): value.message
         case .duplicateSearchEngineName(let value): value.message
+        case .fileUnreadable(let value): value.message
         case .incompleteSplit(let value): value.message
         case .invalidImport(let value): value.message
         case .invalidSyncRecords(let value): value.message
         case .legacyCloudStateUnreadable(let value): value.message
         case .noIncludedSpaces(let value): value.message
+        case .notAnArchive(let value): value.message
         case .persistentWorkspaceRequired(let value): value.message
         case .pinnedTabsDragAlone(let value): value.message
         case .pinnedTabsFull(let value): value.message
@@ -278,6 +300,11 @@ enum Rejection: Equatable, Error, Sendable {
         case .searchEngineLimitReached(let value): value.message
         case .selectionChanged(let value): value.message
         case .selectionHoldsFolders(let value): value.message
+        case .sessionEncrypted(let value): value.message
+        case .sessionHasNoTabs(let value): value.message
+        case .sessionOverLimits(let value): value.message
+        case .sessionTooLarge(let value): value.message
+        case .sessionUnrecognized(let value): value.message
         case .sitePermissionLimitReached(let value): value.message
         case .spaceAlreadyExists(let value): value.message
         case .spaceBeingDeleted(let value): value.message
@@ -287,6 +314,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .splitLimitReached(let value): value.message
         case .splitNeedsTwoTabs(let value): value.message
         case .unknownCloudMerge(let value): value.message
+        case .unsupportedArchiveVersion(let value): value.message
         case .webPagesOnly(let value): value.message
         default: nil
         }
@@ -545,6 +573,7 @@ struct AnswerScriptDialog: Intent, PromptIntent, Equatable, Sendable {
 struct AppConfiguration: Equatable, Sendable {
     let storageDirectory: String?
     let platform: DevicePlatform
+    let importNames: [ImportSpaceNames]?
 }
 
 struct AppPreferences: Equatable, Sendable {
@@ -584,6 +613,18 @@ struct ArchiveChanged: Equatable, Sendable {
     let archived: [ArchivedTabState]
     let removed: [UUID]
     let order: [UUID]?
+}
+
+struct ArchiveInvalid: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This file does not contain valid Crest browser data.")
+    }
+}
+
+struct ArchiveTooLarge: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This file is larger than Crest’s 50 MB import limit.")
+    }
 }
 
 struct ArchiveTransientPage: Intent, SessionIntent, Equatable, Sendable {
@@ -727,6 +768,30 @@ struct BlockedPopupTransition: Query, Equatable, Sendable {
 
 struct BlockedPopupTransitioned: Equatable, Sendable {
     let state: BlockedPopupPageState?
+}
+
+struct BookmarksHaveNoLinks: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This file does not contain any HTTP or HTTPS bookmarks Crest can import.")
+    }
+}
+
+struct BookmarksOverLimits: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This bookmark file exceeds Crest’s folder, depth, tab, or Space limits.")
+    }
+}
+
+struct BookmarksTooLarge: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This bookmark file is larger than Crest’s 50 MB import limit.")
+    }
+}
+
+struct BookmarksUnrecognized: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Crest could not recognize this browser’s bookmark data.")
+    }
 }
 
 struct BorrowSpace: Intent, WorkspaceIntent, Equatable, Sendable {
@@ -1725,6 +1790,18 @@ struct ExportPage: PageRequest, Equatable, Sendable {
     let width: Double
 }
 
+struct ExportWorkspace: Query, Equatable, Sendable {
+    typealias Answer = ExportedDocument
+
+    let workspaceID: UUID
+    let format: ExportFormat
+}
+
+struct ExportedDocument: Equatable, Sendable {
+    let contents: Data
+    let format: ExportFormat
+}
+
 struct ExtensionAction: Equatable, Sendable, Identifiable {
     let id: String
     let name: String
@@ -1816,10 +1893,23 @@ struct FileTabs: Intent, SessionIntent, Equatable, Sendable {
     let leavesSplits: Bool
 }
 
+struct FileUnreadable: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Crest could not read this file.")
+    }
+}
+
 struct FindFinished: Equatable, Sendable {
     let pageID: UUID
     let matches: Int
     let activeMatch: Int
+}
+
+struct FindImportData: Query, Equatable, Sendable {
+    typealias Answer = ImportData
+
+    let source: ImportSource
+    let folder: String
 }
 
 struct FindInPage: PageRequest, Equatable, Sendable {
@@ -1981,10 +2071,28 @@ struct ImportAppPreferences: Intent, SessionIntent, Equatable, Sendable {
     let legacy: LegacyAppPreferences
 }
 
+struct ImportData: Equatable, Sendable {
+    let profiles: [ImportProfile]
+    let passwordStores: [ImportPasswordStore]
+}
+
+struct ImportPasswordStore: Equatable, Sendable, Identifiable {
+    let id: String
+    let profileName: String
+    let path: String
+}
+
 struct ImportPreview: Query, Sendable {
     typealias Answer = ImportedWorkspace
 
     let `import`: any ImportWorkspace
+}
+
+struct ImportProfile: Equatable, Sendable, Identifiable {
+    let id: String
+    let name: String
+    let bookmarksPath: String?
+    let sessionPath: String?
 }
 
 struct ImportReviewAnalysis: Query, Equatable, Sendable {
@@ -2021,10 +2129,20 @@ struct ImportReviewedSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, 
     let reviews: [SpaceReview]
 }
 
+struct ImportSpaceNames: Equatable, Sendable {
+    let source: ImportSource
+    let spaceName: String
+    let numberedSpaceName: String
+}
+
 struct ImportSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
-    let spaces: Data
+    let spaces: [SpaceState]
+}
+
+struct ImportedSpaces: Equatable, Sendable {
+    let spaces: [SpaceState]
 }
 
 struct ImportedTab: Equatable, Sendable {
@@ -2719,6 +2837,12 @@ struct NormalizedBranding: Equatable, Sendable {
     let branding: SpaceBranding
 }
 
+struct NotAnArchive: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This is not a Crest browser-data file.")
+    }
+}
+
 struct NotPrivateWorkspace: Equatable, Sendable {
     let workspaceID: UUID
 }
@@ -3331,6 +3455,19 @@ struct QuitWithDownloadsAsked: Equatable, Sendable {
     let liveDownloads: Int
 }
 
+struct ReadArchive: Query, Equatable, Sendable {
+    typealias Answer = ImportedSpaces
+
+    let path: String
+}
+
+struct ReadImport: Query, Equatable, Sendable {
+    typealias Answer = ImportedSpaces
+
+    let source: ImportSource
+    let profiles: [ImportProfile]
+}
+
 struct ReassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
     let command: ShortcutCommand
     let keys: KeyCombination
@@ -3723,12 +3860,42 @@ struct SessionAdopted: Equatable, Sendable {
     let favicons: [TabFavicon]
 }
 
+struct SessionEncrypted: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This Chromium session is profile-encrypted and cannot be safely imported outside its source browser.")
+    }
+}
+
+struct SessionHasNoTabs: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This session has no HTTP or HTTPS tabs Crest can import.")
+    }
+}
+
+struct SessionOverLimits: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This session exceeds Crest’s Space, tab, folder, or text limits.")
+    }
+}
+
 struct SessionState: Equatable, Sendable {
     let spaces: [SpaceState]
     let defaultSpaceID: UUID?
     let disposableSeedMarker: UUID?
     let spaceDeletions: [SpaceDeletionState]
     let appPreferences: AppPreferences?
+}
+
+struct SessionTooLarge: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This session file is larger than Crest’s 512 MB import limit.")
+    }
+}
+
+struct SessionUnrecognized: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Crest could not recognize this browser’s tab-session data.")
+    }
 }
 
 struct SetAppPreferences: Intent, SessionIntent, Equatable, Sendable {
@@ -4629,6 +4796,14 @@ struct UnsupportedAddress: Equatable, Sendable {
     let url: String
 }
 
+struct UnsupportedArchiveVersion: Equatable, Sendable {
+    let version: Int
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This Crest browser-data version (\(version)) is not supported.")
+    }
+}
+
 struct UpdateSearchEngine: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -4991,6 +5166,11 @@ enum ImportFlaw: Int, CaseIterable, Sendable {
     case unreadable = 0
     case malformedSplit = 1
     case unpairedChoices = 2
+}
+
+enum ImportSpaceHeaderStyle: Int, CaseIterable, Sendable {
+    case identity = 0
+    case sectionLabel = 1
 }
 
 enum InfoBarAnswer: Int, CaseIterable, Sendable {
@@ -6651,6 +6831,63 @@ struct EngineKind: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `ExportFormat`. A member's wire tag is its index in `all`.
+struct ExportFormat: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let fileName: String
+    let contentType: String
+    let preparingMessage: LocalizedStringResource
+    let savedMessage: LocalizedStringResource
+
+    private init(
+        tag: Int,
+        name: String,
+        fileName: String,
+        contentType: String,
+        preparingMessage: LocalizedStringResource,
+        savedMessage: LocalizedStringResource
+    ) {
+        self.tag = tag
+        self.name = name
+        self.fileName = fileName
+        self.contentType = contentType
+        self.preparingMessage = preparingMessage
+        self.savedMessage = savedMessage
+    }
+
+    static let browserData = ExportFormat(
+        tag: 0,
+        name: "browserData",
+        fileName: "Crest Browser Data.json",
+        contentType: "public.json",
+        preparingMessage: LocalizedStringResource("Preparing browser data…"),
+        savedMessage: LocalizedStringResource("Browser data exported.")
+    )
+    static let bookmarks = ExportFormat(
+        tag: 1,
+        name: "bookmarks",
+        fileName: "Crest Bookmarks.html",
+        contentType: "public.html",
+        preparingMessage: LocalizedStringResource("Preparing bookmarks…"),
+        savedMessage: LocalizedStringResource("Bookmarks exported.")
+    )
+
+    static let all: [ExportFormat] = [browserData, bookmarks]
+
+    static func named(_ name: String?) -> ExportFormat? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ExportFormat, rhs: ExportFormat) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `ExternalLinkDestination`. A member's wire tag is its index in `all`.
 /// Core-only behavior, not emitted: `space`.
 struct ExternalLinkDestination: Hashable, Sendable {
@@ -6806,6 +7043,175 @@ struct HostedNotificationRequestAction: Hashable, Sendable {
     }
 
     static func == (lhs: HostedNotificationRequestAction, rhs: HostedNotificationRequestAction) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `ImportSource`. A member's wire tag is its index in `all`.
+struct ImportSource: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: String
+    let bundleIdentifier: String
+    let dataFolder: String
+    let description: LocalizedStringResource
+    let symbol: String
+    let accent: SpaceAccent
+    let safeStorageService: String?
+    let suppliesPasswords: Bool
+    let spaceHeaderStyle: ImportSpaceHeaderStyle
+    let pinnedSectionTitle: LocalizedStringResource
+    let savedSectionTitle: LocalizedStringResource
+    let listsNewTab: Bool
+    let spaceName: LocalizedStringResource?
+    let numberedSpaceName: LocalizedStringResource?
+    let namesItsSpaces: Bool
+
+    private init(
+        tag: Int,
+        name: String,
+        title: String,
+        bundleIdentifier: String,
+        dataFolder: String,
+        description: LocalizedStringResource,
+        symbol: String,
+        accent: SpaceAccent,
+        safeStorageService: String?,
+        suppliesPasswords: Bool,
+        spaceHeaderStyle: ImportSpaceHeaderStyle,
+        pinnedSectionTitle: LocalizedStringResource,
+        savedSectionTitle: LocalizedStringResource,
+        listsNewTab: Bool,
+        spaceName: LocalizedStringResource?,
+        numberedSpaceName: LocalizedStringResource?,
+        namesItsSpaces: Bool
+    ) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+        self.bundleIdentifier = bundleIdentifier
+        self.dataFolder = dataFolder
+        self.description = description
+        self.symbol = symbol
+        self.accent = accent
+        self.safeStorageService = safeStorageService
+        self.suppliesPasswords = suppliesPasswords
+        self.spaceHeaderStyle = spaceHeaderStyle
+        self.pinnedSectionTitle = pinnedSectionTitle
+        self.savedSectionTitle = savedSectionTitle
+        self.listsNewTab = listsNewTab
+        self.spaceName = spaceName
+        self.numberedSpaceName = numberedSpaceName
+        self.namesItsSpaces = namesItsSpaces
+    }
+
+    static let arc = ImportSource(
+        tag: 0,
+        name: "arc",
+        title: "Arc",
+        bundleIdentifier: "company.thebrowser.Browser",
+        dataFolder: "Library/Application Support/Arc",
+        description: LocalizedStringResource("Spaces, tabs, folders, colors, icons, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        symbol: "sidebar.left",
+        accent: SpaceAccent.indigo,
+        safeStorageService: "Arc Safe Storage",
+        suppliesPasswords: true,
+        spaceHeaderStyle: .sectionLabel,
+        pinnedSectionTitle: LocalizedStringResource("FAVORITES", comment: "A section heading in a browser import review. Keep it uppercase."),
+        savedSectionTitle: LocalizedStringResource("SAVED", comment: "A section heading in a browser import review. Keep it uppercase."),
+        listsNewTab: true,
+        spaceName: LocalizedStringResource("Imported Arc Tabs"),
+        numberedSpaceName: LocalizedStringResource("Imported Arc Space %lld"),
+        namesItsSpaces: true
+    )
+    static let zen = ImportSource(
+        tag: 1,
+        name: "zen",
+        title: "Zen",
+        bundleIdentifier: "app.zen-browser.zen",
+        dataFolder: "Library/Application Support/zen/Profiles",
+        description: LocalizedStringResource("Spaces, Essentials, pinned tabs, folders, open tabs, and colors", comment: "What importing from another browser brings. Keep product names as they are."),
+        symbol: "circle.hexagongrid.fill",
+        accent: SpaceAccent.indigo,
+        safeStorageService: nil,
+        suppliesPasswords: false,
+        spaceHeaderStyle: .identity,
+        pinnedSectionTitle: LocalizedStringResource("ESSENTIALS", comment: "A section heading in a browser import review. Keep it uppercase."),
+        savedSectionTitle: LocalizedStringResource("SAVED", comment: "A section heading in a browser import review. Keep it uppercase."),
+        listsNewTab: false,
+        spaceName: LocalizedStringResource("Imported Zen Tabs"),
+        numberedSpaceName: LocalizedStringResource("Imported Zen Space %lld"),
+        namesItsSpaces: true
+    )
+    static let chrome = ImportSource(
+        tag: 2,
+        name: "chrome",
+        title: "Chrome",
+        bundleIdentifier: "com.google.Chrome",
+        dataFolder: "Library/Application Support/Google/Chrome",
+        description: LocalizedStringResource("Profiles, bookmarks, open tabs, and passwords", comment: "What importing from another browser brings. Keep product names as they are."),
+        symbol: "globe",
+        accent: SpaceAccent.orange,
+        safeStorageService: "Chrome Safe Storage",
+        suppliesPasswords: true,
+        spaceHeaderStyle: .identity,
+        pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
+        savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
+        listsNewTab: false,
+        spaceName: nil,
+        numberedSpaceName: nil,
+        namesItsSpaces: false
+    )
+    static let safari = ImportSource(
+        tag: 3,
+        name: "safari",
+        title: "Safari",
+        bundleIdentifier: "com.apple.Safari",
+        dataFolder: "Library/Safari",
+        description: LocalizedStringResource("Bookmarks, windows, and open tabs", comment: "What importing from another browser brings. Keep product names as they are."),
+        symbol: "safari",
+        accent: SpaceAccent.teal,
+        safeStorageService: nil,
+        suppliesPasswords: false,
+        spaceHeaderStyle: .identity,
+        pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
+        savedSectionTitle: LocalizedStringResource("BOOKMARKS", comment: "A section heading in a browser import review. Keep it uppercase."),
+        listsNewTab: false,
+        spaceName: nil,
+        numberedSpaceName: nil,
+        namesItsSpaces: false
+    )
+    static let firefox = ImportSource(
+        tag: 4,
+        name: "firefox",
+        title: "Firefox",
+        bundleIdentifier: "org.mozilla.firefox",
+        dataFolder: "Library/Application Support/Firefox/Profiles",
+        description: LocalizedStringResource("Windows, open tabs, and pinned tabs", comment: "What importing from another browser brings. Keep product names as they are."),
+        symbol: "flame",
+        accent: SpaceAccent.rose,
+        safeStorageService: nil,
+        suppliesPasswords: false,
+        spaceHeaderStyle: .identity,
+        pinnedSectionTitle: LocalizedStringResource("PINNED", comment: "A section heading in a browser import review. Keep it uppercase."),
+        savedSectionTitle: LocalizedStringResource("SAVED", comment: "A section heading in a browser import review. Keep it uppercase."),
+        listsNewTab: false,
+        spaceName: nil,
+        numberedSpaceName: nil,
+        namesItsSpaces: false
+    )
+
+    static let all: [ImportSource] = [arc, zen, chrome, safari, firefox]
+
+    static func named(_ name: String?) -> ImportSource? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ImportSource, rhs: ImportSource) -> Bool {
         lhs.tag == rhs.tag
     }
 
@@ -10522,13 +10928,22 @@ struct SpaceAccent: Hashable, Sendable {
     let tint: SystemTint
     let legacyColors: [BrandColor]
     let house: SpaceBranding
+    let swatch: BrandColor
 
-    private init(tag: Int, name: String, tint: SystemTint, legacyColors: [BrandColor], house: SpaceBranding) {
+    private init(
+        tag: Int,
+        name: String,
+        tint: SystemTint,
+        legacyColors: [BrandColor],
+        house: SpaceBranding,
+        swatch: BrandColor
+    ) {
         self.tag = tag
         self.name = name
         self.tint = tint
         self.legacyColors = legacyColors
         self.house = house
+        self.swatch = swatch
     }
 
     static let indigo = SpaceAccent(
@@ -10592,7 +11007,8 @@ struct SpaceAccent: Hashable, Sendable {
             folderColorIntensity: 0,
             textColorMode: .automatic,
             hasCustomAppearance: false
-        )
+        ),
+        swatch: BrandColor(red: 0.29, green: 0.25, blue: 0.58, alpha: 1)
     )
     static let orange = SpaceAccent(
         tag: 1,
@@ -10655,7 +11071,8 @@ struct SpaceAccent: Hashable, Sendable {
             folderColorIntensity: 0,
             textColorMode: .automatic,
             hasCustomAppearance: false
-        )
+        ),
+        swatch: BrandColor(red: 0.85, green: 0.27, blue: 0.2, alpha: 1)
     )
     static let teal = SpaceAccent(
         tag: 2,
@@ -10718,7 +11135,8 @@ struct SpaceAccent: Hashable, Sendable {
             folderColorIntensity: 0,
             textColorMode: .automatic,
             hasCustomAppearance: false
-        )
+        ),
+        swatch: BrandColor(red: 0.12, green: 0.49, blue: 0.52, alpha: 1)
     )
     static let rose = SpaceAccent(
         tag: 3,
@@ -10781,7 +11199,8 @@ struct SpaceAccent: Hashable, Sendable {
             folderColorIntensity: 0,
             textColorMode: .automatic,
             hasCustomAppearance: false
-        )
+        ),
+        swatch: BrandColor(red: 0.72, green: 0.25, blue: 0.42, alpha: 1)
     )
 
     static let all: [SpaceAccent] = [indigo, orange, teal, rose]

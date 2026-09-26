@@ -5,26 +5,26 @@ struct BrowserOnboardingPreviewDataAccessProvider:
     BrowserOnboardingDataAccessProviding
 {
     func resolve(
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) -> BrowserImportDataDirectoryAccess? {
         nil
     }
 
-    func clear(for application: BrowserImportApplication) {}
+    func clear(for application: ImportSource) {}
 
     func remember(
         _ directoryURL: URL,
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) throws {}
 
     func chooseDataFolder(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         completion: @escaping @MainActor (URL?) -> Void
     ) {
         completion(nil)
     }
 
-    func hasSavedAccess(for application: BrowserImportApplication) -> Bool {
+    func hasSavedAccess(for application: ImportSource) -> Bool {
         false
     }
 }
@@ -35,7 +35,7 @@ struct BrowserOnboardingPreviewImportCommitter:
 {
     func prepare(
         plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         payload: BrowserDetectedImportPayload?,
         passwordCountsBySourceSpace: [SpaceID: Int]
     ) async throws -> BrowserOnboardingPreparedImport {

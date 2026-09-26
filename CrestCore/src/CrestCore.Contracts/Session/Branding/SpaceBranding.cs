@@ -56,7 +56,7 @@ public sealed record SpaceBranding(
     }
 
     /// The crest figure an SF Symbol name suggested before crests had their own.
-    private static CrestSymbol LegacyFigure(string symbol) =>
+    public static CrestSymbol LegacyFigure(string symbol) =>
         symbol.Contains("leaf", StringComparison.Ordinal) ? CrestSymbol.Leaf
         : symbol.Contains("book", StringComparison.Ordinal) || symbol.Contains("graduation", StringComparison.Ordinal) ? CrestSymbol.Book
         : symbol.Contains("key", StringComparison.Ordinal) ? CrestSymbol.Key

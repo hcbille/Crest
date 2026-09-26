@@ -58,19 +58,18 @@ extension BrowserStore {
             !attempted.contains($0.spaceID) && !family.isActivelyDeletingSpace($0.spaceID)
         }) {
             attempted.insert(intent.spaceID)
-            do { try await deleteSpace(intent.spaceID, dataDeleter: dataDeleter) }
-            catch { localSyncErrorDescription = "Space cleanup needs another attempt: \(error.localizedDescription)" }
+            do { try await deleteSpace(intent.spaceID, dataDeleter: dataDeleter) } catch {
+                localSyncErrorDescription = "Space cleanup needs another attempt: \(error.localizedDescription)"
+            }
         }
     }
 
-    /// Adds a file's Spaces after this workspace's own. Throws the rule the
-    /// core refused it with.
-    func importPortableArchive(_ imported: BrowserPortableImport) throws {
-        guard !imported.spaces.isEmpty else { return }
-        let intent = ImportSpaces(
-            workspaceID: family.workspaceID, windowID: windowID,
-            spaces: try BrowserSpace.storedFormat(imported.spaces))
-        try family.importSpaces(intent, from: imported.spaces, issuedBy: self)
+    /// Adds `spaces`, as the core read them from a file, after this
+    /// workspace's own. Throws the rule the core refused them with.
+    func importSpaces(_ spaces: [SpaceState]) throws(Rejection) {
+        guard !spaces.isEmpty else { return }
+        try family.importSpaces(
+            ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: spaces), from: [], issuedBy: self)
     }
 
     /// Imports the Spaces a person reviewed, as the plan chose.

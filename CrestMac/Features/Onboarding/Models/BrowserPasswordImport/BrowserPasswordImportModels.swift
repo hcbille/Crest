@@ -1,11 +1,5 @@
 import Foundation
 
-struct BrowserDetectedPasswordStore: Equatable, Identifiable, Sendable {
-    let id: String
-    let profileName: String
-    let databaseURL: URL
-}
-
 struct BrowserEncryptedPasswordRecord {
     let origin: CredentialOrigin
     let username: String
@@ -17,7 +11,7 @@ struct BrowserImportedPassword:
     CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    let sourceApplication: BrowserImportApplication
+    let sourceApplication: ImportSource
     let sourceProfileID: String
     let sourceProfileName: String
     let origin: CredentialOrigin
@@ -32,7 +26,7 @@ struct BrowserImportedPassword:
 }
 
 struct BrowserPasswordImportCandidate: Sendable {
-    let sourceApplication: BrowserImportApplication
+    let sourceApplication: ImportSource
     let sourceProfileID: String
     let sourceProfileName: String
     let origin: CredentialOrigin

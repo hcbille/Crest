@@ -52,19 +52,7 @@ struct BrowserOnboardingWindowPreviewFixture {
     )
 
     static func reviewPlan(in browser: BrowserStore) -> BrowserImportReviewPlan {
-        BrowserImportReviewPlan(
-            imported: BrowserPortableImport(
-                spaces: [sourceSpace],
-                summary: BrowserPortableImportSummary(
-                    spaceCount: 1,
-                    folderCount: 0,
-                    liveTabCount: 1,
-                    archivedTabCount: 0,
-                    historyEntryCount: 0
-                )
-            ),
-            in: browser
-        )
+        BrowserImportReviewPlan(spaces: [sourceSpace], in: browser)
     }
 
     static let importSource = BrowserInstalledImportSource(

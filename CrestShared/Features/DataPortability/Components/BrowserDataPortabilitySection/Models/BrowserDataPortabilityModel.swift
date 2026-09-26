@@ -1,40 +1,24 @@
 import Foundation
 import Observation
 
+/// The Import & Export section's work: the core writes each export and reads
+/// each Crest browser-data file, and this presents the file panels, holds the
+/// access a picked file needs while the core reads it, and reports how it went.
 @Observable
 @MainActor
 final class BrowserDataPortabilityModel {
+    // MARK: - Variables
+
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
 
-    var exportDocument: BrowserPortableArchiveDocument?
-    var isPreparingExport = false
+    /// The file an export is saving, and whether its panel is up.
+    var exportDocument: BrowserExportDocument?
     var isExporting = false
+    /// The export being written, while the core writes it.
+    private(set) var preparingFormat: ExportFormat?
     var isImporting = false
-    var bookmarkExportDocument: BrowserBookmarkHTMLDocument?
-    var isPreparingBookmarkExport = false
-    var isExportingBookmarks = false
-    var isImportingBookmarks = false
-    var bookmarkImportSource: BrowserBookmarkMigrationSource?
-    var isImportingHistory = false
-    var historyImportSource: BrowserHistoryMigrationSource?
-    var isImportingTabs = false
-    var tabImportSource: BrowserTabMigrationSource?
     var status: BrowserDataPortabilityOperationStatus?
-
-    @ObservationIgnored
-    private let operations: any BrowserDataPortabilityOperating
-
-    init(
-        browser: BrowserStore,
-        spaceAccess: BrowserSpaceAccessController,
-        operations: any BrowserDataPortabilityOperating =
-            LiveBrowserDataPortabilityOperations()
-    ) {
-        self.browser = browser
-        self.spaceAccess = spaceAccess
-        self.operations = operations
-    }
 
     var lockedSpaces: [BrowserSpace] {
         BrowserSettingsPrivacyPolicy.lockedSpaces(
@@ -47,40 +31,29 @@ final class BrowserDataPortabilityModel {
         lockedSpaces.map(\.id)
     }
 
-    func beginPortableImport() {
-        isImporting = true
+    // MARK: - Initializers
+
+    init(browser: BrowserStore, spaceAccess: BrowserSpaceAccessController) {
+        self.browser = browser
+        self.spaceAccess = spaceAccess
     }
 
-    func beginBookmarkImport(from source: BrowserBookmarkMigrationSource) {
-        bookmarkImportSource = source
-        isImportingBookmarks = true
-    }
+    // MARK: - Actions - Export
 
-    func beginHistoryImport(from source: BrowserHistoryMigrationSource) {
-        historyImportSource = source
-        isImportingHistory = true
-    }
-
-    func beginTabImport(from source: BrowserTabMigrationSource) {
-        tabImportSource = source
-        isImportingTabs = true
-    }
-
-    func prepareExport() {
-        guard lockedSpaces.isEmpty else { return }
-        isPreparingExport = true
+    /// Asks the core for `format`'s file of this workspace, then offers to
+    /// save it. A Space locked meanwhile keeps the file from being saved.
+    func prepareExport(_ format: ExportFormat) {
+        guard lockedSpaces.isEmpty, preparingFormat == nil else { return }
+        preparingFormat = format
         status = nil
-        let session = browser.session
+        let core = browser.core
+        let query = ExportWorkspace(workspaceID: browser.family.workspaceID, format: format)
         Task { @MainActor in
-            defer { isPreparingExport = false }
+            defer { preparingFormat = nil }
             do {
-                exportDocument = try await operations.portableArchiveDocument(
-                    for: session
-                )
-                guard lockedSpaces.isEmpty else {
-                    exportDocument = nil
-                    return
-                }
+                let document = try await Task.detached(priority: .userInitiated) { try core.query(query) }.value
+                guard lockedSpaces.isEmpty else { return }
+                exportDocument = BrowserExportDocument(document)
                 isExporting = true
             } catch {
                 status = BrowserDataPortabilityOperationStatus(error: error)
@@ -88,188 +61,54 @@ final class BrowserDataPortabilityModel {
         }
     }
 
-    func prepareBookmarkExport() {
-        guard lockedSpaces.isEmpty else { return }
-        isPreparingBookmarkExport = true
-        status = nil
-        let session = browser.session
-        Task { @MainActor in
-            defer { isPreparingBookmarkExport = false }
-            do {
-                bookmarkExportDocument = try await operations.bookmarkDocument(
-                    for: session
-                )
-                guard lockedSpaces.isEmpty else {
-                    bookmarkExportDocument = nil
-                    return
-                }
-                isExportingBookmarks = true
-            } catch {
-                status = BrowserDataPortabilityOperationStatus(error: error)
-            }
-        }
-    }
-
-    func finishPortableExport(_ result: Result<URL, Error>) {
+    func finishExport(_ result: Result<URL, Error>) {
         switch result {
         case .success:
-            status = BrowserDataPortabilityOperationStatus("Browser data exported.")
+            status = BrowserDataPortabilityOperationStatus((exportDocument?.format ?? .browserData).savedMessage)
         case .failure(let error):
             status = BrowserDataPortabilityOperationStatus(error: error)
         }
         exportDocument = nil
-    }
-
-    func finishBookmarkExport(_ result: Result<URL, Error>) {
-        switch result {
-        case .success:
-            status = BrowserDataPortabilityOperationStatus("Bookmarks exported.")
-        case .failure(let error):
-            status = BrowserDataPortabilityOperationStatus(error: error)
-        }
-        bookmarkExportDocument = nil
-    }
-
-    func finishPortableImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            importArchive(from: url)
-        case .failure(let error):
-            status = BrowserDataPortabilityOperationStatus(error: error)
-        }
-    }
-
-    func finishBookmarkImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first, let source = bookmarkImportSource else {
-                return
-            }
-            importBookmarks(from: url, source: source)
-        case .failure(let error):
-            status = BrowserDataPortabilityOperationStatus(error: error)
-        }
-    }
-
-    func finishHistoryImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first, let source = historyImportSource else {
-                return
-            }
-            importHistory(from: url, source: source)
-        case .failure(let error):
-            status = BrowserDataPortabilityOperationStatus(error: error)
-        }
-    }
-
-    func finishTabImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first, let source = tabImportSource else {
-                return
-            }
-            importTabs(from: url, source: source)
-        case .failure(let error):
-            status = BrowserDataPortabilityOperationStatus(error: error)
-        }
     }
 
     func cancelSensitiveExports() {
         isExporting = false
-        isExportingBookmarks = false
         exportDocument = nil
-        bookmarkExportDocument = nil
     }
 
-    private func importArchive(from url: URL) {
-        status = BrowserDataPortabilityOperationStatus("Reading browser data…")
-        Task { @MainActor in
-            do {
-                let imported = try await operations.portableImport(from: url)
-                try browser.importPortableArchive(imported)
-                let summary = imported.summary
-                status = BrowserDataPortabilityOperationStatus(
-                    "Imported \(summary.spaceCount) Spaces, \(summary.liveTabCount) tabs, and \(summary.historyEntryCount) history entries."
-                )
-            } catch {
-                status = BrowserDataPortabilityOperationStatus(error: error)
-            }
-        }
+    // MARK: - Actions - Import
+
+    func beginImport() {
+        isImporting = true
     }
 
-    private func importBookmarks(
-        from url: URL,
-        source: BrowserBookmarkMigrationSource
-    ) {
-        let sourceTitle = String(localized: source.title)
-        status = BrowserDataPortabilityOperationStatus(
-            "Reading \(sourceTitle) bookmarks…"
-        )
-        Task { @MainActor in
-            do {
-                let imported = try await operations.bookmarkImport(
-                    from: url,
-                    source: source
-                )
-                try browser.importPortableArchive(imported)
-                let summary = imported.summary
-                status = BrowserDataPortabilityOperationStatus(
-                    "Imported \(summary.liveTabCount) bookmarks in \(summary.spaceCount) Spaces from \(sourceTitle)."
-                )
-            } catch {
-                status = BrowserDataPortabilityOperationStatus(error: error)
+    /// Imports the Crest browser-data file the person picked: the core reads
+    /// it away from the main thread while this holds the file's access, then
+    /// adds its Spaces after this workspace's own.
+    func finishImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            status = BrowserDataPortabilityOperationStatus("Reading browser data…")
+            let core = browser.core
+            Task { @MainActor in
+                do {
+                    let imported = try await Task.detached(priority: .userInitiated) { () throws in
+                        let scoped = url.startAccessingSecurityScopedResource()
+                        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                        return try core.query(ReadArchive(path: url.path))
+                    }.value
+                    try browser.importSpaces(imported.spaces)
+                    let tabs = imported.spaces.reduce(0) { $0 + $1.tabs.count }
+                    let history = imported.spaces.reduce(0) { $0 + $1.history.count }
+                    status = BrowserDataPortabilityOperationStatus(
+                        "Imported \(imported.spaces.count) Spaces, \(tabs) tabs, and \(history) history entries.")
+                } catch {
+                    status = BrowserDataPortabilityOperationStatus(error: error)
+                }
             }
-        }
-    }
-
-    private func importHistory(
-        from url: URL,
-        source: BrowserHistoryMigrationSource
-    ) {
-        let sourceTitle = String(localized: source.title)
-        status = BrowserDataPortabilityOperationStatus(
-            "Reading \(sourceTitle) history…"
-        )
-        Task { @MainActor in
-            do {
-                let imported = try await operations.historyImport(
-                    from: url,
-                    source: source
-                )
-                try browser.importPortableArchive(imported)
-                status = BrowserDataPortabilityOperationStatus(
-                    "Imported \(imported.summary.historyEntryCount) history entries from \(sourceTitle)."
-                )
-            } catch {
-                status = BrowserDataPortabilityOperationStatus(error: error)
-            }
-        }
-    }
-
-    private func importTabs(
-        from url: URL,
-        source: BrowserTabMigrationSource
-    ) {
-        let sourceTitle = String(localized: source.title)
-        status = BrowserDataPortabilityOperationStatus(
-            "Reading \(sourceTitle) tabs…"
-        )
-        Task { @MainActor in
-            do {
-                let imported = try await operations.tabImport(
-                    from: url,
-                    source: source
-                )
-                try browser.importPortableArchive(imported)
-                let summary = imported.summary
-                status = BrowserDataPortabilityOperationStatus(
-                    "Imported \(summary.liveTabCount) tabs in \(summary.spaceCount) Spaces from \(sourceTitle)."
-                )
-            } catch {
-                status = BrowserDataPortabilityOperationStatus(error: error)
-            }
+        case .failure(let error):
+            status = BrowserDataPortabilityOperationStatus(error: error)
         }
     }
 }

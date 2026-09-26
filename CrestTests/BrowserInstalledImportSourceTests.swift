@@ -1,6 +1,7 @@
 import Foundation
 import SQLite3
 import XCTest
+
 @testable import Crest
 
 private let sqliteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
@@ -104,147 +105,18 @@ final class BrowserInstalledImportSourceTests: XCTestCase {
         let accountHome = URL(fileURLWithPath: "/Users/test")
 
         XCTAssertEqual(
-            BrowserImportDataLocator.resolvedHomeDirectory(
+            ImportSource.resolvedHomeDirectory(
                 currentHome: containerHome,
                 accountHome: accountHome
             ),
             accountHome
         )
         XCTAssertEqual(
-            BrowserImportDataLocator.resolvedHomeDirectory(
+            ImportSource.resolvedHomeDirectory(
                 currentHome: containerHome,
                 accountHome: nil
             ),
             containerHome
-        )
-    }
-
-    func testLocatorFindsArcSidebarAtItsStableApplicationSupportPath() throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let sidebar = home.appendingPathComponent(
-            "Library/Application Support/Arc/StorableSidebar.json"
-        )
-        try createFixture(at: sidebar)
-
-        XCTAssertEqual(
-            BrowserImportDataLocator.latestImportURL(for: .arc, homeDirectory: home),
-            sidebar
-        )
-    }
-
-    func testSelectedArcDataDirectoryFindsTheSidebarWithoutAHomePath() throws {
-        let root = try makeTemporaryHome().appendingPathComponent("Arc")
-        defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
-        let sidebar = root.appendingPathComponent("StorableSidebar.json")
-        try createFixture(at: sidebar)
-
-        let profiles = BrowserImportDataLocator.importProfiles(
-            for: .arc,
-            dataDirectory: root
-        )
-
-        XCTAssertEqual(profiles.map(\.sessionURL), [sidebar])
-    }
-
-    func testLocatorChoosesNewestZenProfileSession() throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let first = home.appendingPathComponent(
-            "Library/Application Support/zen/Profiles/first/zen-sessions.jsonlz4"
-        )
-        let newest = home.appendingPathComponent(
-            "Library/Application Support/zen/Profiles/current/zen-sessions.jsonlz4"
-        )
-        try createFixture(at: first, modifiedAt: Date(timeIntervalSince1970: 100))
-        try createFixture(at: newest, modifiedAt: Date(timeIntervalSince1970: 200))
-
-        XCTAssertEqual(
-            BrowserImportDataLocator.latestImportURL(
-                for: .zen,
-                homeDirectory: home
-            )?.resolvingSymlinksInPath(),
-            newest.resolvingSymlinksInPath()
-        )
-    }
-
-    func testLocatorChoosesNewestChromiumSessionAcrossProfiles() throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let older = home.appendingPathComponent(
-            "Library/Application Support/Google/Chrome/Default/Sessions/Tabs_100"
-        )
-        let newest = home.appendingPathComponent(
-            "Library/Application Support/Google/Chrome/Profile 1/Sessions/Session_200"
-        )
-        try createFixture(at: older, modifiedAt: Date(timeIntervalSince1970: 100))
-        try createFixture(at: newest, modifiedAt: Date(timeIntervalSince1970: 200))
-
-        XCTAssertEqual(
-            BrowserImportDataLocator.latestImportURL(
-                for: .chrome,
-                homeDirectory: home
-            )?.resolvingSymlinksInPath(),
-            newest.resolvingSymlinksInPath()
-        )
-    }
-
-    func testChromeProfileDiscoveryUsesLocalStateNamesAndFindsBookmarks() throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let chromeRoot = home.appendingPathComponent(
-            "Library/Application Support/Google/Chrome"
-        )
-        let localState = chromeRoot.appendingPathComponent("Local State")
-        let localStateData = try JSONSerialization.data(withJSONObject: [
-            "profile": [
-                "info_cache": [
-                    "Default": ["name": "Personal"],
-                    "Profile 1": ["name": "Work"],
-                ],
-            ],
-        ])
-        try createFixture(at: localState, data: localStateData)
-        let personalBookmarks = chromeRoot.appendingPathComponent("Default/Bookmarks")
-        let workBookmarks = chromeRoot.appendingPathComponent("Profile 1/Bookmarks")
-        try createFixture(at: personalBookmarks)
-        try createFixture(at: workBookmarks)
-
-        let profiles = BrowserImportDataLocator.importProfiles(
-            for: .chrome,
-            homeDirectory: home
-        )
-
-        XCTAssertEqual(profiles.map(\.name), ["Personal", "Work"])
-        XCTAssertEqual(
-            profiles.map { $0.bookmarksURL?.resolvingSymlinksInPath() },
-            [personalBookmarks, workBookmarks].map { $0.resolvingSymlinksInPath() }
-        )
-    }
-
-    func testPasswordStoreDiscoveryFindsArcAndChromeProfiles() throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let arcRoot = home.appendingPathComponent("Library/Application Support/Arc")
-        let chromeRoot = home.appendingPathComponent("Library/Application Support/Google/Chrome")
-        let arcLoginData = arcRoot.appendingPathComponent("User Data/Profile 1/Login Data")
-        let chromeLoginData = chromeRoot.appendingPathComponent("Default/Login Data")
-        try createFixture(at: arcLoginData)
-        try createFixture(at: chromeLoginData)
-
-        XCTAssertEqual(
-            BrowserImportDataLocator.passwordStores(
-                for: .arc,
-                dataDirectory: arcRoot
-            ).map { $0.databaseURL.resolvingSymlinksInPath() },
-            [arcLoginData.resolvingSymlinksInPath()]
-        )
-        XCTAssertEqual(
-            BrowserImportDataLocator.passwordStores(
-                for: .chrome,
-                dataDirectory: chromeRoot
-            ).map { $0.databaseURL.resolvingSymlinksInPath() },
-            [chromeLoginData.resolvingSymlinksInPath()]
         )
     }
 
@@ -257,10 +129,10 @@ final class BrowserInstalledImportSourceTests: XCTestCase {
             encryptedPassword: Data([0x76, 0x31, 0x30])
                 + Data(hex: "13aaf27b4bd1b4ad2dbdea76e9ff6575")
         )
-        let store = BrowserDetectedPasswordStore(
+        let store = ImportPasswordStore(
             id: "Profile 1",
             profileName: "Personal",
-            databaseURL: databaseURL
+            path: databaseURL.path
         )
 
         let count = try await BrowserPasswordImportReader.count(in: [store])
@@ -303,15 +175,15 @@ final class BrowserInstalledImportSourceTests: XCTestCase {
             encryptedPassword: Data("v11".utf8) + ciphertext
         )
         let stores = [
-            BrowserDetectedPasswordStore(
+            ImportPasswordStore(
                 id: "Default",
                 profileName: "Personal",
-                databaseURL: defaultDatabaseURL
+                path: defaultDatabaseURL.path
             ),
-            BrowserDetectedPasswordStore(
+            ImportPasswordStore(
                 id: "Profile 1",
                 profileName: "Work",
-                databaseURL: secondaryDatabaseURL
+                path: secondaryDatabaseURL.path
             ),
         ]
 
@@ -329,147 +201,6 @@ final class BrowserInstalledImportSourceTests: XCTestCase {
         XCTAssertEqual(candidates.map(\.sourceProfileName), ["Personal", "Work"])
         XCTAssertEqual(passwords.map(\.sourceProfileID), ["Default", "Profile 1"])
         XCTAssertEqual(passwords.map(\.password), ["hunter2", "hunter2"])
-    }
-
-    func testDetectedSafariProfileCombinesBookmarksAndOpenTabsForReview() async throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let bookmarksURL = home.appendingPathComponent("Bookmarks.plist")
-        let sessionURL = home.appendingPathComponent("LastSession.plist")
-        let bookmarks = try PropertyListSerialization.data(
-            fromPropertyList: [
-                "Children": [[
-                    "WebBookmarkType": "WebBookmarkTypeLeaf",
-                    "URLString": "https://saved.example/",
-                    "URIDictionary": ["title": "Saved"],
-                ]],
-            ],
-            format: .binary,
-            options: 0
-        )
-        let session = try PropertyListSerialization.data(
-            fromPropertyList: [
-                "Windows": [[
-                    "Tabs": [["URL": "https://open.example/", "Title": "Open"]],
-                ]],
-            ],
-            format: .binary,
-            options: 0
-        )
-        try createFixture(at: bookmarksURL, data: bookmarks)
-        try createFixture(at: sessionURL, data: session)
-        let payload = BrowserDetectedImportPayload(
-            application: .safari,
-            profiles: [BrowserDetectedImportProfile(
-                id: "safari",
-                name: "Safari",
-                bookmarksURL: bookmarksURL,
-                sessionURL: sessionURL
-            )]
-        )
-
-        let imported = try await BrowserDetectedImportReader.read(payload)
-        let space = try XCTUnwrap(imported.spaces.first)
-
-        XCTAssertEqual(imported.spaces.map(\.name), ["Safari"])
-        XCTAssertEqual(space.savedTabs.map(\.title), ["Saved"])
-        XCTAssertEqual(space.currentTabs.map(\.title), ["Open"])
-    }
-
-    func testDetectedChromeProfileKeepsBookmarksWhenItsSessionIsEncrypted() async throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let bookmarksURL = home.appendingPathComponent("Bookmarks")
-        let sessionURL = home.appendingPathComponent("Sessions/Session_100")
-        let bookmarks = Data("""
-        {
-          "roots": {
-            "bookmark_bar": {
-              "type": "folder",
-              "name": "Bookmarks bar",
-              "children": [
-                {
-                  "type": "url",
-                  "name": "Chromium",
-                  "url": "https://www.chromium.org/"
-                }
-              ]
-            }
-          },
-          "version": 1
-        }
-        """.utf8)
-        var encryptedSession = Data("SNSS".utf8)
-        encryptedSession.append(contentsOf: [5, 0, 0, 0])
-        try createFixture(at: bookmarksURL, data: bookmarks)
-        try createFixture(at: sessionURL, data: encryptedSession)
-        let payload = BrowserDetectedImportPayload(
-            application: .chrome,
-            profiles: [BrowserDetectedImportProfile(
-                id: "Default",
-                name: "Personal",
-                bookmarksURL: bookmarksURL,
-                sessionURL: sessionURL
-            )]
-        )
-
-        let imported = try await BrowserDetectedImportReader.read(payload)
-        let space = try XCTUnwrap(imported.spaces.first)
-
-        XCTAssertEqual(imported.spaces.map(\.name), ["Personal"])
-        XCTAssertEqual(space.savedTabs.map(\.title), ["Chromium"])
-        XCTAssertTrue(space.currentTabs.isEmpty)
-    }
-
-    func testDetectedSafariProfileKeepsOpenTabsWhenBookmarksAreUnreadable() async throws {
-        let home = try makeTemporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        let bookmarksURL = home.appendingPathComponent("Bookmarks.plist")
-        let sessionURL = home.appendingPathComponent("LastSession.plist")
-        let session = try PropertyListSerialization.data(
-            fromPropertyList: [
-                "Windows": [[
-                    "Tabs": [["URL": "https://open.example/", "Title": "Open"]],
-                ]],
-            ],
-            format: .binary,
-            options: 0
-        )
-        try createFixture(at: bookmarksURL, data: Data("not a plist".utf8))
-        try createFixture(at: sessionURL, data: session)
-        let payload = BrowserDetectedImportPayload(
-            application: .safari,
-            profiles: [BrowserDetectedImportProfile(
-                id: "safari",
-                name: "Safari",
-                bookmarksURL: bookmarksURL,
-                sessionURL: sessionURL
-            )]
-        )
-
-        let imported = try await BrowserDetectedImportReader.read(payload)
-        let space = try XCTUnwrap(imported.spaces.first)
-
-        XCTAssertEqual(imported.spaces.map(\.name), ["Safari"])
-        XCTAssertTrue(space.savedTabs.isEmpty)
-        XCTAssertEqual(space.currentTabs.map(\.title), ["Open"])
-    }
-
-    func testSafariFolderSelectionFindsBookmarksAndLastSessionTogether() throws {
-        let folder = try makeTemporaryHome().appendingPathComponent("Safari")
-        defer { try? FileManager.default.removeItem(at: folder.deletingLastPathComponent()) }
-        let bookmarksURL = folder.appendingPathComponent("Bookmarks.plist")
-        let sessionURL = folder.appendingPathComponent("LastSession.plist")
-        try createFixture(at: bookmarksURL)
-        try createFixture(at: sessionURL)
-
-        let profile = try XCTUnwrap(
-            BrowserImportDataLocator.safariProfile(in: folder)
-        )
-
-        XCTAssertEqual(profile.name, "Safari")
-        XCTAssertEqual(profile.bookmarksURL, bookmarksURL)
-        XCTAssertEqual(profile.sessionURL, sessionURL)
     }
 
     private func makeTemporaryHome() throws -> URL {
@@ -545,17 +276,18 @@ final class BrowserInstalledImportSourceTests: XCTestCase {
 private struct StubSafeStorage: BrowserSafeStorageSecretProviding {
     let secret: String
 
-    func secret(for application: BrowserImportApplication) throws -> String {
+    func secret(for application: ImportSource) throws -> String {
         secret
     }
 }
 
-private extension Data {
-    init(hex: String) {
-        self.init(stride(from: 0, to: hex.count, by: 2).compactMap { offset in
-            let start = hex.index(hex.startIndex, offsetBy: offset)
-            let end = hex.index(start, offsetBy: 2)
-            return UInt8(hex[start..<end], radix: 16)
-        })
+extension Data {
+    fileprivate init(hex: String) {
+        self.init(
+            stride(from: 0, to: hex.count, by: 2).compactMap { offset in
+                let start = hex.index(hex.startIndex, offsetBy: offset)
+                let end = hex.index(start, offsetBy: 2)
+                return UInt8(hex[start..<end], radix: 16)
+            })
     }
 }

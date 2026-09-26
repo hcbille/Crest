@@ -2,14 +2,8 @@ import Foundation
 import Security
 
 struct SecurityBrowserSafeStorage: BrowserSafeStorageSecretProviding {
-    func secret(for application: BrowserImportApplication) throws -> String {
-        let service: String
-        switch application {
-        case .arc:
-            service = "Arc Safe Storage"
-        case .chrome:
-            service = "Chrome Safe Storage"
-        case .zen, .safari, .firefox:
+    func secret(for application: ImportSource) throws -> String {
+        guard let service = application.safeStorageService else {
             throw BrowserPasswordImportError.unsupportedBrowser
         }
 

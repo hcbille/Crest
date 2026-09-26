@@ -23,19 +23,19 @@ public sealed class SpaceAccent {
     /// Winter.
     public static readonly SpaceAccent Indigo = new(name: "indigo", tint: SystemTint.Indigo, legacyColors: [Ink, Ocean, Gold],
         house: HouseLook([new(0.118, 0.157, 0.200), new(0.243, 0.306, 0.369), new(0.525, 0.678, 0.769)], CrestBackplate.FrenchShield,
-            CrestSymbol.Direwolf, CrestTrim.Line));
+            CrestSymbol.Direwolf, CrestTrim.Line), swatch: IndigoColor);
     /// Sun.
     public static readonly SpaceAccent Orange = new(name: "orange", tint: SystemTint.Orange, legacyColors: [Ember, Gold, Ocean],
         house: HouseLook([new(0.208, 0.086, 0.043), new(0.545, 0.239, 0.106), new(0.816, 0.620, 0.396)], CrestBackplate.Circle,
-            CrestSymbol.Sun, CrestTrim.Sunburst));
+            CrestSymbol.Sun, CrestTrim.Sunburst), swatch: Ember);
     /// Meadow.
     public static readonly SpaceAccent Teal = new(name: "teal", tint: SystemTint.Teal, legacyColors: [TealColor, Ocean, Sand],
         house: HouseLook([new(0.082, 0.137, 0.094), new(0.204, 0.341, 0.220), new(0.737, 0.655, 0.400)], CrestBackplate.Circle,
-            CrestSymbol.Rose, CrestTrim.Laurel));
+            CrestSymbol.Rose, CrestTrim.Laurel), swatch: TealColor);
     /// Lion.
     public static readonly SpaceAccent Rose = new(name: "rose", tint: SystemTint.Pink, legacyColors: [RoseColor, IndigoColor, Sand],
         house: HouseLook([new(0.235, 0.055, 0.102), new(0.447, 0.125, 0.188), new(0.788, 0.635, 0.329)], CrestBackplate.Shield,
-            CrestSymbol.Lion, CrestTrim.Line));
+            CrestSymbol.Lion, CrestTrim.Line), swatch: RoseColor);
 
     public static IReadOnlyList<SpaceAccent> All { get; } = [Indigo, Orange, Teal, Rose];
 
@@ -57,15 +57,21 @@ public sealed class SpaceAccent {
     /// composed for it. A Space keeps its copy when this changes.
     public SpaceBranding House { get; }
 
+    /// The one color that stands for the accent, which a color from elsewhere,
+    /// such as another browser's Space, is matched against.
+    public BrandColor Swatch { get; }
+
     #endregion
 
     #region Constructors
 
-    private SpaceAccent(string name, SystemTint tint, IReadOnlyList<BrandColor> legacyColors, SpaceBranding house) {
+    private SpaceAccent(string name, SystemTint tint, IReadOnlyList<BrandColor> legacyColors, SpaceBranding house,
+        BrandColor swatch) {
         Name = name;
         Tint = tint;
         LegacyColors = legacyColors;
         House = house;
+        Swatch = swatch;
     }
 
     #endregion
@@ -73,6 +79,14 @@ public sealed class SpaceAccent {
     #region Actions - Lookup
 
     public static SpaceAccent? Named(string? name) => All.FirstOrDefault(accent => accent.Name == name);
+
+    /// The accent whose swatch lies nearest `color` in red, green and blue,
+    /// the first in `All` on a tie.
+    public static SpaceAccent Nearest(BrandColor color) {
+        ArgumentNullException.ThrowIfNull(color);
+        return All.MinBy(accent => Math.Pow(color.Red - accent.Swatch.Red, 2) + Math.Pow(color.Green - accent.Swatch.Green, 2)
+            + Math.Pow(color.Blue - accent.Swatch.Blue, 2))!;
+    }
 
     #endregion
 

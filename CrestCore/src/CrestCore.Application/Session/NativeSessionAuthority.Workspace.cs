@@ -11,11 +11,13 @@ public sealed partial class NativeSessionAuthority {
 
     private SessionEdit ImportingReviewedSpaces(SessionState basis, ImportReviewedSpaces intent, DateTimeOffset now, IIdSource ids,
         bool previewed) =>
-        Importing(basis, intent, intent.Spaces, previewed, now, ids, import => import.ImportReviewed(intent.Reviews, ids));
+        Importing(basis, intent, NativeWorkspaceImport.Decoded(intent.Spaces), previewed, now, ids,
+            import => import.ImportReviewed(intent.Reviews, ids));
 
     private SessionEdit ApplyingManualSetup(SessionState basis, ApplyManualSetup intent, DateTimeOffset now, IIdSource ids,
         bool previewed) =>
-        Importing(basis, intent, intent.Spaces, previewed, now, ids, import => import.ApplyDrafts(intent.Drafts, intent.OrderWasEdited));
+        Importing(basis, intent, NativeWorkspaceImport.Decoded(intent.Spaces), previewed, now, ids,
+            import => import.ApplyDrafts(intent.Drafts, intent.OrderWasEdited));
 
     /// An import's work, which only the persistent workspace takes: `apply`
     /// runs the intent's own rules over the Spaces read from `spaces`, then
@@ -23,8 +25,8 @@ public sealed partial class NativeSessionAuthority {
     /// what the import brought. Unless the import is only `previewed`, no Space
     /// it changes may be locked; a locked Space it leaves as it was never
     /// refuses it.
-    private SessionEdit Importing(SessionState basis, ImportWorkspace intent, byte[] spaces, bool previewed, DateTimeOffset now,
-        IIdSource ids, Action<NativeWorkspaceImport> apply) {
+    private SessionEdit Importing(SessionState basis, ImportWorkspace intent, IReadOnlyList<SpaceState> spaces, bool previewed,
+        DateTimeOffset now, IIdSource ids, Action<NativeWorkspaceImport> apply) {
         if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
         var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId));
         var import = new NativeWorkspaceImport(basis, spaces);
@@ -46,6 +48,16 @@ public sealed partial class NativeSessionAuthority {
             var edit = Edit(intent, Stamp(now), new SystemIdSource(), pages: null, previewed: true)!;
             var events = edit.Events ?? SessionTabEvents.None;
             return new(edit.Next, events.Imported ?? [], [.. events.Copies.Select(copy => copy.Copied(workspaceId))]);
+        }
+    }
+
+    /// The session an export writes, as accepted now. Throws `Rejected` with
+    /// `SpaceLocked` while this process holds no grant to show one of its
+    /// Spaces, whose tabs and history the file would carry.
+    internal SessionState Exported() {
+        lock (Gate) {
+            if (session.Spaces.FirstOrDefault(IsLockedUnderGate) is { } locked) throw new Rejected(new SpaceLocked(locked.Id));
+            return session;
         }
     }
 

@@ -364,24 +364,23 @@ final class BrowserOnboardingFlowTests: XCTestCase {
     }
 
     private func source(
-        _ application: BrowserImportApplication,
+        _ application: ImportSource,
         hasDetectedData: Bool = true,
         detectedDataURL: URL? = nil
     ) -> BrowserInstalledImportSource {
         BrowserInstalledImportSource(
             application: application,
-            applicationURL: URL(fileURLWithPath: "/Applications/\(application.name).app"),
+            applicationURL: URL(fileURLWithPath: "/Applications/\(application.title).app"),
             detectedPayload: BrowserDetectedImportPayload(
                 application: application,
                 profiles: [
-                    BrowserDetectedImportProfile(
+                    ImportProfile(
                         id: "Default",
                         name: "Default",
-                        bookmarksURL: hasDetectedData
-                            ? detectedDataURL
-                                ?? URL(fileURLWithPath: #filePath)
+                        bookmarksPath: hasDetectedData
+                            ? (detectedDataURL ?? URL(fileURLWithPath: #filePath)).path
                             : nil,
-                        sessionURL: nil
+                        sessionPath: nil
                     )
                 ]
             ),
@@ -408,22 +407,13 @@ final class BrowserOnboardingFlowTests: XCTestCase {
 
     private func portableImport(
         spaces: [BrowserSpace]
-    ) -> BrowserPortableImport {
-        BrowserPortableImport(
-            spaces: spaces,
-            summary: BrowserPortableImportSummary(
-                spaceCount: spaces.count,
-                folderCount: 0,
-                liveTabCount: spaces.reduce(0) { $0 + $1.tabs.count },
-                archivedTabCount: 0,
-                historyEntryCount: 0
-            )
-        )
+    ) -> [BrowserSpace] {
+        spaces
     }
 
     private func readOutput(
-        application: BrowserImportApplication,
-        import portableImport: BrowserPortableImport
+        application: ImportSource,
+        import portableImport: [BrowserSpace]
     ) -> BrowserOnboardingImportReadOutput {
         BrowserOnboardingImportReadOutput(
             payload: BrowserDetectedImportPayload(
@@ -470,26 +460,26 @@ private struct StubSourceDiscovery: BrowserInstalledImportSourceDiscovering {
 @MainActor
 private struct StubDataAccessProvider: BrowserOnboardingDataAccessProviding {
     func resolve(
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) -> BrowserImportDataDirectoryAccess? {
         nil
     }
 
-    func clear(for application: BrowserImportApplication) {}
+    func clear(for application: ImportSource) {}
 
     func remember(
         _ directoryURL: URL,
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) throws {}
 
     func chooseDataFolder(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         completion: @escaping @MainActor (URL?) -> Void
     ) {
         completion(nil)
     }
 
-    func hasSavedAccess(for application: BrowserImportApplication) -> Bool {
+    func hasSavedAccess(for application: ImportSource) -> Bool {
         false
     }
 }
@@ -503,26 +493,26 @@ private final class SuspendedDataAccessProvider:
     var hasPendingRequest: Bool { completion != nil }
 
     func resolve(
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) -> BrowserImportDataDirectoryAccess? {
         nil
     }
 
-    func clear(for application: BrowserImportApplication) {}
+    func clear(for application: ImportSource) {}
 
     func remember(
         _ directoryURL: URL,
-        for application: BrowserImportApplication
+        for application: ImportSource
     ) throws {}
 
     func chooseDataFolder(
-        for application: BrowserImportApplication,
+        for application: ImportSource,
         completion: @escaping @MainActor (URL?) -> Void
     ) {
         self.completion = completion
     }
 
-    func hasSavedAccess(for application: BrowserImportApplication) -> Bool {
+    func hasSavedAccess(for application: ImportSource) -> Bool {
         false
     }
 
@@ -543,7 +533,7 @@ private final class SuspendedImportCommitter:
 
     func prepare(
         plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         payload: BrowserDetectedImportPayload?,
         passwordCountsBySourceSpace: [SpaceID: Int]
     ) async throws -> BrowserOnboardingPreparedImport {
@@ -590,7 +580,7 @@ private final class PostMutationSuspendedImportCommitter:
 
     func prepare(
         plan: BrowserImportReviewPlan,
-        application: BrowserImportApplication,
+        application: ImportSource,
         payload: BrowserDetectedImportPayload?,
         passwordCountsBySourceSpace: [SpaceID: Int]
     ) async throws -> BrowserOnboardingPreparedImport {

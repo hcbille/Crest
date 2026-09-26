@@ -3,12 +3,12 @@ import SwiftUI
 struct BrowserOnboardingImportPage: View {
     let entryPoint: BrowserOnboardingEntryPoint
     let sources: [BrowserInstalledImportSource]
-    let selectedApplications: Set<BrowserImportApplication>
+    let selectedApplications: Set<ImportSource>
     let isReading: Bool
     let isLocked: Bool
     let failure: BrowserOnboardingFailureText?
     let accessLabel: (BrowserInstalledImportSource) -> String
-    let toggleSelection: (BrowserImportApplication) -> Void
+    let toggleSelection: (ImportSource) -> Void
     let beginManualSetup: () -> Void
     let continueImport: () -> Void
     let back: () -> Void

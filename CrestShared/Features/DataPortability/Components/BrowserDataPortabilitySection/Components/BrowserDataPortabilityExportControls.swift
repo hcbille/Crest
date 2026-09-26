@@ -6,9 +6,9 @@ struct BrowserDataPortabilityExportControls: View {
     var body: some View {
         if model.lockedSpaces.isEmpty {
             Button("Export Browser Data…", systemImage: "square.and.arrow.up") {
-                model.prepareExport()
+                model.prepareExport(.browserData)
             }
-            .disabled(model.isPreparingExport)
+            .disabled(model.preparingFormat != nil)
             .accessibilityIdentifier("export-browser-data")
         } else {
             Text(
@@ -25,15 +25,15 @@ struct BrowserDataPortabilityExportControls: View {
         }
 
         Button("Import Browser Data…", systemImage: "square.and.arrow.down") {
-            model.beginPortableImport()
+            model.beginImport()
         }
         .accessibilityIdentifier("import-browser-data")
 
         if model.lockedSpaces.isEmpty {
             Button("Export Bookmarks as HTML…", systemImage: "book.closed") {
-                model.prepareBookmarkExport()
+                model.prepareExport(.bookmarks)
             }
-            .disabled(model.isPreparingBookmarkExport)
+            .disabled(model.preparingFormat != nil)
             .accessibilityIdentifier("export-bookmarks-html")
         }
     }

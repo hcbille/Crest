@@ -119,7 +119,8 @@ internal static class RecordedIntents {
             "space.search_provider.upsert" => Upserted(workspace, Id("spaceId"), arguments, current),
             "space.search_provider.remove" => [new RemoveSearchEngine(workspace, Id("spaceId"), Argument("id"))],
             // A recorded import brought a file's Spaces.
-            "workspace.import" => [new ImportSpaces(workspace, window ?? Guid.Empty, Encoding.UTF8.GetBytes(arguments["sources"]!.ToJsonString()))],
+            "workspace.import" => [new ImportSpaces(workspace, window ?? Guid.Empty,
+                NativeWorkspaceImport.Decoded(Encoding.UTF8.GetBytes(arguments["sources"]!.ToJsonString())))],
             _ => null
         };
     }

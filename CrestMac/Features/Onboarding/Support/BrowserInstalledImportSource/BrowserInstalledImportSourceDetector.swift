@@ -2,10 +2,12 @@ import AppKit
 
 @MainActor
 enum BrowserInstalledImportSourceDetector {
+    /// Each browser Crest imports from that is installed, with what the core
+    /// found in its data folder.
     static func installedSources(
         workspace: NSWorkspace = .shared
     ) -> [BrowserInstalledImportSource] {
-        BrowserImportApplication.allCases.compactMap { application in
+        ImportSource.all.compactMap { application in
             guard
                 let url = workspace.urlForApplication(
                     withBundleIdentifier: application.bundleIdentifier
@@ -18,12 +20,7 @@ enum BrowserInstalledImportSourceDetector {
                 applicationURL: url,
                 detectedPayload: BrowserDetectedImportPayload(
                     application: application,
-                    profiles: BrowserImportDataLocator.importProfiles(
-                        for: application
-                    ),
-                    passwordStores: BrowserImportDataLocator.passwordStores(
-                        for: application
-                    )
+                    data: application.importData(in: application.defaultDataDirectory)
                 ),
                 icon: icon
             )
