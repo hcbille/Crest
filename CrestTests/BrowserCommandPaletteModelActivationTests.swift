@@ -6,20 +6,20 @@ import XCTest
 @MainActor
 final class BrowserCommandPaletteModelActivationTests: XCTestCase {
     func testActivationCarriesExactAssignmentsAndRejectsAStaleSource() throws {
-        let sourceTab = BrowserTab.startPage(
+        let sourceTab = TabState.Seed.startPage(
             id: uuid(0x11),
             lastActivatedAt: fixedDate
         )
-        let targetTab = BrowserTab(
+        let targetTab = TabState.Seed(
             id: uuid(0x12),
             title: "Target",
             url: URL(fileURLWithPath: "/palette-target"),
             placement: .current,
             lastActivatedAt: fixedDate
         )
-        let space = BrowserSpace(
+        let space = SpaceState.Seed(
             id: uuid(0x21),
-            profile: BrowsingProfile(id: uuid(0x31)),
+            profileID: uuid(0x31),
             name: "Palette",
             symbol: "command",
             accent: .indigo,
@@ -31,7 +31,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
         var capturedTarget: BrowserTabRuntimeAssignment?
         var dismissalCount = 0
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: sourceTab.id])
+            seed: SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: sourceTab.id])
         let model = BrowserCommandPaletteModel(
             browser: browser,
             space: browser.spaceModel(space.id),
@@ -62,7 +62,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
             BrowserTabRuntimeAssignment(
                 tabID: sourceTab.id,
                 spaceID: space.id,
-                profileID: space.profile.id
+                profileID: space.profileID
             )
         )
         XCTAssertEqual(
@@ -70,7 +70,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
             BrowserTabRuntimeAssignment(
                 tabID: targetTab.id,
                 spaceID: space.id,
-                profileID: space.profile.id
+                profileID: space.profileID
             )
         )
         XCTAssertEqual(dismissalCount, 1)
@@ -142,12 +142,12 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
 
     private func makePaletteFixture(
         searchSuggestionsEnabled: Bool
-    ) -> (space: BrowserSpace, sourceTab: BrowserTab) {
-        let sourceTab = BrowserTab.startPage(
+    ) -> (space: SpaceState.Seed, sourceTab: TabState.Seed) {
+        let sourceTab = TabState.Seed.startPage(
             id: uuid(0x41),
             lastActivatedAt: fixedDate
         )
-        let localTab = BrowserTab(
+        let localTab = TabState.Seed(
             id: uuid(0x42),
             title: "Local Crest tab",
             url: URL(string: "https://example.com/crest"),
@@ -156,26 +156,26 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
         )
         var preferences = BrowserSpaceBrowsingPreferences.default
         preferences.searchSuggestionsEnabled = searchSuggestionsEnabled
-        let space = BrowserSpace(
+        let space = SpaceState.Seed(
             id: uuid(0x51),
-            profile: BrowsingProfile(id: uuid(0x61)),
+            profileID: uuid(0x61),
             name: "Suggestions",
             symbol: "magnifyingglass",
             accent: .indigo,
             folders: [],
             tabs: [sourceTab, localTab],
-            browsingPreferences: preferences
+            browsingPreferences: preferences.core
         )
         return (space, sourceTab)
     }
 
     private func makeModel(
-        fixture: (space: BrowserSpace, sourceTab: BrowserTab),
+        fixture: (space: SpaceState.Seed, sourceTab: TabState.Seed),
         isPrivateBrowsing: Bool = false,
         recorder: SuggestionRecorder
     ) -> BrowserCommandPaletteModel {
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [fixture.space]), showing: fixture.space.id,
+            seed: SessionState.Seed(spaces: [fixture.space]), showing: fixture.space.id,
             tabs: [fixture.space.id: fixture.sourceTab.id],
             browsingMode: isPrivateBrowsing ? .privateBrowsing : .standard)
         return BrowserCommandPaletteModel(

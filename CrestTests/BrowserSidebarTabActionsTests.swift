@@ -20,7 +20,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         for invalidate in invalidations {
             let context = makeContext(placement: .pinned)
             let assignment = BrowserTabRuntimeAssignment(
-                tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profile.id)
+                tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profileID)
             let action = BrowserTabOrganizationAction(browser: context.browser, spaceAccess: context.access)
             XCTAssertTrue(action.setPinnedTabEmoji("🌙", for: assignment))
             invalidate(context)
@@ -36,7 +36,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
     func testTabLinkRejectsStaleSpaceProfileMissingAndLockedTargets() {
         let context = makeContext()
         let assignment = BrowserTabRuntimeAssignment(
-            tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profile.id)
+            tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profileID)
         let action = BrowserTabOrganizationAction(browser: context.browser, spaceAccess: context.access)
         XCTAssertNotNil(action.linkURL(for: assignment))
         context.browser.selectSpace(context.otherSpace.id)
@@ -47,7 +47,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         context.browser.updateSpaceAccessPolicy(.open, in: context.space.id)
         context.browser.replaceProfileForTesting(of: context.space.id, with: Self.uuid(4))
         XCTAssertNil(action.linkURL(for: assignment))
-        context.browser.replaceProfileForTesting(of: context.space.id, with: context.space.profile.id)
+        context.browser.replaceProfileForTesting(of: context.space.id, with: context.space.profileID)
         for tab in context.space.tabs { context.browser.deleteTab(tab.id, in: context.space.id) }
         XCTAssertNil(action.linkURL(for: assignment))
     }
@@ -56,7 +56,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         let context = makeContext()
         let host = BrowserLinkDestinationHost(browser: context.browser, spaceAccess: context.access)
         let source = BrowserTabRuntimeAssignment(
-            tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profile.id
+            tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profileID
         )
         let destination = BrowserSpaceRuntimeAssignment(space: context.otherSpace)
         let url = try XCTUnwrap(URL(string: "https://destination.crest.test/article"))
@@ -65,7 +65,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         XCTAssertTrue(host.openLink(url, from: source, in: destination))
 
         XCTAssertEqual(context.browser.session.spaces.count, 2)
-        XCTAssertEqual(context.browser.session.space(id: context.space.id)?.tabs, context.space.tabs)
+        XCTAssertEqual(context.browser.session.space(id: context.space.id)?.tabs.map(\.seed), context.space.tabs)
         let selected = try XCTUnwrap(context.browser.selectedSpace)
         XCTAssertEqual(selected.id, destination.spaceID)
         XCTAssertEqual(selected.profile.id, destination.profileID)
@@ -77,7 +77,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         let context = makeContext()
         let host = BrowserLinkDestinationHost(browser: context.browser, spaceAccess: context.access)
         let source = BrowserTabRuntimeAssignment(
-            tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profile.id
+            tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profileID
         )
         let destination = BrowserSpaceRuntimeAssignment(space: context.otherSpace)
         let url = try XCTUnwrap(URL(string: "https://destination.crest.test"))
@@ -107,7 +107,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
             let context = makeContext()
             let host = BrowserLinkDestinationHost(browser: context.browser, spaceAccess: context.access)
             let source = BrowserTabRuntimeAssignment(
-                tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profile.id
+                tabID: context.tab.id, spaceID: context.space.id, profileID: context.space.profileID
             )
             XCTAssertNil(host.selectionSearch(for: " \n ", from: source))
             let search = try XCTUnwrap(host.selectionSearch(for: "selected words", from: source))
@@ -151,7 +151,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
 
     func testFaviconPullCannotWriteAfterProtectedSpaceRelocksDuringAwait() async throws {
         let context = makeContext(isProtected: true)
-        let didUnlockSpace = await context.access.unlock(context.space)
+        let didUnlockSpace = await context.access.unlock(try XCTUnwrap(context.browser.spaceModel(context.space.id)))
         XCTAssertTrue(didUnlockSpace)
         let action = makeActions(context) { _, _ in
             context.access.lock(context.space.id)
@@ -254,22 +254,22 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
     }
 
     private func makeContext(isProtected: Bool = false, placement: TabPlacement = .saved) -> Context {
-        let tab = BrowserTab(
+        let tab = TabState.Seed(
             id: Self.uuid(1),
             title: "Exact tab",
             url: URL(string: "https://sidebar.crest.test"),
             placement: placement
         )
-        let currentTab = BrowserTab(
+        let currentTab = TabState.Seed(
             id: Self.uuid(5),
             title: "Current tab",
             url: URL(string: "https://sidebar.crest.test/current"),
             placement: .current,
             lastActivatedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
-        let space = BrowserSpace(
+        let space = SpaceState.Seed(
             id: Self.uuid(2),
-            profile: BrowsingProfile(id: Self.uuid(3)),
+            profileID: Self.uuid(3),
             name: "Exact Space",
             symbol: "sidebar.left",
             accent: .indigo,
@@ -277,16 +277,16 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
             tabs: [tab, currentTab],
             accessPolicy: isProtected ? .deviceOwnerAuthentication : .open
         )
-        let otherSpace = BrowserSpace(
+        let otherSpace = SpaceState.Seed(
             id: Self.uuid(6),
-            profile: BrowsingProfile(id: Self.uuid(7)),
+            profileID: Self.uuid(7),
             name: "Other Space",
             symbol: "square.grid.2x2",
             accent: .rose,
             folders: [],
             tabs: []
         )
-        let browser = BrowserStore(session: BrowserSession(spaces: [space, otherSpace]))
+        let browser = BrowserStore(seed: SessionState.Seed(spaces: [space, otherSpace]))
         let access = BrowserSpaceAccessController(authenticator: AcceptingAuthenticator())
         browser.attachSpaceAccess(access)
         return Context(
@@ -312,13 +312,14 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         let sidebarInteraction: BrowserSidebarInteractionState
         let browser: BrowserStore
         let access: BrowserSpaceAccessController
-        let space: BrowserSpace
-        let otherSpace: BrowserSpace
-        let tab: BrowserTab
+        let space: SpaceState.Seed
+        let otherSpace: SpaceState.Seed
+        let tab: TabState.Seed
 
         init(
-            browser: BrowserStore, access: BrowserSpaceAccessController, space: BrowserSpace, otherSpace: BrowserSpace,
-            tab: BrowserTab
+            browser: BrowserStore, access: BrowserSpaceAccessController, space: SpaceState.Seed,
+            otherSpace: SpaceState.Seed,
+            tab: TabState.Seed
         ) {
             self.browser = browser
             self.access = access

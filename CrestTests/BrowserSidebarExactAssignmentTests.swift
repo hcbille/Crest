@@ -42,7 +42,8 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         row.spacePresentation = SidebarSpacePresentation(space: destination, isUnlocked: true)
         XCTAssertFalse(row.isAvailableForDisplay, "A supplied foreign assignment must fail closed")
         XCTAssertFalse(SidebarSpaceRole.permitsInteraction(isSelected: true, isAvailable: row.isAvailableForDisplay))
-        row.spacePresentation = SidebarSpacePresentation(space: context.source, isUnlocked: false)
+        row.spacePresentation = SidebarSpacePresentation(
+            space: try XCTUnwrap(context.store.spaceModel(context.source.id)), isUnlocked: false)
         XCTAssertFalse(row.isAvailableForDisplay)
         XCTAssertFalse(SidebarSpaceRole.permitsInteraction(isSelected: true, isAvailable: row.isAvailableForDisplay))
 
@@ -358,7 +359,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         let historyURL = try XCTUnwrap(
             URL(string: "https://sidebar-history.crest.test/relock")
         )
-        let didUnlock = await access.unlock(context.source)
+        let didUnlock = await access.unlock(try XCTUnwrap(context.store.spaceModel(context.source.id)))
         XCTAssertTrue(didUnlock)
         // The core records nothing into a Space this process holds locked.
         context.store.seedVisit(to: historyURL, titled: "Relock", in: assignment.spaceID)
@@ -386,24 +387,24 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
 
     private func makeContext(sourceIsProtected: Bool = false) -> (
         store: BrowserStore,
-        source: BrowserSpace,
-        destination: BrowserSpace,
-        sourceTab: BrowserTab
+        source: SpaceState.Seed,
+        destination: SpaceState.Seed,
+        sourceTab: TabState.Seed
     ) {
-        let sourceTab = BrowserTab(
+        let sourceTab = TabState.Seed(
             id: fixedUUID(1),
             title: "Source tab",
             url: nil,
             placement: .current,
             lastActivatedAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
-        let destinationTab = BrowserTab.startPage(
+        let destinationTab = TabState.Seed.startPage(
             id: fixedUUID(2),
             lastActivatedAt: Date(timeIntervalSince1970: 1_700_000_001)
         )
-        let source = BrowserSpace(
+        let source = SpaceState.Seed(
             id: fixedUUID(3),
-            profile: BrowsingProfile(id: fixedUUID(4)),
+            profileID: fixedUUID(4),
             name: "Source",
             symbol: "1.circle",
             accent: .indigo,
@@ -413,32 +414,32 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
                 ? .deviceOwnerAuthentication
                 : .open
         )
-        let destination = BrowserSpace(
+        let destination = SpaceState.Seed(
             id: fixedUUID(5),
-            profile: BrowsingProfile(id: fixedUUID(6)),
+            profileID: fixedUUID(6),
             name: "Destination",
             symbol: "2.circle",
             accent: .rose,
             folders: [],
             tabs: [destinationTab]
         )
-        let store = BrowserStore(session: BrowserSession(spaces: [source, destination]), core: .hostingPages())
+        let store = BrowserStore(seed: SessionState.Seed(spaces: [source, destination]), core: .hostingPages())
         return (store, source, destination, sourceTab)
     }
 
     private func dragItem(
-        for tab: BrowserTab,
-        in space: BrowserSpace
+        for tab: TabState.Seed,
+        in space: SpaceState.Seed
     ) -> BrowserTabDragItem {
         BrowserTabDragItem(
             tabID: tab.id,
             spaceID: space.id,
-            profileID: space.profile.id
+            profileID: space.profileID
         )
     }
 
     private func replaceProfile(
-        of space: BrowserSpace,
+        of space: SpaceState.Seed,
         in store: BrowserStore
     ) {
         store.replaceProfileForTesting(of: space.id, with: fixedUUID(7))

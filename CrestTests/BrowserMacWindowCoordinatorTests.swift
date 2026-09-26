@@ -235,9 +235,9 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
     /// window was saved with. The window still comes back under its own
     /// identity, on what it showed, and never on the initial window's model.
     func testARestoredWindowReopensItsOwnRecordAndNotTheInitialWindow() async throws {
-        var session = BrowserSession.preview
+        var session = SessionState.Seed.preview
         session.defaultSpaceID = session.spaces[0].id
-        let harness = try BrowserStoredSessionHarness(session: session)
+        let harness = try BrowserStoredSessionHarness(seed: session)
         harness.core.engines.register(WebKitEngineBinding(), isDefault: true)
         let launched = makeCoordinator(over: harness.store)
         let main = try XCTUnwrap(launched.model(for: .initial))
@@ -301,7 +301,7 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
     /// A lifted row's payload comes back as the same row; the selection the
     /// lift captured stays with the lift and never enters the payload.
     func testDragItemsSurviveTheirTransferEncoding() throws {
-        let browser = BrowserStore(session: .preview)
+        let browser = BrowserStore(seed: .preview)
         let space = try XCTUnwrap(browser.selectedSpace)
         let tabs = space.tabs.filter { !$0.isStartPage }.prefix(2).map(\.id)
         let selection = try XCTUnwrap(browser.capturedSelection(ids: tabs))
@@ -338,12 +338,12 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
     }
 
     private func makeFixture() -> (browser: BrowserStore, coordinator: BrowserMacWindowCoordinator) {
-        let tab = BrowserTab(title: "Window lifecycle", url: URL(string: "about:blank"), placement: .current)
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Window lifecycle", symbol: "globe",
+        let tab = TabState.Seed(title: "Window lifecycle", url: URL(string: "about:blank"), placement: .current)
+        let space = SpaceState.Seed(
+            name: "Window lifecycle", symbol: "globe",
             accent: .indigo, folders: [], tabs: [tab])
         let browser = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space]),
+            SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: tab.id])
         let pages = BrowserPagePool(browser: browser)
         return (

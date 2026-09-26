@@ -156,8 +156,8 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
         let input: BrowserNativeMouseInput
         let model: BrowserRootModel
         let assignment: BrowserSpaceRuntimeAssignment
-        let presented: BrowserTab
-        let joiner: BrowserTab
+        let presented: TabState.Seed
+        let joiner: TabState.Seed
 
         func send(_ type: NSEvent.EventType, at global: CGPoint) {
             input.send(type, at: global)
@@ -182,7 +182,7 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
         line: UInt = #line
     ) throws -> HostedWindow {
         let date = Date(timeIntervalSince1970: 1_700_000_000)
-        let presented = BrowserTab(
+        let presented = TabState.Seed(
             id: Self.uuid(0x01),
             title: "Presented",
             url: URL(string: "about:blank"),
@@ -190,7 +190,7 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
             placement: .current,
             lastActivatedAt: date
         )
-        var joiner = BrowserTab(
+        var joiner = TabState.Seed(
             id: Self.uuid(0x02),
             title: "Joiner",
             url: URL(string: "about:blank"),
@@ -204,25 +204,25 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
             joiner.splitGroupID = group
             tabs = [presented, joiner]
             for index in 0..<2 {
-                var member = BrowserTab(
+                var member = TabState.Seed(
                     title: "Group member \(index)", url: URL(string: "about:blank"), symbol: "globe",
                     placement: .current, lastActivatedAt: date)
                 member.splitGroupID = group
                 tabs.append(member)
             }
         }
-        let space = BrowserSpace(
+        let space = SpaceState.Seed(
             id: Self.uuid(0x03),
-            profile: BrowsingProfile(id: Self.uuid(0x04)),
+            profileID: Self.uuid(0x04),
             name: "Drag To Split",
             symbol: "books.vertical.fill",
             accent: .indigo,
-            branding: .initial(accent: .indigo, symbol: "books.vertical.fill"),
+            branding: SpaceAccent.indigo.house,
             folders: [],
             tabs: tabs
         )
         let browser = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space]),
+            SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: presented.id]
         )
         let model = BrowserRootModel(

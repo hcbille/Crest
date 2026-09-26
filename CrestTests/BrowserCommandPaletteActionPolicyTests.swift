@@ -44,7 +44,7 @@ final class BrowserCommandPaletteActionPolicyTests: XCTestCase {
         browser.replaceProfileForTesting(of: source.id, with: uuid(0xF0))
         assertUnavailable()
         // It has its profile back, but asks for authentication.
-        browser.replaceProfileForTesting(of: source.id, with: source.profile.id)
+        browser.replaceProfileForTesting(of: source.id, with: source.profileID)
         browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: source.id)
         assertUnavailable()
         // It is gone.
@@ -104,9 +104,9 @@ final class BrowserCommandPaletteActionPolicyTests: XCTestCase {
             )
         )
 
-        browser.replaceProfileForTesting(of: source.id, with: source.profile.id)
+        browser.replaceProfileForTesting(of: source.id, with: source.profileID)
         browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: source.id)
-        let protectedSource = try XCTUnwrap(browser.session.space(id: source.id))
+        let protectedSource = try XCTUnwrap(browser.spaceModel(source.id)).value.seed
         XCTAssertNil(
             BrowserCommandPaletteActionPolicy.target(
                 try assignment(for: protectedSource),
@@ -118,23 +118,23 @@ final class BrowserCommandPaletteActionPolicyTests: XCTestCase {
     }
 
     private func makeBrowser(
-        spaces: [BrowserSpace],
+        spaces: [SpaceState.Seed],
         showing spaceID: SpaceID,
         tabs: [SpaceID: TabID] = [:]
     ) -> BrowserStore {
-        BrowserStore(session: BrowserSession(spaces: spaces), showing: spaceID, tabs: tabs)
+        BrowserStore(seed: SessionState.Seed(spaces: spaces), showing: spaceID, tabs: tabs)
     }
 
-    private func makeSpace(index: UInt8) -> BrowserSpace {
-        let tab = BrowserTab(
+    private func makeSpace(index: UInt8) -> SpaceState.Seed {
+        let tab = TabState.Seed(
             id: uuid(index &+ 1),
             title: "Tab \(index)",
             url: URL(fileURLWithPath: "/palette-\(index)"),
             placement: .current
         )
-        return BrowserSpace(
+        return SpaceState.Seed(
             id: uuid(index &+ 2),
-            profile: BrowsingProfile(id: uuid(index &+ 3)),
+            profileID: uuid(index &+ 3),
             name: "Space \(index)",
             symbol: "circle",
             accent: .indigo,
@@ -144,12 +144,12 @@ final class BrowserCommandPaletteActionPolicyTests: XCTestCase {
     }
 
     private func assignment(
-        for space: BrowserSpace
+        for space: SpaceState.Seed
     ) throws -> BrowserTabRuntimeAssignment {
         BrowserTabRuntimeAssignment(
             tabID: try XCTUnwrap(space.tabs.first?.id),
             spaceID: space.id,
-            profileID: space.profile.id
+            profileID: space.profileID
         )
     }
 

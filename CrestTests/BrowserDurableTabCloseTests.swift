@@ -26,15 +26,14 @@ final class BrowserDurableTabCloseTests: XCTestCase {
 
                 XCTAssertTrue(action.perform(context.assignment))
 
-                let closed = try XCTUnwrap(context.browser.selectedSpace?.tabs.first)
+                let space = try XCTUnwrap(context.browser.spaceModel(context.assignment.spaceID)).value.seed
                 var expected = context.tab
-                if policy == .returnToSavedURL { expected.url = expected.savedSiteURL }
-                XCTAssertEqual(closed, expected)
+                if policy == .returnToSavedURL { expected.url = expected.savedURL ?? expected.url }
+                XCTAssertEqual(space.tabs.first, expected)
                 XCTAssertEqual(discardedState, policy == .returnToSavedURL)
                 XCTAssertNil(context.browser.selectedTab)
-                XCTAssertEqual(context.browser.session.space(id: context.assignment.spaceID)?.tabs.first, expected)
-                XCTAssertEqual(context.browser.selectedSpace?.tabs.last, context.copy)
-                XCTAssertEqual(context.browser.selectedSpace?.archivedTabs, context.archived)
+                XCTAssertEqual(space.tabs.last, context.copy)
+                XCTAssertEqual(space.archivedTabs, context.archived)
             }
         }
     }
@@ -155,31 +154,32 @@ final class BrowserDurableTabCloseTests: XCTestCase {
     private func makeContext(placement: TabPlacement) throws -> Context {
         let root = try XCTUnwrap(URL(string: "https://example.com/root"))
         let child = try XCTUnwrap(URL(string: "https://example.com/child"))
-        let tab = BrowserTab(title: "Durable", url: child, savedURL: root, placement: placement)
-        let copy = BrowserTab(title: "Independent copy", url: child, placement: .current)
+        let tab = TabState.Seed(title: "Durable", url: child, savedURL: root, placement: placement)
+        let copy = TabState.Seed(title: "Independent copy", url: child, placement: .current)
         let archived = [
-            ArchivedTab(
-                tab: BrowserTab(title: "Archive", url: child, placement: .current), archivedAt: .now, reason: .closed)
+            ArchivedTabState.Seed(
+                tab: TabState.Seed(title: "Archive", url: child, placement: .current), archivedAt: .now,
+                reason: .closed)
         ]
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Test", symbol: "circle", accent: .indigo,
+        let space = SpaceState.Seed(
+            name: "Test", symbol: "circle", accent: .indigo,
             folders: [], tabs: [tab, copy], archivedTabs: archived
         )
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [space]),
+            seed: SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: tab.id]
         )
         return Context(
             browser: browser, tab: tab, copy: copy, archived: archived,
-            assignment: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profile.id)
+            assignment: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
         )
     }
 
     private struct Context {
         let browser: BrowserStore
-        let tab: BrowserTab
-        let copy: BrowserTab
-        let archived: [ArchivedTab]
+        let tab: TabState.Seed
+        let copy: TabState.Seed
+        let archived: [ArchivedTabState.Seed]
         let assignment: BrowserTabRuntimeAssignment
     }
 }

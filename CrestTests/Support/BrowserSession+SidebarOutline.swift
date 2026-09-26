@@ -26,6 +26,18 @@ extension BrowserSession {
     }
 }
 
+extension SessionState.Seed {
+    /// The identities of the rows the core's sidebar lists for this seed's
+    /// Space `spaceID`, as `BrowserSession.sidebarRowIDs` reads them: the
+    /// session opens in a window of its own.
+    @MainActor
+    func sidebarRowIDs(
+        in spaceID: SpaceID, location: BrowserFolderLocation, parentID: FolderID? = nil
+    ) -> [BrowserSidebarReorderItemID] {
+        BrowserStore(seed: self).sidebarRowIDs(in: spaceID, location: location, parentID: parentID)
+    }
+}
+
 extension BrowserStore {
     /// The identities of the rows this window's core lists for the Space
     /// `spaceID`: the top level of `location`'s section, or the inside of

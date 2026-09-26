@@ -463,8 +463,8 @@ final class BrowserUtilityListTests: XCTestCase {
     @MainActor
     func testArchivePreparationSortsByTheTimeTheTabWasClosed() throws {
         let now = Date(timeIntervalSinceReferenceDate: 900)
-        let older = ArchivedTab(
-            tab: BrowserTab(
+        let older = ArchivedTabState.Seed(
+            tab: TabState.Seed(
                 id: identifier(0x73),
                 title: "Older",
                 url: URL(string: "https://example.com/older"),
@@ -475,8 +475,8 @@ final class BrowserUtilityListTests: XCTestCase {
             archivedAt: Date(timeIntervalSinceReferenceDate: 850),
             reason: .closed
         )
-        let newer = ArchivedTab(
-            tab: BrowserTab(
+        let newer = ArchivedTabState.Seed(
+            tab: TabState.Seed(
                 id: identifier(0x74),
                 title: "Newer",
                 url: URL(string: "https://example.com/newer"),
@@ -487,10 +487,10 @@ final class BrowserUtilityListTests: XCTestCase {
             archivedAt: now,
             reason: .autoCleanup
         )
-        let space = BrowserSpace(
-            id: identifier(0x61), profile: BrowsingProfile(id: identifier(0x62)), name: "Archive",
+        let space = SpaceState.Seed(
+            id: identifier(0x61), profileID: identifier(0x62), name: "Archive",
             symbol: "archivebox", accent: .indigo, folders: [], tabs: [], archivedTabs: [older, newer])
-        let store = BrowserStore(session: BrowserSession(spaces: [space]), showing: space.id)
+        let store = BrowserStore(seed: SessionState.Seed(spaces: [space]), showing: space.id)
         let request = BrowserUtilityListRequest(
             surface: .archive,
             assignment: utilityDownloadContext().assignment,

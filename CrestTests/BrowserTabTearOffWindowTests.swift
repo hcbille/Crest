@@ -127,13 +127,13 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
         var completedPlacementFromRow = false
 
         init() throws {
-            let tab = BrowserTab(title: "Tear off", url: URL(string: "about:blank"), placement: .current)
+            let tab = TabState.Seed(title: "Tear off", url: URL(string: "about:blank"), placement: .current)
             tabID = tab.id
-            let space = BrowserSpace(
-                id: SpaceID(), profile: BrowsingProfile(), name: "Temporary windows", symbol: "globe",
+            let space = SpaceState.Seed(
+                name: "Temporary windows", symbol: "globe",
                 accent: .indigo, folders: [], tabs: [tab])
             let browser = BrowserStore.hostingPages(
-                BrowserSession(spaces: [space]),
+                SessionState.Seed(spaces: [space]),
                 showing: space.id, tabs: [space.id: tab.id])
             let access = BrowserSpaceAccessController()
             coordinator = BrowserMacWindowCoordinator(

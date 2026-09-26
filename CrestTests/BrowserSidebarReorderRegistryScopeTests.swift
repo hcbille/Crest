@@ -183,9 +183,9 @@ private func tile(_ index: Int, pageOffset: CGFloat) -> CGRect {
 private struct ReorderRegistryFixture {
     let sidebarInteraction: BrowserSidebarInteractionState
     let browser: BrowserStore
-    let ownPins: [BrowserTab]
-    let foreignPins: [BrowserTab]
-    let joiner: BrowserTab
+    let ownPins: [TabState.Seed]
+    let foreignPins: [TabState.Seed]
+    let joiner: TabState.Seed
 
     private let ownSpaceID = uuid(0x01)
     private let ownProfileID = uuid(0x02)
@@ -227,7 +227,7 @@ private struct ReorderRegistryFixture {
             tabs: foreignPins
         )
         browser = BrowserStore(
-            session: BrowserSession(spaces: [own, foreign]),
+            seed: SessionState.Seed(spaces: [own, foreign]),
             showing: own.id, tabs: firstTabs(of: [own, foreign]),
             browsingMode: .privateBrowsing
         )
@@ -369,9 +369,9 @@ private func splitCardFrames(count: Int) -> [CGRect] {
 private struct SplitCardRegistryFixture {
     let sidebarInteraction: BrowserSidebarInteractionState
     let browser: BrowserStore
-    let ownCards: [BrowserTab]
-    let foreignCards: [BrowserTab]
-    let joiner: BrowserTab
+    let ownCards: [TabState.Seed]
+    let foreignCards: [TabState.Seed]
+    let joiner: TabState.Seed
 
     private let ownCardCount: Int
     private let foreignCardCount: Int
@@ -415,7 +415,7 @@ private struct SplitCardRegistryFixture {
             tabs: foreignCards
         )
         browser = BrowserStore(
-            session: BrowserSession(spaces: [own, foreign]),
+            seed: SessionState.Seed(spaces: [own, foreign]),
             showing: own.id, tabs: firstTabs(of: [own, foreign]),
             browsingMode: .privateBrowsing
         )
@@ -508,11 +508,11 @@ private func makeSpace(
     id: SpaceID,
     profileID: UUID,
     name: String,
-    tabs: [BrowserTab]
-) -> BrowserSpace {
-    BrowserSpace(
+    tabs: [TabState.Seed]
+) -> SpaceState.Seed {
+    SpaceState.Seed(
         id: id,
-        profile: BrowsingProfile(id: profileID),
+        profileID: profileID,
         name: name,
         symbol: "rectangle.stack",
         accent: .indigo,
@@ -522,7 +522,7 @@ private func makeSpace(
 }
 
 /// Each Space shows its first tab, as the sidebar fixtures always have.
-private func firstTabs(of spaces: [BrowserSpace]) -> [SpaceID: TabID] {
+private func firstTabs(of spaces: [SpaceState.Seed]) -> [SpaceID: TabID] {
     var tabs: [SpaceID: TabID] = [:]
     for space in spaces {
         tabs[space.id] = space.tabs.first?.id
@@ -534,8 +534,8 @@ private func makeTab(
     id: TabID,
     title: String,
     placement: TabPlacement
-) -> BrowserTab {
-    BrowserTab(
+) -> TabState.Seed {
+    TabState.Seed(
         id: id,
         title: title,
         url: URL(fileURLWithPath: "/crest-reorder-registry-scope/\(title)"),

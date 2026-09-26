@@ -109,17 +109,17 @@ final class BrowserSidebarReorderLayoutTests: XCTestCase {
 
     @MainActor
     func testSavedFolderOutlineRetainsAnUnfiledTabBetweenFolders() {
-        let first = BrowserFolder(title: "First")
-        let second = BrowserFolder(title: "Second")
-        let firstTab = BrowserTab(
+        let first = FolderState.Seed(title: "First")
+        let second = FolderState.Seed(title: "Second")
+        let firstTab = TabState.Seed(
             title: "First member", url: URL(string: "https://example.com/"), placement: .saved, folderID: first.id)
-        let middle = BrowserTab(title: "Between", url: URL(string: "https://example.com/"), placement: .saved)
-        let secondTab = BrowserTab(
+        let middle = TabState.Seed(title: "Between", url: URL(string: "https://example.com/"), placement: .saved)
+        let secondTab = TabState.Seed(
             title: "Second member", url: URL(string: "https://example.com/"), placement: .saved, folderID: second.id)
-        var space = BrowserSession.makeBlankSpace(number: 1)
+        var space = SpaceState.Seed.blank(number: 1)
         space.folders = [first, second]
         space.tabs += [firstTab, middle, secondTab]
-        let session = BrowserSession(spaces: [space], defaultSpaceID: space.id)
+        let session = SessionState.Seed(spaces: [space], defaultSpaceID: space.id)
         XCTAssertEqual(
             session.sidebarRowIDs(in: space.id, location: .saved),
             [.folder(first.id), .tab(middle.id), .folder(second.id)])

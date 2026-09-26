@@ -179,7 +179,7 @@ final class BrowserPeekModelTests: XCTestCase {
         )
         XCTAssertTrue(context.model.wasPromoted)
         XCTAssertTrue(context.pages.activePage === promotedPage)
-        XCTAssertEqual(context.pages.activePage?.profileID, context.source.profile.id)
+        XCTAssertEqual(context.pages.activePage?.profileID, context.source.profileID)
         XCTAssertNil(context.coordinator.peekRequest)
     }
 
@@ -198,7 +198,7 @@ final class BrowserPeekModelTests: XCTestCase {
         XCTAssertFalse(context.pages.activePage === sourcePage)
         XCTAssertEqual(
             context.pages.activePage?.profileID,
-            context.destination.profile.id
+            context.destination.profileID
         )
     }
 
@@ -380,7 +380,7 @@ final class BrowserPeekModelTests: XCTestCase {
             id: context.request.id,
             url: try XCTUnwrap(URL(string: "about:srcdoc")),
             sourceTabID: try XCTUnwrap(context.destination.tabs.first?.id),
-            sourceTitle: context.destination.name,
+            sourceTitle: context.destination.settings.name,
             spaceAssignment: BrowserSpaceRuntimeAssignment(
                 space: context.destination
             ),
@@ -417,7 +417,7 @@ final class BrowserPeekModelTests: XCTestCase {
             id: context.request.id,
             url: try XCTUnwrap(URL(string: "about:srcdoc")),
             sourceTabID: try XCTUnwrap(context.destination.tabs.first?.id),
-            sourceTitle: context.destination.name,
+            sourceTitle: context.destination.settings.name,
             spaceAssignment: BrowserSpaceRuntimeAssignment(
                 space: context.destination
             ),
@@ -439,7 +439,7 @@ final class BrowserPeekModelTests: XCTestCase {
         let page = try XCTUnwrap(lease.page)
         let source = context.source
         context.browser.updateSpaceIdentity(
-            source.id, name: "Renamed Source", symbol: source.symbol, accent: source.accent)
+            source.id, name: "Renamed Source", symbol: source.settings.symbol, accent: source.settings.accent)
         context.browser.addSpace()
         let inserted = try XCTUnwrap(context.browser.session.spaces.last)
         context.browser.family.send(
@@ -461,7 +461,7 @@ final class BrowserPeekModelTests: XCTestCase {
         let destination = makeSpace(name: "Destination")
         let sourceTabID = try XCTUnwrap(source.tabs.first?.id)
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [source, destination]),
+            seed: SessionState.Seed(spaces: [source, destination]),
             showing: source.id, tabs: [source.id: sourceTabID],
             credentialVault: InMemoryCredentialVault(),
             browsingMode: browsingMode,
@@ -479,7 +479,7 @@ final class BrowserPeekModelTests: XCTestCase {
         let request = BrowserPeekRequest(
             url: try XCTUnwrap(URL(string: "about:blank")),
             sourceTabID: sourceTabID,
-            sourceTitle: source.name,
+            sourceTitle: source.settings.name,
             spaceAssignment: BrowserSpaceRuntimeAssignment(space: source),
             trigger: .modifierClick
         )
@@ -523,11 +523,9 @@ final class BrowserPeekModelTests: XCTestCase {
         }
     }
 
-    private func makeSpace(name: String) -> BrowserSpace {
-        let tab = BrowserTab.startPage()
-        return BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+    private func makeSpace(name: String) -> SpaceState.Seed {
+        let tab = TabState.Seed.startPage()
+        return SpaceState.Seed(
             name: name,
             symbol: "circle",
             accent: .indigo,
@@ -537,8 +535,8 @@ final class BrowserPeekModelTests: XCTestCase {
     }
 
     private struct PeekTestContext {
-        let source: BrowserSpace
-        let destination: BrowserSpace
+        let source: SpaceState.Seed
+        let destination: SpaceState.Seed
         let browser: BrowserStore
         let pages: BrowserPagePool
         let coordinator: BrowserTransientBrowsingCoordinator

@@ -18,6 +18,13 @@
         }
     }
 
+    extension ArchivedTabState.Seed {
+        // MARK: - Variables
+
+        /// The archived tab's identity.
+        var id: UUID { tab.id }
+    }
+
     extension BrowserSpaceRuntimeAssignment {
         // MARK: - Initializers
 

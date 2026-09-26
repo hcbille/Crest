@@ -129,7 +129,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         XCTAssertNil(model.spaceModel)
         XCTAssertFalse(model.archivePageIfNeeded())
         XCTAssertFalse(model.promote(to: BrowserSpaceRuntimeAssignment(space: replacement)))
-        XCTAssertEqual(model.selectedAssignment.profileID, context.source.profile.id)
+        XCTAssertEqual(model.selectedAssignment.profileID, context.source.profileID)
     }
 
     func testPermanentlyInvalidatedLeaseIsRebuiltForTheSameAssignment() throws {
@@ -376,7 +376,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         XCTAssertTrue(model.promote(to: BrowserSpaceRuntimeAssignment(space: context.source)))
         XCTAssertTrue(model.wasPromoted)
         XCTAssertTrue(context.pages.activePage === promotedPage)
-        XCTAssertEqual(context.pages.activePage?.profileID, context.source.profile.id)
+        XCTAssertEqual(context.pages.activePage?.profileID, context.source.profileID)
         let tabs = context.browser.session.tabIDs
         XCTAssertFalse(model.promote(to: BrowserSpaceRuntimeAssignment(space: context.source)))
         model.releaseForDismissal()
@@ -519,7 +519,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         let source = makeSpace(name: "Source")
         let destination = makeSpace(name: "Destination")
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [source, destination]),
+            seed: SessionState.Seed(spaces: [source, destination]),
             credentialVault: InMemoryCredentialVault(),
             browsingMode: browsingMode,
             core: .hostingPages()
@@ -567,11 +567,9 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         )
     }
 
-    private func makeSpace(name: String) -> BrowserSpace {
-        let tab = BrowserTab.startPage()
-        return BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
+    private func makeSpace(name: String) -> SpaceState.Seed {
+        let tab = TabState.Seed.startPage()
+        return SpaceState.Seed(
             name: name,
             symbol: "circle",
             accent: .indigo,
@@ -595,29 +593,28 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         }
     }
 
-    private func replacingProfile(of source: BrowserSpace) -> BrowserSpace {
-        BrowserSpace(
+    private func replacingProfile(of source: SpaceState.Seed) -> SpaceState.Seed {
+        SpaceState.Seed(
             id: source.id,
-            profile: BrowsingProfile(),
-            name: source.name,
-            symbol: source.symbol,
-            accent: source.accent,
-            branding: source.branding,
+            name: source.settings.name,
+            symbol: source.settings.symbol,
+            accent: source.settings.accent,
+            branding: source.settings.branding,
             folders: source.folders,
             tabs: source.tabs,
             archivedTabs: source.archivedTabs,
             history: source.history,
-            browsingPreferences: source.browsingPreferences,
-            credentialPreferences: source.credentialPreferences,
-            accessPolicy: source.accessPolicy,
-            isSavedTabsExpanded: source.isSavedTabsExpanded,
-            savedTabsExpansionModifiedAt: source.savedTabsExpansionModifiedAt
+            browsingPreferences: source.settings.browsingPreferences,
+            credentialPreferences: source.settings.credentialPreferences,
+            accessPolicy: source.settings.accessPolicy,
+            isSavedTabsExpanded: source.settings.isSavedTabsExpanded,
+            savedTabsExpansionModifiedAt: source.settings.savedTabsExpansionModifiedAt
         )
     }
 
     private struct QuickWindowTestContext {
-        let source: BrowserSpace
-        let destination: BrowserSpace
+        let source: SpaceState.Seed
+        let destination: SpaceState.Seed
         let browser: BrowserStore
         let pages: BrowserPagePool
         let spaceAccess: BrowserSpaceAccessController

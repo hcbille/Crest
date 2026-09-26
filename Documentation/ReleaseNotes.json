@@ -2841,6 +2841,10 @@
     "2026-09-26-webkit-downloads-through-core": {
       "category": "internal",
       "message": "WebKit's downloads run as the engine's own through the core, which asks where to save, whether to keep a risky file, and whether a site may download automatically"
+    },
+    "2026-09-26-seeded-sidebar-tests": {
+      "category": "internal",
+      "message": "Sidebar, split and window tests open typed seed sessions in the core"
     }
   }
 }

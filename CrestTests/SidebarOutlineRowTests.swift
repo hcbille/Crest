@@ -121,18 +121,18 @@ final class SidebarOutlineRowTests: XCTestCase {
     /// screen for the shown tab is the whole split the content presents.
     func testCollapsedFolderKeepsTheWholeSelectedSplitGroupVisible() throws {
         let group = Self.uuid(0x0E)
-        let folder = BrowserFolder(title: "Collapsed", isCollapsed: true)
+        let folder = FolderState.Seed(title: "Collapsed", isCollapsed: true)
         let head = makeTab(0xD1, "Head", group: group, placement: .saved, folderID: folder.id)
         let selected = makeTab(0xD2, "Selected", group: group, placement: .saved, folderID: folder.id)
         let neighbor = makeTab(0xD3, "Neighbor", placement: .saved, folderID: folder.id)
-        var space = BrowserSession.makeBlankSpace(number: 1)
+        var space = SpaceState.Seed.blank(number: 1)
         space.folders = [folder]
         space.tabs += [head, selected, neighbor]
-        let session = BrowserSession(spaces: [space], defaultSpaceID: space.id)
+        let session = SessionState.Seed(spaces: [space], defaultSpaceID: space.id)
 
+        let store = BrowserStore(seed: session)
         let kept = try XCTUnwrap(
-            session.sidebarRows(in: space.id, location: .saved, parentID: folder.id)
-                .first { $0.members.contains(selected.id) })
+            store.spaceModel(space.id)?.sidebar.inside(folder.id).rows.first { $0.members.contains(selected.id) })
 
         XCTAssertEqual(
             kept.members,
@@ -144,23 +144,23 @@ final class SidebarOutlineRowTests: XCTestCase {
     // MARK: - Fixtures
 
     /// The open tabs' top level for `tabs` opened in a Space of their own.
-    private func rows(of tabs: [BrowserTab]) throws -> [SidebarRow] {
+    private func rows(of tabs: [TabState.Seed]) throws -> [SidebarRow] {
         let (store, space) = try open(tabs)
         return try XCTUnwrap(store.spaceModel(space.id)).sidebar.section(.current).rows
     }
 
     /// The sidebar's list items for that top level, naming each row's
     /// following tab as a sidebar drawing drop seams names it.
-    private func items(of tabs: [BrowserTab]) throws -> [BrowserSidebarListItem] {
+    private func items(of tabs: [TabState.Seed]) throws -> [BrowserSidebarListItem] {
         let (store, space) = try open(tabs)
         let model = try XCTUnwrap(store.spaceModel(space.id))
         return BrowserSidebarListItem.items(of: model.sidebar.section(.current), in: model, namesFollowingTabs: true)
     }
 
-    private func open(_ tabs: [BrowserTab]) throws -> (BrowserStore, BrowserSpace) {
-        var space = BrowserSession.makeBlankSpace(number: 1)
+    private func open(_ tabs: [TabState.Seed]) throws -> (BrowserStore, SpaceState.Seed) {
+        var space = SpaceState.Seed.blank(number: 1)
         space.tabs = tabs
-        let store = BrowserStore(session: BrowserSession(spaces: [space], defaultSpaceID: space.id))
+        let store = BrowserStore(seed: SessionState.Seed(spaces: [space], defaultSpaceID: space.id))
         return (store, space)
     }
 
@@ -170,8 +170,8 @@ final class SidebarOutlineRowTests: XCTestCase {
         group: SplitGroupID? = nil,
         placement: TabPlacement = .current,
         folderID: FolderID? = nil
-    ) -> BrowserTab {
-        BrowserTab(
+    ) -> TabState.Seed {
+        TabState.Seed(
             id: Self.uuid(finalByte),
             title: title,
             url: URL(fileURLWithPath: "/crest-sidebar-item-policy/\(title)"),

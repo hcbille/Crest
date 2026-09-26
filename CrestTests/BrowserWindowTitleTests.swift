@@ -11,12 +11,12 @@ final class BrowserWindowTitleTests: XCTestCase {
     func testBlankTitlesUseSafeHostWithoutCredentialsPathOrQuery() {
         let model = makeModel { tabs in
             tabs[0].title = " \n\t "
-            tabs[0].url = URL(string: "https://user:secret@www.example.com:8443/private?token=secret")
+            tabs[0].url = "https://user:secret@www.example.com:8443/private?token=secret"
         }
         XCTAssertEqual(model.windowTitle, "example.com:8443")
         let local = makeModel { tabs in
             tabs[0].title = " \n\t "
-            tabs[0].url = URL(string: "file:///private/secret.html")
+            tabs[0].url = "file:///private/secret.html"
         }
         XCTAssertEqual(local.windowTitle, ProductIdentity.name)
     }
@@ -72,9 +72,9 @@ final class BrowserWindowTitleTests: XCTestCase {
     }
 
     func testSpaceSwitchRejectsThePreviousActivePage() async throws {
-        let beta = BrowserTab(title: "Beta", url: URL(string: "https://beta.crest.test"), placement: .current)
-        let destination = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Other", symbol: "circle", accent: .indigo,
+        let beta = TabState.Seed(title: "Beta", url: URL(string: "https://beta.crest.test"), placement: .current)
+        let destination = SpaceState.Seed(
+            name: "Other", symbol: "circle", accent: .indigo,
             folders: [], tabs: [beta]
         )
         let model = makeModel(adding: [destination])
@@ -96,20 +96,20 @@ final class BrowserWindowTitleTests: XCTestCase {
     /// A window over a Space showing Alpha, then Beta, with `adding` after it
     /// and its tabs as `configure` leaves them; or over `browser`'s session.
     private func makeModel(
-        browser: BrowserStore? = nil, adding extra: [BrowserSpace] = [],
-        configure: (inout [BrowserTab]) -> Void = { _ in }
+        browser: BrowserStore? = nil, adding extra: [SpaceState.Seed] = [],
+        configure: (inout [TabState.Seed]) -> Void = { _ in }
     ) -> BrowserRootModel {
-        let alpha = BrowserTab(title: "Alpha", url: URL(string: "https://alpha.crest.test"), placement: .current)
-        let beta = BrowserTab(title: "Beta", url: URL(string: "https://beta.crest.test"), placement: .current)
+        let alpha = TabState.Seed(title: "Alpha", url: URL(string: "https://alpha.crest.test"), placement: .current)
+        let beta = TabState.Seed(title: "Beta", url: URL(string: "https://beta.crest.test"), placement: .current)
         var tabs = [alpha, beta]
         configure(&tabs)
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Test", symbol: "circle", accent: .indigo,
+        let space = SpaceState.Seed(
+            name: "Test", symbol: "circle", accent: .indigo,
             folders: [], tabs: tabs
         )
         let browser =
             browser
-            ?? BrowserStore.hostingPages(BrowserSession(spaces: [space] + extra))
+            ?? BrowserStore.hostingPages(SessionState.Seed(spaces: [space] + extra))
         let spaceAccess = BrowserSpaceAccessController(authenticator: TitleAuthenticator())
         browser.attachSpaceAccess(spaceAccess)
         return BrowserRootModel(

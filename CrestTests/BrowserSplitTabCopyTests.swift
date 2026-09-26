@@ -8,7 +8,7 @@ final class BrowserSplitTabCopyTests: XCTestCase {
     func testDurableParticipantsStayInPlaceAndSplitUsesIndependentCurrentCopies() throws {
         for sourcePlacement in [TabPlacement.pinned, .saved, .current] {
             for targetPlacement in [TabPlacement.pinned, .saved, .current] {
-                let folder = BrowserFolder(title: "Research")
+                let folder = FolderState.Seed(title: "Research")
                 let source = tab("Source", placement: sourcePlacement, folder: folder.id)
                 let target = tab("Target", placement: targetPlacement, folder: folder.id)
                 let store = store(tabs: [source, target], folders: [folder], selected: target.id)
@@ -29,7 +29,7 @@ final class BrowserSplitTabCopyTests: XCTestCase {
                 }
                 XCTAssertEqual(
                     space.tabs.filter { $0.placement != .current }, originals.filter { $0.placement != .current })
-                XCTAssertEqual(selected.url, source.url)
+                XCTAssertEqual(selected.url?.absoluteString, source.url)
                 XCTAssertNil(selected.savedURL)
                 XCTAssertEqual(Set(space.tabs.map(\.id)).count, space.tabs.count)
                 XCTAssertEqual(space.tabs.count, 2 + originals.filter { $0.placement != .current }.count)
@@ -59,7 +59,7 @@ final class BrowserSplitTabCopyTests: XCTestCase {
     }
 
     func testSavedDestinationGroupIsCopiedInOrderAndSurvivesSessionReload() throws {
-        let folder = BrowserFolder(title: "Nested research")
+        let folder = FolderState.Seed(title: "Nested research")
         let groupID = SplitGroupID()
         var head = tab("Head", placement: .saved, folder: folder.id)
         var tail = tab("Tail", placement: .saved, folder: folder.id)
@@ -100,13 +100,13 @@ final class BrowserSplitTabCopyTests: XCTestCase {
 
     func testFullGroupAndDraftRefuseLinkAndDurableCopiesWithoutMutation() throws {
         let groupID = SplitGroupID()
-        let members = (0..<4).map { index -> BrowserTab in
+        let members = (0..<4).map { index -> TabState.Seed in
             var member = tab("Member\(index)", placement: .saved)
             member.splitGroupID = groupID
             return member
         }
         let source = tab("Pinned", placement: .pinned)
-        let draft = BrowserTab.startPage()
+        let draft = TabState.Seed.startPage()
         let store = store(tabs: [source] + members + [draft], selected: members[0].id)
         let space = try XCTUnwrap(store.selectedSpace)
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
@@ -115,8 +115,8 @@ final class BrowserSplitTabCopyTests: XCTestCase {
         XCTAssertFalse(store.addTabToSplit(item, joining: members[0].id, at: nil))
         XCTAssertFalse(store.addTabToSplit(item, joining: draft.id, at: nil))
         XCTAssertNil(
-            store.openLinkInSplit(url: try XCTUnwrap(source.url), joining: members[0].id, matching: assignment))
-        XCTAssertNil(store.openLinkInSplit(url: try XCTUnwrap(source.url), joining: draft.id, matching: assignment))
+            store.openLinkInSplit(url: try XCTUnwrap(source.address), joining: members[0].id, matching: assignment))
+        XCTAssertNil(store.openLinkInSplit(url: try XCTUnwrap(source.address), joining: draft.id, matching: assignment))
         XCTAssertEqual(store.session, original)
     }
 
@@ -134,7 +134,7 @@ final class BrowserSplitTabCopyTests: XCTestCase {
         XCTAssertEqual(store.selectedTab?.id, openedID)
         XCTAssertEqual(store.selectedTab?.url, linkURL)
         XCTAssertEqual(store.selectedSpace?.tabs.count, 3)
-        XCTAssertEqual(store.selectedSpace?.pinnedTabs, [target])
+        XCTAssertEqual(store.selectedSpace?.pinnedTabs.map(\.seed), [target])
     }
 
     func testRepeatingWithAnExistingCopyDoesNotCopyItAgain() throws {
@@ -155,15 +155,15 @@ final class BrowserSplitTabCopyTests: XCTestCase {
     }
 
     func testSyncRoundTripKeepsDurableOriginalsAndOpenFolderMembership() async throws {
-        let savedFolder = BrowserFolder(title: "Saved research")
-        let currentFolder = BrowserFolder(title: "Open work", location: .current)
+        let savedFolder = FolderState.Seed(title: "Saved research")
+        let currentFolder = FolderState.Seed(title: "Open work", location: .current)
         let source = tab("Saved", placement: .saved, folder: savedFolder.id)
         var target = tab("Open", placement: .current)
         target.folderID = currentFolder.id
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Work", symbol: "globe", accent: .teal,
+        let space = SpaceState.Seed(
+            name: "Work", symbol: "globe", accent: .teal,
             folders: [savedFolder, currentFolder], tabs: [source, target])
-        let harness = try await BrowserStoredSessionHarness.uploaded(BrowserSession(spaces: [space]))
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: SessionState.Seed(spaces: [space]))
         let store = harness.store
         store.selectTab(target.id)
         let assignment = BrowserSpaceRuntimeAssignment(space: try XCTUnwrap(store.selectedSpace))
@@ -176,14 +176,14 @@ final class BrowserSplitTabCopyTests: XCTestCase {
         let restored = try XCTUnwrap(materialized.space(id: store.selectedSpaceID))
         XCTAssertEqual(restored.tabs.map(\.id), store.selectedSpace?.tabs.map(\.id))
         XCTAssertEqual(restored.tabs.first { $0.id == source.id }?.folderID, savedFolder.id)
-        XCTAssertEqual(restored.tabs.first { $0.id == source.id }?.savedURL, source.savedURL)
+        XCTAssertEqual(restored.tabs.first { $0.id == source.id }?.savedURL?.absoluteString, source.savedURL)
         XCTAssertEqual(restored.tabs.first { $0.id == copy.id }?.folderID, currentFolder.id)
         XCTAssertEqual(restored.tabs.first { $0.id == copy.id }?.splitGroupID, copy.splitGroupID)
         XCTAssertFalse(pending.contains { $0.kind == .tab && $0.id == source.id })
     }
 
-    private func tab(_ title: String, placement: TabPlacement, folder: FolderID? = nil) -> BrowserTab {
-        BrowserTab(
+    private func tab(_ title: String, placement: TabPlacement, folder: FolderID? = nil) -> TabState.Seed {
+        TabState.Seed(
             title: title,
             url: URL(string: "https://crest.test/\(title)/child"),
             savedURL: placement == .current ? nil : URL(string: "https://crest.test/\(title)"),
@@ -193,12 +193,12 @@ final class BrowserSplitTabCopyTests: XCTestCase {
         )
     }
 
-    private func store(tabs: [BrowserTab], folders: [BrowserFolder] = [], selected: TabID) -> BrowserStore {
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Work", symbol: "globe", accent: .teal, folders: folders,
+    private func store(tabs: [TabState.Seed], folders: [FolderState.Seed] = [], selected: TabID) -> BrowserStore {
+        let space = SpaceState.Seed(
+            name: "Work", symbol: "globe", accent: .teal, folders: folders,
             tabs: tabs)
         return BrowserStore(
-            session: BrowserSession(spaces: [space]),
+            seed: SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: selected])
     }
 }

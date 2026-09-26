@@ -61,7 +61,7 @@ final class BrowserChromeLayoutTests: XCTestCase {
 
     @MainActor
     func testSettingsPresentationRejectsAReplacementBrowsingProfile() throws {
-        let browser = BrowserStore(session: .preview)
+        let browser = BrowserStore(seed: .preview)
         let original = try XCTUnwrap(browser.selectedSpace)
         let presentation = BrowserSpaceSettingsPresentationState()
         presentation.present(
@@ -95,7 +95,7 @@ final class BrowserChromeLayoutTests: XCTestCase {
 
     @MainActor
     func testSidebarClearHistoryKeepsTheInitiatingSpaceAfterSelectionChanges() throws {
-        let browser = BrowserStore(session: .preview)
+        let browser = BrowserStore(seed: .preview)
         let initiatingSpace = try XCTUnwrap(browser.selectedSpace)
         let laterSelectedSpace = try XCTUnwrap(
             browser.session.spaces.first { $0.id != initiatingSpace.id }
@@ -400,15 +400,16 @@ extension BrowserChromeLayoutTests {
     @MainActor
     func testChromeAppearanceChangesPreserveLivePageHostsAndDocumentState() async throws {
         for split in [false, true] {
-            var space = BrowserRootPreviewFixture.space
-            space.tabs = split ? BrowserRootPreviewFixture.splitMembers : [BrowserRootPreviewFixture.splitMembers[0]]
+            var space = BrowserRootPreviewFixture.space.seed
+            let members = BrowserRootPreviewFixture.splitMembers.map(\.seed)
+            space.tabs = split ? members : [members[0]]
             for index in space.tabs.indices {
-                space.tabs[index].url = URL(string: "about:blank")
+                space.tabs[index].url = "about:blank"
                 if !split { space.tabs[index].splitGroupID = nil }
             }
             let selectedTabID = space.tabs[0].id
             let browser = BrowserStore.hostingPages(
-                BrowserSession(spaces: [space]),
+                SessionState.Seed(spaces: [space]),
                 showing: space.id, tabs: [space.id: selectedTabID])
             let pages = BrowserPagePool(browser: browser)
             pages.select(session: browser.presented)

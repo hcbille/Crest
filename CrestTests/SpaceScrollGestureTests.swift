@@ -485,10 +485,10 @@ final class SpaceScrollGestureTests: XCTestCase {
     /// A window over `count` Spaces, whose read model the pager draws.
     private func nativeStore(count: Int = 3) -> BrowserStore {
         BrowserStore(
-            session: BrowserSession(
+            seed: SessionState.Seed(
                 spaces: (0..<count).map { index in
-                    BrowserSpace(
-                        id: SpaceID(), profile: BrowsingProfile(), name: "Space \(index)",
+                    SpaceState.Seed(
+                        name: "Space \(index)",
                         symbol: "globe", accent: .indigo, folders: [], tabs: [])
                 }))
     }

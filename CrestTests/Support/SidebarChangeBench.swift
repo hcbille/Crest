@@ -31,13 +31,13 @@ final class SidebarChangeBench {
 
     // MARK: - Initializers
 
-    init(session: BrowserSession, pageCount: Int = 100) {
+    init(session: SessionState.Seed, pageCount: Int = 100) {
         let core = CrestCore.hostingPages()
         var opened: WorkspaceOpened?
         core.batchApplied = { changes in
             for case .workspaceOpened(let change) in changes { opened = change }
         }
-        let store = BrowserStore(session: session, core: core)
+        let store = BrowserStore(seed: session, core: core)
         guard let opening = opened, let workspace = core.state.workspaces[store.window.workspaceID],
             let space = workspace.spaces.model(session.spaces[0].id)
         else { preconditionFailure("The bench's session did not open.") }

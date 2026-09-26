@@ -68,9 +68,9 @@ final class BrowserSidebarPinByDragWindowTests: XCTestCase {
         let input: BrowserNativeMouseInput
         let model: BrowserRootModel
         let assignment: BrowserSpaceRuntimeAssignment
-        let pinned: BrowserTab
-        let presented: BrowserTab
-        let joiner: BrowserTab
+        let pinned: TabState.Seed
+        let presented: TabState.Seed
+        let joiner: TabState.Seed
 
         /// Presses inside `origin` and pulls to `destination`, leaving the
         /// button down so the resolved target can be read mid-drag.
@@ -100,8 +100,8 @@ final class BrowserSidebarPinByDragWindowTests: XCTestCase {
             _ byte: UInt8,
             _ title: String,
             _ placement: Crest.TabPlacement
-        ) -> BrowserTab {
-            BrowserTab(
+        ) -> TabState.Seed {
+            TabState.Seed(
                 id: Self.uuid(byte),
                 title: title,
                 url: URL(string: "about:blank"),
@@ -114,18 +114,18 @@ final class BrowserSidebarPinByDragWindowTests: XCTestCase {
         let saved = makeTab(0x02, "Saved", .saved)
         let presented = makeTab(0x03, "Presented", .current)
         let joiner = makeTab(0x04, "Joiner", .current)
-        let space = BrowserSpace(
+        let space = SpaceState.Seed(
             id: Self.uuid(0x05),
-            profile: BrowsingProfile(id: Self.uuid(0x06)),
+            profileID: Self.uuid(0x06),
             name: "Pin By Drag",
             symbol: "books.vertical.fill",
             accent: .indigo,
-            branding: .initial(accent: .indigo, symbol: "books.vertical.fill"),
+            branding: SpaceAccent.indigo.house,
             folders: [],
             tabs: [pinned, saved, presented, joiner]
         )
         let browser = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space]),
+            SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: presented.id]
         )
         let model = BrowserRootModel(

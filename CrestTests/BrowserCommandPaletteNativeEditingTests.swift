@@ -142,12 +142,12 @@ final class BrowserCommandPaletteNativeEditingTests: XCTestCase {
         window: NSWindow, field: NSTextField, coordinator: BrowserPlatformCommandPaletteField.Coordinator,
         model: BrowserCommandPaletteModel
     ) {
-        let tab = BrowserTab(title: "Example", url: URL(string: "https://example.com/path"), placement: .current)
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Test", symbol: "globe", accent: .indigo, folders: [],
+        let tab = TabState.Seed(title: "Example", url: URL(string: "https://example.com/path"), placement: .current)
+        let space = SpaceState.Seed(
+            name: "Test", symbol: "globe", accent: .indigo, folders: [],
             tabs: [tab])
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
+            seed: SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let model = BrowserCommandPaletteModel(
             browser: browser, space: browser.spaceModel(space.id), selectedTabID: tab.id, initialQuery: "",
             commands: nil,

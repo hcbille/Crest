@@ -9,7 +9,7 @@ import struct SwiftUI.Color
 final class BrowserInteractionModelTests: XCTestCase {
 
     func testSpaceIdentityAndOrderingRemainStableAcrossEdits() throws {
-        let browser = BrowserStore(session: .preview)
+        let browser = BrowserStore(seed: .preview)
         let profilesBySpaceID = Dictionary(
             uniqueKeysWithValues: browser.session.spaces.map {
                 ($0.id, $0.profile.id)
@@ -42,12 +42,12 @@ final class BrowserInteractionModelTests: XCTestCase {
     }
 
     func testRowInsertionLowerHalfResolvesBeforeTheActualFollowingTab() throws {
-        let first = BrowserTab(title: "First", url: URL(string: "https://example.com/1"), placement: .current)
-        let second = BrowserTab(title: "Second", url: URL(string: "https://example.com/2"), placement: .current)
-        let third = BrowserTab(title: "Third", url: URL(string: "https://example.com/3"), placement: .current)
-        var space = BrowserSession.makeBlankSpace(number: 1)
+        let first = TabState.Seed(title: "First", url: URL(string: "https://example.com/1"), placement: .current)
+        let second = TabState.Seed(title: "Second", url: URL(string: "https://example.com/2"), placement: .current)
+        let third = TabState.Seed(title: "Third", url: URL(string: "https://example.com/3"), placement: .current)
+        var space = SpaceState.Seed.blank(number: 1)
         space.tabs = [first, second, third]
-        let browser = BrowserStore(session: BrowserSession(spaces: [space], defaultSpaceID: space.id))
+        let browser = BrowserStore(seed: SessionState.Seed(spaces: [space], defaultSpaceID: space.id))
         let model = try XCTUnwrap(browser.spaceModel(space.id))
         let items = BrowserSidebarListItem.items(
             of: model.sidebar.section(.current), in: model, namesFollowingTabs: true)
