@@ -24,7 +24,10 @@ class GURL;
 class Profile;
 
 namespace content {
+class NavigationThrottle;
+class NavigationThrottleRegistry;
 class WebContents;
+struct OpenURLParams;
 }
 
 namespace crest {
@@ -53,7 +56,16 @@ class EnginePrompts;
 // must never destroy a WebContents inside one of its own observers, so no
 // report is made on the stack of a Chromium callback: reports and
 // presentations queue, and one task posted to the UI thread sends them in
-// order. A page's snapshot is sent last in the turn in which it changed.
+// order. A page's snapshot is sent last in the turn in which it changed. A
+// question, such as what a click on a link does, is asked on the engine's own
+// stack, because the engine waits for the answer; the core answers at once
+// and changes nothing.
+//
+// A page the engine opens by itself is offered to the core, which adopts it
+// for a tab it opens or refuses it. A link that opens in Peek is presented to
+// the platform, and a modified click's link is staged here, keeping the
+// referrer, initiator and security Chromium verified, until the Peek's page
+// loads it or it is dropped.
 class EngineBinding {
  public:
   // What the platform shell still does for the binding. TRANSITIONAL: the
@@ -68,20 +80,14 @@ class EngineBinding {
                                                  Profile* profile,
                                                  const std::string& profile_id,
                                                  const std::string& window) = 0;
-    // Makes the WebContents the engine offered as `token` the page, when it is
-    // in `profile`, and answers it, or nullptr when the offer is gone.
-    virtual content::WebContents* AdoptContents(const std::string& page,
-                                                const std::string& token,
-                                                const std::string& profile) = 0;
-    // The page the engine offered as `token` has no place in Crest; it closes.
-    // TRANSITIONAL until engine-offered pages move to the core (WP C (l)).
-    virtual bool RejectAdoption(const std::string& token) = 0;
+    // Follows `contents`, which the engine opened by itself in `profile` and
+    // the core adopted, as `page`, and answers whether a Browser holds it.
+    virtual bool AdoptContents(const std::string& page, content::WebContents* contents, const std::string& profile) = 0;
+    // Closes `contents`, which the engine opened by itself and the core
+    // refused.
+    virtual void CloseOffered(content::WebContents* contents) = 0;
     // Destroys `page`'s WebContents, which the binding has let go of.
     virtual void DestroyContents(const std::string& page) = 0;
-    // Loads the link navigation staged as `token` in `page`, which is heading
-    // to `url`. TRANSITIONAL until link routing moves into the core (WP C (l)).
-    virtual bool LoadStagedNavigation(const std::string& page, const std::string& token, const GURL& url) = 0;
-    virtual void DiscardStagedNavigation(const std::string& token) = 0;
     // Moves `page`'s WebContents into the Browser of `window`. TRANSITIONAL
     // until the Browsers move into the binding.
     virtual bool MoveToWindow(const std::string& page, const std::string& window) = 0;
@@ -112,12 +118,22 @@ class EngineBinding {
   // let go of without a report.
   void Dispose();
 
-  // What the platform asks of a page directly that no PageRequest carries
-  // yet. TRANSITIONAL until engine-offered pages and link routing move
-  // (WP C (l)).
-  bool Adopt(const std::string& page, const std::string& token);
-  bool Stage(const std::string& page, const std::string& token, const std::string& url);
-  void Load(const std::string& page, const std::string& url);
+  // The engine opened `contents` by itself, in the Browser of the Crest
+  // window `window`, which the engine created for the Space `space` when
+  // that is not empty; `foreground` when the engine brought it to the front.
+  // The core hears the offer, and adopts or refuses it.
+  void Offer(content::WebContents* contents, const std::string& window, const std::string& space, bool foreground);
+  // A person's click on a link with a modifier key or the middle button in
+  // `contents`, which Chromium verified: the core decides whether it opens a
+  // tab in front or behind, which `params` then asks of the engine, or Peek,
+  // for which the link is staged. Answers whether the binding took the link.
+  bool FollowModifiedLink(content::WebContents* contents, content::OpenURLParams& params);
+  // A person's plain click on the link to `url` in `contents`: answers
+  // whether it opens Peek instead, as the core decides for a link leaving a
+  // saved tab's site, which the platform then hears.
+  bool KeepsLinkForPeek(content::WebContents* contents, const GURL& url);
+  // The throttle that asks, for each plain click on a link in a page.
+  static std::unique_ptr<content::NavigationThrottle> LinkThrottle(content::NavigationThrottleRegistry& registry);
 
   // The page that follows `contents`, for the engine's own hooks, or nullptr
   // when no page does.
@@ -151,14 +167,31 @@ class EngineBinding {
   void Present(engine::EnginePresentation presentation);
   void ReportStateSoon(const std::string& page);
   void PageLost(const std::string& page);
-  bool LoadStagedNavigation(const std::string& page, const std::string& token, const GURL& url);
-  void DiscardStagedNavigation(const std::string& token);
+  // Loads the link staged as `token` in `page`, heading to `url`, as the
+  // page's first load, while the page the link was followed in still shows
+  // the document it was in. False, and the link is gone, when it no longer
+  // applies.
+  bool LoadStagedLink(const std::string& page, const std::string& token, const GURL& url);
+  void DropStagedLink(const std::string& token);
 
  private:
   friend class base::NoDestructor<EngineBinding>;
 
+  // A page the engine opened by itself, until the core adopts or refuses it.
+  struct OfferedPage {
+    base::WeakPtr<content::WebContents> contents;
+    std::string profile;
+  };
+  // A link followed in `source`, kept for a Peek's first load.
+  struct StagedLink;
+
   EngineBinding();
   ~EngineBinding();
+
+  // What `engine` answers `question`, or nothing when it could not answer.
+  template <typename Question>
+  std::optional<typename engine::EngineQuestionAnswer<Question>::Type> Ask(const Question& question);
+  static void CREST_CALL Answered(void* context, const uint8_t* answer, size_t length);
 
   // What the binding sends once the turn ends: a report to the core or a
   // presentation to the platform, encoded.
@@ -167,7 +200,11 @@ class EngineBinding {
     std::vector<uint8_t> message;
   };
 
-  static void CREST_CALL Attach(void* context, uint64_t app, uint64_t engine, crest_engine_report_t report);
+  static void CREST_CALL Attach(void* context,
+                                uint64_t app,
+                                uint64_t engine,
+                                crest_engine_report_t report,
+                                crest_engine_ask_t ask);
   static void CREST_CALL Run(void* context, const uint8_t* command, size_t length);
   static crest_status_t CREST_CALL Request(void* context, const uint8_t* request, size_t length, crest_buffer_t* out);
   static void CREST_CALL Release(void* context, crest_buffer_t* buffer);
@@ -214,12 +251,22 @@ class EngineBinding {
   bool Handle(const engine::SetSitePermission& request);
   bool Handle(const engine::StopMediaCapture& request);
   bool Handle(const engine::PrepareProfile& request);
-  bool Handle(const engine::AdoptOfferedPage& request);
-  bool Handle(const engine::RejectOfferedPage& request);
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
   void Create(const engine::CreatePage& creation, bool standalone);
+  void Load(const std::string& page, const std::string& url);
+  void Adopt(const engine::AdoptOfferedPage& adoption);
+  void Reject(const engine::RejectOfferedPage& rejection);
+  void Stage(const engine::StageNavigation& staging);
+  // Stages a link a person followed in `page` for the Peek it opens.
+  bool StageForPeek(EnginePage& page, content::OpenURLParams& params);
+  // Presents `request` once the turn ends, while `page` still shows the
+  // document the link was in; a link staged for it is dropped otherwise.
+  void PresentPeekSoon(const EnginePage& page, engine::PeekRequested request);
+  void PresentPeek(const std::string& page, uint64_t revision, uint64_t generation, engine::PeekRequested request);
+  // Drops the links followed in `page`, which is going.
+  void DropStagedLinksFrom(const std::string& page);
   void CreateNow(const std::string& page);
   void ProfileLoaded(const std::string& page, Profile* profile);
   void Created(const std::string& page, content::WebContents* contents);
@@ -238,6 +285,7 @@ class EngineBinding {
   uint64_t app_ = 0;
   uint64_t engine_ = 0;
   crest_engine_report_t report_ = nullptr;
+  crest_engine_ask_t ask_ = nullptr;
   crest_engine_present_t present_ = nullptr;
   // The platform's own, handed back with each presentation.
   RAW_PTR_EXCLUSION void* ui_ = nullptr;
@@ -246,6 +294,9 @@ class EngineBinding {
   // The pages the engine could not create, until the core closes them, so a
   // platform that comes to one late still hears it has no view.
   std::set<std::string> failed_;
+  // The pages the engine offered, by offer, and the links staged, by link.
+  std::map<std::string, OfferedPage> offers_;
+  std::map<std::string, std::unique_ptr<StagedLink>> staged_links_;
   std::unique_ptr<EngineProfiles> profiles_;
   std::string private_source_;
   std::unique_ptr<EngineExtensions> extensions_;

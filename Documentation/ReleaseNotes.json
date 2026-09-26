@@ -2905,6 +2905,10 @@
     "core-engine-link-questions": {
       "category": "internal",
       "message": "The core decides where Chromium's links and self-opened pages go; context-menu rows are typed."
+    },
+    "chromium-quick-window-popups": {
+      "category": "fixed",
+      "message": "In the Chromium build, a pop-up opened from a Quick Window or Peek now opens in that window instead of disappearing."
     }
   }
 }

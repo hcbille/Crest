@@ -66,8 +66,6 @@ class EnginePage final : public content::WebContentsObserver,
   enum class Phase {
     // The binding is creating its WebContents.
     kCreating,
-    // A WebContents the engine offered is becoming the page instead.
-    kAdopting,
     // The page has its WebContents.
     kLive,
     // The engine lost the WebContents on its own.
@@ -100,8 +98,15 @@ class EnginePage final : public content::WebContentsObserver,
   // One of the engine's own pages that Settings shows, which the core never
   // hears of.
   bool standalone() const { return standalone_; }
+  // The Crest window whose Browser holds the page.
   const std::string& window() const { return window_; }
+  void set_window(std::string window) { window_ = std::move(window); }
   Phase phase() const { return phase_; }
+  // How many documents the page has committed and started, which a link
+  // followed in it compares to tell whether the page still shows the document
+  // the link was in.
+  uint64_t navigation_revision() const { return navigation_revision_; }
+  uint64_t navigation_generation() const { return navigation_generation_; }
   void set_phase(Phase phase) { phase_ = phase; }
 
   // Starts following `contents`, which is now the page.
@@ -113,8 +118,8 @@ class EnginePage final : public content::WebContentsObserver,
   // platform's own load. The page shows it is heading there at once; a page
   // still being created loads it once it exists.
   void Load(const std::string& url);
-  // Keeps a link navigation the platform staged for the page's first load,
-  // which a load of the same address then runs. False once the page loads.
+  // Keeps the link the core staged for the page's first load, which a load of
+  // the same address then runs. False once the page loads.
   bool Stage(const std::string& token, const std::string& url);
   // Restores navigation history saved by `SaveInteractionState` in place of a
   // load of `expected_url`; a page still being created restores once it
@@ -126,10 +131,9 @@ class EnginePage final : public content::WebContentsObserver,
   // so the core can bring it back later; nothing before its first commit.
   std::optional<engine::PageRestoreState> RestoreState();
   // Runs what the app asked for before the page existed: the restore, the
-  // staged navigation or the load.
+  // staged link or the load.
   void LoadPending();
-  // The token of the navigation staged for the page, which a closing page
-  // discards.
+  // The token of the link staged for the page, which a closing page drops.
   std::optional<std::string> TakeStagedToken();
 
   // The icon the engine found for the page's document.
@@ -185,8 +189,6 @@ class EnginePage final : public content::WebContentsObserver,
   void FullscreenChanged(bool active);
   void HoverChanged(const GURL& url);
   void SiteIndicatorsChanged();
-  // A link staged for the page's first load no longer applies.
-  void StagedLinkUnavailable();
   // The engine offered, relaid or withdrew the docked inspector, or the
   // inspector is going away.
   void InspectorChanged();
@@ -278,8 +280,12 @@ class EnginePage final : public content::WebContentsObserver,
   const std::string key_;
   const std::string profile_;
   const bool is_private_;
-  const std::string window_;
+  std::string window_;
   Phase phase_ = Phase::kCreating;
+  // Primary main-frame navigations to a new document started, and main-frame
+  // commits, since the page began.
+  uint64_t navigation_generation_ = 0;
+  uint64_t navigation_revision_ = 0;
 
   // What the app asked for before the page existed.
   std::optional<std::string> pending_load_;

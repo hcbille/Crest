@@ -208,7 +208,7 @@ void EnginePage::Stop() {
 
 void EnginePage::Load(const std::string& url) {
   if (staged_ && staged_->url != url) {
-    binding_->DiscardStagedNavigation(staged_->token);
+    binding_->DropStagedLink(staged_->token);
     staged_.reset();
   }
   // A load of its own replaces history the page was about to restore.
@@ -251,10 +251,11 @@ void EnginePage::LoadPending() {
     StagedNavigation staged = std::move(*staged_);
     staged_.reset();
     pending_state_.reset();
-    // A stale request is never retried as a bare address, which would lose
-    // the initiating frame's security and referrer.
-    if (!binding_->LoadStagedNavigation(key_, staged.token, EngineURL(url))) {
+    // A stale link is never retried as a bare address, which would lose the
+    // initiating frame's security and referrer.
+    if (!binding_->LoadStagedLink(key_, staged.token, EngineURL(url))) {
       Interrupted();
+      Report(engine::StagedLinkUnavailable{.page_id = id_});
     }
     return;
   }
@@ -384,6 +385,7 @@ void EnginePage::DidStartNavigation(content::NavigationHandle* navigation) {
   if (!navigation->IsInPrimaryMainFrame() || navigation->IsSameDocument()) {
     return;
   }
+  ++navigation_generation_;
   loading_navigation_ = navigation->GetNavigationId();
   Present(engine::PageNavigationStarted{.page_id = id_});
   Started(PresentedURL(navigation->GetURL()));
@@ -401,6 +403,9 @@ void EnginePage::DidRedirectNavigation(content::NavigationHandle* navigation) {
 void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
   if (!navigation->IsInPrimaryMainFrame()) {
     return;
+  }
+  if (navigation->HasCommitted()) {
+    ++navigation_revision_;
   }
   // A store listing's own fragment carries the request its script made. It is
   // Crest's message, not a page anyone records.
@@ -1321,10 +1326,6 @@ void EnginePage::SiteIndicatorsChanged() {
   }
   presented_blocked_popups_ = count;
   Present(engine::PopupBlocked{.page_id = id_, .page_url = PresentedURL(web_contents()->GetLastCommittedURL())});
-}
-
-void EnginePage::StagedLinkUnavailable() {
-  Present(engine::StagedLinkUnavailable{.page_id = id_});
 }
 
 void EnginePage::InspectorChanged() {

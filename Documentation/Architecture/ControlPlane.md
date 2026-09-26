@@ -321,15 +321,22 @@ The engine contract is a set of contract records like intents and changes:
 
 - **Engine commands** the core issues to one binding: `CreatePage`,
   `LoadPage`, `ClosePage`, `RecoverPage`, `CheckBeforeUnload`, the prompt
-  settlements and the download commands. The core delivers them in the order
-  it issued them, never while it holds a lock and never on the stack of the
-  report that caused them.
+  settlements, the download commands, the erasures (`EraseProfileData`,
+  `EraseSiteData`), `AdoptOfferedPage` and `RejectOfferedPage` for a page the
+  engine offered, and `StageNavigation` and `DropStagedLink` for a staged
+  link. The core delivers them in the order it issued them, never while it
+  holds a lock and never on the stack of the report that caused them.
 - **Engine events** a binding reports: `PageCreated`, `PageCreationFailed`,
   `PageClosed`, the navigation events, `PageStateChanged` with a
   `PageSnapshot`, `PageIconChanged`, `PageCrashed`, the prompt events, the
-  download events, `BeforeUnloadAnswered` and `ProtectedMediaUnavailable`.
-  A report is never refused; one about a page the core no longer knows, or
-  one from an engine that no longer hosts the page, changes nothing.
+  download events, `BeforeUnloadAnswered`, `DataErased`,
+  `ProtectedMediaUnavailable`, `PageOffered` and `StagedLinkUnavailable`. A
+  report is never refused; one about a page the core no longer knows, or one
+  from an engine that no longer hosts the page, changes nothing.
+- **Engine questions** a binding asks the core and has answered at once,
+  changing nothing, through `crest_engine_ask`: `LinkActivation` asks where a
+  link the person followed goes, by the same rules as the `LinkNavigation`
+  query.
 - **Page requests** the UI makes of a page's binding directly for view work,
   answered at once, and **engine presentations** the binding sends back when
   such work finishes later or when the view must show something the core does
@@ -381,9 +388,7 @@ must: it hosts each page's view and the views an extension or the inspector
 puts beside it, shows extension popups, runs system sign-in, and answers the
 close and quit preflight. Objects and blocks never enter .NET.
 
-TRANSITIONAL until the engine-offered pages and link routing move into the
-binding: the shell still carries the app's own load and a link navigation
-staged for a page's first load, and the regular profile a private window
+TRANSITIONAL: the shell still carries the regular profile a private window
 borrows.
 
 ### WebKit's binding
@@ -462,6 +467,17 @@ engine's page. Typed addresses, the command palette, Open Location and every
 first load go through `Navigate`, which the core resolves by the Space's
 address and search rules before it issues `LoadPage`.
 
+- **Offered pages.** A page an engine opens by itself, such as a
+  `window.open` popup or an extension's `chrome.windows.create`, arrives as
+  `PageOffered`, and the core decides where it goes. A transient page keeps
+  what it opens: the core rejects the offer and loads the address in the
+  Quick Window or Peek itself. A tab's offer becomes a new tab beside the
+  tab, in its Space and window. Anything else joins the window's reserved
+  Space, or else the Space it shows, after the tab it shows. The core refuses
+  an offer for a locked or deleting Space, one of another profile, a closed
+  window or a full Space, with `RejectOfferedPage`. Otherwise it opens the
+  tab, issues `AdoptOfferedPage` and publishes `OfferedPageAdopted`, and the
+  window that hosts the tab shows the page the engine made.
 - **Navigation.** A binding reports each navigation as it starts, commits,
   finishes or fails. The core records one visit per document when it finishes,
   because both engines know the title only then. A page with a tab updates the
@@ -623,11 +639,15 @@ after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
   routing, Dock reopen activates or opens a window, and startup restores the
   normal windows open at quit. The product registers Crest for HTTP, HTTPS
   and HTML documents and carries the Sparkle feed.
-- **Links.** Chromium's navigation throttle consults the core's link rules for
-  user-activated top-level links in owned pages: saved-site protection, Peek
-  priority and modified-link tab selection. A Peek keeps its verified
-  referrer, initiator, headers and source SiteInstance inside the engine, and
-  the new page receives only a one-shot token.
+- **Links.** Chromium's binding asks the core `LinkActivation` for each link
+  the person follows in an owned page, from its modified-link hook and its
+  protected-link throttle: saved-site protection, Peek priority and
+  modified-link tab selection. A link bound for a new tab or a Peek stays
+  staged inside the engine with its verified referrer, initiator, headers and
+  source SiteInstance. The platform asks the core `StageLink` to hand it to
+  the new page, which the core allows only on the same engine and profile, or
+  `DiscardStagedLink` to drop it; the new page receives only a one-shot token.
+  Context-menu rows reach Crest as typed rows, never as dictionaries.
 - **Internal pages.** Crest's session and address controls spell internal
   addresses `crest://`; the binding translates them to `chrome://` for
   navigation and back for observations. Internal navigation is gated by the

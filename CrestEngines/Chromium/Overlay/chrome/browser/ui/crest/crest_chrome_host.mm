@@ -163,14 +163,6 @@
 @implementation CrestExtensionShortcutResult
 @end
 
-@interface CrestLinkMenuAction : NSObject
-@property(copy) void (^run)(void);
-- (void)invoke:(id)sender;
-@end
-@implementation CrestLinkMenuAction
-- (void)invoke:(id)sender { if (self.run) self.run(); }
-@end
-
 // The window an extension action's popup is shown in.
 //
 // Crest does not use `NSPopover` for these. On macOS 27 the popover composites
@@ -492,17 +484,6 @@ class NativePermissionPrompt final : public permissions::PermissionPrompt {
 };
 struct Page;
 struct BrowserOwner;
-struct NativeAdoption {
-  base::WeakPtr<content::WebContents> contents;
-  std::string profile;
-};
-struct PendingLinkNavigation {
-  content::OpenURLParams request;
-  base::WeakPtr<content::WebContents> source;
-  std::string profile;
-  uint64_t revision;
-  uint64_t generation;
-};
 struct HostState {
   const base::Time started_at = base::Time::Now();
   // Crest's own UI, which the framework attaches when it starts.
@@ -522,8 +503,6 @@ struct HostState {
   // lives on the page; this one has no page to live on and only one can be
   // open at a time, because an action popup is transient.
   std::unique_ptr<ExtensionPopup> space_extension_popup;
-  std::map<std::string, NativeAdoption> adoptions;
-  std::map<std::string, PendingLinkNavigation> pending_link_navigations;
   // System sign-in requests from other apps, by the Quick Window running each.
   // Requests that arrive before the native root starts wait in `pending_*`.
   std::map<std::string, ASWebAuthenticationSessionRequest*> authentication_sessions;
@@ -615,18 +594,12 @@ void DisableEnginePasswordManager(content::WebContents* contents) {
   }
 }
 
-// The shell's side of a page: the Browser that holds its WebContents, the
-// views it hosts over it, and the handlers the platform installs.
-// TRANSITIONAL until link questions travel as presentations (WP C (l)).
+// The shell's side of a page: the Browser that holds its WebContents and the
+// views it hosts over it.
 struct Page final : content::WebContentsObserver {
   Page(content::WebContents* contents, Browser* owner, std::string profile_id)
       : content::WebContentsObserver(contents), browser(owner), profile(std::move(profile_id)) {
     DisableEnginePasswordManager(contents);
-  }
-  ~Page() override {
-    std::erase_if(State().pending_link_navigations, [&](const auto& entry) {
-      return !entry.second.source || entry.second.source.get() == web_contents();
-    });
   }
   // The page's identity, as the platform spells it.
   std::string Key() const {
@@ -636,23 +609,10 @@ struct Page final : content::WebContentsObserver {
   }
   Browser* browser;
   std::string profile;
-  BOOL (^link_handler)(NSString*, NSString*, NSString*) = nil;
-  NSArray<NSDictionary<NSString*, NSString*>*>* (^context_menu_provider)(NSString*, NSString*) = nil;
-  BOOL (^context_menu_action)(NSString*, NSString*, NSString*) = nil;
-  CrestDeferredNavigation (^protected_link_handler)(NSString*) = nil;
-  void (^modified_link_handler)(NSString*, NSUInteger, NSString*, void (^)(NSString*, CrestDeferredNavigation)) = nil;
   bool closing = false;
-  uint64_t navigation_revision = 0;
-  uint64_t navigation_generation = 0;
   std::unique_ptr<ExtensionPopup> extension_popup;
   std::unique_ptr<ExtensionSidePanel> side_panel;
   std::unique_ptr<DevToolsPanel> devtools;
-  void DidStartNavigation(content::NavigationHandle* navigation) override {
-    if (navigation->IsInPrimaryMainFrame() && !navigation->IsSameDocument()) ++navigation_generation;
-  }
-  void DidFinishNavigation(content::NavigationHandle* navigation) override {
-    if (navigation->IsInPrimaryMainFrame() && navigation->HasCommitted()) ++navigation_revision;
-  }
   void BeforeUnloadDialogCancelled() override { closing = false; }
   void BeforeUnloadFired(bool proceed) override {
     if (!proceed) closing = false;
@@ -707,44 +667,30 @@ struct BrowserOwner final : TabStripModelObserver {
   void OnTabStripModelDestroyed(TabStripModel*) override { strip = nullptr; }
 };
 
+// Offers the core a tab the engine opened by itself, in the Crest window its
+// Browser belongs to. The binding reports the offer; the core adopts it for a
+// tab of its own or refuses it.
 void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foreground) {
   auto& state = State();
-  if (!contents || state.disposing || crest::EngineBinding::Get().disposing()) return;
+  auto& binding = crest::EngineBinding::Get();
+  if (!contents || state.disposing || binding.disposing()) return;
   for (const auto& [id, page] : state.pages) if (page->web_contents() == contents.get()) return;
-  for (const auto& [id, adoption] : state.adoptions) if (adoption.contents.get() == contents.get()) return;
-  std::string profile_id;
-  profile_id = crest::EngineBinding::Get().Profiles().IdFor(contents->GetBrowserContext());
-  if (profile_id.empty()) return;
-  const crest::engine::Guid adoption = crest::RandomGuid();
-  state.adoptions.emplace(crest::GuidText(adoption), NativeAdoption{contents, profile_id});
-  std::optional<crest::engine::Guid> source_id;
-  if (auto* opener = contents->GetOpener()) {
-    auto* source = content::WebContents::FromRenderFrameHost(opener);
-    for (const auto& [id, page] : state.pages)
-      if (page->web_contents() == source) { source_id = crest::ParseGuid(id); break; }
-  }
-  const GURL url = contents->GetVisibleURL();
   BrowserOwner* host = nullptr;
   for (const auto& [id, owner] : state.browsers)
     if (owner->strip && owner->strip->GetIndexOfWebContents(contents.get()) >= 0) { host = owner.get(); break; }
   // A window the engine created for itself (chrome.windows.create, an
   // extension app window) has no Crest window until one of its tabs needs it.
-  // A renderer popup keeps its opener's window instead: that tab is adopted
-  // beside the page that opened it, exactly as it was before this path existed.
-  if (host && host->engine_window && !host->presented && !source_id) {
+  // A renderer popup keeps its opener's window instead: the core opens its
+  // tab beside the page that opened it.
+  content::RenderFrameHost* opener = contents->GetOpener();
+  const bool opened_by_page = opener && binding.PageFor(content::WebContents::FromRenderFrameHost(opener));
+  if (host && host->engine_window && !host->presented && !opened_by_page) {
     host->presented = true;
     NSUUID* window = UUIDFor(host->window);
     NSUUID* space = UUIDFor(host->space);
     if (window && space) [UI() presentEngineWindow:window space:space focused:host->focused ? YES : NO];
   }
-  crest::EngineBinding::Get().Present(crest::engine::PageOffered{
-      .adoption_id = adoption,
-      .profile_id = *crest::ParseGuid(profile_id),
-      .window_id = host ? crest::ParseGuid(host->window) : std::nullopt,
-      .space_id = host && !host->space.empty() ? crest::ParseGuid(host->space) : std::nullopt,
-      .source_page_id = source_id,
-      .url = url.is_empty() ? std::string("about:blank") : crest::PresentedURL(url),
-      .foreground = foreground});
+  binding.Offer(contents.get(), host ? host->window : std::string(), host ? host->space : std::string(), foreground);
 }
 
 Browser* BrowserFor(const std::string& profile_id, const std::string& window_id) {
@@ -858,40 +804,30 @@ class MacShell final : public crest::EngineBinding::Shell {
     return contents;
   }
 
-  content::WebContents* AdoptContents(const std::string& page, const std::string& token,
-                                      const std::string& profile) override {
+  // The page stays in the Browser the engine opened it in until its view
+  // attaches, which moves it into its window's Browser.
+  bool AdoptContents(const std::string& page, content::WebContents* contents, const std::string& profile) override {
     auto& state = State();
-    const auto found = state.adoptions.find(token);
-    if (state.disposing || found == state.adoptions.end() || !found->second.contents ||
-        state.pages.contains(page) || found->second.profile != profile) return nullptr;
-    auto* contents = found->second.contents.get();
+    if (state.disposing || state.pages.contains(page)) return false;
     Browser* browser = nullptr;
     for (const auto& [id, owner] : state.browsers)
       if (owner->strip && owner->strip->GetIndexOfWebContents(contents) >= 0) { browser = owner->browser; break; }
-    if (!browser) return nullptr;
+    if (!browser) return false;
     state.pages.emplace(page, std::make_unique<Page>(contents, browser, profile));
-    state.adoptions.erase(found);
-    return contents;
+    return true;
+  }
+
+  void CloseOffered(content::WebContents* contents) override {
+    for (const auto& [id, owner] : State().browsers) {
+      const int index = owner->strip ? owner->strip->GetIndexOfWebContents(contents) : -1;
+      if (index >= 0) {
+        owner->strip->DetachAndDeleteWebContentsAt(index);
+        return;
+      }
+    }
   }
 
   void DestroyContents(const std::string& page) override { DisposePage(page); }
-
-  bool LoadStagedNavigation(const std::string& page_id, const std::string& token, const GURL& url) override {
-    auto& pending = State().pending_link_navigations;
-    auto found = pending.find(token);
-    Page* page = FindPage(base::SysUTF8ToNSString(page_id));
-    bool loaded = false;
-    if (found != pending.end()) {
-      auto navigation = std::move(found->second);
-      pending.erase(found);  // Tokens can be consumed only once, including failures.
-      loaded = LoadLinkNavigation(page, navigation, url);
-    }
-    return loaded;
-  }
-
-  void DiscardStagedNavigation(const std::string& token) override {
-    State().pending_link_navigations.erase(token);
-  }
 
   bool MoveToWindow(const std::string& page_id, const std::string& window_id) override {
     Page* page = FindPage(base::SysUTF8ToNSString(page_id));
@@ -922,9 +858,6 @@ class MacShell final : public crest::EngineBinding::Shell {
     for (const auto& [key, page] : state.pages)
       if (profiles.contains(page->profile)) pages.push_back(key);
     for (const auto& key : pages) DisposePage(key);
-    std::erase_if(state.adoptions, [&](const auto& entry) {
-      return !entry.second.contents || profiles.contains(entry.second.profile);
-    });
     for (const auto& id : profiles) {
       Profile* profile = crest::EngineBinding::Get().Profiles().Find(id);
       if (profile) CloseBrowsers(profile);
@@ -949,23 +882,6 @@ class MacShell final : public crest::EngineBinding::Shell {
     }
   }
 
-  bool RejectAdoption(const std::string& token) override {
-    auto& state = State();
-    auto found = state.adoptions.find(token);
-    if (found == state.adoptions.end()) return false;
-    auto contents = found->second.contents;
-    state.adoptions.erase(found);
-    if (!contents) return true;
-    for (const auto& [id, owner] : state.browsers) {
-      const int index = owner->strip ? owner->strip->GetIndexOfWebContents(contents.get()) : -1;
-      if (index >= 0) {
-        owner->strip->DetachAndDeleteWebContentsAt(index);
-        break;
-      }
-    }
-    return true;
-  }
-
   void DockInspector(const std::string& page_id, content::WebContents* frontend) override {
     Page* page = FindPage(base::SysUTF8ToNSString(page_id));
     if (!page) return;
@@ -974,27 +890,6 @@ class MacShell final : public crest::EngineBinding::Shell {
     } else if (!page->devtools || !page->devtools->hosts(frontend)) {
       page->devtools = std::make_unique<DevToolsPanel>(frontend);
     }
-  }
-
-
- private:
-  // Loads a link navigation Chromium verified in the page that staged it, as
-  // its first load, while that page still shows the document the link was in.
-  static bool LoadLinkNavigation(Page* page, const PendingLinkNavigation& navigation, const GURL& url) {
-    if (State().disposing || !page || page->closing || !page->web_contents() || !navigation.source ||
-        page->profile != navigation.profile || navigation.request.url != url ||
-        !page->web_contents()->GetController().IsInitialNavigation()) return false;
-    bool current_source = false;
-    for (const auto& [id, source] : State().pages) {
-      if (source->web_contents() == navigation.source.get() && source->browser == page->browser &&
-          !source->closing && source->navigation_revision == navigation.revision &&
-          source->navigation_generation == navigation.generation) { current_source = true; break; }
-    }
-    if (!current_source) return false;
-    // Keep Chromium's verified referrer, initiator, headers and SiteInstance.
-    content::NavigationController::LoadURLParams load(navigation.request);
-    page->web_contents()->GetController().LoadURLWithParams(load);
-    return true;
   }
 };
 // chrome.commands. Crest owns the key-equivalent path, so an event the core
@@ -1041,15 +936,6 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
                                       const crest_engine_pages_t* pages);
 
 @implementation CrestChromiumMacShell
-- (BOOL)stageNavigation:(NSString*)token page:(NSUUID*)pageID url:(NSString*)url {
-  CHECK(NSThread.isMainThread);
-  return crest::EngineBinding::Get().Stage(KeyFor(pageID), base::SysNSStringToUTF8(token),
-                                           base::SysNSStringToUTF8(url));
-}
-- (void)loadPage:(NSUUID*)pageID url:(NSString*)url {
-  CHECK(NSThread.isMainThread);
-  crest::EngineBinding::Get().Load(KeyFor(pageID), base::SysNSStringToUTF8(url));
-}
 - (void)setPrivateSourceProfile:(NSUUID*)profileID {
   CHECK(NSThread.isMainThread);
   crest::EngineBinding::Get().SetPrivateSourceProfile(KeyFor(profileID));
@@ -1058,32 +944,6 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
   CHECK(NSThread.isMainThread);
   Page* page = FindPage(pageID.UUIDString);
   return page && page->web_contents() ? page->web_contents()->GetNativeView().GetNativeNSView() : nil;
-}
-- (void)setLinkHandlerForPage:(NSUUID*)pageID handler:(BOOL (^)(NSString*, NSString*, NSString*))handler {
-  CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID.UUIDString)) page->link_handler = [handler copy];
-}
-- (void)setContextMenuHandlerForPage:(NSUUID*)pageID
-    provider:(NSArray<NSDictionary<NSString*, NSString*>*>* (^)(NSString*, NSString*))provider
-    action:(BOOL (^)(NSString*, NSString*, NSString*))action {
-  CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID.UUIDString)) {
-    page->context_menu_provider = [provider copy];
-    page->context_menu_action = [action copy];
-  }
-}
-- (void)setProtectedLinkHandlerForPage:(NSUUID*)pageID handler:(CrestDeferredNavigation (^)(NSString*))handler {
-  CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID.UUIDString)) page->protected_link_handler = [handler copy];
-}
-- (void)setModifiedLinkHandlerForPage:(NSUUID*)pageID
-    handler:(void (^)(NSString*, NSUInteger, NSString*, void (^)(NSString*, CrestDeferredNavigation)))handler {
-  CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID.UUIDString)) page->modified_link_handler = [handler copy];
-}
-- (void)discardPendingNavigation:(NSString*)token {
-  CHECK(NSThread.isMainThread);
-  State().pending_link_navigations.erase(base::SysNSStringToUTF8(token));
 }
 - (BOOL)runExtension:(NSString*)extensionID page:(NSUUID*)pageID
          anchorView:(NSView*)anchorView anchorRect:(NSRect)anchorRect {
@@ -1266,14 +1126,12 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
       else for (int index = strip->count() - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
     }
   }
-  std::erase_if(state.adoptions, [](const auto& entry) { return !entry.second.contents; });
   auto& binding = crest::EngineBinding::Get();
   for (NSUUID* identifier in profileIDs) {
     const std::string id = KeyFor(identifier);
     Profile* profile = binding.Profiles().Find(id);
     if (!profile) continue;
-    // Native popups may still await core adoption. Revoke them with their owner.
-    std::erase_if(state.adoptions, [&](const auto& entry) { return entry.second.profile == id; });
+    // Pages still offered to the core close with their Browsers.
     CloseBrowsers(profile);
     binding.Extensions().Forget(id);
     binding.Profiles().Release(id);
@@ -1286,8 +1144,6 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
   crest::EngineBinding::Get().Dispose();
   CancelAllAuthenticationSessions();
   state.space_extension_popup.reset();
-  state.adoptions.clear();
-  state.pending_link_navigations.clear();
   state.pages.clear();
   // The core has stopped accepting work. Observer teardown precedes native destruction.
   while (!state.browsers.empty()) {
@@ -1337,104 +1193,6 @@ void SnapPictureInPictureWindow(views::Widget* widget) {
   } completionHandler:nil];
 }
 
-bool RouteModifiedLink(content::WebContents* source, content::OpenURLParams& params) {
-  if (!IsEnabled() || !params.crest_link_modifiers) return false;
-  if (!State().disposing && source && params.crest_link_modifiers <= 15 &&
-      (params.crest_link_modifiers & 11) && params.is_renderer_initiated && params.user_gesture &&
-      params.triggering_event_info == blink::mojom::TriggeringEventInfo::kFromTrustedEvent &&
-      !params.started_from_context_menu && !params.post_data && params.url.SchemeIsHTTPOrHTTPS() &&
-      params.url.spec().size() <= 8192) {
-    for (auto& [id, page] : State().pages) {
-      if (page->web_contents() != source || page->closing || !page->modified_link_handler) continue;
-      const std::string token = base::Uuid::GenerateRandomV4().AsLowercaseString();
-      __block NSString* decision = nil;
-      __block CrestDeferredNavigation present = nil;
-      page->modified_link_handler(base::SysUTF8ToNSString(params.url.spec()), params.crest_link_modifiers,
-          base::SysUTF8ToNSString(token), ^(NSString* value, CrestDeferredNavigation action) {
-            decision = [value copy]; present = [action copy];
-          });
-      if ([decision isEqualToString:@"foregroundTab"] || [decision isEqualToString:@"backgroundTab"]) {
-        params.disposition = [decision isEqualToString:@"foregroundTab"]
-            ? WindowOpenDisposition::NEW_FOREGROUND_TAB : WindowOpenDisposition::NEW_BACKGROUND_TAB;
-        params.crest_download_fallback = nullptr;
-        return false;
-      }
-      if ([decision isEqualToString:@"peekModifier"] && present && State().pending_link_navigations.size() < 32) {
-        auto weak = source->GetWeakPtr();
-        const auto revision = page->navigation_revision;
-        const auto generation = page->navigation_generation;
-        params.crest_download_fallback = nullptr;
-        State().pending_link_navigations.emplace(token,
-            PendingLinkNavigation{params, weak, page->profile, revision, generation});
-        dispatch_async(dispatch_get_main_queue(), ^{
-          if (!State().disposing && weak) {
-            for (auto& [current_id, current] : State().pages) {
-              if (current->web_contents() == weak.get() && !current->closing &&
-                  current->navigation_revision == revision && current->navigation_generation == generation) {
-                present(); return;
-              }
-            }
-          }
-          State().pending_link_navigations.erase(token);
-        });
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-          State().pending_link_navigations.erase(token);
-        });
-        return true;
-      }
-      break;
-    }
-  }
-  // Unowned pages and declined Peek retain the original renderer download path,
-  // including Chromium's download validation and restrictions.
-  if (params.disposition == WindowOpenDisposition::SAVE_TO_DISK &&
-      params.crest_download_fallback && params.crest_download_fallback->data) {
-    std::move(params.crest_download_fallback->data).Run();
-    return true;
-  }
-  return false;
-}
-
-namespace {
-class LinkNavigationThrottle final : public content::NavigationThrottle {
- public:
-  explicit LinkNavigationThrottle(content::NavigationThrottleRegistry& registry)
-      : NavigationThrottle(registry) {}
-  const char* GetNameForLogging() override { return "CrestLinkNavigationThrottle"; }
-  ThrottleCheckResult WillStartRequest() override {
-    auto* navigation = navigation_handle();
-    // Only an actual link in an owned page can protect a saved tab. Forms,
-    // scripts, browser commands, subframes and redirects keep engine semantics.
-    if (State().disposing || !navigation->IsInPrimaryMainFrame() ||
-        !navigation->IsRendererInitiated() || !navigation->HasUserGesture() ||
-        !navigation->WasInitiatedByLinkClick() || navigation->IsFormSubmission() ||
-        navigation->WasStartedFromContextMenu() || navigation->IsPost() ||
-        !navigation->GetURL().SchemeIsHTTPOrHTTPS() || navigation->GetURL().spec().size() > 8192)
-      return PROCEED;
-    auto* contents = navigation->GetWebContents();
-    for (auto& [id, page] : State().pages) {
-      if (page->web_contents() != contents || !page->protected_link_handler) continue;
-      auto action = page->protected_link_handler(base::SysUTF8ToNSString(navigation->GetURL().spec()));
-      if (!action) return PROCEED;
-      auto weak = contents->GetWeakPtr();
-      const auto revision = page->navigation_revision;
-      const auto generation = page->navigation_generation;
-      // Do not mount/reparent native content while Chromium's navigation stack
-      // is live. A later navigation or teardown invalidates this presentation.
-      dispatch_async(dispatch_get_main_queue(), ^{
-        if (!weak || State().disposing) return;
-        for (auto& [current_id, current] : State().pages) {
-          if (current->web_contents() == weak.get() && current->navigation_revision == revision &&
-              current->navigation_generation == generation) { action(); return; }
-        }
-      });
-      return CANCEL_AND_IGNORE;
-    }
-    return PROCEED;
-  }
-};
-}  // namespace
-
 namespace {
 bool MatchesAuthenticationCallback(ASWebAuthenticationSessionRequest* request, const GURL& url) {
   NSURL* candidate = net::NSURLWithGURL(url);
@@ -1481,7 +1239,7 @@ class AuthenticationSessionThrottle final : public content::NavigationThrottle {
 
 void AddNavigationThrottle(content::NavigationThrottleRegistry& registry) {
   if (!IsEnabled()) return;
-  registry.AddThrottle(std::make_unique<LinkNavigationThrottle>(registry));
+  registry.AddThrottle(crest::EngineBinding::LinkThrottle(registry));
   registry.AddThrottle(std::make_unique<AuthenticationSessionThrottle>(registry));
 }
 
@@ -1498,86 +1256,27 @@ bool BeginLinkDrag(content::WebContents* contents, const content::DropData& data
   auto* focused_frame = contents->GetFocusedFrame();
   if (!focused_frame || !focused_frame->GetView() ||
       !focused_frame->GetView()->GetSelectedText().empty()) return false;
-  for (auto& [id, page] : State().pages) {
-    if (page->web_contents() == contents && page->link_handler)
-      return page->link_handler(@"drag", base::SysUTF8ToNSString(data.url_infos[0].url.spec()),
-          base::SysUTF16ToNSString(data.url_infos[0].title));
-  }
-  return false;
+  crest::EnginePage* page = crest::EngineBinding::Get().PageFor(contents);
+  NSURL* url = net::NSURLWithGURL(data.url_infos[0].url);
+  if (!page || page->standalone() || !url) return false;
+  return [UI() beginLinkDrag:url title:base::SysUTF16ToNSString(data.url_infos[0].title)
+                        page:UUIDFor(page->key())];
 }
 
 
 void AppendLinkMenuItem(NSMenu* menu, content::WebContents* contents, const GURL& url,
                         const std::u16string& selection) {
   if (!IsEnabled() || State().disposing) return;
-  const bool has_link = url.SchemeIsHTTPOrHTTPS();
+  crest::EnginePage* page = crest::EngineBinding::Get().PageFor(contents);
+  if (!page || page->standalone()) return;
+  NSURL* link = url.SchemeIsHTTPOrHTTPS() ? net::NSURLWithGURL(url) : nil;
   NSString* const selected = base::SysUTF16ToNSString(
       std::u16string(base::TrimWhitespace(selection, base::TRIM_ALL)));
-  if (!has_link && !selected.length) return;
-  for (auto& [id, page] : State().pages) {
-    if (page->web_contents() != contents || !page->context_menu_provider ||
-        !page->context_menu_action) continue;
-    NSString* address = has_link ? base::SysUTF8ToNSString(url.spec()) : @"about:blank";
-    NSArray<NSDictionary<NSString*, NSString*>*>* actions = page->context_menu_provider(address, selected);
-    if (!actions.count) return;
-    auto weak = contents->GetWeakPtr();
-    const uint64_t revision = page->navigation_revision;
-    // Keep the engine's model rows and extension items in their original order.
-    // Insert Crest's native rows before them; the engine still owns the model.
-    auto make_item = [&](NSDictionary<NSString*, NSString*>* values) -> NSMenuItem* {
-      NSString* const identifier = values[@"id"];
-      NSString* const title = values[@"title"];
-      if (!identifier.length || !title.length) return nil;
-      const base::WeakPtr<content::WebContents> source = weak;
-      NSString* const destination = address;
-      NSString* const chosen_selection = selected;
-      NSString* const chosen_identifier = identifier;
-      const uint64_t expected_revision = revision;
-      CrestLinkMenuAction* action = [[CrestLinkMenuAction alloc] init];
-      action.run = ^{
-        dispatch_async(dispatch_get_main_queue(), ^{
-          if (!source || State().disposing) return;
-          for (auto& [current_id, current] : State().pages) {
-            if (current->web_contents() == source.get() &&
-                current->navigation_revision == expected_revision && current->context_menu_action) {
-              current->context_menu_action(chosen_identifier, destination, chosen_selection);
-              return;
-            }
-          }
-        });
-      };
-      NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:title action:@selector(invoke:) keyEquivalent:@""];
-      item.target = action;
-      item.representedObject = action;
-      NSString* symbol = values[@"symbol"];
-      if (symbol.length) item.image = [NSImage imageWithSystemSymbolName:symbol accessibilityDescription:nil];
-      return item;
-    };
-    NSMutableArray<NSMenuItem*>* crest_items = [NSMutableArray array];
-    NSMenu* spaces = [[NSMenu alloc] init];
-    for (NSDictionary<NSString*, NSString*>* values in actions) {
-      NSMenuItem* item = make_item(values);
-      if (!item) continue;
-      if ([values[@"group"] isEqualToString:@"spaces"]) [spaces addItem:item];
-      else [crest_items addObject:item];
-    }
-    if (spaces.numberOfItems) {
-      NSString* group_title = [actions firstObject][@"groupTitle"] ?: @"Open Link in Another Space";
-      NSMenuItem* group = [[NSMenuItem alloc] initWithTitle:group_title
-          action:nil keyEquivalent:@""];
-      group.image = [NSImage imageWithSystemSymbolName:@"square.stack.3d.up" accessibilityDescription:nil];
-      group.submenu = spaces;
-      [crest_items insertObject:group atIndex:0];
-    }
-    if (!crest_items.count) return;
-    // MenuControllerCocoa identifies existing rows by their model indices.
-    // Inserting ahead of them only changes native positions, not model indices.
-    for (NSUInteger index = 0; index < crest_items.count; ++index)
-      [menu insertItem:crest_items[index] atIndex:index];
-    if (menu.numberOfItems > static_cast<NSInteger>(crest_items.count))
-      [menu insertItem:NSMenuItem.separatorItem atIndex:crest_items.count];
-    return;
-  }
+  if (!link && !selected.length) return;
+  // Crest's rows go ahead of the engine's. MenuControllerCocoa identifies its
+  // rows by their model indices, so rows inserted ahead of them change only
+  // their native positions.
+  [UI() addPageMenuItems:menu page:UUIDFor(page->key()) link:link selection:selected.length ? selected : nil];
 }
 
 // A page the core asked whether it may close answers the core.

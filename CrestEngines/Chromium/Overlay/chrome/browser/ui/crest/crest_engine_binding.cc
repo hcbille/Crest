@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
 #include "chrome/browser/ui/crest/crest_download_hooks.h"
@@ -24,10 +25,87 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/download_item_utils.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/navigation_throttle.h"
+#include "content/public/browser/navigation_throttle_registry.h"
+#include "content/public/browser/page_navigator.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
 namespace crest {
+
+namespace {
+
+// The longest link address the binding asks the core about or stages.
+constexpr size_t kLinkBytes = 8192;
+// The most links staged at once, and how long one waits for its Peek.
+constexpr size_t kStagedLinks = 32;
+constexpr base::TimeDelta kStagedLinkLifetime = base::Seconds(30);
+// The modifier bits Blink records for a trusted click on a link, and those of
+// them that make it a modified click: Command, Option or the middle button.
+constexpr uint32_t kLinkCommand = 1;
+constexpr uint32_t kLinkOption = 2;
+constexpr uint32_t kLinkShift = 4;
+constexpr uint32_t kLinkMiddleButton = 8;
+constexpr uint32_t kLinkModified = kLinkCommand | kLinkOption | kLinkMiddleButton;
+constexpr uint32_t kLinkModifiers = kLinkModified | kLinkShift;
+
+// How a person followed a link: a trusted top-level click, with the keys and
+// button Blink recorded.
+engine::LinkGesture Clicked(uint32_t modifiers) {
+  engine::ShortcutModifiers held = engine::ShortcutModifiers::kNone;
+  if (modifiers & kLinkCommand) {
+    held |= engine::ShortcutModifiers::kCommand;
+  }
+  if (modifiers & kLinkOption) {
+    held |= engine::ShortcutModifiers::kOption;
+  }
+  if (modifiers & kLinkShift) {
+    held |= engine::ShortcutModifiers::kShift;
+  }
+  return engine::LinkGesture{
+      .user_activated = true, .top_level = true, .modifiers = held, .middle_click = (modifiers & kLinkMiddleButton) != 0};
+}
+
+// Whether the core's decision opens the link in Peek.
+bool OpensPeek(engine::LinkNavigationDecision decision) {
+  return decision == engine::LinkNavigationDecision::kPeekModifier ||
+         decision == engine::LinkNavigationDecision::kPeekSavedSite;
+}
+
+// Stops a person's plain click on a link in one of Crest's pages from loading
+// when the core opens it in Peek instead. Only an actual link can: forms,
+// scripts, browser commands, subframes and redirects keep the engine's own
+// handling.
+class PeekLinkThrottle final : public content::NavigationThrottle {
+ public:
+  explicit PeekLinkThrottle(content::NavigationThrottleRegistry& registry) : NavigationThrottle(registry) {}
+  const char* GetNameForLogging() override { return "CrestLinkNavigationThrottle"; }
+  ThrottleCheckResult WillStartRequest() override {
+    auto* navigation = navigation_handle();
+    if (!navigation->IsInPrimaryMainFrame() || !navigation->IsRendererInitiated() || !navigation->HasUserGesture() ||
+        !navigation->WasInitiatedByLinkClick() || navigation->IsFormSubmission() ||
+        navigation->WasStartedFromContextMenu() || navigation->IsPost() || !navigation->GetURL().SchemeIsHTTPOrHTTPS() ||
+        navigation->GetURL().spec().size() > kLinkBytes) {
+      return PROCEED;
+    }
+    return EngineBinding::Get().KeepsLinkForPeek(navigation->GetWebContents(), navigation->GetURL()) ? CANCEL_AND_IGNORE
+                                                                                                        : PROCEED;
+  }
+};
+
+}  // namespace
+
+// The verified request of a link a person followed in `source`, and the
+// document `source` showed then.
+struct EngineBinding::StagedLink {
+  content::OpenURLParams request;
+  std::string source;
+  uint64_t revision = 0;
+  uint64_t generation = 0;
+};
 
 std::string GuidText(const engine::Guid& guid) {
   static constexpr char kDigits[] = "0123456789ABCDEF";
@@ -106,6 +184,8 @@ void EngineBinding::Dispose() {
   disposing_ = true;
   queue_.clear();
   due_.clear();
+  offers_.clear();
+  staged_links_.clear();
   extensions_.reset();
   prompts_.reset();
   downloads_.reset();
@@ -120,11 +200,35 @@ void EngineBinding::Dispose() {
 // The core's side.
 
 // static
-void CREST_CALL EngineBinding::Attach(void* context, uint64_t app, uint64_t engine, crest_engine_report_t report) {
+void CREST_CALL EngineBinding::Attach(void* context,
+                                      uint64_t app,
+                                      uint64_t engine,
+                                      crest_engine_report_t report,
+                                      crest_engine_ask_t ask) {
   auto* binding = static_cast<EngineBinding*>(context);
   binding->app_ = app;
   binding->engine_ = engine;
   binding->report_ = report;
+  binding->ask_ = ask;
+}
+
+template <typename Question>
+std::optional<typename engine::EngineQuestionAnswer<Question>::Type> EngineBinding::Ask(const Question& question) {
+  using Answer = typename engine::EngineQuestionAnswer<Question>::Type;
+  if (disposing_ || !ask_) {
+    return std::nullopt;
+  }
+  const std::vector<uint8_t> asked = engine::Encode(engine::EngineQuestion{question});
+  std::vector<uint8_t> answer;
+  if (ask_(app_, engine_, asked.data(), asked.size(), &EngineBinding::Answered, &answer) != CREST_OK) {
+    return std::nullopt;
+  }
+  return engine::Decode<Answer>(answer.data(), answer.size());
+}
+
+// static
+void CREST_CALL EngineBinding::Answered(void* context, const uint8_t* answer, size_t length) {
+  static_cast<std::vector<uint8_t>*>(context)->assign(answer, answer + length);
 }
 
 // static
@@ -185,6 +289,14 @@ void EngineBinding::Perform(engine::EngineCommand command) {
     Erase(*erasing);
   } else if (const auto* clearing = std::get_if<engine::EraseSiteData>(&command)) {
     Erase(*clearing);
+  } else if (const auto* adoption = std::get_if<engine::AdoptOfferedPage>(&command)) {
+    Adopt(*adoption);
+  } else if (const auto* rejection = std::get_if<engine::RejectOfferedPage>(&command)) {
+    Reject(*rejection);
+  } else if (const auto* staging = std::get_if<engine::StageNavigation>(&command)) {
+    Stage(*staging);
+  } else if (const auto* drop = std::get_if<engine::DropStagedLink>(&command)) {
+    DropStagedLink(GuidText(drop->staged_link_id));
   }
 }
 
@@ -218,8 +330,8 @@ void EngineBinding::CreateNow(const std::string& key) {
                   base::BindOnce(&EngineBinding::ProfileLoaded, weak_factory_.GetWeakPtr(), key));
 }
 
-// The page's profile loaded, or could not: a page that closed, or became an
-// offered one, meanwhile gets nothing.
+// The page's profile loaded, or could not: a page that closed meanwhile gets
+// nothing.
 void EngineBinding::ProfileLoaded(const std::string& key, Profile* profile) {
   EnginePage* page = Find(key);
   if (!page || page->phase() != EnginePage::Phase::kCreating || !shell_ || disposing_) {
@@ -231,7 +343,7 @@ void EngineBinding::ProfileLoaded(const std::string& key, Profile* profile) {
 void EngineBinding::Created(const std::string& key, content::WebContents* contents) {
   EnginePage* page = Find(key);
   if (!page || page->phase() != EnginePage::Phase::kCreating) {
-    // The page closed, or became an offered one, while its profile loaded.
+    // The page closed while its profile loaded.
     if (contents && shell_) {
       shell_->DestroyContents(key);
     }
@@ -251,19 +363,54 @@ void EngineBinding::Created(const std::string& key, content::WebContents* conten
   Live(*page, contents);
 }
 
-bool EngineBinding::Adopt(const std::string& key, const std::string& token) {
-  EnginePage* page = Find(key);
-  if (!page || page->phase() != EnginePage::Phase::kCreating || !shell_ || disposing_) {
-    return false;
+// The page the core adopted is the WebContents the engine offered, in the
+// profile it opened in; one that is gone, or of another profile, fails, and
+// the WebContents, which no page follows, closes.
+void EngineBinding::Adopt(const engine::AdoptOfferedPage& adoption) {
+  const std::string key = GuidText(adoption.page_id);
+  if (pages_.contains(key)) {
+    Report(engine::PageCreationFailed{.page_id = adoption.page_id});
+    return;
   }
-  page->set_phase(EnginePage::Phase::kAdopting);
-  content::WebContents* contents = shell_->AdoptContents(key, token, page->profile());
-  if (!contents) {
-    page->set_phase(EnginePage::Phase::kCreating);
-    return false;
+  const std::string profile = GuidText(adoption.profile_id);
+  auto offer = offers_.extract(GuidText(adoption.offer_id));
+  content::WebContents* contents = offer ? offer.mapped().contents.get() : nullptr;
+  if (!contents || offer.mapped().profile != profile || !shell_ || !shell_->AdoptContents(key, contents, profile)) {
+    if (contents && shell_) {
+      shell_->CloseOffered(contents);
+    }
+    failed_.insert(key);
+    Present(engine::PageViewUnavailable{.page_id = adoption.page_id});
+    Report(engine::PageCreationFailed{.page_id = adoption.page_id});
+    return;
   }
-  Live(*page, contents);
-  return true;
+  EnginePage& page = *pages_
+                          .emplace(key, std::make_unique<EnginePage>(
+                                            *this, engine::CreatePage{.page_id = adoption.page_id,
+                                                                      .profile_id = adoption.profile_id,
+                                                                      .is_private = adoption.is_private,
+                                                                      .window_id = adoption.window_id,
+                                                                      .restore_state = std::nullopt}))
+                          .first->second;
+  Live(page, contents);
+}
+
+// The page the core refused closes.
+void EngineBinding::Reject(const engine::RejectOfferedPage& rejection) {
+  auto offer = offers_.extract(GuidText(rejection.offer_id));
+  if (offer && offer.mapped().contents && shell_) {
+    shell_->CloseOffered(offer.mapped().contents.get());
+  }
+}
+
+// The link the core staged for the page's first load; one the page cannot
+// take is dropped, and the page loads the address afresh.
+void EngineBinding::Stage(const engine::StageNavigation& staging) {
+  const std::string token = GuidText(staging.staged_link_id);
+  EnginePage* page = Find(GuidText(staging.page_id));
+  if (!page || !staged_links_.contains(token) || !page->Stage(token, staging.url)) {
+    DropStagedLink(token);
+  }
 }
 
 // The page has its WebContents: the platform hears its view is ready, the
@@ -285,10 +432,11 @@ void EngineBinding::Close(const engine::ClosePage& closing) {
       restore_state = page.mapped()->RestoreState();
     }
     if (auto token = page.mapped()->TakeStagedToken()) {
-      DiscardStagedNavigation(*token);
+      DropStagedLink(*token);
     }
     page.mapped()->Stop();
   }
+  DropStagedLinksFrom(key);
   failed_.erase(key);
   std::erase(due_, key);
   if (prompts_) {
@@ -320,18 +468,177 @@ void EngineBinding::Forget(const std::string& key) {
     return;
   }
   if (auto token = page->TakeStagedToken()) {
-    DiscardStagedNavigation(*token);
+    DropStagedLink(*token);
   }
+  DropStagedLinksFrom(key);
   std::erase(due_, key);
   pages_.erase(key);
 }
 
-// The platform's side.
+// Offered pages and links.
 
-bool EngineBinding::Stage(const std::string& key, const std::string& token, const std::string& url) {
-  EnginePage* page = Find(key);
-  return page && page->Stage(token, url);
+void EngineBinding::Offer(content::WebContents* contents,
+                          const std::string& window,
+                          const std::string& space,
+                          bool foreground) {
+  if (!contents || disposing_ || PageFor(contents)) {
+    return;
+  }
+  std::erase_if(offers_, [](const auto& entry) { return !entry.second.contents; });
+  for (const auto& [id, offered] : offers_) {
+    if (offered.contents.get() == contents) {
+      return;
+    }
+  }
+  const std::string profile = Profiles().IdFor(contents->GetBrowserContext());
+  const std::optional<engine::Guid> profile_id = ParseGuid(profile);
+  if (!profile_id) {
+    return;
+  }
+  std::optional<engine::Guid> source;
+  if (content::RenderFrameHost* opener = contents->GetOpener()) {
+    EnginePage* page = PageFor(content::WebContents::FromRenderFrameHost(opener));
+    if (page && !page->standalone()) {
+      source = page->id();
+    }
+  }
+  const engine::Guid offer = RandomGuid();
+  offers_.emplace(GuidText(offer), OfferedPage{.contents = contents->GetWeakPtr(), .profile = profile});
+  const GURL url = contents->GetVisibleURL();
+  Report(engine::PageOffered{.offer_id = offer,
+                             .profile_id = *profile_id,
+                             .source_page_id = source,
+                             .window_id = ParseGuid(window),
+                             .space_id = space.empty() ? std::nullopt : ParseGuid(space),
+                             .url = url.is_empty() ? std::string("about:blank") : PresentedURL(url),
+                             .foreground = foreground});
 }
+
+bool EngineBinding::FollowModifiedLink(content::WebContents* contents, content::OpenURLParams& params) {
+  EnginePage* page = PageFor(contents);
+  if (!page || page->standalone() || params.crest_link_modifiers > kLinkModifiers ||
+      !(params.crest_link_modifiers & kLinkModified) || !params.is_renderer_initiated || !params.user_gesture ||
+      params.triggering_event_info != blink::mojom::TriggeringEventInfo::kFromTrustedEvent ||
+      params.started_from_context_menu || params.post_data || !params.url.SchemeIsHTTPOrHTTPS() ||
+      params.url.spec().size() > kLinkBytes) {
+    return false;
+  }
+  const auto answer = Ask(engine::LinkActivation{
+      .page_id = page->id(), .url = PresentedURL(params.url), .gesture = Clicked(params.crest_link_modifiers)});
+  if (!answer) {
+    return false;
+  }
+  switch (answer->decision) {
+    case engine::LinkNavigationDecision::kForegroundTab:
+    case engine::LinkNavigationDecision::kBackgroundTab:
+      // The engine opens the tab, which it offers to the core.
+      params.disposition = answer->decision == engine::LinkNavigationDecision::kForegroundTab
+                               ? WindowOpenDisposition::NEW_FOREGROUND_TAB
+                               : WindowOpenDisposition::NEW_BACKGROUND_TAB;
+      params.crest_download_fallback = nullptr;
+      return false;
+    case engine::LinkNavigationDecision::kPeekModifier:
+      return StageForPeek(*page, params);
+    case engine::LinkNavigationDecision::kNavigate:
+    case engine::LinkNavigationDecision::kPeekSavedSite:
+      return false;
+  }
+  return false;
+}
+
+bool EngineBinding::StageForPeek(EnginePage& page, content::OpenURLParams& params) {
+  if (staged_links_.size() >= kStagedLinks) {
+    return false;
+  }
+  params.crest_download_fallback = nullptr;
+  const engine::Guid link = RandomGuid();
+  const std::string token = GuidText(link);
+  staged_links_.emplace(token, std::make_unique<StagedLink>(StagedLink{.request = params,
+                                                                        .source = page.key(),
+                                                                        .revision = page.navigation_revision(),
+                                                                        .generation = page.navigation_generation()}));
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, base::BindOnce(&EngineBinding::DropStagedLink, weak_factory_.GetWeakPtr(), token),
+      kStagedLinkLifetime);
+  PresentPeekSoon(page, engine::PeekRequested{.page_id = page.id(),
+                                              .url = PresentedURL(params.url),
+                                              .decision = engine::LinkNavigationDecision::kPeekModifier,
+                                              .staged_link_id = link});
+  return true;
+}
+
+bool EngineBinding::KeepsLinkForPeek(content::WebContents* contents, const GURL& url) {
+  EnginePage* page = PageFor(contents);
+  if (!page || page->standalone()) {
+    return false;
+  }
+  const auto answer = Ask(engine::LinkActivation{
+      .page_id = page->id(), .url = PresentedURL(url), .gesture = {.user_activated = true, .top_level = true}});
+  if (!answer || !OpensPeek(answer->decision)) {
+    return false;
+  }
+  // Nothing is mounted or moved while Chromium's navigation stack is live.
+  PresentPeekSoon(*page, engine::PeekRequested{
+                             .page_id = page->id(), .url = PresentedURL(url), .decision = answer->decision});
+  return true;
+}
+
+void EngineBinding::PresentPeekSoon(const EnginePage& page, engine::PeekRequested request) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&EngineBinding::PresentPeek, weak_factory_.GetWeakPtr(), page.key(),
+                                page.navigation_revision(), page.navigation_generation(), std::move(request)));
+}
+
+void EngineBinding::PresentPeek(const std::string& key,
+                                uint64_t revision,
+                                uint64_t generation,
+                                engine::PeekRequested request) {
+  EnginePage* page = Find(key);
+  if (!disposing_ && page && page->web_contents() && page->navigation_revision() == revision &&
+      page->navigation_generation() == generation) {
+    Present(std::move(request));
+    return;
+  }
+  if (request.staged_link_id) {
+    DropStagedLink(GuidText(*request.staged_link_id));
+  }
+}
+
+bool EngineBinding::LoadStagedLink(const std::string& key, const std::string& token, const GURL& url) {
+  auto staged = staged_links_.extract(token);
+  EnginePage* page = Find(key);
+  if (!staged || !page || !page->web_contents() || disposing_) {
+    return false;
+  }
+  const StagedLink& link = *staged.mapped();
+  const EnginePage* source = Find(link.source);
+  if (!source || !source->web_contents() || source->profile() != page->profile() ||
+      source->window() != page->window() || source->navigation_revision() != link.revision ||
+      source->navigation_generation() != link.generation || link.request.url != url ||
+      !page->web_contents()->GetController().IsInitialNavigation()) {
+    return false;
+  }
+  // Keeps Chromium's verified referrer, initiator, headers and SiteInstance.
+  content::NavigationController::LoadURLParams load(link.request);
+  page->web_contents()->GetController().LoadURLWithParams(load);
+  return true;
+}
+
+void EngineBinding::DropStagedLink(const std::string& token) {
+  staged_links_.erase(token);
+}
+
+void EngineBinding::DropStagedLinksFrom(const std::string& key) {
+  std::erase_if(staged_links_, [&](const auto& entry) { return entry.second->source == key; });
+}
+
+// static
+std::unique_ptr<content::NavigationThrottle> EngineBinding::LinkThrottle(
+    content::NavigationThrottleRegistry& registry) {
+  return std::make_unique<PeekLinkThrottle>(registry);
+}
+
+// The platform's side.
 
 void EngineBinding::Load(const std::string& key, const std::string& url) {
   if (EnginePage* page = Find(key)) {
@@ -426,24 +733,6 @@ void EngineBinding::RequestSidePanel(const std::string& key,
                                      engine::SidePanelRequest request) {
   if (EnginePage* page = Find(key)) {
     Present(engine::SidePanelRequested{.page_id = page->id(), .extension_id = extension, .request = request});
-  }
-}
-
-// The platform shows the link is gone rather than retry it as a bare address,
-// which would lose the initiating frame's security and referrer.
-bool EngineBinding::LoadStagedNavigation(const std::string& key, const std::string& token, const GURL& url) {
-  const bool loaded = shell_ && shell_->LoadStagedNavigation(key, token, url);
-  if (!loaded) {
-    if (EnginePage* page = Find(key)) {
-      page->StagedLinkUnavailable();
-    }
-  }
-  return loaded;
-}
-
-void EngineBinding::DiscardStagedNavigation(const std::string& token) {
-  if (shell_) {
-    shell_->DiscardStagedNavigation(token);
   }
 }
 
@@ -545,8 +834,12 @@ bool EngineBinding::Handle(const engine::RestoreInteractionState& request) {
 bool EngineBinding::Handle(const engine::MovePageToWindow& request) {
   const std::string key = GuidText(request.page_id);
   EnginePage* page = Find(key);
-  return page && page->phase() == EnginePage::Phase::kLive && shell_ &&
-         shell_->MoveToWindow(key, GuidText(request.window_id));
+  const std::string window = GuidText(request.window_id);
+  if (!page || page->phase() != EnginePage::Phase::kLive || !shell_ || !shell_->MoveToWindow(key, window)) {
+    return false;
+  }
+  page->set_window(window);
+  return true;
 }
 
 bool EngineBinding::Handle(const engine::ShowPage& request) {
@@ -814,14 +1107,6 @@ void EngineBinding::Erase(const engine::EraseSiteData& erasing) {
                       site, std::move(done)));
 }
 
-bool EngineBinding::Handle(const engine::AdoptOfferedPage& request) {
-  return Adopt(GuidText(request.page_id), GuidText(request.adoption_id));
-}
-
-bool EngineBinding::Handle(const engine::RejectOfferedPage& request) {
-  return shell_ && !disposing_ && shell_->RejectAdoption(GuidText(request.adoption_id));
-}
-
 // Reports and presentations.
 
 void EngineBinding::Report(engine::EngineEvent event) {
@@ -1007,6 +1292,25 @@ void OnDevToolsClosing(content::WebContents* inspected) {
 bool AnswerBeforeUnload(content::WebContents* contents, bool proceed) {
   EnginePage* page = EngineBinding::Get().PageFor(contents);
   return page && page->AnswerBeforeUnload(proceed);
+}
+
+// A modified click the core sends to a tab or to Peek. Any other, in a page
+// Crest does not show or one the core leaves to the engine, keeps Chromium's
+// own path, including an Option-click's original renderer download with
+// Chromium's download validation and restrictions.
+bool RouteModifiedLink(content::WebContents* source, content::OpenURLParams& params) {
+  if (!IsEnabled() || !params.crest_link_modifiers) {
+    return false;
+  }
+  if (EngineBinding::Get().FollowModifiedLink(source, params)) {
+    return true;
+  }
+  if (params.disposition == WindowOpenDisposition::SAVE_TO_DISK && params.crest_download_fallback &&
+      params.crest_download_fallback->data) {
+    std::move(params.crest_download_fallback->data).Run();
+    return true;
+  }
+  return false;
 }
 
 }  // namespace crest
