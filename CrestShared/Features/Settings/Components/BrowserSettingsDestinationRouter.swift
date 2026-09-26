@@ -52,7 +52,6 @@ struct BrowserSettingsDestinationRouter: View {
             if let shortcuts {
                 BrowserPlatformShortcutSettingsPane(
                     shortcuts: shortcuts,
-                    browser: browser,
                     requestedSpaceID: requestedSpaceID,
                     requestRevision: requestRevision
                 )

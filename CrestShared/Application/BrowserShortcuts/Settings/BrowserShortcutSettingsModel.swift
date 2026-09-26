@@ -5,7 +5,6 @@ import Observation
 @MainActor
 final class BrowserShortcutSettingsModel {
     private let shortcuts: BrowserShortcutStore
-    private let browser: BrowserStore
 
     var searchText = ""
     private(set) var validationIssue: BrowserShortcutValidationIssue?
@@ -15,11 +14,9 @@ final class BrowserShortcutSettingsModel {
 
     init(
         shortcuts: BrowserShortcutStore,
-        browser: BrowserStore,
         searchProvider: any BrowserShortcutSearchProviding
     ) {
         self.shortcuts = shortcuts
-        self.browser = browser
         self.searchProvider = searchProvider
     }
 
@@ -30,10 +27,6 @@ final class BrowserShortcutSettingsModel {
                 pendingConflict = nil
             }
         }
-    }
-
-    var spaces: [BrowserSpace] {
-        browser.session.spaces
     }
 
     var hasCrestCustomizations: Bool {

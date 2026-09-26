@@ -132,7 +132,7 @@ struct BrowserMacWindowScene: View {
         .onChange(of: spaceSettingsPresentation.revision) {
             guard model.window?.isKeyWindow == true,
                 let assignment = spaceSettingsPresentation.requestedAssignment,
-                browser.space(matching: assignment) != nil
+                browser.spaceModel(matching: assignment) != nil
             else { return }
             model.spaceSettingsPresentation.present(
                 spaceSettingsPresentation.requestedDestination, assignment: assignment)

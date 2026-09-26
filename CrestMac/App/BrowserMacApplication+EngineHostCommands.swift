@@ -16,6 +16,9 @@ extension BrowserMacApplication: BrowserEngineHostCommands {
 
     // MARK: - Variables
 
+    /// The Spaces the engine's extensions may act in, as the session copy
+    /// holds them. TRANSITIONAL until the Chromium extension store reads the
+    /// read model.
     var extensionSpaces: [BrowserSpace] {
         browser.session.spaces.filter {
             !browser.deletingSpaceIDs.contains($0.id) && !spaceAccess.isLocked($0)
@@ -36,7 +39,7 @@ extension BrowserMacApplication: BrowserEngineHostCommands {
 
     @discardableResult
     func openTab(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: BrowserWindowID) -> Bool {
-        guard let host = hostWindow(window), let target = host.browser.space(matching: space),
+        guard let host = hostWindow(window), let target = host.browser.spaceModel(matching: space),
             !spaceAccess.isLocked(target)
         else { return false }
         host.browser.selectSpace(target.id)

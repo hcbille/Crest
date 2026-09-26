@@ -2793,6 +2793,10 @@
     "2026-09-26-transient-pages-read-model": {
       "category": "internal",
       "message": "Quick Windows and Peeks read the Space they browse and the Spaces they offer from the core's published state"
+    },
+    "2026-09-26-app-scenes-read-model": {
+      "category": "internal",
+      "message": "Browser windows check a Space against the core's published state before showing its settings or opening a handed-off link"
     }
   }
 }

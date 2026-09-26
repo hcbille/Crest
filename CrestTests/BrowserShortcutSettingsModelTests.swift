@@ -64,7 +64,7 @@ final class BrowserShortcutSettingsModelTests: XCTestCase {
 
     private func makeFixture() -> (shortcuts: BrowserShortcutStore, model: BrowserShortcutSettingsModel) {
         let shortcuts = BrowserShortcutStore()
-        let model = BrowserShortcutSettingsModel(shortcuts: shortcuts, browser: .preview(), searchProvider: SearchProvider())
+        let model = BrowserShortcutSettingsModel(shortcuts: shortcuts, searchProvider: SearchProvider())
         return (shortcuts, model)
     }
     private struct SearchProvider: BrowserShortcutSearchProviding {

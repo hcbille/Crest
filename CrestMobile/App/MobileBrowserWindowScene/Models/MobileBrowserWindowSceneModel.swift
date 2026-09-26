@@ -216,7 +216,7 @@ final class MobileBrowserWindowSceneModel {
             await spaceAccess.unlock(space)
         else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard browser.space(matching: assignment) != nil else { return false }
+        guard browser.spaceModel(matching: assignment) != nil else { return false }
         if placement.opensQuickWindow {
             transientBrowsing.presentQuickWindow(BrowserQuickWindowRequest(url: url, spaceAssignment: assignment))
             return true
@@ -277,8 +277,8 @@ final class MobileBrowserWindowSceneModel {
     /// their records go with it.
     private func closePrivateWorkspace() {
         cancelPrivateDownloadConfirmations()
-        for space in privateBrowser.session.spaces {
-            privatePages.downloadCenter.deleteRecords(profileID: space.profile.id, spaceID: space.id)
+        for space in privateBrowser.spaceModels {
+            privatePages.downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.id)
         }
         privateBrowser.close()
         privateBrowser.family.close()
@@ -298,7 +298,7 @@ final class MobileBrowserWindowSceneModel {
     /// cancels only its own private profile's requests.
     private func cancelPrivateDownloadConfirmations() {
         privatePages.downloadRiskConfirmation.cancelAll(
-            profileIDs: Set(privateBrowser.session.spaces.map(\.profile.id)))
+            profileIDs: Set(privateBrowser.spaceModels.map(\.profileID)))
     }
 
     private func flushPendingPersistence() {

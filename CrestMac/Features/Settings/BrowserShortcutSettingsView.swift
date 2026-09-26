@@ -9,14 +9,12 @@ struct BrowserShortcutSettingsView: View {
 
     init(
         shortcuts: BrowserShortcutStore,
-        browser: BrowserStore,
         requestedSpaceID: SpaceID? = nil,
         requestRevision: Int = 0
     ) {
         self.init(
             model: BrowserShortcutSettingsModel(
                 shortcuts: shortcuts,
-                browser: browser,
                 searchProvider: BrowserShortcutPresentationCatalog()
             ),
             requestedSpaceID: requestedSpaceID,
