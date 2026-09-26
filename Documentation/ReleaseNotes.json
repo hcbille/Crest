@@ -2697,6 +2697,10 @@
     "2026-09-26-core-page-residency": {
       "category": "internal",
       "message": "Under memory pressure the core unloads the pages off screen longest, never ones playing media, and restores them where they were"
+    },
+    "2026-09-26-ios-download-clear-test": {
+      "category": "internal",
+      "message": "The iOS download-clearing test ends its download before clearing it, as the download center now requires"
     }
   }
 }

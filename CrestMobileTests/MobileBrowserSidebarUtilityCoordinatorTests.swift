@@ -56,6 +56,8 @@ final class MobileBrowserSidebarUtilityCoordinatorTests: XCTestCase {
             openURL: { _ in }
         )
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
+        // Only a download that ended can be cleared.
+        context.pages.downloadCenter.cancel(context.downloadItemID)
 
         coordinator.actions.performDownloadAction(
             .clear(context.downloadItemID),
