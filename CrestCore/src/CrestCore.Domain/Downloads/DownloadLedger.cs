@@ -34,7 +34,7 @@ public sealed class DownloadLedger {
         if (IndexOf(id) >= 0) throw new Rejected(new DuplicateDownload());
         if (items.Count >= MaximumItems) throw new Rejected(new DownloadLimitReached(MaximumItems));
         var item = new DownloadState(id, profileId, createdAt, filename, null, 0, DownloadTelemetry.Empty,
-            DownloadPhase.Preparing, null, null, isAcknowledged);
+            DownloadPhase.Preparing, null, null, null, isAcknowledged);
         items.Insert(0, item);
         return item;
     }
@@ -92,9 +92,11 @@ public sealed class DownloadLedger {
 
     /// A blocked automatic download may also fail, when its retry can no longer
     /// be replayed.
-    public DownloadState? Fail(Guid id, string message) {
-        DownloadTextField.Message.Validate(message);
-        return Update(id, item => item.Phase.CanFail, item => Stopped(item, DownloadPhase.Failed, message));
+    /// A failure says why when it is known, and carries the engine's or
+    /// platform's own words when it has them; it needs one of the two.
+    public DownloadState? Fail(Guid id, DownloadFailure? reason, string? message) {
+        if (message is not null || reason is null) DownloadTextField.Message.Validate(message ?? "");
+        return Update(id, item => item.Phase.CanFail, item => Stopped(item, DownloadPhase.Failed, message) with { Failure = reason });
     }
 
     public DownloadState? BlockAutomaticDownload(Guid id) =>
@@ -108,6 +110,7 @@ public sealed class DownloadLedger {
             Progress = 0,
             Telemetry = DownloadTelemetry.Empty,
             Phase = DownloadPhase.Preparing,
+            Failure = null,
             Message = null,
             Risk = null,
             IsAcknowledged = false
@@ -176,7 +179,7 @@ public sealed class DownloadLedger {
     #region Actions - Transitions
 
     private static DownloadState Stopped(DownloadState item, DownloadPhase phase, string? message) =>
-        item with { Telemetry = item.Telemetry.Stopped(), Phase = phase, Message = message };
+        item with { Telemetry = item.Telemetry.Stopped(), Phase = phase, Failure = null, Message = message };
 
     private DownloadState? UpdateLive(Guid id, Func<DownloadState, DownloadState> transition) =>
         Update(id, item => item.Phase.IsLive, transition);

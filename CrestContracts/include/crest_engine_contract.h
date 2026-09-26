@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0x87, 0xd1, 0xa9, 0xa0, 0xaf, 0x14, 0x7d, 0xd8, 0x62, 0x1a, 0xc8, 0x1e, 0x42, 0xa4, 0xd2, 0x76, 0xdf, 0x88, 0xf0, 0x8f, 0x9c, 0xae, 0x0b, 0xf7, 0xd0, 0xa7, 0x56, 0x64, 0xcf, 0x91, 0x36, 0x2f};
+    0xf3, 0xad, 0x8b, 0xd3, 0x2e, 0x60, 0x6d, 0xc1, 0x15, 0x42, 0xa8, 0x01, 0x6e, 0x66, 0xef, 0x85, 0xac, 0x4e, 0x3d, 0xfa, 0xbe, 0x46, 0x2a, 0x3f, 0xec, 0xba, 0xce, 0x4b, 0xb0, 0x48, 0x49, 0x18};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -291,6 +291,19 @@ enum class AuthenticationScheme : uint32_t {
 inline void Write(WireWriter& writer, AuthenticationScheme value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
 inline bool Read(WireReader& reader, AuthenticationScheme& value) {
   value = static_cast<AuthenticationScheme>(reader.ReadEnum(2));
+  return reader.ok();
+}
+
+enum class EngineDownloadInterruption : uint32_t {
+  kNetwork = 0,
+  kServer = 1,
+  kNoSpace = 2,
+  kFileAccess = 3,
+  kOther = 4,
+};
+inline void Write(WireWriter& writer, EngineDownloadInterruption value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
+inline bool Read(WireReader& reader, EngineDownloadInterruption& value) {
+  value = static_cast<EngineDownloadInterruption>(reader.ReadEnum(5));
   return reader.ok();
 }
 
@@ -984,7 +997,8 @@ struct EngineDownload {
   bool paused = false;
   EngineDownloadState state = {};
   std::optional<EngineDownloadWarning> warning;
-  std::optional<std::string> failure;
+  std::optional<EngineDownloadInterruption> interruption;
+  std::optional<std::string> failure_detail;
   std::string approval_token;
 
   friend bool operator==(const EngineDownload&, const EngineDownload&) = default;
@@ -1002,7 +1016,8 @@ inline void Write(WireWriter& writer, const EngineDownload& value) {
   Write(writer, value.paused);
   Write(writer, value.state);
   Write(writer, value.warning);
-  Write(writer, value.failure);
+  Write(writer, value.interruption);
+  Write(writer, value.failure_detail);
   Write(writer, value.approval_token);
 }
 inline bool Read(WireReader& reader, EngineDownload& value) {
@@ -1018,7 +1033,8 @@ inline bool Read(WireReader& reader, EngineDownload& value) {
       && Read(reader, value.paused)
       && Read(reader, value.state)
       && Read(reader, value.warning)
-      && Read(reader, value.failure)
+      && Read(reader, value.interruption)
+      && Read(reader, value.failure_detail)
       && Read(reader, value.approval_token);
 }
 

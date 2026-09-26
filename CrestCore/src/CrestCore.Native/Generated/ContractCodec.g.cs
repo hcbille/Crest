@@ -14,12 +14,12 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0xb3, 0xfa, 0x9c, 0x9f, 0xc9, 0x9b, 0x1d, 0x61, 0x11, 0x7c, 0x0d, 0x0c, 0x0d, 0x0b, 0xe3, 0x7a, 0x57, 0x91, 0x4d, 0x52, 0xa2, 0xd6, 0xdf, 0x33, 0xb1, 0x37, 0x68, 0x6f, 0x20, 0xef, 0x39, 0x5a
+        0x53, 0x30, 0x41, 0xe9, 0xe7, 0x24, 0xca, 0xef, 0x67, 0x85, 0x93, 0x92, 0x28, 0xd8, 0x1b, 0xfb, 0x9b, 0x75, 0x8a, 0x9b, 0x46, 0x81, 0xd6, 0x73, 0x73, 0x4e, 0xb2, 0xc3, 0x2d, 0x53, 0xf1, 0x40
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
     public static ReadOnlySpan<byte> EngineFingerprint => [
-        0x87, 0xd1, 0xa9, 0xa0, 0xaf, 0x14, 0x7d, 0xd8, 0x62, 0x1a, 0xc8, 0x1e, 0x42, 0xa4, 0xd2, 0x76, 0xdf, 0x88, 0xf0, 0x8f, 0x9c, 0xae, 0x0b, 0xf7, 0xd0, 0xa7, 0x56, 0x64, 0xcf, 0x91, 0x36, 0x2f
+        0xf3, 0xad, 0x8b, 0xd3, 0x2e, 0x60, 0x6d, 0xc1, 0x15, 0x42, 0xa8, 0x01, 0x6e, 0x66, 0xef, 0x85, 0xac, 0x4e, 0x3d, 0xfa, 0xbe, 0x46, 0x2a, 0x3f, 0xec, 0xba, 0xce, 0x4b, 0xb0, 0x48, 0x49, 0x18
     ];
 
     public static Intent ReadIntent(WireReader reader) {
@@ -4132,6 +4132,7 @@ public static class ContractCodec {
             reader.ReadDouble(),
             ReadDownloadTelemetry(reader),
             ReadDownloadPhase(reader),
+            reader.ReadPresence() ? (DownloadFailure?)ReadDownloadFailure(reader) : null,
             reader.ReadPresence() ? (string?)reader.ReadString() : null,
             reader.ReadPresence() ? (DownloadRiskAssessment?)ReadDownloadRiskAssessment(reader) : null,
             reader.ReadBool());
@@ -4153,6 +4154,12 @@ public static class ContractCodec {
         writer.WriteDouble(value.Progress);
         WriteDownloadTelemetry(writer, value.Telemetry);
         WriteDownloadPhase(writer, value.Phase);
+        if (value.Failure is { } presentFailure) {
+            writer.WritePresence(true);
+            WriteDownloadFailure(writer, presentFailure);
+        } else {
+            writer.WritePresence(false);
+        }
         if (value.Message is { } presentMessage) {
             writer.WritePresence(true);
             writer.WriteString(presentMessage);
@@ -4555,6 +4562,7 @@ public static class ContractCodec {
             reader.ReadBool(),
             ReadEngineDownloadState(reader),
             reader.ReadPresence() ? (EngineDownloadWarning?)ReadEngineDownloadWarning(reader) : null,
+            reader.ReadPresence() ? (EngineDownloadInterruption?)ReadEngineDownloadInterruption(reader) : null,
             reader.ReadPresence() ? (string?)reader.ReadString() : null,
             reader.ReadString());
     }
@@ -4589,9 +4597,15 @@ public static class ContractCodec {
         } else {
             writer.WritePresence(false);
         }
-        if (value.Failure is { } presentFailure) {
+        if (value.Interruption is { } presentInterruption) {
             writer.WritePresence(true);
-            writer.WriteString(presentFailure);
+            WriteEngineDownloadInterruption(writer, presentInterruption);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.FailureDetail is { } presentFailureDetail) {
+            writer.WritePresence(true);
+            writer.WriteString(presentFailureDetail);
         } else {
             writer.WritePresence(false);
         }
@@ -4816,14 +4830,26 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(reader);
         return new FailDownload(
             reader.ReadGuid(),
-            reader.ReadString());
+            reader.ReadPresence() ? (DownloadFailure?)ReadDownloadFailure(reader) : null,
+            reader.ReadPresence() ? (string?)reader.ReadString() : null);
     }
 
     public static void WriteFailDownload(WireWriter writer, FailDownload value) {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteGuid(value.DownloadId);
-        writer.WriteString(value.Message);
+        if (value.Reason is { } presentReason) {
+            writer.WritePresence(true);
+            WriteDownloadFailure(writer, presentReason);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.Message is { } presentMessage) {
+            writer.WritePresence(true);
+            writer.WriteString(presentMessage);
+        } else {
+            writer.WritePresence(false);
+        }
     }
 
     public static FallbackTab ReadFallbackTab(WireReader reader) {
@@ -11448,6 +11474,16 @@ public static class ContractCodec {
         writer.WriteEnum((int)value);
     }
 
+    public static EngineDownloadInterruption ReadEngineDownloadInterruption(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return (EngineDownloadInterruption)reader.ReadEnum(5);
+    }
+
+    public static void WriteEngineDownloadInterruption(WireWriter writer, EngineDownloadInterruption value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteEnum((int)value);
+    }
+
     public static EngineDownloadState ReadEngineDownloadState(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return (EngineDownloadState)reader.ReadEnum(6);
@@ -11788,6 +11824,17 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteEnum(TagOf(DevicePlatform.All, value));
+    }
+
+    public static DownloadFailure ReadDownloadFailure(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return DownloadFailure.All[reader.ReadEnum(DownloadFailure.All.Count)];
+    }
+
+    public static void WriteDownloadFailure(WireWriter writer, DownloadFailure value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(DownloadFailure.All, value));
     }
 
     public static DownloadPhase ReadDownloadPhase(WireReader reader) {

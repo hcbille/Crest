@@ -44,10 +44,13 @@ struct BrowserDownloadRowPresentation: Sendable {
         )
     }
 
-    /// The phase's title, or the record's own message for a phase without
-    /// one. Search matches it without waiting for transfer telemetry.
+    /// The phase's title, or for a phase without one, why the record stopped
+    /// in its localized words, else its own message. Search matches it
+    /// without waiting for transfer telemetry.
     static func status(of item: DownloadState) -> BrowserUtilityText {
-        item.phase.title.map(BrowserUtilityText.localized) ?? .verbatim(item.message ?? "")
+        if let title = item.phase.title { return .localized(title) }
+        if let failure = item.failure { return .localized(failure.message) }
+        return .verbatim(item.message ?? "")
     }
 
     var hasSecondaryTransferMetrics: Bool {

@@ -1,6 +1,33 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "The download was interrupted." : {
+
+    },
+    "The download stopped because of a network problem." : {
+
+    },
+    "The server couldn’t provide the file." : {
+
+    },
+    "There isn’t enough disk space to save the file." : {
+
+    },
+    "The file couldn’t be saved in its folder." : {
+
+    },
+    "The download folder is unavailable. Choose another folder in Space settings." : {
+
+    },
+    "This download was blocked because it could harm your computer." : {
+
+    },
+    "This download was blocked because it came over an insecure connection." : {
+
+    },
+    "This download was blocked by a safety or organization policy." : {
+
+    },
     "" : {
 
     },

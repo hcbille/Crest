@@ -1168,6 +1168,7 @@ struct DownloadState: Equatable, Sendable, Identifiable {
     let progress: Double
     let telemetry: DownloadTelemetry
     let phase: DownloadPhase
+    let failure: DownloadFailure?
     let message: String?
     let risk: DownloadRiskAssessment?
     let isAcknowledged: Bool
@@ -1323,7 +1324,8 @@ struct EngineDownload: Equatable, Sendable {
     let paused: Bool
     let state: EngineDownloadState
     let warning: EngineDownloadWarning?
-    let failure: String?
+    let interruption: EngineDownloadInterruption?
+    let failureDetail: String?
     let approvalToken: String
 }
 
@@ -1444,7 +1446,8 @@ struct ExternalLinkRoute: Query, Equatable, Sendable {
 
 struct FailDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
-    let message: String
+    let reason: DownloadFailure?
+    let message: String?
 }
 
 struct FallbackTab: Query, Equatable, Sendable {
@@ -4283,6 +4286,14 @@ enum CrestTrim: Int, CaseIterable, Sendable {
     case beaded = 8
 }
 
+enum EngineDownloadInterruption: Int, CaseIterable, Sendable {
+    case network = 0
+    case server = 1
+    case noSpace = 2
+    case fileAccess = 3
+    case other = 4
+}
+
 enum EngineDownloadState: Int, CaseIterable, Sendable {
     case preparing = 0
     case downloading = 1
@@ -5143,6 +5154,89 @@ struct DevicePlatform: Hashable, Sendable {
     }
 
     static func == (lhs: DevicePlatform, rhs: DevicePlatform) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `DownloadFailure`. A member's wire tag is its index in `all`.
+struct DownloadFailure: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let message: LocalizedStringResource
+
+    private init(tag: Int, name: String, message: LocalizedStringResource) {
+        self.tag = tag
+        self.name = name
+        self.message = message
+    }
+
+    static let interrupted = DownloadFailure(
+        tag: 0,
+        name: "interrupted",
+        message: LocalizedStringResource("The download was interrupted.")
+    )
+    static let network = DownloadFailure(
+        tag: 1,
+        name: "network",
+        message: LocalizedStringResource("The download stopped because of a network problem.")
+    )
+    static let server = DownloadFailure(
+        tag: 2,
+        name: "server",
+        message: LocalizedStringResource("The server couldn’t provide the file.")
+    )
+    static let noSpace = DownloadFailure(
+        tag: 3,
+        name: "noSpace",
+        message: LocalizedStringResource("There isn’t enough disk space to save the file.")
+    )
+    static let fileAccess = DownloadFailure(
+        tag: 4,
+        name: "fileAccess",
+        message: LocalizedStringResource("The file couldn’t be saved in its folder.")
+    )
+    static let folderUnavailable = DownloadFailure(
+        tag: 5,
+        name: "folderUnavailable",
+        message: LocalizedStringResource("The download folder is unavailable. Choose another folder in Space settings.")
+    )
+    static let blockedUnsafe = DownloadFailure(
+        tag: 6,
+        name: "blockedUnsafe",
+        message: LocalizedStringResource("This download was blocked because it could harm your computer.")
+    )
+    static let blockedInsecure = DownloadFailure(
+        tag: 7,
+        name: "blockedInsecure",
+        message: LocalizedStringResource("This download was blocked because it came over an insecure connection.")
+    )
+    static let blockedByPolicy = DownloadFailure(
+        tag: 8,
+        name: "blockedByPolicy",
+        message: LocalizedStringResource("This download was blocked by a safety or organization policy.")
+    )
+
+    static let all: [DownloadFailure] = [
+        interrupted,
+        network,
+        server,
+        noSpace,
+        fileAccess,
+        folderUnavailable,
+        blockedUnsafe,
+        blockedInsecure,
+        blockedByPolicy
+    ]
+
+    static func named(_ name: String?) -> DownloadFailure? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: DownloadFailure, rhs: DownloadFailure) -> Bool {
         lhs.tag == rhs.tag
     }
 

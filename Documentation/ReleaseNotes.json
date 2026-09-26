@@ -2661,6 +2661,10 @@
     "2026-09-26-engine-downloads-in-core": {
       "category": "internal",
       "message": "Chromium's downloads are recorded by the core, which asks where to save and whether to keep a warned file"
+    },
+    "2026-09-26-download-failure-reasons": {
+      "category": "improved",
+      "message": "A download that fails now says why, such as a network problem, a full disk or a blocked file"
     }
   }
 }

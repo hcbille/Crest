@@ -86,7 +86,7 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
                 End(download, changes);
                 break;
             case EngineDownloadState.Failed:
-                Record(new FailDownload(download.DownloadId, reported.Failure ?? WarningText(reported.Warning) ?? "The download failed."), changes);
+                Record(new FailDownload(download.DownloadId, FailureOf(reported), reported.FailureDetail), changes);
                 End(download, changes);
                 break;
             case EngineDownloadState.AwaitingApproval when reported.Warning is null:
@@ -253,17 +253,20 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
     /// A monotonic clock in seconds, which transfer rates are measured by.
     private static double Uptime => Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
 
-    /// What the person is told about a download the engine stopped for its
-    /// warning.
-    private static string? WarningText(EngineDownloadWarning? warning) => warning switch {
-        EngineDownloadWarning.InsecureConnection =>
-            "This file was transferred over an insecure connection and could have been changed by someone else.",
-        EngineDownloadWarning.DangerousFile => "This type of file can change your computer.",
-        EngineDownloadWarning.UncommonContent => "This file is not commonly downloaded, so it could not be confirmed as safe.",
-        EngineDownloadWarning.PotentiallyUnwanted => "This file may change your browser or computer settings without your permission.",
-        EngineDownloadWarning.InsecureBlocked => "This insecure download was blocked.",
-        EngineDownloadWarning.PolicyBlocked => "This download was blocked by its safety or organization policy verdict.",
-        _ => null
+    /// Why a download the engine stopped failed: the warning it was blocked
+    /// for, else what interrupted it.
+    private static DownloadFailure FailureOf(EngineDownload reported) => reported.Warning switch {
+        EngineDownloadWarning.InsecureBlocked or EngineDownloadWarning.InsecureConnection => DownloadFailure.BlockedInsecure,
+        EngineDownloadWarning.PolicyBlocked => DownloadFailure.BlockedByPolicy,
+        EngineDownloadWarning.DangerousFile or EngineDownloadWarning.UncommonContent or EngineDownloadWarning.PotentiallyUnwanted =>
+            DownloadFailure.BlockedUnsafe,
+        _ => reported.Interruption switch {
+            EngineDownloadInterruption.Network => DownloadFailure.Network,
+            EngineDownloadInterruption.Server => DownloadFailure.Server,
+            EngineDownloadInterruption.NoSpace => DownloadFailure.NoSpace,
+            EngineDownloadInterruption.FileAccess => DownloadFailure.FileAccess,
+            _ => DownloadFailure.Interrupted
+        }
     };
 
     #endregion

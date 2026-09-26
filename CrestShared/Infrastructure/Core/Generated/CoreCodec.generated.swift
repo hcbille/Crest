@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xb3, 0xfa, 0x9c, 0x9f, 0xc9, 0x9b, 0x1d, 0x61, 0x11, 0x7c, 0x0d, 0x0c, 0x0d, 0x0b, 0xe3, 0x7a, 0x57, 0x91, 0x4d, 0x52, 0xa2, 0xd6, 0xdf, 0x33, 0xb1, 0x37, 0x68, 0x6f, 0x20, 0xef, 0x39, 0x5a
+        0x53, 0x30, 0x41, 0xe9, 0xe7, 0x24, 0xca, 0xef, 0x67, 0x85, 0x93, 0x92, 0x28, 0xd8, 0x1b, 0xfb, 0x9b, 0x75, 0x8a, 0x9b, 0x46, 0x81, 0xd6, 0x73, 0x73, 0x4e, 0xb2, 0xc3, 0x2d, 0x53, 0xf1, 0x40
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0x87, 0xd1, 0xa9, 0xa0, 0xaf, 0x14, 0x7d, 0xd8, 0x62, 0x1a, 0xc8, 0x1e, 0x42, 0xa4, 0xd2, 0x76, 0xdf, 0x88, 0xf0, 0x8f, 0x9c, 0xae, 0x0b, 0xf7, 0xd0, 0xa7, 0x56, 0x64, 0xcf, 0x91, 0x36, 0x2f
+        0xf3, 0xad, 0x8b, 0xd3, 0x2e, 0x60, 0x6d, 0xc1, 0x15, 0x42, 0xa8, 0x01, 0x6e, 0x66, 0xef, 0x85, 0xac, 0x4e, 0x3d, 0xfa, 0xbe, 0x46, 0x2a, 0x3f, 0xec, 0xba, 0xce, 0x4b, 0xb0, 0x48, 0x49, 0x18
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -4065,6 +4065,13 @@ extension DownloadState {
         let progress = try reader.readDouble()
         let telemetry = try DownloadTelemetry(from: &reader)
         let phase = try DownloadPhase(from: &reader)
+        let failure: DownloadFailure?
+        if try reader.readPresence() {
+            let failureValue = try DownloadFailure(from: &reader)
+            failure = failureValue
+        } else {
+            failure = nil
+        }
         let message: String?
         if try reader.readPresence() {
             let messageValue = try reader.readString()
@@ -4080,7 +4087,7 @@ extension DownloadState {
             risk = nil
         }
         let isAcknowledged = try reader.readBool()
-        self.init(id: id, profileID: profileID, createdAt: createdAt, filename: filename, destination: destination, progress: progress, telemetry: telemetry, phase: phase, message: message, risk: risk, isAcknowledged: isAcknowledged)
+        self.init(id: id, profileID: profileID, createdAt: createdAt, filename: filename, destination: destination, progress: progress, telemetry: telemetry, phase: phase, failure: failure, message: message, risk: risk, isAcknowledged: isAcknowledged)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -4097,6 +4104,12 @@ extension DownloadState {
         writer.writeDouble(progress)
         telemetry.encode(into: &writer)
         phase.encode(into: &writer)
+        if let present0 = failure {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
         if let present0 = message {
             writer.writePresence(true)
             writer.writeString(present0)
@@ -4648,15 +4661,22 @@ extension EngineDownload {
         } else {
             warning = nil
         }
-        let failure: String?
+        let interruption: EngineDownloadInterruption?
         if try reader.readPresence() {
-            let failureValue = try reader.readString()
-            failure = failureValue
+            let interruptionValue = try EngineDownloadInterruption(from: &reader)
+            interruption = interruptionValue
         } else {
-            failure = nil
+            interruption = nil
+        }
+        let failureDetail: String?
+        if try reader.readPresence() {
+            let failureDetailValue = try reader.readString()
+            failureDetail = failureDetailValue
+        } else {
+            failureDetail = nil
         }
         let approvalToken = try reader.readString()
-        self.init(downloadID: downloadID, profileID: profileID, sourcePageID: sourcePageID, filename: filename, path: path, received: received, total: total, startedAt: startedAt, restored: restored, paused: paused, state: state, warning: warning, failure: failure, approvalToken: approvalToken)
+        self.init(downloadID: downloadID, profileID: profileID, sourcePageID: sourcePageID, filename: filename, path: path, received: received, total: total, startedAt: startedAt, restored: restored, paused: paused, state: state, warning: warning, interruption: interruption, failureDetail: failureDetail, approvalToken: approvalToken)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -4687,7 +4707,13 @@ extension EngineDownload {
         } else {
             writer.writePresence(false)
         }
-        if let present0 = failure {
+        if let present0 = interruption {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = failureDetail {
             writer.writePresence(true)
             writer.writeString(present0)
         } else {
@@ -5111,13 +5137,37 @@ extension ExternalLinkRoute {
 extension FailDownload {
     init(from reader: inout WireReader) throws(WireError) {
         let downloadID = try reader.readUUID()
-        let message = try reader.readString()
-        self.init(downloadID: downloadID, message: message)
+        let reason: DownloadFailure?
+        if try reader.readPresence() {
+            let reasonValue = try DownloadFailure(from: &reader)
+            reason = reasonValue
+        } else {
+            reason = nil
+        }
+        let message: String?
+        if try reader.readPresence() {
+            let messageValue = try reader.readString()
+            message = messageValue
+        } else {
+            message = nil
+        }
+        self.init(downloadID: downloadID, reason: reason, message: message)
     }
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(downloadID)
-        writer.writeString(message)
+        if let present0 = reason {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = message {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
     }
 
     func encodeIntent(into writer: inout WireWriter) {
@@ -15167,6 +15217,20 @@ extension CrestTrim {
     }
 }
 
+extension EngineDownloadInterruption {
+    init(from reader: inout WireReader) throws(WireError) {
+        let rawValue = try reader.readEnum()
+        guard let value = EngineDownloadInterruption(rawValue: rawValue) else {
+            throw WireError.malformed("Unknown EngineDownloadInterruption \(rawValue)")
+        }
+        self = value
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(rawValue)
+    }
+}
+
 extension EngineDownloadState {
     init(from reader: inout WireReader) throws(WireError) {
         let rawValue = try reader.readEnum()
@@ -15714,6 +15778,20 @@ extension DevicePlatform {
         let tag = try reader.readEnum()
         guard Self.all.indices.contains(tag) else {
             throw WireError.malformed("Unknown DevicePlatform \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
+extension DownloadFailure {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown DownloadFailure \(tag)")
         }
         self = Self.all[tag]
     }

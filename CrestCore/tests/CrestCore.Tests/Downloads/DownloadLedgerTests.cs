@@ -81,7 +81,7 @@ public sealed class DownloadLedgerTests {
         Assert.Equal(DownloadPhase.Finished, finished.Phase);
         Assert.Equal(1, finished.Progress);
         Assert.Equal(new DownloadTelemetry(900, 900, null, null, false), finished.Telemetry);
-        var failed = ledger.Fail(Begin(ledger, Work), "Network lost.")!;
+        var failed = ledger.Fail(Begin(ledger, Work), DownloadFailure.Network, "Network lost.")!;
         Assert.Equal(new DownloadTelemetry(0, null, null, null, false), failed.Telemetry);
     }
 
@@ -96,7 +96,7 @@ public sealed class DownloadLedgerTests {
         Assert.Null(ledger.SetDestination(id, "file:///late.pdf", "late.pdf"));
         Assert.Null(ledger.AssessRisk(id, new("late.pdf", [DownloadRiskReason.DeceptiveFilename])));
         Assert.Null(ledger.AwaitApproval(id));
-        Assert.Null(ledger.Fail(id, "Late failure."));
+        Assert.Null(ledger.Fail(id, DownloadFailure.Interrupted, "Late failure."));
         Assert.Null(ledger.BlockAutomaticDownload(id));
         Assert.Null(ledger.Restart(id));
         Assert.Equal(DownloadPhase.Canceled, ledger.Items[0].Phase);
@@ -122,7 +122,7 @@ public sealed class DownloadLedgerTests {
         Assert.Null(ledger.Restart(id));
 
         ledger.BlockAutomaticDownload(id);
-        var failed = ledger.Fail(id, "Reload the original page, then try the download again.")!;
+        var failed = ledger.Fail(id, reason: null, "Reload the original page, then try the download again.")!;
         Assert.Equal(DownloadPhase.Failed, failed.Phase);
     }
 

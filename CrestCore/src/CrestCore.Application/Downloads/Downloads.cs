@@ -38,7 +38,7 @@ public sealed class Downloads {
                 Updated(ledger.Finish(finish.DownloadId, finish.FinalByteCount), changes);
                 break;
             case FailDownload failure:
-                Updated(ledger.Fail(failure.DownloadId, failure.Message), changes);
+                Updated(ledger.Fail(failure.DownloadId, failure.Reason, failure.Message), changes);
                 break;
             case CancelDownload cancellation:
                 Updated(ledger.Cancel(cancellation.DownloadId, cancellation.Message), changes);

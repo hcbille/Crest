@@ -632,7 +632,7 @@ final class BrowserWebKitDownloadTransport: NSObject, BrowserDownloadTransport {
 
     private func fail(_ download: WKDownload, message: String) {
         removeStagingFile(for: ObjectIdentifier(download))
-        send(for: download) { FailDownload(downloadID: $0, message: message) }
+        send(for: download) { FailDownload(downloadID: $0, reason: nil, message: message) }
     }
 
     private func removeStagingFile(for key: ObjectIdentifier) {

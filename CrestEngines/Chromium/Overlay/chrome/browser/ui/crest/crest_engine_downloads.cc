@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/crest/crest_engine_binding.h"
 #include "chrome/browser/ui/crest/crest_engine_profiles.h"
 #include "chrome/browser/ui/crest/crest_engine_prompts.h"
+#include "components/download/public/common/download_interrupt_reasons.h"
 #include "components/download/public/common/download_item.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
@@ -51,6 +52,39 @@ std::optional<engine::EngineDownloadWarning> WarningFor(download::DownloadItem* 
     default:
       *blocked = true;
       return engine::EngineDownloadWarning::kPolicyBlocked;
+  }
+}
+
+// What stopped a download, as Crest names it.
+engine::EngineDownloadInterruption InterruptionOf(download::DownloadInterruptReason reason) {
+  switch (reason) {
+    case download::DOWNLOAD_INTERRUPT_REASON_NETWORK_FAILED:
+    case download::DOWNLOAD_INTERRUPT_REASON_NETWORK_TIMEOUT:
+    case download::DOWNLOAD_INTERRUPT_REASON_NETWORK_DISCONNECTED:
+    case download::DOWNLOAD_INTERRUPT_REASON_NETWORK_SERVER_DOWN:
+    case download::DOWNLOAD_INTERRUPT_REASON_NETWORK_INVALID_REQUEST:
+      return engine::EngineDownloadInterruption::kNetwork;
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_FAILED:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_NO_RANGE:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_BAD_CONTENT:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_UNAUTHORIZED:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_CERT_PROBLEM:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_FORBIDDEN:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_UNREACHABLE:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_CONTENT_LENGTH_MISMATCH:
+    case download::DOWNLOAD_INTERRUPT_REASON_SERVER_CROSS_ORIGIN_REDIRECT:
+      return engine::EngineDownloadInterruption::kServer;
+    case download::DOWNLOAD_INTERRUPT_REASON_FILE_NO_SPACE:
+      return engine::EngineDownloadInterruption::kNoSpace;
+    case download::DOWNLOAD_INTERRUPT_REASON_FILE_FAILED:
+    case download::DOWNLOAD_INTERRUPT_REASON_FILE_ACCESS_DENIED:
+    case download::DOWNLOAD_INTERRUPT_REASON_FILE_NAME_TOO_LONG:
+    case download::DOWNLOAD_INTERRUPT_REASON_FILE_TOO_LARGE:
+    case download::DOWNLOAD_INTERRUPT_REASON_FILE_TRANSIENT_ERROR:
+    case download::DOWNLOAD_INTERRUPT_REASON_FILE_SAME_AS_SOURCE:
+      return engine::EngineDownloadInterruption::kFileAccess;
+    default:
+      return engine::EngineDownloadInterruption::kOther;
   }
 }
 
@@ -106,7 +140,8 @@ std::optional<engine::EngineDownload> EngineDownloads::Describe(download::Downlo
       break;
     case download::DownloadItem::INTERRUPTED:
       download.state = engine::EngineDownloadState::kFailed;
-      download.failure = base::UTF16ToUTF8(DownloadItemModel(item).GetInterruptDescription());
+      download.interruption = InterruptionOf(item->GetLastReason());
+      download.failure_detail = base::UTF16ToUTF8(DownloadItemModel(item).GetInterruptDescription());
       break;
     case download::DownloadItem::IN_PROGRESS: {
       download.state = item->GetTargetFilePath().empty() ? engine::EngineDownloadState::kPreparing

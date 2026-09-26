@@ -145,9 +145,7 @@
                     answer(AnswerDownloadDestination(promptID: asked.promptID, path: nil))
                 case .unavailable:
                     _ = try? core?.send(
-                        FailDownload(
-                            downloadID: asked.downloadID,
-                            message: "The download folder is unavailable. Choose another folder in Space settings."))
+                        FailDownload(downloadID: asked.downloadID, reason: .folderUnavailable, message: nil))
                     answer(AnswerDownloadDestination(promptID: asked.promptID, path: nil))
                 }
             }

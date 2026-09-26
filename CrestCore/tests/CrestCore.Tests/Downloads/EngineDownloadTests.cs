@@ -12,9 +12,10 @@ namespace CrestCore.Tests;
 /// never carries characters that disguise the file.
 public sealed partial class BrowserContractsTests {
     private static EngineDownload Transfer(Guid profile, Guid? page, EngineDownloadState state = EngineDownloadState.Preparing,
-        long received = 0, long total = 100, EngineDownloadWarning? warning = null, string token = "") =>
+        long received = 0, long total = 100, EngineDownloadWarning? warning = null, string token = "",
+        EngineDownloadInterruption? interruption = null, string? detail = null) =>
         new("7", profile, page, "report.pdf", Path: null, received, total, new DateTimeOffset(2026, 9, 25, 0, 0, 0, TimeSpan.Zero),
-            Restored: false, Paused: false, state, warning, Failure: null, token);
+            Restored: false, Paused: false, state, warning, interruption, detail, token);
 
     private static Guid ProfileOf(CrestApp app, Guid workspace, Guid space) =>
         app.Workspace(workspace).Current.Spaces.First(candidate => candidate.Id == space).ProfileId;
@@ -77,6 +78,23 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(new RemoveEngineDownload(profile, "7"), binding.Commands[^1]);
         app.Report(engine, new EngineDownloadChanged(Transfer(profile, page, EngineDownloadState.Downloading, received: 80)));
         Assert.Empty(app.Drain());
+    }
+
+    [Fact]
+    public void AFailedDownloadRecordsWhyAsAReasonAndKeepsTheEnginesWordsAsItsMessage() {
+        var (app, engine, _, page, workspace, _, space, _) = LivePage();
+        using var disposal = app;
+        var profile = ProfileOf(app, workspace, space);
+        app.Report(engine, new EngineDownloadChanged(Transfer(profile, page, EngineDownloadState.Failed,
+            interruption: EngineDownloadInterruption.NoSpace, detail: "Failed - Disk full")));
+        var failed = app.Drain().OfType<DownloadUpdated>().Last().Download;
+        Assert.Equal((DownloadPhase.Failed, DownloadFailure.NoSpace, "Failed - Disk full"), (failed.Phase, failed.Failure, failed.Message));
+
+        // A download the engine blocked fails for its warning, with no words of its own.
+        app.Report(engine, new EngineDownloadChanged(Transfer(profile, page, EngineDownloadState.Failed,
+            warning: EngineDownloadWarning.InsecureBlocked) with { DownloadId = "8" }));
+        var blocked = app.Drain().OfType<DownloadUpdated>().Last().Download;
+        Assert.Equal((DownloadFailure.BlockedInsecure, (string?)null), (blocked.Failure, blocked.Message));
     }
 
     [Theory]

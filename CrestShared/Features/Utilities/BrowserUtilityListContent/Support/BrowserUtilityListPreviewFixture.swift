@@ -134,6 +134,7 @@ enum BrowserUtilityListPreviewFixture {
             telemetry: DownloadTelemetry(
                 bytesReceived: 0, totalBytes: nil, bytesPerSecond: nil, estimatedTimeRemaining: nil, isPaused: false),
             phase: phase,
+            failure: nil,
             message: message,
             risk: nil,
             isAcknowledged: false

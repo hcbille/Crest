@@ -322,7 +322,9 @@ final class BrowserDownloadCenter: NSObject {
                 return retried
             }
         }
-        send(FailDownload(downloadID: itemID, message: "Reload the original page, then try the download again."))
+        send(
+            FailDownload(
+                downloadID: itemID, reason: nil, message: "Reload the original page, then try the download again."))
         return false
     }
 
@@ -390,12 +392,12 @@ final class BrowserDownloadCenter: NSObject {
             #if os(macOS)
                 send(
                     FailDownload(
-                        downloadID: itemID,
+                        downloadID: itemID, reason: .folderUnavailable,
                         message:
                             "The download folder is unavailable. Open Crest Settings > General > System Permissions to check folder access or choose another folder."
                     ))
             #else
-                send(FailDownload(downloadID: itemID, message: "The Downloads folder is unavailable."))
+                send(FailDownload(downloadID: itemID, reason: .folderUnavailable, message: nil))
             #endif
         case .destination(let destination, let resourceURL):
             let scoped = resourceURL?.startAccessingSecurityScopedResource() ?? false
@@ -405,7 +407,7 @@ final class BrowserDownloadCenter: NSObject {
                     data, itemID: itemID, destination: destination, originatingURL: originatingURL)
                 send(FinishDownload(downloadID: itemID, finalByteCount: Int64(data.count)))
             } catch {
-                send(FailDownload(downloadID: itemID, message: error.localizedDescription))
+                send(FailDownload(downloadID: itemID, reason: .fileAccess, message: error.localizedDescription))
             }
         }
     }
