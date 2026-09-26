@@ -93,6 +93,8 @@ extension NumberedSelectionTarget: CoreNamedValue {}
 
 extension QuickWindowArchivePolicy: CoreNamedValue {}
 
+extension SetupEntry: CoreNamedValue {}
+
 extension ShortcutCommand: CoreNamedValue {}
 
 extension ShortcutSpecialKey: CoreNamedValue {}

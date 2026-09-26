@@ -9,10 +9,15 @@ public sealed partial class NativeSessionAuthority {
     private SessionEdit ImportingSpaces(SessionState basis, ImportSpaces intent, DateTimeOffset now, IIdSource ids, bool previewed) =>
         Importing(basis, intent, intent.Spaces, previewed, now, ids, import => import.AddSpaces());
 
+    /// Imports the review setup holds for this workspace; see
+    /// `ImportReviewedSpaces`.
     private SessionEdit ImportingReviewedSpaces(SessionState basis, ImportReviewedSpaces intent, DateTimeOffset now, IIdSource ids,
-        bool previewed) =>
-        Importing(basis, intent, NativeWorkspaceImport.Decoded(intent.Spaces), previewed, now, ids,
-            import => import.ImportReviewed(intent.Reviews, ids));
+        bool previewed) {
+        if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
+        var review = device?.ImportReview(workspaceId) ?? throw new Rejected(new NoSetup());
+        return Importing(basis, intent, [.. review.Spaces.Select(space => space.Source)], previewed, now, ids,
+            import => import.ImportReviewed(review.Spaces, ids));
+    }
 
     /// Applies the manual setup the device holds for this workspace; see
     /// `ApplyManualSetup`. The device ends the setup once the session accepts it.
@@ -65,26 +70,6 @@ public sealed partial class NativeSessionAuthority {
             return session;
         }
     }
-
-    /// The starting review for the imported Spaces `query` names, against this
-    /// session's Spaces.
-    internal SuggestedImportReview Answer(ImportReviewSuggestions query) {
-        ArgumentNullException.ThrowIfNull(query);
-        lock (Gate) return ImportReviewPolicy.Suggest(query.Sources, ReviewSpaces(), session.DisposableSeedMarker is not null);
-    }
-
-    /// What the reviews `query` names mean against this session's Spaces.
-    /// Throws `Rejected` with `InvalidImport` when they do not pair with its
-    /// sources.
-    internal AnalyzedImportReview Answer(ImportReviewAnalysis query) {
-        ArgumentNullException.ThrowIfNull(query);
-        lock (Gate) return ImportReviewPolicy.Analyze(query.Sources, ReviewSpaces(), query.Reviews);
-    }
-
-    /// This session's Spaces as the review of an import reads them. The caller
-    /// holds the gate.
-    private ImportReviewSpace[] ReviewSpaces() => [.. session.Spaces.Select(space => new ImportReviewSpace(space.Id, space.Settings.Name,
-        [.. space.Tabs.Select(tab => new ImportReviewTab(tab.Id, tab.Url, tab.Placement))]))];
 
     #endregion
 }

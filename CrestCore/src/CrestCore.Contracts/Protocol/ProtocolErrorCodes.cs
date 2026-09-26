@@ -7,7 +7,6 @@ public static class ProtocolErrorCodes {
     public const string DuplicateMember = "duplicate_member";
     public const string HandleCollision = "handle_collision";
     public const string InvalidCounter = "invalid_counter";
-    public const string InvalidEntryPoint = "invalid_entry_point";
     public const string InvalidInput = "invalid_input";
     public const string InvalidPlacement = "invalid_placement";
     public const string InvalidPlatform = "invalid_platform";

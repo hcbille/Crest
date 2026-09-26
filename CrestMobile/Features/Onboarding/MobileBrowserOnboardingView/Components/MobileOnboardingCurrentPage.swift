@@ -44,11 +44,13 @@ struct MobileOnboardingCurrentPage: View {
                 back: context.setupSecondaryAction,
                 finish: context.finish
             )
-        case .macImport:
+        case .importBrowser:
             MobileOnboardingMacImportPage(
                 close: context.close,
                 reviewFeatures: context.reviewFeatures
             )
+        default:
+            EmptyView()
         }
     }
 }

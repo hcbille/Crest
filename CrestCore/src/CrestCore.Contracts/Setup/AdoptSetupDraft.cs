@@ -6,5 +6,5 @@ namespace CrestCore.Contracts;
 /// release's own copy stays where it is. Only a platform that keeps an
 /// unfinished setup takes it, and one the store already keeps wins. A device
 /// that adopted it before, or keeps no file, adopts nothing. The adopted
-/// setup waits for `BeginManualSetup`, so nothing is published.
+/// setup waits for setup's manual-setup step, so nothing is published.
 public sealed record AdoptSetupDraft(byte[]? Draft) : SetupDraftIntent;

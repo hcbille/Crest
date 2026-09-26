@@ -762,13 +762,16 @@ Space shows when its selection is gone. Folder depth, folder count and split
 eligibility answers for menus are core commands prepared and released without
 committing, and the `limits` operation reports every capacity the core
 enforces so native surfaces keep no copies. The core never receives tab contents for these, only identities and
-presence facts; without an answer a window keeps its state. Manual setup and
-the import review keep their drafts native: the core admits draft edits
-against the import's Space and pinned limits, gives new draft Spaces their
-identity, reconciles drafts with Spaces changed elsewhere, suggests review
-destinations, duplicates and pinned overflow through the `workspace.review`
-query, and decides what finishing setup does. The workspace import rejects a
-source whose split runs its repair would rewrite.
+presence facts; without an answer a window keeps its state. Setup is the
+core device's: it holds the manual setup, admitting its edits against the
+Space and pinned limits, giving new Spaces their identity and following Spaces
+changed elsewhere; it holds the setup flow, with the step and where Back leads
+on each platform, the browsers chosen and their queue, and the review of each
+browser with its destinations, duplicates and pinned overflow; it keeps
+whether the device completed setup; and it decides what finishing setup does.
+The platform finds and reads browsers, imports their passwords and tells the
+flow how each went. The workspace import rejects a source whose split runs its
+repair would rewrite.
 
 Shortcuts, launch and media follow it too. The core's `ShortcutCommand` set
 holds every command's stored name, section, title, search terms, symbol and

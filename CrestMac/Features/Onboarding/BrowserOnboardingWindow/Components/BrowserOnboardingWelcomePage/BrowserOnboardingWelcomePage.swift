@@ -1,22 +1,12 @@
 import SwiftUI
 
 struct BrowserOnboardingWelcomePage: View {
-    let progressIsChecking: Bool
+    let action: BrowserOnboardingWelcomeAction
     let cloudPhase: BrowserCloudSyncPhase
     let hasCompletedSetup: Bool
-    let entryPoint: BrowserOnboardingEntryPoint
     let hasDisposableSeedState: Bool
     let continueSetup: () -> Void
     let openCrest: () -> Void
-
-    private var action: BrowserOnboardingWelcomeAction {
-        BrowserOnboardingWelcomePolicy.action(
-            progressIsChecking: progressIsChecking,
-            cloudPhase: cloudPhase,
-            hasCompletedSetup: hasCompletedSetup,
-            entryPoint: entryPoint
-        )
-    }
 
     private var cloudStatusDetail: String {
         if hasCompletedSetup {

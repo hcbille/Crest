@@ -83,6 +83,7 @@ internal sealed partial class Device {
         shortcuts = records.Shortcuts;
         links = records.Links;
         keptSetupDraft = platform.KeepsSetupDraft ? records.SetupDraft : null;
+        setupCompleted = records.SetupCompleted;
         adopted.UnionWith(records.Adopted);
     }
 
@@ -285,7 +286,7 @@ internal sealed partial class Device {
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     private DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. keptPermissions.PersistentRecords],
-        shortcuts, links, keptSetupDraft, new HashSet<DeviceAdoption>(adopted));
+        shortcuts, links, keptSetupDraft, setupCompleted, new HashSet<DeviceAdoption>(adopted));
 
     #endregion
 

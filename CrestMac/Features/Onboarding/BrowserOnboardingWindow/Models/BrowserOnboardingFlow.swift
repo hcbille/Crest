@@ -1,94 +1,102 @@
 import Foundation
 import Observation
 
+/// The Mac's side of setup. The core holds setup itself: the step and where
+/// Back leads, the browsers chosen and the queue of them, the review of the
+/// one it is on, the manual setup, and what finishing does. This finds the
+/// browsers installed here, holds access to their data folders, reads the
+/// browser the core is on, imports the review's passwords and finishes setup,
+/// telling the core how each went.
 @Observable
 @MainActor
 final class BrowserOnboardingFlow {
+    // MARK: - Variables
+
     let browser: BrowserStore
+    /// The manual setup the core holds, which the manual-setup step edits.
+    let manualSetup: BrowserManualSetupModel
 
     private(set) var request: BrowserOnboardingRequest
-    private(set) var state: BrowserOnboardingFlowState
     private(set) var installedSources: [BrowserInstalledImportSource] = []
-    private(set) var selectedImportApplications: Set<ImportSource> = []
-    private(set) var importQueue = BrowserImportQueue(applications: [])
-    private(set) var selectedApplication: ImportSource?
-    private(set) var plan: BrowserImportReviewPlan? {
-        didSet {
-            guard plan != oldValue else { return }
-            reviewAnalysisCache = nil
-            reviewPreviewCache = nil
-        }
-    }
-    /// The manual setup the core holds for this device, which the flow
-    /// starts, and applies when setup finishes.
-    let manualSetup: BrowserManualSetupModel
-    private(set) var passwordCountsBySourceSpace: [SpaceID: Int] = [:]
-    private(set) var currentImportPayload: BrowserDetectedImportPayload?
-    private(set) var failure: BrowserOnboardingFailure?
-    private(set) var completionSummary: LocalizedStringResource?
     private(set) var isChoosingDataAccess = false
-    private(set) var isCommittingImport = false
     private(set) var isCompletingSetup = false
-    private(set) var completionFailure: LocalizedStringResource?
+    private(set) var completionFailure: String?
 
     @ObservationIgnored private let sourceDiscovery: any BrowserInstalledImportSourceDiscovering
     @ObservationIgnored private let dataAccessProvider: any BrowserOnboardingDataAccessProviding
     @ObservationIgnored private let importCommitter: any BrowserOnboardingImportCommitting
     @ObservationIgnored private let importReadCoordinator: BrowserOnboardingImportReadCoordinator
+    /// The data of the browser being read, which its passwords come from.
+    @ObservationIgnored private var currentImportPayload: BrowserDetectedImportPayload?
     @ObservationIgnored private var commitTask: Task<Void, Never>?
     @ObservationIgnored private var completionTask: Task<Void, Never>?
-    @ObservationIgnored private var finalizationTask:
-        Task<
-            Result<BrowserPasswordImportResult, any Error>,
-            Never
-        >?
+    @ObservationIgnored private var finalizationTask: Task<Result<BrowserPasswordImportResult, any Error>, Never>?
     @ObservationIgnored private var pendingResetRequest: BrowserOnboardingRequest?
-    /// What the core said of the review's current choices, until they change,
-    /// so a view's body never asks it again.
-    @ObservationIgnored private var reviewAnalysisCache: BrowserImportReviewAnalysis?
-    @ObservationIgnored private var reviewPreviewCache: BrowserSession??
+    /// The review's Spaces as the views draw them, for the review the core
+    /// last published, so a view's body builds them once per change.
+    @ObservationIgnored private var reviewCache: (review: SetupImportReview, spaces: [BrowserImportSpaceReview])?
+    /// The session the review would leave, until the review changes.
+    @ObservationIgnored private var previewCache: (review: SetupImportReview, session: BrowserSession?)?
     @ObservationIgnored private var operationGeneration = 0
 
-    var step: BrowserOnboardingStep { state.step }
+    /// Setup as the core holds it, or nil before it opens.
+    var state: SetupFlowState? { browser.core.state.setupFlow }
 
-    var isReading: Bool {
-        importReadCoordinator.isInFlight
-    }
+    var step: SetupStep { state?.step ?? request.entryPoint.firstStep }
+    var failure: SetupFailure? { state?.failure }
+    var review: SetupImportReview? { state?.review }
+    var selectedImportApplications: Set<ImportSource> { Set(state?.selected ?? []) }
+
+    var isReading: Bool { importReadCoordinator.isInFlight }
+    var isCommittingImport: Bool { state?.phase == .committing }
 
     var isImportSelectionLocked: Bool {
         isReading || isChoosingDataAccess || isCommittingImport || isCompletingSetup
     }
 
-    var nextImportStep: BrowserOnboardingStep {
-        if plan != nil { return .review }
-        if manualSetup.draft != nil { return .manualSetup }
-        return .importBrowser
+    /// The review's Spaces as the review views draw them.
+    var reviewSpaces: [BrowserImportSpaceReview] {
+        guard let review else { return [] }
+        if let reviewCache, reviewCache.review == review { return reviewCache.spaces }
+        let spaces = review.spaces.map(BrowserImportSpaceReview.init)
+        reviewCache = (review, spaces)
+        return spaces
+    }
+
+    /// The Space the person is looking at in the review.
+    var shownReviewSpaceID: SpaceID? {
+        get { review?.shownSpaceID }
+        set {
+            guard let newValue, newValue != review?.shownSpaceID else { return }
+            send(ShowImportSpace(sourceSpaceID: newValue))
+        }
+    }
+
+    var completionSummary: LocalizedStringResource? {
+        state?.summary.map(BrowserOnboardingSummary.completed)
     }
 
     var importReviewActionTitle: LocalizedStringResource {
-        importQueue.hasMoreAfterCurrent
+        state?.queue?.hasMoreAfterCurrent == true
             ? LocalizedStringResource(
                 "Import & Continue",
-                comment:
-                    "Button that imports the current browser and continues to the next selected browser."
-            )
+                comment: "Button that imports the current browser and continues to the next selected browser.")
             : LocalizedStringResource(
                 "Import Reviewed Data",
-                comment:
-                    "Button that imports the reviewed data from the final selected browser."
-            )
+                comment: "Button that imports the reviewed data from the final selected browser.")
     }
 
+    // MARK: - Initializers
+
+    /// A flow for `request` over `browser`'s workspace. It sends the core
+    /// nothing until `start`, since a view may build it more than once.
     init(
         request: BrowserOnboardingRequest,
         browser: BrowserStore,
-        sourceDiscovery: any BrowserInstalledImportSourceDiscovering =
-            LiveBrowserInstalledImportSourceDiscovery(),
-        dataAccessProvider: any BrowserOnboardingDataAccessProviding =
-            LiveBrowserOnboardingDataAccessProvider(),
+        sourceDiscovery: any BrowserInstalledImportSourceDiscovering = LiveBrowserInstalledImportSourceDiscovery(),
+        dataAccessProvider: any BrowserOnboardingDataAccessProviding = LiveBrowserOnboardingDataAccessProvider(),
         importReader: (any BrowserOnboardingImportReading)? = nil,
-        importCommitter: any BrowserOnboardingImportCommitting =
-            LiveBrowserOnboardingImportCommitter()
+        importCommitter: any BrowserOnboardingImportCommitting = LiveBrowserOnboardingImportCommitter()
     ) {
         self.request = request
         self.browser = browser
@@ -96,30 +104,27 @@ final class BrowserOnboardingFlow {
         self.dataAccessProvider = dataAccessProvider
         self.importCommitter = importCommitter
         importReadCoordinator = BrowserOnboardingImportReadCoordinator(
-            reader: importReader ?? LiveBrowserOnboardingImportReader(core: browser.core)
-        )
+            reader: importReader ?? LiveBrowserOnboardingImportReader(core: browser.core))
         manualSetup = BrowserManualSetupModel(core: browser.core)
-        state = Self.initialState(for: request.entryPoint)
     }
 
-    /// Starts the manual setup a manual-setup request opens on, over the
-    /// workspace as it is now; any other request starts without one. The
-    /// window calls this once it appears, since a view may build the flow
-    /// more than once.
+    // MARK: - Actions - Lifecycle
+
+    /// Opens setup in the core for the request, offering the browsers found.
     func start() {
-        startManualSetup(for: request)
+        send(StartSetup(workspaceID: browser.family.workspaceID, entry: request.entryPoint))
+        offerInstalledSources()
     }
 
-    private func startManualSetup(for request: BrowserOnboardingRequest) {
-        if request.entryPoint == .manualSetup {
-            manualSetup.begin(workspaceID: browser.family.workspaceID, startsOver: true)
-        } else {
-            manualSetup.discard()
-        }
-    }
-
+    /// Finds the browsers installed on this Mac and offers them to setup.
     func discoverInstalledSources() {
         installedSources = sourceDiscovery.installedSources()
+        offerInstalledSources()
+    }
+
+    private func offerInstalledSources() {
+        guard state != nil else { return }
+        send(OfferImportSources(installed: installedSources.map(\.application)))
     }
 
     func reset(for request: BrowserOnboardingRequest) {
@@ -134,34 +139,34 @@ final class BrowserOnboardingFlow {
     private func applyReset(for request: BrowserOnboardingRequest) {
         invalidateOperations()
         self.request = request
-        selectedImportApplications = []
-        importQueue = BrowserImportQueue(applications: [])
-        selectedApplication = nil
-        plan = nil
-        passwordCountsBySourceSpace = [:]
         currentImportPayload = nil
-        failure = nil
-        completionSummary = nil
-        completionFailure = nil
-        startManualSetup(for: request)
-        state = Self.initialState(for: request.entryPoint)
+        start()
     }
 
+    /// Stops what this Mac is doing for setup as the window goes. An import
+    /// already applying finishes.
     func cancelOperations() {
         guard finalizationTask == nil else { return }
-        let activeState = state
         invalidateOperations()
-        switch activeState {
-        case .reading:
-            state = .importSelection
-        case .committing(let application):
-            state = .reviewing(application)
-        case .welcome, .featureSpaces, .featureTabs, .featureSync,
-            .importSelection, .reviewing, .manualSetup, .complete:
-            break
-        }
+        if state?.phase == .reading { send(CancelImportRead()) }
     }
 
+    // MARK: - Actions - Steps
+
+    func show(_ step: SetupStep) {
+        guard !isImportSelectionLocked else { return }
+        send(ShowSetupStep(step: step))
+    }
+
+    /// Sets Spaces up by hand, leaving any read that has not finished.
+    func beginManualSetup() {
+        guard !isCommittingImport else { return }
+        abandonImportPreparation()
+        send(ShowSetupStep(step: .manualSetup))
+    }
+
+    /// Finishes setup: the core applies the manual setup and completes setup
+    /// on this device, and the guide opens where the core names it.
     func completeSetup(
         progress: BrowserOnboardingProgressStore,
         spaceAccess: BrowserSpaceAccessController,
@@ -169,418 +174,94 @@ final class BrowserOnboardingFlow {
     ) {
         guard !isImportSelectionLocked else { return }
         let generation = operationGeneration
-        let request = self.request
         let browser = self.browser
-        let appliesManualSetup = step == .manualSetup && manualSetup.draft != nil
-        let newSpaceCount = manualSetup.spaces.filter(\.isNew).count
         isCompletingSetup = true
         completionFailure = nil
         completionTask = Task { @MainActor [weak self] in
-            let result = await BrowserOnboardingCompletion.complete(
-                request: request, browser: browser, progress: progress, spaceAccess: spaceAccess,
-                appliesManualSetup: appliesManualSetup)
-            guard let self, !Task.isCancelled,
-                operationGeneration == generation, self.request == request
-            else { return }
+            let result = await BrowserSetupFinish.finish(browser: browser, spaceAccess: spaceAccess)
+            guard let self, !Task.isCancelled, operationGeneration == generation else { return }
             completionTask = nil
             isCompletingSetup = false
             switch result {
             case .completed:
-                if appliesManualSetup { finishManualSetup(newSpaceCount: newSpaceCount) }
+                progress.setupFinished()
                 onCompleted()
             case .cancelled:
                 break
-            case .sourceChanged:
-                completionFailure = LocalizedStringResource("Setup could not finish. Review your Spaces and try again.")
+            case .refused(let message):
+                completionFailure = message
             }
         }
     }
 
-    func show(_ step: BrowserOnboardingStep) {
-        guard !isImportSelectionLocked else { return }
-        switch step {
-        case .welcome:
-            state = .welcome
-        case .featureSpaces:
-            state = .featureSpaces
-        case .featureTabs:
-            state = .featureTabs
-        case .featureSync:
-            state = .featureSync
-        case .importBrowser:
-            state = .importSelection
-        case .review:
-            guard let application = selectedApplication else { return }
-            state = .reviewing(application)
-        case .manualSetup:
-            beginManualSetup()
-        case .complete:
-            state = .complete
-        }
-    }
+    // MARK: - Actions - Choosing browsers
 
     func toggleImportSelection(_ application: ImportSource) {
         guard !isImportSelectionLocked else { return }
-        if selectedImportApplications.contains(application) {
-            selectedImportApplications.remove(application)
-        } else {
-            selectedImportApplications.insert(application)
-        }
-        importQueue = BrowserImportQueue(
-            selected: selectedImportApplications,
-            availableOrder: installedSources.map(\.application)
-        )
-        plan = nil
-        selectedApplication = nil
-        currentImportPayload = nil
-        passwordCountsBySourceSpace = [:]
-        failure = nil
-        state = .importSelection
+        send(ToggleImportSource(source: application))
     }
 
+    /// Goes on from choosing browsers: the core moves to the manual setup when
+    /// none is chosen, or to reading the next chosen one, which this reads.
     func continueImportQueue() {
         guard !isImportSelectionLocked else { return }
-        guard !selectedImportApplications.isEmpty else {
-            beginManualSetup()
-            return
-        }
-
-        synchronizeImportQueueWithSelection()
-        guard let application = importQueue.current,
-            let source = installedSources.first(where: {
-                $0.application == application
-            })
-        else {
-            failure = .sourceUnavailable
-            state = .importSelection
-            return
-        }
-        beginImport(from: source)
-    }
-
-    func retryImport() {
-        guard failure != nil, !isImportSelectionLocked else { return }
-        failure = nil
-        continueImportQueue()
+        send(ContinueImport())
+        readCurrentSource()
     }
 
     func cancelImportRead() {
         importReadCoordinator.cancel()
-        guard case .reading = state else { return }
-        state = .importSelection
-        failure = nil
+        isChoosingDataAccess = false
+        send(CancelImportRead())
     }
 
-    func beginManualSetup() {
-        guard !isCommittingImport else { return }
-        abandonImportPreparation()
-        prepareManualSetup()
-    }
+    // MARK: - Actions - Reading
 
-    /// Goes on with the manual setup the core holds, following Spaces changed
-    /// meanwhile, or starts one.
-    private func prepareManualSetup() {
-        importReadCoordinator.cancel()
-        manualSetup.begin(workspaceID: browser.family.workspaceID, startsOver: false)
-        failure = nil
-        state = .manualSetup
-    }
-
-    func updatePlan(_ plan: BrowserImportReviewPlan) {
-        guard !isCommittingImport else { return }
-        self.plan = plan
-    }
-
-    func setDestination(
-        _ destination: BrowserImportDestination,
-        for sourceSpaceID: SpaceID
-    ) {
-        guard !isCommittingImport, var updated = plan else { return }
-        updated.setDestination(destination, for: sourceSpaceID)
-        plan = updated
-    }
-
-    func setIncluded(
-        _ tabID: TabID,
-        _ isIncluded: Bool,
-        in sourceSpaceID: SpaceID
-    ) {
-        guard !isCommittingImport, var updated = plan else { return }
-        updated.setTab(tabID, isIncluded: isIncluded, in: sourceSpaceID)
-        plan = updated
-    }
-
-    func setIncluded(
-        _ tabIDs: Set<TabID>,
-        _ isIncluded: Bool,
-        in sourceSpaceID: SpaceID
-    ) {
-        guard !isCommittingImport, var updated = plan else { return }
-        updated.setTabs(tabIDs, isIncluded: isIncluded, in: sourceSpaceID)
-        plan = updated
-    }
-
-    func setPlacement(
-        _ placement: TabPlacement,
-        for tabID: TabID,
-        in sourceSpaceID: SpaceID
-    ) {
-        guard !isCommittingImport, var updated = plan else { return }
-        updated.setPlacement(placement, for: tabID, in: sourceSpaceID)
-        plan = updated
-    }
-
-    func setSpaceIncluded(
-        _ isIncluded: Bool,
-        in sourceSpaceID: SpaceID
-    ) {
-        guard !isCommittingImport, var updated = plan else { return }
-        updated.setSpace(sourceSpaceID, isIncluded: isIncluded)
-        plan = updated
-    }
-
-    func setPasswordsIncluded(
-        _ isIncluded: Bool,
-        in sourceSpaceID: SpaceID
-    ) {
-        guard !isCommittingImport, var updated = plan else { return }
-        updated.setPasswords(isIncluded, in: sourceSpaceID)
-        plan = updated
-    }
-
-    private func finishManualSetup(newSpaceCount: Int) {
-        completionSummary = BrowserOnboardingSummary.completedManualSetup(
-            newSpaceCount: newSpaceCount, addedTabCount: 0)
-        plan = nil
-        failure = nil
-        state = .complete
-    }
-
-    func commitReviewedImport() {
-        guard let plan, !isCommittingImport else { return }
-        guard let application = selectedApplication else { return }
-        guard plan.hasIncludedSpaces else {
-            failure = .importCommit(Rejection.noIncludedSpaces(NoIncludedSpaces()).explanation)
+    /// Reads the browser the core is on, when it is reading one.
+    private func readCurrentSource() {
+        guard let state, state.phase == .reading, let application = state.source else { return }
+        guard let source = installedSources.first(where: { $0.application == application }) else {
+            send(FailImport(source: application, reason: .sourceUnavailable, detail: nil))
             return
         }
-        let generation = operationGeneration
-        state = .committing(application)
-        failure = nil
-        isCommittingImport = true
-
-        let payload = currentImportPayload
-        let passwordCounts = passwordCountsBySourceSpace
-        commitTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            await performImportCommit(
-                plan: plan,
-                application: application,
-                payload: payload,
-                passwordCountsBySourceSpace: passwordCounts,
-                generation: generation
-            )
-        }
-    }
-
-    func selectedReview(
-        id: SpaceID?
-    ) -> BrowserImportSpaceReview? {
-        guard let plan else { return nil }
-        return plan.spaces.first { $0.id == id } ?? plan.spaces.first
-    }
-
-    func passwordCountLabel(
-        for review: BrowserImportSpaceReview
-    ) -> LocalizedStringResource {
-        BrowserOnboardingSummary.passwordCount(
-            passwordCountsBySourceSpace[review.id, default: 0]
-        )
-    }
-
-    func reviewSummary() -> LocalizedStringResource? {
-        guard let plan else { return nil }
-        let includedTabCount = plan.spaces.reduce(0) {
-            $0 + $1.includedTabIDs.count
-        }
-        let passwordCount = plan.spaces.reduce(0) { partial, review in
-            partial
-                + (review.includesPasswords
-                    ? passwordCountsBySourceSpace[review.id, default: 0]
-                    : 0)
-        }
-        return BrowserOnboardingSummary.review(
-            tabCount: includedTabCount,
-            passwordCount: passwordCount,
-            overflowTabCount: reviewAnalysis().overflowTabIDs.count
-        )
-    }
-
-    /// What the review's current choices mean. The core answers once each
-    /// time they change.
-    func reviewAnalysis() -> BrowserImportReviewAnalysis {
-        guard let plan else { return BrowserImportReviewAnalysis() }
-        if let cached = reviewAnalysisCache { return cached }
-        let analysis = plan.analysis(in: browser)
-        reviewAnalysisCache = analysis
-        return analysis
-    }
-
-    /// The session the review's current choices would leave. The core
-    /// answers once each time they change.
-    private func reviewPreview() -> BrowserSession? {
-        guard let plan else { return nil }
-        if let cached = reviewPreviewCache { return cached }
-        let preview = try? plan.preview(in: browser)
-        reviewPreviewCache = preview
-        return preview
-    }
-
-    func previewDestinationSpace(
-        for review: BrowserImportSpaceReview
-    ) -> BrowserSpace? {
-        guard let preview = reviewPreview() else {
-            return nil
-        }
-        switch review.destination {
-        case .newSpace:
-            return preview.space(id: review.id)
-        case .existing(let id):
-            return preview.space(id: id)
-        }
-    }
-
-    func customizationPreviewSpace(_ spaceID: SpaceID) -> BrowserSpace? {
-        guard let review = plan?.spaces.first(where: { $0.id == spaceID }) else {
-            return nil
-        }
-        return previewDestinationSpace(for: review)
-    }
-
-    func duplicateDestinationName(
-        for review: BrowserImportSpaceReview
-    ) -> String? {
-        guard case .existing(let id) = review.destination else { return nil }
-        return browser.session.space(id: id)?.name
-    }
-
-    func destinationName(
-        for destination: BrowserImportDestination
-    ) -> String {
-        switch destination {
-        case .newSpace:
-            String(localized: "New Space")
-        case .existing(let id):
-            browser.session.space(id: id)?.name
-                ?? String(localized: "Existing Space")
-        }
-    }
-
-    func reviewProgressLabel(
-        for review: BrowserImportSpaceReview
-    ) -> String {
-        guard let plan else { return "" }
-        let index = plan.spaces.firstIndex(where: { $0.id == review.id }) ?? 0
-        let spaceProgress = String(
-            localized: "Space \(index + 1) of \(plan.spaces.count)"
-        )
-        return importQueue.progressLabel.map {
-            String(localized: "\($0) · \(spaceProgress)")
-        } ?? spaceProgress
-    }
-
-    func importAccessLabel(
-        for source: BrowserInstalledImportSource
-    ) -> String {
-        if source.hasReadableDetectedData {
-            return detectedDataLabel(source)
-        }
-        if dataAccessProvider.hasSavedAccess(for: source.application) {
-            return String(localized: "Access saved · Ready to review")
-        }
-        return String(localized: "One-time macOS permission · No folder search")
-    }
-
-    private static func initialState(
-        for entryPoint: BrowserOnboardingEntryPoint
-    ) -> BrowserOnboardingFlowState {
-        switch entryPoint {
-        case .firstRun, .rerun:
-            .welcome
-        case .importBrowser:
-            .importSelection
-        case .manualSetup:
-            .manualSetup
-        }
-    }
-
-    private func synchronizeImportQueueWithSelection() {
-        let remainingSelection = Set(importQueue.remaining)
-        guard
-            importQueue.isComplete
-                || remainingSelection != selectedImportApplications
-        else {
-            return
-        }
-        importQueue = BrowserImportQueue(
-            selected: selectedImportApplications,
-            availableOrder: installedSources.map(\.application)
-        )
-    }
-
-    private func beginImport(from source: BrowserInstalledImportSource) {
-        failure = nil
-        selectedApplication = source.application
-
         if source.hasReadableDetectedData {
             readImport(source.detectedPayload)
             return
         }
-
-        if let access = dataAccessProvider.resolve(for: source.application) {
-            let data = source.application.importData(in: access.url)
+        if let access = dataAccessProvider.resolve(for: application) {
+            let data = application.importData(in: access.url)
             if !data.profiles.isEmpty {
                 readImport(
-                    BrowserDetectedImportPayload(application: source.application, data: data),
-                    activeDirectoryAccess: access
-                )
+                    BrowserDetectedImportPayload(application: application, data: data), activeDirectoryAccess: access)
                 return
             }
             access.stopAccessing()
-            dataAccessProvider.clear(for: source.application)
+            dataAccessProvider.clear(for: application)
         }
-
-        chooseBrowserDataAccess(for: source.application)
+        chooseBrowserDataAccess(for: application)
     }
 
-    private func chooseBrowserDataAccess(
-        for application: ImportSource
-    ) {
-        failure = nil
+    private func chooseBrowserDataAccess(for application: ImportSource) {
         isChoosingDataAccess = true
         let generation = operationGeneration
-        dataAccessProvider.chooseDataFolder(for: application) {
-            [weak self] folderURL in
-            guard let self,
-                operationGeneration == generation
-            else { return }
+        dataAccessProvider.chooseDataFolder(for: application) { [weak self] folderURL in
+            guard let self, operationGeneration == generation else { return }
             isChoosingDataAccess = false
-            guard selectedApplication == application,
-                selectedImportApplications.contains(application),
-                state == .importSelection,
-                let folderURL
-            else { return }
+            guard state?.phase == .reading, state?.source == application else { return }
+            guard let folderURL else {
+                send(CancelImportRead())
+                return
+            }
             let access = BrowserImportDataDirectoryAccess(url: folderURL)
             let data = application.importData(in: folderURL)
             guard !data.profiles.isEmpty else {
                 access.stopAccessing()
-                failure = .dataDirectory(application)
+                send(FailImport(source: application, reason: .dataFolder, detail: nil))
                 return
             }
             try? dataAccessProvider.remember(folderURL, for: application)
             readImport(
-                BrowserDetectedImportPayload(application: application, data: data),
-                activeDirectoryAccess: access
-            )
+                BrowserDetectedImportPayload(application: application, data: data), activeDirectoryAccess: access)
         }
     }
 
@@ -588,71 +269,166 @@ final class BrowserOnboardingFlow {
         _ payload: BrowserDetectedImportPayload,
         activeDirectoryAccess: BrowserImportDataDirectoryAccess? = nil
     ) {
-        failure = nil
         isChoosingDataAccess = false
-        selectedApplication = payload.application
         currentImportPayload = payload
-        state = .reading(payload.application)
         let generation = operationGeneration
         importReadCoordinator.startReading(
             payload,
-            onFinish: {
-                activeDirectoryAccess?.stopAccessing()
-            },
+            onFinish: { activeDirectoryAccess?.stopAccessing() },
             completion: { [weak self] result in
                 guard let self, operationGeneration == generation else { return }
-                completeRead(result)
-            }
-        )
+                completeRead(result, from: payload.application)
+            })
     }
 
+    /// Hands the core what the read brought, with how many of the browser's
+    /// passwords belong with each Space, or why it failed.
     private func completeRead(
-        _ result: Result<BrowserOnboardingImportReadOutput, any Error>
+        _ result: Result<BrowserOnboardingImportReadOutput, any Error>, from application: ImportSource
     ) {
-        switch result {
-        case .success(let output):
-            buildReviewPlan(
-                output.imported,
-                passwordCandidates: output.passwordCandidates,
-                application: output.payload.application
-            )
-        case .failure(let error):
-            failure = .read(error.personFacingDescription)
-            state = .importSelection
+        do {
+            let output = try result.get()
+            var counts: [SpaceID: Int] = [:]
+            for candidate in output.passwordCandidates {
+                for spaceID in BrowserPasswordImportCommitter.sourceSpaceIDs(for: candidate, among: output.imported) {
+                    counts[spaceID, default: 0] += 1
+                }
+            }
+            _ = try browser.core.send(
+                ReviewImport(
+                    source: application, spaces: output.imported,
+                    passwordCounts: counts.map { ImportPasswordCount(sourceSpaceID: $0.key, count: $0.value) }))
+        } catch {
+            send(FailImport(source: application, reason: .read, detail: error.personFacingDescription))
         }
     }
 
-    private func buildReviewPlan(
-        _ imported: [BrowserSpace],
-        passwordCandidates: [BrowserPasswordImportCandidate],
-        application: ImportSource
-    ) {
-        let reviewPlan = BrowserImportReviewPlan(spaces: imported, in: browser)
-        passwordCountsBySourceSpace = mappedPasswordCounts(
-            passwordCandidates,
-            in: reviewPlan
-        )
-        plan = reviewPlan
-        failure = nil
-        state = .reviewing(application)
+    // MARK: - Actions - Reviewing
+
+    func setDestination(_ destination: BrowserImportDestination, for sourceSpaceID: SpaceID) {
+        send(ChooseImportDestination(sourceSpaceID: sourceSpaceID, destinationSpaceID: destination.spaceID))
+    }
+
+    func setIncluded(_ tabID: TabID, _ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+        setIncluded([tabID], isIncluded, in: sourceSpaceID)
+    }
+
+    func setIncluded(_ tabIDs: Set<TabID>, _ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+        send(IncludeImportTabs(sourceSpaceID: sourceSpaceID, tabIDs: Array(tabIDs), included: isIncluded))
+    }
+
+    func setPlacement(_ placement: TabPlacement, for tabID: TabID, in sourceSpaceID: SpaceID) {
+        send(PlaceImportTab(sourceSpaceID: sourceSpaceID, tabID: tabID, placement: placement))
+    }
+
+    func setSpaceIncluded(_ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+        send(IncludeImportSpace(sourceSpaceID: sourceSpaceID, included: isIncluded))
+    }
+
+    func setPasswordsIncluded(_ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+        send(IncludeImportPasswords(sourceSpaceID: sourceSpaceID, included: isIncluded))
+    }
+
+    /// Gives the reviewed Space `sourceSpaceID` `customization`, which the
+    /// core keeps with its branding rules applied.
+    func customize(_ sourceSpaceID: SpaceID, as customization: SpaceCustomization) {
+        send(CustomizeImportSpace(sourceSpaceID: sourceSpaceID, customization: customization))
+    }
+
+    func selectedReview(id: SpaceID?) -> BrowserImportSpaceReview? {
+        reviewSpaces.first { $0.id == id } ?? reviewSpaces.first
+    }
+
+    func passwordCountLabel(for review: BrowserImportSpaceReview) -> LocalizedStringResource {
+        BrowserOnboardingSummary.passwordCount(review.record.passwordCount)
+    }
+
+    func reviewSummary() -> LocalizedStringResource? {
+        guard let review else { return nil }
+        return BrowserOnboardingSummary.review(
+            tabCount: review.includedTabCount, passwordCount: review.includedPasswordCount,
+            overflowTabCount: review.overflowTabIDs.count)
+    }
+
+    /// What the core says the review's choices mean.
+    func reviewAnalysis() -> BrowserImportReviewAnalysis {
+        BrowserImportReviewAnalysis(review)
+    }
+
+    /// The session the review would leave. The core answers once each time
+    /// the review changes.
+    private func reviewPreview() -> BrowserSession? {
+        guard let review else { return nil }
+        if let previewCache, previewCache.review == review { return previewCache.session }
+        let session = try? browser.reviewedImportPreview(of: reviewSpaces.map(\.sourceSpace))
+        previewCache = (review, session)
+        return session
+    }
+
+    func previewDestinationSpace(for review: BrowserImportSpaceReview) -> BrowserSpace? {
+        reviewPreview()?.space(id: review.destination.spaceID ?? review.id)
+    }
+
+    func customizationPreviewSpace(_ spaceID: SpaceID) -> BrowserSpace? {
+        reviewSpaces.first { $0.id == spaceID }.flatMap(previewDestinationSpace)
+    }
+
+    func duplicateDestinationName(for review: BrowserImportSpaceReview) -> String? {
+        review.destination.spaceID.flatMap { browser.session.space(id: $0)?.name }
+    }
+
+    func destinationName(for destination: BrowserImportDestination) -> String {
+        guard let spaceID = destination.spaceID else { return String(localized: "New Space") }
+        return browser.session.space(id: spaceID)?.name ?? String(localized: "Existing Space")
+    }
+
+    func reviewProgressLabel(for review: BrowserImportSpaceReview) -> String {
+        let spaces = reviewSpaces
+        let index = spaces.firstIndex(where: { $0.id == review.id }) ?? 0
+        let spaceProgress = String(localized: "Space \(index + 1) of \(spaces.count)")
+        guard let queue = state?.queue, queue.sources.count > 1, queue.current != nil else { return spaceProgress }
+        let browserProgress = String(localized: "Browser \(queue.index + 1) of \(queue.sources.count)")
+        return String(localized: "\(browserProgress) · \(spaceProgress)")
+    }
+
+    func importAccessLabel(for source: BrowserInstalledImportSource) -> String {
+        if source.hasReadableDetectedData {
+            let count = source.detectedPayload.profiles.count
+            return count > 1
+                ? String(localized: "\(count) profiles found · Review them")
+                : String(localized: "Browser data found · Review it")
+        }
+        if dataAccessProvider.hasSavedAccess(for: source.application) {
+            return String(localized: "Access saved · Ready to review")
+        }
+        return String(localized: "One-time macOS permission · No folder search")
+    }
+
+    // MARK: - Actions - Importing
+
+    /// Imports the review: the core applies it, and this reads and imports
+    /// the passwords it brings. The core refuses a review that brings no Space.
+    func commitReviewedImport() {
+        guard let review, !isCommittingImport else { return }
+        do {
+            _ = try browser.core.send(BeginImportCommit())
+        } catch {
+            send(FailImport(source: review.source, reason: .import, detail: error.explanation))
+            return
+        }
+        let generation = operationGeneration
+        let payload = currentImportPayload
+        commitTask = Task { @MainActor [weak self] in
+            await self?.performImportCommit(review: review, payload: payload, generation: generation)
+        }
     }
 
     private func performImportCommit(
-        plan: BrowserImportReviewPlan,
-        application: ImportSource,
-        payload: BrowserDetectedImportPayload?,
-        passwordCountsBySourceSpace: [SpaceID: Int],
-        generation: Int
+        review: SetupImportReview, payload: BrowserDetectedImportPayload?, generation: Int
     ) async {
         defer { finishImportCommit(generation: generation) }
-
         do {
-            let preparedImport = try await importCommitter.prepare(
-                plan: plan,
-                application: application,
-                payload: payload,
-                passwordCountsBySourceSpace: passwordCountsBySourceSpace
-            )
+            let preparedImport = try await importCommitter.prepare(review: review, payload: payload)
             try Task.checkCancellation()
             guard operationGeneration == generation else { return }
 
@@ -661,124 +437,56 @@ final class BrowserOnboardingFlow {
             // credential import only partially applied.
             let importCommitter = self.importCommitter
             let browser = self.browser
-            let finalizationTask:
-                Task<
-                    Result<BrowserPasswordImportResult, any Error>,
-                    Never
-                > = Task { @MainActor in
-                    do {
-                        return .success(
-                            try await importCommitter.finalize(
-                                plan: plan,
-                                preparedImport: preparedImport,
-                                browser: browser
-                            )
-                        )
-                    } catch {
-                        return .failure(error)
-                    }
+            let finalizationTask: Task<Result<BrowserPasswordImportResult, any Error>, Never> = Task { @MainActor in
+                do {
+                    return .success(
+                        try await importCommitter.finalize(
+                            review: review, preparedImport: preparedImport, browser: browser))
+                } catch {
+                    return .failure(error)
                 }
+            }
             self.finalizationTask = finalizationTask
             let outcome = await finalizationTask.value
-            let didApplyPendingReset = finishImportFinalization()
-            guard !didApplyPendingReset else { return }
-
+            guard !finishImportFinalization(), operationGeneration == generation else { return }
             switch outcome {
-            case .success(let passwordResult):
-                guard operationGeneration == generation else { return }
-                completeImport(
-                    plan: plan,
-                    application: application,
-                    passwordResult: passwordResult
-                )
+            case .success(let passwords):
+                currentImportPayload = nil
+                send(FinishImportCommit(passwordCount: passwords.importedCount))
+                readCurrentSource()
             case .failure(let error):
-                guard operationGeneration == generation else { return }
-                failure = .importCommit(error.personFacingDescription)
-                state = .reviewing(application)
+                send(FailImport(source: review.source, reason: .import, detail: error.personFacingDescription))
             }
         } catch is CancellationError {
             return
         } catch {
             guard operationGeneration == generation else { return }
-            failure = .importCommit(error.personFacingDescription)
-            state = .reviewing(application)
+            send(FailImport(source: review.source, reason: .import, detail: error.personFacingDescription))
         }
     }
 
     private func finishImportCommit(generation: Int) {
-        guard finalizationTask == nil else { return }
-        guard operationGeneration == generation else { return }
+        guard finalizationTask == nil, operationGeneration == generation else { return }
         commitTask = nil
-        isCommittingImport = false
     }
 
+    /// The import finished applying. Answers whether a reset waited for it,
+    /// which has now run.
     private func finishImportFinalization() -> Bool {
         finalizationTask = nil
         commitTask = nil
-        isCommittingImport = false
         guard let pendingResetRequest else { return false }
         self.pendingResetRequest = nil
         applyReset(for: pendingResetRequest)
         return true
     }
 
-    private func completeImport(
-        plan: BrowserImportReviewPlan,
-        application: ImportSource,
-        passwordResult: BrowserPasswordImportResult
-    ) {
-        let selectedTabCount = plan.spaces.reduce(0) {
-            $0 + $1.includedTabIDs.count
-        }
-        completionSummary = BrowserOnboardingSummary.completedImport(
-            tabCount: selectedTabCount,
-            passwordCount: passwordResult.importedCount,
-            spaceCount: plan.spaces.filter(\.isIncluded).count
-        )
+    // MARK: - Actions - Sending
 
-        selectedImportApplications.remove(application)
-        self.plan = nil
-        selectedApplication = nil
-        currentImportPayload = nil
-        passwordCountsBySourceSpace = [:]
-        failure = nil
-
-        if importQueue.advance() {
-            state = .importSelection
-            let generation = operationGeneration
-            Task { @MainActor [weak self] in
-                await Task.yield()
-                guard let self, operationGeneration == generation else { return }
-                continueImportQueue()
-            }
-            return
-        }
-
-        let destination = BrowserMacOnboardingPolicy.destinationAfterImport(
-            for: request.entryPoint
-        )
-        if destination == .manualSetup {
-            prepareManualSetup()
-        } else {
-            state = .complete
-        }
-    }
-
-    private func mappedPasswordCounts(
-        _ candidates: [BrowserPasswordImportCandidate],
-        in plan: BrowserImportReviewPlan
-    ) -> [SpaceID: Int] {
-        var counts: [SpaceID: Int] = [:]
-        for candidate in candidates {
-            for sourceSpaceID in BrowserPasswordImportCommitter.sourceSpaceIDs(
-                for: candidate,
-                plan: plan,
-                respectsPasswordSelection: false
-            ) {
-                counts[sourceSpaceID, default: 0] += 1
-            }
-        }
-        return counts
+    /// Sends `intent` to the core. A refused intent leaves setup as the core
+    /// holds it.
+    private func send(_ intent: some Intent) {
+        _ = try? browser.core.send(intent)
     }
 
     private func invalidateOperations() {
@@ -791,25 +499,14 @@ final class BrowserOnboardingFlow {
         isChoosingDataAccess = false
         commitTask?.cancel()
         commitTask = nil
-        if finalizationTask == nil {
-            isCommittingImport = false
-        }
     }
 
     private func abandonImportPreparation() {
-        guard isReading || isChoosingDataAccess else { return }
-        operationGeneration &+= 1
-        importReadCoordinator.cancel()
-        isChoosingDataAccess = false
-    }
-
-    private func detectedDataLabel(
-        _ source: BrowserInstalledImportSource
-    ) -> String {
-        let count = source.detectedPayload.profiles.count
-        if count > 1 {
-            return String(localized: "\(count) profiles found · Review them")
+        if isReading || isChoosingDataAccess {
+            operationGeneration &+= 1
+            importReadCoordinator.cancel()
+            isChoosingDataAccess = false
         }
-        return String(localized: "Browser data found · Review it")
+        if state?.phase == .reading { send(CancelImportRead()) }
     }
 }

@@ -12,7 +12,6 @@ struct BrowserOnboardingWindow: View {
     private var hostOpenBrowser: (() -> Void)?
 
     @State private var flow: BrowserOnboardingFlow
-    @State private var selectedSourceSpaceID: SpaceID?
     @State private var selectedManualSpaceID: SpaceID?
     @State private var customizationSpaceID: SpaceID?
 
@@ -51,7 +50,6 @@ struct BrowserOnboardingWindow: View {
         self.hostClose = hostClose
         self.hostOpenBrowser = hostOpenBrowser
         _flow = State(initialValue: flow)
-        _selectedSourceSpaceID = State(initialValue: nil)
         _selectedManualSpaceID = State(initialValue: flow.manualSetup.spaces.first?.spaceID)
         _customizationSpaceID = State(initialValue: nil)
     }
@@ -62,7 +60,6 @@ struct BrowserOnboardingWindow: View {
             cloudSync: cloudSync,
             progress: progress,
             flow: flow,
-            selectedSourceSpaceID: $selectedSourceSpaceID,
             selectedManualSpaceID: $selectedManualSpaceID,
             customizationSpaceID: $customizationSpaceID,
             close: close,

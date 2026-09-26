@@ -63,20 +63,14 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
             monitorsMemoryPressure: false, usesEphemeralWebsiteDataStores: true)
         model.privateBrowser.openNewTab(url: try XCTUnwrap(URL(string: "https://private.example")))
         let privateSession = model.privateBrowser.session
-        let progress = BrowserOnboardingProgressStore(persistence: InMemoryBrowserOnboardingProgressPersistence())
-        var assignment: BrowserTabRuntimeAssignment?
-        let result = await BrowserOnboardingCompletion.complete(
-            request: .firstRun, browser: model.browser, progress: progress, spaceAccess: model.spaceAccess,
-            willComplete: { guide in
-                XCTAssertTrue(progress.isLaunchGateActive)
-                guard let guide else { return XCTFail("Setup did not create a guide") }
-                assignment = guide
-                XCTAssertTrue(model.presentGettingStartedAfterSetup(matching: guide))
-                XCTAssertNotNil(model.pages.nativeTabs.runtime(matching: guide, content: .gettingStarted))
-                XCTAssertTrue(model.navigation.compactShowsPage)
-            })
-        let guide = try XCTUnwrap(assignment)
-        XCTAssertEqual(result, .completed(guide: guide))
+        try model.browser.core.send(StartSetup(workspaceID: model.browser.family.workspaceID, entry: .firstRun))
+        let result = await BrowserSetupFinish.finish(browser: model.browser, spaceAccess: model.spaceAccess)
+        guard case .completed(let opened) = result, let guide = opened else {
+            return XCTFail("Setup did not create a guide")
+        }
+        XCTAssertTrue(model.presentGettingStartedAfterSetup(matching: guide))
+        XCTAssertNotNil(model.pages.nativeTabs.runtime(matching: guide, content: .gettingStarted))
+        XCTAssertTrue(model.navigation.compactShowsPage)
         XCTAssertEqual(model.browser.session.spaces.first?.id, guide.spaceID)
         XCTAssertNil(model.pages.activePage)
         XCTAssertEqual(model.privateBrowser.session, privateSession)

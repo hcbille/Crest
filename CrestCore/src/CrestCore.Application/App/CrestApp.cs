@@ -144,6 +144,12 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 case SetupDraftIntent setup:
                     device.Handle(setup, changes, ids);
                     break;
+                case FinishSetup finish:
+                    Finish(finish, changes);
+                    break;
+                case SetupFlowIntent flow:
+                    device.Handle(flow, changes, ids);
+                    break;
                 case PageIntent page:
                     pages.Handle(page, changes, Issue);
                     break;
@@ -243,8 +249,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 CanSend check => Permission(check.Intent),
                 LaunchPlan plan => device.Workspace(plan.WorkspaceId).Plan(plan),
                 ImportPreview preview => device.Workspace(preview.Import.WorkspaceId).Preview(preview.Import, clock.Now),
-                ImportReviewSuggestions suggestions => device.Workspace(suggestions.WorkspaceId).Answer(suggestions),
-                ImportReviewAnalysis analysis => device.Workspace(analysis.WorkspaceId).Answer(analysis),
                 ResolveAddress { WorkspaceId: { } workspace } address => device.Workspace(workspace).Answer(address, pages.OpensInternalPages),
                 SelectionSearch search => device.Workspace(search.WorkspaceId).Answer(search),
                 _ => StandaloneAnswers.Answer(query)

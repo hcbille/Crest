@@ -2809,6 +2809,10 @@
     "2026-09-26-manual-setup-in-core": {
       "category": "internal",
       "message": "The manual setup is held by Crest's shared core, and an unfinished setup on iPhone and iPad waits for the next launch"
+    },
+    "2026-09-26-setup-flow-in-core": {
+      "category": "fixed",
+      "message": "Setup's Back button returns to the right step"
     }
   }
 }

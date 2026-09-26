@@ -114,6 +114,20 @@ final class CoreState {
         set { publish(newValue, into: \.setupDraftStorage, as: \.setupDraft) }
     }
     @ObservationIgnored private var setupDraftStorage: SetupDraft?
+    /// Setup on this device, as the core last published it, or nil while it
+    /// is not open.
+    var setupFlow: SetupFlowState? {
+        get { observed(\.setupFlowStorage, as: \.setupFlow) }
+        set { publish(newValue, into: \.setupFlowStorage, as: \.setupFlow) }
+    }
+    @ObservationIgnored private var setupFlowStorage: SetupFlowState?
+    /// Whether this device has completed setup, as the core last published
+    /// it. Nil until the launch adopts it.
+    var setupCompleted: Bool? {
+        get { observed(\.setupCompletedStorage, as: \.setupCompleted) }
+        set { publish(newValue, into: \.setupCompletedStorage, as: \.setupCompleted) }
+    }
+    @ObservationIgnored private var setupCompletedStorage: Bool?
     /// This process's access to each Space profile that holds a grant or is
     /// waiting on the device owner, as the core last published it. A profile
     /// missing here holds no grant.

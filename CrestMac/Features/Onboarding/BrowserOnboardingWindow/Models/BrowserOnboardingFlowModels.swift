@@ -9,80 +9,20 @@ enum BrowserOnboardingFailureText: Equatable {
     case verbatim(String)
 }
 
-enum BrowserOnboardingStep: Int, CaseIterable, Equatable {
-    case welcome
-    case featureSpaces
-    case featureTabs
-    case featureSync
-    case importBrowser
-    case review
-    case manualSetup
-    case complete
-}
-
-enum BrowserOnboardingFlowState: Equatable {
-    case welcome
-    case featureSpaces
-    case featureTabs
-    case featureSync
-    case importSelection
-    case reading(ImportSource)
-    case reviewing(ImportSource)
-    case committing(ImportSource)
-    case manualSetup
-    case complete
-
-    var step: BrowserOnboardingStep {
-        switch self {
-        case .welcome:
-            .welcome
-        case .featureSpaces:
-            .featureSpaces
-        case .featureTabs:
-            .featureTabs
-        case .featureSync:
-            .featureSync
-        case .importSelection, .reading:
-            .importBrowser
-        case .reviewing, .committing:
-            .review
-        case .manualSetup:
-            .manualSetup
-        case .complete:
-            .complete
-        }
-    }
-}
-
-enum BrowserOnboardingFailure: Equatable {
-    case sourceUnavailable
-    case dataDirectory(ImportSource)
-    case read(String)
-    case importCommit(String)
-    case manualCommit(String)
-
+extension SetupFailure {
+    /// What the person is told of the failure: the words the Mac gave it, or
+    /// Crest's own for a browser that went or a folder without its data.
     var message: BrowserOnboardingFailureText {
-        switch self {
-        case .sourceUnavailable:
-            .localized(
+        if let detail { return .verbatim(detail) }
+        guard reason == .dataFolder, let source else {
+            return .localized(
                 LocalizedStringResource(
                     "That browser is no longer available on this Mac.",
-                    comment:
-                        "Browser-import error shown when a selected source app disappears."
-                )
-            )
-        case .dataDirectory(let application):
-            .localized(
-                LocalizedStringResource(
-                    "Crest could not read \(application.title) data there. Try Allow Access again, or choose the \(application.title) data folder if it moved.",
-                    comment:
-                        "Browser-import error. Both variables are the source browser name."
-                )
-            )
-        case .read(let message),
-            .importCommit(let message),
-            .manualCommit(let message):
-            .verbatim(message)
+                    comment: "Browser-import error shown when a selected source app disappears."))
         }
+        return .localized(
+            LocalizedStringResource(
+                "Crest could not read \(source.title) data there. Try Allow Access again, or choose the \(source.title) data folder if it moved.",
+                comment: "Browser-import error. Both variables are the source browser name."))
     }
 }

@@ -13,9 +13,10 @@ internal sealed class DeviceAdoption {
     /// The cloud transport's state, which the transport kept in a file of its own.
     public static readonly DeviceAdoption CloudTransport = new(marker: "cloud-transport", olderBuildsRead: false);
     public static readonly DeviceAdoption SetupDraft = new(marker: "setup-draft", olderBuildsRead: false);
+    public static readonly DeviceAdoption SetupCompletion = new(marker: "setup-completion", olderBuildsRead: false);
 
     public static IReadOnlyList<DeviceAdoption> All { get; } =
-        [WindowRecords, SitePermissions, Shortcuts, LinkPreferences, CloudTransport, SetupDraft];
+        [WindowRecords, SitePermissions, Shortcuts, LinkPreferences, CloudTransport, SetupDraft, SetupCompletion];
 
     #endregion
 

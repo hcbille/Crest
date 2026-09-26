@@ -24,7 +24,7 @@ public sealed partial class BrowserContractsTests {
         var window = device.Showing(session);
         var existing = device.Authority.Current.Spaces[0];
 
-        var started = Drafted(device.Send(new BeginManualSetup(device.Workspace, StartsOver: true)));
+        var started = Drafted(device.Send(new StartSetup(device.Workspace, SetupEntry.ManualSetup)));
         Assert.Equal([(existing.Id, existing.ProfileId, false, "Reading")],
             started.Spaces.Select(space => (space.SpaceId, space.ProfileId, space.IsNew, space.ShownName)));
         // A new Space is named for its place and wears the next accent.
@@ -39,20 +39,21 @@ public sealed partial class BrowserContractsTests {
         var created = Guid.NewGuid();
         var followed = Drafted(device.Send(new CreateSpace(device.Workspace, window, created)));
         Assert.Equal([existing.Id, added.SpaceId, created], followed.Spaces.Select(space => space.SpaceId));
-        // Going on keeps the setup; starting over does not.
-        Assert.Equal(followed, Drafted(device.Send(new BeginManualSetup(device.Workspace, StartsOver: false))));
+        // Showing the step again keeps the setup; opening setup again on a Mac does not.
+        Assert.Equal(followed, Drafted(device.Send(new ShowSetupStep(SetupStep.ManualSetup))));
         Assert.Equal([existing.Id, created],
-            Drafted(device.Send(new BeginManualSetup(device.Workspace, StartsOver: true))).Spaces.Select(space => space.SpaceId));
+            Drafted(device.Send(new StartSetup(device.Workspace, SetupEntry.ManualSetup))).Spaces.Select(space => space.SpaceId));
 
         for (int count = 2; count < WorkspaceImportPolicy.MaximumSpaces; count++) device.Send(new AddSetupSpace());
         Assert.Equal(new SpaceLimitReached(WorkspaceImportPolicy.MaximumSpaces),
             Assert.Throws<Rejected>(() => device.Send(new AddSetupSpace())).Rejection);
 
-        Assert.Contains(new SetupDraftChanged(null), device.Send(new DiscardManualSetup()));
+        // Setup opened again from the start ends the manual setup.
+        Assert.Contains(new SetupDraftChanged(null), device.Send(new StartSetup(device.Workspace, SetupEntry.Rerun)));
         Assert.IsType<NoManualSetup>(Assert.Throws<Rejected>(() => device.Send(new AddSetupSpace())).Rejection);
         var borrowed = device.Attach(session, WorkspaceKind.Private);
         Assert.IsType<PersistentWorkspaceRequired>(
-            Assert.Throws<Rejected>(() => device.Send(new BeginManualSetup(borrowed, StartsOver: true))).Rejection);
+            Assert.Throws<Rejected>(() => device.Send(new StartSetup(borrowed, SetupEntry.ManualSetup))).Rejection);
     }
 
     [Theory]
@@ -66,21 +67,22 @@ public sealed partial class BrowserContractsTests {
         using (var app = new CrestApp(configuration)) {
             app.Send(Adoption(document));
             var workspace = TestWorkspaces.OpenStored(app).Workspace;
-            app.Send(new BeginManualSetup(workspace, StartsOver: true));
+            app.Send(new StartSetup(workspace, SetupEntry.ManualSetup));
             var added = Drafted(app.Send(new AddSetupSpace())).Spaces[^1];
             created = added.SpaceId;
             app.Send(new CustomizeSetupSpace(created, added.Customization with { Name = "Kept" }));
         }
         using (var app = new CrestApp(configuration)) {
             var workspace = TestWorkspaces.OpenStored(app).Workspace;
-            var resumed = Drafted(app.Send(new BeginManualSetup(workspace, StartsOver: false)));
+            var resumed = Drafted(app.Send(new StartSetup(workspace, SetupEntry.ManualSetup)));
             Assert.Equal(resumes, resumed.Spaces.Any(space => space.SpaceId == created && space.ShownName == "Kept"));
-            Assert.DoesNotContain(Drafted(app.Send(new BeginManualSetup(workspace, StartsOver: true))).Spaces, space => space.IsNew);
+            app.Send(new StartSetup(workspace, SetupEntry.Rerun));
+            Assert.DoesNotContain(Drafted(app.Send(new ShowSetupStep(SetupStep.ManualSetup))).Spaces, space => space.IsNew);
         }
         // Starting over is what the next launch finds.
         using (var app = new CrestApp(configuration)) {
             var workspace = TestWorkspaces.OpenStored(app).Workspace;
-            Assert.DoesNotContain(Drafted(app.Send(new BeginManualSetup(workspace, StartsOver: false))).Spaces, space => space.IsNew);
+            Assert.DoesNotContain(Drafted(app.Send(new StartSetup(workspace, SetupEntry.ManualSetup))).Spaces, space => space.IsNew);
         }
     }
 
@@ -118,7 +120,7 @@ public sealed partial class BrowserContractsTests {
         }
         using (var app = new CrestApp(configuration)) {
             var workspace = TestWorkspaces.OpenStored(app).Workspace;
-            var resumed = Drafted(app.Send(new BeginManualSetup(workspace, StartsOver: false)));
+            var resumed = Drafted(app.Send(new StartSetup(workspace, SetupEntry.ManualSetup)));
             Assert.Equal([(created, true, "Trips"), (existing, false, "Reading room")],
                 resumed.Spaces.Select(space => (space.SpaceId, space.IsNew, space.ShownName)));
             Assert.True(resumed.OrderWasEdited);

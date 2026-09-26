@@ -93,10 +93,20 @@ static size_t put_bytes(uint8_t* output, size_t at, size_t capacity, const char*
 enum { persistent_kind = 0, private_kind = 1, borrowed_kind = 2 };
 /* OpenWorkspace: its tag, the kind, then the seed: a presence byte and, when
  * present, a byte string holding a session in the stored format. */
-static size_t open_workspace(uint8_t* output, size_t capacity, uint8_t kind, const char* seed, size_t length) {
-    assert(capacity >= 3);
+/* A union tag: its LEB128 varint, which takes a second byte from 128 on.
+ * Answers how many bytes it took. */
+static size_t put_tag(uint8_t* output, uint32_t tag) {
     size_t at = 0;
-    output[at++] = CREST_INTENT_OPEN_WORKSPACE;
+    do {
+        uint8_t next = (uint8_t)(tag & 0x7f);
+        tag >>= 7;
+        output[at++] = tag == 0 ? next : (uint8_t)(next | 0x80);
+    } while (tag != 0);
+    return at;
+}
+static size_t open_workspace(uint8_t* output, size_t capacity, uint8_t kind, const char* seed, size_t length) {
+    assert(capacity >= 4);
+    size_t at = put_tag(output, CREST_INTENT_OPEN_WORKSPACE);
     output[at++] = kind;
     output[at++] = seed != NULL;
     return seed == NULL ? at : put_bytes(output, at, capacity, seed, length);
@@ -241,11 +251,12 @@ static void engine_boundary(void) {
     open_seeded(app, persistent_kind, json, (size_t)size, workspace);
     /* OpenWindow: the window, the workspace, not saved, nothing to copy or show,
      * RestoresTabs. It answers its own WindowChanged. */
-    uint8_t opening[38] = { CREST_INTENT_OPEN_WINDOW };
-    memset(opening + 1, 0x42, 16);
-    memcpy(opening + 17, workspace, 16);
-    opening[37] = 1;
-    assert(crest_app_dispatch(app, opening, sizeof(opening), &buffer) == CREST_OK);
+    uint8_t opening[42] = { 0 };
+    size_t window_tag = put_tag(opening, CREST_INTENT_OPEN_WINDOW);
+    memset(opening + window_tag, 0x42, 16);
+    memcpy(opening + window_tag + 16, workspace, 16);
+    opening[window_tag + 36] = 1;
+    assert(crest_app_dispatch(app, opening, window_tag + 37, &buffer) == CREST_OK);
     assert(buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_WINDOW_CHANGED);
     crest_buffer_free(&buffer);
 
@@ -253,24 +264,25 @@ static void engine_boundary(void) {
      * window, and no transient presentation. The dispatch returns once the
      * binding ran CreatePage: the page, the Space's profile (all 0x55),
      * whether it is private, the window and no state to restore. */
-    uint8_t page[67] = { CREST_INTENT_OPEN_PAGE };
-    memset(page + 1, 0x61, 16);
-    memcpy(page + 17, workspace, 16);
-    memset(page + 33, 0x44, 16);
-    page[49] = 0;
-    memset(page + 50, 0x42, 16);
-    page[66] = 0;
-    assert(crest_app_dispatch(app, page, sizeof(page), &buffer) == CREST_OK);
+    uint8_t page[71] = { 0 };
+    size_t page_tag = put_tag(page, CREST_INTENT_OPEN_PAGE);
+    memset(page + page_tag, 0x61, 16);
+    memcpy(page + page_tag + 16, workspace, 16);
+    memset(page + page_tag + 32, 0x44, 16);
+    page[page_tag + 48] = 0;
+    memset(page + page_tag + 49, 0x42, 16);
+    page[page_tag + 65] = 0;
+    assert(crest_app_dispatch(app, page, page_tag + 66, &buffer) == CREST_OK);
     assert(buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_PAGE_OPENED);
     crest_buffer_free(&buffer);
     assert(fixture.commands == 1 && fixture.last_length == 51 && fixture.last[0] == CREST_ENGINE_COMMAND_CREATE_PAGE);
-    assert(memcmp(fixture.last + 1, page + 1, 16) == 0 && fixture.last[17] == 0x55 && fixture.last[33] == 0);
-    assert(memcmp(fixture.last + 34, page + 50, 16) == 0 && fixture.last[50] == 0);
+    assert(memcmp(fixture.last + 1, page + page_tag, 16) == 0 && fixture.last[17] == 0x55 && fixture.last[33] == 0);
+    assert(memcmp(fixture.last + 34, page + page_tag + 49, 16) == 0 && fixture.last[50] == 0);
 
     /* PageCreated for that page goes through the drain; one for a page the
      * core does not know is fine and changes nothing. */
     uint8_t created[17] = { CREST_ENGINE_EVENT_PAGE_CREATED };
-    memcpy(created + 1, page + 1, 16);
+    memcpy(created + 1, page + page_tag, 16);
     assert(fixture.report(app, engine, created, sizeof(created)) == CREST_OK);
     assert(crest_app_drain(app, &buffer) == CREST_OK && buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_PAGE_CHANGED);
     crest_buffer_free(&buffer);
@@ -342,7 +354,7 @@ static void storage_boundary(void) {
     assert(crest_app_settle_sync(app) == CREST_OK);
     assert(crest_app_settle_sync(0) == CREST_INVALID_HANDLE);
     /* OpenWorkspace for the file's session, without a seed. */
-    uint8_t stored[3];
+    uint8_t stored[4];
     size_t opening_stored = open_workspace(stored, sizeof(stored), persistent_kind, NULL, 0);
     assert(crest_app_dispatch(app, stored, opening_stored, &buffer) == CREST_REJECTED);
     assert(buffer.length == 1 && buffer.bytes[0] == CREST_REJECTION_NO_STORED_SESSION);
@@ -426,11 +438,12 @@ static void storage_boundary(void) {
     /* OpenWindow: its tag, the window, the workspace, Saved, no window to copy,
      * no Space to show, no tabs to show, RestoresTabs. It answers one
      * WindowChanged. */
-    uint8_t opening[38] = { CREST_INTENT_OPEN_WINDOW };
-    memset(opening + 1, 0x42, 16);
-    memcpy(opening + 17, workspace, 16);
-    opening[33] = 1; opening[34] = 0; opening[35] = 0; opening[36] = 0; opening[37] = 1;
-    assert(crest_app_dispatch(app, opening, sizeof(opening), &buffer) == CREST_OK);
+    uint8_t opening[42] = { 0 };
+    size_t window_tag = put_tag(opening, CREST_INTENT_OPEN_WINDOW);
+    memset(opening + window_tag, 0x42, 16);
+    memcpy(opening + window_tag + 16, workspace, 16);
+    opening[window_tag + 32] = 1; opening[window_tag + 36] = 1;
+    assert(crest_app_dispatch(app, opening, window_tag + 37, &buffer) == CREST_OK);
     assert(buffer.length > 2 && buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_WINDOW_CHANGED);
     crest_buffer_free(&buffer);
     assert(crest_app_destroy(app) == CREST_OK);

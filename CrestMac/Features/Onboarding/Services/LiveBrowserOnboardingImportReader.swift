@@ -25,7 +25,7 @@ struct LiveBrowserOnboardingImportReader: BrowserOnboardingImportReading {
 
         return BrowserOnboardingImportReadOutput(
             payload: payload,
-            imported: imported.spaces.map { BrowserSpace(core: $0, image: { _ in nil }) },
+            imported: imported.spaces,
             passwordCandidates: passwordCandidates
         )
     }

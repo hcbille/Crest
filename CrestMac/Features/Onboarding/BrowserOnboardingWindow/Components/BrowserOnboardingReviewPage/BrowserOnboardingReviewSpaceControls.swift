@@ -4,19 +4,18 @@ struct BrowserOnboardingReviewSpaceControls: View {
     let flow: BrowserOnboardingFlow
     let browserSession: BrowserSession
     let application: ImportSource?
-    let plan: BrowserImportReviewPlan
+    let spaces: [BrowserImportSpaceReview]
     let review: BrowserImportSpaceReview
-    @Binding var selectedSourceSpaceID: SpaceID?
 
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .bottom, spacing: 14) {
                 BrowserOnboardingReviewSourcePicker(
                     applicationName: application?.title ?? "browser",
-                    spaces: plan.spaces,
+                    spaces: spaces,
                     currentSpaceID: review.id,
                     sourceSpaceName: review.sourceSpace.name,
-                    selectedSpaceID: $selectedSourceSpaceID
+                    show: { flow.shownReviewSpaceID = $0 }
                 )
 
                 Button(action: toggleSpaceInclusion) {
@@ -75,11 +74,7 @@ struct BrowserOnboardingReviewSpaceControls: View {
                 .toggleStyle(.switch)
                 .tint(BrowserOnboardingPalette.coral)
                 .disabled(
-                    !review.isIncluded
-                        || flow.passwordCountsBySourceSpace[
-                            review.id,
-                            default: 0
-                        ] == 0
+                    !review.isIncluded || review.record.passwordCount == 0
                 )
                 .accessibilityValue(
                     review.includesPasswords ? "On" : "Off"
@@ -91,10 +86,7 @@ struct BrowserOnboardingReviewSpaceControls: View {
 
     private var destinationBinding: Binding<BrowserImportDestination> {
         Binding(
-            get: {
-                flow.plan?.spaces.first { $0.id == review.id }?.destination
-                    ?? review.destination
-            },
+            get: { review.destination },
             set: { flow.setDestination($0, for: review.id) }
         )
     }
@@ -123,7 +115,7 @@ private struct BrowserOnboardingReviewSourcePicker: View {
     let spaces: [BrowserImportSpaceReview]
     let currentSpaceID: SpaceID
     let sourceSpaceName: String
-    @Binding var selectedSpaceID: SpaceID?
+    let show: (SpaceID) -> Void
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -148,7 +140,7 @@ private struct BrowserOnboardingReviewSourcePicker: View {
     private var selection: Binding<SpaceID> {
         Binding(
             get: { currentSpaceID },
-            set: { selectedSpaceID = $0 }
+            set: { show($0) }
         )
     }
 }

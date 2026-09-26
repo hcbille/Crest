@@ -174,37 +174,6 @@ extension FaviconAssets.Offer {
     }
 }
 
-// MARK: - Imports
-
-extension BrowserSpace {
-    /// `spaces` as an import carries them to the core: the stored format, a
-    /// JSON array, without the images the core never sees.
-    static func storedFormat(_ spaces: [BrowserSpace]) throws -> Data {
-        let compacted = spaces.isEmpty ? [] : BrowserCoreSessionAuthority.compact(BrowserSession(spaces: spaces)).spaces
-        return try JSONEncoder().encode(compacted)
-    }
-}
-
-extension BrowserImportSpaceCustomization {
-    /// The name and look a Space takes, as the core reads them. The core
-    /// resolves a blank name or symbol and keeps the look within the ranges
-    /// every device draws.
-    var core: SpaceCustomization {
-        SpaceCustomization(name: name, symbol: symbol, accent: accent, branding: branding.core)
-    }
-}
-
-extension ImportReviewSpace {
-    /// A Space as the review of an import reads it.
-    init(_ space: BrowserSpace) {
-        self.init(
-            id: space.id, name: space.name,
-            tabs: space.tabs.map {
-                ImportReviewTab(id: $0.id, url: $0.url?.absoluteString, placement: $0.placement)
-            })
-    }
-}
-
 extension BrowserSession {
     /// The session an import would leave, as `preview` answers it: each tab
     /// it would place from `sources` wears the image its source tab wears

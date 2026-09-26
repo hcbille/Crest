@@ -174,11 +174,13 @@ private final class BrowserMobileApplication {
 
         self.browser = browser
         self.cloudSync = cloudSync
-        onboardingProgress = BrowserOnboardingProgressStore.launchStore(
-            isIsolated: usesIsolatedLaunch,
+        // The device store keeps whether setup was completed here, carried
+        // once from what an older release kept in its defaults.
+        _ = try? core.send(AdoptSetupCompletion(completed: legacyDevice.setupCompleted))
+        onboardingProgress = BrowserOnboardingProgressStore(
+            core: core,
             forceWelcome: forceOnboarding,
-            forceSetup: launchEnvironment.forcesMobileOnboardingSetup,
-            persistentIsolationID: launchEnvironment.persistentIsolationID
+            forceSetup: launchEnvironment.forcesMobileOnboardingSetup
         )
         let onboardingCoordinator = BrowserOnboardingCoordinator()
         self.onboardingCoordinator = onboardingCoordinator

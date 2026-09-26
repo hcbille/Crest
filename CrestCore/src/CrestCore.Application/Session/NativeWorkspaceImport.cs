@@ -186,10 +186,10 @@ internal sealed class NativeWorkspaceImport {
         seedMarker = null;
     }
 
-    /// Imports the reviewed Spaces the reviews include, in their order; see
+    /// Imports the reviewed Spaces the review includes, in their order; see
     /// `ImportReviewedSpaces`. New identities come from `ids`.
-    internal void ImportReviewed(IReadOnlyList<SpaceReview> reviews, IIdSource ids) {
-        var included = Pair(reviews, review => review.SourceSpaceId).Where(pair => pair.Choice.Included).ToArray();
+    internal void ImportReviewed(IReadOnlyList<SetupReviewSpace> reviews, IIdSource ids) {
+        var included = Pair(reviews, review => review.Source.Id).Where(pair => pair.Choice.Included).ToArray();
         if (included.Length == 0) throw new Rejected(new NoIncludedSpaces());
         bool replaceSeed = seedMarker is not null;
         WorkspaceImportPolicy.RequireSpaceCapacity(replaceSeed ? 0 : spaces.Count,
@@ -217,7 +217,7 @@ internal sealed class NativeWorkspaceImport {
     /// A reviewed Space's included tabs, in the placements the review chose, with
     /// the saved folders they need. Pinned tabs past the limit become saved tabs
     /// in the overflow folder. New identities come from `ids`.
-    private void Import(SpaceReview review, Draft input, Draft destination, bool isNew, IIdSource ids) {
+    private void Import(SetupReviewSpace review, Draft input, Draft destination, bool isNew, IIdSource ids) {
         var included = review.IncludedTabIds.ToHashSet();
         var overrides = review.Placements.GroupBy(choice => choice.TabId).ToDictionary(group => group.Key, group => group.Last().Placement);
         TabPlacement PlacementFor(TabState tab) => overrides.GetValueOrDefault(tab.Id, tab.Placement);

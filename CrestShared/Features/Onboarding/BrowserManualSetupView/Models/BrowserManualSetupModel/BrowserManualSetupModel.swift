@@ -33,17 +33,6 @@ final class BrowserManualSetupModel {
 
     // MARK: - Actions - Setup
 
-    /// Starts a setup of `workspaceID`'s Spaces, or goes on with the one the
-    /// core holds, unless `startsOver`.
-    func begin(workspaceID: UUID, startsOver: Bool) {
-        send(BeginManualSetup(workspaceID: workspaceID, startsOver: startsOver))
-    }
-
-    /// Ends the setup without applying it.
-    func discard() {
-        send(DiscardManualSetup())
-    }
-
     /// Adds a new Space and answers it, or nil when the core refused it.
     @discardableResult
     func addSpace() -> SpaceID? {
@@ -85,7 +74,7 @@ final class BrowserManualSetupModel {
 
     func symbolBinding(for spaceID: SpaceID) -> Binding<String> {
         Binding(
-            get: { self.space(spaceID)?.customization.symbol ?? BrowserImportSpaceCustomization.fallbackSymbol },
+            get: { self.space(spaceID)?.customization.symbol ?? "" },
             set: { symbol in
                 self.customize(spaceID) {
                     SpaceCustomization(name: $0.name, symbol: symbol, accent: $0.accent, branding: $0.branding)

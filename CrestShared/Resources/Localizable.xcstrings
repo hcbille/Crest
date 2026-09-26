@@ -3970,7 +3970,7 @@
       }
     },
     "Bring over browser data only after reviewing exactly what Crest will add." : {
-
+      "extractionState" : "stale"
     },
     "Broad tracking protection optimized for Safari." : {
       "extractionState" : "stale",
@@ -4484,7 +4484,7 @@
 
     },
     "Choose a name, symbol, and appearance before you begin browsing." : {
-
+      "extractionState" : "stale"
     },
     "Choose a palette for Crest’s Dock icon. Your device controls its light, dark, tinted, or clear appearance." : {
 
@@ -4617,7 +4617,7 @@
 
     },
     "Choose Import Options" : {
-
+      "extractionState" : "stale"
     },
     "Choose Language" : {
 
@@ -5398,7 +5398,7 @@
       }
     },
     "Cookies, accounts, history, and permissions stay inside their Space." : {
-
+      "extractionState" : "stale"
     },
     "Copied locally for 60 seconds" : {
       "localizations" : {
@@ -6325,10 +6325,10 @@
       }
     },
     "Crest syncing privately between a Mac and iPhone" : {
-
+      "extractionState" : "stale"
     },
     "Crest syncs your setup privately with iCloud while preserving the boundaries between Spaces." : {
-
+      "extractionState" : "stale"
     },
     "Crest translates page text in place, including headings, links, labels, and buttons. Editable fields, code, embedded pages, and text in images are left unchanged. Translated text may take more space." : {
 
@@ -7367,7 +7367,7 @@
 
     },
     "Each Space is its own browser, with its own identity, history, accounts, and site data." : {
-
+      "extractionState" : "stale"
     },
     "Each Space restores its own extension package, enablement, controller storage, permissions, website access, and compatibility errors." : {
       "extractionState" : "stale",
@@ -7772,7 +7772,7 @@
       }
     },
     "Essentials that are always ready at the top." : {
-
+      "extractionState" : "stale"
     },
     "Every accepted credential will be stored only in this Space’s Keychain inventory." : {
 
@@ -9126,7 +9126,7 @@
       }
     },
     "iCloud carries the result. Each Space keeps its own boundary." : {
-
+      "extractionState" : "stale"
     },
     "iCloud CloudKit account upload download conflict status monitor diagnostics pending records" : {
       "localizations" : {
@@ -9343,7 +9343,7 @@
       }
     },
     "Import here on your Mac" : {
-
+      "extractionState" : "stale"
     },
     "Import History…" : {
       "extractionState" : "stale",
@@ -10293,7 +10293,7 @@
 
     },
     "Keep essential sites pinned, save useful pages for later, and leave only active work open." : {
-
+      "extractionState" : "stale"
     },
     "Keep Loaded" : {
       "localizations" : {
@@ -10323,7 +10323,7 @@
       }
     },
     "Keep the sidebar useful" : {
-
+      "extractionState" : "stale"
     },
     "Keep work, personal browsing, and projects in separate Spaces." : {
 
@@ -10864,7 +10864,7 @@
       }
     },
     "Make each one recognizable" : {
-
+      "extractionState" : "stale"
     },
     "Make it recognizable" : {
       "extractionState" : "stale",
@@ -12000,7 +12000,7 @@
 
     },
     "One setup, every device" : {
-
+      "extractionState" : "stale"
     },
     "One-time macOS permission · No folder search" : {
 
@@ -12569,7 +12569,7 @@
       }
     },
     "Pages kept for later without staying open." : {
-
+      "extractionState" : "stale"
     },
     "Pages using the default update immediately. Page Zoom commands override it while you browse, and Actual Size returns here." : {
 
@@ -13033,7 +13033,7 @@
 
     },
     "Pin what matters, save what can wait, and close the rest." : {
-
+      "extractionState" : "stale"
     },
     "Pine" : {
       "extractionState" : "manual",
@@ -13238,10 +13238,10 @@
       }
     },
     "Preview of a Crest Work Space" : {
-
+      "extractionState" : "stale"
     },
     "Preview of pinned, saved, and open tabs in a Crest Space" : {
-
+      "extractionState" : "stale"
     },
     "Preview open" : {
       "extractionState" : "stale",
@@ -13266,7 +13266,7 @@
       }
     },
     "Preview the result before it becomes your browser." : {
-
+      "extractionState" : "stale"
     },
     "Preview Unavailable" : {
 
@@ -13413,7 +13413,7 @@
       }
     },
     "Private iCloud sync" : {
-
+      "extractionState" : "stale"
     },
     "Private Space" : {
       "localizations" : {
@@ -13426,7 +13426,7 @@
       }
     },
     "PRIVATE SYNC" : {
-
+      "extractionState" : "stale"
     },
     "Proceed Anyway" : {
       "localizations" : {
@@ -15442,7 +15442,7 @@
       }
     },
     "Separate by default" : {
-
+      "extractionState" : "stale"
     },
     "Separate Selected Splits" : {
 
@@ -15555,7 +15555,7 @@
       }
     },
     "Setup could not finish. Review your Spaces and try again." : {
-
+      "extractionState" : "stale"
     },
     "Setup progress" : {
 
@@ -16291,7 +16291,7 @@
       }
     },
     "SPACES" : {
-
+      "extractionState" : "stale"
     },
     "Spanish- and Portuguese-language advertising." : {
       "extractionState" : "stale",
@@ -17165,7 +17165,7 @@
       }
     },
     "TABS" : {
-
+      "extractionState" : "stale"
     },
     "Tabs & folders" : {
 
@@ -17508,7 +17508,7 @@
       }
     },
     "The pages you are actively using now." : {
-
+      "extractionState" : "stale"
     },
     "The password could not be saved. Try again." : {
 
@@ -19655,7 +19655,7 @@
       }
     },
     "Your Spaces and tabs follow you without becoming one shared profile." : {
-
+      "extractionState" : "stale"
     },
     "Your Spaces are ready" : {
 
@@ -19739,6 +19739,18 @@
 
     },
     "Setup is no longer in progress. Start it again." : {
+
+    },
+    "Browser %lld of %lld" : {
+
+    },
+    "Setup is no longer open. Open it again." : {
+
+    },
+    "Unlock your first Space to open Getting Started." : {
+
+    },
+    "Wait for setup to finish reading or importing." : {
 
     }
   },

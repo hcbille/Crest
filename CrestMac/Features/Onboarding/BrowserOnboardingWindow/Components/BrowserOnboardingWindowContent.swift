@@ -7,7 +7,6 @@ struct BrowserOnboardingWindowContent: View {
     let cloudSync: BrowserCloudSyncController
     let progress: BrowserOnboardingProgressStore
     let flow: BrowserOnboardingFlow
-    @Binding var selectedSourceSpaceID: SpaceID?
     @Binding var selectedManualSpaceID: SpaceID?
     @Binding var customizationSpaceID: SpaceID?
     let close: () -> Void
@@ -21,9 +20,9 @@ struct BrowserOnboardingWindowContent: View {
                 if flow.step != .manualSetup {
                     BrowserOnboardingProgressHeader(step: flow.step)
                 }
-                if let customizationSpaceID, let plan = flow.plan {
+                if let customizationSpaceID, flow.review != nil {
                     BrowserImportSpaceCustomizationView(
-                        plan: planBinding(fallback: plan),
+                        flow: flow,
                         spaceID: customizationSpaceID,
                         previewSpace: flow.customizationPreviewSpace(
                             customizationSpaceID
@@ -35,7 +34,6 @@ struct BrowserOnboardingWindowContent: View {
                         cloudSync: cloudSync,
                         progress: progress,
                         flow: flow,
-                        selectedSourceSpaceID: $selectedSourceSpaceID,
                         selectedManualSpaceID: $selectedManualSpaceID,
                         customizationSpaceID: $customizationSpaceID,
                         close: close,
@@ -66,8 +64,8 @@ struct BrowserOnboardingWindowContent: View {
         .onChange(of: request) { _, newRequest in
             resetTransientState(for: newRequest)
         }
-        .onChange(of: flow.state) { _, newState in
-            synchronizePresentationState(for: newState)
+        .onChange(of: flow.step) { _, step in
+            if step == .manualSetup { flow.manualSetup.repairSelection($selectedManualSpaceID) }
         }
         .onDisappear(perform: flow.cancelOperations)
         .animation(motion(CrestMotion.onboardingStep), value: flow.state)
@@ -76,47 +74,15 @@ struct BrowserOnboardingWindowContent: View {
     private func start() async {
         flow.start()
         flow.discoverInstalledSources()
-        if progress.isChecking {
-            await progress.refresh()
-        }
+        flow.manualSetup.repairSelection($selectedManualSpaceID)
     }
 
     private func resetTransientState(for request: BrowserOnboardingRequest) {
-        selectedSourceSpaceID = nil
         customizationSpaceID = nil
         withAnimation(motion(CrestMotion.onboardingStep)) {
             flow.reset(for: request)
         }
         selectedManualSpaceID = flow.manualSetup.spaces.first?.spaceID
-    }
-
-    private func synchronizePresentationState(
-        for state: BrowserOnboardingFlowState
-    ) {
-        switch state {
-        case .reviewing:
-            if flow.plan?.spaces.contains(where: {
-                $0.id == selectedSourceSpaceID
-            }) != true {
-                selectedSourceSpaceID = flow.plan?.spaces.first?.id
-            }
-        case .manualSetup:
-            flow.manualSetup.repairSelection($selectedManualSpaceID)
-        case .welcome, .featureSpaces, .featureTabs, .featureSync,
-            .importSelection, .reading, .committing, .complete:
-            break
-        }
-    }
-
-    private func planBinding(
-        fallback: BrowserImportReviewPlan
-    ) -> Binding<BrowserImportReviewPlan> {
-        Binding(
-            get: { flow.plan ?? fallback },
-            set: { plan in
-                flow.updatePlan(plan)
-            }
-        )
     }
 
     private func motion(_ animation: Animation) -> Animation? {

@@ -1,0 +1,80 @@
+import Foundation
+
+/// Where a reviewed Space goes: a new Space, or the existing Space it joins.
+enum BrowserImportDestination: Equatable, Hashable, Sendable {
+    case newSpace
+    case existing(SpaceID)
+
+    /// The existing Space it joins, or nil for a new Space.
+    var spaceID: SpaceID? {
+        switch self {
+        case .newSpace: nil
+        case .existing(let id): id
+        }
+    }
+}
+
+/// One Space of the review the core holds, as the review views draw it: the
+/// Space the browser brought as a `BrowserSpace`, with the person's choices
+/// and what the core says they mean. It holds nothing of its own; the flow
+/// builds it from the core's review each time the review changes.
+/// TRANSITIONAL until the review views draw the core's records directly.
+struct BrowserImportSpaceReview: Identifiable, Equatable {
+    // MARK: - Variables
+
+    let record: SetupReviewSpace
+    /// The Space the browser brought, as the review views draw it.
+    let sourceSpace: BrowserSpace
+
+    var id: SpaceID { record.source.id }
+    var isIncluded: Bool { record.included }
+    var includesPasswords: Bool { record.includesPasswords }
+    var includedTabIDs: Set<TabID> { Set(record.includedTabIDs) }
+    var duplicateTabIDs: Set<TabID> { Set(record.duplicateTabIDs) }
+    var destination: BrowserImportDestination {
+        record.destinationID.map(BrowserImportDestination.existing) ?? .newSpace
+    }
+    /// The name, symbol and look the Space takes.
+    var customization: SpaceCustomization { record.customization }
+
+    // MARK: - Initializers
+
+    init(_ record: SetupReviewSpace) {
+        self.record = record
+        sourceSpace = BrowserSpace(core: record.source, image: { _ in nil })
+    }
+
+    // MARK: - Actions - Tabs
+
+    /// The placement `tab` comes in with: the one the person chose, or its own.
+    func placement(for tab: BrowserTab) -> TabPlacement {
+        record.placements.last { $0.tabID == tab.id }?.placement ?? tab.placement
+    }
+}
+
+/// What the core says the review's choices mean: the tabs each destination
+/// already holds, the destination tabs each Space matches, and the pinned
+/// tabs that move to a saved folder.
+struct BrowserImportReviewAnalysis: Equatable {
+    // MARK: - Variables
+
+    let duplicateTabIDs: Set<TabID>
+    let overflowTabIDs: Set<TabID>
+    private let matchedTabIDsBySourceSpace: [SpaceID: Set<TabID>]
+
+    // MARK: - Initializers
+
+    init(_ review: SetupImportReview?) {
+        duplicateTabIDs = Set(review?.spaces.flatMap(\.duplicateTabIDs) ?? [])
+        overflowTabIDs = Set(review?.overflowTabIDs ?? [])
+        matchedTabIDsBySourceSpace = Dictionary(
+            (review?.spaces ?? []).map { ($0.source.id, Set($0.matchedTabIDs)) },
+            uniquingKeysWith: { first, _ in first })
+    }
+
+    // MARK: - Actions - Tabs
+
+    func matchedTabIDs(for sourceSpaceID: SpaceID) -> Set<TabID> {
+        matchedTabIDsBySourceSpace[sourceSpaceID] ?? []
+    }
+}

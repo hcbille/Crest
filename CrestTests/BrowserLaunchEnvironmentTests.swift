@@ -5,29 +5,44 @@ import XCTest
 final class BrowserLaunchEnvironmentTests: XCTestCase {
     func testCloudReviewRequiresExplicitNamedIsolationAndNeverUsesTheProductionZone() throws {
         let configuration = BrowserCloudSyncConfiguration(containerIdentifier: "iCloud.com.pauldavis.crest")
-        let values = ["CREST_ISOLATED_SESSION": "1", "CREST_ISOLATED_PERSISTENCE_ID": "device-one",
-            "CREST_ISOLATED_CLOUD_SYNC_ID": "shared-review"]
-        let review = try XCTUnwrap(configuration.isolated(for:
-            BrowserLaunchEnvironment(values: values, isXCTestRuntime: false)))
+        let values = [
+            "CREST_ISOLATED_SESSION": "1", "CREST_ISOLATED_PERSISTENCE_ID": "device-one",
+            "CREST_ISOLATED_CLOUD_SYNC_ID": "shared-review",
+        ]
+        let review = try XCTUnwrap(
+            configuration.isolated(
+                for:
+                    BrowserLaunchEnvironment(values: values, isXCTestRuntime: false)))
         XCTAssertEqual(review.zoneName, "CrestReview-shared-review")
         XCTAssertNotEqual(review.zoneName, configuration.zoneName)
         for omitted in values.keys {
             var incomplete = values
             incomplete[omitted] = nil
-            XCTAssertNil(configuration.isolated(for:
-                BrowserLaunchEnvironment(values: incomplete, isXCTestRuntime: false)))
+            XCTAssertNil(
+                configuration.isolated(
+                    for:
+                        BrowserLaunchEnvironment(values: incomplete, isXCTestRuntime: false)))
         }
-        XCTAssertNil(configuration.isolated(for:
-            BrowserLaunchEnvironment(values: values, isXCTestRuntime: true)))
-        XCTAssertNil(configuration.isolated(for:
-            BrowserLaunchEnvironment(values: values, isXCTestRuntime: false, isSwiftUIPreviewRuntime: true)))
+        XCTAssertNil(
+            configuration.isolated(
+                for:
+                    BrowserLaunchEnvironment(values: values, isXCTestRuntime: true)))
+        XCTAssertNil(
+            configuration.isolated(
+                for:
+                    BrowserLaunchEnvironment(values: values, isXCTestRuntime: false, isSwiftUIPreviewRuntime: true)))
         for invalid in ["../CrestPrivate", "Shared Review", "", String(repeating: "a", count: 49)] {
             var malformed = values
             malformed["CREST_ISOLATED_CLOUD_SYNC_ID"] = invalid
-            XCTAssertNil(configuration.isolated(for:
-                BrowserLaunchEnvironment(values: malformed, isXCTestRuntime: false)))
-            XCTAssertTrue(BrowserLaunchEnvironment(values: ["CREST_ISOLATED_CLOUD_SYNC_ID": invalid],
-                isXCTestRuntime: false).requiresIsolation)
+            XCTAssertNil(
+                configuration.isolated(
+                    for:
+                        BrowserLaunchEnvironment(values: malformed, isXCTestRuntime: false)))
+            XCTAssertTrue(
+                BrowserLaunchEnvironment(
+                    values: ["CREST_ISOLATED_CLOUD_SYNC_ID": invalid],
+                    isXCTestRuntime: false
+                ).requiresIsolation)
         }
     }
 
@@ -44,6 +59,7 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
         installed.set(Data("installed".utf8), forKey: BrowserLegacyDeviceDefaults.sitePermissionsKey)
         installed.set(Data("installed".utf8), forKey: BrowserLegacyDeviceDefaults.shortcutsKey)
         installed.set(Data("installed".utf8), forKey: BrowserLegacyDeviceDefaults.linkPreferencesKey)
+        installed.set(true, forKey: BrowserLegacyDeviceDefaults.setupCompletedKey)
         isolated.set(Data("isolated".utf8), forKey: BrowserLegacyDeviceDefaults.shortcutsKey)
 
         let product = BrowserLegacyDeviceDefaults.read(
@@ -51,6 +67,7 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
         XCTAssertEqual(product.sitePermissions, Data("installed".utf8))
         XCTAssertEqual(product.shortcuts, Data("installed".utf8))
         XCTAssertEqual(product.linkPreferences, Data("installed".utf8))
+        XCTAssertTrue(product.setupCompleted)
         let namedLaunch = BrowserLaunchEnvironment(
             values: ["CREST_ISOLATED_SESSION": "1", "CREST_ISOLATED_PERSISTENCE_ID": isolationID],
             isXCTestRuntime: false)
@@ -58,6 +75,7 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
         XCTAssertNil(named.sitePermissions)
         XCTAssertNil(named.linkPreferences)
         XCTAssertEqual(named.shortcuts, Data("isolated".utf8))
+        XCTAssertFalse(named.setupCompleted)
         let memoryOnlyLaunch = BrowserLaunchEnvironment(
             values: ["CREST_ISOLATED_SESSION": "1"], isXCTestRuntime: false)
         let memoryOnly = BrowserLegacyDeviceDefaults.read(for: memoryOnlyLaunch, standard: installed)
@@ -235,10 +253,8 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
     /// installations, so a validation relaunch does not begin by re-adding
     /// every extension while WebKit still holds their storage.
 
-
     /// A profile name is a directory name too, so anything that could climb
     /// out of the isolated root is refused rather than staged.
-
 
     @MainActor
     func testProductionCompositionRedirectsFixtureInputsToInMemoryOwners() throws {

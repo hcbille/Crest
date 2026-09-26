@@ -49,14 +49,16 @@ final class BrowserMacApplication {
     ///     each window's Site Controls button.
     ///   - reviewPersistenceID: The isolated store a review build of this
     ///     composition keeps, so each engine's review app has its own.
-    init(profileRemover: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
+    init(
+        profileRemover: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
         defaultEngine: (any NativeEngineBinding)? = nil,
         siteControlAnchor: BrowserSiteControlAnchor? = nil,
-        reviewPersistenceID: String = "core-native-ui-review") throws {
+        reviewPersistenceID: String = "core-native-ui-review"
+    ) throws {
         self.siteControlAnchor = siteControlAnchor
         #if CREST_REVIEW_BUILD
-        setenv("CREST_ISOLATED_SESSION", "1", 1)
-        setenv("CREST_ISOLATED_PERSISTENCE_ID", reviewPersistenceID, 0)
+            setenv("CREST_ISOLATED_SESSION", "1", 1)
+            setenv("CREST_ISOLATED_PERSISTENCE_ID", reviewPersistenceID, 0)
         #endif
         let launchEnvironment = BrowserLaunchEnvironment.current
         let usesIsolatedLaunch = launchEnvironment.requiresIsolation
@@ -243,11 +245,13 @@ final class BrowserMacApplication {
         browser.tabCopying = pages
         privateBrowser.tabCopying = privatePages
         let windowLayouts = BrowserWindowLayouts(defaults: sidebarDefaults)
-        let onboardingProgress = BrowserOnboardingProgressStore.launchStore(
-            isIsolated: usesIsolatedLaunch,
+        // The device store keeps whether setup was completed here, carried
+        // once from what an older release kept in its defaults.
+        _ = try? core.send(AdoptSetupCompletion(completed: legacyDevice.setupCompleted))
+        let onboardingProgress = BrowserOnboardingProgressStore(
+            core: core,
             forceWelcome: launchEnvironment.forcesOnboardingWelcome,
-            forceSetup: launchEnvironment.forcesMacOnboardingSetup,
-            persistentIsolationID: launchEnvironment.persistentIsolationID
+            forceSetup: launchEnvironment.forcesMacOnboardingSetup
         )
         let startupBehavior = browser.startupBehavior(
             for: launchEnvironment,
@@ -263,20 +267,20 @@ final class BrowserMacApplication {
         self.onboardingCoordinator = BrowserOnboardingCoordinator()
         let initialLayout = windowLayouts.layout(for: BrowserMacWindowRequest.initial.id)
         self.chrome = BrowserChromeState(
-                sidebarIsPresented: initialLayout?.sidebarIsPresented ?? true,
-                utilityPresentation: BrowserUtilityPresentationState(
-                    defaults: utilityDefaults
-                )
+            sidebarIsPresented: initialLayout?.sidebarIsPresented ?? true,
+            utilityPresentation: BrowserUtilityPresentationState(
+                defaults: utilityDefaults
             )
+        )
         self.transientBrowsing = transientBrowsing
         self.windowCoordinator = BrowserMacWindowCoordinator(
-                browser: browser, pages: pages, spaceAccess: spaceAccess, windowLayouts: windowLayouts)
+            browser: browser, pages: pages, spaceAccess: spaceAccess, windowLayouts: windowLayouts)
         self.privateBrowser = privateBrowser
         self.privateChrome = BrowserChromeState(
-                utilityPresentation: BrowserUtilityPresentationState(
-                    defaults: utilityDefaults
-                )
+            utilityPresentation: BrowserUtilityPresentationState(
+                defaults: utilityDefaults
             )
+        )
         self.privateTransientBrowsing = privateTransientBrowsing
         self.spaceAccess = spaceAccess
         self.spaceSettingsPresentation = spaceSettingsPresentation
@@ -284,8 +288,8 @@ final class BrowserMacApplication {
         self.shortcuts = shortcuts
         self.passkeyAccess = passkeyAccess
         self.windowTransparency = BrowserWindowTransparencyStore.launch(
-                usesIsolatedLaunch: usesIsolatedLaunch
-            )
+            usesIsolatedLaunch: usesIsolatedLaunch
+        )
         self.softwareUpdates = softwareUpdates
         self.sidebarWidgets = sidebarWidgets
         self.pages = pages
@@ -314,7 +318,8 @@ final class BrowserMacApplication {
             BrowserSettingsView(
                 browser: browser.profileSettingsBrowser, pages: pages, cloudSync: cloudSync,
                 spaceAccess: spaceAccess, dataDeleter: pagePoolRegistry, shortcuts: shortcuts,
-                onboardingCoordinator: onboardingCoordinator, spaceSettingsPresentation: presentation ?? spaceSettingsPresentation,
+                onboardingCoordinator: onboardingCoordinator,
+                spaceSettingsPresentation: presentation ?? spaceSettingsPresentation,
                 usesLiveSidebar: !browser.isTemporaryWorkspace,
                 tabState: runtime.model(BrowserSettingsTabState.self) { BrowserSettingsTabState() },
                 tabAssignment: runtime.assignment

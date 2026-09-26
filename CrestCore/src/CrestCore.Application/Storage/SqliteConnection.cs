@@ -149,12 +149,13 @@ internal sealed class SqliteConnection : IDisposable {
             + "overwrites_cloud INTEGER NOT NULL, engine_state BLOB)");
         Execute("CREATE TABLE IF NOT EXISTS device_cloud_record (name TEXT PRIMARY KEY, fields BLOB NOT NULL, schema_version INTEGER)");
         Execute("CREATE TABLE IF NOT EXISTS device_setup_draft (id INTEGER PRIMARY KEY CHECK (id = 0), document TEXT NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_setup (id INTEGER PRIMARY KEY CHECK (id = 0), completed INTEGER NOT NULL)");
     }
 
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
     public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadShortcuts(), ReadLinks(), ReadSetupDraft(),
-        ReadAdoptions());
+        ReadSetupCompleted(), ReadAdoptions());
 
     private List<SavedWindow> ReadWindows() {
         var windows = new Dictionary<Guid, (Guid ShownSpace, long Used)>();
@@ -247,6 +248,13 @@ internal sealed class SqliteConnection : IDisposable {
         return KeptSetupDraft.Read(document);
     }
 
+    /// Whether this device has completed setup: never, until the store says so.
+    private bool ReadSetupCompleted() {
+        bool completed = false;
+        Rows("SELECT completed FROM device_setup", statement => completed = Sqlite.sqlite3_column_int(statement, 0) != 0);
+        return completed;
+    }
+
     private HashSet<DeviceAdoption> ReadAdoptions() {
         var adoptions = new HashSet<DeviceAdoption>();
         foreach (var table in new[] { "device_marker", "device_adoption" })
@@ -265,6 +273,7 @@ internal sealed class SqliteConnection : IDisposable {
         if (written is null || !records.Shortcuts.SameAs(written.Shortcuts)) WriteShortcuts(records.Shortcuts);
         if (written is null || !records.Links.Equals(written.Links)) WriteLinks(records.Links);
         if (written is null || !KeptSetupDraft.Same(records.SetupDraft, written.SetupDraft)) WriteSetupDraft(records.SetupDraft);
+        if (written is null || records.SetupCompleted != written.SetupCompleted) WriteSetupCompleted(records.SetupCompleted);
         if (written is null || !records.Adopted.SetEquals(written.Adopted)) WriteAdoptions(records.Adopted);
     }
 
@@ -377,6 +386,11 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("DELETE FROM device_setup_draft");
         if (draft is null) return;
         Insert("INSERT INTO device_setup_draft(id, document) VALUES(0,?)", statement => Bind(statement, 1, draft.Document));
+    }
+
+    private void WriteSetupCompleted(bool completed) {
+        Execute("DELETE FROM device_setup");
+        Insert("INSERT INTO device_setup(id, completed) VALUES(0,?)", statement => Checked(Sqlite.sqlite3_bind_int64(statement, 1, completed ? 1 : 0)));
     }
 
     /// Every adoption goes into `device_adoption`; the ones an older build

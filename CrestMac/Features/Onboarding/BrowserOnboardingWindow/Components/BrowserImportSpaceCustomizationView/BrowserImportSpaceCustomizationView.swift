@@ -1,7 +1,9 @@
 import SwiftUI
 
+/// Gives a reviewed Space a name, symbol and look before it is imported.
+/// Setup holds each choice.
 struct BrowserImportSpaceCustomizationView: View {
-    @Binding var plan: BrowserImportReviewPlan
+    let flow: BrowserOnboardingFlow
     let spaceID: SpaceID
     let previewSpace: BrowserSpace?
     let done: () -> Void
@@ -11,8 +13,14 @@ struct BrowserImportSpaceCustomizationView: View {
         if review != nil {
             BrowserImportSpaceCustomizationContent(
                 previewSpace: previewSpace,
-                name: nameBinding,
-                symbol: symbolBinding,
+                name: binding(get: \.name) { current, name in
+                    SpaceCustomization(
+                        name: name, symbol: current.symbol, accent: current.accent, branding: current.branding)
+                },
+                symbol: binding(get: \.symbol) { current, symbol in
+                    SpaceCustomization(
+                        name: current.name, symbol: symbol, accent: current.accent, branding: current.branding)
+                },
                 branding: brandingBinding,
                 done: done
             )
@@ -20,33 +28,20 @@ struct BrowserImportSpaceCustomizationView: View {
     }
 
     private var review: BrowserImportSpaceReview? {
-        plan.spaces.first { $0.id == spaceID }
+        flow.reviewSpaces.first { $0.id == spaceID }
     }
 
-    private var nameBinding: Binding<String> {
+    /// A binding to one part of the Space's customization, which `set`
+    /// replaces in the rest.
+    private func binding(
+        get: KeyPath<SpaceCustomization, String>,
+        set: @escaping (SpaceCustomization, String) -> SpaceCustomization
+    ) -> Binding<String> {
         Binding(
-            get: { review?.customization.name ?? previewSpace?.name ?? "" },
+            get: { review?.customization[keyPath: get] ?? "" },
             set: { value in
-                guard let review else { return }
-                plan.setSpaceIdentity(
-                    name: value,
-                    symbol: review.customization.symbol,
-                    for: spaceID
-                )
-            }
-        )
-    }
-
-    private var symbolBinding: Binding<String> {
-        Binding(
-            get: { review?.customization.symbol ?? previewSpace?.symbol ?? "" },
-            set: { value in
-                guard let review else { return }
-                plan.setSpaceIdentity(
-                    name: review.customization.name,
-                    symbol: value,
-                    for: spaceID
-                )
+                guard let current = review?.customization else { return }
+                flow.customize(spaceID, as: set(current, value))
             }
         )
     }
@@ -54,13 +49,16 @@ struct BrowserImportSpaceCustomizationView: View {
     private var brandingBinding: Binding<BrowserSpaceBranding> {
         Binding(
             get: {
-                review?.customization.branding
+                review.map { BrowserSpaceBranding(look: $0.customization.branding) }
                     ?? previewSpace?.branding
                     ?? .initial(accent: .indigo, symbol: "square.grid.2x2")
             },
             set: { branding in
-                guard review != nil else { return }
-                plan.setSpaceBranding(branding, for: spaceID)
+                guard let current = review?.customization else { return }
+                flow.customize(
+                    spaceID,
+                    as: SpaceCustomization(
+                        name: current.name, symbol: current.symbol, accent: current.accent, branding: branding.core))
             }
         )
     }

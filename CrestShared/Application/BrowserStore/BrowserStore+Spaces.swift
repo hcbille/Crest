@@ -72,22 +72,18 @@ extension BrowserStore {
             ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: spaces), from: [], issuedBy: self)
     }
 
-    /// Imports the Spaces a person reviewed, as the plan chose.
-    func commitReviewedImport(_ plan: BrowserImportReviewPlan) throws {
-        try family.importSpaces(try plan.intent(in: self), from: plan.sources, issuedBy: self)
-    }
-
-    /// Applies the manual setup the core holds for this workspace, which then
-    /// ends. Throws the rule that refused it.
-    func applyManualSetup() throws(Rejection) {
+    /// Imports the review setup holds for this workspace, as the person chose.
+    /// Throws the rule that refused it.
+    func importReviewedSpaces() throws(Rejection) {
         try family.importSpaces(
-            ApplyManualSetup(workspaceID: family.workspaceID, windowID: windowID), from: [], issuedBy: self)
+            ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID), from: [], issuedBy: self)
     }
 
-    /// The session applying the manual setup the core holds would leave this
-    /// workspace with. Throws the rule that would refuse it.
-    func manualSetupPreview() throws(Rejection) -> BrowserSession {
-        try importPreview(ApplyManualSetup(workspaceID: family.workspaceID, windowID: windowID), of: [])
+    /// The session importing the review setup holds would leave this
+    /// workspace with, the imported tabs wearing what `sources` wear. Throws
+    /// the rule that would refuse it.
+    func reviewedImportPreview(of sources: [BrowserSpace]) throws(Rejection) -> BrowserSession {
+        try importPreview(ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID), of: sources)
     }
 
     /// The session `intent`, an import of `sources`, would leave this

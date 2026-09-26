@@ -4,9 +4,8 @@ struct BrowserOnboardingReviewSpacePage: View {
     let flow: BrowserOnboardingFlow
     let browserSession: BrowserSession
     let application: ImportSource?
-    let plan: BrowserImportReviewPlan
+    let spaces: [BrowserImportSpaceReview]
     let review: BrowserImportSpaceReview
-    @Binding var selectedSourceSpaceID: SpaceID?
 
     var body: some View {
         let analysis = flow.reviewAnalysis()
@@ -57,9 +56,8 @@ struct BrowserOnboardingReviewSpacePage: View {
                 flow: flow,
                 browserSession: browserSession,
                 application: application,
-                plan: plan,
-                review: review,
-                selectedSourceSpaceID: $selectedSourceSpaceID
+                spaces: spaces,
+                review: review
             )
 
             Spacer(minLength: 8)

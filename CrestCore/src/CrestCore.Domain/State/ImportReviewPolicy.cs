@@ -3,11 +3,13 @@ using CrestCore.Contracts;
 namespace CrestCore.Domain;
 
 /// Rules for reviewing an import before the workspace import applies it. An
-/// imported Space merges into the existing Space with the same name, tabs its
-/// destination already holds are left out until the person asks for them, and
-/// pinned tabs past a destination's limit are flagged.
+/// imported Space joins the existing Space with the same name, tabs its
+/// destination already holds are left out until the person asks for them,
+/// and pinned tabs past a destination's limit move to a saved folder. Each
+/// edit answers the review as it leaves it, with what its choices mean against
+/// the session worked out again.
 public static class ImportReviewPolicy {
-    #region Actions - Review
+    #region Actions - Matching
 
     /// The key two Space names match on: letters and digits only, ignoring
     /// case, accents and width. A name with neither never matches.
@@ -16,60 +18,6 @@ public static class ImportReviewPolicy {
     /// The key two tab addresses match on: the address a history visit would
     /// record, or the address itself when history would not record it.
     public static string UrlKey(string url) => new WebAddress(url).Normalized ?? url;
-
-    /// The starting review for each imported Space, in their order. A
-    /// disposable first-install seed offers no destinations, so everything
-    /// imports into new Spaces.
-    public static SuggestedImportReview Suggest(IReadOnlyList<ImportReviewSpace> sources,
-        IReadOnlyList<ImportReviewSpace> existing, bool replacesDisposableSeed) {
-        ArgumentNullException.ThrowIfNull(sources);
-        ArgumentNullException.ThrowIfNull(existing);
-        var destinations = replacesDisposableSeed ? [] : existing;
-        return new([.. sources.Select(source => {
-            string key = SpaceMatchKey(source.Name);
-            var match = key.Length == 0 ? null : destinations.FirstOrDefault(space => SpaceMatchKey(space.Name) == key);
-            var duplicates = match is null ? [] : Duplicates(source, match);
-            var skipped = duplicates.ToHashSet();
-            return new SuggestedSpaceReview(source.Id, match?.Id, duplicates,
-                [.. source.Tabs.Where(tab => !skipped.Contains(tab.Id)).Select(tab => tab.Id)]);
-        })]);
-    }
-
-    /// What the reviews mean for each of the imported Spaces, in their order.
-    /// Each review names its Space; a destination that no longer exists holds
-    /// no duplicates and no pinned tabs. Throws `Rejected` with `InvalidImport`
-    /// when the reviews do not name each Space exactly once.
-    public static AnalyzedImportReview Analyze(IReadOnlyList<ImportReviewSpace> sources,
-        IReadOnlyList<ImportReviewSpace> existing, IReadOnlyList<SpaceReview> reviews) {
-        ArgumentNullException.ThrowIfNull(sources);
-        ArgumentNullException.ThrowIfNull(existing);
-        ArgumentNullException.ThrowIfNull(reviews);
-        var paired = Paired(sources, reviews, source => source.Id, review => review.SourceSpaceId);
-        var byId = existing.GroupBy(space => space.Id).ToDictionary(group => group.Key, group => group.First());
-        var spaces = new List<AnalyzedSpaceReview>();
-        Dictionary<Guid, int> pinnedCounts = existing.GroupBy(space => space.Id)
-            .ToDictionary(group => group.Key, group => group.First().Tabs.Count(tab => tab.Placement == TabPlacement.Pinned));
-        Dictionary<Guid, int> newCounts = [];
-        List<Guid> overflow = [];
-        foreach (var (source, review) in paired) {
-            var destination = review.DestinationId is { } id ? byId.GetValueOrDefault(id) : null;
-            spaces.Add(new(source.Id, destination is null ? [] : Duplicates(source, destination),
-                destination is null || !review.Included ? [] : Matched(source, destination)));
-            if (!review.Included) continue;
-            var counts = review.DestinationId is null ? newCounts : pinnedCounts;
-            var key = review.DestinationId ?? source.Id;
-            var included = review.IncludedTabIds.ToHashSet();
-            var placements = review.Placements.GroupBy(choice => choice.TabId)
-                .ToDictionary(group => group.Key, group => group.Last().Placement);
-            foreach (var tab in source.Tabs) {
-                if (!included.Contains(tab.Id) || placements.GetValueOrDefault(tab.Id, tab.Placement) != TabPlacement.Pinned) continue;
-                int count = counts.GetValueOrDefault(key);
-                if (!TabPlacement.Pinned.Holds(count + 1)) overflow.Add(tab.Id);
-                else counts[key] = count + 1;
-            }
-        }
-        return new(spaces, overflow);
-    }
 
     /// Each source with the one choice that names it, in the sources' order.
     /// Throws `Rejected` with `InvalidImport` unless the choices name each
@@ -85,17 +33,177 @@ public static class ImportReviewPolicy {
             ? (source, choice) : throw new Rejected(new InvalidImport(ImportFlaw.UnpairedChoices)))];
     }
 
-    private static HashSet<string> Keys(ImportReviewSpace space) =>
-        space.Tabs.Where(tab => tab.Url is not null).Select(tab => UrlKey(tab.Url!)).ToHashSet(StringComparer.Ordinal);
+    #endregion
 
-    private static Guid[] Duplicates(ImportReviewSpace source, ImportReviewSpace destination) {
-        var keys = Keys(destination);
-        return source.Tabs.Where(tab => tab.Url is not null && keys.Contains(UrlKey(tab.Url))).Select(tab => tab.Id).ToArray();
+    #region Actions - Starting
+
+    /// The review a person starts from for the Spaces `source` brings, against
+    /// `session`, looking at the first: each Space joins the existing Space of
+    /// the same name, taking its name and look and leaving out the tabs it
+    /// holds, or comes in as a new Space with its own. A first launch's
+    /// disposable Spaces are no destination, so everything comes in new.
+    /// `passwords` counts the saved passwords that belong with each Space.
+    public static SetupImportReview Started(ImportSource source, IReadOnlyList<SpaceState> spaces,
+        IReadOnlyList<ImportPasswordCount> passwords, SessionState session) {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(spaces);
+        ArgumentNullException.ThrowIfNull(passwords);
+        ArgumentNullException.ThrowIfNull(session);
+        var destinations = Destinations(session);
+        var reviews = spaces.Select(space => {
+            string key = SpaceMatchKey(space.Settings.Name);
+            var match = key.Length == 0 ? null : destinations.FirstOrDefault(existing => SpaceMatchKey(existing.Settings.Name) == key);
+            var duplicates = match is null ? [] : Duplicates(space, match).ToHashSet();
+            return new SetupReviewSpace(space, Included: true, match?.Id, Customization(match ?? space),
+                [.. space.Tabs.Where(tab => !duplicates.Contains(tab.Id)).Select(tab => tab.Id)], [], [], [], IncludesPasswords: true,
+                passwords.Where(count => count.SourceSpaceId == space.Id).Sum(count => count.Count));
+        }).ToArray();
+        return Analyzed(new SetupImportReview(source, reviews, [], spaces.FirstOrDefault()?.Id), session);
     }
 
-    private static Guid[] Matched(ImportReviewSpace source, ImportReviewSpace destination) {
+    /// The name and look `space` has, as a review offers them.
+    private static SpaceCustomization Customization(SpaceState space) {
+        var settings = space.Settings;
+        return new(settings.Name, settings.Symbol, settings.Accent, settings.Look);
+    }
+
+    #endregion
+
+    #region Actions - Editing
+
+    /// `review` with `sourceId` joining the existing Space `destinationId` and
+    /// taking its name and look, or coming in new with its own when null. A
+    /// destination the session does not hold changes nothing.
+    public static SetupImportReview ChoosingDestination(SetupImportReview review, Guid sourceId, Guid? destinationId, SessionState session) {
+        ArgumentNullException.ThrowIfNull(session);
+        var destination = destinationId is { } id ? Destinations(session).FirstOrDefault(space => space.Id == id) : null;
+        if (destinationId is not null && destination is null) return review;
+        return Editing(review, sourceId, session, space => space with {
+            DestinationId = destination?.Id,
+            Customization = Customization(destination ?? space.Source)
+        });
+    }
+
+    /// `review` bringing the tabs `tabIds` of `sourceId`, and with them the
+    /// Space, or leaving them out.
+    public static SetupImportReview IncludingTabs(SetupImportReview review, Guid sourceId, IReadOnlyList<Guid> tabIds, bool included,
+        SessionState session) {
+        ArgumentNullException.ThrowIfNull(tabIds);
+        return Editing(review, sourceId, session, space => {
+            var changed = space.Source.Tabs.Select(tab => tab.Id).Intersect(tabIds).ToHashSet();
+            if (changed.Count == 0) return space;
+            return included
+                ? space with { Included = true, IncludedTabIds = Ordered(space, space.IncludedTabIds.Union(changed)) }
+                : space with { IncludedTabIds = [.. space.IncludedTabIds.Where(tab => !changed.Contains(tab))] };
+        });
+    }
+
+    /// `review` bringing the tab `tabId` of `sourceId` in `placement`, and
+    /// with it the Space.
+    public static SetupImportReview Placing(SetupImportReview review, Guid sourceId, Guid tabId, TabPlacement placement,
+        SessionState session) {
+        ArgumentNullException.ThrowIfNull(placement);
+        return Editing(review, sourceId, session, space => space.Source.Tabs.All(tab => tab.Id != tabId) ? space : space with {
+            Included = true,
+            IncludedTabIds = Ordered(space, space.IncludedTabIds.Append(tabId)),
+            Placements = [.. space.Placements.Where(choice => choice.TabId != tabId), new TabPlacementChoice(tabId, placement)]
+        });
+    }
+
+    /// `review` bringing `sourceId` with every tab its destination does not
+    /// already hold, or leaving it out with all of them.
+    public static SetupImportReview IncludingSpace(SetupImportReview review, Guid sourceId, bool included, SessionState session) =>
+        Editing(review, sourceId, session, space => space with {
+            Included = included,
+            IncludedTabIds = included ? [.. space.Source.Tabs.Select(tab => tab.Id).Except(space.DuplicateTabIds)] : []
+        });
+
+    /// `review` bringing the saved passwords of `sourceId`, or leaving them out.
+    public static SetupImportReview IncludingPasswords(SetupImportReview review, Guid sourceId, bool included, SessionState session) =>
+        Editing(review, sourceId, session, space => space with { IncludesPasswords = included });
+
+    /// `review` with `sourceId` taking the name and look of `customization`,
+    /// its look kept within the ranges every device draws.
+    public static SetupImportReview Customizing(SetupImportReview review, Guid sourceId, SpaceCustomization customization,
+        SessionState session) {
+        ArgumentNullException.ThrowIfNull(customization);
+        var kept = customization with { Branding = SpaceBrandingPolicy.Normalize(customization.Branding) };
+        return Editing(review, sourceId, session, space => space with { Customization = kept });
+    }
+
+    /// `review` looking at `sourceId`, when it holds it.
+    public static SetupImportReview Showing(SetupImportReview review, Guid sourceId) {
+        ArgumentNullException.ThrowIfNull(review);
+        return review.Spaces.Any(space => space.Source.Id == sourceId) ? review with { ShownSpaceId = sourceId } : review;
+    }
+
+    private static SetupImportReview Editing(SetupImportReview review, Guid sourceId, SessionState session,
+        Func<SetupReviewSpace, SetupReviewSpace> edit) {
+        ArgumentNullException.ThrowIfNull(review);
+        if (review.Spaces.All(space => space.Source.Id != sourceId)) return review;
+        return Analyzed(review with {
+            Spaces = [.. review.Spaces.Select(space => space.Source.Id == sourceId ? edit(space) : space)]
+        }, session);
+    }
+
+    /// `ids` in the order the Space holds its tabs.
+    private static Guid[] Ordered(SetupReviewSpace space, IEnumerable<Guid> ids) {
+        var chosen = ids.ToHashSet();
+        return [.. space.Source.Tabs.Select(tab => tab.Id).Where(chosen.Contains)];
+    }
+
+    #endregion
+
+    #region Actions - Analysis
+
+    /// `review` with what its choices mean against `session`: each Space's
+    /// tabs its destination already holds and the destination's tabs it
+    /// matches, and the pinned tabs past each destination's limit.
+    public static SetupImportReview Analyzed(SetupImportReview review, SessionState session) {
+        ArgumentNullException.ThrowIfNull(review);
+        ArgumentNullException.ThrowIfNull(session);
+        var byId = Destinations(session).ToDictionary(space => space.Id);
+        var pinned = byId.ToDictionary(entry => entry.Key, entry => entry.Value.Tabs.Count(tab => tab.Placement == TabPlacement.Pinned));
+        Dictionary<Guid, int> created = [];
+        List<Guid> overflow = [];
+        var spaces = review.Spaces.Select(space => {
+            var destination = space.DestinationId is { } id ? byId.GetValueOrDefault(id) : null;
+            var analyzed = space with {
+                DuplicateTabIds = destination is null ? [] : Duplicates(space.Source, destination),
+                MatchedTabIds = destination is null || !space.Included ? [] : Matched(space.Source, destination)
+            };
+            if (!space.Included) return analyzed;
+            var counts = space.DestinationId is null ? created : pinned;
+            var key = space.DestinationId ?? space.Source.Id;
+            var included = space.IncludedTabIds.ToHashSet();
+            var placements = space.Placements.GroupBy(choice => choice.TabId).ToDictionary(group => group.Key, group => group.Last().Placement);
+            foreach (var tab in space.Source.Tabs) {
+                if (!included.Contains(tab.Id) || placements.GetValueOrDefault(tab.Id, tab.Placement) != TabPlacement.Pinned) continue;
+                int count = counts.GetValueOrDefault(key);
+                if (!TabPlacement.Pinned.Holds(count + 1)) overflow.Add(tab.Id);
+                else counts[key] = count + 1;
+            }
+            return analyzed;
+        }).ToArray();
+        return review with { Spaces = spaces, OverflowTabIds = overflow };
+    }
+
+    /// The Spaces an import may join: none over a first launch's disposable
+    /// Spaces, and never one going away.
+    private static IReadOnlyList<SpaceState> Destinations(SessionState session) => session.DisposableSeedMarker is not null ? []
+        : [.. session.Spaces.Where(space => session.SpaceDeletions.All(deletion => deletion.SpaceId != space.Id))];
+
+    private static HashSet<string> Keys(SpaceState space) =>
+        space.Tabs.Where(tab => tab.Url is not null).Select(tab => UrlKey(tab.Url!)).ToHashSet(StringComparer.Ordinal);
+
+    private static Guid[] Duplicates(SpaceState source, SpaceState destination) {
+        var keys = Keys(destination);
+        return [.. source.Tabs.Where(tab => tab.Url is not null && keys.Contains(UrlKey(tab.Url))).Select(tab => tab.Id)];
+    }
+
+    private static Guid[] Matched(SpaceState source, SpaceState destination) {
         var keys = Keys(source);
-        return destination.Tabs.Where(tab => tab.Url is not null && keys.Contains(UrlKey(tab.Url))).Select(tab => tab.Id).ToArray();
+        return [.. destination.Tabs.Where(tab => tab.Url is not null && keys.Contains(UrlKey(tab.Url))).Select(tab => tab.Id)];
     }
 
     #endregion

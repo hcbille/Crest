@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MobileOnboardingPageContext {
-    let step: MobileBrowserOnboardingStep
+    let step: SetupStep
     let welcomeAction: BrowserOnboardingWelcomeAction
     let welcomePrimaryTitle: String
     let welcomeStatus: String
@@ -14,7 +14,6 @@ struct MobileOnboardingPageContext {
     let selectedSpaceID: Binding<SpaceID?>
     let errorMessage: String?
     var opensGettingStarted = false
-    let setupSecondaryTitle: String
     let welcomePrimaryAction: () -> Void
     let advance: () -> Void
     let setupSecondaryAction: () -> Void

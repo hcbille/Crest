@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 using CrestCore.Application;
 using CrestCore.Contracts;
 using CrestCore.Domain;
@@ -9,47 +7,70 @@ using Xunit;
 namespace CrestCore.Tests;
 
 public sealed class WorkspaceReviewTests {
-    private static ImportReviewTab Tab(string? url, TabPlacement? placement = null) =>
-        new(Guid.NewGuid(), url, placement ?? TabPlacement.Current);
+    private static TabState Tab(string? url, TabPlacement? placement = null) {
+        var chosen = placement ?? TabPlacement.Current;
+        return new(Guid.NewGuid(), url ?? "Start Page", url, NativeContent: null, chosen.IsDurable ? url : null, "globe", FaviconUrl: null,
+            IconAccent: null, StoredIconMode: null, chosen, FolderId: null, SplitGroupId: null, DateTimeOffset.UnixEpoch,
+            PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null, KeepsPageLoaded: false);
+    }
 
-    private static SpaceReview Choice(ImportReviewSpace source, Guid? destination, bool included = true,
-        params TabPlacementChoice[] placements) =>
-        new(source.Id, included, destination, new("Imported", "globe", SpaceAccent.Indigo, StoredSessionCodec.DecodeBranding(new JsonObject())),
-            [.. source.Tabs.Select(tab => tab.Id)], placements);
+    private static SpaceState Space(string name, params TabState[] tabs) => new(Guid.NewGuid(), Guid.NewGuid(),
+        new SpaceSettings(name, "globe", SpaceAccent.Indigo, Branding: null, StoredSessionCodec.DefaultBrowsingPreferences,
+            StoredSessionCodec.DefaultCredentialPreferences, SpaceAccessPolicy.Open, IsSavedTabsExpanded: true, SavedTabsExpansionModifiedAt: null),
+        Folders: [], tabs, SplitGroups: [], ArchivedTabs: [], History: []);
+
+    private static SessionState Session(Guid? seed, params SpaceState[] spaces) =>
+        new(spaces, DefaultSpaceId: null, seed, SpaceDeletions: [], AppPreferences: null);
 
     [Fact]
     public void ReviewMatchesFoldedSpaceNamesAndLeavesOutTabsTheDestinationHolds() {
         var existingTab = Tab("https://example.com/a#section");
-        var existing = new ImportReviewSpace(Guid.NewGuid(), "Wörk", [existingTab]);
+        var existing = Space("Wörk", existingTab);
         var duplicate = Tab("https://example.com/a"); var fresh = Tab("https://example.com/b"); var native = Tab(null);
-        var source = new ImportReviewSpace(Guid.NewGuid(), " work! ", [duplicate, fresh, native]);
-        var unmatched = new ImportReviewSpace(Guid.NewGuid(), "!!!", [Tab("https://example.com/a")]);
-        var suggestions = ImportReviewPolicy.Suggest([source, unmatched], [existing], false).Spaces;
-        Assert.Equal(existing.Id, suggestions[0].DestinationId);
-        Assert.Equal([duplicate.Id], suggestions[0].DuplicateTabIds);
-        Assert.Equal([fresh.Id, native.Id], suggestions[0].IncludedTabIds);
-        Assert.Null(suggestions[1].DestinationId);
-        Assert.Null(ImportReviewPolicy.Suggest([source], [existing], true).Spaces[0].DestinationId);
+        var source = Space(" work! ", duplicate, fresh, native);
+        var unmatched = Space("!!!", Tab("https://example.com/a"));
+        var review = ImportReviewPolicy.Started(ImportSource.Arc, [source, unmatched], [new(source.Id, 3)], Session(null, existing));
+
+        Assert.Equal(source.Id, review.ShownSpaceId);
+        var joined = review.Spaces[0];
+        Assert.Equal((existing.Id, "Wörk", 3), (joined.DestinationId, joined.Customization.Name, joined.PasswordCount));
+        Assert.Equal([duplicate.Id], joined.DuplicateTabIds);
+        Assert.Equal([fresh.Id, native.Id], joined.IncludedTabIds);
+        Assert.Equal([existingTab.Id], joined.MatchedTabIds);
+        Assert.Equal((null, "!!!"), (review.Spaces[1].DestinationId, review.Spaces[1].Customization.Name));
+        // Over a first launch's disposable Spaces, everything comes in new.
+        Assert.Null(ImportReviewPolicy.Started(ImportSource.Arc, [source], [], Session(Guid.NewGuid(), existing)).Spaces[0].DestinationId);
     }
 
     [Fact]
-    public void AnalysisFlagsPinnedOverflowPerDestinationAndMatchesOnlyIncludedSpaces() {
+    public void EditsFlagPinnedOverflowPerDestinationAndMatchOnlyIncludedSpaces() {
         var pinnedTabs = Enumerable.Range(0, 11).Select(index => Tab($"https://pinned.example/{index}", TabPlacement.Pinned)).ToArray();
-        var existing = new ImportReviewSpace(Guid.NewGuid(), "Work", [.. pinnedTabs, Tab("https://example.com/a")]);
+        var existing = Space("Work", [.. pinnedTabs, Tab("https://example.com/a")]);
         var first = Tab("https://one.example", TabPlacement.Pinned); var second = Tab("https://two.example", TabPlacement.Pinned);
         var promoted = Tab("https://example.com/a");
-        var source = new ImportReviewSpace(Guid.NewGuid(), "Work", [first, second, promoted]);
-        var fresh = new ImportReviewSpace(Guid.NewGuid(), "New", [Tab("https://three.example", TabPlacement.Pinned)]);
-        var analysis = ImportReviewPolicy.Analyze([source, fresh], [existing],
-            [Choice(source, existing.Id, placements: new TabPlacementChoice(promoted.Id, TabPlacement.Pinned)), Choice(fresh, null)]);
-        Assert.Equal([second.Id, promoted.Id], analysis.OverflowTabIds);
-        Assert.Equal([promoted.Id], analysis.Spaces[0].DuplicateTabIds);
-        Assert.Equal([existing.Tabs[^1].Id], analysis.Spaces[0].MatchedTabIds);
-        Assert.Empty(analysis.Spaces[1].DuplicateTabIds);
-        var dropped = ImportReviewPolicy.Analyze([source], [existing], [Choice(source, existing.Id, included: false)]);
+        var source = Space("Work", first, second, promoted);
+        var fresh = Space("New", Tab("https://three.example", TabPlacement.Pinned));
+        var session = Session(null, existing);
+        var review = ImportReviewPolicy.Started(ImportSource.Chrome, [source, fresh], [], session);
+
+        review = ImportReviewPolicy.Placing(review, source.Id, promoted.Id, TabPlacement.Pinned, session);
+        Assert.Equal([second.Id, promoted.Id], review.OverflowTabIds);
+        Assert.Equal([promoted.Id], review.Spaces[0].DuplicateTabIds);
+        Assert.Equal([existing.Tabs[^1].Id], review.Spaces[0].MatchedTabIds);
+        Assert.Empty(review.Spaces[1].DuplicateTabIds);
+        // Joining another Space takes its name and look, and coming in new the Space's own.
+        var joined = ImportReviewPolicy.ChoosingDestination(review, fresh.Id, existing.Id, session);
+        Assert.Equal((existing.Id, "Work"), (joined.Spaces[1].DestinationId, joined.Spaces[1].Customization.Name));
+        Assert.Equal("New", ImportReviewPolicy.ChoosingDestination(joined, fresh.Id, null, session).Spaces[1].Customization.Name);
+        var dropped = ImportReviewPolicy.IncludingSpace(review, source.Id, included: false, session);
         Assert.Empty(dropped.OverflowTabIds);
         Assert.Empty(dropped.Spaces[0].MatchedTabIds);
+        Assert.Empty(dropped.Spaces[0].IncludedTabIds);
         Assert.Equal([promoted.Id], dropped.Spaces[0].DuplicateTabIds);
+        // Bringing a tab back brings its Space, and bringing the Space leaves out what the destination holds.
+        Assert.True(ImportReviewPolicy.IncludingTabs(dropped, source.Id, [first.Id], included: true, session).Spaces[0].Included);
+        Assert.Equal([first.Id, second.Id],
+            ImportReviewPolicy.IncludingSpace(dropped, source.Id, included: true, session).Spaces[0].IncludedTabIds);
     }
 
     [Fact]

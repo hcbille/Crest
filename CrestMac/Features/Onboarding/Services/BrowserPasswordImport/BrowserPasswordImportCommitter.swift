@@ -4,7 +4,7 @@ import Foundation
 enum BrowserPasswordImportCommitter {
     static func commit(
         _ passwords: [BrowserImportedPassword],
-        plan: BrowserImportReviewPlan,
+        review: SetupImportReview,
         browser: BrowserStore
     ) async -> BrowserPasswordImportResult {
         guard !passwords.isEmpty else { return .empty }
@@ -13,7 +13,7 @@ enum BrowserPasswordImportCommitter {
         var skippedCount = 0
 
         for (index, password) in passwords.enumerated() {
-            let destinationIDs = destinationSpaceIDs(for: password, plan: plan)
+            let destinationIDs = destinationSpaceIDs(for: password, review: review)
             guard !destinationIDs.isEmpty else {
                 skippedCount += 1
                 continue
@@ -67,42 +67,37 @@ enum BrowserPasswordImportCommitter {
         )
     }
 
+    /// The Spaces `password` goes to once `review` is imported: the
+    /// destination of each Space the review brings its passwords with that
+    /// the password belongs with.
     static func destinationSpaceIDs(
         for password: BrowserImportedPassword,
-        plan: BrowserImportReviewPlan
+        review: SetupImportReview
     ) -> [SpaceID] {
-        Array(
+        let reviewed = review.spaces.filter(\.bringsPasswords)
+        let destinations = Dictionary(
+            reviewed.map { ($0.source.id, $0.destinationID ?? $0.source.id) }, uniquingKeysWith: { first, _ in first })
+        return Array(
             Set(
                 sourceSpaceIDs(
                     sourceApplication: password.sourceApplication,
                     sourceProfileName: password.sourceProfileName,
                     origin: password.origin,
-                    plan: plan,
-                    respectsPasswordSelection: true
-                ).compactMap { sourceSpaceID in
-                    guard let review = plan.spaces.first(where: { $0.id == sourceSpaceID }) else {
-                        return nil
-                    }
-                    switch review.destination {
-                    case .newSpace:
-                        return review.id
-                    case .existing(let id):
-                        return id
-                    }
-                }))
+                    among: reviewed.map(\.source)
+                ).compactMap { destinations[$0] }))
     }
 
+    /// The Spaces a browser brought that `candidate` belongs with, among
+    /// `spaces`.
     static func sourceSpaceIDs(
         for candidate: BrowserPasswordImportCandidate,
-        plan: BrowserImportReviewPlan,
-        respectsPasswordSelection: Bool
+        among spaces: [SpaceState]
     ) -> [SpaceID] {
         sourceSpaceIDs(
             sourceApplication: candidate.sourceApplication,
             sourceProfileName: candidate.sourceProfileName,
             origin: candidate.origin,
-            plan: plan,
-            respectsPasswordSelection: respectsPasswordSelection
+            among: spaces
         )
     }
 
@@ -110,19 +105,15 @@ enum BrowserPasswordImportCommitter {
         sourceApplication: ImportSource,
         sourceProfileName: String,
         origin: CredentialOrigin,
-        plan: BrowserImportReviewPlan,
-        respectsPasswordSelection: Bool
+        among spaces: [SpaceState]
     ) -> [SpaceID] {
-        let eligibleReviews = plan.spaces.filter {
-            $0.isIncluded && (!respectsPasswordSelection || $0.includesPasswords)
-        }
-        let profileMatch = eligibleReviews.first {
-            $0.sourceSpace.name.localizedCaseInsensitiveCompare(sourceProfileName)
+        let profileMatch = spaces.first {
+            $0.settings.name.localizedCaseInsensitiveCompare(sourceProfileName)
                 == .orderedSame
         }
-        let hostMatches = eligibleReviews.filter { review in
-            review.sourceSpace.tabs.contains { tab in
-                (tab.savedSiteURL ?? tab.url)?.host?.localizedCaseInsensitiveCompare(
+        let hostMatches = spaces.filter { space in
+            space.tabs.contains { tab in
+                (tab.savedURL ?? tab.url).flatMap(URL.init(string:))?.host?.localizedCaseInsensitiveCompare(
                     origin.host
                 ) == .orderedSame
             }
@@ -130,7 +121,7 @@ enum BrowserPasswordImportCommitter {
         // A browser whose Spaces are its profiles gives each password to its
         // profile's Space; one that names its own Spaces, to every Space
         // holding the password's site.
-        let matches: [BrowserImportSpaceReview]
+        let matches: [SpaceState]
         if !sourceApplication.suppliesPasswords {
             matches = []
         } else if sourceApplication.namesItsSpaces {
@@ -139,7 +130,7 @@ enum BrowserPasswordImportCommitter {
             matches =
                 profileMatch.map { [$0] }
                 ?? hostMatches.first.map { [$0] }
-                ?? eligibleReviews.first.map { [$0] }
+                ?? spaces.first.map { [$0] }
                 ?? []
         }
         return matches.map(\.id)

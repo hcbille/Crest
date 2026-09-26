@@ -1,14 +1,12 @@
 @MainActor
 protocol BrowserOnboardingImportCommitting {
     func prepare(
-        plan: BrowserImportReviewPlan,
-        application: ImportSource,
-        payload: BrowserDetectedImportPayload?,
-        passwordCountsBySourceSpace: [SpaceID: Int]
+        review: SetupImportReview,
+        payload: BrowserDetectedImportPayload?
     ) async throws -> BrowserOnboardingPreparedImport
 
     func finalize(
-        plan: BrowserImportReviewPlan,
+        review: SetupImportReview,
         preparedImport: BrowserOnboardingPreparedImport,
         browser: BrowserStore
     ) async throws -> BrowserPasswordImportResult

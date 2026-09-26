@@ -1,70 +1,49 @@
 import Foundation
 import Observation
 
+/// The launch gate setup holds shut until this device completes setup.
+///
+/// The core keeps whether the device completed setup in its device store,
+/// having adopted what an installed release kept, and marks it when setup
+/// finishes; this reads it. A launch that forces the welcome or setup, as a
+/// review or test launch does, holds the gate shut until setup finishes in
+/// this run.
 @Observable
 @MainActor
 final class BrowserOnboardingProgressStore {
-    private(set) var isLaunchGateActive: Bool
-    private(set) var isChecking: Bool
-    private(set) var hasCompletedSetup: Bool
+    // MARK: - Variables
+
+    @ObservationIgnored let core: CrestCore
+    /// Whether this launch forces setup whatever the device completed.
+    let forcesSetup: Bool
+    /// Whether this launch holds the gate shut until setup finishes in it.
+    private var forcesGate: Bool
+
+    /// Whether the device has completed setup, as far as this launch asks.
+    var hasCompletedSetup: Bool {
+        !forcesSetup && core.state.setupCompleted == true
+    }
+
+    var isLaunchGateActive: Bool {
+        forcesGate || core.state.setupCompleted != true
+    }
 
     var shouldPresentWelcome: Bool { isLaunchGateActive }
 
-    @ObservationIgnored private let persistence: any BrowserOnboardingProgressPersisting
-    @ObservationIgnored private let forceSetup: Bool
+    // MARK: - Initializers
 
-    init(
-        persistence: any BrowserOnboardingProgressPersisting,
-        forceWelcome: Bool = false,
-        forceSetup: Bool = false
-    ) {
-        self.persistence = persistence
-        self.forceSetup = forceSetup
-        let completedOnThisInstall = persistence.hasCompletedSetup
-        let launchGateIsActive =
-            forceWelcome
-            || forceSetup
-            || !completedOnThisInstall
-        isLaunchGateActive = launchGateIsActive
-        isChecking = launchGateIsActive
-        hasCompletedSetup = completedOnThisInstall && !forceSetup
+    /// A gate over `core`, which has adopted whether the device completed
+    /// setup. `forceWelcome` and `forceSetup` hold it shut for this launch.
+    init(core: CrestCore, forceWelcome: Bool = false, forceSetup: Bool = false) {
+        self.core = core
+        forcesSetup = forceSetup
+        forcesGate = forceWelcome || forceSetup
     }
 
-    func refresh() async {
-        if forceSetup {
-            hasCompletedSetup = false
-            isChecking = false
-            return
-        }
-        let local = persistence.hasCompletedSetup
-        // Completing setup is an install-local promise. iCloud may restore a
-        // person's Spaces, but that must not silently skip the tutorial and
-        // customization flow on a device that has never completed it.
-        hasCompletedSetup = local
-        isChecking = false
-    }
+    // MARK: - Actions - Finishing
 
-    /// Consume the install-local completion before presenting any follow-up UI.
-    /// Forced setup and tutorial replay must not reset this persisted decision.
-    func completeSetup(for entryPoint: BrowserOnboardingEntryPoint) -> Bool {
-        let opensGettingStarted = willOpenGettingStarted(for: entryPoint)
-        markCompleted()
-        return opensGettingStarted
-    }
-
-    var willOpenGettingStarted: Bool { !persistence.hasCompletedSetup }
-
-    /// Whether finishing setup from `entryPoint` opens the Getting Started
-    /// guide, as the core decides it. An unavailable core does not open it.
-    func willOpenGettingStarted(for entryPoint: BrowserOnboardingEntryPoint) -> Bool {
-        BrowserCorePolicy.onboardingCompletion(
-            entryPoint: entryPoint, hasCompletedSetup: !willOpenGettingStarted, isPrivateBrowsing: false) == .openGuide
-    }
-
-    func markCompleted() {
-        isLaunchGateActive = false
-        hasCompletedSetup = true
-        isChecking = false
-        persistence.markCompleted()
+    /// Setup finished in this run: the gate opens.
+    func setupFinished() {
+        forcesGate = false
     }
 }

@@ -1,12 +1,13 @@
 import SwiftUI
 
+/// The page for the step setup is on. Back leads where the core says, or
+/// closes setup where it leads nowhere.
 struct BrowserOnboardingStepContent: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let cloudSync: BrowserCloudSyncController
     let progress: BrowserOnboardingProgressStore
     let flow: BrowserOnboardingFlow
-    @Binding var selectedSourceSpaceID: SpaceID?
     @Binding var selectedManualSpaceID: SpaceID?
     @Binding var customizationSpaceID: SpaceID?
     let close: () -> Void
@@ -16,28 +17,18 @@ struct BrowserOnboardingStepContent: View {
         switch flow.step {
         case .welcome:
             BrowserOnboardingWelcomePage(
-                progressIsChecking: progress.isChecking,
+                action: BrowserOnboardingWelcomeAction(
+                    flow: flow.state, cloudPhase: cloudSync.phase, forcesSetup: progress.forcesSetup),
                 cloudPhase: cloudSync.phase,
                 hasCompletedSetup: progress.hasCompletedSetup,
-                entryPoint: flow.request.entryPoint,
-                hasDisposableSeedState:
-                    flow.browser.session.hasDisposableSeedState,
-                continueSetup: { transition(to: .importBrowser) },
+                hasDisposableSeedState: flow.browser.session.hasDisposableSeedState,
+                continueSetup: {
+                    if let next = flow.state?.nextStep { transition(to: next) }
+                },
                 openCrest: openCrest
-            )
-        case .featureSpaces:
-            tutorialPage(.spaces, back: .welcome, next: .featureTabs)
-        case .featureTabs:
-            tutorialPage(.tabs, back: .featureSpaces, next: .featureSync)
-        case .featureSync:
-            tutorialPage(
-                .sync,
-                back: .featureTabs,
-                next: flow.nextImportStep
             )
         case .importBrowser:
             BrowserOnboardingImportPage(
-                entryPoint: flow.request.entryPoint,
                 sources: flow.installedSources,
                 selectedApplications: flow.selectedImportApplications,
                 isReading: flow.isReading,
@@ -47,25 +38,22 @@ struct BrowserOnboardingStepContent: View {
                 toggleSelection: flow.toggleImportSelection,
                 beginManualSetup: beginManualSetup,
                 continueImport: flow.continueImportQueue,
-                back: { transition(to: .welcome) },
-                close: close
+                back: back
             )
         case .review:
             BrowserOnboardingReviewPage(
                 flow: flow,
                 browserSession: flow.browser.session,
-                application: flow.selectedApplication,
                 sources: flow.installedSources,
-                selectedSourceSpaceID: $selectedSourceSpaceID,
                 customizationSpaceID: $customizationSpaceID,
-                back: { transition(to: .importBrowser) }
+                back: back
             )
         case .manualSetup:
             BrowserOnboardingManualSetupPage(
                 flow: flow,
-                opensGettingStarted: progress.willOpenGettingStarted(for: flow.request.entryPoint),
+                opensGettingStarted: flow.state?.opensGuide == true,
                 selectedSpaceID: $selectedManualSpaceID,
-                back: { transition(to: .importBrowser) },
+                back: back.action,
                 openCrest: openCrest
             )
         case .complete:
@@ -73,19 +61,15 @@ struct BrowserOnboardingStepContent: View {
                 summary: flow.completionSummary,
                 openCrest: openCrest
             )
+        default:
+            EmptyView()
         }
     }
 
-    private func tutorialPage(
-        _ tutorial: BrowserMacOnboardingTutorial,
-        back: BrowserOnboardingStep,
-        next: BrowserOnboardingStep
-    ) -> some View {
-        BrowserMacOnboardingTutorialPage(
-            tutorial: tutorial,
-            back: { transition(to: back) },
-            next: { transition(to: next) }
-        )
+    /// What Back does from the step: the step the core names, or closing.
+    private var back: BrowserOnboardingBackAction {
+        guard let step = flow.state?.backStep else { return BrowserOnboardingBackAction(closes: true, action: close) }
+        return BrowserOnboardingBackAction(closes: false, action: { transition(to: step) })
     }
 
     private func beginManualSetup() {
@@ -93,10 +77,11 @@ struct BrowserOnboardingStepContent: View {
         flow.manualSetup.repairSelection($selectedManualSpaceID)
     }
 
-    private func transition(to step: BrowserOnboardingStep) {
+    private func transition(to step: SetupStep) {
         withAnimation(motion(CrestMotion.onboardingStep)) {
             flow.show(step)
         }
+        if step == .manualSetup { flow.manualSetup.repairSelection($selectedManualSpaceID) }
     }
 
     private func motion(_ animation: Animation) -> Animation? {
@@ -105,4 +90,12 @@ struct BrowserOnboardingStepContent: View {
             reduceMotion: reduceMotion
         )
     }
+}
+
+/// What a page's Back button does: go back a step, or close setup where the
+/// entry did not pass through one.
+struct BrowserOnboardingBackAction {
+    /// Whether Back closes setup, which the button then says.
+    let closes: Bool
+    let action: () -> Void
 }

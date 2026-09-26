@@ -1,5 +1,8 @@
 import SwiftUI
 
+/// Setup on iPhone and iPad. The core holds the step, where Back and Next
+/// lead, the manual setup, and what finishing does; this draws the step and
+/// finishes setup.
 struct MobileBrowserOnboardingView: View {
     let request: BrowserOnboardingRequest
     let browser: BrowserStore
@@ -13,13 +16,14 @@ struct MobileBrowserOnboardingView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var step: MobileBrowserOnboardingStep
     /// The manual setup the core holds, which it keeps for the next launch
     /// until setup finishes.
     @State private var setup: BrowserManualSetupModel
     @State private var selectedSpaceID: SpaceID?
     @State private var errorMessage: String?
     @State private var completionTask: Task<Void, Never>?
+    /// The step shown while finishing, which stays as the sheet goes.
+    @State private var finishingStep: SetupStep?
 
     init(
         request: BrowserOnboardingRequest,
@@ -44,10 +48,12 @@ struct MobileBrowserOnboardingView: View {
         self.tutorialPersonalSpace = tutorialPersonalSpace
         self.tutorialWorkSpace = tutorialWorkSpace
         _setup = State(initialValue: BrowserManualSetupModel(core: browser.core))
-        _step = State(
-            initialValue: MobileBrowserOnboardingPolicy.initialStep(for: request)
-        )
     }
+
+    /// Setup as the core holds it, or nil before it opens.
+    private var flow: SetupFlowState? { browser.core.state.setupFlow }
+
+    private var step: SetupStep { finishingStep ?? flow?.step ?? request.entryPoint.firstStep }
 
     var body: some View {
         ZStack {
@@ -66,8 +72,7 @@ struct MobileBrowserOnboardingView: View {
     private var lifecycleModifier: MobileOnboardingLifecycleModifier {
         MobileOnboardingLifecycleModifier(
             request: request,
-            progress: progress,
-            appeared: { startManualSetup(for: request) },
+            appeared: { start(request) },
             requestChanged: reset
         )
     }
@@ -86,24 +91,18 @@ struct MobileBrowserOnboardingView: View {
             setup: setup,
             selectedSpaceID: $selectedSpaceID,
             errorMessage: errorMessage,
-            opensGettingStarted: progress.willOpenGettingStarted(for: request.entryPoint),
-            setupSecondaryTitle: setupSecondaryTitle,
+            opensGettingStarted: flow?.opensGuide == true,
             welcomePrimaryAction: handleWelcomeAction,
             advance: advance,
-            setupSecondaryAction: handleSetupSecondaryAction,
-            finish: finishManualSetup,
+            setupSecondaryAction: back,
+            finish: completeSetup,
             close: close,
             reviewFeatures: { move(to: .featureSpaces) }
         )
     }
 
     private var welcomeAction: BrowserOnboardingWelcomeAction {
-        BrowserOnboardingWelcomePolicy.action(
-            progressIsChecking: progress.isChecking,
-            cloudPhase: cloudSync.phase,
-            hasCompletedSetup: progress.hasCompletedSetup,
-            entryPoint: request.entryPoint
-        )
+        BrowserOnboardingWelcomeAction(flow: flow, cloudPhase: cloudSync.phase, forcesSetup: progress.forcesSetup)
     }
 
     private var welcomePrimaryTitle: String {
@@ -126,10 +125,6 @@ struct MobileBrowserOnboardingView: View {
         return { close() }
     }
 
-    private var setupSecondaryTitle: String {
-        request.entryPoint.isGuidedSetup ? "Back" : "Cancel"
-    }
-
     private var previewWidth: CGFloat {
         horizontalSizeClass == .regular
             ? MobileOnboardingLayout.regularPreviewWidth
@@ -147,34 +142,32 @@ struct MobileBrowserOnboardingView: View {
         }
     }
 
+    /// Goes on to the step the core says follows this one.
     private func advance() {
-        guard let next = MobileBrowserOnboardingPolicy.nextStep(after: step) else {
-            return
-        }
+        guard let next = flow?.nextStep else { return }
         move(to: next)
     }
 
-    private func handleSetupSecondaryAction() {
-        if request.entryPoint.isGuidedSetup {
-            move(to: .welcome)
-        } else {
+    /// Goes back to the step the core names, or closes setup where Back
+    /// leads nowhere.
+    private func back() {
+        guard let previous = flow?.backStep else {
             close()
+            return
         }
+        move(to: previous)
     }
 
-    private func move(to newStep: MobileBrowserOnboardingStep) {
-        if reduceMotion {
-            step = newStep
-        } else {
-            withAnimation(
-                BrowserVisualAccessibilityPolicy.animation(
-                    CrestMotion.selection,
-                    reduceMotion: reduceMotion
-                )
-            ) {
-                step = newStep
-            }
+    private func move(to newStep: SetupStep) {
+        withAnimation(
+            BrowserVisualAccessibilityPolicy.animation(
+                CrestMotion.selection,
+                reduceMotion: reduceMotion
+            )
+        ) {
+            _ = try? browser.core.send(ShowSetupStep(step: newStep))
         }
+        setup.repairSelection($selectedSpaceID)
     }
 
     private func welcomeStatus(_ action: BrowserOnboardingWelcomeAction) -> String {
@@ -197,45 +190,39 @@ struct MobileBrowserOnboardingView: View {
         completionTask?.cancel()
         completionTask = nil
         errorMessage = nil
-        startManualSetup(for: request)
-        move(to: MobileBrowserOnboardingPolicy.initialStep(for: request))
+        start(request)
     }
 
-    /// Goes on with the manual setup the core kept, following Spaces changed
-    /// meanwhile, or starts one; a rerun always starts over.
-    private func startManualSetup(for request: BrowserOnboardingRequest) {
-        setup.begin(workspaceID: browser.family.workspaceID, startsOver: request.entryPoint == .rerun)
-        selectedSpaceID = setup.spaces.first?.spaceID
+    /// Opens setup in the core for `request`. The core goes on with the
+    /// manual setup it kept, following Spaces changed meanwhile; a rerun
+    /// starts it over.
+    private func start(_ request: BrowserOnboardingRequest) {
+        finishingStep = nil
+        _ = try? browser.core.send(StartSetup(workspaceID: browser.family.workspaceID, entry: request.entryPoint))
+        setup.repairSelection($selectedSpaceID)
     }
 
-    private func finishManualSetup() {
-        do {
-            _ = try browser.manualSetupPreview()
-            completeSetup(appliesManualSetup: true)
-        } catch {
-            errorMessage = error.personFacingDescription
-        }
-    }
-
-    private func completeSetup(appliesManualSetup: Bool = false) {
+    /// Finishes setup: the core applies the manual setup and completes setup
+    /// on this device, and the guide opens where the core names it.
+    private func completeSetup() {
         guard completionTask == nil else { return }
+        finishingStep = step
         completionTask = Task { @MainActor in
-            let result = await BrowserOnboardingCompletion.complete(
-                request: request, browser: browser, progress: progress, spaceAccess: spaceAccess,
-                appliesManualSetup: appliesManualSetup,
-                willComplete: { guide in
-                    if let guide { didOpenGettingStarted(guide) }
-                    coordinator.isMobilePresented = false
-                })
+            let result = await BrowserSetupFinish.finish(browser: browser, spaceAccess: spaceAccess)
             guard !Task.isCancelled else { return }
             completionTask = nil
             switch result {
-            case .completed:
+            case .completed(let guide):
                 errorMessage = nil
+                progress.setupFinished()
+                if let guide { didOpenGettingStarted(guide) }
+                coordinator.isMobilePresented = false
             case .cancelled:
-                errorMessage = "Unlock your first Space to open Getting Started."
-            case .sourceChanged:
-                errorMessage = "Your Spaces changed. Review setup and try again."
+                finishingStep = nil
+                errorMessage = String(localized: "Unlock your first Space to open Getting Started.")
+            case .refused(let message):
+                finishingStep = nil
+                errorMessage = message
             }
         }
     }
@@ -247,10 +234,7 @@ struct MobileBrowserOnboardingView: View {
 
 #Preview("Mobile Onboarding — Root") {
     let fixture = MobileBrowserPreviewFixture()
-    let progress = BrowserOnboardingProgressStore(
-        persistence: InMemoryBrowserOnboardingProgressPersistence(),
-        forceWelcome: true
-    )
+    let progress = BrowserOnboardingProgressStore(core: fixture.browser.core, forceWelcome: true)
     MobileBrowserOnboardingView(
         request: BrowserOnboardingRequest(
             entryPoint: .firstRun,

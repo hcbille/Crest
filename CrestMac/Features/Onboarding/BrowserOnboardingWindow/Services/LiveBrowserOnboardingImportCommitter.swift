@@ -12,54 +12,39 @@ struct LiveBrowserOnboardingImportCommitter:
     }
 
     func prepare(
-        plan: BrowserImportReviewPlan,
-        application: ImportSource,
-        payload: BrowserDetectedImportPayload?,
-        passwordCountsBySourceSpace: [SpaceID: Int]
+        review: SetupImportReview,
+        payload: BrowserDetectedImportPayload?
     ) async throws -> BrowserOnboardingPreparedImport {
-        let directoryAccess = BrowserImportAccessStore.resolve(for: application)
+        let directoryAccess = BrowserImportAccessStore.resolve(for: review.source)
         defer { directoryAccess?.stopAccessing() }
 
-        let passwords = try await selectedPasswords(
-            for: plan,
-            application: application,
-            payload: payload,
-            passwordCountsBySourceSpace: passwordCountsBySourceSpace
-        )
+        let passwords = try await selectedPasswords(for: review, payload: payload)
         try Task.checkCancellation()
         return BrowserOnboardingPreparedImport(passwords: passwords)
     }
 
     func finalize(
-        plan: BrowserImportReviewPlan,
+        review: SetupImportReview,
         preparedImport: BrowserOnboardingPreparedImport,
         browser: BrowserStore
     ) async throws -> BrowserPasswordImportResult {
-        try browser.commitReviewedImport(plan)
+        try browser.importReviewedSpaces()
         return await BrowserPasswordImportCommitter.commit(
             preparedImport.passwords,
-            plan: plan,
+            review: review,
             browser: browser
         )
     }
 
+    /// The passwords the review brings, read only when it brings any.
     private func selectedPasswords(
-        for plan: BrowserImportReviewPlan,
-        application: ImportSource,
-        payload: BrowserDetectedImportPayload?,
-        passwordCountsBySourceSpace: [SpaceID: Int]
+        for review: SetupImportReview,
+        payload: BrowserDetectedImportPayload?
     ) async throws -> [BrowserImportedPassword] {
-        guard let payload,
-            plan.spaces.contains(where: {
-                $0.includesPasswords
-                    && passwordCountsBySourceSpace[$0.id, default: 0] > 0
-            })
-        else {
-            return []
-        }
+        guard let payload, review.includedPasswordCount > 0 else { return [] }
         return try await BrowserPasswordImportReader.read(
             from: payload.passwordStores,
-            application: application,
+            application: review.source,
             safeStorage: safeStorage
         )
     }

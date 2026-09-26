@@ -10,10 +10,7 @@ struct BrowserOnboardingWindowPreviewFixture {
     let spaceAccess: BrowserSpaceAccessController
     let flow: BrowserOnboardingFlow
 
-    init(
-        entryPoint: BrowserOnboardingEntryPoint = .firstRun,
-        plan: BrowserImportReviewPlan? = nil
-    ) {
+    init(entryPoint: SetupEntry = .firstRun) {
         let request = BrowserOnboardingRequest(
             entryPoint: entryPoint,
             presentationID: Self.requestID
@@ -32,17 +29,11 @@ struct BrowserOnboardingWindowPreviewFixture {
             importCommitter: BrowserOnboardingPreviewImportCommitter()
         )
         flow.discoverInstalledSources()
-        if let plan {
-            flow.updatePlan(plan)
-        }
 
         self.request = request
         self.browser = browser
         cloudSync = .isolated(core: browser.core)
-        progress = BrowserOnboardingProgressStore(
-            persistence: InMemoryBrowserOnboardingProgressPersistence(),
-            forceWelcome: true
-        )
+        progress = BrowserOnboardingProgressStore(core: browser.core, forceWelcome: true)
         self.flow = flow
         spaceAccess = BrowserSpaceAccessController(authenticator: BrowserPreviewAuthenticator(result: false))
     }
@@ -50,10 +41,6 @@ struct BrowserOnboardingWindowPreviewFixture {
     static let session = BrowserSession(
         spaces: [destinationSpace]
     )
-
-    static func reviewPlan(in browser: BrowserStore) -> BrowserImportReviewPlan {
-        BrowserImportReviewPlan(spaces: [sourceSpace], in: browser)
-    }
 
     static let importSource = BrowserInstalledImportSource(
         application: .arc,
@@ -94,24 +81,6 @@ struct BrowserOnboardingWindowPreviewFixture {
             0x91, 0x7D, 0x7D, 0x55, 0xA6, 0xC3, 0xC0, 0x04
         )
     )
-    private static let sourceSpaceID = UUID(
-        uuid: (
-            0x8E, 0x72, 0x21, 0xB6, 0xD0, 0x3D, 0x4B, 0xA9,
-            0x91, 0x7D, 0x7D, 0x55, 0xA6, 0xC3, 0xC0, 0x05
-        )
-    )
-    private static let sourceProfileID = UUID(
-        uuid: (
-            0x8E, 0x72, 0x21, 0xB6, 0xD0, 0x3D, 0x4B, 0xA9,
-            0x91, 0x7D, 0x7D, 0x55, 0xA6, 0xC3, 0xC0, 0x06
-        )
-    )
-    private static let sourceTabID = UUID(
-        uuid: (
-            0x8E, 0x72, 0x21, 0xB6, 0xD0, 0x3D, 0x4B, 0xA9,
-            0x91, 0x7D, 0x7D, 0x55, 0xA6, 0xC3, 0xC0, 0x07
-        )
-    )
     private static let previewDate = Date(timeIntervalSince1970: 1_700_000_000)
     private static let tab = BrowserTab(
         id: tabID,
@@ -130,23 +99,5 @@ struct BrowserOnboardingWindowPreviewFixture {
         branding: .initial(accent: .indigo, symbol: "briefcase.fill"),
         folders: [],
         tabs: [tab]
-    )
-    private static let sourceTab = BrowserTab(
-        id: sourceTabID,
-        title: "Imported Preview",
-        url: URL(string: "https://example.com/imported-preview"),
-        symbol: "square.and.arrow.down.fill",
-        placement: .current,
-        lastActivatedAt: previewDate
-    )
-    private static let sourceSpace = BrowserSpace(
-        id: sourceSpaceID,
-        profile: BrowsingProfile(id: sourceProfileID),
-        name: "Imported Work",
-        symbol: "shippingbox.fill",
-        accent: .orange,
-        branding: .initial(accent: .orange, symbol: "shippingbox.fill"),
-        folders: [],
-        tabs: [sourceTab]
     )
 }

@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0x88, 0xf6, 0x4d, 0x60, 0x8d, 0x34, 0x5c, 0xa1, 0x77, 0xe8, 0xd4, 0x5c, 0x86, 0x7d, 0x42, 0x9b, 0x35, 0xbb, 0xd0, 0xaa, 0x18, 0xd3, 0x7c, 0xfe, 0xc6, 0x5d, 0x94, 0xc0, 0x85, 0x10, 0xe9, 0x6e
+        0x0f, 0x52, 0xd2, 0x5c, 0xfe, 0x3d, 0x1e, 0x6c, 0xf5, 0x17, 0xfe, 0xbb, 0xe7, 0xa5, 0x96, 0x58, 0x46, 0x29, 0x87, 0xf1, 0xfa, 0xff, 0x65, 0xa4, 0x15, 0x49, 0x2e, 0x8a, 0xf7, 0x52, 0xc4, 0x53
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -32,190 +32,207 @@ public static class ContractCodec {
             case 4: return ReadAddSetupSpace(reader);
             case 5: return ReadAdoptLegacySession(reader);
             case 6: return ReadAdoptLinkPreferences(reader);
-            case 7: return ReadAdoptSetupDraft(reader);
-            case 8: return ReadAdoptShortcuts(reader);
-            case 9: return ReadAdoptSitePermissions(reader);
-            case 10: return ReadAdoptWindowRecords(reader);
-            case 11: return ReadAnswerAuthentication(reader);
-            case 12: return ReadAnswerDownloadApproval(reader);
-            case 13: return ReadAnswerDownloadDestination(reader);
-            case 14: return ReadAnswerExtensionInstall(reader);
-            case 15: return ReadAnswerPermission(reader);
-            case 16: return ReadAnswerQuitWithDownloads(reader);
-            case 17: return ReadAnswerScriptDialog(reader);
-            case 18: return ReadApplyManualSetup(reader);
-            case 19: return ReadArchiveTransientPage(reader);
-            case 20: return ReadAssessDownloadRisk(reader);
-            case 21: return ReadAssignShortcut(reader);
-            case 22: return ReadAwaitDownloadApproval(reader);
-            case 23: return ReadBeginCloudMerge(reader);
-            case 24: return ReadBeginDeletingSpace(reader);
-            case 25: return ReadBeginDownload(reader);
-            case 26: return ReadBeginManualSetup(reader);
-            case 27: return ReadBeginUnlockingSpace(reader);
-            case 28: return ReadBlockAutomaticDownload(reader);
-            case 29: return ReadBorrowSpace(reader);
-            case 30: return ReadCancelClosePreparation(reader);
-            case 31: return ReadCancelDownload(reader);
-            case 32: return ReadChooseCloudCopy(reader);
-            case 33: return ReadChooseExternalLinkDestination(reader);
-            case 34: return ReadChoosePeekModifier(reader);
-            case 35: return ReadChooseQuickWindowArchivePolicy(reader);
-            case 36: return ReadChooseTabIcon(reader);
-            case 37: return ReadCleanUpCurrentTabs(reader);
-            case 38: return ReadClearCurrentTabs(reader);
-            case 39: return ReadClearHistory(reader);
-            case 40: return ReadCloseTab(reader);
-            case 41: return ReadCloseTabs(reader);
-            case 42: return ReadCloseWindow(reader);
-            case 43: return ReadCloseWorkspace(reader);
-            case 44: return ReadCloudAccountChecked(reader);
-            case 45: return ReadCloudContentCompared(reader);
-            case 46: return ReadCloudContentTaken(reader);
-            case 47: return ReadCloudCopyApplied(reader);
-            case 48: return ReadCloudEntitlementChecked(reader);
-            case 49: return ReadCloudSeedReplaced(reader);
-            case 50: return ReadCloudStepFailed(reader);
-            case 51: return ReadCloudTransportPulled(reader);
-            case 52: return ReadCloudTransportReported(reader);
-            case 53: return ReadCloudTransportStarted(reader);
-            case 54: return ReadCloudTransportSynced(reader);
-            case 55: return ReadCollapseFolder(reader);
-            case 56: return ReadConfigureCloudSync(reader);
-            case 57: return ReadCreateFolder(reader);
-            case 58: return ReadCreateSpace(reader);
-            case 59: return ReadCustomizeSetupSpace(reader);
-            case 60: return ReadDecideSitePermission(reader);
-            case 61: return ReadDeleteFolder(reader);
-            case 62: return ReadDeleteTab(reader);
-            case 63: return ReadDeleteTabs(reader);
-            case 64: return ReadDiscardManualSetup(reader);
-            case 65: return ReadDismissShownTab(reader);
-            case 66: return ReadDissolveSplit(reader);
-            case 67: return ReadDropAroundTab(reader);
-            case 68: return ReadDropIntoList(reader);
-            case 69: return ReadDropIntoSplit(reader);
-            case 70: return ReadDropOnSpace(reader);
-            case 71: return ReadDuplicateTab(reader);
-            case 72: return ReadDuplicateTabs(reader);
-            case 73: return ReadEditLinkRoute(reader);
-            case 74: return ReadExpandSavedTabs(reader);
-            case 75: return ReadExpireDownloads(reader);
-            case 76: return ReadFailDownload(reader);
-            case 77: return ReadFileTabs(reader);
-            case 78: return ReadFinishCloudMerge(reader);
-            case 79: return ReadFinishDeletingSpace(reader);
-            case 80: return ReadFinishDownload(reader);
-            case 81: return ReadFinishUnlockingSpace(reader);
-            case 82: return ReadFolderTabs(reader);
-            case 83: return ReadFolderTabsAround(reader);
-            case 84: return ReadForgetCloudZone(reader);
-            case 85: return ReadImportAppPreferences(reader);
-            case 86: return ReadImportReviewedSpaces(reader);
-            case 87: return ReadImportSpaces(reader);
-            case 88: return ReadJoinSplit(reader);
-            case 89: return ReadKeepPageLoaded(reader);
-            case 90: return ReadKeepTabsLoaded(reader);
-            case 91: return ReadLeavePageFailure(reader);
-            case 92: return ReadLeaveSplit(reader);
-            case 93: return ReadLockAllSpaces(reader);
-            case 94: return ReadLockSpace(reader);
-            case 95: return ReadMergeCloudSnapshot(reader);
-            case 96: return ReadMergeSyncRecords(reader);
-            case 97: return ReadMoveFolder(reader);
-            case 98: return ReadMoveLinkRoute(reader);
-            case 99: return ReadMovePage(reader);
-            case 100: return ReadMoveSetupSpace(reader);
-            case 101: return ReadMoveSplit(reader);
-            case 102: return ReadMoveSplitMember(reader);
-            case 103: return ReadMoveTab(reader);
-            case 104: return ReadMoveTabToSpace(reader);
-            case 105: return ReadMoveTabToWindow(reader);
-            case 106: return ReadMoveTabsToSpace(reader);
-            case 107: return ReadNameSplit(reader);
-            case 108: return ReadNavigate(reader);
-            case 109: return ReadNavigateTab(reader);
-            case 110: return ReadNotifyCloudLocalChanges(reader);
-            case 111: return ReadObserveCloudAccountAvailability(reader);
-            case 112: return ReadObserveCloudAccountChange(reader);
-            case 113: return ReadOpenAddress(reader);
-            case 114: return ReadOpenCloudTransport(reader);
-            case 115: return ReadOpenLinkInSplit(reader);
-            case 116: return ReadOpenPage(reader);
-            case 117: return ReadOpenTab(reader);
-            case 118: return ReadOpenWindow(reader);
-            case 119: return ReadOpenWorkspace(reader);
-            case 120: return ReadOverwriteCloud(reader);
-            case 121: return ReadPrepareToClosePages(reader);
-            case 122: return ReadPrepareToCloseWindows(reader);
-            case 123: return ReadPrepareToQuit(reader);
-            case 124: return ReadPromoteTransientPage(reader);
-            case 125: return ReadReassignShortcut(reader);
-            case 126: return ReadRecordCloudFields(reader);
-            case 127: return ReadRecordDownloadTransfer(reader);
-            case 128: return ReadReleasePage(reader);
-            case 129: return ReadRememberQuickWindowSpace(reader);
-            case 130: return ReadRemoveDownload(reader);
-            case 131: return ReadRemoveHistoryAddress(reader);
-            case 132: return ReadRemoveHistoryRange(reader);
-            case 133: return ReadRemoveLinkRoute(reader);
-            case 134: return ReadRemoveProfileDownloads(reader);
-            case 135: return ReadRemoveSearchEngine(reader);
-            case 136: return ReadRemoveSetupSpace(reader);
-            case 137: return ReadRenameFolder(reader);
-            case 138: return ReadRenameTab(reader);
-            case 139: return ReadReopenClosedTab(reader);
-            case 140: return ReadReorderSpaces(reader);
-            case 141: return ReadReplaceSavedAddress(reader);
-            case 142: return ReadReplaceSeedWithCloudRecords(reader);
-            case 143: return ReadReplaceWithCloudRecords(reader);
-            case 144: return ReadReportMemoryPressure(reader);
-            case 145: return ReadRequestCloudPull(reader);
-            case 146: return ReadRequestCloudSync(reader);
-            case 147: return ReadResetCloudTransport(reader);
-            case 148: return ReadResetPrivateBrowsing(reader);
-            case 149: return ReadResetShortcut(reader);
-            case 150: return ReadResetShortcuts(reader);
-            case 151: return ReadResetSitePermission(reader);
-            case 152: return ReadResetSpacePermissions(reader);
-            case 153: return ReadResizeSplitColumns(reader);
-            case 154: return ReadRestartCloudSyncAfterAccountChange(reader);
-            case 155: return ReadRestartDownload(reader);
-            case 156: return ReadRestoreArchivedTab(reader);
-            case 157: return ReadRetryCloudSync(reader);
-            case 158: return ReadReturnToSavedAddress(reader);
-            case 159: return ReadSaveCloudEngineState(reader);
-            case 160: return ReadSelectSearchEngine(reader);
-            case 161: return ReadSeparateSplits(reader);
-            case 162: return ReadSetAppPreferences(reader);
-            case 163: return ReadSetBrowsingPreferences(reader);
-            case 164: return ReadSetCloudSyncEnabled(reader);
-            case 165: return ReadSetCredentialPreferences(reader);
-            case 166: return ReadSetDefaultSpace(reader);
-            case 167: return ReadSetDownloadDestination(reader);
-            case 168: return ReadSetFolderColor(reader);
-            case 169: return ReadSetFolderSymbol(reader);
-            case 170: return ReadSetLinkBehavior(reader);
-            case 171: return ReadSetSpaceAccess(reader);
-            case 172: return ReadSetSpaceBranding(reader);
-            case 173: return ReadSetSpaceIdentity(reader);
-            case 174: return ReadSetSplitIcon(reader);
-            case 175: return ReadSetTranslationRule(reader);
-            case 176: return ReadSettleCloudOverwrite(reader);
-            case 177: return ReadShowAdjacentSpace(reader);
-            case 178: return ReadShowAdjacentTab(reader);
-            case 179: return ReadShowMostRecentTab(reader);
-            case 180: return ReadShowSpace(reader);
-            case 181: return ReadShowStartPage(reader);
-            case 182: return ReadShowTab(reader);
-            case 183: return ReadSplitTabs(reader);
-            case 184: return ReadStartCloudSync(reader);
-            case 185: return ReadStepSplitMember(reader);
-            case 186: return ReadSweepExpiredRecords(reader);
-            case 187: return ReadTintSplit(reader);
-            case 188: return ReadTogglePin(reader);
-            case 189: return ReadUnassignShortcut(reader);
-            case 190: return ReadUpdateSearchEngine(reader);
+            case 7: return ReadAdoptSetupCompletion(reader);
+            case 8: return ReadAdoptSetupDraft(reader);
+            case 9: return ReadAdoptShortcuts(reader);
+            case 10: return ReadAdoptSitePermissions(reader);
+            case 11: return ReadAdoptWindowRecords(reader);
+            case 12: return ReadAnswerAuthentication(reader);
+            case 13: return ReadAnswerDownloadApproval(reader);
+            case 14: return ReadAnswerDownloadDestination(reader);
+            case 15: return ReadAnswerExtensionInstall(reader);
+            case 16: return ReadAnswerPermission(reader);
+            case 17: return ReadAnswerQuitWithDownloads(reader);
+            case 18: return ReadAnswerScriptDialog(reader);
+            case 19: return ReadApplyManualSetup(reader);
+            case 20: return ReadArchiveTransientPage(reader);
+            case 21: return ReadAssessDownloadRisk(reader);
+            case 22: return ReadAssignShortcut(reader);
+            case 23: return ReadAwaitDownloadApproval(reader);
+            case 24: return ReadBeginCloudMerge(reader);
+            case 25: return ReadBeginDeletingSpace(reader);
+            case 26: return ReadBeginDownload(reader);
+            case 27: return ReadBeginImportCommit(reader);
+            case 28: return ReadBeginUnlockingSpace(reader);
+            case 29: return ReadBlockAutomaticDownload(reader);
+            case 30: return ReadBorrowSpace(reader);
+            case 31: return ReadCancelClosePreparation(reader);
+            case 32: return ReadCancelDownload(reader);
+            case 33: return ReadCancelImportRead(reader);
+            case 34: return ReadChooseCloudCopy(reader);
+            case 35: return ReadChooseExternalLinkDestination(reader);
+            case 36: return ReadChooseImportDestination(reader);
+            case 37: return ReadChoosePeekModifier(reader);
+            case 38: return ReadChooseQuickWindowArchivePolicy(reader);
+            case 39: return ReadChooseTabIcon(reader);
+            case 40: return ReadCleanUpCurrentTabs(reader);
+            case 41: return ReadClearCurrentTabs(reader);
+            case 42: return ReadClearHistory(reader);
+            case 43: return ReadCloseTab(reader);
+            case 44: return ReadCloseTabs(reader);
+            case 45: return ReadCloseWindow(reader);
+            case 46: return ReadCloseWorkspace(reader);
+            case 47: return ReadCloudAccountChecked(reader);
+            case 48: return ReadCloudContentCompared(reader);
+            case 49: return ReadCloudContentTaken(reader);
+            case 50: return ReadCloudCopyApplied(reader);
+            case 51: return ReadCloudEntitlementChecked(reader);
+            case 52: return ReadCloudSeedReplaced(reader);
+            case 53: return ReadCloudStepFailed(reader);
+            case 54: return ReadCloudTransportPulled(reader);
+            case 55: return ReadCloudTransportReported(reader);
+            case 56: return ReadCloudTransportStarted(reader);
+            case 57: return ReadCloudTransportSynced(reader);
+            case 58: return ReadCollapseFolder(reader);
+            case 59: return ReadConfigureCloudSync(reader);
+            case 60: return ReadContinueImport(reader);
+            case 61: return ReadCreateFolder(reader);
+            case 62: return ReadCreateSpace(reader);
+            case 63: return ReadCustomizeImportSpace(reader);
+            case 64: return ReadCustomizeSetupSpace(reader);
+            case 65: return ReadDecideSitePermission(reader);
+            case 66: return ReadDeleteFolder(reader);
+            case 67: return ReadDeleteTab(reader);
+            case 68: return ReadDeleteTabs(reader);
+            case 69: return ReadDismissShownTab(reader);
+            case 70: return ReadDissolveSplit(reader);
+            case 71: return ReadDropAroundTab(reader);
+            case 72: return ReadDropIntoList(reader);
+            case 73: return ReadDropIntoSplit(reader);
+            case 74: return ReadDropOnSpace(reader);
+            case 75: return ReadDuplicateTab(reader);
+            case 76: return ReadDuplicateTabs(reader);
+            case 77: return ReadEditLinkRoute(reader);
+            case 78: return ReadExpandSavedTabs(reader);
+            case 79: return ReadExpireDownloads(reader);
+            case 80: return ReadFailDownload(reader);
+            case 81: return ReadFailImport(reader);
+            case 82: return ReadFileTabs(reader);
+            case 83: return ReadFinishCloudMerge(reader);
+            case 84: return ReadFinishDeletingSpace(reader);
+            case 85: return ReadFinishDownload(reader);
+            case 86: return ReadFinishImportCommit(reader);
+            case 87: return ReadFinishSetup(reader);
+            case 88: return ReadFinishUnlockingSpace(reader);
+            case 89: return ReadFolderTabs(reader);
+            case 90: return ReadFolderTabsAround(reader);
+            case 91: return ReadForgetCloudZone(reader);
+            case 92: return ReadImportAppPreferences(reader);
+            case 93: return ReadImportReviewedSpaces(reader);
+            case 94: return ReadImportSpaces(reader);
+            case 95: return ReadIncludeImportPasswords(reader);
+            case 96: return ReadIncludeImportSpace(reader);
+            case 97: return ReadIncludeImportTabs(reader);
+            case 98: return ReadJoinSplit(reader);
+            case 99: return ReadKeepPageLoaded(reader);
+            case 100: return ReadKeepTabsLoaded(reader);
+            case 101: return ReadLeavePageFailure(reader);
+            case 102: return ReadLeaveSplit(reader);
+            case 103: return ReadLockAllSpaces(reader);
+            case 104: return ReadLockSpace(reader);
+            case 105: return ReadMergeCloudSnapshot(reader);
+            case 106: return ReadMergeSyncRecords(reader);
+            case 107: return ReadMoveFolder(reader);
+            case 108: return ReadMoveLinkRoute(reader);
+            case 109: return ReadMovePage(reader);
+            case 110: return ReadMoveSetupSpace(reader);
+            case 111: return ReadMoveSplit(reader);
+            case 112: return ReadMoveSplitMember(reader);
+            case 113: return ReadMoveTab(reader);
+            case 114: return ReadMoveTabToSpace(reader);
+            case 115: return ReadMoveTabToWindow(reader);
+            case 116: return ReadMoveTabsToSpace(reader);
+            case 117: return ReadNameSplit(reader);
+            case 118: return ReadNavigate(reader);
+            case 119: return ReadNavigateTab(reader);
+            case 120: return ReadNotifyCloudLocalChanges(reader);
+            case 121: return ReadObserveCloudAccountAvailability(reader);
+            case 122: return ReadObserveCloudAccountChange(reader);
+            case 123: return ReadOfferImportSources(reader);
+            case 124: return ReadOpenAddress(reader);
+            case 125: return ReadOpenCloudTransport(reader);
+            case 126: return ReadOpenLinkInSplit(reader);
+            case 127: return ReadOpenPage(reader);
+            case 128: return ReadOpenTab(reader);
+            case 129: return ReadOpenWindow(reader);
+            case 130: return ReadOpenWorkspace(reader);
+            case 131: return ReadOverwriteCloud(reader);
+            case 132: return ReadPlaceImportTab(reader);
+            case 133: return ReadPrepareToClosePages(reader);
+            case 134: return ReadPrepareToCloseWindows(reader);
+            case 135: return ReadPrepareToQuit(reader);
+            case 136: return ReadPromoteTransientPage(reader);
+            case 137: return ReadReassignShortcut(reader);
+            case 138: return ReadRecordCloudFields(reader);
+            case 139: return ReadRecordDownloadTransfer(reader);
+            case 140: return ReadReleasePage(reader);
+            case 141: return ReadRememberQuickWindowSpace(reader);
+            case 142: return ReadRemoveDownload(reader);
+            case 143: return ReadRemoveHistoryAddress(reader);
+            case 144: return ReadRemoveHistoryRange(reader);
+            case 145: return ReadRemoveLinkRoute(reader);
+            case 146: return ReadRemoveProfileDownloads(reader);
+            case 147: return ReadRemoveSearchEngine(reader);
+            case 148: return ReadRemoveSetupSpace(reader);
+            case 149: return ReadRenameFolder(reader);
+            case 150: return ReadRenameTab(reader);
+            case 151: return ReadReopenClosedTab(reader);
+            case 152: return ReadReorderSpaces(reader);
+            case 153: return ReadReplaceSavedAddress(reader);
+            case 154: return ReadReplaceSeedWithCloudRecords(reader);
+            case 155: return ReadReplaceWithCloudRecords(reader);
+            case 156: return ReadReportMemoryPressure(reader);
+            case 157: return ReadRequestCloudPull(reader);
+            case 158: return ReadRequestCloudSync(reader);
+            case 159: return ReadResetCloudTransport(reader);
+            case 160: return ReadResetPrivateBrowsing(reader);
+            case 161: return ReadResetShortcut(reader);
+            case 162: return ReadResetShortcuts(reader);
+            case 163: return ReadResetSitePermission(reader);
+            case 164: return ReadResetSpacePermissions(reader);
+            case 165: return ReadResizeSplitColumns(reader);
+            case 166: return ReadRestartCloudSyncAfterAccountChange(reader);
+            case 167: return ReadRestartDownload(reader);
+            case 168: return ReadRestoreArchivedTab(reader);
+            case 169: return ReadRetryCloudSync(reader);
+            case 170: return ReadReturnToSavedAddress(reader);
+            case 171: return ReadReviewImport(reader);
+            case 172: return ReadSaveCloudEngineState(reader);
+            case 173: return ReadSelectSearchEngine(reader);
+            case 174: return ReadSeparateSplits(reader);
+            case 175: return ReadSetAppPreferences(reader);
+            case 176: return ReadSetBrowsingPreferences(reader);
+            case 177: return ReadSetCloudSyncEnabled(reader);
+            case 178: return ReadSetCredentialPreferences(reader);
+            case 179: return ReadSetDefaultSpace(reader);
+            case 180: return ReadSetDownloadDestination(reader);
+            case 181: return ReadSetFolderColor(reader);
+            case 182: return ReadSetFolderSymbol(reader);
+            case 183: return ReadSetLinkBehavior(reader);
+            case 184: return ReadSetSpaceAccess(reader);
+            case 185: return ReadSetSpaceBranding(reader);
+            case 186: return ReadSetSpaceIdentity(reader);
+            case 187: return ReadSetSplitIcon(reader);
+            case 188: return ReadSetTranslationRule(reader);
+            case 189: return ReadSettleCloudOverwrite(reader);
+            case 190: return ReadShowAdjacentSpace(reader);
+            case 191: return ReadShowAdjacentTab(reader);
+            case 192: return ReadShowImportSpace(reader);
+            case 193: return ReadShowMostRecentTab(reader);
+            case 194: return ReadShowSetupStep(reader);
+            case 195: return ReadShowSpace(reader);
+            case 196: return ReadShowStartPage(reader);
+            case 197: return ReadShowTab(reader);
+            case 198: return ReadSplitTabs(reader);
+            case 199: return ReadStartCloudSync(reader);
+            case 200: return ReadStartSetup(reader);
+            case 201: return ReadStepSplitMember(reader);
+            case 202: return ReadSweepExpiredRecords(reader);
+            case 203: return ReadTintSplit(reader);
+            case 204: return ReadToggleImportSource(reader);
+            case 205: return ReadTogglePin(reader);
+            case 206: return ReadUnassignShortcut(reader);
+            case 207: return ReadUpdateSearchEngine(reader);
             default: throw new WireFormatException($"Unknown Intent tag {tag}.");
         }
     }
@@ -252,740 +269,808 @@ public static class ContractCodec {
                 writer.WriteTag(6);
                 WriteAdoptLinkPreferences(writer, member);
                 break;
-            case AdoptSetupDraft member:
+            case AdoptSetupCompletion member:
                 writer.WriteTag(7);
+                WriteAdoptSetupCompletion(writer, member);
+                break;
+            case AdoptSetupDraft member:
+                writer.WriteTag(8);
                 WriteAdoptSetupDraft(writer, member);
                 break;
             case AdoptShortcuts member:
-                writer.WriteTag(8);
+                writer.WriteTag(9);
                 WriteAdoptShortcuts(writer, member);
                 break;
             case AdoptSitePermissions member:
-                writer.WriteTag(9);
+                writer.WriteTag(10);
                 WriteAdoptSitePermissions(writer, member);
                 break;
             case AdoptWindowRecords member:
-                writer.WriteTag(10);
+                writer.WriteTag(11);
                 WriteAdoptWindowRecords(writer, member);
                 break;
             case AnswerAuthentication member:
-                writer.WriteTag(11);
+                writer.WriteTag(12);
                 WriteAnswerAuthentication(writer, member);
                 break;
             case AnswerDownloadApproval member:
-                writer.WriteTag(12);
+                writer.WriteTag(13);
                 WriteAnswerDownloadApproval(writer, member);
                 break;
             case AnswerDownloadDestination member:
-                writer.WriteTag(13);
+                writer.WriteTag(14);
                 WriteAnswerDownloadDestination(writer, member);
                 break;
             case AnswerExtensionInstall member:
-                writer.WriteTag(14);
+                writer.WriteTag(15);
                 WriteAnswerExtensionInstall(writer, member);
                 break;
             case AnswerPermission member:
-                writer.WriteTag(15);
+                writer.WriteTag(16);
                 WriteAnswerPermission(writer, member);
                 break;
             case AnswerQuitWithDownloads member:
-                writer.WriteTag(16);
+                writer.WriteTag(17);
                 WriteAnswerQuitWithDownloads(writer, member);
                 break;
             case AnswerScriptDialog member:
-                writer.WriteTag(17);
+                writer.WriteTag(18);
                 WriteAnswerScriptDialog(writer, member);
                 break;
             case ApplyManualSetup member:
-                writer.WriteTag(18);
+                writer.WriteTag(19);
                 WriteApplyManualSetup(writer, member);
                 break;
             case ArchiveTransientPage member:
-                writer.WriteTag(19);
+                writer.WriteTag(20);
                 WriteArchiveTransientPage(writer, member);
                 break;
             case AssessDownloadRisk member:
-                writer.WriteTag(20);
+                writer.WriteTag(21);
                 WriteAssessDownloadRisk(writer, member);
                 break;
             case AssignShortcut member:
-                writer.WriteTag(21);
+                writer.WriteTag(22);
                 WriteAssignShortcut(writer, member);
                 break;
             case AwaitDownloadApproval member:
-                writer.WriteTag(22);
+                writer.WriteTag(23);
                 WriteAwaitDownloadApproval(writer, member);
                 break;
             case BeginCloudMerge member:
-                writer.WriteTag(23);
+                writer.WriteTag(24);
                 WriteBeginCloudMerge(writer, member);
                 break;
             case BeginDeletingSpace member:
-                writer.WriteTag(24);
+                writer.WriteTag(25);
                 WriteBeginDeletingSpace(writer, member);
                 break;
             case BeginDownload member:
-                writer.WriteTag(25);
+                writer.WriteTag(26);
                 WriteBeginDownload(writer, member);
                 break;
-            case BeginManualSetup member:
-                writer.WriteTag(26);
-                WriteBeginManualSetup(writer, member);
+            case BeginImportCommit member:
+                writer.WriteTag(27);
+                WriteBeginImportCommit(writer, member);
                 break;
             case BeginUnlockingSpace member:
-                writer.WriteTag(27);
+                writer.WriteTag(28);
                 WriteBeginUnlockingSpace(writer, member);
                 break;
             case BlockAutomaticDownload member:
-                writer.WriteTag(28);
+                writer.WriteTag(29);
                 WriteBlockAutomaticDownload(writer, member);
                 break;
             case BorrowSpace member:
-                writer.WriteTag(29);
+                writer.WriteTag(30);
                 WriteBorrowSpace(writer, member);
                 break;
             case CancelClosePreparation member:
-                writer.WriteTag(30);
+                writer.WriteTag(31);
                 WriteCancelClosePreparation(writer, member);
                 break;
             case CancelDownload member:
-                writer.WriteTag(31);
+                writer.WriteTag(32);
                 WriteCancelDownload(writer, member);
                 break;
+            case CancelImportRead member:
+                writer.WriteTag(33);
+                WriteCancelImportRead(writer, member);
+                break;
             case ChooseCloudCopy member:
-                writer.WriteTag(32);
+                writer.WriteTag(34);
                 WriteChooseCloudCopy(writer, member);
                 break;
             case ChooseExternalLinkDestination member:
-                writer.WriteTag(33);
+                writer.WriteTag(35);
                 WriteChooseExternalLinkDestination(writer, member);
                 break;
+            case ChooseImportDestination member:
+                writer.WriteTag(36);
+                WriteChooseImportDestination(writer, member);
+                break;
             case ChoosePeekModifier member:
-                writer.WriteTag(34);
+                writer.WriteTag(37);
                 WriteChoosePeekModifier(writer, member);
                 break;
             case ChooseQuickWindowArchivePolicy member:
-                writer.WriteTag(35);
+                writer.WriteTag(38);
                 WriteChooseQuickWindowArchivePolicy(writer, member);
                 break;
             case ChooseTabIcon member:
-                writer.WriteTag(36);
+                writer.WriteTag(39);
                 WriteChooseTabIcon(writer, member);
                 break;
             case CleanUpCurrentTabs member:
-                writer.WriteTag(37);
+                writer.WriteTag(40);
                 WriteCleanUpCurrentTabs(writer, member);
                 break;
             case ClearCurrentTabs member:
-                writer.WriteTag(38);
+                writer.WriteTag(41);
                 WriteClearCurrentTabs(writer, member);
                 break;
             case ClearHistory member:
-                writer.WriteTag(39);
+                writer.WriteTag(42);
                 WriteClearHistory(writer, member);
                 break;
             case CloseTab member:
-                writer.WriteTag(40);
+                writer.WriteTag(43);
                 WriteCloseTab(writer, member);
                 break;
             case CloseTabs member:
-                writer.WriteTag(41);
+                writer.WriteTag(44);
                 WriteCloseTabs(writer, member);
                 break;
             case CloseWindow member:
-                writer.WriteTag(42);
+                writer.WriteTag(45);
                 WriteCloseWindow(writer, member);
                 break;
             case CloseWorkspace member:
-                writer.WriteTag(43);
+                writer.WriteTag(46);
                 WriteCloseWorkspace(writer, member);
                 break;
             case CloudAccountChecked member:
-                writer.WriteTag(44);
+                writer.WriteTag(47);
                 WriteCloudAccountChecked(writer, member);
                 break;
             case CloudContentCompared member:
-                writer.WriteTag(45);
+                writer.WriteTag(48);
                 WriteCloudContentCompared(writer, member);
                 break;
             case CloudContentTaken member:
-                writer.WriteTag(46);
+                writer.WriteTag(49);
                 WriteCloudContentTaken(writer, member);
                 break;
             case CloudCopyApplied member:
-                writer.WriteTag(47);
+                writer.WriteTag(50);
                 WriteCloudCopyApplied(writer, member);
                 break;
             case CloudEntitlementChecked member:
-                writer.WriteTag(48);
+                writer.WriteTag(51);
                 WriteCloudEntitlementChecked(writer, member);
                 break;
             case CloudSeedReplaced member:
-                writer.WriteTag(49);
+                writer.WriteTag(52);
                 WriteCloudSeedReplaced(writer, member);
                 break;
             case CloudStepFailed member:
-                writer.WriteTag(50);
+                writer.WriteTag(53);
                 WriteCloudStepFailed(writer, member);
                 break;
             case CloudTransportPulled member:
-                writer.WriteTag(51);
+                writer.WriteTag(54);
                 WriteCloudTransportPulled(writer, member);
                 break;
             case CloudTransportReported member:
-                writer.WriteTag(52);
+                writer.WriteTag(55);
                 WriteCloudTransportReported(writer, member);
                 break;
             case CloudTransportStarted member:
-                writer.WriteTag(53);
+                writer.WriteTag(56);
                 WriteCloudTransportStarted(writer, member);
                 break;
             case CloudTransportSynced member:
-                writer.WriteTag(54);
+                writer.WriteTag(57);
                 WriteCloudTransportSynced(writer, member);
                 break;
             case CollapseFolder member:
-                writer.WriteTag(55);
+                writer.WriteTag(58);
                 WriteCollapseFolder(writer, member);
                 break;
             case ConfigureCloudSync member:
-                writer.WriteTag(56);
+                writer.WriteTag(59);
                 WriteConfigureCloudSync(writer, member);
                 break;
+            case ContinueImport member:
+                writer.WriteTag(60);
+                WriteContinueImport(writer, member);
+                break;
             case CreateFolder member:
-                writer.WriteTag(57);
+                writer.WriteTag(61);
                 WriteCreateFolder(writer, member);
                 break;
             case CreateSpace member:
-                writer.WriteTag(58);
+                writer.WriteTag(62);
                 WriteCreateSpace(writer, member);
                 break;
+            case CustomizeImportSpace member:
+                writer.WriteTag(63);
+                WriteCustomizeImportSpace(writer, member);
+                break;
             case CustomizeSetupSpace member:
-                writer.WriteTag(59);
+                writer.WriteTag(64);
                 WriteCustomizeSetupSpace(writer, member);
                 break;
             case DecideSitePermission member:
-                writer.WriteTag(60);
+                writer.WriteTag(65);
                 WriteDecideSitePermission(writer, member);
                 break;
             case DeleteFolder member:
-                writer.WriteTag(61);
+                writer.WriteTag(66);
                 WriteDeleteFolder(writer, member);
                 break;
             case DeleteTab member:
-                writer.WriteTag(62);
+                writer.WriteTag(67);
                 WriteDeleteTab(writer, member);
                 break;
             case DeleteTabs member:
-                writer.WriteTag(63);
+                writer.WriteTag(68);
                 WriteDeleteTabs(writer, member);
                 break;
-            case DiscardManualSetup member:
-                writer.WriteTag(64);
-                WriteDiscardManualSetup(writer, member);
-                break;
             case DismissShownTab member:
-                writer.WriteTag(65);
+                writer.WriteTag(69);
                 WriteDismissShownTab(writer, member);
                 break;
             case DissolveSplit member:
-                writer.WriteTag(66);
+                writer.WriteTag(70);
                 WriteDissolveSplit(writer, member);
                 break;
             case DropAroundTab member:
-                writer.WriteTag(67);
+                writer.WriteTag(71);
                 WriteDropAroundTab(writer, member);
                 break;
             case DropIntoList member:
-                writer.WriteTag(68);
+                writer.WriteTag(72);
                 WriteDropIntoList(writer, member);
                 break;
             case DropIntoSplit member:
-                writer.WriteTag(69);
+                writer.WriteTag(73);
                 WriteDropIntoSplit(writer, member);
                 break;
             case DropOnSpace member:
-                writer.WriteTag(70);
+                writer.WriteTag(74);
                 WriteDropOnSpace(writer, member);
                 break;
             case DuplicateTab member:
-                writer.WriteTag(71);
+                writer.WriteTag(75);
                 WriteDuplicateTab(writer, member);
                 break;
             case DuplicateTabs member:
-                writer.WriteTag(72);
+                writer.WriteTag(76);
                 WriteDuplicateTabs(writer, member);
                 break;
             case EditLinkRoute member:
-                writer.WriteTag(73);
+                writer.WriteTag(77);
                 WriteEditLinkRoute(writer, member);
                 break;
             case ExpandSavedTabs member:
-                writer.WriteTag(74);
+                writer.WriteTag(78);
                 WriteExpandSavedTabs(writer, member);
                 break;
             case ExpireDownloads member:
-                writer.WriteTag(75);
+                writer.WriteTag(79);
                 WriteExpireDownloads(writer, member);
                 break;
             case FailDownload member:
-                writer.WriteTag(76);
+                writer.WriteTag(80);
                 WriteFailDownload(writer, member);
                 break;
+            case FailImport member:
+                writer.WriteTag(81);
+                WriteFailImport(writer, member);
+                break;
             case FileTabs member:
-                writer.WriteTag(77);
+                writer.WriteTag(82);
                 WriteFileTabs(writer, member);
                 break;
             case FinishCloudMerge member:
-                writer.WriteTag(78);
+                writer.WriteTag(83);
                 WriteFinishCloudMerge(writer, member);
                 break;
             case FinishDeletingSpace member:
-                writer.WriteTag(79);
+                writer.WriteTag(84);
                 WriteFinishDeletingSpace(writer, member);
                 break;
             case FinishDownload member:
-                writer.WriteTag(80);
+                writer.WriteTag(85);
                 WriteFinishDownload(writer, member);
                 break;
+            case FinishImportCommit member:
+                writer.WriteTag(86);
+                WriteFinishImportCommit(writer, member);
+                break;
+            case FinishSetup member:
+                writer.WriteTag(87);
+                WriteFinishSetup(writer, member);
+                break;
             case FinishUnlockingSpace member:
-                writer.WriteTag(81);
+                writer.WriteTag(88);
                 WriteFinishUnlockingSpace(writer, member);
                 break;
             case FolderTabs member:
-                writer.WriteTag(82);
+                writer.WriteTag(89);
                 WriteFolderTabs(writer, member);
                 break;
             case FolderTabsAround member:
-                writer.WriteTag(83);
+                writer.WriteTag(90);
                 WriteFolderTabsAround(writer, member);
                 break;
             case ForgetCloudZone member:
-                writer.WriteTag(84);
+                writer.WriteTag(91);
                 WriteForgetCloudZone(writer, member);
                 break;
             case ImportAppPreferences member:
-                writer.WriteTag(85);
+                writer.WriteTag(92);
                 WriteImportAppPreferences(writer, member);
                 break;
             case ImportReviewedSpaces member:
-                writer.WriteTag(86);
+                writer.WriteTag(93);
                 WriteImportReviewedSpaces(writer, member);
                 break;
             case ImportSpaces member:
-                writer.WriteTag(87);
+                writer.WriteTag(94);
                 WriteImportSpaces(writer, member);
                 break;
+            case IncludeImportPasswords member:
+                writer.WriteTag(95);
+                WriteIncludeImportPasswords(writer, member);
+                break;
+            case IncludeImportSpace member:
+                writer.WriteTag(96);
+                WriteIncludeImportSpace(writer, member);
+                break;
+            case IncludeImportTabs member:
+                writer.WriteTag(97);
+                WriteIncludeImportTabs(writer, member);
+                break;
             case JoinSplit member:
-                writer.WriteTag(88);
+                writer.WriteTag(98);
                 WriteJoinSplit(writer, member);
                 break;
             case KeepPageLoaded member:
-                writer.WriteTag(89);
+                writer.WriteTag(99);
                 WriteKeepPageLoaded(writer, member);
                 break;
             case KeepTabsLoaded member:
-                writer.WriteTag(90);
+                writer.WriteTag(100);
                 WriteKeepTabsLoaded(writer, member);
                 break;
             case LeavePageFailure member:
-                writer.WriteTag(91);
+                writer.WriteTag(101);
                 WriteLeavePageFailure(writer, member);
                 break;
             case LeaveSplit member:
-                writer.WriteTag(92);
+                writer.WriteTag(102);
                 WriteLeaveSplit(writer, member);
                 break;
             case LockAllSpaces member:
-                writer.WriteTag(93);
+                writer.WriteTag(103);
                 WriteLockAllSpaces(writer, member);
                 break;
             case LockSpace member:
-                writer.WriteTag(94);
+                writer.WriteTag(104);
                 WriteLockSpace(writer, member);
                 break;
             case MergeCloudSnapshot member:
-                writer.WriteTag(95);
+                writer.WriteTag(105);
                 WriteMergeCloudSnapshot(writer, member);
                 break;
             case MergeSyncRecords member:
-                writer.WriteTag(96);
+                writer.WriteTag(106);
                 WriteMergeSyncRecords(writer, member);
                 break;
             case MoveFolder member:
-                writer.WriteTag(97);
+                writer.WriteTag(107);
                 WriteMoveFolder(writer, member);
                 break;
             case MoveLinkRoute member:
-                writer.WriteTag(98);
+                writer.WriteTag(108);
                 WriteMoveLinkRoute(writer, member);
                 break;
             case MovePage member:
-                writer.WriteTag(99);
+                writer.WriteTag(109);
                 WriteMovePage(writer, member);
                 break;
             case MoveSetupSpace member:
-                writer.WriteTag(100);
+                writer.WriteTag(110);
                 WriteMoveSetupSpace(writer, member);
                 break;
             case MoveSplit member:
-                writer.WriteTag(101);
+                writer.WriteTag(111);
                 WriteMoveSplit(writer, member);
                 break;
             case MoveSplitMember member:
-                writer.WriteTag(102);
+                writer.WriteTag(112);
                 WriteMoveSplitMember(writer, member);
                 break;
             case MoveTab member:
-                writer.WriteTag(103);
+                writer.WriteTag(113);
                 WriteMoveTab(writer, member);
                 break;
             case MoveTabToSpace member:
-                writer.WriteTag(104);
+                writer.WriteTag(114);
                 WriteMoveTabToSpace(writer, member);
                 break;
             case MoveTabToWindow member:
-                writer.WriteTag(105);
+                writer.WriteTag(115);
                 WriteMoveTabToWindow(writer, member);
                 break;
             case MoveTabsToSpace member:
-                writer.WriteTag(106);
+                writer.WriteTag(116);
                 WriteMoveTabsToSpace(writer, member);
                 break;
             case NameSplit member:
-                writer.WriteTag(107);
+                writer.WriteTag(117);
                 WriteNameSplit(writer, member);
                 break;
             case Navigate member:
-                writer.WriteTag(108);
+                writer.WriteTag(118);
                 WriteNavigate(writer, member);
                 break;
             case NavigateTab member:
-                writer.WriteTag(109);
+                writer.WriteTag(119);
                 WriteNavigateTab(writer, member);
                 break;
             case NotifyCloudLocalChanges member:
-                writer.WriteTag(110);
+                writer.WriteTag(120);
                 WriteNotifyCloudLocalChanges(writer, member);
                 break;
             case ObserveCloudAccountAvailability member:
-                writer.WriteTag(111);
+                writer.WriteTag(121);
                 WriteObserveCloudAccountAvailability(writer, member);
                 break;
             case ObserveCloudAccountChange member:
-                writer.WriteTag(112);
+                writer.WriteTag(122);
                 WriteObserveCloudAccountChange(writer, member);
                 break;
+            case OfferImportSources member:
+                writer.WriteTag(123);
+                WriteOfferImportSources(writer, member);
+                break;
             case OpenAddress member:
-                writer.WriteTag(113);
+                writer.WriteTag(124);
                 WriteOpenAddress(writer, member);
                 break;
             case OpenCloudTransport member:
-                writer.WriteTag(114);
+                writer.WriteTag(125);
                 WriteOpenCloudTransport(writer, member);
                 break;
             case OpenLinkInSplit member:
-                writer.WriteTag(115);
+                writer.WriteTag(126);
                 WriteOpenLinkInSplit(writer, member);
                 break;
             case OpenPage member:
-                writer.WriteTag(116);
+                writer.WriteTag(127);
                 WriteOpenPage(writer, member);
                 break;
             case OpenTab member:
-                writer.WriteTag(117);
+                writer.WriteTag(128);
                 WriteOpenTab(writer, member);
                 break;
             case OpenWindow member:
-                writer.WriteTag(118);
+                writer.WriteTag(129);
                 WriteOpenWindow(writer, member);
                 break;
             case OpenWorkspace member:
-                writer.WriteTag(119);
+                writer.WriteTag(130);
                 WriteOpenWorkspace(writer, member);
                 break;
             case OverwriteCloud member:
-                writer.WriteTag(120);
+                writer.WriteTag(131);
                 WriteOverwriteCloud(writer, member);
                 break;
+            case PlaceImportTab member:
+                writer.WriteTag(132);
+                WritePlaceImportTab(writer, member);
+                break;
             case PrepareToClosePages member:
-                writer.WriteTag(121);
+                writer.WriteTag(133);
                 WritePrepareToClosePages(writer, member);
                 break;
             case PrepareToCloseWindows member:
-                writer.WriteTag(122);
+                writer.WriteTag(134);
                 WritePrepareToCloseWindows(writer, member);
                 break;
             case PrepareToQuit member:
-                writer.WriteTag(123);
+                writer.WriteTag(135);
                 WritePrepareToQuit(writer, member);
                 break;
             case PromoteTransientPage member:
-                writer.WriteTag(124);
+                writer.WriteTag(136);
                 WritePromoteTransientPage(writer, member);
                 break;
             case ReassignShortcut member:
-                writer.WriteTag(125);
+                writer.WriteTag(137);
                 WriteReassignShortcut(writer, member);
                 break;
             case RecordCloudFields member:
-                writer.WriteTag(126);
+                writer.WriteTag(138);
                 WriteRecordCloudFields(writer, member);
                 break;
             case RecordDownloadTransfer member:
-                writer.WriteTag(127);
+                writer.WriteTag(139);
                 WriteRecordDownloadTransfer(writer, member);
                 break;
             case ReleasePage member:
-                writer.WriteTag(128);
+                writer.WriteTag(140);
                 WriteReleasePage(writer, member);
                 break;
             case RememberQuickWindowSpace member:
-                writer.WriteTag(129);
+                writer.WriteTag(141);
                 WriteRememberQuickWindowSpace(writer, member);
                 break;
             case RemoveDownload member:
-                writer.WriteTag(130);
+                writer.WriteTag(142);
                 WriteRemoveDownload(writer, member);
                 break;
             case RemoveHistoryAddress member:
-                writer.WriteTag(131);
+                writer.WriteTag(143);
                 WriteRemoveHistoryAddress(writer, member);
                 break;
             case RemoveHistoryRange member:
-                writer.WriteTag(132);
+                writer.WriteTag(144);
                 WriteRemoveHistoryRange(writer, member);
                 break;
             case RemoveLinkRoute member:
-                writer.WriteTag(133);
+                writer.WriteTag(145);
                 WriteRemoveLinkRoute(writer, member);
                 break;
             case RemoveProfileDownloads member:
-                writer.WriteTag(134);
+                writer.WriteTag(146);
                 WriteRemoveProfileDownloads(writer, member);
                 break;
             case RemoveSearchEngine member:
-                writer.WriteTag(135);
+                writer.WriteTag(147);
                 WriteRemoveSearchEngine(writer, member);
                 break;
             case RemoveSetupSpace member:
-                writer.WriteTag(136);
+                writer.WriteTag(148);
                 WriteRemoveSetupSpace(writer, member);
                 break;
             case RenameFolder member:
-                writer.WriteTag(137);
+                writer.WriteTag(149);
                 WriteRenameFolder(writer, member);
                 break;
             case RenameTab member:
-                writer.WriteTag(138);
+                writer.WriteTag(150);
                 WriteRenameTab(writer, member);
                 break;
             case ReopenClosedTab member:
-                writer.WriteTag(139);
+                writer.WriteTag(151);
                 WriteReopenClosedTab(writer, member);
                 break;
             case ReorderSpaces member:
-                writer.WriteTag(140);
+                writer.WriteTag(152);
                 WriteReorderSpaces(writer, member);
                 break;
             case ReplaceSavedAddress member:
-                writer.WriteTag(141);
+                writer.WriteTag(153);
                 WriteReplaceSavedAddress(writer, member);
                 break;
             case ReplaceSeedWithCloudRecords member:
-                writer.WriteTag(142);
+                writer.WriteTag(154);
                 WriteReplaceSeedWithCloudRecords(writer, member);
                 break;
             case ReplaceWithCloudRecords member:
-                writer.WriteTag(143);
+                writer.WriteTag(155);
                 WriteReplaceWithCloudRecords(writer, member);
                 break;
             case ReportMemoryPressure member:
-                writer.WriteTag(144);
+                writer.WriteTag(156);
                 WriteReportMemoryPressure(writer, member);
                 break;
             case RequestCloudPull member:
-                writer.WriteTag(145);
+                writer.WriteTag(157);
                 WriteRequestCloudPull(writer, member);
                 break;
             case RequestCloudSync member:
-                writer.WriteTag(146);
+                writer.WriteTag(158);
                 WriteRequestCloudSync(writer, member);
                 break;
             case ResetCloudTransport member:
-                writer.WriteTag(147);
+                writer.WriteTag(159);
                 WriteResetCloudTransport(writer, member);
                 break;
             case ResetPrivateBrowsing member:
-                writer.WriteTag(148);
+                writer.WriteTag(160);
                 WriteResetPrivateBrowsing(writer, member);
                 break;
             case ResetShortcut member:
-                writer.WriteTag(149);
+                writer.WriteTag(161);
                 WriteResetShortcut(writer, member);
                 break;
             case ResetShortcuts member:
-                writer.WriteTag(150);
+                writer.WriteTag(162);
                 WriteResetShortcuts(writer, member);
                 break;
             case ResetSitePermission member:
-                writer.WriteTag(151);
+                writer.WriteTag(163);
                 WriteResetSitePermission(writer, member);
                 break;
             case ResetSpacePermissions member:
-                writer.WriteTag(152);
+                writer.WriteTag(164);
                 WriteResetSpacePermissions(writer, member);
                 break;
             case ResizeSplitColumns member:
-                writer.WriteTag(153);
+                writer.WriteTag(165);
                 WriteResizeSplitColumns(writer, member);
                 break;
             case RestartCloudSyncAfterAccountChange member:
-                writer.WriteTag(154);
+                writer.WriteTag(166);
                 WriteRestartCloudSyncAfterAccountChange(writer, member);
                 break;
             case RestartDownload member:
-                writer.WriteTag(155);
+                writer.WriteTag(167);
                 WriteRestartDownload(writer, member);
                 break;
             case RestoreArchivedTab member:
-                writer.WriteTag(156);
+                writer.WriteTag(168);
                 WriteRestoreArchivedTab(writer, member);
                 break;
             case RetryCloudSync member:
-                writer.WriteTag(157);
+                writer.WriteTag(169);
                 WriteRetryCloudSync(writer, member);
                 break;
             case ReturnToSavedAddress member:
-                writer.WriteTag(158);
+                writer.WriteTag(170);
                 WriteReturnToSavedAddress(writer, member);
                 break;
+            case ReviewImport member:
+                writer.WriteTag(171);
+                WriteReviewImport(writer, member);
+                break;
             case SaveCloudEngineState member:
-                writer.WriteTag(159);
+                writer.WriteTag(172);
                 WriteSaveCloudEngineState(writer, member);
                 break;
             case SelectSearchEngine member:
-                writer.WriteTag(160);
+                writer.WriteTag(173);
                 WriteSelectSearchEngine(writer, member);
                 break;
             case SeparateSplits member:
-                writer.WriteTag(161);
+                writer.WriteTag(174);
                 WriteSeparateSplits(writer, member);
                 break;
             case SetAppPreferences member:
-                writer.WriteTag(162);
+                writer.WriteTag(175);
                 WriteSetAppPreferences(writer, member);
                 break;
             case SetBrowsingPreferences member:
-                writer.WriteTag(163);
+                writer.WriteTag(176);
                 WriteSetBrowsingPreferences(writer, member);
                 break;
             case SetCloudSyncEnabled member:
-                writer.WriteTag(164);
+                writer.WriteTag(177);
                 WriteSetCloudSyncEnabled(writer, member);
                 break;
             case SetCredentialPreferences member:
-                writer.WriteTag(165);
+                writer.WriteTag(178);
                 WriteSetCredentialPreferences(writer, member);
                 break;
             case SetDefaultSpace member:
-                writer.WriteTag(166);
+                writer.WriteTag(179);
                 WriteSetDefaultSpace(writer, member);
                 break;
             case SetDownloadDestination member:
-                writer.WriteTag(167);
+                writer.WriteTag(180);
                 WriteSetDownloadDestination(writer, member);
                 break;
             case SetFolderColor member:
-                writer.WriteTag(168);
+                writer.WriteTag(181);
                 WriteSetFolderColor(writer, member);
                 break;
             case SetFolderSymbol member:
-                writer.WriteTag(169);
+                writer.WriteTag(182);
                 WriteSetFolderSymbol(writer, member);
                 break;
             case SetLinkBehavior member:
-                writer.WriteTag(170);
+                writer.WriteTag(183);
                 WriteSetLinkBehavior(writer, member);
                 break;
             case SetSpaceAccess member:
-                writer.WriteTag(171);
+                writer.WriteTag(184);
                 WriteSetSpaceAccess(writer, member);
                 break;
             case SetSpaceBranding member:
-                writer.WriteTag(172);
+                writer.WriteTag(185);
                 WriteSetSpaceBranding(writer, member);
                 break;
             case SetSpaceIdentity member:
-                writer.WriteTag(173);
+                writer.WriteTag(186);
                 WriteSetSpaceIdentity(writer, member);
                 break;
             case SetSplitIcon member:
-                writer.WriteTag(174);
+                writer.WriteTag(187);
                 WriteSetSplitIcon(writer, member);
                 break;
             case SetTranslationRule member:
-                writer.WriteTag(175);
+                writer.WriteTag(188);
                 WriteSetTranslationRule(writer, member);
                 break;
             case SettleCloudOverwrite member:
-                writer.WriteTag(176);
+                writer.WriteTag(189);
                 WriteSettleCloudOverwrite(writer, member);
                 break;
             case ShowAdjacentSpace member:
-                writer.WriteTag(177);
+                writer.WriteTag(190);
                 WriteShowAdjacentSpace(writer, member);
                 break;
             case ShowAdjacentTab member:
-                writer.WriteTag(178);
+                writer.WriteTag(191);
                 WriteShowAdjacentTab(writer, member);
                 break;
+            case ShowImportSpace member:
+                writer.WriteTag(192);
+                WriteShowImportSpace(writer, member);
+                break;
             case ShowMostRecentTab member:
-                writer.WriteTag(179);
+                writer.WriteTag(193);
                 WriteShowMostRecentTab(writer, member);
                 break;
+            case ShowSetupStep member:
+                writer.WriteTag(194);
+                WriteShowSetupStep(writer, member);
+                break;
             case ShowSpace member:
-                writer.WriteTag(180);
+                writer.WriteTag(195);
                 WriteShowSpace(writer, member);
                 break;
             case ShowStartPage member:
-                writer.WriteTag(181);
+                writer.WriteTag(196);
                 WriteShowStartPage(writer, member);
                 break;
             case ShowTab member:
-                writer.WriteTag(182);
+                writer.WriteTag(197);
                 WriteShowTab(writer, member);
                 break;
             case SplitTabs member:
-                writer.WriteTag(183);
+                writer.WriteTag(198);
                 WriteSplitTabs(writer, member);
                 break;
             case StartCloudSync member:
-                writer.WriteTag(184);
+                writer.WriteTag(199);
                 WriteStartCloudSync(writer, member);
                 break;
+            case StartSetup member:
+                writer.WriteTag(200);
+                WriteStartSetup(writer, member);
+                break;
             case StepSplitMember member:
-                writer.WriteTag(185);
+                writer.WriteTag(201);
                 WriteStepSplitMember(writer, member);
                 break;
             case SweepExpiredRecords member:
-                writer.WriteTag(186);
+                writer.WriteTag(202);
                 WriteSweepExpiredRecords(writer, member);
                 break;
             case TintSplit member:
-                writer.WriteTag(187);
+                writer.WriteTag(203);
                 WriteTintSplit(writer, member);
                 break;
+            case ToggleImportSource member:
+                writer.WriteTag(204);
+                WriteToggleImportSource(writer, member);
+                break;
             case TogglePin member:
-                writer.WriteTag(188);
+                writer.WriteTag(205);
                 WriteTogglePin(writer, member);
                 break;
             case UnassignShortcut member:
-                writer.WriteTag(189);
+                writer.WriteTag(206);
                 WriteUnassignShortcut(writer, member);
                 break;
             case UpdateSearchEngine member:
-                writer.WriteTag(190);
+                writer.WriteTag(207);
                 WriteUpdateSearchEngine(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Intent.");
@@ -1021,29 +1106,32 @@ public static class ContractCodec {
             case 23: return ReadSaved(reader);
             case 24: return ReadScriptDialogAsked(reader);
             case 25: return ReadSessionAdopted(reader);
-            case 26: return ReadSetupDraftChanged(reader);
-            case 27: return ReadShortcutsChanged(reader);
-            case 28: return ReadSidebarChanged(reader);
-            case 29: return ReadSitePermissionsChanged(reader);
-            case 30: return ReadSpaceLockChanged(reader);
-            case 31: return ReadSpaceSettingsChanged(reader);
-            case 32: return ReadSpacesChanged(reader);
-            case 33: return ReadSplitGroupsChanged(reader);
-            case 34: return ReadStorageFailed(reader);
-            case 35: return ReadSyncJournalChanged(reader);
-            case 36: return ReadSyncRecordsSkipped(reader);
-            case 37: return ReadSyncStagingFailed(reader);
-            case 38: return ReadTabCopied(reader);
-            case 39: return ReadTabFaviconAssigned(reader);
-            case 40: return ReadTabsChanged(reader);
-            case 41: return ReadTabsImported(reader);
-            case 42: return ReadTransientPagePromoted(reader);
-            case 43: return ReadWindowChanged(reader);
-            case 44: return ReadWindowClosed(reader);
-            case 45: return ReadWindowRecordsAdopted(reader);
-            case 46: return ReadWorkspaceChanged(reader);
-            case 47: return ReadWorkspaceClosed(reader);
-            case 48: return ReadWorkspaceOpened(reader);
+            case 26: return ReadSetupCompletedChanged(reader);
+            case 27: return ReadSetupDraftChanged(reader);
+            case 28: return ReadSetupFinished(reader);
+            case 29: return ReadSetupFlowChanged(reader);
+            case 30: return ReadShortcutsChanged(reader);
+            case 31: return ReadSidebarChanged(reader);
+            case 32: return ReadSitePermissionsChanged(reader);
+            case 33: return ReadSpaceLockChanged(reader);
+            case 34: return ReadSpaceSettingsChanged(reader);
+            case 35: return ReadSpacesChanged(reader);
+            case 36: return ReadSplitGroupsChanged(reader);
+            case 37: return ReadStorageFailed(reader);
+            case 38: return ReadSyncJournalChanged(reader);
+            case 39: return ReadSyncRecordsSkipped(reader);
+            case 40: return ReadSyncStagingFailed(reader);
+            case 41: return ReadTabCopied(reader);
+            case 42: return ReadTabFaviconAssigned(reader);
+            case 43: return ReadTabsChanged(reader);
+            case 44: return ReadTabsImported(reader);
+            case 45: return ReadTransientPagePromoted(reader);
+            case 46: return ReadWindowChanged(reader);
+            case 47: return ReadWindowClosed(reader);
+            case 48: return ReadWindowRecordsAdopted(reader);
+            case 49: return ReadWorkspaceChanged(reader);
+            case 50: return ReadWorkspaceClosed(reader);
+            case 51: return ReadWorkspaceOpened(reader);
             default: throw new WireFormatException($"Unknown Change tag {tag}.");
         }
     }
@@ -1156,96 +1244,108 @@ public static class ContractCodec {
                 writer.WriteTag(25);
                 WriteSessionAdopted(writer, member);
                 break;
-            case SetupDraftChanged member:
+            case SetupCompletedChanged member:
                 writer.WriteTag(26);
+                WriteSetupCompletedChanged(writer, member);
+                break;
+            case SetupDraftChanged member:
+                writer.WriteTag(27);
                 WriteSetupDraftChanged(writer, member);
                 break;
+            case SetupFinished member:
+                writer.WriteTag(28);
+                WriteSetupFinished(writer, member);
+                break;
+            case SetupFlowChanged member:
+                writer.WriteTag(29);
+                WriteSetupFlowChanged(writer, member);
+                break;
             case ShortcutsChanged member:
-                writer.WriteTag(27);
+                writer.WriteTag(30);
                 WriteShortcutsChanged(writer, member);
                 break;
             case SidebarChanged member:
-                writer.WriteTag(28);
+                writer.WriteTag(31);
                 WriteSidebarChanged(writer, member);
                 break;
             case SitePermissionsChanged member:
-                writer.WriteTag(29);
+                writer.WriteTag(32);
                 WriteSitePermissionsChanged(writer, member);
                 break;
             case SpaceLockChanged member:
-                writer.WriteTag(30);
+                writer.WriteTag(33);
                 WriteSpaceLockChanged(writer, member);
                 break;
             case SpaceSettingsChanged member:
-                writer.WriteTag(31);
+                writer.WriteTag(34);
                 WriteSpaceSettingsChanged(writer, member);
                 break;
             case SpacesChanged member:
-                writer.WriteTag(32);
+                writer.WriteTag(35);
                 WriteSpacesChanged(writer, member);
                 break;
             case SplitGroupsChanged member:
-                writer.WriteTag(33);
+                writer.WriteTag(36);
                 WriteSplitGroupsChanged(writer, member);
                 break;
             case StorageFailed member:
-                writer.WriteTag(34);
+                writer.WriteTag(37);
                 WriteStorageFailed(writer, member);
                 break;
             case SyncJournalChanged member:
-                writer.WriteTag(35);
+                writer.WriteTag(38);
                 WriteSyncJournalChanged(writer, member);
                 break;
             case SyncRecordsSkipped member:
-                writer.WriteTag(36);
+                writer.WriteTag(39);
                 WriteSyncRecordsSkipped(writer, member);
                 break;
             case SyncStagingFailed member:
-                writer.WriteTag(37);
+                writer.WriteTag(40);
                 WriteSyncStagingFailed(writer, member);
                 break;
             case TabCopied member:
-                writer.WriteTag(38);
+                writer.WriteTag(41);
                 WriteTabCopied(writer, member);
                 break;
             case TabFaviconAssigned member:
-                writer.WriteTag(39);
+                writer.WriteTag(42);
                 WriteTabFaviconAssigned(writer, member);
                 break;
             case TabsChanged member:
-                writer.WriteTag(40);
+                writer.WriteTag(43);
                 WriteTabsChanged(writer, member);
                 break;
             case TabsImported member:
-                writer.WriteTag(41);
+                writer.WriteTag(44);
                 WriteTabsImported(writer, member);
                 break;
             case TransientPagePromoted member:
-                writer.WriteTag(42);
+                writer.WriteTag(45);
                 WriteTransientPagePromoted(writer, member);
                 break;
             case WindowChanged member:
-                writer.WriteTag(43);
+                writer.WriteTag(46);
                 WriteWindowChanged(writer, member);
                 break;
             case WindowClosed member:
-                writer.WriteTag(44);
+                writer.WriteTag(47);
                 WriteWindowClosed(writer, member);
                 break;
             case WindowRecordsAdopted member:
-                writer.WriteTag(45);
+                writer.WriteTag(48);
                 WriteWindowRecordsAdopted(writer, member);
                 break;
             case WorkspaceChanged member:
-                writer.WriteTag(46);
+                writer.WriteTag(49);
                 WriteWorkspaceChanged(writer, member);
                 break;
             case WorkspaceClosed member:
-                writer.WriteTag(47);
+                writer.WriteTag(50);
                 WriteWorkspaceClosed(writer, member);
                 break;
             case WorkspaceOpened member:
-                writer.WriteTag(48);
+                writer.WriteTag(51);
                 WriteWorkspaceOpened(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Change.");
@@ -1287,113 +1387,116 @@ public static class ContractCodec {
             case 29: return ReadFolderCycle(reader);
             case 30: return ReadFolderDepthLimitReached(reader);
             case 31: return ReadFolderLimitReached(reader);
-            case 32: return ReadIncompleteSplit(reader);
-            case 33: return ReadInvalidBlockedPopup(reader);
-            case 34: return ReadInvalidCredentialDate(reader);
-            case 35: return ReadInvalidCredentialOrigin(reader);
-            case 36: return ReadInvalidCredentialRecord(reader);
-            case 37: return ReadInvalidCredentialUsername(reader);
-            case 38: return ReadInvalidDateRange(reader);
-            case 39: return ReadInvalidDownloadIdentity(reader);
-            case 40: return ReadInvalidDownloadProgress(reader);
-            case 41: return ReadInvalidDownloadSample(reader);
-            case 42: return ReadInvalidDownloadText(reader);
-            case 43: return ReadInvalidFolderPlacement(reader);
-            case 44: return ReadInvalidFolderSymbol(reader);
-            case 45: return ReadInvalidImport(reader);
-            case 46: return ReadInvalidLinkRouteEdit(reader);
-            case 47: return ReadInvalidMediaSessionCount(reader);
-            case 48: return ReadInvalidName(reader);
-            case 49: return ReadInvalidPasswordLength(reader);
-            case 50: return ReadInvalidRetentionLifetime(reader);
-            case 51: return ReadInvalidSearchEngine(reader);
-            case 52: return ReadInvalidSession(reader);
-            case 53: return ReadInvalidShortcut(reader);
-            case 54: return ReadInvalidSiteOrigin(reader);
-            case 55: return ReadInvalidSitePermissionDetail(reader);
-            case 56: return ReadInvalidSpaceOrder(reader);
-            case 57: return ReadInvalidSplitColumnShares(reader);
-            case 58: return ReadInvalidSplitIcon(reader);
-            case 59: return ReadInvalidSyncRecords(reader);
-            case 60: return ReadInvalidTabIcon(reader);
-            case 61: return ReadLanguageTooLong(reader);
-            case 62: return ReadLastStartPage(reader);
-            case 63: return ReadLegacyCloudStateUnreadable(reader);
-            case 64: return ReadLinkPatternTooLong(reader);
-            case 65: return ReadLinkRouteExists(reader);
-            case 66: return ReadLinkRoutesFull(reader);
-            case 67: return ReadMediaSessionLimitReached(reader);
-            case 68: return ReadNoArchivedTabs(reader);
-            case 69: return ReadNoCurrentTabs(reader);
-            case 70: return ReadNoIncludedSpaces(reader);
-            case 71: return ReadNoManualSetup(reader);
-            case 72: return ReadNoSavedAddress(reader);
-            case 73: return ReadNoSplitStep(reader);
-            case 74: return ReadNoStoredSession(reader);
-            case 75: return ReadNotAnArchive(reader);
-            case 76: return ReadNotPrivateWorkspace(reader);
-            case 77: return ReadPageNotLoadable(reader);
-            case 78: return ReadPageProfileMismatch(reader);
-            case 79: return ReadPersistentWorkspaceRequired(reader);
-            case 80: return ReadPinnedTabsDragAlone(reader);
-            case 81: return ReadPinnedTabsFull(reader);
-            case 82: return ReadPinnedTabsStayPut(reader);
-            case 83: return ReadPinsOneTabAtATime(reader);
-            case 84: return ReadPrivateWorkspaceBoundary(reader);
-            case 85: return ReadProfileInUse(reader);
-            case 86: return ReadPromptAnswerMismatch(reader);
-            case 87: return ReadRecoveryCheckpointUnusable(reader);
-            case 88: return ReadSaveFailed(reader);
-            case 89: return ReadSearchEngineLimitReached(reader);
-            case 90: return ReadSelectionChanged(reader);
-            case 91: return ReadSelectionHoldsFolders(reader);
-            case 92: return ReadSessionEncrypted(reader);
-            case 93: return ReadSessionHasNoTabs(reader);
-            case 94: return ReadSessionOverLimits(reader);
-            case 95: return ReadSessionTooLarge(reader);
-            case 96: return ReadSessionUnrecognized(reader);
-            case 97: return ReadShortcutInUse(reader);
-            case 98: return ReadSitePermissionLimitReached(reader);
-            case 99: return ReadSpaceAlreadyExists(reader);
-            case 100: return ReadSpaceBeingDeleted(reader);
-            case 101: return ReadSpaceLimitReached(reader);
-            case 102: return ReadSpaceLocked(reader);
-            case 103: return ReadSpaceProfileChanged(reader);
-            case 104: return ReadSplitBoundary(reader);
-            case 105: return ReadSplitLimitReached(reader);
-            case 106: return ReadSplitNeedsTwoTabs(reader);
-            case 107: return ReadStaleCredentialComparison(reader);
-            case 108: return ReadStaleUnlockRequest(reader);
-            case 109: return ReadStartPageNotCopied(reader);
-            case 110: return ReadStorageFromNewerApp(reader);
-            case 111: return ReadStorageRestoreInterrupted(reader);
-            case 112: return ReadStorageUnreadable(reader);
-            case 113: return ReadStoredSessionClosed(reader);
-            case 114: return ReadSyncStagingRefused(reader);
-            case 115: return ReadTabAlreadyExists(reader);
-            case 116: return ReadTabAlreadyHasPage(reader);
-            case 117: return ReadTabLimitReached(reader);
-            case 118: return ReadTransientAlreadyCompleted(reader);
-            case 119: return ReadTranslationRuleLimitReached(reader);
-            case 120: return ReadUnknownArchivedTab(reader);
-            case 121: return ReadUnknownCloudMerge(reader);
-            case 122: return ReadUnknownFolder(reader);
-            case 123: return ReadUnknownLinkRoute(reader);
-            case 124: return ReadUnknownPage(reader);
-            case 125: return ReadUnknownPrompt(reader);
-            case 126: return ReadUnknownSearchEngine(reader);
-            case 127: return ReadUnknownSpace(reader);
-            case 128: return ReadUnknownSplitGroup(reader);
-            case 129: return ReadUnknownTab(reader);
-            case 130: return ReadUnknownWorkspace(reader);
-            case 131: return ReadUnrelatedWorkspaces(reader);
-            case 132: return ReadUnsavedWorkspace(reader);
-            case 133: return ReadUnsupportedAddress(reader);
-            case 134: return ReadUnsupportedArchiveVersion(reader);
-            case 135: return ReadWebPagesOnly(reader);
-            case 136: return ReadWindowNotOpen(reader);
-            case 137: return ReadWorkspaceBusy(reader);
-            case 138: return ReadWrongDeletionOperation(reader);
+            case 32: return ReadGuideSpaceLocked(reader);
+            case 33: return ReadIncompleteSplit(reader);
+            case 34: return ReadInvalidBlockedPopup(reader);
+            case 35: return ReadInvalidCredentialDate(reader);
+            case 36: return ReadInvalidCredentialOrigin(reader);
+            case 37: return ReadInvalidCredentialRecord(reader);
+            case 38: return ReadInvalidCredentialUsername(reader);
+            case 39: return ReadInvalidDateRange(reader);
+            case 40: return ReadInvalidDownloadIdentity(reader);
+            case 41: return ReadInvalidDownloadProgress(reader);
+            case 42: return ReadInvalidDownloadSample(reader);
+            case 43: return ReadInvalidDownloadText(reader);
+            case 44: return ReadInvalidFolderPlacement(reader);
+            case 45: return ReadInvalidFolderSymbol(reader);
+            case 46: return ReadInvalidImport(reader);
+            case 47: return ReadInvalidLinkRouteEdit(reader);
+            case 48: return ReadInvalidMediaSessionCount(reader);
+            case 49: return ReadInvalidName(reader);
+            case 50: return ReadInvalidPasswordLength(reader);
+            case 51: return ReadInvalidRetentionLifetime(reader);
+            case 52: return ReadInvalidSearchEngine(reader);
+            case 53: return ReadInvalidSession(reader);
+            case 54: return ReadInvalidShortcut(reader);
+            case 55: return ReadInvalidSiteOrigin(reader);
+            case 56: return ReadInvalidSitePermissionDetail(reader);
+            case 57: return ReadInvalidSpaceOrder(reader);
+            case 58: return ReadInvalidSplitColumnShares(reader);
+            case 59: return ReadInvalidSplitIcon(reader);
+            case 60: return ReadInvalidSyncRecords(reader);
+            case 61: return ReadInvalidTabIcon(reader);
+            case 62: return ReadLanguageTooLong(reader);
+            case 63: return ReadLastStartPage(reader);
+            case 64: return ReadLegacyCloudStateUnreadable(reader);
+            case 65: return ReadLinkPatternTooLong(reader);
+            case 66: return ReadLinkRouteExists(reader);
+            case 67: return ReadLinkRoutesFull(reader);
+            case 68: return ReadMediaSessionLimitReached(reader);
+            case 69: return ReadNoArchivedTabs(reader);
+            case 70: return ReadNoCurrentTabs(reader);
+            case 71: return ReadNoIncludedSpaces(reader);
+            case 72: return ReadNoManualSetup(reader);
+            case 73: return ReadNoSavedAddress(reader);
+            case 74: return ReadNoSetup(reader);
+            case 75: return ReadNoSplitStep(reader);
+            case 76: return ReadNoStoredSession(reader);
+            case 77: return ReadNotAnArchive(reader);
+            case 78: return ReadNotPrivateWorkspace(reader);
+            case 79: return ReadPageNotLoadable(reader);
+            case 80: return ReadPageProfileMismatch(reader);
+            case 81: return ReadPersistentWorkspaceRequired(reader);
+            case 82: return ReadPinnedTabsDragAlone(reader);
+            case 83: return ReadPinnedTabsFull(reader);
+            case 84: return ReadPinnedTabsStayPut(reader);
+            case 85: return ReadPinsOneTabAtATime(reader);
+            case 86: return ReadPrivateWorkspaceBoundary(reader);
+            case 87: return ReadProfileInUse(reader);
+            case 88: return ReadPromptAnswerMismatch(reader);
+            case 89: return ReadRecoveryCheckpointUnusable(reader);
+            case 90: return ReadSaveFailed(reader);
+            case 91: return ReadSearchEngineLimitReached(reader);
+            case 92: return ReadSelectionChanged(reader);
+            case 93: return ReadSelectionHoldsFolders(reader);
+            case 94: return ReadSessionEncrypted(reader);
+            case 95: return ReadSessionHasNoTabs(reader);
+            case 96: return ReadSessionOverLimits(reader);
+            case 97: return ReadSessionTooLarge(reader);
+            case 98: return ReadSessionUnrecognized(reader);
+            case 99: return ReadSetupBusy(reader);
+            case 100: return ReadShortcutInUse(reader);
+            case 101: return ReadSitePermissionLimitReached(reader);
+            case 102: return ReadSpaceAlreadyExists(reader);
+            case 103: return ReadSpaceBeingDeleted(reader);
+            case 104: return ReadSpaceLimitReached(reader);
+            case 105: return ReadSpaceLocked(reader);
+            case 106: return ReadSpaceProfileChanged(reader);
+            case 107: return ReadSplitBoundary(reader);
+            case 108: return ReadSplitLimitReached(reader);
+            case 109: return ReadSplitNeedsTwoTabs(reader);
+            case 110: return ReadStaleCredentialComparison(reader);
+            case 111: return ReadStaleUnlockRequest(reader);
+            case 112: return ReadStartPageNotCopied(reader);
+            case 113: return ReadStorageFromNewerApp(reader);
+            case 114: return ReadStorageRestoreInterrupted(reader);
+            case 115: return ReadStorageUnreadable(reader);
+            case 116: return ReadStoredSessionClosed(reader);
+            case 117: return ReadSyncStagingRefused(reader);
+            case 118: return ReadTabAlreadyExists(reader);
+            case 119: return ReadTabAlreadyHasPage(reader);
+            case 120: return ReadTabLimitReached(reader);
+            case 121: return ReadTransientAlreadyCompleted(reader);
+            case 122: return ReadTranslationRuleLimitReached(reader);
+            case 123: return ReadUnknownArchivedTab(reader);
+            case 124: return ReadUnknownCloudMerge(reader);
+            case 125: return ReadUnknownFolder(reader);
+            case 126: return ReadUnknownLinkRoute(reader);
+            case 127: return ReadUnknownPage(reader);
+            case 128: return ReadUnknownPrompt(reader);
+            case 129: return ReadUnknownSearchEngine(reader);
+            case 130: return ReadUnknownSpace(reader);
+            case 131: return ReadUnknownSplitGroup(reader);
+            case 132: return ReadUnknownTab(reader);
+            case 133: return ReadUnknownWorkspace(reader);
+            case 134: return ReadUnrelatedWorkspaces(reader);
+            case 135: return ReadUnsavedWorkspace(reader);
+            case 136: return ReadUnsupportedAddress(reader);
+            case 137: return ReadUnsupportedArchiveVersion(reader);
+            case 138: return ReadWebPagesOnly(reader);
+            case 139: return ReadWindowNotOpen(reader);
+            case 140: return ReadWorkspaceBusy(reader);
+            case 141: return ReadWrongDeletionOperation(reader);
             default: throw new WireFormatException($"Unknown Rejection tag {tag}.");
         }
     }
@@ -1530,432 +1633,444 @@ public static class ContractCodec {
                 writer.WriteTag(31);
                 WriteFolderLimitReached(writer, member);
                 break;
-            case IncompleteSplit member:
+            case GuideSpaceLocked member:
                 writer.WriteTag(32);
+                WriteGuideSpaceLocked(writer, member);
+                break;
+            case IncompleteSplit member:
+                writer.WriteTag(33);
                 WriteIncompleteSplit(writer, member);
                 break;
             case InvalidBlockedPopup member:
-                writer.WriteTag(33);
+                writer.WriteTag(34);
                 WriteInvalidBlockedPopup(writer, member);
                 break;
             case InvalidCredentialDate member:
-                writer.WriteTag(34);
+                writer.WriteTag(35);
                 WriteInvalidCredentialDate(writer, member);
                 break;
             case InvalidCredentialOrigin member:
-                writer.WriteTag(35);
+                writer.WriteTag(36);
                 WriteInvalidCredentialOrigin(writer, member);
                 break;
             case InvalidCredentialRecord member:
-                writer.WriteTag(36);
+                writer.WriteTag(37);
                 WriteInvalidCredentialRecord(writer, member);
                 break;
             case InvalidCredentialUsername member:
-                writer.WriteTag(37);
+                writer.WriteTag(38);
                 WriteInvalidCredentialUsername(writer, member);
                 break;
             case InvalidDateRange member:
-                writer.WriteTag(38);
+                writer.WriteTag(39);
                 WriteInvalidDateRange(writer, member);
                 break;
             case InvalidDownloadIdentity member:
-                writer.WriteTag(39);
+                writer.WriteTag(40);
                 WriteInvalidDownloadIdentity(writer, member);
                 break;
             case InvalidDownloadProgress member:
-                writer.WriteTag(40);
+                writer.WriteTag(41);
                 WriteInvalidDownloadProgress(writer, member);
                 break;
             case InvalidDownloadSample member:
-                writer.WriteTag(41);
+                writer.WriteTag(42);
                 WriteInvalidDownloadSample(writer, member);
                 break;
             case InvalidDownloadText member:
-                writer.WriteTag(42);
+                writer.WriteTag(43);
                 WriteInvalidDownloadText(writer, member);
                 break;
             case InvalidFolderPlacement member:
-                writer.WriteTag(43);
+                writer.WriteTag(44);
                 WriteInvalidFolderPlacement(writer, member);
                 break;
             case InvalidFolderSymbol member:
-                writer.WriteTag(44);
+                writer.WriteTag(45);
                 WriteInvalidFolderSymbol(writer, member);
                 break;
             case InvalidImport member:
-                writer.WriteTag(45);
+                writer.WriteTag(46);
                 WriteInvalidImport(writer, member);
                 break;
             case InvalidLinkRouteEdit member:
-                writer.WriteTag(46);
+                writer.WriteTag(47);
                 WriteInvalidLinkRouteEdit(writer, member);
                 break;
             case InvalidMediaSessionCount member:
-                writer.WriteTag(47);
+                writer.WriteTag(48);
                 WriteInvalidMediaSessionCount(writer, member);
                 break;
             case InvalidName member:
-                writer.WriteTag(48);
+                writer.WriteTag(49);
                 WriteInvalidName(writer, member);
                 break;
             case InvalidPasswordLength member:
-                writer.WriteTag(49);
+                writer.WriteTag(50);
                 WriteInvalidPasswordLength(writer, member);
                 break;
             case InvalidRetentionLifetime member:
-                writer.WriteTag(50);
+                writer.WriteTag(51);
                 WriteInvalidRetentionLifetime(writer, member);
                 break;
             case InvalidSearchEngine member:
-                writer.WriteTag(51);
+                writer.WriteTag(52);
                 WriteInvalidSearchEngine(writer, member);
                 break;
             case InvalidSession member:
-                writer.WriteTag(52);
+                writer.WriteTag(53);
                 WriteInvalidSession(writer, member);
                 break;
             case InvalidShortcut member:
-                writer.WriteTag(53);
+                writer.WriteTag(54);
                 WriteInvalidShortcut(writer, member);
                 break;
             case InvalidSiteOrigin member:
-                writer.WriteTag(54);
+                writer.WriteTag(55);
                 WriteInvalidSiteOrigin(writer, member);
                 break;
             case InvalidSitePermissionDetail member:
-                writer.WriteTag(55);
+                writer.WriteTag(56);
                 WriteInvalidSitePermissionDetail(writer, member);
                 break;
             case InvalidSpaceOrder member:
-                writer.WriteTag(56);
+                writer.WriteTag(57);
                 WriteInvalidSpaceOrder(writer, member);
                 break;
             case InvalidSplitColumnShares member:
-                writer.WriteTag(57);
+                writer.WriteTag(58);
                 WriteInvalidSplitColumnShares(writer, member);
                 break;
             case InvalidSplitIcon member:
-                writer.WriteTag(58);
+                writer.WriteTag(59);
                 WriteInvalidSplitIcon(writer, member);
                 break;
             case InvalidSyncRecords member:
-                writer.WriteTag(59);
+                writer.WriteTag(60);
                 WriteInvalidSyncRecords(writer, member);
                 break;
             case InvalidTabIcon member:
-                writer.WriteTag(60);
+                writer.WriteTag(61);
                 WriteInvalidTabIcon(writer, member);
                 break;
             case LanguageTooLong member:
-                writer.WriteTag(61);
+                writer.WriteTag(62);
                 WriteLanguageTooLong(writer, member);
                 break;
             case LastStartPage member:
-                writer.WriteTag(62);
+                writer.WriteTag(63);
                 WriteLastStartPage(writer, member);
                 break;
             case LegacyCloudStateUnreadable member:
-                writer.WriteTag(63);
+                writer.WriteTag(64);
                 WriteLegacyCloudStateUnreadable(writer, member);
                 break;
             case LinkPatternTooLong member:
-                writer.WriteTag(64);
+                writer.WriteTag(65);
                 WriteLinkPatternTooLong(writer, member);
                 break;
             case LinkRouteExists member:
-                writer.WriteTag(65);
+                writer.WriteTag(66);
                 WriteLinkRouteExists(writer, member);
                 break;
             case LinkRoutesFull member:
-                writer.WriteTag(66);
+                writer.WriteTag(67);
                 WriteLinkRoutesFull(writer, member);
                 break;
             case MediaSessionLimitReached member:
-                writer.WriteTag(67);
+                writer.WriteTag(68);
                 WriteMediaSessionLimitReached(writer, member);
                 break;
             case NoArchivedTabs member:
-                writer.WriteTag(68);
+                writer.WriteTag(69);
                 WriteNoArchivedTabs(writer, member);
                 break;
             case NoCurrentTabs member:
-                writer.WriteTag(69);
+                writer.WriteTag(70);
                 WriteNoCurrentTabs(writer, member);
                 break;
             case NoIncludedSpaces member:
-                writer.WriteTag(70);
+                writer.WriteTag(71);
                 WriteNoIncludedSpaces(writer, member);
                 break;
             case NoManualSetup member:
-                writer.WriteTag(71);
+                writer.WriteTag(72);
                 WriteNoManualSetup(writer, member);
                 break;
             case NoSavedAddress member:
-                writer.WriteTag(72);
+                writer.WriteTag(73);
                 WriteNoSavedAddress(writer, member);
                 break;
+            case NoSetup member:
+                writer.WriteTag(74);
+                WriteNoSetup(writer, member);
+                break;
             case NoSplitStep member:
-                writer.WriteTag(73);
+                writer.WriteTag(75);
                 WriteNoSplitStep(writer, member);
                 break;
             case NoStoredSession member:
-                writer.WriteTag(74);
+                writer.WriteTag(76);
                 WriteNoStoredSession(writer, member);
                 break;
             case NotAnArchive member:
-                writer.WriteTag(75);
+                writer.WriteTag(77);
                 WriteNotAnArchive(writer, member);
                 break;
             case NotPrivateWorkspace member:
-                writer.WriteTag(76);
+                writer.WriteTag(78);
                 WriteNotPrivateWorkspace(writer, member);
                 break;
             case PageNotLoadable member:
-                writer.WriteTag(77);
+                writer.WriteTag(79);
                 WritePageNotLoadable(writer, member);
                 break;
             case PageProfileMismatch member:
-                writer.WriteTag(78);
+                writer.WriteTag(80);
                 WritePageProfileMismatch(writer, member);
                 break;
             case PersistentWorkspaceRequired member:
-                writer.WriteTag(79);
+                writer.WriteTag(81);
                 WritePersistentWorkspaceRequired(writer, member);
                 break;
             case PinnedTabsDragAlone member:
-                writer.WriteTag(80);
+                writer.WriteTag(82);
                 WritePinnedTabsDragAlone(writer, member);
                 break;
             case PinnedTabsFull member:
-                writer.WriteTag(81);
+                writer.WriteTag(83);
                 WritePinnedTabsFull(writer, member);
                 break;
             case PinnedTabsStayPut member:
-                writer.WriteTag(82);
+                writer.WriteTag(84);
                 WritePinnedTabsStayPut(writer, member);
                 break;
             case PinsOneTabAtATime member:
-                writer.WriteTag(83);
+                writer.WriteTag(85);
                 WritePinsOneTabAtATime(writer, member);
                 break;
             case PrivateWorkspaceBoundary member:
-                writer.WriteTag(84);
+                writer.WriteTag(86);
                 WritePrivateWorkspaceBoundary(writer, member);
                 break;
             case ProfileInUse member:
-                writer.WriteTag(85);
+                writer.WriteTag(87);
                 WriteProfileInUse(writer, member);
                 break;
             case PromptAnswerMismatch member:
-                writer.WriteTag(86);
+                writer.WriteTag(88);
                 WritePromptAnswerMismatch(writer, member);
                 break;
             case RecoveryCheckpointUnusable member:
-                writer.WriteTag(87);
+                writer.WriteTag(89);
                 WriteRecoveryCheckpointUnusable(writer, member);
                 break;
             case SaveFailed member:
-                writer.WriteTag(88);
+                writer.WriteTag(90);
                 WriteSaveFailed(writer, member);
                 break;
             case SearchEngineLimitReached member:
-                writer.WriteTag(89);
+                writer.WriteTag(91);
                 WriteSearchEngineLimitReached(writer, member);
                 break;
             case SelectionChanged member:
-                writer.WriteTag(90);
+                writer.WriteTag(92);
                 WriteSelectionChanged(writer, member);
                 break;
             case SelectionHoldsFolders member:
-                writer.WriteTag(91);
+                writer.WriteTag(93);
                 WriteSelectionHoldsFolders(writer, member);
                 break;
             case SessionEncrypted member:
-                writer.WriteTag(92);
+                writer.WriteTag(94);
                 WriteSessionEncrypted(writer, member);
                 break;
             case SessionHasNoTabs member:
-                writer.WriteTag(93);
+                writer.WriteTag(95);
                 WriteSessionHasNoTabs(writer, member);
                 break;
             case SessionOverLimits member:
-                writer.WriteTag(94);
+                writer.WriteTag(96);
                 WriteSessionOverLimits(writer, member);
                 break;
             case SessionTooLarge member:
-                writer.WriteTag(95);
+                writer.WriteTag(97);
                 WriteSessionTooLarge(writer, member);
                 break;
             case SessionUnrecognized member:
-                writer.WriteTag(96);
+                writer.WriteTag(98);
                 WriteSessionUnrecognized(writer, member);
                 break;
+            case SetupBusy member:
+                writer.WriteTag(99);
+                WriteSetupBusy(writer, member);
+                break;
             case ShortcutInUse member:
-                writer.WriteTag(97);
+                writer.WriteTag(100);
                 WriteShortcutInUse(writer, member);
                 break;
             case SitePermissionLimitReached member:
-                writer.WriteTag(98);
+                writer.WriteTag(101);
                 WriteSitePermissionLimitReached(writer, member);
                 break;
             case SpaceAlreadyExists member:
-                writer.WriteTag(99);
+                writer.WriteTag(102);
                 WriteSpaceAlreadyExists(writer, member);
                 break;
             case SpaceBeingDeleted member:
-                writer.WriteTag(100);
+                writer.WriteTag(103);
                 WriteSpaceBeingDeleted(writer, member);
                 break;
             case SpaceLimitReached member:
-                writer.WriteTag(101);
+                writer.WriteTag(104);
                 WriteSpaceLimitReached(writer, member);
                 break;
             case SpaceLocked member:
-                writer.WriteTag(102);
+                writer.WriteTag(105);
                 WriteSpaceLocked(writer, member);
                 break;
             case SpaceProfileChanged member:
-                writer.WriteTag(103);
+                writer.WriteTag(106);
                 WriteSpaceProfileChanged(writer, member);
                 break;
             case SplitBoundary member:
-                writer.WriteTag(104);
+                writer.WriteTag(107);
                 WriteSplitBoundary(writer, member);
                 break;
             case SplitLimitReached member:
-                writer.WriteTag(105);
+                writer.WriteTag(108);
                 WriteSplitLimitReached(writer, member);
                 break;
             case SplitNeedsTwoTabs member:
-                writer.WriteTag(106);
+                writer.WriteTag(109);
                 WriteSplitNeedsTwoTabs(writer, member);
                 break;
             case StaleCredentialComparison member:
-                writer.WriteTag(107);
+                writer.WriteTag(110);
                 WriteStaleCredentialComparison(writer, member);
                 break;
             case StaleUnlockRequest member:
-                writer.WriteTag(108);
+                writer.WriteTag(111);
                 WriteStaleUnlockRequest(writer, member);
                 break;
             case StartPageNotCopied member:
-                writer.WriteTag(109);
+                writer.WriteTag(112);
                 WriteStartPageNotCopied(writer, member);
                 break;
             case StorageFromNewerApp member:
-                writer.WriteTag(110);
+                writer.WriteTag(113);
                 WriteStorageFromNewerApp(writer, member);
                 break;
             case StorageRestoreInterrupted member:
-                writer.WriteTag(111);
+                writer.WriteTag(114);
                 WriteStorageRestoreInterrupted(writer, member);
                 break;
             case StorageUnreadable member:
-                writer.WriteTag(112);
+                writer.WriteTag(115);
                 WriteStorageUnreadable(writer, member);
                 break;
             case StoredSessionClosed member:
-                writer.WriteTag(113);
+                writer.WriteTag(116);
                 WriteStoredSessionClosed(writer, member);
                 break;
             case SyncStagingRefused member:
-                writer.WriteTag(114);
+                writer.WriteTag(117);
                 WriteSyncStagingRefused(writer, member);
                 break;
             case TabAlreadyExists member:
-                writer.WriteTag(115);
+                writer.WriteTag(118);
                 WriteTabAlreadyExists(writer, member);
                 break;
             case TabAlreadyHasPage member:
-                writer.WriteTag(116);
+                writer.WriteTag(119);
                 WriteTabAlreadyHasPage(writer, member);
                 break;
             case TabLimitReached member:
-                writer.WriteTag(117);
+                writer.WriteTag(120);
                 WriteTabLimitReached(writer, member);
                 break;
             case TransientAlreadyCompleted member:
-                writer.WriteTag(118);
+                writer.WriteTag(121);
                 WriteTransientAlreadyCompleted(writer, member);
                 break;
             case TranslationRuleLimitReached member:
-                writer.WriteTag(119);
+                writer.WriteTag(122);
                 WriteTranslationRuleLimitReached(writer, member);
                 break;
             case UnknownArchivedTab member:
-                writer.WriteTag(120);
+                writer.WriteTag(123);
                 WriteUnknownArchivedTab(writer, member);
                 break;
             case UnknownCloudMerge member:
-                writer.WriteTag(121);
+                writer.WriteTag(124);
                 WriteUnknownCloudMerge(writer, member);
                 break;
             case UnknownFolder member:
-                writer.WriteTag(122);
+                writer.WriteTag(125);
                 WriteUnknownFolder(writer, member);
                 break;
             case UnknownLinkRoute member:
-                writer.WriteTag(123);
+                writer.WriteTag(126);
                 WriteUnknownLinkRoute(writer, member);
                 break;
             case UnknownPage member:
-                writer.WriteTag(124);
+                writer.WriteTag(127);
                 WriteUnknownPage(writer, member);
                 break;
             case UnknownPrompt member:
-                writer.WriteTag(125);
+                writer.WriteTag(128);
                 WriteUnknownPrompt(writer, member);
                 break;
             case UnknownSearchEngine member:
-                writer.WriteTag(126);
+                writer.WriteTag(129);
                 WriteUnknownSearchEngine(writer, member);
                 break;
             case UnknownSpace member:
-                writer.WriteTag(127);
+                writer.WriteTag(130);
                 WriteUnknownSpace(writer, member);
                 break;
             case UnknownSplitGroup member:
-                writer.WriteTag(128);
+                writer.WriteTag(131);
                 WriteUnknownSplitGroup(writer, member);
                 break;
             case UnknownTab member:
-                writer.WriteTag(129);
+                writer.WriteTag(132);
                 WriteUnknownTab(writer, member);
                 break;
             case UnknownWorkspace member:
-                writer.WriteTag(130);
+                writer.WriteTag(133);
                 WriteUnknownWorkspace(writer, member);
                 break;
             case UnrelatedWorkspaces member:
-                writer.WriteTag(131);
+                writer.WriteTag(134);
                 WriteUnrelatedWorkspaces(writer, member);
                 break;
             case UnsavedWorkspace member:
-                writer.WriteTag(132);
+                writer.WriteTag(135);
                 WriteUnsavedWorkspace(writer, member);
                 break;
             case UnsupportedAddress member:
-                writer.WriteTag(133);
+                writer.WriteTag(136);
                 WriteUnsupportedAddress(writer, member);
                 break;
             case UnsupportedArchiveVersion member:
-                writer.WriteTag(134);
+                writer.WriteTag(137);
                 WriteUnsupportedArchiveVersion(writer, member);
                 break;
             case WebPagesOnly member:
-                writer.WriteTag(135);
+                writer.WriteTag(138);
                 WriteWebPagesOnly(writer, member);
                 break;
             case WindowNotOpen member:
-                writer.WriteTag(136);
+                writer.WriteTag(139);
                 WriteWindowNotOpen(writer, member);
                 break;
             case WorkspaceBusy member:
-                writer.WriteTag(137);
+                writer.WriteTag(140);
                 WriteWorkspaceBusy(writer, member);
                 break;
             case WrongDeletionOperation member:
-                writer.WriteTag(138);
+                writer.WriteTag(141);
                 WriteWrongDeletionOperation(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Rejection.");
@@ -1995,40 +2110,38 @@ public static class ContractCodec {
             case 27: return ReadFixtureServerTrust(reader);
             case 28: return ReadHistoryAddresses(reader);
             case 29: return ReadImportPreview(reader);
-            case 30: return ReadImportReviewAnalysis(reader);
-            case 31: return ReadImportReviewSuggestions(reader);
-            case 32: return ReadLanguagesMatching(reader);
-            case 33: return ReadLaunchIsolation(reader);
-            case 34: return ReadLaunchPlan(reader);
-            case 35: return ReadLinkNavigation(reader);
-            case 36: return ReadMediaSessionOrder(reader);
-            case 37: return ReadMediaSessionReport(reader);
-            case 38: return ReadMostRecentCredential(reader);
-            case 39: return ReadNormalizeBranding(reader);
-            case 40: return ReadNotificationPermissionRequest(reader);
-            case 41: return ReadNumberedSelections(reader);
-            case 42: return ReadOpenedWindowSelection(reader);
-            case 43: return ReadPaletteSuggestions(reader);
-            case 44: return ReadPasskeyAccess(reader);
-            case 45: return ReadPendingSave(reader);
-            case 46: return ReadPendingUploads(reader);
-            case 47: return ReadPresentPage(reader);
-            case 48: return ReadReadArchive(reader);
-            case 49: return ReadReadImport(reader);
-            case 50: return ReadRecordsToUpload(reader);
-            case 51: return ReadResolveAddress(reader);
-            case 52: return ReadRouteExternalLink(reader);
-            case 53: return ReadSamePage(reader);
-            case 54: return ReadSchemeHandling(reader);
-            case 55: return ReadSecureOriginCheck(reader);
-            case 56: return ReadSelectionPreview(reader);
-            case 57: return ReadSelectionSearch(reader);
-            case 58: return ReadSiteDecision(reader);
-            case 59: return ReadSplitJoinCandidate(reader);
-            case 60: return ReadStrongPassword(reader);
-            case 61: return ReadSystemPasswordOffer(reader);
-            case 62: return ReadSystemPasswordWriteThrough(reader);
-            case 63: return ReadTranslationChoice(reader);
+            case 30: return ReadLanguagesMatching(reader);
+            case 31: return ReadLaunchIsolation(reader);
+            case 32: return ReadLaunchPlan(reader);
+            case 33: return ReadLinkNavigation(reader);
+            case 34: return ReadMediaSessionOrder(reader);
+            case 35: return ReadMediaSessionReport(reader);
+            case 36: return ReadMostRecentCredential(reader);
+            case 37: return ReadNormalizeBranding(reader);
+            case 38: return ReadNotificationPermissionRequest(reader);
+            case 39: return ReadNumberedSelections(reader);
+            case 40: return ReadOpenedWindowSelection(reader);
+            case 41: return ReadPaletteSuggestions(reader);
+            case 42: return ReadPasskeyAccess(reader);
+            case 43: return ReadPendingSave(reader);
+            case 44: return ReadPendingUploads(reader);
+            case 45: return ReadPresentPage(reader);
+            case 46: return ReadReadArchive(reader);
+            case 47: return ReadReadImport(reader);
+            case 48: return ReadRecordsToUpload(reader);
+            case 49: return ReadResolveAddress(reader);
+            case 50: return ReadRouteExternalLink(reader);
+            case 51: return ReadSamePage(reader);
+            case 52: return ReadSchemeHandling(reader);
+            case 53: return ReadSecureOriginCheck(reader);
+            case 54: return ReadSelectionPreview(reader);
+            case 55: return ReadSelectionSearch(reader);
+            case 56: return ReadSiteDecision(reader);
+            case 57: return ReadSplitJoinCandidate(reader);
+            case 58: return ReadStrongPassword(reader);
+            case 59: return ReadSystemPasswordOffer(reader);
+            case 60: return ReadSystemPasswordWriteThrough(reader);
+            case 61: return ReadTranslationChoice(reader);
             default: throw new WireFormatException($"Unknown Query tag {tag}.");
         }
     }
@@ -2157,140 +2270,132 @@ public static class ContractCodec {
                 writer.WriteTag(29);
                 WriteImportPreview(writer, member);
                 break;
-            case ImportReviewAnalysis member:
-                writer.WriteTag(30);
-                WriteImportReviewAnalysis(writer, member);
-                break;
-            case ImportReviewSuggestions member:
-                writer.WriteTag(31);
-                WriteImportReviewSuggestions(writer, member);
-                break;
             case LanguagesMatching member:
-                writer.WriteTag(32);
+                writer.WriteTag(30);
                 WriteLanguagesMatching(writer, member);
                 break;
             case LaunchIsolation member:
-                writer.WriteTag(33);
+                writer.WriteTag(31);
                 WriteLaunchIsolation(writer, member);
                 break;
             case LaunchPlan member:
-                writer.WriteTag(34);
+                writer.WriteTag(32);
                 WriteLaunchPlan(writer, member);
                 break;
             case LinkNavigation member:
-                writer.WriteTag(35);
+                writer.WriteTag(33);
                 WriteLinkNavigation(writer, member);
                 break;
             case MediaSessionOrder member:
-                writer.WriteTag(36);
+                writer.WriteTag(34);
                 WriteMediaSessionOrder(writer, member);
                 break;
             case MediaSessionReport member:
-                writer.WriteTag(37);
+                writer.WriteTag(35);
                 WriteMediaSessionReport(writer, member);
                 break;
             case MostRecentCredential member:
-                writer.WriteTag(38);
+                writer.WriteTag(36);
                 WriteMostRecentCredential(writer, member);
                 break;
             case NormalizeBranding member:
-                writer.WriteTag(39);
+                writer.WriteTag(37);
                 WriteNormalizeBranding(writer, member);
                 break;
             case NotificationPermissionRequest member:
-                writer.WriteTag(40);
+                writer.WriteTag(38);
                 WriteNotificationPermissionRequest(writer, member);
                 break;
             case NumberedSelections member:
-                writer.WriteTag(41);
+                writer.WriteTag(39);
                 WriteNumberedSelections(writer, member);
                 break;
             case OpenedWindowSelection member:
-                writer.WriteTag(42);
+                writer.WriteTag(40);
                 WriteOpenedWindowSelection(writer, member);
                 break;
             case PaletteSuggestions member:
-                writer.WriteTag(43);
+                writer.WriteTag(41);
                 WritePaletteSuggestions(writer, member);
                 break;
             case PasskeyAccess member:
-                writer.WriteTag(44);
+                writer.WriteTag(42);
                 WritePasskeyAccess(writer, member);
                 break;
             case PendingSave member:
-                writer.WriteTag(45);
+                writer.WriteTag(43);
                 WritePendingSave(writer, member);
                 break;
             case PendingUploads member:
-                writer.WriteTag(46);
+                writer.WriteTag(44);
                 WritePendingUploads(writer, member);
                 break;
             case PresentPage member:
-                writer.WriteTag(47);
+                writer.WriteTag(45);
                 WritePresentPage(writer, member);
                 break;
             case ReadArchive member:
-                writer.WriteTag(48);
+                writer.WriteTag(46);
                 WriteReadArchive(writer, member);
                 break;
             case ReadImport member:
-                writer.WriteTag(49);
+                writer.WriteTag(47);
                 WriteReadImport(writer, member);
                 break;
             case RecordsToUpload member:
-                writer.WriteTag(50);
+                writer.WriteTag(48);
                 WriteRecordsToUpload(writer, member);
                 break;
             case ResolveAddress member:
-                writer.WriteTag(51);
+                writer.WriteTag(49);
                 WriteResolveAddress(writer, member);
                 break;
             case RouteExternalLink member:
-                writer.WriteTag(52);
+                writer.WriteTag(50);
                 WriteRouteExternalLink(writer, member);
                 break;
             case SamePage member:
-                writer.WriteTag(53);
+                writer.WriteTag(51);
                 WriteSamePage(writer, member);
                 break;
             case SchemeHandling member:
-                writer.WriteTag(54);
+                writer.WriteTag(52);
                 WriteSchemeHandling(writer, member);
                 break;
             case SecureOriginCheck member:
-                writer.WriteTag(55);
+                writer.WriteTag(53);
                 WriteSecureOriginCheck(writer, member);
                 break;
             case SelectionPreview member:
-                writer.WriteTag(56);
+                writer.WriteTag(54);
                 WriteSelectionPreview(writer, member);
                 break;
             case SelectionSearch member:
-                writer.WriteTag(57);
+                writer.WriteTag(55);
                 WriteSelectionSearch(writer, member);
                 break;
             case SiteDecision member:
-                writer.WriteTag(58);
+                writer.WriteTag(56);
                 WriteSiteDecision(writer, member);
                 break;
             case SplitJoinCandidate member:
-                writer.WriteTag(59);
+                writer.WriteTag(57);
                 WriteSplitJoinCandidate(writer, member);
                 break;
             case StrongPassword member:
-                writer.WriteTag(60);
+                writer.WriteTag(58);
                 WriteStrongPassword(writer, member);
                 break;
             case SystemPasswordOffer member:
-                writer.WriteTag(61);
+                writer.WriteTag(59);
                 WriteSystemPasswordOffer(writer, member);
                 break;
             case SystemPasswordWriteThrough member:
-                writer.WriteTag(62);
+                writer.WriteTag(60);
                 WriteSystemPasswordWriteThrough(writer, member);
                 break;
             case TranslationChoice member:
-                writer.WriteTag(63);
+                writer.WriteTag(61);
                 WriteTranslationChoice(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Query.");
@@ -2485,9 +2590,9 @@ public static class ContractCodec {
     public static ImportWorkspace ReadImportWorkspace(WireReader reader) {
         int tag = reader.ReadTag();
         switch (tag) {
-            case 18: return ReadApplyManualSetup(reader);
-            case 86: return ReadImportReviewedSpaces(reader);
-            case 87: return ReadImportSpaces(reader);
+            case 19: return ReadApplyManualSetup(reader);
+            case 93: return ReadImportReviewedSpaces(reader);
+            case 94: return ReadImportSpaces(reader);
             default: throw new WireFormatException($"Intent tag {tag} is not a ImportWorkspace.");
         }
     }
@@ -2497,16 +2602,16 @@ public static class ContractCodec {
     /// <summary>The most bytes one encoded intent with this tag may take.</summary>
     public static int MaximumIntentBytes(int tag) => tag switch {
         5 => 67108864,
-        86 => 67108864,
-        87 => 67108864,
-        95 => 67108864,
-        96 => 67108864,
-        114 => 134217728,
-        119 => 67108864,
-        120 => 67108864,
-        126 => 67108864,
-        142 => 67108864,
-        143 => 67108864,
+        94 => 67108864,
+        105 => 67108864,
+        106 => 67108864,
+        125 => 134217728,
+        130 => 67108864,
+        131 => 67108864,
+        138 => 67108864,
+        154 => 67108864,
+        155 => 67108864,
+        171 => 67108864,
         _ => 16777216
     };
 
@@ -2646,141 +2751,133 @@ public static class ContractCodec {
                 var answer29 = answers.Query(question);
                 WriteImportedWorkspace(writer, answer29);
                 break;
-            case ImportReviewAnalysis question:
-                var answer30 = answers.Query(question);
-                WriteAnalyzedImportReview(writer, answer30);
-                break;
-            case ImportReviewSuggestions question:
-                var answer31 = answers.Query(question);
-                WriteSuggestedImportReview(writer, answer31);
-                break;
             case LanguagesMatching question:
-                var answer32 = answers.Query(question);
-                WriteLanguageMatches(writer, answer32);
+                var answer30 = answers.Query(question);
+                WriteLanguageMatches(writer, answer30);
                 break;
             case LaunchIsolation question:
-                var answer33 = answers.Query(question);
-                WriteLaunchDecision(writer, answer33);
+                var answer31 = answers.Query(question);
+                WriteLaunchDecision(writer, answer31);
                 break;
             case LaunchPlan question:
-                var answer34 = answers.Query(question);
-                WriteLaunchDecision(writer, answer34);
+                var answer32 = answers.Query(question);
+                WriteLaunchDecision(writer, answer32);
                 break;
             case LinkNavigation question:
-                var answer35 = answers.Query(question);
-                WriteLinkNavigationAnswer(writer, answer35);
+                var answer33 = answers.Query(question);
+                WriteLinkNavigationAnswer(writer, answer33);
                 break;
             case MediaSessionOrder question:
-                var answer36 = answers.Query(question);
-                WriteMediaSessionArbitration(writer, answer36);
+                var answer34 = answers.Query(question);
+                WriteMediaSessionArbitration(writer, answer34);
                 break;
             case MediaSessionReport question:
-                var answer37 = answers.Query(question);
-                WriteMediaSessionEventDecision(writer, answer37);
+                var answer35 = answers.Query(question);
+                WriteMediaSessionEventDecision(writer, answer35);
                 break;
             case MostRecentCredential question:
-                var answer38 = answers.Query(question);
-                WriteCredentialChoice(writer, answer38);
+                var answer36 = answers.Query(question);
+                WriteCredentialChoice(writer, answer36);
                 break;
             case NormalizeBranding question:
-                var answer39 = answers.Query(question);
-                WriteNormalizedBranding(writer, answer39);
+                var answer37 = answers.Query(question);
+                WriteNormalizedBranding(writer, answer37);
                 break;
             case NotificationPermissionRequest question:
-                var answer40 = answers.Query(question);
-                WriteNotificationRequestAnswer(writer, answer40);
+                var answer38 = answers.Query(question);
+                WriteNotificationRequestAnswer(writer, answer38);
                 break;
             case NumberedSelections question:
-                var answer41 = answers.Query(question);
-                WriteNumberedSelectionList(writer, answer41);
+                var answer39 = answers.Query(question);
+                WriteNumberedSelectionList(writer, answer39);
                 break;
             case OpenedWindowSelection question:
-                var answer42 = answers.Query(question);
-                WriteOpenedWindowSelected(writer, answer42);
+                var answer40 = answers.Query(question);
+                WriteOpenedWindowSelected(writer, answer40);
                 break;
             case PaletteSuggestions question:
-                var answer43 = answers.Query(question);
-                WritePaletteAnswer(writer, answer43);
+                var answer41 = answers.Query(question);
+                WritePaletteAnswer(writer, answer41);
                 break;
             case PasskeyAccess question:
-                var answer44 = answers.Query(question);
-                WritePasskeyAccessVerdict(writer, answer44);
+                var answer42 = answers.Query(question);
+                WritePasskeyAccessVerdict(writer, answer42);
                 break;
             case PendingSave question:
-                var answer45 = answers.Query(question);
-                WritePendingSaveRevision(writer, answer45);
+                var answer43 = answers.Query(question);
+                WritePendingSaveRevision(writer, answer43);
                 break;
             case PendingUploads question:
-                var answer46 = answers.Query(question);
-                WritePendingUploadList(writer, answer46);
+                var answer44 = answers.Query(question);
+                WritePendingUploadList(writer, answer44);
                 break;
             case PresentPage question:
-                var answer47 = answers.Query(question);
-                WritePagePresented(writer, answer47);
+                var answer45 = answers.Query(question);
+                WritePagePresented(writer, answer45);
                 break;
             case ReadArchive question:
-                var answer48 = answers.Query(question);
-                WriteImportedSpaces(writer, answer48);
+                var answer46 = answers.Query(question);
+                WriteImportedSpaces(writer, answer46);
                 break;
             case ReadImport question:
-                var answer49 = answers.Query(question);
-                WriteImportedSpaces(writer, answer49);
+                var answer47 = answers.Query(question);
+                WriteImportedSpaces(writer, answer47);
                 break;
             case RecordsToUpload question:
-                var answer50 = answers.Query(question);
-                WriteUploadBatch(writer, answer50);
+                var answer48 = answers.Query(question);
+                WriteUploadBatch(writer, answer48);
                 break;
             case ResolveAddress question:
-                var answer51 = answers.Query(question);
-                WriteResolvedAddress(writer, answer51);
+                var answer49 = answers.Query(question);
+                WriteResolvedAddress(writer, answer49);
                 break;
             case RouteExternalLink question:
-                var answer52 = answers.Query(question);
-                WriteExternalLinkPlacement(writer, answer52);
+                var answer50 = answers.Query(question);
+                WriteExternalLinkPlacement(writer, answer50);
                 break;
             case SamePage question:
-                var answer53 = answers.Query(question);
-                WritePageMatch(writer, answer53);
+                var answer51 = answers.Query(question);
+                WritePageMatch(writer, answer51);
                 break;
             case SchemeHandling question:
-                var answer54 = answers.Query(question);
-                WriteSchemeHandled(writer, answer54);
+                var answer52 = answers.Query(question);
+                WriteSchemeHandled(writer, answer52);
                 break;
             case SecureOriginCheck question:
-                var answer55 = answers.Query(question);
-                WriteSecureOriginVerdict(writer, answer55);
+                var answer53 = answers.Query(question);
+                WriteSecureOriginVerdict(writer, answer53);
                 break;
             case SelectionPreview question:
-                var answer56 = answers.Query(question);
-                WriteSelectedTabs(writer, answer56);
+                var answer54 = answers.Query(question);
+                WriteSelectedTabs(writer, answer54);
                 break;
             case SelectionSearch question:
-                var answer57 = answers.Query(question);
-                WriteSelectionSearchAnswer(writer, answer57);
+                var answer55 = answers.Query(question);
+                WriteSelectionSearchAnswer(writer, answer55);
                 break;
             case SiteDecision question:
-                var answer58 = answers.Query(question);
-                WriteSitePermissionAnswer(writer, answer58);
+                var answer56 = answers.Query(question);
+                WriteSitePermissionAnswer(writer, answer56);
                 break;
             case SplitJoinCandidate question:
-                var answer59 = answers.Query(question);
-                WriteSplitJoinCandidateTab(writer, answer59);
+                var answer57 = answers.Query(question);
+                WriteSplitJoinCandidateTab(writer, answer57);
                 break;
             case StrongPassword question:
-                var answer60 = answers.Query(question);
-                WriteStrongPasswordRecipe(writer, answer60);
+                var answer58 = answers.Query(question);
+                WriteStrongPasswordRecipe(writer, answer58);
                 break;
             case SystemPasswordOffer question:
-                var answer61 = answers.Query(question);
-                WriteSystemPasswordOfferDecision(writer, answer61);
+                var answer59 = answers.Query(question);
+                WriteSystemPasswordOfferDecision(writer, answer59);
                 break;
             case SystemPasswordWriteThrough question:
-                var answer62 = answers.Query(question);
-                WriteSystemPasswordWriteThroughSupport(writer, answer62);
+                var answer60 = answers.Query(question);
+                WriteSystemPasswordWriteThroughSupport(writer, answer60);
                 break;
             case TranslationChoice question:
-                var answer63 = answers.Query(question);
-                WriteTranslationDecision(writer, answer63);
+                var answer61 = answers.Query(question);
+                WriteTranslationDecision(writer, answer61);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "Not a contract Query.");
         }
@@ -2902,6 +2999,18 @@ public static class ContractCodec {
         }
     }
 
+    public static AdoptSetupCompletion ReadAdoptSetupCompletion(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new AdoptSetupCompletion(
+            reader.ReadBool());
+    }
+
+    public static void WriteAdoptSetupCompletion(WireWriter writer, AdoptSetupCompletion value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteBool(value.Completed);
+    }
+
     public static AdoptSetupDraft ReadAdoptSetupDraft(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new AdoptSetupDraft(
@@ -2992,48 +3101,6 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteGuid(value.TabId);
-    }
-
-    public static AnalyzedImportReview ReadAnalyzedImportReview(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new AnalyzedImportReview(
-            reader.ReadList(() => ReadAnalyzedSpaceReview(reader)),
-            reader.ReadList(() => reader.ReadGuid()));
-    }
-
-    public static void WriteAnalyzedImportReview(WireWriter writer, AnalyzedImportReview value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteCount(value.Spaces.Count);
-        foreach (var itemSpaces in value.Spaces) {
-            WriteAnalyzedSpaceReview(writer, itemSpaces);
-        }
-        writer.WriteCount(value.OverflowTabIds.Count);
-        foreach (var itemOverflowTabIds in value.OverflowTabIds) {
-            writer.WriteGuid(itemOverflowTabIds);
-        }
-    }
-
-    public static AnalyzedSpaceReview ReadAnalyzedSpaceReview(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new AnalyzedSpaceReview(
-            reader.ReadGuid(),
-            reader.ReadList(() => reader.ReadGuid()),
-            reader.ReadList(() => reader.ReadGuid()));
-    }
-
-    public static void WriteAnalyzedSpaceReview(WireWriter writer, AnalyzedSpaceReview value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.SourceSpaceId);
-        writer.WriteCount(value.DuplicateTabIds.Count);
-        foreach (var itemDuplicateTabIds in value.DuplicateTabIds) {
-            writer.WriteGuid(itemDuplicateTabIds);
-        }
-        writer.WriteCount(value.MatchedTabIds.Count);
-        foreach (var itemMatchedTabIds in value.MatchedTabIds) {
-            writer.WriteGuid(itemMatchedTabIds);
-        }
     }
 
     public static AnswerAuthentication ReadAnswerAuthentication(WireReader reader) {
@@ -3617,18 +3684,14 @@ public static class ContractCodec {
         writer.WriteBool(value.IsAcknowledged);
     }
 
-    public static BeginManualSetup ReadBeginManualSetup(WireReader reader) {
+    public static BeginImportCommit ReadBeginImportCommit(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
-        return new BeginManualSetup(
-            reader.ReadGuid(),
-            reader.ReadBool());
+        return new BeginImportCommit();
     }
 
-    public static void WriteBeginManualSetup(WireWriter writer, BeginManualSetup value) {
+    public static void WriteBeginImportCommit(WireWriter writer, BeginImportCommit value) {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.WorkspaceId);
-        writer.WriteBool(value.StartsOver);
     }
 
     public static BeginUnlockingSpace ReadBeginUnlockingSpace(WireReader reader) {
@@ -3970,6 +4033,16 @@ public static class ContractCodec {
         writer.WriteString(value.DownloadId);
     }
 
+    public static CancelImportRead ReadCancelImportRead(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new CancelImportRead();
+    }
+
+    public static void WriteCancelImportRead(WireWriter writer, CancelImportRead value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+    }
+
     public static CannotDeleteLastSpace ReadCannotDeleteLastSpace(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new CannotDeleteLastSpace();
@@ -4114,6 +4187,25 @@ public static class ContractCodec {
         if (value.SpaceId is { } presentSpaceId) {
             writer.WritePresence(true);
             writer.WriteGuid(presentSpaceId);
+        } else {
+            writer.WritePresence(false);
+        }
+    }
+
+    public static ChooseImportDestination ReadChooseImportDestination(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ChooseImportDestination(
+            reader.ReadGuid(),
+            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null);
+    }
+
+    public static void WriteChooseImportDestination(WireWriter writer, ChooseImportDestination value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+        if (value.DestinationSpaceId is { } presentDestinationSpaceId) {
+            writer.WritePresence(true);
+            writer.WriteGuid(presentDestinationSpaceId);
         } else {
             writer.WritePresence(false);
         }
@@ -4822,6 +4914,16 @@ public static class ContractCodec {
         writer.WriteString(value.Source);
     }
 
+    public static ContinueImport ReadContinueImport(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ContinueImport();
+    }
+
+    public static void WriteContinueImport(WireWriter writer, ContinueImport value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+    }
+
     public static CreateFolder ReadCreateFolder(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new CreateFolder(
@@ -5348,6 +5450,20 @@ public static class ContractCodec {
         }
     }
 
+    public static CustomizeImportSpace ReadCustomizeImportSpace(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new CustomizeImportSpace(
+            reader.ReadGuid(),
+            ReadSpaceCustomization(reader));
+    }
+
+    public static void WriteCustomizeImportSpace(WireWriter writer, CustomizeImportSpace value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+        WriteSpaceCustomization(writer, value.Customization);
+    }
+
     public static CustomizeSetupSpace ReadCustomizeSetupSpace(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new CustomizeSetupSpace(
@@ -5465,16 +5581,6 @@ public static class ContractCodec {
         writer.WriteGuid(value.WindowId);
         writer.WriteGuid(value.SpaceId);
         WriteTabSelection(writer, value.Selection);
-    }
-
-    public static DiscardManualSetup ReadDiscardManualSetup(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new DiscardManualSetup();
-    }
-
-    public static void WriteDiscardManualSetup(WireWriter writer, DiscardManualSetup value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
     }
 
     public static DismissShownTab ReadDismissShownTab(WireReader reader) {
@@ -6581,6 +6687,27 @@ public static class ContractCodec {
         }
     }
 
+    public static FailImport ReadFailImport(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new FailImport(
+            ReadImportSource(reader),
+            ReadSetupFailureReason(reader),
+            reader.ReadPresence() ? (string?)reader.ReadString() : null);
+    }
+
+    public static void WriteFailImport(WireWriter writer, FailImport value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        WriteImportSource(writer, value.Source);
+        WriteSetupFailureReason(writer, value.Reason);
+        if (value.Detail is { } presentDetail) {
+            writer.WritePresence(true);
+            writer.WriteString(presentDetail);
+        } else {
+            writer.WritePresence(false);
+        }
+    }
+
     public static FallbackTab ReadFallbackTab(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new FallbackTab(
@@ -6731,6 +6858,30 @@ public static class ContractCodec {
         } else {
             writer.WritePresence(false);
         }
+    }
+
+    public static FinishImportCommit ReadFinishImportCommit(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new FinishImportCommit(
+            reader.ReadInt32());
+    }
+
+    public static void WriteFinishImportCommit(WireWriter writer, FinishImportCommit value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteInt32(value.PasswordCount);
+    }
+
+    public static FinishSetup ReadFinishSetup(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new FinishSetup(
+            reader.ReadGuid());
+    }
+
+    public static void WriteFinishSetup(WireWriter writer, FinishSetup value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.WindowId);
     }
 
     public static FinishUnlockingSpace ReadFinishUnlockingSpace(WireReader reader) {
@@ -6979,6 +7130,18 @@ public static class ContractCodec {
         WriteCloudZoneLoss(writer, value.Loss);
     }
 
+    public static GuideSpaceLocked ReadGuideSpaceLocked(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new GuideSpaceLocked(
+            reader.ReadGuid());
+    }
+
+    public static void WriteGuideSpaceLocked(WireWriter writer, GuideSpaceLocked value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SpaceId);
+    }
+
     public static HistoryAddressList ReadHistoryAddressList(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new HistoryAddressList(
@@ -7104,6 +7267,20 @@ public static class ContractCodec {
         }
     }
 
+    public static ImportPasswordCount ReadImportPasswordCount(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ImportPasswordCount(
+            reader.ReadGuid(),
+            reader.ReadInt32());
+    }
+
+    public static void WriteImportPasswordCount(WireWriter writer, ImportPasswordCount value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+        writer.WriteInt32(value.Count);
+    }
+
     public static ImportPasswordStore ReadImportPasswordStore(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new ImportPasswordStore(
@@ -7160,92 +7337,11 @@ public static class ContractCodec {
         }
     }
 
-    public static ImportReviewAnalysis ReadImportReviewAnalysis(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new ImportReviewAnalysis(
-            reader.ReadGuid(),
-            reader.ReadList(() => ReadImportReviewSpace(reader)),
-            reader.ReadList(() => ReadSpaceReview(reader)));
-    }
-
-    public static void WriteImportReviewAnalysis(WireWriter writer, ImportReviewAnalysis value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.WorkspaceId);
-        writer.WriteCount(value.Sources.Count);
-        foreach (var itemSources in value.Sources) {
-            WriteImportReviewSpace(writer, itemSources);
-        }
-        writer.WriteCount(value.Reviews.Count);
-        foreach (var itemReviews in value.Reviews) {
-            WriteSpaceReview(writer, itemReviews);
-        }
-    }
-
-    public static ImportReviewSpace ReadImportReviewSpace(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new ImportReviewSpace(
-            reader.ReadGuid(),
-            reader.ReadString(),
-            reader.ReadList(() => ReadImportReviewTab(reader)));
-    }
-
-    public static void WriteImportReviewSpace(WireWriter writer, ImportReviewSpace value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.Id);
-        writer.WriteString(value.Name);
-        writer.WriteCount(value.Tabs.Count);
-        foreach (var itemTabs in value.Tabs) {
-            WriteImportReviewTab(writer, itemTabs);
-        }
-    }
-
-    public static ImportReviewSuggestions ReadImportReviewSuggestions(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new ImportReviewSuggestions(
-            reader.ReadGuid(),
-            reader.ReadList(() => ReadImportReviewSpace(reader)));
-    }
-
-    public static void WriteImportReviewSuggestions(WireWriter writer, ImportReviewSuggestions value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.WorkspaceId);
-        writer.WriteCount(value.Sources.Count);
-        foreach (var itemSources in value.Sources) {
-            WriteImportReviewSpace(writer, itemSources);
-        }
-    }
-
-    public static ImportReviewTab ReadImportReviewTab(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new ImportReviewTab(
-            reader.ReadGuid(),
-            reader.ReadPresence() ? (string?)reader.ReadString() : null,
-            ReadTabPlacement(reader));
-    }
-
-    public static void WriteImportReviewTab(WireWriter writer, ImportReviewTab value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.Id);
-        if (value.Url is { } presentUrl) {
-            writer.WritePresence(true);
-            writer.WriteString(presentUrl);
-        } else {
-            writer.WritePresence(false);
-        }
-        WriteTabPlacement(writer, value.Placement);
-    }
-
     public static ImportReviewedSpaces ReadImportReviewedSpaces(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new ImportReviewedSpaces(
             reader.ReadGuid(),
-            reader.ReadGuid(),
-            reader.ReadBytes(),
-            reader.ReadList(() => ReadSpaceReview(reader)));
+            reader.ReadGuid());
     }
 
     public static void WriteImportReviewedSpaces(WireWriter writer, ImportReviewedSpaces value) {
@@ -7253,11 +7349,6 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteGuid(value.WorkspaceId);
         writer.WriteGuid(value.WindowId);
-        writer.WriteBytes(value.Spaces);
-        writer.WriteCount(value.Reviews.Count);
-        foreach (var itemReviews in value.Reviews) {
-            WriteSpaceReview(writer, itemReviews);
-        }
     }
 
     public static ImportSpaceNames ReadImportSpaceNames(WireReader reader) {
@@ -7346,6 +7437,53 @@ public static class ContractCodec {
         foreach (var itemCopied in value.Copied) {
             WriteTabCopied(writer, itemCopied);
         }
+    }
+
+    public static IncludeImportPasswords ReadIncludeImportPasswords(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new IncludeImportPasswords(
+            reader.ReadGuid(),
+            reader.ReadBool());
+    }
+
+    public static void WriteIncludeImportPasswords(WireWriter writer, IncludeImportPasswords value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+        writer.WriteBool(value.Included);
+    }
+
+    public static IncludeImportSpace ReadIncludeImportSpace(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new IncludeImportSpace(
+            reader.ReadGuid(),
+            reader.ReadBool());
+    }
+
+    public static void WriteIncludeImportSpace(WireWriter writer, IncludeImportSpace value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+        writer.WriteBool(value.Included);
+    }
+
+    public static IncludeImportTabs ReadIncludeImportTabs(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new IncludeImportTabs(
+            reader.ReadGuid(),
+            reader.ReadList(() => reader.ReadGuid()),
+            reader.ReadBool());
+    }
+
+    public static void WriteIncludeImportTabs(WireWriter writer, IncludeImportTabs value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+        writer.WriteCount(value.TabIds.Count);
+        foreach (var itemTabIds in value.TabIds) {
+            writer.WriteGuid(itemTabIds);
+        }
+        writer.WriteBool(value.Included);
     }
 
     public static IncompleteSplit ReadIncompleteSplit(WireReader reader) {
@@ -9000,6 +9138,16 @@ public static class ContractCodec {
         writer.WriteGuid(value.TabId);
     }
 
+    public static NoSetup ReadNoSetup(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new NoSetup();
+    }
+
+    public static void WriteNoSetup(WireWriter writer, NoSetup value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+    }
+
     public static NoSplitStep ReadNoSplitStep(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new NoSplitStep(
@@ -9176,6 +9324,21 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         WriteCloudAccountTransition(writer, value.Transition);
+    }
+
+    public static OfferImportSources ReadOfferImportSources(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new OfferImportSources(
+            reader.ReadList(() => ReadImportSource(reader)));
+    }
+
+    public static void WriteOfferImportSources(WireWriter writer, OfferImportSources value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteCount(value.Installed.Count);
+        foreach (var itemInstalled in value.Installed) {
+            WriteImportSource(writer, itemInstalled);
+        }
     }
 
     public static OpenAddress ReadOpenAddress(WireReader reader) {
@@ -10078,6 +10241,22 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(value);
     }
 
+    public static PlaceImportTab ReadPlaceImportTab(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new PlaceImportTab(
+            reader.ReadGuid(),
+            reader.ReadGuid(),
+            ReadTabPlacement(reader));
+    }
+
+    public static void WritePlaceImportTab(WireWriter writer, PlaceImportTab value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+        writer.WriteGuid(value.TabId);
+        WriteTabPlacement(writer, value.Placement);
+    }
+
     public static PrepareToClosePages ReadPrepareToClosePages(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new PrepareToClosePages(
@@ -10874,6 +11053,28 @@ public static class ContractCodec {
         writer.WriteGuid(value.WorkspaceId);
         writer.WriteGuid(value.SpaceId);
         writer.WriteGuid(value.TabId);
+    }
+
+    public static ReviewImport ReadReviewImport(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ReviewImport(
+            ReadImportSource(reader),
+            reader.ReadList(() => ReadSpaceState(reader)),
+            reader.ReadList(() => ReadImportPasswordCount(reader)));
+    }
+
+    public static void WriteReviewImport(WireWriter writer, ReviewImport value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        WriteImportSource(writer, value.Source);
+        writer.WriteCount(value.Spaces.Count);
+        foreach (var itemSpaces in value.Spaces) {
+            WriteSpaceState(writer, itemSpaces);
+        }
+        writer.WriteCount(value.PasswordCounts.Count);
+        foreach (var itemPasswordCounts in value.PasswordCounts) {
+            WriteImportPasswordCount(writer, itemPasswordCounts);
+        }
     }
 
     public static RouteExternalLink ReadRouteExternalLink(WireReader reader) {
@@ -11724,6 +11925,28 @@ public static class ContractCodec {
         }
     }
 
+    public static SetupBusy ReadSetupBusy(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new SetupBusy();
+    }
+
+    public static void WriteSetupBusy(WireWriter writer, SetupBusy value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+    }
+
+    public static SetupCompletedChanged ReadSetupCompletedChanged(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new SetupCompletedChanged(
+            reader.ReadBool());
+    }
+
+    public static void WriteSetupCompletedChanged(WireWriter writer, SetupCompletedChanged value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteBool(value.Completed);
+    }
+
     public static SetupDraft ReadSetupDraft(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new SetupDraft(
@@ -11779,6 +12002,291 @@ public static class ContractCodec {
         writer.WriteBool(value.IsNew);
         WriteSpaceCustomization(writer, value.Customization);
         writer.WriteString(value.ShownName);
+    }
+
+    public static SetupFailure ReadSetupFailure(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new SetupFailure(
+            ReadSetupFailureReason(reader),
+            reader.ReadPresence() ? (ImportSource?)ReadImportSource(reader) : null,
+            reader.ReadPresence() ? (string?)reader.ReadString() : null);
+    }
+
+    public static void WriteSetupFailure(WireWriter writer, SetupFailure value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        WriteSetupFailureReason(writer, value.Reason);
+        if (value.Source is { } presentSource) {
+            writer.WritePresence(true);
+            WriteImportSource(writer, presentSource);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.Detail is { } presentDetail) {
+            writer.WritePresence(true);
+            writer.WriteString(presentDetail);
+        } else {
+            writer.WritePresence(false);
+        }
+    }
+
+    public static SetupFinished ReadSetupFinished(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new SetupFinished(
+            reader.ReadGuid(),
+            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null);
+    }
+
+    public static void WriteSetupFinished(WireWriter writer, SetupFinished value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.WorkspaceId);
+        if (value.GuideSpaceId is { } presentGuideSpaceId) {
+            writer.WritePresence(true);
+            writer.WriteGuid(presentGuideSpaceId);
+        } else {
+            writer.WritePresence(false);
+        }
+    }
+
+    public static SetupFlowChanged ReadSetupFlowChanged(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new SetupFlowChanged(
+            reader.ReadPresence() ? (SetupFlowState?)ReadSetupFlowState(reader) : null);
+    }
+
+    public static void WriteSetupFlowChanged(WireWriter writer, SetupFlowChanged value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        if (value.Flow is { } presentFlow) {
+            writer.WritePresence(true);
+            WriteSetupFlowState(writer, presentFlow);
+        } else {
+            writer.WritePresence(false);
+        }
+    }
+
+    public static SetupFlowState ReadSetupFlowState(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new SetupFlowState(
+            reader.ReadGuid(),
+            ReadSetupEntry(reader),
+            ReadSetupStep(reader),
+            reader.ReadPresence() ? (SetupStep?)ReadSetupStep(reader) : null,
+            reader.ReadPresence() ? (SetupStep?)ReadSetupStep(reader) : null,
+            ReadSetupPhase(reader),
+            reader.ReadList(() => ReadImportSource(reader)),
+            reader.ReadList(() => ReadImportSource(reader)),
+            reader.ReadPresence() ? (SetupImportQueue?)ReadSetupImportQueue(reader) : null,
+            reader.ReadPresence() ? (ImportSource?)ReadImportSource(reader) : null,
+            reader.ReadPresence() ? (SetupImportReview?)ReadSetupImportReview(reader) : null,
+            reader.ReadPresence() ? (SetupFailure?)ReadSetupFailure(reader) : null,
+            reader.ReadPresence() ? (SetupSummary?)ReadSetupSummary(reader) : null,
+            reader.ReadBool(),
+            reader.ReadBool());
+    }
+
+    public static void WriteSetupFlowState(WireWriter writer, SetupFlowState value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.WorkspaceId);
+        WriteSetupEntry(writer, value.Entry);
+        WriteSetupStep(writer, value.Step);
+        if (value.BackStep is { } presentBackStep) {
+            writer.WritePresence(true);
+            WriteSetupStep(writer, presentBackStep);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.NextStep is { } presentNextStep) {
+            writer.WritePresence(true);
+            WriteSetupStep(writer, presentNextStep);
+        } else {
+            writer.WritePresence(false);
+        }
+        WriteSetupPhase(writer, value.Phase);
+        writer.WriteCount(value.Offered.Count);
+        foreach (var itemOffered in value.Offered) {
+            WriteImportSource(writer, itemOffered);
+        }
+        writer.WriteCount(value.Selected.Count);
+        foreach (var itemSelected in value.Selected) {
+            WriteImportSource(writer, itemSelected);
+        }
+        if (value.Queue is { } presentQueue) {
+            writer.WritePresence(true);
+            WriteSetupImportQueue(writer, presentQueue);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.Source is { } presentSource) {
+            writer.WritePresence(true);
+            WriteImportSource(writer, presentSource);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.Review is { } presentReview) {
+            writer.WritePresence(true);
+            WriteSetupImportReview(writer, presentReview);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.Failure is { } presentFailure) {
+            writer.WritePresence(true);
+            WriteSetupFailure(writer, presentFailure);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.Summary is { } presentSummary) {
+            writer.WritePresence(true);
+            WriteSetupSummary(writer, presentSummary);
+        } else {
+            writer.WritePresence(false);
+        }
+        writer.WriteBool(value.OpensGuide);
+        writer.WriteBool(value.OpensCrestFromWelcome);
+    }
+
+    public static SetupImportQueue ReadSetupImportQueue(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        var value = new SetupImportQueue(
+            reader.ReadList(() => ReadImportSource(reader)),
+            reader.ReadInt32());
+        _ = reader.ReadPresence() ? (ImportSource?)ReadImportSource(reader) : null;
+        _ = reader.ReadBool();
+        return value;
+    }
+
+    public static void WriteSetupImportQueue(WireWriter writer, SetupImportQueue value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteCount(value.Sources.Count);
+        foreach (var itemSources in value.Sources) {
+            WriteImportSource(writer, itemSources);
+        }
+        writer.WriteInt32(value.Index);
+        if (value.Current is { } presentCurrent) {
+            writer.WritePresence(true);
+            WriteImportSource(writer, presentCurrent);
+        } else {
+            writer.WritePresence(false);
+        }
+        writer.WriteBool(value.HasMoreAfterCurrent);
+    }
+
+    public static SetupImportReview ReadSetupImportReview(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        var value = new SetupImportReview(
+            ReadImportSource(reader),
+            reader.ReadList(() => ReadSetupReviewSpace(reader)),
+            reader.ReadList(() => reader.ReadGuid()),
+            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null);
+        _ = reader.ReadBool();
+        _ = reader.ReadInt32();
+        _ = reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null;
+        _ = reader.ReadBool();
+        _ = reader.ReadInt32();
+        return value;
+    }
+
+    public static void WriteSetupImportReview(WireWriter writer, SetupImportReview value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        WriteImportSource(writer, value.Source);
+        writer.WriteCount(value.Spaces.Count);
+        foreach (var itemSpaces in value.Spaces) {
+            WriteSetupReviewSpace(writer, itemSpaces);
+        }
+        writer.WriteCount(value.OverflowTabIds.Count);
+        foreach (var itemOverflowTabIds in value.OverflowTabIds) {
+            writer.WriteGuid(itemOverflowTabIds);
+        }
+        if (value.ShownSpaceId is { } presentShownSpaceId) {
+            writer.WritePresence(true);
+            writer.WriteGuid(presentShownSpaceId);
+        } else {
+            writer.WritePresence(false);
+        }
+        writer.WriteBool(value.HasIncludedSpaces);
+        writer.WriteInt32(value.IncludedTabCount);
+        if (value.NextSpaceId is { } presentNextSpaceId) {
+            writer.WritePresence(true);
+            writer.WriteGuid(presentNextSpaceId);
+        } else {
+            writer.WritePresence(false);
+        }
+        writer.WriteBool(value.ShowsLastSpace);
+        writer.WriteInt32(value.IncludedPasswordCount);
+    }
+
+    public static SetupReviewSpace ReadSetupReviewSpace(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        var value = new SetupReviewSpace(
+            ReadSpaceState(reader),
+            reader.ReadBool(),
+            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null,
+            ReadSpaceCustomization(reader),
+            reader.ReadList(() => reader.ReadGuid()),
+            reader.ReadList(() => reader.ReadGuid()),
+            reader.ReadList(() => reader.ReadGuid()),
+            reader.ReadList(() => ReadTabPlacementChoice(reader)),
+            reader.ReadBool(),
+            reader.ReadInt32());
+        _ = reader.ReadString();
+        _ = reader.ReadBool();
+        return value;
+    }
+
+    public static void WriteSetupReviewSpace(WireWriter writer, SetupReviewSpace value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        WriteSpaceState(writer, value.Source);
+        writer.WriteBool(value.Included);
+        if (value.DestinationId is { } presentDestinationId) {
+            writer.WritePresence(true);
+            writer.WriteGuid(presentDestinationId);
+        } else {
+            writer.WritePresence(false);
+        }
+        WriteSpaceCustomization(writer, value.Customization);
+        writer.WriteCount(value.IncludedTabIds.Count);
+        foreach (var itemIncludedTabIds in value.IncludedTabIds) {
+            writer.WriteGuid(itemIncludedTabIds);
+        }
+        writer.WriteCount(value.DuplicateTabIds.Count);
+        foreach (var itemDuplicateTabIds in value.DuplicateTabIds) {
+            writer.WriteGuid(itemDuplicateTabIds);
+        }
+        writer.WriteCount(value.MatchedTabIds.Count);
+        foreach (var itemMatchedTabIds in value.MatchedTabIds) {
+            writer.WriteGuid(itemMatchedTabIds);
+        }
+        writer.WriteCount(value.Placements.Count);
+        foreach (var itemPlacements in value.Placements) {
+            WriteTabPlacementChoice(writer, itemPlacements);
+        }
+        writer.WriteBool(value.IncludesPasswords);
+        writer.WriteInt32(value.PasswordCount);
+        writer.WriteString(value.ShownName);
+        writer.WriteBool(value.BringsPasswords);
+    }
+
+    public static SetupSummary ReadSetupSummary(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new SetupSummary(
+            reader.ReadBool(),
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadInt32());
+    }
+
+    public static void WriteSetupSummary(WireWriter writer, SetupSummary value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteBool(value.IsImport);
+        writer.WriteInt32(value.TabCount);
+        writer.WriteInt32(value.PasswordCount);
+        writer.WriteInt32(value.SpaceCount);
     }
 
     public static ShortcutBinding ReadShortcutBinding(WireReader reader) {
@@ -11878,6 +12386,18 @@ public static class ContractCodec {
         WriteAdjacentDirection(writer, value.Direction);
     }
 
+    public static ShowImportSpace ReadShowImportSpace(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ShowImportSpace(
+            reader.ReadGuid());
+    }
+
+    public static void WriteShowImportSpace(WireWriter writer, ShowImportSpace value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.SourceSpaceId);
+    }
+
     public static ShowMostRecentTab ReadShowMostRecentTab(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new ShowMostRecentTab(
@@ -11888,6 +12408,18 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteGuid(value.WindowId);
+    }
+
+    public static ShowSetupStep ReadShowSetupStep(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ShowSetupStep(
+            ReadSetupStep(reader));
+    }
+
+    public static void WriteShowSetupStep(WireWriter writer, ShowSetupStep value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        WriteSetupStep(writer, value.Step);
     }
 
     public static ShowSpace ReadShowSpace(WireReader reader) {
@@ -12472,39 +13004,6 @@ public static class ContractCodec {
         writer.WriteGuid(value.SpaceId);
     }
 
-    public static SpaceReview ReadSpaceReview(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new SpaceReview(
-            reader.ReadGuid(),
-            reader.ReadBool(),
-            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null,
-            ReadSpaceCustomization(reader),
-            reader.ReadList(() => reader.ReadGuid()),
-            reader.ReadList(() => ReadTabPlacementChoice(reader)));
-    }
-
-    public static void WriteSpaceReview(WireWriter writer, SpaceReview value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.SourceSpaceId);
-        writer.WriteBool(value.Included);
-        if (value.DestinationId is { } presentDestinationId) {
-            writer.WritePresence(true);
-            writer.WriteGuid(presentDestinationId);
-        } else {
-            writer.WritePresence(false);
-        }
-        WriteSpaceCustomization(writer, value.Customization);
-        writer.WriteCount(value.IncludedTabIds.Count);
-        foreach (var itemIncludedTabIds in value.IncludedTabIds) {
-            writer.WriteGuid(itemIncludedTabIds);
-        }
-        writer.WriteCount(value.Placements.Count);
-        foreach (var itemPlacements in value.Placements) {
-            WriteTabPlacementChoice(writer, itemPlacements);
-        }
-    }
-
     public static SpaceSettings ReadSpaceSettings(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         var value = new SpaceSettings(
@@ -12903,6 +13402,20 @@ public static class ContractCodec {
         writer.WriteGuid(value.TabId);
     }
 
+    public static StartSetup ReadStartSetup(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new StartSetup(
+            reader.ReadGuid(),
+            ReadSetupEntry(reader));
+    }
+
+    public static void WriteStartSetup(WireWriter writer, StartSetup value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.WorkspaceId);
+        WriteSetupEntry(writer, value.Entry);
+    }
+
     public static StepSplitMember ReadStepSplitMember(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new StepSplitMember(
@@ -13006,50 +13519,6 @@ public static class ContractCodec {
         writer.WriteCount(value.Groups.Count);
         foreach (var itemGroups in value.Groups) {
             writer.WriteString(itemGroups);
-        }
-    }
-
-    public static SuggestedImportReview ReadSuggestedImportReview(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new SuggestedImportReview(
-            reader.ReadList(() => ReadSuggestedSpaceReview(reader)));
-    }
-
-    public static void WriteSuggestedImportReview(WireWriter writer, SuggestedImportReview value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteCount(value.Spaces.Count);
-        foreach (var itemSpaces in value.Spaces) {
-            WriteSuggestedSpaceReview(writer, itemSpaces);
-        }
-    }
-
-    public static SuggestedSpaceReview ReadSuggestedSpaceReview(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return new SuggestedSpaceReview(
-            reader.ReadGuid(),
-            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null,
-            reader.ReadList(() => reader.ReadGuid()),
-            reader.ReadList(() => reader.ReadGuid()));
-    }
-
-    public static void WriteSuggestedSpaceReview(WireWriter writer, SuggestedSpaceReview value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        ArgumentNullException.ThrowIfNull(value);
-        writer.WriteGuid(value.SourceSpaceId);
-        if (value.DestinationId is { } presentDestinationId) {
-            writer.WritePresence(true);
-            writer.WriteGuid(presentDestinationId);
-        } else {
-            writer.WritePresence(false);
-        }
-        writer.WriteCount(value.DuplicateTabIds.Count);
-        foreach (var itemDuplicateTabIds in value.DuplicateTabIds) {
-            writer.WriteGuid(itemDuplicateTabIds);
-        }
-        writer.WriteCount(value.IncludedTabIds.Count);
-        foreach (var itemIncludedTabIds in value.IncludedTabIds) {
-            writer.WriteGuid(itemIncludedTabIds);
         }
     }
 
@@ -13616,6 +14085,18 @@ public static class ContractCodec {
         } else {
             writer.WritePresence(false);
         }
+    }
+
+    public static ToggleImportSource ReadToggleImportSource(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new ToggleImportSource(
+            ReadImportSource(reader));
+    }
+
+    public static void WriteToggleImportSource(WireWriter writer, ToggleImportSource value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        WriteImportSource(writer, value.Source);
     }
 
     public static TogglePin ReadTogglePin(WireReader reader) {
@@ -15147,6 +15628,50 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteEnum(TagOf(SearchEngineFlaw.All, value));
+    }
+
+    public static SetupEntry ReadSetupEntry(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return SetupEntry.All[reader.ReadEnum(SetupEntry.All.Count)];
+    }
+
+    public static void WriteSetupEntry(WireWriter writer, SetupEntry value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(SetupEntry.All, value));
+    }
+
+    public static SetupFailureReason ReadSetupFailureReason(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return SetupFailureReason.All[reader.ReadEnum(SetupFailureReason.All.Count)];
+    }
+
+    public static void WriteSetupFailureReason(WireWriter writer, SetupFailureReason value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(SetupFailureReason.All, value));
+    }
+
+    public static SetupPhase ReadSetupPhase(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return SetupPhase.All[reader.ReadEnum(SetupPhase.All.Count)];
+    }
+
+    public static void WriteSetupPhase(WireWriter writer, SetupPhase value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(SetupPhase.All, value));
+    }
+
+    public static SetupStep ReadSetupStep(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return SetupStep.All[reader.ReadEnum(SetupStep.All.Count)];
+    }
+
+    public static void WriteSetupStep(WireWriter writer, SetupStep value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(SetupStep.All, value));
     }
 
     public static ShortcutCommand ReadShortcutCommand(WireReader reader) {

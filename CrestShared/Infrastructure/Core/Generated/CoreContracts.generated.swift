@@ -62,6 +62,9 @@ protocol SessionIntent: Intent {}
 /// The members of `Intent` that derive from the core's `SetupDraftIntent`.
 protocol SetupDraftIntent: Intent {}
 
+/// The members of `Intent` that derive from the core's `SetupFlowIntent`.
+protocol SetupFlowIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `ShortcutIntent`.
 protocol ShortcutIntent: Intent {}
 
@@ -108,7 +111,10 @@ enum Change: Equatable, Sendable {
     case saved(Saved)
     case scriptDialogAsked(ScriptDialogAsked)
     case sessionAdopted(SessionAdopted)
+    case setupCompletedChanged(SetupCompletedChanged)
     case setupDraftChanged(SetupDraftChanged)
+    case setupFinished(SetupFinished)
+    case setupFlowChanged(SetupFlowChanged)
     case shortcutsChanged(ShortcutsChanged)
     case sidebarChanged(SidebarChanged)
     case sitePermissionsChanged(SitePermissionsChanged)
@@ -167,6 +173,7 @@ enum Rejection: Equatable, Error, Sendable {
     case folderCycle(FolderCycle)
     case folderDepthLimitReached(FolderDepthLimitReached)
     case folderLimitReached(FolderLimitReached)
+    case guideSpaceLocked(GuideSpaceLocked)
     case incompleteSplit(IncompleteSplit)
     case invalidBlockedPopup(InvalidBlockedPopup)
     case invalidCredentialDate(InvalidCredentialDate)
@@ -208,6 +215,7 @@ enum Rejection: Equatable, Error, Sendable {
     case noIncludedSpaces(NoIncludedSpaces)
     case noManualSetup(NoManualSetup)
     case noSavedAddress(NoSavedAddress)
+    case noSetup(NoSetup)
     case noSplitStep(NoSplitStep)
     case noStoredSession(NoStoredSession)
     case notAnArchive(NotAnArchive)
@@ -232,6 +240,7 @@ enum Rejection: Equatable, Error, Sendable {
     case sessionOverLimits(SessionOverLimits)
     case sessionTooLarge(SessionTooLarge)
     case sessionUnrecognized(SessionUnrecognized)
+    case setupBusy(SetupBusy)
     case shortcutInUse(ShortcutInUse)
     case sitePermissionLimitReached(SitePermissionLimitReached)
     case spaceAlreadyExists(SpaceAlreadyExists)
@@ -289,12 +298,14 @@ enum Rejection: Equatable, Error, Sendable {
         case .currentTabsOnly(let value): value.message
         case .duplicateSearchEngineName(let value): value.message
         case .fileUnreadable(let value): value.message
+        case .guideSpaceLocked(let value): value.message
         case .incompleteSplit(let value): value.message
         case .invalidImport(let value): value.message
         case .invalidSyncRecords(let value): value.message
         case .legacyCloudStateUnreadable(let value): value.message
         case .noIncludedSpaces(let value): value.message
         case .noManualSetup(let value): value.message
+        case .noSetup(let value): value.message
         case .notAnArchive(let value): value.message
         case .persistentWorkspaceRequired(let value): value.message
         case .pinnedTabsDragAlone(let value): value.message
@@ -311,6 +322,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .sessionOverLimits(let value): value.message
         case .sessionTooLarge(let value): value.message
         case .sessionUnrecognized(let value): value.message
+        case .setupBusy(let value): value.message
         case .sitePermissionLimitReached(let value): value.message
         case .spaceAlreadyExists(let value): value.message
         case .spaceBeingDeleted(let value): value.message
@@ -412,7 +424,10 @@ extension CoreState {
         case .saved(let change): apply(change)
         case .scriptDialogAsked(let change): apply(change)
         case .sessionAdopted(let change): apply(change)
+        case .setupCompletedChanged(let change): apply(change)
         case .setupDraftChanged(let change): apply(change)
+        case .setupFinished(let change): apply(change)
+        case .setupFlowChanged(let change): apply(change)
         case .shortcutsChanged(let change): apply(change)
         case .sidebarChanged(let change): apply(change)
         case .sitePermissionsChanged(let change): apply(change)
@@ -503,6 +518,10 @@ struct AdoptOfferedPage: PageRequest, Equatable, Sendable {
     let adoptionID: UUID
 }
 
+struct AdoptSetupCompletion: Intent, SetupFlowIntent, Equatable, Sendable {
+    let completed: Bool
+}
+
 struct AdoptSetupDraft: Intent, SetupDraftIntent, Equatable, Sendable {
     let draft: Data?
 }
@@ -525,17 +544,6 @@ struct AlreadyInSpace: Equatable, Sendable {
 
 struct AlreadyInSplit: Equatable, Sendable {
     let tabID: UUID
-}
-
-struct AnalyzedImportReview: Equatable, Sendable {
-    let spaces: [AnalyzedSpaceReview]
-    let overflowTabIDs: [UUID]
-}
-
-struct AnalyzedSpaceReview: Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let duplicateTabIDs: [UUID]
-    let matchedTabIDs: [UUID]
 }
 
 struct AnswerAuthentication: Intent, PromptIntent, Equatable, Sendable {
@@ -748,9 +756,7 @@ struct BeginDownload: Intent, DownloadIntent, Equatable, Sendable {
     let isAcknowledged: Bool
 }
 
-struct BeginManualSetup: Intent, SetupDraftIntent, Equatable, Sendable {
-    let workspaceID: UUID
-    let startsOver: Bool
+struct BeginImportCommit: Intent, SetupFlowIntent, Equatable, Sendable {
 }
 
 struct BeginUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
@@ -880,6 +886,9 @@ struct CancelEngineDownload: Equatable, Sendable {
     let downloadID: String
 }
 
+struct CancelImportRead: Intent, SetupFlowIntent, Equatable, Sendable {
+}
+
 struct CannotDeleteLastSpace: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Crest needs at least one Space.")
@@ -966,6 +975,11 @@ struct ChooseCloudCopy: Intent, CloudSyncControlIntent, Equatable, Sendable {
 struct ChooseExternalLinkDestination: Intent, LinkIntent, Equatable, Sendable {
     let destination: ExternalLinkDestination
     let spaceID: UUID?
+}
+
+struct ChooseImportDestination: Intent, SetupFlowIntent, Equatable, Sendable {
+    let sourceSpaceID: UUID
+    let destinationSpaceID: UUID?
 }
 
 struct ChoosePeekModifier: Intent, LinkIntent, Equatable, Sendable {
@@ -1248,6 +1262,9 @@ struct ContentScriptEvaluated: Equatable, Sendable {
     let json: String?
 }
 
+struct ContinueImport: Intent, SetupFlowIntent, Equatable, Sendable {
+}
+
 struct CreateFolder: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1424,6 +1441,11 @@ struct CustomSearchProvider: Equatable, Sendable, Identifiable {
     let suggestionURLTemplate: String?
 }
 
+struct CustomizeImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
+    let sourceSpaceID: UUID
+    let customization: SpaceCustomization
+}
+
 struct CustomizeSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
     let spaceID: UUID
     let customization: SpaceCustomization
@@ -1473,9 +1495,6 @@ struct DeleteTabs: Intent, SessionIntent, Equatable, Sendable {
     let windowID: UUID
     let spaceID: UUID
     let selection: TabSelection
-}
-
-struct DiscardManualSetup: Intent, SetupDraftIntent, Equatable, Sendable {
 }
 
 struct DismissShownTab: Intent, WindowIntent, Equatable, Sendable {
@@ -1895,6 +1914,12 @@ struct FailDownload: Intent, DownloadIntent, Equatable, Sendable {
     let message: String?
 }
 
+struct FailImport: Intent, SetupFlowIntent, Equatable, Sendable {
+    let source: ImportSource
+    let reason: SetupFailureReason
+    let detail: String?
+}
+
 struct FallbackTab: Query, Equatable, Sendable {
     typealias Answer = FallbackTabIndex
 
@@ -1961,6 +1986,14 @@ struct FinishDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
 struct FinishDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
     let finalByteCount: Int64?
+}
+
+struct FinishImportCommit: Intent, SetupFlowIntent, Equatable, Sendable {
+    let passwordCount: Int
+}
+
+struct FinishSetup: Intent, SetupFlowIntent, Equatable, Sendable {
+    let windowID: UUID
 }
 
 struct FinishUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
@@ -2050,6 +2083,14 @@ struct GoToHistoryOffset: PageRequest, Equatable, Sendable {
     let offset: Int
 }
 
+struct GuideSpaceLocked: Equatable, Sendable {
+    let spaceID: UUID
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Unlock your first Space to open Getting Started.")
+    }
+}
+
 struct HasSidePanel: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -2100,6 +2141,11 @@ struct ImportData: Equatable, Sendable {
     let passwordStores: [ImportPasswordStore]
 }
 
+struct ImportPasswordCount: Equatable, Sendable {
+    let sourceSpaceID: UUID
+    let count: Int
+}
+
 struct ImportPasswordStore: Equatable, Sendable, Identifiable {
     let id: String
     let profileName: String
@@ -2119,38 +2165,9 @@ struct ImportProfile: Equatable, Sendable, Identifiable {
     let sessionPath: String?
 }
 
-struct ImportReviewAnalysis: Query, Equatable, Sendable {
-    typealias Answer = AnalyzedImportReview
-
-    let workspaceID: UUID
-    let sources: [ImportReviewSpace]
-    let reviews: [SpaceReview]
-}
-
-struct ImportReviewSpace: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let name: String
-    let tabs: [ImportReviewTab]
-}
-
-struct ImportReviewSuggestions: Query, Equatable, Sendable {
-    typealias Answer = SuggestedImportReview
-
-    let workspaceID: UUID
-    let sources: [ImportReviewSpace]
-}
-
-struct ImportReviewTab: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let url: String?
-    let placement: TabPlacement
-}
-
 struct ImportReviewedSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
-    let spaces: Data
-    let reviews: [SpaceReview]
 }
 
 struct ImportSpaceNames: Equatable, Sendable {
@@ -2179,6 +2196,22 @@ struct ImportedWorkspace: Equatable, Sendable {
     let session: SessionState
     let imported: [ImportedTab]
     let copied: [TabCopied]
+}
+
+struct IncludeImportPasswords: Intent, SetupFlowIntent, Equatable, Sendable {
+    let sourceSpaceID: UUID
+    let included: Bool
+}
+
+struct IncludeImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
+    let sourceSpaceID: UUID
+    let included: Bool
+}
+
+struct IncludeImportTabs: Intent, SetupFlowIntent, Equatable, Sendable {
+    let sourceSpaceID: UUID
+    let tabIDs: [UUID]
+    let included: Bool
 }
 
 struct IncompleteSplit: Equatable, Sendable {
@@ -2854,6 +2887,12 @@ struct NoSavedAddress: Equatable, Sendable {
     let tabID: UUID
 }
 
+struct NoSetup: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Setup is no longer open. Open it again.")
+    }
+}
+
 struct NoSplitStep: Equatable, Sendable {
     let tabID: UUID
     let offset: Int
@@ -2918,6 +2957,10 @@ struct ObserveCloudAccountAvailability: Intent, CloudSyncControlIntent, Equatabl
 
 struct ObserveCloudAccountChange: Intent, CloudTransportIntent, Equatable, Sendable {
     let transition: CloudAccountTransition
+}
+
+struct OfferImportSources: Intent, SetupFlowIntent, Equatable, Sendable {
+    let installed: [ImportSource]
 }
 
 struct OpenAddress: Intent, SessionIntent, Equatable, Sendable {
@@ -3402,6 +3445,12 @@ struct PinsOneTabAtATime: Equatable, Sendable {
     }
 }
 
+struct PlaceImportTab: Intent, SetupFlowIntent, Equatable, Sendable {
+    let sourceSpaceID: UUID
+    let tabID: UUID
+    let placement: TabPlacement
+}
+
 struct PopupBlocked: Equatable, Sendable {
     let pageID: UUID
     let pageURL: String
@@ -3736,6 +3785,12 @@ struct ReturnToSavedAddress: Intent, SessionIntent, Equatable, Sendable {
     let tabID: UUID
 }
 
+struct ReviewImport: Intent, SetupFlowIntent, Equatable, Sendable {
+    let source: ImportSource
+    let spaces: [SpaceState]
+    let passwordCounts: [ImportPasswordCount]
+}
+
 struct RouteExternalLink: Query, Equatable, Sendable {
     typealias Answer = ExternalLinkPlacement
 
@@ -4064,6 +4119,16 @@ struct SettleScriptDialog: Equatable, Sendable {
     let text: String?
 }
 
+struct SetupBusy: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Wait for setup to finish reading or importing.")
+    }
+}
+
+struct SetupCompletedChanged: Equatable, Sendable {
+    let completed: Bool
+}
+
 struct SetupDraft: Equatable, Sendable {
     let workspaceID: UUID
     let spaces: [SetupDraftSpace]
@@ -4080,6 +4145,80 @@ struct SetupDraftSpace: Equatable, Sendable {
     let isNew: Bool
     let customization: SpaceCustomization
     let shownName: String
+}
+
+struct SetupFailure: Equatable, Sendable {
+    let reason: SetupFailureReason
+    let source: ImportSource?
+    let detail: String?
+}
+
+struct SetupFinished: Equatable, Sendable {
+    let workspaceID: UUID
+    let guideSpaceID: UUID?
+}
+
+struct SetupFlowChanged: Equatable, Sendable {
+    let flow: SetupFlowState?
+}
+
+struct SetupFlowState: Equatable, Sendable {
+    let workspaceID: UUID
+    let entry: SetupEntry
+    let step: SetupStep
+    let backStep: SetupStep?
+    let nextStep: SetupStep?
+    let phase: SetupPhase
+    let offered: [ImportSource]
+    let selected: [ImportSource]
+    let queue: SetupImportQueue?
+    let source: ImportSource?
+    let review: SetupImportReview?
+    let failure: SetupFailure?
+    let summary: SetupSummary?
+    let opensGuide: Bool
+    let opensCrestFromWelcome: Bool
+}
+
+struct SetupImportQueue: Equatable, Sendable {
+    let sources: [ImportSource]
+    let index: Int
+    let current: ImportSource?
+    let hasMoreAfterCurrent: Bool
+}
+
+struct SetupImportReview: Equatable, Sendable {
+    let source: ImportSource
+    let spaces: [SetupReviewSpace]
+    let overflowTabIDs: [UUID]
+    let shownSpaceID: UUID?
+    let hasIncludedSpaces: Bool
+    let includedTabCount: Int
+    let nextSpaceID: UUID?
+    let showsLastSpace: Bool
+    let includedPasswordCount: Int
+}
+
+struct SetupReviewSpace: Equatable, Sendable {
+    let source: SpaceState
+    let included: Bool
+    let destinationID: UUID?
+    let customization: SpaceCustomization
+    let includedTabIDs: [UUID]
+    let duplicateTabIDs: [UUID]
+    let matchedTabIDs: [UUID]
+    let placements: [TabPlacementChoice]
+    let includesPasswords: Bool
+    let passwordCount: Int
+    let shownName: String
+    let bringsPasswords: Bool
+}
+
+struct SetupSummary: Equatable, Sendable {
+    let isImport: Bool
+    let tabCount: Int
+    let passwordCount: Int
+    let spaceCount: Int
 }
 
 struct ShortcutBinding: Equatable, Sendable {
@@ -4119,6 +4258,10 @@ struct ShowBlockedPopups: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct ShowImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
+    let sourceSpaceID: UUID
+}
+
 struct ShowMostRecentTab: Intent, WindowIntent, Equatable, Sendable {
     let windowID: UUID
 }
@@ -4127,6 +4270,10 @@ struct ShowPage: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
     let pageID: UUID
+}
+
+struct ShowSetupStep: Intent, SetupFlowIntent, Equatable, Sendable {
+    let step: SetupStep
 }
 
 struct ShowSpace: Intent, WindowIntent, Equatable, Sendable {
@@ -4372,15 +4519,6 @@ struct SpaceProfileChanged: Equatable, Sendable {
     }
 }
 
-struct SpaceReview: Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let included: Bool
-    let destinationID: UUID?
-    let customization: SpaceCustomization
-    let includedTabIDs: [UUID]
-    let placements: [TabPlacementChoice]
-}
-
 struct SpaceSettings: Equatable, Sendable {
     let name: String
     let symbol: String
@@ -4510,6 +4648,11 @@ struct StartPageNotCopied: Equatable, Sendable {
     let tabID: UUID
 }
 
+struct StartSetup: Intent, SetupFlowIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let entry: SetupEntry
+}
+
 struct StepSplitMember: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -4559,17 +4702,6 @@ struct StrongPassword: Query, Equatable, Sendable {
 struct StrongPasswordRecipe: Equatable, Sendable {
     let length: Int
     let groups: [String]
-}
-
-struct SuggestedImportReview: Equatable, Sendable {
-    let spaces: [SuggestedSpaceReview]
-}
-
-struct SuggestedSpaceReview: Equatable, Sendable {
-    let sourceSpaceID: UUID
-    let destinationID: UUID?
-    let duplicateTabIDs: [UUID]
-    let includedTabIDs: [UUID]
 }
 
 struct SweepExpiredRecords: Intent, SessionIntent, Equatable, Sendable {
@@ -4744,6 +4876,10 @@ struct TintSplit: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let groupID: UUID
     let tint: BrandColor?
+}
+
+struct ToggleImportSource: Intent, SetupFlowIntent, Equatable, Sendable {
+    let source: ImportSource
 }
 
 struct TogglePin: Intent, SessionIntent, Equatable, Sendable {
@@ -6331,15 +6467,17 @@ struct DevicePlatform: Hashable, Sendable {
     let tag: Int
     let name: String
     let keepsSetupDraft: Bool
+    let importsBrowsers: Bool
 
-    private init(tag: Int, name: String, keepsSetupDraft: Bool) {
+    private init(tag: Int, name: String, keepsSetupDraft: Bool, importsBrowsers: Bool) {
         self.tag = tag
         self.name = name
         self.keepsSetupDraft = keepsSetupDraft
+        self.importsBrowsers = importsBrowsers
     }
 
-    static let desktop = DevicePlatform(tag: 0, name: "desktop", keepsSetupDraft: false)
-    static let mobile = DevicePlatform(tag: 1, name: "mobile", keepsSetupDraft: true)
+    static let desktop = DevicePlatform(tag: 0, name: "desktop", keepsSetupDraft: false, importsBrowsers: true)
+    static let mobile = DevicePlatform(tag: 1, name: "mobile", keepsSetupDraft: true, importsBrowsers: false)
 
     static let all: [DevicePlatform] = [desktop, mobile]
 
@@ -8388,6 +8526,177 @@ struct SearchProvider: Hashable, Sendable {
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(name)
+    }
+}
+
+/// The members of the core's `SetupEntry`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `opensGuide`.
+struct SetupEntry: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let firstStep: SetupStep
+    let isGuided: Bool
+    let startsManualSetupOver: Bool
+
+    private init(tag: Int, name: String, firstStep: SetupStep, isGuided: Bool, startsManualSetupOver: Bool) {
+        self.tag = tag
+        self.name = name
+        self.firstStep = firstStep
+        self.isGuided = isGuided
+        self.startsManualSetupOver = startsManualSetupOver
+    }
+
+    static let firstRun = SetupEntry(
+        tag: 0,
+        name: "firstRun",
+        firstStep: SetupStep.welcome,
+        isGuided: true,
+        startsManualSetupOver: false
+    )
+    static let importBrowser = SetupEntry(
+        tag: 1,
+        name: "importBrowser",
+        firstStep: SetupStep.importBrowser,
+        isGuided: false,
+        startsManualSetupOver: false
+    )
+    static let manualSetup = SetupEntry(
+        tag: 2,
+        name: "manualSetup",
+        firstStep: SetupStep.manualSetup,
+        isGuided: false,
+        startsManualSetupOver: false
+    )
+    static let rerun = SetupEntry(
+        tag: 3,
+        name: "rerun",
+        firstStep: SetupStep.welcome,
+        isGuided: true,
+        startsManualSetupOver: true
+    )
+
+    static let all: [SetupEntry] = [firstRun, importBrowser, manualSetup, rerun]
+
+    static func named(_ name: String?) -> SetupEntry? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SetupEntry, rhs: SetupEntry) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `SetupFailureReason`. A member's wire tag is its index in `all`.
+struct SetupFailureReason: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let returnsToReview: Bool
+
+    private init(tag: Int, name: String, returnsToReview: Bool) {
+        self.tag = tag
+        self.name = name
+        self.returnsToReview = returnsToReview
+    }
+
+    static let sourceUnavailable = SetupFailureReason(tag: 0, name: "sourceUnavailable", returnsToReview: false)
+    static let dataFolder = SetupFailureReason(tag: 1, name: "dataFolder", returnsToReview: false)
+    static let read = SetupFailureReason(tag: 2, name: "read", returnsToReview: false)
+    static let `import` = SetupFailureReason(tag: 3, name: "import", returnsToReview: true)
+
+    static let all: [SetupFailureReason] = [sourceUnavailable, dataFolder, read, `import`]
+
+    static func named(_ name: String?) -> SetupFailureReason? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SetupFailureReason, rhs: SetupFailureReason) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `SetupPhase`. A member's wire tag is its index in `all`.
+struct SetupPhase: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let isBusy: Bool
+
+    private init(tag: Int, name: String, isBusy: Bool) {
+        self.tag = tag
+        self.name = name
+        self.isBusy = isBusy
+    }
+
+    static let idle = SetupPhase(tag: 0, name: "idle", isBusy: false)
+    static let reading = SetupPhase(tag: 1, name: "reading", isBusy: true)
+    static let reviewing = SetupPhase(tag: 2, name: "reviewing", isBusy: false)
+    static let committing = SetupPhase(tag: 3, name: "committing", isBusy: true)
+
+    static let all: [SetupPhase] = [idle, reading, reviewing, committing]
+
+    static func named(_ name: String?) -> SetupPhase? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SetupPhase, rhs: SetupPhase) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `SetupStep`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `next`, `back`.
+struct SetupStep: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let progressPosition: Int
+
+    private init(tag: Int, name: String, progressPosition: Int) {
+        self.tag = tag
+        self.name = name
+        self.progressPosition = progressPosition
+    }
+
+    static let welcome = SetupStep(tag: 0, name: "welcome", progressPosition: 0)
+    static let featureSpaces = SetupStep(tag: 1, name: "featureSpaces", progressPosition: 0)
+    static let featureTabs = SetupStep(tag: 2, name: "featureTabs", progressPosition: 0)
+    static let featureSync = SetupStep(tag: 3, name: "featureSync", progressPosition: 0)
+    static let importBrowser = SetupStep(tag: 4, name: "importBrowser", progressPosition: 1)
+    static let review = SetupStep(tag: 5, name: "review", progressPosition: 2)
+    static let manualSetup = SetupStep(tag: 6, name: "manualSetup", progressPosition: 2)
+    static let complete = SetupStep(tag: 7, name: "complete", progressPosition: 2)
+
+    static let all: [SetupStep] = [
+        welcome,
+        featureSpaces,
+        featureTabs,
+        featureSync,
+        importBrowser,
+        review,
+        manualSetup,
+        complete
+    ]
+
+    static func named(_ name: String?) -> SetupStep? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SetupStep, rhs: SetupStep) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
     }
 }
 

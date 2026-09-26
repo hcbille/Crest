@@ -3,18 +3,9 @@ import SwiftUI
 struct BrowserOnboardingProgressHeader: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    let step: BrowserOnboardingStep
+    let step: SetupStep
 
-    private var progressIndex: Int {
-        switch step {
-        case .welcome, .featureSpaces, .featureTabs, .featureSync:
-            0
-        case .importBrowser:
-            1
-        case .review, .manualSetup, .complete:
-            2
-        }
-    }
+    private var progressIndex: Int { step.progressPosition }
 
     var body: some View {
         HStack(spacing: 12) {

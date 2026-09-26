@@ -12,8 +12,8 @@ internal sealed partial class Device {
 
     /// The setup in progress, or null.
     private SetupDraft? setupDraft;
-    /// What the device store keeps of an unfinished setup, which the next
-    /// `BeginManualSetup` goes on with. Always null on a platform that keeps none.
+    /// What the device store keeps of an unfinished setup, which setup goes
+    /// on with at its manual-setup step. Always null on a platform that keeps none.
     private KeptSetupDraft? keptSetupDraft;
 
     #endregion
@@ -25,18 +25,10 @@ internal sealed partial class Device {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(ids);
-        if (intent is BeginManualSetup begin) {
-            Begin(begin, changes, ids);
-            return;
-        }
         lock (gate) {
-            switch (intent) {
-                case AdoptSetupDraft adoption:
-                    Adopt(adoption);
-                    return;
-                case DiscardManualSetup:
-                    KeepSetup(null, changes);
-                    return;
+            if (intent is AdoptSetupDraft adoption) {
+                Adopt(adoption);
+                return;
             }
             var draft = setupDraft ?? throw new Rejected(new NoManualSetup());
             KeepSetup(intent switch {
@@ -49,21 +41,16 @@ internal sealed partial class Device {
         }
     }
 
-    /// Starts or goes on with a setup of the workspace's Spaces, and always
-    /// publishes it. The session is read outside the device lock.
-    private void Begin(BeginManualSetup intent, ChangeFeed changes, IIdSource ids) {
-        var authority = Workspace(intent.WorkspaceId);
-        if (!authority.Kind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(intent.WorkspaceId));
-        var session = authority.Current;
-        lock (gate) {
-            var resumed = intent.StartsOver ? null
-                : setupDraft is { } held && held.WorkspaceId == intent.WorkspaceId ? held
-                : keptSetupDraft?.For(intent.WorkspaceId);
-            var draft = resumed is null ? ManualSetupPolicy.Started(intent.WorkspaceId, session, ids.Next)
-                : ManualSetupPolicy.Reconciled(resumed, session);
-            KeepSetup(draft, changes: null);
-            changes.Publish(new SetupDraftChanged(draft));
-        }
+    /// Starts a setup of `session`'s Spaces over `workspaceId`, or goes on with
+    /// the one held or kept unless `startsOver`, and publishes it. The caller
+    /// holds the device lock.
+    private void BeginSetup(Guid workspaceId, SessionState session, bool startsOver, ChangeFeed changes, IIdSource ids) {
+        var resumed = startsOver ? null
+            : setupDraft is { } held && held.WorkspaceId == workspaceId ? held
+            : keptSetupDraft?.For(workspaceId);
+        var draft = resumed is null ? ManualSetupPolicy.Started(workspaceId, session, ids.Next) : ManualSetupPolicy.Reconciled(resumed, session);
+        KeepSetup(draft, changes: null);
+        changes.Publish(new SetupDraftChanged(draft));
     }
 
     /// Carries the setup an installed release kept into the device store

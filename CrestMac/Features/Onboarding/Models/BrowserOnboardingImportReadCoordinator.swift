@@ -3,9 +3,8 @@ import Observation
 
 struct BrowserOnboardingImportReadOutput: Sendable {
     let payload: BrowserDetectedImportPayload
-    /// The Spaces the core read, with new identities. TRANSITIONAL until the
-    /// review moves into the core: the review plan still holds the Swift copy.
-    let imported: [BrowserSpace]
+    /// The Spaces the core read, with new identities.
+    let imported: [SpaceState]
     let passwordCandidates: [BrowserPasswordImportCandidate]
 }
 

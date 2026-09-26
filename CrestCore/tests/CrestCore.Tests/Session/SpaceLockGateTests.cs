@@ -45,7 +45,7 @@ public sealed partial class BrowserContractsTests {
             device.Send(new RenameTab(device.Workspace, identity.Space, tab, "Leaked"))).Rejection);
         Assert.Equal(1UL, core.Revision);
         // A setup that would rename a locked Space is refused.
-        device.Send(new BeginManualSetup(device.Workspace, StartsOver: true));
+        device.Send(new StartSetup(device.Workspace, SetupEntry.ManualSetup));
         device.Send(new CustomizeSetupSpace(identity.Space,
             new("Renamed", "book", SpaceAccent.Indigo, StoredSessionCodec.DecodeBranding(new JsonObject()))));
         var setup = new ApplyManualSetup(device.Workspace, Guid.NewGuid());
@@ -111,17 +111,20 @@ public sealed partial class BrowserContractsTests {
         // The core matched "Reading" to the locked Space; "Travel" is new.
         var matched = ImportedSpace("Reading", ImportedTab("https://matched.example/"));
         var fresh = ImportedSpace("Travel", ImportedTab("https://travel.example/"));
-        ImportReviewedSpaces Review(bool joinsLocked) => new(device.Workspace, window, ImportedSpaces(matched, fresh), [
-            new(SpaceId(matched), joinsLocked, locked.Id, OwnCustomization(locked), [TabId(matched["tabs"]![0]!)], []),
-            new(SpaceId(fresh), true, null, Customization("Trips"), [TabId(fresh["tabs"]![0]!)], [])
-        ]);
+        Assert.Equal(locked.Id, Reviewing(device, matched, fresh).Spaces[0].DestinationId);
+        device.Send(new CustomizeImportSpace(SpaceId(fresh), Customization("Trips")));
+        device.Send(new BeginImportCommit());
 
         var before = device.Authority.Current;
-        Assert.Equal(new SpaceLocked(locked.Id), Assert.Throws<Rejected>(() => device.Send(Review(joinsLocked: true))).Rejection);
+        Assert.Equal(new SpaceLocked(locked.Id),
+            Assert.Throws<Rejected>(() => device.Send(new ImportReviewedSpaces(device.Workspace, window))).Rejection);
         Assert.Same(before, device.Authority.Current);
 
         // Left out, the match changes nothing, so the rest imports.
-        device.Send(Review(joinsLocked: false));
+        device.Send(new FailImport(ImportSource.Arc, SetupFailureReason.Import, Detail: null));
+        device.Send(new IncludeImportSpace(SpaceId(matched), Included: false));
+        device.Send(new BeginImportCommit());
+        device.Send(new ImportReviewedSpaces(device.Workspace, window));
         var current = device.Authority.Current;
         Assert.Equal(3, current.Spaces.Count);
         Assert.Equal(kept, Stored(current.Spaces[0]));
@@ -136,7 +139,7 @@ public sealed partial class BrowserContractsTests {
         var (locked, open) = (device.Authority.Current.Spaces[0], device.Authority.Current.Spaces[1]);
         var kept = Stored(locked);
         // The setup renames the open Space and moves the locked one second.
-        device.Send(new BeginManualSetup(device.Workspace, StartsOver: true));
+        device.Send(new StartSetup(device.Workspace, SetupEntry.ManualSetup));
         device.Send(new CustomizeSetupSpace(open.Id, Customization("Renamed")));
         device.Send(new MoveSetupSpace(open.Id, locked.Id));
         device.Send(new CustomizeSetupSpace(locked.Id, Customization("Also renamed")));

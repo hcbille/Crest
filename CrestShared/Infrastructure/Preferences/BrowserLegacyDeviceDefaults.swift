@@ -15,6 +15,7 @@ struct BrowserLegacyDeviceDefaults: Equatable, Sendable {
     static let shortcutsKey = "crest.keyboard-shortcuts.v1"
     static let linkPreferencesKey = "crest.link-preferences.v1"
     static let manualSetupDraftKey = "BrowserManualSetupDraft"
+    static let setupCompletedKey = "crest.onboarding.completed"
 
     // MARK: - Variables
 
@@ -26,6 +27,10 @@ struct BrowserLegacyDeviceDefaults: Equatable, Sendable {
     var linkPreferences: Data?
     /// The unfinished manual setup, or nil when none was saved.
     var manualSetupDraft: Data?
+    /// Whether setup was completed on this device. A launch that keeps
+    /// everything in memory, and so reads no defaults, counts as having
+    /// completed it.
+    var setupCompleted = true
 
     // MARK: - Actions - Reading
 
@@ -43,6 +48,7 @@ struct BrowserLegacyDeviceDefaults: Equatable, Sendable {
             sitePermissions: defaults?.data(forKey: sitePermissionsKey),
             shortcuts: defaults?.data(forKey: shortcutsKey),
             linkPreferences: defaults?.data(forKey: linkPreferencesKey),
-            manualSetupDraft: defaults?.data(forKey: manualSetupDraftKey))
+            manualSetupDraft: defaults?.data(forKey: manualSetupDraftKey),
+            setupCompleted: defaults?.bool(forKey: setupCompletedKey) ?? true)
     }
 }
