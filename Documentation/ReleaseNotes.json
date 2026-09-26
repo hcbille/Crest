@@ -2909,6 +2909,10 @@
     "chromium-quick-window-popups": {
       "category": "fixed",
       "message": "In the Chromium build, a pop-up opened from a Quick Window or Peek now opens in that window instead of disappearing."
+    },
+    "2026-09-26-abi-check-unused-tag": {
+      "category": "internal",
+      "message": "The native ABI check sends a union tag far past every intent, so new intents never make it a real one"
     }
   }
 }

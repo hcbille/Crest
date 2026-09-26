@@ -24,8 +24,9 @@ static void app_boundary(void) {
         && app == 0 && buffer.bytes == NULL);
     assert(crest_app_create(fingerprint, sizeof(fingerprint), memory_only, sizeof(memory_only), &app, &buffer) == CREST_OK
         && app != 0 && buffer.bytes == NULL);
-    /* A union tag no contract uses is malformed input, not a rejection. */
-    const uint8_t garbage[] = { 0x7f, 0x01, 0x02 };
+    /* A union tag no contract uses is malformed input, not a rejection: the
+     * varint 16383, far past the last intent. */
+    const uint8_t garbage[] = { 0xff, 0x7f, 0x01, 0x02 };
     assert(crest_app_dispatch(app, garbage, sizeof(garbage), &buffer) == CREST_INVALID_MESSAGE);
     assert(buffer.bytes == NULL && buffer.length == 0);
     /* AcknowledgeDownloads: its tag, then the profile's 16 RFC 4122 bytes. */
