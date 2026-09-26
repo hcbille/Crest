@@ -2941,6 +2941,10 @@
     "delete-unused-swift-declarations": {
       "category": "internal",
       "message": "Unused Swift declarations removed after the core migration"
+    },
+    "remove-unused-catalog-strings": {
+      "category": "internal",
+      "message": "Unused localized strings removed from the catalog"
     }
   }
 }
