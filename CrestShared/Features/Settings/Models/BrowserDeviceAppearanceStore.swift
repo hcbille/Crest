@@ -66,7 +66,6 @@ final class BrowserDeviceAppearanceStore {
     static let addressKey = "crest.appearance.address"
     static let cornerRadiusKey = "crest.appearance.cornerRadius"
     static let maximumCornerRadius: Double = 40
-    static let cornerRadiusRange: ClosedRange<Double> = 0...maximumCornerRadius
     var cornerRadius: Double {
         didSet { defaults.set(sidebarCornerRadius, forKey: Self.cornerRadiusKey) }
     }

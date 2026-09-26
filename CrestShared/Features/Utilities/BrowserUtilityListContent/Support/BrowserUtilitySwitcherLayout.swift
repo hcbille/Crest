@@ -32,9 +32,6 @@ enum BrowserUtilitySwitcherLayout {
         Double(max(index, 0)) * staggerInterval
     }
 
-    static func collapseDelay(for index: Int, count: Int) -> Double {
-        Double(max(count - index - 1, 0)) * staggerInterval * 0.55
-    }
 }
 
 enum BrowserUtilityFanExpansionStep: Equatable, Sendable {

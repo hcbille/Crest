@@ -188,20 +188,6 @@ enum BrowserSidebarInteractionPolicy {
         return accessibilityTouchRowHeight
     }
 
-    /// Whether a split group's member lines must keep the full tab-row height.
-    ///
-    /// Compressing members so a group reads as one row rather than several is
-    /// a trade a pointer shell is free to make: it costs precision the pointer
-    /// has to spare. A finger does not, so a touch shell is held to the full
-    /// height and lets the container surface and the count affordance carry
-    /// the grouping instead. Both shells draw members at full height today;
-    /// the rule is what keeps the compact one there.
-    static func splitMembersUseFullRowHeight(
-        _ capabilities: BrowserInteractionCapabilities
-    ) -> Bool {
-        capabilities.supportsTouch
-    }
-
     /// The floor a touch row grows to once the reader has chosen an
     /// accessibility text size, which no longer fits the resting row height.
     static let accessibilityTouchRowHeight: CGFloat = 56

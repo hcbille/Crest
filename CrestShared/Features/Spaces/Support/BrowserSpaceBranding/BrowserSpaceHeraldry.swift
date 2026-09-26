@@ -77,22 +77,6 @@ extension BrowserSpaceCrestBackplate: BrowserSpaceHeraldicTerm {
         }
     }
 
-    var outlineSystemImage: String? {
-        switch self {
-        case .none: nil
-        case .circle: "circle"
-        case .shield: "shield"
-        case .diamond: "diamond"
-        case .seal: "seal"
-        case .hexagon: "hexagon"
-        case .octagon: "octagon"
-        case .roundedSquare: "square"
-        case .frenchShield: "shield"
-        case .oval: "oval"
-        case .banner: "flag"
-        case .badge: "seal"
-        }
-    }
 }
 
 extension BrowserSpaceCrestChargeLayout: BrowserSpaceHeraldicTerm {

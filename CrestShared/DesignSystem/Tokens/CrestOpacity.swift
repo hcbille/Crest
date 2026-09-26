@@ -7,9 +7,6 @@ enum CrestOpacity {
     static let interactionSelectionBorder = 0.10
     static let interactionSelectionShadow = 0.08
     static let selection = interactionSelection
-    static let pinnedSelection = interactionSelection
-    static let pinnedSelectionBorder = interactionSelectionBorder
-    static let pinnedSelectionShadow = interactionSelectionShadow
     static let chromeSurface = 0.055
     static let selectedSurface = selection
     static let border = 0.12

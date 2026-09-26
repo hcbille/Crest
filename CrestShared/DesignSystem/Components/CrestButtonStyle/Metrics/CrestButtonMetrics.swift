@@ -13,9 +13,6 @@ enum CrestButtonMetrics {
 
     /// The visible icon diameter and its independently accessible hit target.
     static let iconDiameter: CGFloat = 34
-    static var iconHitTarget: CGFloat {
-        max(iconDiameter, CrestLayout.minimumHitTarget)
-    }
 
     static let strokeWidth: CGFloat = CrestLayout.hairline
     static let quietStrokeWidth: CGFloat = 0.75

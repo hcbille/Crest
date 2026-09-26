@@ -454,16 +454,6 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
         private static let gridOrigin = CGPoint(x: 0, y: 60)
         private static let gridWidth: CGFloat = 320
 
-        var pointerBetweenPinnedTiles: CGPoint {
-            // Past the first remaining tile's centre and short of the next
-            // one's, on the single line the grid lays out — which is the move
-            // only a grid can make and a list cannot.
-            let layout = state.pinnedLayout(ids: tileIDs, in: space)
-            let first = layout.frame(for: .tab(tileIDs[1]), in: pinnedZone)!
-            let second = layout.frame(for: .tab(tileIDs[2]), in: pinnedZone)!
-            return CGPoint(x: (first.midX + second.midX) / 2, y: first.midY)
-        }
-        var pointerOverSavedRun = CGPoint(x: 160, y: 236)
         var pointerOverCurrentRun = CGPoint(x: 160, y: 362)
 
         init(tileCount: Int = 4) {
@@ -851,18 +841,6 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
             registerSidebar()
             registerZone()
             registerCards()
-        }
-
-        /// The shell as it stood before: cards measured, no zone naming the area
-        /// they sit in.
-        func registerCardsOnly() {
-            registerSidebar()
-            registerCards()
-        }
-
-        func registerZoneOnly() {
-            registerSidebar()
-            registerZone()
         }
 
         /// Stages the lift as the sidebar does, asking the core where it may

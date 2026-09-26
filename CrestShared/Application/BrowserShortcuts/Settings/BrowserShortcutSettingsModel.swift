@@ -119,7 +119,4 @@ final class BrowserShortcutSettingsModel {
         validationIssue = .invalidShortcut
     }
 
-    func clearValidationIssue() {
-        validationIssue = nil
-    }
 }

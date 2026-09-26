@@ -1,8 +1,3 @@
-enum BrowserAddressPlacement: Equatable {
-    case spaceSidebar
-    case toolbar
-}
-
 enum BrowserChromeAccessibilityDirection {
     case previous
     case next

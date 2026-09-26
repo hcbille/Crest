@@ -9,7 +9,6 @@ final class BrowserSettingsTabState {
     var selectedSpaceID: SpaceID?
     var spaceEditorSection = BrowserSpaceEditorSection.appearance
     var spaceRouteRevision = 0
-    var shortcutScrollRevision = 0
     let sidebarScroll = BrowserNativeScrollState()
     private(set) var consumedRouteRevision = 0
     @ObservationIgnored private var paneScrollStates: [BrowserSettingsDestination: BrowserNativeScrollState] = [:]

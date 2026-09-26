@@ -7,8 +7,6 @@ enum MobileBrowserChromeLayout {
     static let compactToolbarVerticalPadding: CGFloat = 6
     static let compactToolbarSymbolSize: CGFloat = 16
 
-    static let collapsedSidebarControlPadding: CGFloat = 10
-
     /// How far a finger travels before it counts as interacting with a
     /// transient sidebar and holds the dismissal timer open.
     ///
@@ -42,10 +40,6 @@ enum MobileBrowserRootLayout {
 
     static let compactOverlayTopPadding: CGFloat = 12
     static let regularOverlayTopPadding: CGFloat = 18
-    static let overlayScrimOpacity = 0.16
-    static let overlayShadowOpacity = 0.24
-    static let overlayShadowRadius: CGFloat = 18
-    static let overlayShadowOffset: CGFloat = 5
 
     static let feedbackHorizontalPadding: CGFloat = 14
     static let feedbackHeight: CGFloat = 40
@@ -55,7 +49,6 @@ enum MobileBrowserRootLayout {
 
     static let paletteLayer: Double = 10
     static let feedbackLayer: Double = 30
-    static let sidebarLayer: Double = 3
     static let utilityLayer: Double = 8
 
     /// Gives detached sidebar controls the same breathing room as the card's
@@ -140,8 +133,6 @@ enum MobileCompactDomainChipLayout {
 
 enum MobileCompactPageChromePolicy {
     static let usesPageThemeBackdrop = true
-    static let drawsToolbarBackground = false
-    static let extendsWebContentBehindToolbar = true
 }
 
 enum MobileCompactTabViewerLayout {

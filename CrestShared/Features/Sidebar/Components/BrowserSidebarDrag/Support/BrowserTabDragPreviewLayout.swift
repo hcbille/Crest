@@ -105,47 +105,6 @@ enum BrowserTabDragPreviewLayout {
         return clamped + ((0.5 - clamped) * min(max(progress, 0), 1))
     }
 
-    /// Top-left of a lift preview drawn at the pointer rather than over its row.
-    ///
-    /// The in-row presentation offsets the preview from the row's leading edge by
-    /// `grab - anchor × size`, and the row is itself offset by the drag's
-    /// translation. The row's leading edge plus the grab offset plus that
-    /// translation is the pointer, so dropping both terms leaves the pointer
-    /// minus the anchored fraction of the preview: the same point, expressed
-    /// without needing the row.
-    static func pointerAnchoredOrigin(
-        pointer: CGPoint,
-        grabOffset: CGSize,
-        targetShape: BrowserTabDragPreviewShape,
-        progress: CGFloat,
-        rowWidth: CGFloat = rowSize.width
-    ) -> CGPoint {
-        let current = metrics(
-            from: .row,
-            to: targetShape,
-            progress: progress,
-            rowWidth: rowWidth
-        )
-        let resting = metrics(
-            from: .row,
-            to: targetShape,
-            progress: 0,
-            rowWidth: rowWidth
-        )
-        let anchorX = anchorFraction(
-            grabbed: grabOffset.width / max(resting.width, 1),
-            progress: progress
-        )
-        let anchorY = anchorFraction(
-            grabbed: grabOffset.height / max(resting.height, 1),
-            progress: progress
-        )
-        return CGPoint(
-            x: pointer.x - anchorX * current.width,
-            y: pointer.y - anchorY * current.height
-        )
-    }
-
     static func outsidePinnedPlacement(
         for sourcePlacement: TabPlacement
     ) -> TabPlacement {

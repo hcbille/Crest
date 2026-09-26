@@ -10,8 +10,6 @@ actor BrowserFaviconImageCache {
     private var recency: [BrowserFaviconImageCacheKey] = []
     private var requests = BrowserFaviconImageCacheRequestRegistry()
 
-    var cachedImageCount: Int { images.count }
-
     init(
         decode: @escaping @Sendable (Data, Int) -> CGImage? =
             BrowserFaviconImageDecoder.decodeSynchronously

@@ -11,7 +11,6 @@ enum CrestTypography {
     /// The humanist sans used for supporting copy and control labels.
     static let sansFontName = "Avenir Next"
 
-    static let screenTitle = Font.title.bold()
     static let sectionTitle = Font.title3.weight(.semibold)
     static let controlTitle = Font.body.weight(.medium)
     static let metadata = Font.caption
@@ -35,14 +34,11 @@ enum CrestTypography {
 
     // MARK: - Named display roles
 
-    /// Largest brand voice: welcome and completion lines.
-    static let displayHeroSize: CGFloat = 46
     /// Title of a single page or pane inside a Crest-authored flow.
     static let displayPageSize: CGFloat = 24
     /// Heading that opens a group of rows inside a pane.
     static let displaySectionSize: CGFloat = 17
 
-    static var displayHero: Font { display(displayHeroSize, relativeTo: .largeTitle) }
     static var displayPage: Font { display(displayPageSize, relativeTo: .title2) }
     static var displaySection: Font { display(displaySectionSize, relativeTo: .title3) }
 }

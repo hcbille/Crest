@@ -140,11 +140,6 @@ final class BrowserGettingStartedPractice {
         _ = browser.moveSplitMember(id, by: offset, matching: assignment)
     }
 
-    func moveFocused(by offset: Int) {
-        guard let id = browser.selectedTabID(in: space.id) else { return }
-        _ = browser.moveSplitMember(id, by: offset, matching: assignment)
-    }
-
     // MARK: - Actions - Sidebar
 
     /// The practice Space as the read model holds it, and what its rows act

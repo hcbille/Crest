@@ -4,7 +4,6 @@ import CoreGraphics
 enum BrowserSidebarReorderLiftPhase {
     enum PreviewOwner {
         case application
-        case nativeSession
     }
 
     case moved(startLocation: CGPoint, location: CGPoint)

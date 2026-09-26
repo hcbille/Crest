@@ -160,10 +160,6 @@ final class ShortcutRecorderButton: NSButton {
     private(set) var isRecording = false
     private var eventMonitor: Any?
 
-    var hasActiveEventMonitor: Bool {
-        eventMonitor != nil
-    }
-
     override var acceptsFirstResponder: Bool { true }
 
     func beginRecording() {

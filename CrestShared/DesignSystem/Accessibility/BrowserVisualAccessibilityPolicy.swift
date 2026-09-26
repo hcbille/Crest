@@ -39,13 +39,6 @@ enum BrowserVisualAccessibilityPolicy {
         reduceMotion ? 1 : scale
     }
 
-    static func spatialOffset(
-        _ offset: CGFloat,
-        reduceMotion: Bool
-    ) -> CGFloat {
-        reduceMotion ? 0 : offset
-    }
-
     static func animation(
         _ animation: Animation,
         reduceMotion: Bool

@@ -27,10 +27,6 @@ final class BrowserCredentialSavePromptModel {
         }
     }
 
-    var canCommit: Bool {
-        phase == .create || phase == .update
-    }
-
     var isBusy: Bool {
         if systemPasswordOfferPhase == .offering {
             return true

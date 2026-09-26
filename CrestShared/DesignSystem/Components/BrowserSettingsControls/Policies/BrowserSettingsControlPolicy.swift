@@ -14,8 +14,4 @@ enum BrowserSettingsControlPolicy {
     static let iconPressedFillOpacity = 0.18
     static let iconPressedScale: CGFloat = 0.94
     static let iconDisabledOpacity = 0.34
-    static let labeledActionsShowBoundaries = true
-    static let denseActionsKeepVisiblePressFeedback = true
-    static let selectedCardsShowRedundantCheckmarks = false
-    static let privacyShowsProtectionSummaryOnly = true
 }

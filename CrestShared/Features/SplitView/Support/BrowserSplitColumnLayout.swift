@@ -14,10 +14,6 @@ import CoreGraphics
 ///
 /// Fractions are shares of that available width and always sum to one.
 enum BrowserSplitColumnLayout {
-    /// Numeric slack for the sums above. Fractions and widths are computed by
-    /// division, so exact equality is not available; this is the noise floor,
-    /// not a tolerance for real disagreement.
-    static let fractionEpsilon = 1e-9
 
     /// The fractions of a split nobody has resized yet: equal columns.
     static func equalFractions(count: Int) -> [Double] {
@@ -175,15 +171,6 @@ enum BrowserSplitColumnLayout {
         var result = shares.map { $0 * (1 - newcomerShare) }
         result.insert(newcomerShare, at: min(max(index, 0), result.count))
         return result
-    }
-
-    /// The fractions after the card at `index` leaves, its share going back to
-    /// the survivors in proportion to what they already held.
-    static func fractionsRemoving(at index: Int, from fractions: [Double]) -> [Double] {
-        guard fractions.indices.contains(index) else { return normalizedFractions(fractions) }
-        var result = normalizedFractions(fractions)
-        result.remove(at: index)
-        return normalizedFractions(result)
     }
 
     /// The width columns share once the gaps between them are paid for.

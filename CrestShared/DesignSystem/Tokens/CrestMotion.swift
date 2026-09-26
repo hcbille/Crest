@@ -19,8 +19,6 @@ import SwiftUI
 enum CrestMotion {
     /// The deliberate hold that distinguishes a long press from an ordinary tap.
     static let longPressRecognitionDelay: TimeInterval = 0.55
-    /// Swapping one pane of chrome for another inside a stable frame.
-    static let paneTransition: TimeInterval = 0.22
     /// Advancing or retreating a step in a multi-step flow.
     static let stepTransition: TimeInterval = 0.30
     /// A control acknowledging a press.
@@ -83,8 +81,6 @@ enum CrestMotion {
     static let contentNavigationTransition: TimeInterval = 0.42
     /// Settling an interactive horizontal Space swipe.
     static let spaceSwipeTransition: TimeInterval = 0.32
-    /// Presenting the standard Peek card from its source location.
-    static let peekEntranceTransition: TimeInterval = 0.28
     /// Presenting Peek inside a Quick Window.
     static let quickPeekEntranceTransition: TimeInterval = 0.34
     /// Revealing initial Peek web content after its first commit.
@@ -102,10 +98,6 @@ enum CrestMotion {
     static let peekDismissalTransition: TimeInterval = 0.22
     /// Revealing one destination in the utility fan.
     static let utilityFanRevealTransition: TimeInterval = 0.42
-    /// Returning one destination into the collapsed utility fan.
-    static let utilityFanDismissTransition: TimeInterval = 0.26
-    /// Allows the utility fan's dismissal animation to finish before hiding it.
-    static let utilityFanDismissCompletionDelay: Duration = .milliseconds(260)
     /// The complete press-and-return cycle for reload feedback.
     static let reloadFeedbackDuration: Duration = .milliseconds(240)
     /// One half of the reload feedback cycle.
@@ -113,7 +105,6 @@ enum CrestMotion {
     /// SwiftUI animation APIs express the reload phase in seconds.
     static let reloadFeedbackPhaseSeconds: TimeInterval = 0.12
 
-    static var pane: Animation { .snappy(duration: paneTransition) }
     static var step: Animation { .snappy(duration: stepTransition) }
     /// Uses SwiftUI's native default curve for full onboarding-step changes.
     static var onboardingStep: Animation { .default }
@@ -163,9 +154,6 @@ enum CrestMotion {
     static var spaceSwipe: Animation {
         .snappy(duration: spaceSwipeTransition, extraBounce: 0)
     }
-    static var peekEntrance: Animation {
-        .spring(duration: peekEntranceTransition, bounce: 0.2)
-    }
     static var quickPeekEntrance: Animation {
         .smooth(duration: quickPeekEntranceTransition)
     }
@@ -181,9 +169,6 @@ enum CrestMotion {
     static var peekDismissal: Animation { .snappy(duration: peekDismissalTransition) }
     static var utilityFanReveal: Animation {
         .smooth(duration: utilityFanRevealTransition, extraBounce: 0.05)
-    }
-    static var utilityFanDismiss: Animation {
-        .smooth(duration: utilityFanDismissTransition, extraBounce: 0)
     }
     static var reloadTurnOut: Animation {
         .easeOut(duration: reloadFeedbackPhaseSeconds)

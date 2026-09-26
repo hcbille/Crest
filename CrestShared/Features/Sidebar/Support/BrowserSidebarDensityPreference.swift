@@ -15,7 +15,6 @@ enum BrowserSidebarDensityPreference {
 
 enum BrowserSidebarDensityPolicy {
     static let scaleRange: ClosedRange<Double> = 0.7...1.4
-    static let scaleStep = 0.05
     private static let pointerBodySize: CGFloat = 13
     private static let touchBodySize: CGFloat = 17
     private static let minimumTouchTarget: CGFloat = 44

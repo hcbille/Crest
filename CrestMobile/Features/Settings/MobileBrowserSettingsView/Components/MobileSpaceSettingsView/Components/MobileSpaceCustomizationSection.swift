@@ -24,7 +24,4 @@ struct MobileSpaceCustomizationSection: View {
         }
     }
 
-    static func usesStableCompactLayout(for horizontalSizeClass: UserInterfaceSizeClass?) -> Bool {
-        horizontalSizeClass != .regular
-    }
 }

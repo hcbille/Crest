@@ -58,10 +58,6 @@ final class BrowserTabDragState {
         return true
     }
 
-    func recordLiveMove() {
-        liveMoveCount &+= 1
-    }
-
     func leave(
         _ location: BrowserTabDropLocation,
         restoringSourcePlacement: Bool = false
@@ -73,39 +69,6 @@ final class BrowserTabDragState {
             for: sourcePlacement
         )
         currentPlacement = placement
-    }
-
-    func leavePinnedZone() {
-        guard dropLocation?.placement == .pinned, let sourcePlacement else { return }
-        dropLocation = nil
-        let placement = BrowserTabDragPreviewLayout.outsidePinnedPlacement(
-            for: sourcePlacement
-        )
-        currentPlacement = placement
-    }
-
-    func deferLeave(
-        _ location: BrowserTabDropLocation,
-        restoringSourcePlacement: Bool = false
-    ) {
-        guard dropLocation == location else { return }
-        deferredLeaveTask?.cancel()
-        deferredLeaveTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: BrowserTabDropStabilityPolicy.leaveDelay)
-            guard !Task.isCancelled else { return }
-            self?.leave(
-                location,
-                restoringSourcePlacement: restoringSourcePlacement
-            )
-            self?.deferredLeaveTask = nil
-        }
-    }
-
-    func deferPinnedZoneExit() {
-        guard let location = dropLocation,
-            location.placement == .pinned
-        else { return }
-        deferLeave(location, restoringSourcePlacement: true)
     }
 
     func relocate(to assignment: BrowserSpaceRuntimeAssignment) {

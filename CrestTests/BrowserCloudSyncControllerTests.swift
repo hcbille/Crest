@@ -488,7 +488,6 @@ private actor TestBrowserCloudSyncTransport: BrowserCloudSyncTransport {
     private(set) var stopCount = 0
     private let suspendsPull: Bool
     private var pullWaiter: CheckedContinuation<Void, Never>?
-    var isPullSuspended: Bool { pullWaiter != nil }
     private let statusHandler: @Sendable (BrowserCloudSyncStatus) async -> Void
     private let activityHandler: @Sendable (BrowserCloudSyncActivity) async -> Void
     private let syncFailure: (any Error)?

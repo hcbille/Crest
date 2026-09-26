@@ -95,7 +95,6 @@ enum BrowserEmojiPlatformSupport {
 }
 
 enum BrowserTabEmojiChoices {
-    static let catalogMetadata = catalog.metadata
 
     /// Every fully-qualified sequence supported by the running platform.
     /// Browsing groups tone variations in the Apple keyboard style, while

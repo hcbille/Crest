@@ -47,19 +47,6 @@ private struct CrestOptionalAccessibilityIdentifier: ViewModifier {
     }
 }
 
-private struct CrestOptionalAccessibilityValue: ViewModifier {
-    let value: Text?
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if let value {
-            content.accessibilityValue(value)
-        } else {
-            content
-        }
-    }
-}
-
 extension View {
     func browserReadableForeground(over background: Color) -> some View {
         modifier(BrowserReadableForegroundModifier(background: background))
@@ -79,12 +66,6 @@ extension View {
     /// already published by the wrapped control.
     func crestAccessibilityIdentifier(_ identifier: String?) -> some View {
         modifier(CrestOptionalAccessibilityIdentifier(identifier: identifier))
-    }
-
-    /// Publishes a spoken value only when the component has meaningful detail to
-    /// add beyond its accessibility label.
-    func crestAccessibilityValue(_ value: Text?) -> some View {
-        modifier(CrestOptionalAccessibilityValue(value: value))
     }
 
     /// Keeps action menus consistent across Apple platforms. Every Crest-authored

@@ -59,11 +59,6 @@ extension KeyedDecodingContainer {
         try decodeIfPresent(StoredIdentity.self, forKey: key)?.value
     }
 
-    /// The identities under `key` by name, each stored bare or as
-    /// `{"rawValue": UUID}`.
-    func decodeIdentitiesByNameIfPresent(forKey key: Key) throws -> [String: UUID]? {
-        try decodeIfPresent([String: StoredIdentity].self, forKey: key)?.mapValues(\.value)
-    }
 }
 
 // MARK: - Writing
@@ -85,8 +80,4 @@ extension KeyedEncodingContainer {
         try encodeIfPresent(id.map(StoredIdentity.init), forKey: key)
     }
 
-    /// Writes `ids` under `key` by name, each in the stored spelling.
-    mutating func encodeStoredIdentitiesByName(_ ids: [String: UUID], forKey key: Key) throws {
-        try encode(ids.mapValues(StoredIdentity.init), forKey: key)
-    }
 }

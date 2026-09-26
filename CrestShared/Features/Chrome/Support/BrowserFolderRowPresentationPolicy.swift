@@ -1,6 +1,5 @@
 enum BrowserFolderRowPresentationPolicy {
     static let showsSeparateChevron = false
-    static let usesEntireRowForDisclosure = true
 
     /// Whether a collapsed folder's header lights up the way a row does, given
     /// the lift that would land inside it on release.

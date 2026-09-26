@@ -28,10 +28,6 @@ enum MobileOnboardingLayout {
     static let featureRowVerticalPadding: CGFloat = 12
     static let featureListMaximumWidth: CGFloat = 520
 
-    static let welcomeSpacing: CGFloat = 24
-    static let welcomeTopMinimumSpacing: CGFloat = 18
-    static let welcomeBottomMinimumSpacing: CGFloat = 12
-    static let crestMarkSize: CGFloat = 68
     static let featurePageSpacing: CGFloat = 20
     static let tabFeaturePageSpacing: CGFloat = 18
     static let syncFeaturePageSpacing: CGFloat = 26
@@ -56,23 +52,4 @@ enum MobileOnboardingLayout {
     static let tabsPreviewMinimumHeight: CGFloat = 310
     static let tabsPreviewMaximumHeight: CGFloat = 360
 
-    static let setupSpacing: CGFloat = 12
-    static let compactSetupCardWidthRatio = 0.86
-    static let regularSetupCardWidthRatio = 0.62
-    static let setupCardMaximumWidth: CGFloat = 420
-    static let setupCardSpacing: CGFloat = 16
-    static let spaceCardSpacing: CGFloat = 10
-    static let spaceCardOverlayPadding: CGFloat = 10
-    static let addSpaceContentSpacing: CGFloat = 14
-    static let addSpaceSymbolSize: CGFloat = 48
-    static let addSpaceDescriptionHorizontalPadding: CGFloat = 24
-    static let addSpaceCornerRadius: CGFloat = 22
-    static let addSpaceBorderOpacity = 0.28
-    static let addSpaceBorderWidth: CGFloat = 1
-    static let addSpaceDash: [CGFloat] = [7, 6]
-
-    static let customizationContentSpacing: CGFloat = 24
-    static let customizationContentPadding: CGFloat = 20
-    static let customizationPreviewMaximumWidth: CGFloat = 330
-    static let customizationPreviewHeight: CGFloat = 390
 }

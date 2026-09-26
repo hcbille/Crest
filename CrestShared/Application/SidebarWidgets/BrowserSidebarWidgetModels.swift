@@ -116,28 +116,6 @@ enum BrowserSidebarWidgetCarouselPolicy {
         }?.id
     }
 
-    /// Clamping adjacency for surfaces that represent a bounded run of cards.
-    static func adjacentID(
-        to selectedID: BrowserSidebarWidgetID?,
-        in instances: [BrowserSidebarWidgetInstance],
-        direction: BrowserSidebarWidgetCarouselDirection
-    ) -> BrowserSidebarWidgetID? {
-        guard !instances.isEmpty else { return nil }
-        guard
-            let selectedID,
-            let selectedIndex = instances.firstIndex(where: { $0.id == selectedID })
-        else {
-            return instances.first?.id
-        }
-
-        switch direction {
-        case .previous:
-            return instances[max(instances.startIndex, selectedIndex - 1)].id
-        case .next:
-            return instances[min(instances.index(before: instances.endIndex), selectedIndex + 1)].id
-        }
-    }
-
     /// Wrapping adjacency: the deck is a loop the reader flips through, so the
     /// last card hands back to the first rather than dead-ending.
     static func cyclicAdjacentID(

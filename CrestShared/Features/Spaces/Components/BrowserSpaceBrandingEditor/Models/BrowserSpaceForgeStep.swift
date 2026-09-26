@@ -14,11 +14,6 @@ enum BrowserSpaceForgeStep: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    static let crestSteps: [BrowserSpaceForgeStep] = [
-        .shield, .division, .ordinary, .charge, .trim,
-    ]
-
     var accessibilityIdentifier: String { "space-forge-\(rawValue)" }
 
-    var isCrestStep: Bool { Self.crestSteps.contains(self) }
 }

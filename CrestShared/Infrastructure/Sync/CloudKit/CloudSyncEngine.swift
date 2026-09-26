@@ -216,15 +216,6 @@ actor BrowserCloudSyncEngine {
         }.first
     }
 
-    /// Account switches are deliberately paused. Calling this is the explicit user
-    /// decision to upload this device's local Spaces into the currently signed-in account.
-    func resumeAfterAccountChange() async throws {
-        try await send(ResetCloudTransport(overwritesCloud: false))
-        engine = nil
-        await updateStatus(.stopped)
-        await start()
-    }
-
     func process(
         _ event: CKSyncEngine.Event,
         syncEngine: CKSyncEngine

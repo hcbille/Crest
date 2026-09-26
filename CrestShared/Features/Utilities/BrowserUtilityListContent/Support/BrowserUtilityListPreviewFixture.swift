@@ -92,34 +92,6 @@ enum BrowserUtilityListPreviewFixture {
         message: "The connection was interrupted."
     )
 
-    static let historyRequest = BrowserUtilityListRequest(
-        surface: .history,
-        assignment: assignment,
-        archivedTabs: [],
-        history: [historyEntry],
-        downloads: [],
-        searchText: "",
-        filter: .all
-    )
-
-    static let historySection = BrowserUtilityListSection(
-        timeframe: BrowserUtilityTimeSection(
-            date: referenceDate,
-            now: referenceDate,
-            calendar: fixedCalendar
-        ),
-        items: [.history(historyEntry)]
-    )
-
-    static let downloadSection = BrowserUtilityListSection(
-        timeframe: BrowserUtilityTimeSection(
-            date: referenceDate,
-            now: referenceDate,
-            calendar: fixedCalendar
-        ),
-        items: [.download(activeDownload), .download(failedDownload)]
-    )
-
     static var fixedCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         if let timeZone = TimeZone(secondsFromGMT: 0) {

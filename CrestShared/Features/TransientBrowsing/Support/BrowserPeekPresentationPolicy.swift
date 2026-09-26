@@ -1,9 +1,6 @@
 import SwiftUI
 
 enum BrowserPeekPresentationPolicy {
-    static let desktopCardFraction =
-        BrowserTransientWindowGeometryPolicy.contentFraction
-    static let entranceAnimation = CrestMotion.peekEntrance
     static let initialContentRevealAnimation = CrestMotion.contentReveal
 
     static func desktopCardSize(in containerSize: CGSize) -> CGSize {

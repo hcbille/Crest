@@ -1,7 +1,4 @@
 enum BrowserSpaceBrandingControlPolicy {
-    static let gradientDialAcceptsKeyboardFocus = true
-    static let gradientDialShowsFocusIndicator = true
-    static let fineTuningSlidersExposeLabels = true
     static let gradientAngleStep = 15.0
 
     static func adjustedAngle(

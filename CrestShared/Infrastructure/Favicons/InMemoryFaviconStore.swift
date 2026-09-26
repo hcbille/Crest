@@ -9,10 +9,6 @@ final class InMemoryBrowserFaviconStore: BrowserFaviconStoring, @unchecked Senda
     )
     private var favicons: [TabID: Data] = [:]
 
-    var storedTabIDs: Set<TabID> {
-        accessQueue.sync { Set(favicons.keys) }
-    }
-
     func favicon(tabID: TabID) -> Data? {
         accessQueue.sync { favicons[tabID] }
     }

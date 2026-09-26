@@ -35,22 +35,12 @@ struct BrowserSplitGroupMetadata: Equatable, Identifiable, Sendable {
         self.tintModifiedAt = tintModifiedAt.map(Self.normalizedTimestamp)
     }
 
-    mutating func setTitle(_ title: String?, at date: Date) {
-        customTitle = BrowserShownTitle.resolve(title)
-        titleModifiedAt = Self.normalizedTimestamp(date)
-    }
-
     mutating func setEmojiIcon(_ emoji: String?, at date: Date) {
         customIconSymbol =
             emoji
             .flatMap(BrowserIconSymbol.normalizedEmoji)
             .map(BrowserIconSymbol.symbol(forEmoji:))
         iconModifiedAt = Self.normalizedTimestamp(date)
-    }
-
-    mutating func setTint(_ tint: BrowserSpaceBrandColor?, at date: Date) {
-        self.tint = tint
-        tintModifiedAt = Self.normalizedTimestamp(date)
     }
 
     static func normalized(_ source: [Self]) -> [Self] {

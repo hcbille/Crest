@@ -83,8 +83,6 @@ enum BrowserCommandPalettePreviewFixture {
     static let intentItem = BrowserCommandPaletteItem(index: 0, row: intentRow)
     static let tabItem = BrowserCommandPaletteItem(index: 1, row: tabRow)
     static let commandItem = BrowserCommandPaletteItem(index: 2, row: commandRow)
-    static let tabGroup = BrowserCommandPaletteGroup(section: .openTabs, items: [tabItem])
-    static let mixedItems = [intentItem, tabItem, commandItem]
 
     static func model(query: String) -> BrowserCommandPaletteModel {
         BrowserCommandPaletteModel(

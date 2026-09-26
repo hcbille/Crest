@@ -183,10 +183,6 @@ struct BrowserTab: Codable, Identifiable, Sendable {
         positionModifiedAt = Self.normalizedTimestamp(date)
     }
 
-    mutating func markTitleModified(at date: Date) {
-        titleModifiedAt = Self.normalizedTimestamp(date)
-    }
-
     private static func normalizedTimestamp(_ date: Date) -> Date {
         let milliseconds = (date.timeIntervalSince1970 * 1_000).rounded()
         return Date(timeIntervalSince1970: milliseconds / 1_000)
@@ -209,13 +205,6 @@ struct BrowserTab: Codable, Identifiable, Sendable {
 
     var displayFaviconData: Data? {
         iconMode.showsFavicon ? faviconData : nil
-    }
-
-    /// The fingerprint of whatever `displayFaviconData` would hand back. The
-    /// favicon render path reads this instead of the bytes, which is what keeps a
-    /// view update free of image hashing.
-    var displayFaviconPayloadIdentity: BrowserFaviconPayloadIdentity? {
-        displayFaviconData == nil ? nil : faviconPayloadIdentity
     }
 
     /// The icon follows the page, and the platform holds the favicon the

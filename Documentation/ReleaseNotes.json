@@ -2937,6 +2937,10 @@
     "extension-store-space-identities": {
       "category": "internal",
       "message": "Extensions and site controls name Spaces from the read model"
+    },
+    "delete-unused-swift-declarations": {
+      "category": "internal",
+      "message": "Unused Swift declarations removed after the core migration"
     }
   }
 }

@@ -14,7 +14,6 @@ struct BrowserSpaceBranding: Codable, Equatable, Sendable {
     /// The Crest Studio vocabulary: parametric shapes, own tinctures, custom
     /// charges, finishes, and depth. The newest this build can produce.
     static let crestStudioRenderingVersion = 5
-    static let currentRenderingVersion = crestStudioRenderingVersion
 
     var colors: [BrowserSpaceBrandColor]
     var bannerPattern: BrowserSpaceBannerPattern

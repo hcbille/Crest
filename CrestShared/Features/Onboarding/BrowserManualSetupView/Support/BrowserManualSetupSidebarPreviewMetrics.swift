@@ -18,6 +18,4 @@ enum BrowserManualSetupSidebarPreviewMetrics {
     static let tabIconSize: CGFloat = 18
     static let tabHorizontalPadding: CGFloat = 9
     static let tabHeight: CGFloat = 38
-    static let tabCornerRadius: CGFloat = 10
-    static let selectedTabFillOpacity = 0.1
 }
