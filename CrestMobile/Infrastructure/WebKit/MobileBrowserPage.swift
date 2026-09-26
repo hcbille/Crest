@@ -58,7 +58,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         get { pageEngine.history }
         set { pageEngine.history = newValue }
     }
-    private(set) var showsProcessFailure = false
     var isFindPresented: Bool { findSession.isPresented }
     var findQuery: String { findSession.query }
     var findMatchState: BrowserFindMatchState { findSession.matchState }
@@ -71,7 +70,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
     var isCredentialAccessEnabled: Bool { credentialSession.isEnabled }
     /// True once iOS reclaimed this page's web-content process while it was off
     /// screen. Selecting the tab again is what brings the page back.
-    private(set) var needsWebContentRestore = false
     var credentialFillRequest: BrowserCredentialFillRequest? { credentialState.fillRequest }
     var credentialSaveCandidate: BrowserCredentialSaveCandidate? { credentialState.saveCandidate }
     var hasActiveLinkActivationBridge: Bool { linkActivationMessageProxy != nil }
@@ -107,7 +105,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
     @ObservationIgnored var navigationContext: BrowserPageNavigationContext?
     @ObservationIgnored var activeNavigation: WKNavigation?
     @ObservationIgnored let spaceName: String
-    @ObservationIgnored private var processRecovery = BrowserProcessRecovery()
     @ObservationIgnored private let findSession = BrowserFindSession()
     @ObservationIgnored lazy var readerModeSession = BrowserReaderModeSession(
         document: BrowserWebKitReaderModeDocument(webView: webView, translation: translation)
@@ -609,12 +606,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         )
     }
 
-    func retryAfterProcessFailure() {
-        processRecovery.reset()
-        showsProcessFailure = false
-        pageEngine.reload(bypassingCache: false)
-    }
-
     func presentFind() {
         findSession.present(hasLoadedPage: webView.url != nil)
     }
@@ -874,9 +865,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
     func completeNavigation() {
         activeNavigation = nil
         refreshNavigationState()
-        processRecovery.recordSuccessfulNavigation()
-        showsProcessFailure = false
-        needsWebContentRestore = false
         refreshFavicon()
         publishCompletedNavigation()
     }
@@ -929,41 +917,13 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         )
     }
 
-    /// Reacts to WebKit losing this page's web-content process.
-    ///
-    /// On iOS this is the routine eviction path, not a crash: the system reclaims a
-    /// background tab's process precisely to get its memory back. Reloading such a
-    /// page off screen would hand that memory straight back and spend one of the two
-    /// automatic reloads the error screen depends on, so an off-screen page is
-    /// marked and restored when it is selected again. A page the user is looking at
-    /// still recovers immediately.
+    /// Reacts to WebKit losing this page's web-content process, which the
+    /// core recovers. On iOS this is most often routine eviction: the system
+    /// reclaims a background tab's process to get its memory back, and the
+    /// core brings such a page back once a window shows it.
     func recordWebContentTermination() {
         credentialState.webContentProcessDidTerminate()
-        guard isVisible else {
-            needsWebContentRestore = true
-            return
-        }
-        switch processRecovery.recordTermination() {
-        case .reload:
-            webView.reload()
-        case .showFailure:
-            showsProcessFailure = true
-        }
-    }
-
-    /// Reloads a page whose web-content process was reclaimed while it was off
-    /// screen. The page store calls this as it activates a page.
-    func restoreWebContentIfNeeded() {
-        guard needsWebContentRestore else { return }
-        needsWebContentRestore = false
-        webView.reload()
-    }
-
-    /// True while this page's web view is in a window, which is what being the
-    /// surface the user is looking at amounts to: a resident background tab and a
-    /// released Peek are both detached from the view hierarchy.
-    private var isVisible: Bool {
-        webView.window != nil
+        reportWebContentProcessStopped()
     }
 
     private func setTemporaryPageZoom(_ zoom: CGFloat) -> Bool {

@@ -7,7 +7,7 @@ using static CrestCore.Application.PolicyFields;
 
 namespace CrestCore.Application;
 
-/// Typed requests for the page-residency, process-recovery and tab-dismissal
+/// Typed requests for the page-residency and tab-dismissal
 /// policy operations.
 internal static class TabPolicyRequests {
     #region Actions - Decoding
@@ -37,13 +37,6 @@ internal static class TabPolicyRequests {
             var level = PressureLevel(request);
             var platform = DeviceCodes.Platform(request);
             return new(candidates, level, platform, OptionalInteger(request, "focusedIndex"));
-        }
-    }
-
-    public sealed record ProcessRecovery(int ConsecutiveTerminations) {
-        public static ProcessRecovery Decode(JsonElement request) {
-            Members(request, "consecutiveTerminations");
-            return new(Integer(request, "consecutiveTerminations"));
         }
     }
 

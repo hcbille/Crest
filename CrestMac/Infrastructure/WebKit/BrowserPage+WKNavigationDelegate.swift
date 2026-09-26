@@ -280,14 +280,7 @@ extension BrowserPage: WKNavigationDelegate {
         pictureInPicture?.invalidate()
         credentialState.webContentProcessDidTerminate()
         httpAuthenticationSession.authenticationFailed()
-        processTerminationCount += 1
-        switch processRecovery.recordTermination() {
-        case .reload:
-            webContentFailureMessage = nil
-            webView.reload()
-        case .showFailure:
-            webContentFailureMessage = "This page’s web process stopped repeatedly."
-        }
+        reportWebContentProcessStopped()
     }
 
     func webView(
@@ -332,8 +325,6 @@ extension BrowserPage: WKNavigationDelegate {
         #endif
         guard isCurrentNavigation(navigation) else { return }
         activeNavigation = nil
-        processRecovery.recordSuccessfulNavigation()
-        webContentFailureMessage = nil
         let completedURL = webView.url
         let committedNavigation = committedNavigationCount
         Task { @MainActor [weak self, weak webView] in

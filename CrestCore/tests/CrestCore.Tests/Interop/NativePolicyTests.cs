@@ -185,23 +185,6 @@ public sealed class NativePolicyTests {
         };
         Assert.Throws<BrowserRuleException>(() => NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(presented.ToJsonString())));
     }
-    [Theory]
-    [InlineData(1, "reload")]
-    [InlineData(2, "reload")]
-    [InlineData(3, "showFailure")]
-    [InlineData(9, "showFailure")]
-    public void RendererTerminationsReloadTwiceBeforeShowingFailure(int terminations, string action) {
-        var request = new JsonObject {
-            ["version"] = 1,
-            ["operation"] = "residency.process_recovery",
-            ["consecutiveTerminations"] = terminations
-        };
-        var response = JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-        Assert.Equal(action, response["action"]!.GetValue<string>());
-        Assert.Equal(2, response["maximumAutomaticReloads"]!.GetValue<int>());
-        request["consecutiveTerminations"] = 0;
-        Assert.Throws<BrowserRuleException>(() => NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())));
-    }
     private static JsonObject Candidate(string tabId, double? inactiveSince,
         bool keepsPageLoaded = false, int? presentedIndex = null) => new() {
             ["tabID"] = tabId,

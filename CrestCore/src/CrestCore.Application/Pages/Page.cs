@@ -65,13 +65,18 @@ internal sealed class Page {
     /// pressure unloads the pages off screen longest first.
     public DateTimeOffset? HiddenSince { get; private set; }
 
-    /// How many times in a row the page's renderer stopped since a document
-    /// last finished loading or the person asked for one.
+    /// How many times in a row the page's renderer stopped where a window
+    /// showed it, or came back once shown, since a document last finished
+    /// loading or the person asked for one.
     private int crashes;
+
+    /// Why the page's renderer stopped while nobody could see it, until a
+    /// window shows the page and the core brings it back.
+    private (string Domain, long Code)? stoppedUnseen;
 
     /// The page's renderer stopped while nobody could see it, and the core
     /// brings it back once a window shows it.
-    public bool RecoversWhenShown { get; private set; }
+    public bool RecoversWhenShown => stoppedUnseen is not null;
 
     #endregion
 
@@ -120,7 +125,7 @@ internal sealed class Page {
     public void Commit(string url, bool sameDocument) {
         if (!sameDocument) {
             failure = null;
-            RecoversWhenShown = false;
+            stoppedUnseen = null;
             Documents++;
         }
         if (sameDocument && documentUrl is { } shown && new WebAddress(shown).IsSamePage(new WebAddress(url))) return;
@@ -153,7 +158,7 @@ internal sealed class Page {
     public void Load(string url) {
         failure = null;
         crashes = 0;
-        RecoversWhenShown = false;
+        stoppedUnseen = null;
         shown = shown with { PendingUrl = url };
     }
 
@@ -184,23 +189,38 @@ internal sealed class Page {
     #region Actions - Crashes
 
     /// The page's renderer stopped, for the engine's reason `domain` and
-    /// `code`. Answers whether the engine brings the page back now: a page a
-    /// window shows reloads at once while the recovery budget lasts. A page
-    /// nobody sees shows the failure and reloads once it is shown; past the
-    /// budget, the failure stays until the person asks for the page again.
+    /// `code`. Answers whether the engine brings the page back now. A page a
+    /// window shows reloads at once while the recovery budget lasts, and past
+    /// it shows the failure until the person asks for the page again. A page
+    /// nobody sees spends none of the budget and shows no failure, because the
+    /// system most often ends a renderer nobody sees to take its memory back:
+    /// it comes back once it is shown.
     public bool Crash(bool isShown, string domain, long code) {
-        crashes++;
-        var reloads = PageProcessRecoveryPolicy.Decide(crashes) == ProcessRecoveryAction.Reload;
-        RecoversWhenShown = reloads && !isShown;
-        if (reloads && isShown) return true;
-        failure = new PageFailure(NavigationError.WebContentProcessStopped, shown.Url, ReplacedDocument: true, domain, code);
+        if (isShown) return Stopped(domain, code);
+        stoppedUnseen = (domain, code);
         shown = shown with { PendingUrl = null, IsLoading = false };
         return false;
     }
 
-    /// A window shows the page that stopped while nobody saw it, and its engine
-    /// brings it back. The failure stays until the document commits.
-    public void Recover() => RecoversWhenShown = false;
+    /// A window shows the page that stopped while nobody saw it. Bringing it
+    /// back counts against the budget as a stop in view does, so a page that
+    /// stops again once shown still ends at the failure. Answers whether its
+    /// engine brings it back.
+    public bool Recover() {
+        if (stoppedUnseen is not var (domain, code)) return false;
+        stoppedUnseen = null;
+        return Stopped(domain, code);
+    }
+
+    /// The renderer of a page a window shows stopped: it reloads while the
+    /// budget lasts, and past it the page shows the failure.
+    private bool Stopped(string domain, long code) {
+        crashes++;
+        if (PageProcessRecoveryPolicy.Decide(crashes) == ProcessRecoveryAction.Reload) return true;
+        failure = new PageFailure(NavigationError.WebContentProcessStopped, shown.Url, ReplacedDocument: true, domain, code);
+        shown = shown with { PendingUrl = null, IsLoading = false };
+        return false;
+    }
 
     #endregion
 }

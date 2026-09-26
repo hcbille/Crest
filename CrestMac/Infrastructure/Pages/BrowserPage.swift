@@ -43,7 +43,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
     @ObservationIgnored private var isContentFullscreenStorage = false
     private(set) var faviconData: Data?
     private(set) var themeColor: NSColor?
-    var processTerminationCount = 0
     /// Documents the page committed and finished, which reveal its surface.
     var committedNavigationCount = 0
     var completedNavigationCount = 0
@@ -51,6 +50,8 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
     var blockedPopupState = BrowserBlockedPopupPageState()
     private(set) var engineInfoBars: [BrowserEngineInfoBar] = []
     var pendingServerTrustIdentity: BrowserServerTrustIdentity?
+    /// Why the page's engine couldn't create it, which the page shows in
+    /// place of its content.
     var webContentFailureMessage: String?
     var isFindPresented: Bool { findSession.isPresented }
     var findQuery: String { findSession.query }
@@ -109,7 +110,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
     @ObservationIgnored let openPeek: (BrowserPeekRequest) -> Void
     @ObservationIgnored let handleLinkDrag: (BrowserPeekInteractionEvent) -> Void
     @ObservationIgnored var navigationContext: BrowserPageNavigationContext?
-    @ObservationIgnored var processRecovery = BrowserProcessRecovery()
     @ObservationIgnored private let findSession = BrowserFindSession()
     var readerModeSession: BrowserReaderModeSession? { engineAdapter.readerModeSession }
     var faviconSession: BrowserFaviconSession? { engineAdapter.faviconSession }
@@ -464,8 +464,8 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
         mediaSessionCoordinator = nil
     }
 
+    /// Tries again to show a page its engine couldn't create.
     func retryAfterProcessFailure() {
-        processRecovery.reset()
         webContentFailureMessage = nil
         pageEngine.reload(bypassingCache: false)
     }

@@ -115,21 +115,6 @@ struct MobileBrowserDetailView: View {
                     } else {
                         unloadedPageSurface
                     }
-                case .processFailure:
-                    if let page {
-                        BrowserNavigationFailureView(
-                            failure: .webContentProcessStopped(url: page.live.displayURL),
-                            branding: shownBranding,
-                            layout: isCompact ? .compact : .regular,
-                            canGoBack: false,
-                            canProceed: false,
-                            retry: page.retryAfterProcessFailure,
-                            goBack: {},
-                            proceed: {}
-                        )
-                    } else {
-                        unloadedPageSurface
-                    }
                 case .automaticRestore:
                     unloadedPageSurface
                         .onAppear {

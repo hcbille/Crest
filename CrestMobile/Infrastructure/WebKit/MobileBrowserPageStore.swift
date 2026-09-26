@@ -1320,10 +1320,6 @@ final class MobileBrowserPageStore:
             presentedTabIDs = presented
         }
         activePage = page
-        // A page whose web-content process the system reclaimed while it was off
-        // screen comes back here, where the memory it needs is memory the user is
-        // about to look at.
-        page.restoreWebContentIfNeeded()
     }
 
     /// Releases the pages of `tabIDs`, saying for `kept` that their state was

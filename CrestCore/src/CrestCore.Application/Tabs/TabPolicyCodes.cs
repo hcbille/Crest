@@ -5,24 +5,17 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-/// Wire spellings for the page-residency, process-recovery and tab-selection
+/// Wire spellings for the page-residency and tab-selection
 /// policy operations. They match the native lifecycle models'
 /// case names.
 internal static class TabPolicyCodes {
     #region Actions - Encoding
-
-    public static string Recovery(ProcessRecoveryAction action) => action == ProcessRecoveryAction.Reload ? "reload" : "showFailure";
 
     public static JsonObject ReleaseLimitAnswer(int limit) => new() { ["limit"] = limit };
 
     public static JsonObject ReleasePlanAnswer(IReadOnlyList<string> offScreen, IReadOnlyList<string> presentedFallback) => new() {
         ["tabIDs"] = Identifiers(offScreen),
         ["fallbackTabIDs"] = Identifiers(presentedFallback)
-    };
-
-    public static JsonObject RecoveryAnswer(ProcessRecoveryAction action) => new() {
-        ["action"] = Recovery(action),
-        ["maximumAutomaticReloads"] = PageProcessRecoveryPolicy.MaximumAutomaticReloads
     };
 
     private static JsonArray Identifiers(IReadOnlyList<string> values) =>

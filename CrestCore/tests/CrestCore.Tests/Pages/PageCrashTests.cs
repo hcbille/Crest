@@ -7,8 +7,9 @@ using Xunit;
 namespace CrestCore.Tests;
 
 /// A page whose renderer stopped comes back by the core's budget: a page on
-/// screen reloads at once, one nobody sees reloads once it is shown, and past
-/// the budget the failure stays until the person asks for the page again.
+/// screen reloads at once, one nobody sees spends nothing and reloads once it
+/// is shown, and past the budget the failure stays until the person asks for
+/// the page again.
 public sealed partial class BrowserContractsTests {
     private static PageCrashed Crashed(Guid page) => new(page, "ChromiumTerminationStatus", 3);
 
@@ -46,15 +47,17 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void APageNobodySeesShowsTheFailureAndReloadsOnceItIsShown() {
+    public void APageNobodySeesSpendsNothingAndItsRecoveryOnceShownCountsAgainstTheBudget() {
         var (app, engine, binding, page, _, window, space, tab) = LivePage();
         using var disposal = app;
         app.Send(new ShowTab(window, space, null));
         app.Report(engine, new PageStateChanged(page, Showing("https://example.com/", "Example")));
         app.Drain();
 
-        app.Report(engine, Crashed(page));
-        Assert.Equal(NavigationError.WebContentProcessStopped, Live(app.Drain()).Failure?.Error);
+        // However often the system ends it out of sight, the page shows no
+        // failure and nothing reloads it.
+        for (var crash = 0; crash <= PageProcessRecoveryPolicy.MaximumAutomaticReloads; crash++) app.Report(engine, Crashed(page));
+        Assert.DoesNotContain(app.Drain(), change => change is PageChanged { Page.Live.Failure: not null });
         Assert.Equal(0, Recoveries(binding, page));
 
         // Showing nothing brings nothing back; showing the page's tab does, once.
@@ -64,10 +67,12 @@ public sealed partial class BrowserContractsTests {
         app.Send(new ShowTab(window, space, tab));
         Assert.Equal(1, Recoveries(binding, page));
 
-        // The failure stays until the document the reload brings commits.
-        app.Drain();
-        app.Report(engine, new NavigationCommitted(page, "https://example.com/", SameDocument: false));
-        Assert.Null(Live(app.Drain()).Failure);
+        // That recovery spent the budget as a crash in view does: a page that
+        // keeps stopping once shown ends at the failure, not in a reload loop.
+        for (var crash = 2; crash <= PageProcessRecoveryPolicy.MaximumAutomaticReloads; crash++) app.Report(engine, Crashed(page));
+        app.Report(engine, Crashed(page));
+        Assert.Equal(PageProcessRecoveryPolicy.MaximumAutomaticReloads, Recoveries(binding, page));
+        Assert.Equal(NavigationError.WebContentProcessStopped, Live(app.Drain()).Failure?.Error);
     }
 
     [Fact]

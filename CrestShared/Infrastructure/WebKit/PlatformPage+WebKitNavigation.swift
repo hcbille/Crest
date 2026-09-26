@@ -6,6 +6,16 @@ extension BrowserPlatformPage {
     /// The WebKit port behind this page, or nil when another engine hosts it.
     var webKitEngine: BrowserWebKitPageEngine? { (pageEngine as any BrowserPageEngine) as? BrowserWebKitPageEngine }
 
+    /// Tells the core WebKit ended the page's web content process. The core
+    /// decides whether WebKit reloads it now, once a window shows it, or
+    /// whether the page shows the failure.
+    func reportWebContentProcessStopped() {
+        corePage.report(
+            PageCrashed(
+                pageID: corePage.id, domain: WKError.errorDomain,
+                code: Int64(WKError.Code.webContentProcessTerminated.rawValue)))
+    }
+
     /// True when Crest, not web content, asked for this navigation. Two signals
     /// answer that: the exact URL Crest last passed to `load(_:)`, which web
     /// content never reaches, and a source frame that is not a web document —

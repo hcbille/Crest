@@ -73,14 +73,6 @@ enum BrowserCorePolicy {
         @BrowserCoreOptional var fallbackTabIDs: [String]?
     }
 
-    private struct ProcessRecoveryRequest: Encodable {
-        let consecutiveTerminations: Int
-    }
-
-    private struct ProcessRecoveryAnswer: Decodable {
-        @BrowserCoreOptional var action: BrowserProcessRecoveryAction?
-    }
-
     // MARK: - Variables
 
     private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "CorePolicy")
@@ -128,14 +120,6 @@ enum BrowserCorePolicy {
             (identifiers ?? []).compactMap { known[$0] }
         }
         return (tabIDs(answer.tabIDs), tabIDs(answer.fallbackTabIDs))
-    }
-
-    /// Whether a renderer termination is answered by reloading again. An
-    /// unavailable core stops reloading instead of risking a crash loop.
-    static func processRecoveryAction(consecutiveTerminations: Int) -> BrowserProcessRecoveryAction {
-        evaluate(
-            .residencyProcessRecovery, ProcessRecoveryRequest(consecutiveTerminations: consecutiveTerminations),
-            answer: ProcessRecoveryAnswer.self)?.action ?? .showFailure
     }
 
     // MARK: - Actions - Evaluation

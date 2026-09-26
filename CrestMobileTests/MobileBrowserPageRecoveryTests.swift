@@ -6,48 +6,26 @@ import XCTest
 @MainActor
 final class MobileBrowserPageRecoveryTests: XCTestCase {
 
-    // MARK: - Reclaimed web-content processes
+    // MARK: - Stopped web-content processes
 
-    func testTerminationOffScreenNeitherReloadsNorSpendsTheRecoveryBudget() throws {
+    func testAStoppedWebContentProcessReachesTheCoresRecoveryBudget() throws {
         let space = makeSpace(index: 1)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let tab = try XCTUnwrap(space.tabs.first)
+        // The window shows the page's tab, so the core recovers it in view.
+        let browser = BrowserStore.hostingPages(
+            BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let page = try openPage(in: space, through: browser)
-        XCTAssertNil(page.webView.window, "A resident background page is attached to no window.")
 
+        // The core has WebKit reload a page in view while its budget lasts.
         page.recordWebContentTermination()
         page.recordWebContentTermination()
+        browser.core.drain()
+        XCTAssertNil(page.live.failure)
+
+        // Past it, the page shows the failure.
         page.recordWebContentTermination()
-
-        XCTAssertFalse(
-            page.showsProcessFailure,
-            "iOS reclaiming a background tab's process is routine eviction, not repeated failure."
-        )
-    }
-
-    func testAReclaimedBackgroundPageIsRestoredWhenItIsSelectedAgain() throws {
-        let space = makeSpace(index: 2)
-        let session = BrowserPresentedSession(
-            session: BrowserSession(spaces: [space]),
-            window: .preview(showing: space.id, tabs: [space.id: space.tabs[0].id])
-        )
-        let pages = MobileBrowserPageStore(
-            browser: .hostingPages(session.session), usesEphemeralWebsiteDataStores: true)
-        pages.select(session: session)
-        let page = try XCTUnwrap(pages.activePage)
-
-        page.recordWebContentTermination()
-
-        XCTAssertTrue(page.needsWebContentRestore)
-        XCTAssertFalse(page.showsProcessFailure)
-
-        pages.deactivatePagePresentation()
-        pages.select(session: session)
-
-        XCTAssertTrue(try XCTUnwrap(pages.activePage) === page)
-        XCTAssertFalse(
-            page.needsWebContentRestore,
-            "Selecting the tab again is where a reclaimed page comes back."
-        )
+        browser.core.drain()
+        XCTAssertEqual(page.live.failure?.error, .webContentProcessStopped)
     }
 
     // MARK: - App-initiated navigation marker

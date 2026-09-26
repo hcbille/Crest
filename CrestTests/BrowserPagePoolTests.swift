@@ -420,10 +420,8 @@ final class BrowserPagePoolTests: XCTestCase {
         )
         try await waitForLoad(destinationURL, in: webView)
         let page = try XCTUnwrap(webView.navigationDelegate as? BrowserPage)
-        let expectedTerminationCount = page.processTerminationCount + 1
 
         page.webViewWebContentProcessDidTerminate(webView)
-        XCTAssertEqual(page.processTerminationCount, expectedTerminationCount)
 
         XCTAssertTrue(context.pool.containsResidentPage(for: backgroundTab.id))
         XCTAssertEqual(context.store.selectedTab?.id, context.sourceTabID)

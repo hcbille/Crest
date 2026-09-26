@@ -2737,6 +2737,10 @@
     "2026-09-26-launch-stage-drain": {
       "category": "internal",
       "message": "Storage tests wait for the launch's sync stage instead of stopping at the journal's first announcement"
+    },
+    "2026-09-26-webkit-crashes-through-core": {
+      "category": "improved",
+      "message": "A WebKit page whose content crashes now recovers the same way as Chromium: at once if you're looking at it, or when you next open it"
     }
   }
 }

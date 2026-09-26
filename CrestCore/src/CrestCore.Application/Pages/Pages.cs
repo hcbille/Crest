@@ -245,12 +245,15 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     }
 
     /// Brings back each page whose renderer stopped while nobody saw it and
-    /// that a window now shows.
-    public void RecoverShown(Action<Engine, EngineCommand> issue) {
+    /// that a window now shows, or shows its failure once the recovery budget
+    /// is spent.
+    public void RecoverShown(ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+        ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(issue);
         foreach (var page in open.Values.Where(page => page.RecoversWhenShown && page.Phase == PagePhase.Live && IsShown(page))) {
-            page.Recover();
-            issue(page.Engine, new RecoverPage(page.Id));
+            var recovers = false;
+            Update(page, changes, () => recovers = page.Recover());
+            if (recovers) issue(page.Engine, new RecoverPage(page.Id));
         }
     }
 

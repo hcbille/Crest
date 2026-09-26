@@ -59,22 +59,6 @@ struct MobileSplitCardContent: View {
             } else {
                 unloadedSurface
             }
-        case .processFailure:
-            if let page {
-                BrowserNavigationFailureView(
-                    failure: .webContentProcessStopped(url: page.live.displayURL),
-                    branding: BrowserSpaceBranding(look: space.settings.look),
-                    layout: failureLayout,
-                    canGoBack: false,
-                    canProceed: false,
-                    retry: page.retryAfterProcessFailure,
-                    goBack: {},
-                    proceed: {}
-                )
-                .modifier(MobileSplitCardFocusTapModifier(requestFocus: requestFocus))
-            } else {
-                unloadedSurface
-            }
         default:
             // A Start Page has no committed navigation to render beside its
             // siblings, and an evicted neighbour is waiting for the carousel to

@@ -1745,28 +1745,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
         XCTAssertEqual(pages.activePage?.tabID, current[2].id)
     }
 
-    func testMobilePageStopsAfterTwoAutomaticWebContentReloads() throws {
-        let space = makeSpace(index: 9)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
-        let page = try openPage(in: space, through: browser)
-        // Only a page the user can see is reloaded automatically, so the recovery
-        // cap is a property of an on-screen page.
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.addSubview(page.webView)
-        XCTAssertNotNil(page.webView.window)
-
-        page.recordWebContentTermination()
-        XCTAssertFalse(page.showsProcessFailure)
-        page.recordWebContentTermination()
-        XCTAssertFalse(page.showsProcessFailure)
-        page.recordWebContentTermination()
-        XCTAssertTrue(page.showsProcessFailure)
-
-        page.retryAfterProcessFailure()
-        XCTAssertFalse(page.showsProcessFailure)
-        page.webView.removeFromSuperview()
-    }
-
     func testMobilePageStoreRoutesZoomCommandsToTheActivePage() throws {
         let space = makeSpace(index: 10)
         let pages = MobileBrowserPageStore(

@@ -117,7 +117,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                     break;
                 case WindowIntent window:
                     device.Handle(window, changes);
-                    pages.RecoverShown(Issue);
+                    pages.RecoverShown(changes, Issue);
                     break;
                 case SitePermissionIntent permission:
                     device.Handle(permission, changes, clock.Now, ids);
