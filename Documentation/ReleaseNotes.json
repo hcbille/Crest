@@ -2749,6 +2749,10 @@
     "2026-09-26-capacity-limits-query": {
       "category": "internal",
       "message": "The core's capacity limits are answered by a typed query instead of a JSON policy operation"
+    },
+    "2026-09-26-cloud-transport-state-in-core": {
+      "category": "internal",
+      "message": "iCloud sync keeps its progress on this device in Crest's own store, carried over once from the file earlier versions used"
     }
   }
 }

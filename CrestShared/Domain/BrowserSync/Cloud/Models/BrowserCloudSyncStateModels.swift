@@ -19,13 +19,6 @@ enum BrowserCloudAccountState: Equatable, Sendable {
     }
 }
 
-enum BrowserCloudAccountTransition: Equatable, Sendable {
-    case signIn
-    case signOut
-    case switchAccounts
-    case unknown
-}
-
 enum BrowserCloudSyncPhase: Equatable, Sendable {
     case disabled
     case checking

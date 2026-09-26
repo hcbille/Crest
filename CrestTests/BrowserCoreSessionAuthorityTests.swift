@@ -416,7 +416,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         let crest = try CrestCore(configuration: AppConfiguration(storageDirectory: directory.path))
         let stored = try BrowserStore.migratedStorage(
             core: crest, legacy: BrowserLegacySessionDefaults(defaults: defaults, journalDefaults: [defaults]),
-            favicons: icons, seed: .freshInstallSeed, environment: .current)
+            favicons: icons, seed: .freshInstallSeed)
         XCTAssertEqual(stored.projection, installed)
         let store = BrowserStore.production(
             stored: stored, core: crest, favicons: icons, credentialVault: InMemoryCredentialVault())

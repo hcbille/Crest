@@ -75,10 +75,11 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
     /// before anything reaches iCloud: its refusal never reads as a device
     /// with nothing to keep, which would take the cloud's content instead.
     func testAComparisonTheCoreRefusesStopsSyncWithoutTakingTheCloud() async throws {
-        let preferences = TestBrowserCloudSyncPreferences(requiresAccountConfirmation: true)
+        let core = try awaitingAccountDecision(CrestCore())
+        let preferences = TestBrowserCloudSyncPreferences()
         let factory = TestBrowserCloudSyncTransportFactory()
         let controller = BrowserCloudSyncController(
-            core: CrestCore(),
+            core: core,
             configuration: testConfiguration,
             preferences: preferences,
             remoteService: TestBrowserCloudSyncRemoteService(
@@ -91,7 +92,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         guard case .failed = controller.phase else { return XCTFail("Sync started over a refused comparison.") }
         XCTAssertTrue(factory.transports.isEmpty)
         XCTAssertNil(controller.conflict)
-        XCTAssertEqual(preferences.resetCount, 0)
+        XCTAssertTrue(try core.query(CloudTransport()).awaitsAccountDecision)
     }
 
     func testUnavailableAccountWaitsWithoutCreatingATransport() async {
@@ -119,9 +120,8 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         let local = try device.storedPart("journal")
         let localRecordCount = try device.storedJournal().records.count
         let cloud = try await cloudRecords(of: .privateBrowsing())
-        let preferences = TestBrowserCloudSyncPreferences(
-            requiresAccountConfirmation: true
-        )
+        _ = try awaitingAccountDecision(device.core)
+        let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
             accountState: .available,
             snapshot: cloud
@@ -155,9 +155,8 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
     func testUseICloudResolutionReplacesLocalContentAndClearsThePause() async throws {
         let device = try await syncedDevice()
         let cloudSession = BrowserSession.privateBrowsing()
-        let preferences = TestBrowserCloudSyncPreferences(
-            requiresAccountConfirmation: true
-        )
+        _ = try awaitingAccountDecision(device.core)
+        let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
             accountState: .available,
             snapshot: try await cloudRecords(of: cloudSession)
@@ -176,8 +175,9 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
         XCTAssertEqual(device.store.session.spaces.map(\.id), cloudSession.spaces.map(\.id))
         XCTAssertTrue(try device.core.query(PendingUploads()).records.isEmpty)
-        XCTAssertEqual(preferences.savedConflictResolutions.count, 1)
-        XCTAssertNil(preferences.savedConflictResolutions[0])
+        let transport = try device.core.query(CloudTransport())
+        XCTAssertFalse(transport.awaitsAccountDecision)
+        XCTAssertFalse(transport.overwritesCloud)
         XCTAssertNil(controller.conflict)
         XCTAssertEqual(controller.phase, .ready)
         XCTAssertEqual(factory.transports.count, 1)
@@ -186,9 +186,8 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
     func testUseThisDeviceResolutionStagesAnOverwriteAndPersistsTheChoice() async throws {
         let device = try await syncedDevice()
         let local = device.store.session
-        let preferences = TestBrowserCloudSyncPreferences(
-            requiresAccountConfirmation: true
-        )
+        _ = try awaitingAccountDecision(device.core)
+        let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
             accountState: .available,
             snapshot: try await cloudRecords(of: .privateBrowsing())
@@ -209,7 +208,9 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         let journal = try device.storedJournal()
         XCTAssertEqual(journal.pending.count, journal.records.count)
         XCTAssertTrue(journal.records.allSatisfy { journal.pending.contains($0.reference) })
-        XCTAssertEqual(preferences.savedConflictResolutions, [.useThisDevice])
+        let transport = try device.core.query(CloudTransport())
+        XCTAssertFalse(transport.awaitsAccountDecision)
+        XCTAssertTrue(transport.overwritesCloud)
         XCTAssertNil(controller.conflict)
         XCTAssertEqual(controller.phase, .ready)
         XCTAssertEqual(factory.transports.count, 1)
@@ -219,6 +220,9 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         let device = try await syncedDevice(.freshInstallSeed)
         let cloudSession = BrowserSession.privateBrowsing()
         let cloud = try await cloudRecords(of: cloudSession)
+        try device.core.transport(
+            OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: nil))
+        try device.core.transport(SaveCloudEngineState(serialization: Data([1])))
         let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
             accountState: .available,
@@ -238,7 +242,8 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
         XCTAssertFalse(device.core.state.syncsDisposableSeed)
         XCTAssertEqual(device.store.session.spaces.map(\.id), cloudSession.spaces.map(\.id))
-        XCTAssertEqual(preferences.resetCount, 1)
+        XCTAssertNil(
+            try device.core.query(CloudTransport()).engineState, "The transport starts over with the cloud's content")
         XCTAssertEqual(controller.observedCloudRecordCount, cloud.count)
         XCTAssertEqual(controller.phase, .ready)
         XCTAssertEqual(factory.transports.count, 1)
@@ -274,13 +279,11 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
     /// stored pause here would let the next switch on merge this device's Spaces
     /// into whichever account is signed in, without asking again.
     func testTurningSyncOffKeepsAPendingAccountDecision() async throws {
-        let preferences = TestBrowserCloudSyncPreferences(
-            requiresAccountConfirmation: true
-        )
+        let core = try awaitingAccountDecision(CrestCore())
         let controller = BrowserCloudSyncController(
-            core: CrestCore(),
+            core: core,
             configuration: testConfiguration,
-            preferences: preferences,
+            preferences: TestBrowserCloudSyncPreferences(),
             remoteService: TestBrowserCloudSyncRemoteService(accountState: .available),
             transportFactory: TestBrowserCloudSyncTransportFactory()
         )
@@ -291,8 +294,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         }
 
         XCTAssertEqual(controller.phase, .disabled)
-        XCTAssertEqual(preferences.resetCount, 0)
-        XCTAssertTrue(try preferences.requiresAccountConfirmation())
+        XCTAssertTrue(try core.query(CloudTransport()).awaitsAccountDecision)
     }
 
     /// A disable that lands while `start` is suspended used to be overtaken: the
@@ -556,6 +558,13 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
     }
 
     /// What another device holding `session` keeps in iCloud.
+    /// `core`, with its transport waiting for the person's account decision.
+    private func awaitingAccountDecision(_ core: CrestCore) throws -> CrestCore {
+        try core.transport(OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: nil))
+        try core.transport(ObserveCloudAccountChange(transition: .switchAccounts))
+        return core
+    }
+
     private func cloudRecords(of session: BrowserSession) async throws -> [SyncRecord] {
         let other = try BrowserStoredSessionHarness(
             session: session, syncDeviceID: UUID(uuidString: "30000000-0000-0000-0000-000000000001")!)
@@ -566,36 +575,15 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 @MainActor
 private final class TestBrowserCloudSyncPreferences: BrowserCloudSyncPreferences {
     var storedIsEnabled: Bool?
-    var requiresConfirmation: Bool
-    private(set) var resetCount = 0
-    private(set) var savedConflictResolutions: [BrowserCloudConflictResolution?] = []
 
-    init(
-        storedIsEnabled: Bool? = nil,
-        requiresAccountConfirmation: Bool = false
-    ) {
+    init(storedIsEnabled: Bool? = nil) {
         self.storedIsEnabled = storedIsEnabled
-        requiresConfirmation = requiresAccountConfirmation
     }
 
     func loadIsEnabled() -> Bool? { storedIsEnabled }
 
     func saveIsEnabled(_ isEnabled: Bool) {
         storedIsEnabled = isEnabled
-    }
-
-    func requiresAccountConfirmation() throws -> Bool {
-        requiresConfirmation
-    }
-
-    func resetTransportState() throws {
-        resetCount += 1
-        requiresConfirmation = false
-    }
-
-    func saveConflictResolution(_ resolution: BrowserCloudConflictResolution?) throws {
-        savedConflictResolutions.append(resolution)
-        requiresConfirmation = false
     }
 }
 

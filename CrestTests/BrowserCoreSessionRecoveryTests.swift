@@ -49,7 +49,11 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
         XCTAssertEqual(restored.projection, original)
         XCTAssertNotEqual(recovered.deviceID, journal.deviceID)
         XCTAssertEqual(recovered.recordsJSON, journal.recordsJSON)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: BrowserSessionRecovery.cloudMarker(in: directory).path))
+        // The core starts the cloud transport over from a full pull once it
+        // opens the transport's state.
+        XCTAssertTrue(
+            FileManager.default.fileExists(
+                atPath: directory.appendingPathComponent("session.sqlite.cloud-recovery").path))
     }
 
     func testAnUnusableCheckpointReportsAnErrorAndANewerSessionOffersNoRollback() throws {
@@ -75,16 +79,6 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
         XCTAssertTrue(failure.requiresNewerApp)
         XCTAssertNil(failure.checkpointDate)
         XCTAssertThrowsError(try failure.restore())
-    }
-
-    func testRestoredJournalRequiresFullCloudMergeAndRetainsAccountConfirmation() throws {
-        let persistence = CloudState()
-        persistence.state.reconciliationReason = .accountChange
-        try BrowserSessionRecovery.resetCloudCursor(persistence)
-        XCTAssertTrue(persistence.state.requiresFullPull)
-        XCTAssertTrue(persistence.state.requiresAccountConfirmation)
-        XCTAssertNil(persistence.state.engineStateSerialization)
-        XCTAssertNil(persistence.state.conflictResolution)
     }
 
     /// What the installed release left in its defaults reaches the core: the
@@ -118,7 +112,7 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
         do {
             let crest = try CrestCore(configuration: AppConfiguration(storageDirectory: directory.path))
             let storage = try BrowserStore.migratedStorage(
-                core: crest, legacy: legacy, favicons: favicons, seed: .freshInstallSeed, environment: .current)
+                core: crest, legacy: legacy, favicons: favicons, seed: .freshInstallSeed)
             let carried = try BrowserStoredSessionHarness.storedJournal(in: directory)
             XCTAssertEqual(storage.projection, installed)
             XCTAssertTrue(storage.projection.spaces.allSatisfy { $0.tabs.contains { $0.faviconData != nil } })
@@ -131,7 +125,7 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
             try JSONEncoder().encode(BrowserSession.freshInstallSeed), forKey: BrowserLegacySessionDefaults.coreKey)
         let relaunchedCore = try CrestCore(configuration: AppConfiguration(storageDirectory: directory.path))
         let relaunched = try BrowserStore.migratedStorage(
-            core: relaunchedCore, legacy: legacy, favicons: favicons, seed: .freshInstallSeed, environment: .current)
+            core: relaunchedCore, legacy: legacy, favicons: favicons, seed: .freshInstallSeed)
         XCTAssertEqual(relaunched.projection, installed)
     }
 
@@ -160,12 +154,5 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
         session.spaces[1].accessPolicy = .deviceOwnerAuthentication
         session.defaultSpaceID = session.spaces[0].id
         return session
-    }
-
-    private final class CloudState: BrowserCloudSyncStatePersisting, @unchecked Sendable {
-        var state = BrowserCloudSyncState()
-        func load() throws -> BrowserCloudSyncState? { state }
-        func save(_ state: BrowserCloudSyncState) throws { self.state = state }
-        func reset() throws { state = BrowserCloudSyncState() }
     }
 }

@@ -1,12 +1,3 @@
-enum BrowserCloudConflictResolution: String, Codable, Equatable, Sendable {
-    case useThisDevice
-}
-
-enum BrowserCloudReconciliationReason: String, Codable, Equatable, Sendable {
-    case accountChange
-    case legacyRecordConflict
-}
-
 struct BrowserCloudSyncConflictSummary: Equatable, Sendable {
     let localRecordCount: Int
     let cloudRecordCount: Int

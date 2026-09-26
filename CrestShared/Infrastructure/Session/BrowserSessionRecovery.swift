@@ -30,10 +30,10 @@ struct BrowserSessionStartupFailure: Error {
     }
 }
 
-/// What the recovery screen and the cloud transport read beside the core's
-/// session file. The core writes the file, its recovery checkpoint and the
-/// cloud-recovery marker; this side only reports the checkpoint's age and
-/// consumes the marker once the transport has opted into a full pull.
+/// What the recovery screen reads beside the core's session file. The core
+/// writes the file, its recovery checkpoint and the cloud-recovery marker, and
+/// consumes that marker itself when the cloud transport's state starts over;
+/// this side only reports the checkpoint's age.
 enum BrowserSessionRecovery {
     enum RecoveryError: Error {
         /// Nothing may be restored over this file.
@@ -41,42 +41,6 @@ enum BrowserSessionRecovery {
     }
 
     private static let checkpointName = "session.recovery.sqlite"
-    private static let cloudMarkerName = "session.sqlite.cloud-recovery"
 
     static func checkpointURL(in directory: URL) -> URL { directory.appendingPathComponent(checkpointName) }
-    static func cloudMarker(in directory: URL) -> URL { directory.appendingPathComponent(cloudMarkerName) }
-
-    /// While the core's marker is beside the file, the cloud transport's cursor
-    /// cannot describe the local journal: the file holds a seed standing in for
-    /// an unreadable installed session, or a restored journal. The cursor is
-    /// reset to a full pull first, and only then is the marker removed.
-    static func prepareCloudRecovery(in directory: URL, environment: BrowserLaunchEnvironment) throws {
-        let marker = cloudMarker(in: directory)
-        guard FileManager.default.fileExists(atPath: marker.path) else { return }
-        let persistence: any BrowserCloudSyncStatePersisting
-        if environment.requiresIsolation {
-            guard let configuration = BrowserCloudSyncConfiguration.configured()?.isolated(for: environment),
-                let id = environment.persistentIsolationID,
-                let isolated = FileBrowserCloudSyncStatePersistence.isolated(
-                    localProfileID: id, configuration: configuration)
-            else { return }
-            persistence = isolated
-        } else {
-            persistence =
-                FileBrowserCloudSyncStatePersistence.production()
-                ?? UserDefaultsBrowserCloudSyncStatePersistence()
-        }
-        try resetCloudCursor(persistence)
-        try FileManager.default.removeItem(at: marker)
-    }
-
-    static func resetCloudCursor(_ persistence: any BrowserCloudSyncStatePersisting) throws {
-        var state = try persistence.load() ?? BrowserCloudSyncState()
-        state.engineStateSerialization = nil
-        state.systemFields = BrowserCloudRecordSystemFields()
-        state.conflictResolution = nil
-        state.requiresFullPull = true
-        // Account confirmation remains mandatory if the account changed.
-        try persistence.save(state)
-    }
 }

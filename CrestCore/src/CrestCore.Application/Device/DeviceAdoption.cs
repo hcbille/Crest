@@ -10,8 +10,10 @@ internal sealed class DeviceAdoption {
     public static readonly DeviceAdoption SitePermissions = new(marker: "site-permissions", olderBuildsRead: false);
     public static readonly DeviceAdoption Shortcuts = new(marker: "shortcuts", olderBuildsRead: false);
     public static readonly DeviceAdoption LinkPreferences = new(marker: "link-preferences", olderBuildsRead: false);
+    /// The cloud transport's state, which the transport kept in a file of its own.
+    public static readonly DeviceAdoption CloudTransport = new(marker: "cloud-transport", olderBuildsRead: false);
 
-    public static IReadOnlyList<DeviceAdoption> All { get; } = [WindowRecords, SitePermissions, Shortcuts, LinkPreferences];
+    public static IReadOnlyList<DeviceAdoption> All { get; } = [WindowRecords, SitePermissions, Shortcuts, LinkPreferences, CloudTransport];
 
     #endregion
 

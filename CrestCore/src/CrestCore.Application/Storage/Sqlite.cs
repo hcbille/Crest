@@ -54,6 +54,8 @@ internal static partial class Sqlite {
         return count == 0 || source == null ? [] : new ReadOnlySpan<byte>(source, count).ToArray();
     }
 
+    public static int BindNull(nint statement, int index) => sqlite3_bind_null(statement, index);
+
     public static int BindText(nint statement, int index, string? value) =>
         value is null ? sqlite3_bind_null(statement, index) : sqlite3_bind_text(statement, index, value, -1, Transient);
 

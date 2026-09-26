@@ -35,6 +35,11 @@ final class BrowserCloudSyncController {
     @ObservationIgnored private let core: CrestCore
     @ObservationIgnored private let configuration: BrowserCloudSyncConfiguration?
     @ObservationIgnored private let preferences: any BrowserCloudSyncPreferences
+    /// Where an installed release kept the transport's state, which the core
+    /// adopts the first time the transport opens.
+    @ObservationIgnored private let legacyState: BrowserLegacyCloudSyncState?
+    /// Whether the core opened the transport's state in this process.
+    @ObservationIgnored private var isTransportStateOpen = false
     @ObservationIgnored private let remoteService: (any BrowserCloudSyncRemoteService)?
     @ObservationIgnored private let transportFactory: (any BrowserCloudSyncTransportFactory)?
     @ObservationIgnored private let retryDelay: Duration
@@ -68,6 +73,7 @@ final class BrowserCloudSyncController {
         core: CrestCore,
         configuration: BrowserCloudSyncConfiguration?,
         preferences: any BrowserCloudSyncPreferences,
+        legacyState: BrowserLegacyCloudSyncState? = nil,
         remoteService: (any BrowserCloudSyncRemoteService)?,
         transportFactory: (any BrowserCloudSyncTransportFactory)?,
         retryDelay: Duration = .seconds(30)
@@ -75,6 +81,7 @@ final class BrowserCloudSyncController {
         self.core = core
         self.configuration = configuration
         self.preferences = preferences
+        self.legacyState = legacyState
         self.remoteService = remoteService
         self.transportFactory = transportFactory
         self.retryDelay = retryDelay
@@ -124,6 +131,8 @@ final class BrowserCloudSyncController {
         lastAttemptAt = .now
 
         do {
+            try await openTransportState()
+            guard isCurrentStart(generation) else { return }
             let state = try await remoteService.accountState()
             guard isCurrentStart(generation) else { return }
             accountState = state
@@ -136,7 +145,7 @@ final class BrowserCloudSyncController {
                 using: remoteService
             )
             guard isCurrentStart(generation) else { return }
-            if try preferences.requiresAccountConfirmation() {
+            if try core.query(CloudTransport()).awaitsAccountDecision {
                 try await prepareAccountReconciliation(
                     remoteService: remoteService,
                     transportFactory: transportFactory,
@@ -267,7 +276,7 @@ final class BrowserCloudSyncController {
             errorDescription = nil
             await previous?.stop()
             guard !isEnabled else { return }
-            resetTransportStateUnlessAnAccountDecisionIsPending()
+            await resetTransportStateUnlessAnAccountDecisionIsPending()
         }
     }
 
@@ -276,9 +285,35 @@ final class BrowserCloudSyncController {
     /// Clearing the stored pause here would let the next switch on merge this
     /// device's Spaces into whichever account happens to be signed in, without
     /// ever asking again.
-    private func resetTransportStateUnlessAnAccountDecisionIsPending() {
-        guard (try? preferences.requiresAccountConfirmation()) != true else { return }
-        try? preferences.resetTransportState()
+    private func resetTransportStateUnlessAnAccountDecisionIsPending() async {
+        guard (try? await openTransportState()) != nil,
+            (try? core.query(CloudTransport()))?.awaitsAccountDecision == false
+        else { return }
+        _ = try? await resetTransport(overwritingCloud: false)
+    }
+
+    /// Has the core open the transport's state under the record schema this
+    /// build reads, adopting the state an installed release kept the first
+    /// time. Once per process.
+    private func openTransportState() async throws {
+        guard !isTransportStateOpen else { return }
+        let legacy = try core.query(CloudTransport()).isAdopted ? nil : legacyState?.read()
+        try await send(OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: legacy))
+        isTransportStateOpen = true
+    }
+
+    /// Starts the transport's state over, with this device's copy
+    /// overwriting the cloud's when `overwritingCloud`.
+    private func resetTransport(overwritingCloud: Bool) async throws {
+        try await openTransportState()
+        try await send(ResetCloudTransport(overwritesCloud: overwritingCloud))
+    }
+
+    /// Sends the core an intent about the transport's own state off the main
+    /// thread.
+    private func send(_ intent: some CloudTransportIntent) async throws {
+        let core = core
+        try await Task.detached(priority: .utility) { _ = try core.transport(intent) }.value
     }
 
     private func prepareAccountReconciliation(
@@ -302,7 +337,7 @@ final class BrowserCloudSyncController {
         if comparison.deviceRecords == 0, comparison.cloudRecords > 0 {
             try await deliver(ReplaceWithCloudRecords(records: remote))
         }
-        try preferences.resetTransportState()
+        try await resetTransport(overwritingCloud: false)
         try await startTransport(
             using: transportFactory,
             generation: generation
@@ -316,7 +351,7 @@ final class BrowserCloudSyncController {
         let remote = try await remoteService.loadSnapshot()
         observedCloudRecordCount = remote.count
         try await deliver(ReplaceSeedWithCloudRecords(records: remote))
-        try preferences.resetTransportState()
+        try await resetTransport(overwritingCloud: false)
     }
 
     /// How the stored session's journal compares with `remote`, the cloud's
@@ -385,9 +420,7 @@ final class BrowserCloudSyncController {
             } else {
                 try await deliver(OverwriteCloud(records: records))
             }
-            try preferences.saveConflictResolution(
-                usesCloud ? nil : .useThisDevice
-            )
+            try await resetTransport(overwritingCloud: !usesCloud)
             transport = nil
             conflict = nil
             try await startTransport(

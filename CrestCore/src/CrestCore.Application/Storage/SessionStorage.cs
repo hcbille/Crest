@@ -93,6 +93,14 @@ internal sealed class SessionStorage : IDisposable {
     /// What the device store held when the file was opened.
     public DeviceRecords Device { get; }
 
+    /// The cloud transport's state the device store held when the file was
+    /// opened, or null while it held none.
+    public CloudTransportRecord? CloudTransport { get; }
+
+    /// Whether a restore or a replaced session left the cloud-recovery marker
+    /// beside the file for the transport to start over from a full pull.
+    public bool CloudRecoveryRequested => File.Exists(Path.Combine(Directory, FileName) + CloudRecoverySuffix);
+
     /// The newest file revision handed to the file and not yet on disk, or null.
     public ulong? PendingRevision {
         get {
@@ -116,11 +124,12 @@ internal sealed class SessionStorage : IDisposable {
     #region Constructors
 
     private SessionStorage(string directory, SqliteConnection connection, Dictionary<string, byte[]> parts,
-        NativeSyncJournal? journal, DeviceRecords? device, Action<Change> announce) {
+        NativeSyncJournal? journal, DeviceRecords? device, CloudTransportRecord? cloudTransport, Action<Change> announce) {
         Directory = directory;
         this.connection = connection;
         written = parts;
         Device = device ?? DeviceRecords.Empty;
+        CloudTransport = cloudTransport;
         writtenDevice = device;
         writtenJournal = journal;
         this.announce = announce;
@@ -153,7 +162,8 @@ internal sealed class SessionStorage : IDisposable {
                 });
                 var parts = ReadAll(connection);
                 loaded = validated is { } earlier && SameParts(earlier.Parts, parts) ? earlier.Session : StoredSession.Decode(parts);
-                return new(directory, connection, parts, loaded.Journal, ReadDevice(connection), announce);
+                return new(directory, connection, parts, loaded.Journal, ReadDevice(connection), ReadCloudTransport(connection),
+                    announce);
             } catch {
                 connection.Dispose();
                 throw;
@@ -202,6 +212,16 @@ internal sealed class SessionStorage : IDisposable {
     private static DeviceRecords? ReadDevice(SqliteConnection source) {
         try {
             return source.ReadDevice();
+        } catch (StorageException) {
+            return null;
+        }
+    }
+
+    /// The cloud transport's state, or null when the store keeps none or it
+    /// cannot be read: the transport then starts over from a full pull.
+    private static CloudTransportRecord? ReadCloudTransport(SqliteConnection source) {
+        try {
+            return source.ReadCloudTransport();
         } catch (StorageException) {
             return null;
         }
@@ -268,6 +288,31 @@ internal sealed class SessionStorage : IDisposable {
             pendingDevice = Unwritten<DeviceRecords>.Replacing(pendingDevice, records, ++fileRevision);
             pendingIsNew = true;
             Monitor.Pulse(queue);
+        }
+    }
+
+    /// Writes the cloud transport's state, when `record` holds one, and the
+    /// change of its server fields, with `adoption`'s marker when it is one,
+    /// in one transaction before returning. Throws `StorageException` and
+    /// leaves the file as it was when the write fails.
+    public void SaveCloudTransport(CloudTransportRecord? record, CloudFieldWrite? fields, DeviceAdoption? adoption) {
+        lock (writing) {
+            RequireOpen();
+            connection.InTransaction(() => {
+                if (record is not null) connection.WriteCloudTransport(record);
+                if (fields is not null) connection.WriteCloudFields(fields.Clearing, fields.Updated, fields.Removed);
+                if (adoption is not null) connection.MarkAdopted(adoption);
+            });
+        }
+    }
+
+    /// The server fields the device store keeps of `names`. Throws
+    /// `StorageException` when they cannot be read.
+    public IReadOnlyList<CloudRecordFields> CloudFields(IReadOnlyList<string> names) {
+        ArgumentNullException.ThrowIfNull(names);
+        lock (writing) {
+            RequireOpen();
+            return connection.ReadCloudFields(names);
         }
     }
 
@@ -447,6 +492,17 @@ internal sealed class SessionStorage : IDisposable {
     /// Leaves the cloud-recovery marker beside the file, before the seed that
     /// stands in for an unreadable installed session is written.
     public void RequestCloudRecovery() => RequestCloudRecovery(Path.Combine(Directory, FileName));
+
+    /// Removes the cloud-recovery marker once the transport's state starts
+    /// over. A marker that cannot be removed is honoured again next launch,
+    /// which pulls everything again and changes nothing else.
+    public void ConsumeCloudRecovery() {
+        try {
+            File.Delete(Path.Combine(Directory, FileName) + CloudRecoverySuffix);
+        } catch (IOException) {
+        } catch (UnauthorizedAccessException) {
+        }
+    }
 
     private static void RequestCloudRecovery(string path) => File.WriteAllBytes(path + CloudRecoverySuffix, []);
 

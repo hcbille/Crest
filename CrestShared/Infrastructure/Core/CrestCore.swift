@@ -178,6 +178,19 @@ final class CrestCore {
         return receipts
     }
 
+    /// Runs one intent from the cloud transport about its own state on this
+    /// device, on the calling thread, which the app keeps off the main thread.
+    /// It is on disk when this returns. Answers the state it left, and the
+    /// merge `BeginCloudMerge` began; neither changes `state`. Throws the rule
+    /// that refused it or the save that failed; either changed nothing.
+    @discardableResult
+    nonisolated func transport(_ intent: some CloudTransportIntent) throws(Rejection) -> [Change] {
+        var writer = WireWriter()
+        intent.encodeIntent(into: &writer)
+        var reader = try call(crest_app_dispatch, writer, "send \(type(of: intent))")
+        return Self.decodeChanges(from: &reader, "\(type(of: intent))")
+    }
+
     /// Returns once every sync stage the core queued before the call has
     /// committed, failed or been superseded, without waiting out a coalescing
     /// delay. The wait runs off the main thread, which stays free meanwhile.

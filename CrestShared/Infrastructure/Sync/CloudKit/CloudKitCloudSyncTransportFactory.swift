@@ -2,16 +2,13 @@
 final class CloudKitBrowserCloudSyncTransportFactory: BrowserCloudSyncTransportFactory {
     private let configuration: BrowserCloudSyncConfiguration
     private let core: CrestCore
-    private let persistence: any BrowserCloudSyncStatePersisting
 
     init(
         configuration: BrowserCloudSyncConfiguration,
-        core: CrestCore,
-        persistence: any BrowserCloudSyncStatePersisting
+        core: CrestCore
     ) {
         self.configuration = configuration
         self.core = core
-        self.persistence = persistence
     }
 
     func makeTransport(
@@ -21,7 +18,6 @@ final class CloudKitBrowserCloudSyncTransportFactory: BrowserCloudSyncTransportF
         try BrowserCloudSyncEngine(
             configuration: configuration,
             core: core,
-            persistence: persistence,
             statusHandler: statusHandler,
             activityHandler: activityHandler
         )

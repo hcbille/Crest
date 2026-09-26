@@ -17,7 +17,7 @@ extension BrowserStore {
         }
         let favicons: any BrowserFaviconStoring = BrowserFaviconFileStore.production() ?? InMemoryBrowserFaviconStore()
         let stored = try migratedStorage(
-            core: core, legacy: .installed, favicons: favicons, seed: .freshInstallSeed, environment: launchEnvironment)
+            core: core, legacy: .installed, favicons: favicons, seed: .freshInstallSeed)
         return production(
             stored: stored, core: core, favicons: favicons, credentialVault: KeychainCredentialVault())
     }
@@ -81,7 +81,7 @@ extension BrowserStore {
             rootDirectory: directory.appendingPathComponent("Favicons", isDirectory: true))
         let stored = try migratedStorage(
             core: core, legacy: BrowserLegacySessionDefaults(defaults: defaults, journalDefaults: []),
-            favicons: favicons, seed: isolatedFixtureSession(for: launchEnvironment), environment: launchEnvironment)
+            favicons: favicons, seed: isolatedFixtureSession(for: launchEnvironment))
         return production(
             stored: stored, core: core, favicons: favicons,
             credentialVault: KeychainCredentialVault(servicePrefix: namespace))
@@ -128,7 +128,7 @@ extension BrowserStore {
     /// defaults suite and favicon store.
     static func migratedStorage(
         core: CrestCore, legacy: BrowserLegacySessionDefaults, favicons: any BrowserFaviconStoring,
-        seed: @autoclosure () -> BrowserSession, environment: BrowserLaunchEnvironment
+        seed: @autoclosure () -> BrowserSession
     ) throws -> BrowserCoreSessionAuthority {
         guard let directory = core.storageDirectory else {
             preconditionFailure("A core that keeps nothing on disk has no stored session to open.")
@@ -146,7 +146,6 @@ extension BrowserStore {
                 }
                 stored = try BrowserCoreSessionAuthority.openStored(in: core, favicons: favicons)
             }
-            try BrowserSessionRecovery.prepareCloudRecovery(in: directory, environment: environment)
             return stored
         } catch {
             throw BrowserSessionStartupFailure(storageDirectory: directory, underlying: error)

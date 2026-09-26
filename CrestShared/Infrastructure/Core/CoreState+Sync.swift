@@ -27,4 +27,10 @@ extension CoreState {
     /// A receipt for the cloud transport, which reports what it skipped; the
     /// read model keeps nothing of it.
     func apply(_ change: SyncRecordsSkipped) {}
+
+    /// Receipts for the cloud transport about its own state, which only the
+    /// transport reads.
+    func apply(_ change: CloudTransportChanged) {}
+
+    func apply(_ change: CloudMergeBegan) {}
 }

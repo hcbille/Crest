@@ -21,15 +21,9 @@ extension BrowserCloudSyncController {
             return
         }
         let defaults = defaults ?? .standard
-        let statePersistence: any BrowserCloudSyncStatePersisting =
-            FileBrowserCloudSyncStatePersistence.production(
-                migrationDefaults: defaults
-            )
-            ?? UserDefaultsBrowserCloudSyncStatePersistence(defaults: defaults)
         let preferences = UserDefaultsBrowserCloudSyncPreferences(
             defaults: defaults,
-            enabledKey: enabledKey,
-            statePersistence: statePersistence
+            enabledKey: enabledKey
         )
         let remoteService = configuration.map {
             CloudKitBrowserCloudSyncRemoteService(configuration: $0)
@@ -37,14 +31,14 @@ extension BrowserCloudSyncController {
         let transportFactory = configuration.map {
             CloudKitBrowserCloudSyncTransportFactory(
                 configuration: $0,
-                core: core,
-                persistence: statePersistence
+                core: core
             )
         }
         self.init(
             core: core,
             configuration: configuration,
             preferences: preferences,
+            legacyState: .production(defaults: defaults),
             remoteService: remoteService,
             transportFactory: transportFactory
         )

@@ -13,14 +13,4 @@ final class InMemoryBrowserCloudSyncPreferences: BrowserCloudSyncPreferences {
     func saveIsEnabled(_ isEnabled: Bool) {
         self.isEnabled = isEnabled
     }
-
-    func requiresAccountConfirmation() throws -> Bool {
-        false
-    }
-
-    func resetTransportState() throws {}
-
-    func saveConflictResolution(
-        _: BrowserCloudConflictResolution?
-    ) throws {}
 }

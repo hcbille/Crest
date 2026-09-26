@@ -206,15 +206,14 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
 
     func testSystemFieldsPersistWithoutCopyingDomainPayload() throws {
         let cloudRecord = try BrowserCloudRecordCodec().record(for: makeTabRecord())
-        var fields = BrowserCloudRecordSystemFields()
+        let fields = CloudRecordFields(record: cloudRecord)
 
-        fields.update(with: cloudRecord)
         let restored = try XCTUnwrap(fields.record(for: cloudRecord.recordID))
 
         XCTAssertEqual(restored.recordID, cloudRecord.recordID)
         XCTAssertNil(restored.encryptedValues["payload"] as? Data)
-        fields.remove(recordName: cloudRecord.recordID.recordName)
-        XCTAssertNil(fields.record(for: cloudRecord.recordID))
+        let other = CKRecord.ID(recordName: "tab:other", zoneID: cloudRecord.recordID.zoneID)
+        XCTAssertNil(fields.record(for: other))
     }
 
     /// Writing over the server's copy takes the schema the record needs now,
@@ -232,15 +231,18 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
         XCTAssertEqual((try codec.record(for: saved, reusing: cloud)["schemaVersion"] as? NSNumber)?.intValue, 1)
     }
 
+    @MainActor
     func testNewerServerSchemaCannotBeOverwrittenUsingRestoredSystemFields() throws {
         let source = makeTabRecord()
         let server = try BrowserCloudRecordCodec().record(for: source)
         server["schemaVersion"] = NSNumber(value: 99)
-        var fields = BrowserCloudRecordSystemFields()
-        fields.update(with: server)
-        let restoredFields = try JSONDecoder().decode(
-            BrowserCloudRecordSystemFields.self, from: JSONEncoder().encode(fields))
-        let base = try XCTUnwrap(restoredFields.record(for: server.recordID))
+        // The schema is kept beside the archived fields in the core's device
+        // store, since the archive leaves it out.
+        let core = CrestCore()
+        try core.transport(OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: nil))
+        try core.transport(RecordCloudFields(updated: [CloudRecordFields(record: server)], removed: []))
+        let kept = try core.query(CloudFieldsOf(recordNames: [server.recordID.recordName])).records
+        let base = try XCTUnwrap(kept.first?.record(for: server.recordID))
         XCTAssertThrowsError(try BrowserCloudRecordCodec().record(for: source, reusing: base)) { error in
             XCTAssertEqual(error as? BrowserCloudRecordCodecError, .newerSchema(99))
         }
@@ -250,12 +252,8 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
     func testLegacySystemFieldsStillRestoreWithoutSchemaMetadata() throws {
         let source = makeTabRecord()
         let cloud = try BrowserCloudRecordCodec().record(for: source)
-        var fields = BrowserCloudRecordSystemFields()
-        fields.update(with: cloud)
-        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(fields)) as? [String: Any])
-        json.removeValue(forKey: "schemaVersionsByName")
-        let legacy = try JSONDecoder().decode(
-            BrowserCloudRecordSystemFields.self, from: JSONSerialization.data(withJSONObject: json))
+        let archived = CloudRecordFields(record: cloud)
+        let legacy = CloudRecordFields(recordName: archived.recordName, fields: archived.fields, schemaVersion: nil)
         let base = try XCTUnwrap(legacy.record(for: cloud.recordID))
         XCTAssertEqual(
             BrowserCloudRecordCodec().syncRecord(from: try BrowserCloudRecordCodec().record(for: source, reusing: base)), source)

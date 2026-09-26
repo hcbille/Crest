@@ -144,6 +144,10 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("CREATE TABLE IF NOT EXISTS device_link_route (id TEXT PRIMARY KEY, enabled INTEGER NOT NULL, match TEXT NOT NULL, "
             + "pattern TEXT NOT NULL, space TEXT NOT NULL, position INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_link_site (site TEXT PRIMARY KEY, space TEXT NOT NULL, position INTEGER NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_cloud_transport (id INTEGER PRIMARY KEY CHECK (id = 0), "
+            + "record_schema INTEGER NOT NULL, requires_full_pull INTEGER NOT NULL, awaits_account_decision INTEGER NOT NULL, "
+            + "overwrites_cloud INTEGER NOT NULL, engine_state BLOB)");
+        Execute("CREATE TABLE IF NOT EXISTS device_cloud_record (name TEXT PRIMARY KEY, fields BLOB NOT NULL, schema_version INTEGER)");
     }
 
     /// Everything the device store holds. A row whose identities or names do
@@ -359,12 +363,82 @@ internal sealed class SqliteConnection : IDisposable {
 
     /// Every adoption goes into `device_adoption`; the ones an older build
     /// knows also go into `device_marker`, which that build reads and rewrites.
+    /// An adoption is never undone, so the markers are only ever added: a
+    /// write of records captured before an adoption another save recorded
+    /// keeps its marker.
     private void WriteAdoptions(IReadOnlySet<DeviceAdoption> adoptions) {
-        foreach (var table in new[] { "device_marker", "device_adoption" }) Execute($"DELETE FROM {table}");
-        foreach (var adoption in DeviceAdoption.All.Where(adoptions.Contains)) {
-            Insert("INSERT INTO device_adoption(name) VALUES(?)", statement => Bind(statement, 1, adoption.Marker));
-            if (adoption.OlderBuildsRead) Insert("INSERT INTO device_marker(name) VALUES(?)", statement => Bind(statement, 1, adoption.Marker));
-        }
+        foreach (var adoption in DeviceAdoption.All.Where(adoptions.Contains)) MarkAdopted(adoption);
+    }
+
+    /// Records `adoption` as done. The caller runs it inside a transaction.
+    public void MarkAdopted(DeviceAdoption adoption) {
+        Insert("INSERT OR IGNORE INTO device_adoption(name) VALUES(?)", statement => Bind(statement, 1, adoption.Marker));
+        if (adoption.OlderBuildsRead)
+            Insert("INSERT OR IGNORE INTO device_marker(name) VALUES(?)", statement => Bind(statement, 1, adoption.Marker));
+    }
+
+    #endregion
+
+    #region Actions - Cloud transport
+
+    /// The cloud transport's state the device store keeps, or null while it
+    /// keeps none.
+    public CloudTransportRecord? ReadCloudTransport() => Query(
+        "SELECT record_schema, requires_full_pull, awaits_account_decision, overwrites_cloud, engine_state FROM device_cloud_transport",
+        statement => {
+            int result = Sqlite.sqlite3_step(statement);
+            if (result == Sqlite.Done) return null;
+            if (result != Sqlite.Row) throw Failure(result);
+            return new CloudTransportRecord(checked((int)Sqlite.sqlite3_column_int64(statement, 0)),
+                Sqlite.sqlite3_column_int64(statement, 1) != 0, Sqlite.sqlite3_column_int64(statement, 2) != 0,
+                Sqlite.sqlite3_column_int64(statement, 3) != 0, Sqlite.ColumnIsNull(statement, 4) ? null : Sqlite.ColumnBlob(statement, 4));
+        });
+
+    /// Writes `record` over the cloud transport's state. The caller runs it
+    /// inside a transaction.
+    public void WriteCloudTransport(CloudTransportRecord record) {
+        Execute("DELETE FROM device_cloud_transport");
+        Insert("INSERT INTO device_cloud_transport(id, record_schema, requires_full_pull, awaits_account_decision, overwrites_cloud, "
+            + "engine_state) VALUES(0,?,?,?,?,?)", statement => {
+                Checked(Sqlite.sqlite3_bind_int64(statement, 1, record.RecordSchema));
+                Checked(Sqlite.sqlite3_bind_int64(statement, 2, record.RequiresFullPull ? 1 : 0));
+                Checked(Sqlite.sqlite3_bind_int64(statement, 3, record.AwaitsAccountDecision ? 1 : 0));
+                Checked(Sqlite.sqlite3_bind_int64(statement, 4, record.OverwritesCloud ? 1 : 0));
+                Checked(record.EngineState is { } state ? Sqlite.BindBlob(statement, 5, state) : Sqlite.BindNull(statement, 5));
+            });
+    }
+
+    /// Forgets every record's server fields when `clearing`, then keeps those
+    /// of `updated` and forgets those of `removed`. The caller runs it inside
+    /// a transaction.
+    public void WriteCloudFields(bool clearing, IReadOnlyList<CloudRecordFields> updated, IReadOnlyList<string> removed) {
+        if (clearing) Execute("DELETE FROM device_cloud_record");
+        foreach (var name in removed)
+            Insert("DELETE FROM device_cloud_record WHERE name=?", statement => Bind(statement, 1, name));
+        foreach (var fields in updated)
+            Insert("INSERT OR REPLACE INTO device_cloud_record(name, fields, schema_version) VALUES(?,?,?)", statement => {
+                Bind(statement, 1, fields.RecordName);
+                Checked(Sqlite.BindBlob(statement, 2, fields.Fields));
+                Checked(fields.SchemaVersion is { } schema
+                    ? Sqlite.sqlite3_bind_int64(statement, 3, schema) : Sqlite.BindNull(statement, 3));
+            });
+    }
+
+    /// The server fields kept of `names`; a record kept without any is left
+    /// out.
+    public IReadOnlyList<CloudRecordFields> ReadCloudFields(IReadOnlyList<string> names) {
+        var found = new List<CloudRecordFields>();
+        foreach (var name in names)
+            Query("SELECT fields, schema_version FROM device_cloud_record WHERE name=?", statement => {
+                Bind(statement, 1, name);
+                int result = Sqlite.sqlite3_step(statement);
+                if (result == Sqlite.Done) return result;
+                if (result != Sqlite.Row) throw Failure(result);
+                found.Add(new(name, Sqlite.ColumnBlob(statement, 0),
+                    Sqlite.ColumnIsNull(statement, 1) ? null : checked((int)Sqlite.sqlite3_column_int64(statement, 1))));
+                return result;
+            });
+        return found;
     }
 
     private void Rows(string sql, Action<nint> row) => Query(sql, statement => {

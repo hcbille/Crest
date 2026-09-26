@@ -6,18 +6,13 @@ final class UserDefaultsBrowserCloudSyncPreferences: BrowserCloudSyncPreferences
 
     private let defaults: UserDefaults
     private let enabledKey: String
-    private let statePersistence: any BrowserCloudSyncStatePersisting
 
     init(
         defaults: UserDefaults = .standard,
-        enabledKey: String = defaultEnabledKey,
-        statePersistence: (any BrowserCloudSyncStatePersisting)? = nil
+        enabledKey: String = defaultEnabledKey
     ) {
         self.defaults = defaults
         self.enabledKey = enabledKey
-        self.statePersistence =
-            statePersistence
-            ?? UserDefaultsBrowserCloudSyncStatePersistence(defaults: defaults)
     }
 
     func loadIsEnabled() -> Bool? {
@@ -27,19 +22,5 @@ final class UserDefaultsBrowserCloudSyncPreferences: BrowserCloudSyncPreferences
 
     func saveIsEnabled(_ isEnabled: Bool) {
         defaults.set(isEnabled, forKey: enabledKey)
-    }
-
-    func requiresAccountConfirmation() throws -> Bool {
-        try statePersistence.load()?.requiresAccountConfirmation == true
-    }
-
-    func resetTransportState() throws {
-        try statePersistence.save(BrowserCloudSyncState())
-    }
-
-    func saveConflictResolution(_ resolution: BrowserCloudConflictResolution?) throws {
-        try statePersistence.save(
-            BrowserCloudSyncState(conflictResolution: resolution)
-        )
     }
 }

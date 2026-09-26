@@ -11,9 +11,7 @@ extension BrowserCloudSyncController {
             let profileID = environment.persistentIsolationID,
             let defaults = UserDefaults(suiteName:
                 BrowserLaunchEnvironment.isolatedDefaultsSuiteName(isolationID: profileID)
-                    + ".cloud." + configuration.zoneName),
-            let persistence = FileBrowserCloudSyncStatePersistence.isolated(
-                localProfileID: profileID, configuration: configuration)
+                    + ".cloud." + configuration.zoneName)
         else {
             return BrowserCloudSyncController(
                 core: core, configuration: nil,
@@ -23,10 +21,10 @@ extension BrowserCloudSyncController {
         }
         let controller = BrowserCloudSyncController(
             core: core, configuration: configuration,
-            preferences: UserDefaultsBrowserCloudSyncPreferences(defaults: defaults, statePersistence: persistence),
+            preferences: UserDefaultsBrowserCloudSyncPreferences(defaults: defaults),
+            legacyState: .isolated(localProfileID: profileID, configuration: configuration),
             remoteService: CloudKitBrowserCloudSyncRemoteService(configuration: configuration),
-            transportFactory: CloudKitBrowserCloudSyncTransportFactory(
-                configuration: configuration, core: core, persistence: persistence)
+            transportFactory: CloudKitBrowserCloudSyncTransportFactory(configuration: configuration, core: core)
         )
         controller.observeAccountChanges(named: .CKAccountChanged)
         return controller

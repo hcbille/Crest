@@ -35,6 +35,9 @@ protocol CloseIntent: Intent {}
 /// The members of `Intent` that derive from the core's `CloudSyncIntent`.
 protocol CloudSyncIntent: Intent {}
 
+/// The members of `Intent` that derive from the core's `CloudTransportIntent`.
+protocol CloudTransportIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `DownloadIntent`.
 protocol DownloadIntent: Intent {}
 
@@ -77,6 +80,8 @@ enum Change: Equatable, Sendable {
     case archiveChanged(ArchiveChanged)
     case authenticationAsked(AuthenticationAsked)
     case closeReady(CloseReady)
+    case cloudMergeBegan(CloudMergeBegan)
+    case cloudTransportChanged(CloudTransportChanged)
     case downloadApprovalAsked(DownloadApprovalAsked)
     case downloadDestinationAsked(DownloadDestinationAsked)
     case downloadUpdated(DownloadUpdated)
@@ -178,6 +183,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidTabIcon(InvalidTabIcon)
     case languageTooLong(LanguageTooLong)
     case lastStartPage(LastStartPage)
+    case legacyCloudStateUnreadable(LegacyCloudStateUnreadable)
     case linkPatternTooLong(LinkPatternTooLong)
     case linkRouteExists(LinkRouteExists)
     case linkRoutesFull(LinkRoutesFull)
@@ -228,6 +234,7 @@ enum Rejection: Equatable, Error, Sendable {
     case transientAlreadyCompleted(TransientAlreadyCompleted)
     case translationRuleLimitReached(TranslationRuleLimitReached)
     case unknownArchivedTab(UnknownArchivedTab)
+    case unknownCloudMerge(UnknownCloudMerge)
     case unknownFolder(UnknownFolder)
     case unknownLinkRoute(UnknownLinkRoute)
     case unknownPage(UnknownPage)
@@ -255,6 +262,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .incompleteSplit(let value): value.message
         case .invalidImport(let value): value.message
         case .invalidSyncRecords(let value): value.message
+        case .legacyCloudStateUnreadable(let value): value.message
         case .noIncludedSpaces(let value): value.message
         case .persistentWorkspaceRequired(let value): value.message
         case .pinnedTabsDragAlone(let value): value.message
@@ -274,6 +282,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .spaceProfileChanged(let value): value.message
         case .splitLimitReached(let value): value.message
         case .splitNeedsTwoTabs(let value): value.message
+        case .unknownCloudMerge(let value): value.message
         case .webPagesOnly(let value): value.message
         default: nil
         }
@@ -343,6 +352,8 @@ extension CoreState {
         case .archiveChanged(let change): apply(change)
         case .authenticationAsked(let change): apply(change)
         case .closeReady(let change): apply(change)
+        case .cloudMergeBegan(let change): apply(change)
+        case .cloudTransportChanged(let change): apply(change)
         case .downloadApprovalAsked(let change): apply(change)
         case .downloadDestinationAsked(let change): apply(change)
         case .downloadUpdated(let change): apply(change)
@@ -662,6 +673,9 @@ struct BeforeUnloadAnswered: EngineEvent, Equatable, Sendable {
     let proceeds: Bool
 }
 
+struct BeginCloudMerge: Intent, CloudTransportIntent, Equatable, Sendable {
+}
+
 struct BeginDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -964,6 +978,43 @@ struct CloudContentComparison: Equatable, Sendable {
     let cloudRecords: Int
     let deviceSpaces: Int
     let cloudSpaces: Int
+}
+
+struct CloudFieldsOf: Query, Equatable, Sendable {
+    typealias Answer = CloudRecordFieldList
+
+    let recordNames: [String]
+}
+
+struct CloudMergeBegan: Equatable, Sendable {
+    let mergeID: Int64
+}
+
+struct CloudRecordFieldList: Equatable, Sendable {
+    let records: [CloudRecordFields]
+}
+
+struct CloudRecordFields: Equatable, Sendable {
+    let recordName: String
+    let fields: Data
+    let schemaVersion: Int?
+}
+
+struct CloudTransport: Query, Equatable, Sendable {
+    typealias Answer = CloudTransportState
+
+}
+
+struct CloudTransportChanged: Equatable, Sendable {
+    let state: CloudTransportState
+}
+
+struct CloudTransportState: Equatable, Sendable {
+    let requiresFullPull: Bool
+    let awaitsAccountDecision: Bool
+    let overwritesCloud: Bool
+    let engineState: Data?
+    let isAdopted: Bool
 }
 
 struct CollapseFolder: Intent, SessionIntent, Equatable, Sendable {
@@ -1666,6 +1717,12 @@ struct FindInPage: PageRequest, Equatable, Sendable {
     let caseSensitive: Bool
 }
 
+struct FinishCloudMerge: Intent, CloudTransportIntent, Equatable, Sendable {
+    let mergeID: Int64
+    let succeeded: Bool
+    let fullSnapshot: Bool
+}
+
 struct FinishDeletingSpace: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -1752,6 +1809,10 @@ struct FoldersChanged: Equatable, Sendable {
     let updated: [FolderState]
     let removed: [UUID]
     let order: [UUID]?
+}
+
+struct ForgetCloudZone: Intent, CloudTransportIntent, Equatable, Sendable {
+    let loss: CloudZoneLoss
 }
 
 struct GoToHistoryOffset: PageRequest, Equatable, Sendable {
@@ -2168,6 +2229,12 @@ struct LegacyAppPreferences: Equatable, Sendable {
     let splitFocusFollowsMouse: Bool?
 }
 
+struct LegacyCloudStateUnreadable: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Crest couldn’t read the iCloud sync state an earlier version saved.")
+    }
+}
+
 struct LegacyHistory: Equatable, Sendable {
     let spaceID: UUID
     let entries: Data
@@ -2570,12 +2637,21 @@ struct NumberedSelections: Query, Equatable, Sendable {
     let windowID: UUID
 }
 
+struct ObserveCloudAccountChange: Intent, CloudTransportIntent, Equatable, Sendable {
+    let transition: CloudAccountTransition
+}
+
 struct OpenAddress: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
     let spaceID: UUID
     let tabID: UUID
     let address: String
+}
+
+struct OpenCloudTransport: Intent, CloudTransportIntent, Equatable, Sendable {
+    let recordSchema: Int
+    let legacy: Data?
 }
 
 struct OpenInspector: PageRequest, Equatable, Sendable {
@@ -3140,6 +3216,11 @@ struct ReassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
     let keys: KeyCombination
 }
 
+struct RecordCloudFields: Intent, CloudTransportIntent, Equatable, Sendable {
+    let updated: [CloudRecordFields]
+    let removed: [String]
+}
+
 struct RecordDownloadTransfer: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
     let telemetry: DownloadTelemetry
@@ -3279,6 +3360,10 @@ struct ReportMemoryPressure: Intent, PageIntent, Equatable, Sendable {
     let level: MemoryPressureLevel
 }
 
+struct ResetCloudTransport: Intent, CloudTransportIntent, Equatable, Sendable {
+    let overwritesCloud: Bool
+}
+
 struct ResetPrivateBrowsing: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -3355,6 +3440,10 @@ struct SamePage: Query, Equatable, Sendable {
 
     let first: String
     let second: String
+}
+
+struct SaveCloudEngineState: Intent, CloudTransportIntent, Equatable, Sendable {
+    let serialization: Data
 }
 
 struct SaveFailed: Equatable, Sendable {
@@ -3605,6 +3694,9 @@ struct SetTranslationRule: Intent, SessionIntent, Equatable, Sendable {
 struct SettleAuthentication: Equatable, Sendable {
     let promptID: UUID
     let credential: AuthenticationCredential?
+}
+
+struct SettleCloudOverwrite: Intent, CloudTransportIntent, Equatable, Sendable {
 }
 
 struct SettleDownloadDestination: Equatable, Sendable {
@@ -4340,6 +4432,14 @@ struct UnassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
 
 struct UnknownArchivedTab: Equatable, Sendable {
     let tabID: UUID
+}
+
+struct UnknownCloudMerge: Equatable, Sendable {
+    let mergeID: Int64
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Crest lost track of an iCloud download it was applying.")
+    }
 }
 
 struct UnknownFolder: Equatable, Sendable {
@@ -5367,6 +5467,69 @@ struct CapabilityStatus: Hashable, Sendable {
     }
 
     static func == (lhs: CapabilityStatus, rhs: CapabilityStatus) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CloudAccountTransition`. A member's wire tag is its index in `all`.
+struct CloudAccountTransition: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let alwaysPauses: Bool
+
+    private init(tag: Int, name: String, alwaysPauses: Bool) {
+        self.tag = tag
+        self.name = name
+        self.alwaysPauses = alwaysPauses
+    }
+
+    static let signIn = CloudAccountTransition(tag: 0, name: "signIn", alwaysPauses: false)
+    static let signOut = CloudAccountTransition(tag: 1, name: "signOut", alwaysPauses: true)
+    static let switchAccounts = CloudAccountTransition(tag: 2, name: "switchAccounts", alwaysPauses: true)
+    static let unknown = CloudAccountTransition(tag: 3, name: "unknown", alwaysPauses: true)
+
+    static let all: [CloudAccountTransition] = [signIn, signOut, switchAccounts, unknown]
+
+    static func named(_ name: String?) -> CloudAccountTransition? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CloudAccountTransition, rhs: CloudAccountTransition) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CloudZoneLoss`. A member's wire tag is its index in `all`.
+struct CloudZoneLoss: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let restoresLocalRecords: Bool
+
+    private init(tag: Int, name: String, restoresLocalRecords: Bool) {
+        self.tag = tag
+        self.name = name
+        self.restoresLocalRecords = restoresLocalRecords
+    }
+
+    static let deleted = CloudZoneLoss(tag: 0, name: "deleted", restoresLocalRecords: false)
+    static let purged = CloudZoneLoss(tag: 1, name: "purged", restoresLocalRecords: false)
+    static let encryptedDataReset = CloudZoneLoss(tag: 2, name: "encryptedDataReset", restoresLocalRecords: true)
+
+    static let all: [CloudZoneLoss] = [deleted, purged, encryptedDataReset]
+
+    static func named(_ name: String?) -> CloudZoneLoss? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CloudZoneLoss, rhs: CloudZoneLoss) -> Bool {
         lhs.tag == rhs.tag
     }
 

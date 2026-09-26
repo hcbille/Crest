@@ -5,30 +5,28 @@ import Foundation
 /// in its file. It never reads the journal itself: it asks the core which
 /// records wait to upload and for the ones each batch carries, sends the
 /// core what the cloud sent and saved as intents, and hears what changed
-/// through the core's wake, never through their answers. Every call into the
-/// core runs off the main thread.
+/// through the core's wake, never through their answers. The core also keeps
+/// the transport's own state in its device store: the engine's saved cursor,
+/// each record's server fields, and when a full pull, an account decision or
+/// this device's overwrite holds; `transport` is what it last answered. Every
+/// call into the core runs off the main thread.
 actor BrowserCloudSyncEngine {
     private let database: @Sendable () -> CKDatabase
     private let core: CrestCore
-    private let persistence: any BrowserCloudSyncStatePersisting
     private let codec: BrowserCloudRecordCodec
     private let automaticallySync: Bool
     private let statusHandler: (@Sendable (BrowserCloudSyncStatus) async -> Void)?
     private let activityHandler: (@Sendable (BrowserCloudSyncActivity) async -> Void)?
-    private var persistedState: BrowserCloudSyncState
+    private var transport: CloudTransportState
     private var engine: CKSyncEngine?
     private var eventFailureDescription: String?
     private var isPullingSnapshot = false
     private var isStopped = false
-    private var activeMerges = 0
-    private var failedMerges = 0
-    private var needsRecovery: Bool
     private(set) var status: BrowserCloudSyncStatus = .stopped
 
     init(
         database: @autoclosure @escaping @Sendable () -> CKDatabase,
         core: CrestCore,
-        persistence: any BrowserCloudSyncStatePersisting = UserDefaultsBrowserCloudSyncStatePersistence(),
         automaticallySync: Bool = true,
         statusHandler: (@Sendable (BrowserCloudSyncStatus) async -> Void)? = nil,
         activityHandler: (@Sendable (BrowserCloudSyncActivity) async -> Void)? = nil
@@ -36,17 +34,11 @@ actor BrowserCloudSyncEngine {
         self.codec = BrowserCloudRecordCodec()
         self.database = database
         self.core = core
-        self.persistence = persistence
         self.automaticallySync = automaticallySync
         self.statusHandler = statusHandler
         self.activityHandler = activityHandler
-        persistedState = try persistence.load() ?? BrowserCloudSyncState()
-        needsRecovery = persistedState.requiresFullPull
-        if persistedState.reconciliationReason == .legacyRecordConflict {
-            persistedState.reconciliationReason = nil
-            try persistence.save(persistedState)
-        }
-        if persistedState.requiresAccountConfirmation {
+        transport = try core.query(CloudTransport())
+        if transport.awaitsAccountDecision {
             status = .pausedForAccountConfirmation
         }
     }
@@ -54,7 +46,6 @@ actor BrowserCloudSyncEngine {
     init(
         configuration: BrowserCloudSyncConfiguration,
         core: CrestCore,
-        persistence: any BrowserCloudSyncStatePersisting = UserDefaultsBrowserCloudSyncStatePersistence(),
         automaticallySync: Bool = true,
         statusHandler: (@Sendable (BrowserCloudSyncStatus) async -> Void)? = nil,
         activityHandler: (@Sendable (BrowserCloudSyncActivity) async -> Void)? = nil
@@ -64,36 +55,32 @@ actor BrowserCloudSyncEngine {
             CKContainer(identifier: configuration.containerIdentifier).privateCloudDatabase
         }
         self.core = core
-        self.persistence = persistence
         self.automaticallySync = automaticallySync
         self.statusHandler = statusHandler
         self.activityHandler = activityHandler
-        persistedState = try persistence.load() ?? BrowserCloudSyncState()
-        needsRecovery = persistedState.requiresFullPull
-        if persistedState.reconciliationReason == .legacyRecordConflict {
-            persistedState.reconciliationReason = nil
-            try persistence.save(persistedState)
-        }
-        if persistedState.requiresAccountConfirmation {
+        transport = try core.query(CloudTransport())
+        if transport.awaitsAccountDecision {
             status = .pausedForAccountConfirmation
         }
     }
 
     func start() async {
         isStopped = false
-        guard !persistedState.requiresAccountConfirmation else {
+        guard !transport.awaitsAccountDecision else {
             await updateStatus(.pausedForAccountConfirmation)
             return
         }
         do {
-            try await clearCompletedConflictResolutionIfNeeded()
+            // An overwrite whose records all uploaded before the last launch
+            // ended no longer holds.
+            try await send(SettleCloudOverwrite())
         } catch {
             await updateStatus(.failed(Self.describe(error)))
             return
         }
         guard !isStopped else { return }
         let syncEngine = initializedEngine()
-        if persistedState.requiresFullPull {
+        if transport.requiresFullPull {
             do {
                 _ = try await pullFromICloud()
             } catch {
@@ -101,7 +88,7 @@ actor BrowserCloudSyncEngine {
                 return
             }
         }
-        if persistedState.engineStateSerialization == nil {
+        if transport.engineState == nil {
             syncEngine.state.add(pendingDatabaseChanges: [
                 .saveZone(codec.recordZone)
             ])
@@ -117,14 +104,14 @@ actor BrowserCloudSyncEngine {
     }
 
     func notifyLocalChanges() async {
-        guard !isStopped, !persistedState.requiresAccountConfirmation else { return }
+        guard !isStopped, !transport.awaitsAccountDecision else { return }
         let syncEngine = initializedEngine()
         await enqueueLocalChanges(on: syncEngine)
     }
 
     func syncNow() async throws {
         guard !isStopped else { throw CancellationError() }
-        guard !persistedState.requiresAccountConfirmation else {
+        guard !transport.awaitsAccountDecision else {
             await updateStatus(.pausedForAccountConfirmation)
             return
         }
@@ -132,12 +119,12 @@ actor BrowserCloudSyncEngine {
         eventFailureDescription = nil
         await updateStatus(.syncing)
         do {
-            if persistedState.requiresFullPull {
+            if transport.requiresFullPull {
                 _ = try await pullFromICloud()
             }
             try await syncEngine.fetchChanges(.init(scope: .zoneIDs([codec.recordZoneID])))
             guard !isStopped else { throw CancellationError() }
-            guard !persistedState.requiresAccountConfirmation else {
+            guard !transport.awaitsAccountDecision else {
                 await updateStatus(.pausedForAccountConfirmation)
                 return
             }
@@ -147,7 +134,7 @@ actor BrowserCloudSyncEngine {
             if let failure = eventFailureDescription {
                 throw BrowserCloudSyncError.remoteChangeNotApplied(failure)
             }
-            guard !persistedState.requiresFullPull else {
+            guard !transport.requiresFullPull else {
                 throw BrowserCloudSyncError.remoteChangeNotApplied("Pull from iCloud to recover an incomplete download.")
             }
             await enqueueLocalChanges(on: syncEngine)
@@ -164,7 +151,7 @@ actor BrowserCloudSyncEngine {
     }
 
     func pullFromICloud() async throws -> Int {
-        guard !isStopped, !persistedState.requiresAccountConfirmation, !isPullingSnapshot else {
+        guard !isStopped, !transport.awaitsAccountDecision, !isPullingSnapshot else {
             throw BrowserCloudSyncError.remoteChangeNotApplied("Sync is paused.")
         }
         isPullingSnapshot = true
@@ -179,11 +166,11 @@ actor BrowserCloudSyncEngine {
                     "Some iCloud records could not be read. Update Crest on all devices and try again.")
             }
             let records = snapshot.records
-            guard !isStopped, !persistedState.requiresAccountConfirmation else {
+            guard !isStopped, !transport.awaitsAccountDecision else {
                 throw BrowserCloudSyncError.remoteChangeNotApplied("The iCloud account changed during the download.")
             }
             try await mergeDownloadedRecords(records, isFullSnapshot: true)
-            guard !persistedState.requiresFullPull else {
+            guard !transport.requiresFullPull else {
                 throw BrowserCloudSyncError.remoteChangeNotApplied("Some incoming changes still need to be recovered.")
             }
             eventFailureDescription = nil
@@ -198,49 +185,31 @@ actor BrowserCloudSyncEngine {
         }
     }
 
-    /// Write the recovery marker before applying content. State-update events
-    /// may persist a newer cursor even when this merge fails or the app exits.
-    /// A full snapshot is refused whole when the core cannot read all of it.
-    /// Answers the records the core left out.
+    /// The core notes that a full pull must recover the merge before it is
+    /// applied: state-update events may persist a newer cursor even when this
+    /// merge fails or the app exits. A full snapshot is refused whole when the
+    /// core cannot read all of it. Answers the records the core left out.
     @discardableResult
     func mergeDownloadedRecords(
         _ records: [SyncRecord],
         isFullSnapshot: Bool = false
     ) async throws -> SyncRecordsSkipped? {
-        let failuresBeforeMerge = failedMerges
-        activeMerges += 1
+        let merge = try await beginMerge()
         let receipts: [Change]
         do {
-            persistedState.requiresFullPull = true
-            try persistence.save(persistedState)
             if isFullSnapshot {
                 receipts = try await deliver(MergeCloudSnapshot(records: records))
             } else {
                 receipts = try await deliver(MergeSyncRecords(records: records))
             }
-            guard !isStopped, !persistedState.requiresAccountConfirmation else {
+            guard !isStopped, !transport.awaitsAccountDecision else {
                 throw BrowserCloudSyncError.remoteChangeNotApplied("Sync stopped while applying downloaded content.")
             }
-            if isFullSnapshot, failedMerges == failuresBeforeMerge {
-                needsRecovery = false
-            }
         } catch {
-            activeMerges -= 1
-            failedMerges += 1
-            needsRecovery = true
-            persistedState.requiresFullPull = true
-            if !isStopped { try? persistence.save(persistedState) }
+            _ = try? await send(FinishCloudMerge(mergeID: merge, succeeded: false, fullSnapshot: isFullSnapshot))
             throw error
         }
-        activeMerges -= 1
-        persistedState.requiresFullPull = needsRecovery || activeMerges > 0
-        do {
-            try persistence.save(persistedState)
-        } catch {
-            needsRecovery = true
-            persistedState.requiresFullPull = true
-            throw error
-        }
+        try await send(FinishCloudMerge(mergeID: merge, succeeded: true, fullSnapshot: isFullSnapshot))
         return receipts.lazy.compactMap { receipt -> SyncRecordsSkipped? in
             if case .syncRecordsSkipped(let skipped) = receipt { return skipped }
             return nil
@@ -250,9 +219,7 @@ actor BrowserCloudSyncEngine {
     /// Account switches are deliberately paused. Calling this is the explicit user
     /// decision to upload this device's local Spaces into the currently signed-in account.
     func resumeAfterAccountChange() async throws {
-        persistedState = BrowserCloudSyncState()
-        needsRecovery = false
-        try persistence.save(persistedState)
+        try await send(ResetCloudTransport(overwritesCloud: false))
         engine = nil
         await updateStatus(.stopped)
         await start()
@@ -266,10 +233,9 @@ actor BrowserCloudSyncEngine {
         do {
             switch event {
             case .stateUpdate(let event):
-                persistedState.engineStateSerialization = event.stateSerialization
-                try persistence.save(persistedState)
+                try await send(SaveCloudEngineState(serialization: JSONEncoder().encode(event.stateSerialization)))
             case .accountChange(let event):
-                if try handleAccountChange(event) {
+                if try await handleAccountChange(event) {
                     await activityHandler?(.accountChanged)
                 }
             case .fetchedRecordZoneChanges(let event):
@@ -308,8 +274,8 @@ actor BrowserCloudSyncEngine {
         _ context: CKSyncEngine.SendChangesContext,
         syncEngine: CKSyncEngine
     ) async -> CKSyncEngine.RecordZoneChangeBatch? {
-        guard !isStopped, !persistedState.requiresAccountConfirmation,
-            !persistedState.requiresFullPull, !isPullingSnapshot
+        guard !isStopped, !transport.awaitsAccountDecision,
+            !transport.requiresFullPull, !isPullingSnapshot
         else { return nil }
         let changes = syncEngine.state.pendingRecordZoneChanges.filter {
             switch $0 {
@@ -329,10 +295,17 @@ actor BrowserCloudSyncEngine {
                 return id
             })
         do { try await source.prepare() } catch { return nil }
-        guard !isStopped, !persistedState.requiresAccountConfirmation,
-            !persistedState.requiresFullPull, !isPullingSnapshot
+        guard !isStopped, !transport.awaitsAccountDecision,
+            !transport.requiresFullPull, !isPullingSnapshot
         else { return nil }
-        let systemFields = persistedState.systemFields
+        // The server fields each save uploads over, as the core keeps them. A
+        // core that refuses to answer uploads nothing.
+        let saves = changes.compactMap { change -> CKRecord.ID? in
+            guard case .saveRecord(let id) = change else { return nil }
+            return id
+        }
+        guard let kept = try? core.query(CloudFieldsOf(recordNames: saves.map(\.recordName))) else { return nil }
+        let systemFields = Dictionary(kept.records.map { ($0.recordName, $0) }, uniquingKeysWith: { _, last in last })
         // A local copy for the sendable closure, named apart from the
         // property: Swift 6.2 reads a same-named local declared later in the
         // scope as the one the filter above captures, and refuses it.
@@ -342,7 +315,8 @@ actor BrowserCloudSyncEngine {
             case .record(let record):
                 // A record whose server copy a newer build wrote stays
                 // pending, skipped.
-                return try? recordCodec.record(for: record, reusing: systemFields.record(for: recordID))
+                let base = systemFields[recordID.recordName]?.record(for: recordID)
+                return try? recordCodec.record(for: record, reusing: base)
             case .gone:
                 syncEngine.state.remove(pendingRecordZoneChanges: [.saveRecord(recordID)])
                 return nil
@@ -356,7 +330,10 @@ actor BrowserCloudSyncEngine {
         if let engine { return engine }
         var configuration = CKSyncEngine.Configuration(
             database: database(),
-            stateSerialization: persistedState.engineStateSerialization,
+            // A saved state this build cannot read fetches everything again.
+            stateSerialization: transport.engineState.flatMap {
+                try? JSONDecoder().decode(CKSyncEngine.State.Serialization.self, from: $0)
+            },
             delegate: self
         )
         configuration.automaticallySync = automaticallySync
@@ -369,19 +346,8 @@ actor BrowserCloudSyncEngine {
         // A core that refuses to answer queues nothing; the next journal change
         // asks again.
         guard let pending = try? await pendingUploads() else { return }
-        guard !isStopped, !persistedState.requiresAccountConfirmation else { return }
+        guard !isStopped, !transport.awaitsAccountDecision else { return }
         syncEngine.state.add(pendingRecordZoneChanges: pending.map { .saveRecord(codec.recordID(for: $0)) })
-    }
-
-    private func clearCompletedConflictResolutionIfNeeded() async throws {
-        let pending = try await pendingUploads()
-        let resolution = BrowserCloudConflictResolutionPolicy.resolutionAfterRestart(
-            persistedResolution: persistedState.conflictResolution,
-            hasPendingUploads: !pending.isEmpty
-        )
-        guard resolution != persistedState.conflictResolution else { return }
-        persistedState.conflictResolution = resolution
-        try persistence.save(persistedState)
     }
 
     /// The records the core's journal holds waiting to upload, once every
@@ -400,6 +366,40 @@ actor BrowserCloudSyncEngine {
         return try await Task.detached(priority: .utility) { try core.deliver(intent) }.value
     }
 
+    /// Sends the core an intent about the transport's own state on a utility
+    /// thread, and keeps the state it answered.
+    @discardableResult
+    private func send(_ intent: some CloudTransportIntent) async throws -> CloudTransportState {
+        let core = core
+        let receipts = try await Task.detached(priority: .utility) { try core.transport(intent) }.value
+        for case .cloudTransportChanged(let changed) in receipts { transport = changed.state }
+        return transport
+    }
+
+    /// Asks the core to note a merge before it is applied, and answers the
+    /// merge's name.
+    private func beginMerge() async throws -> Int64 {
+        let core = core
+        let receipts = try await Task.detached(priority: .utility) { try core.transport(BeginCloudMerge()) }.value
+        var merge: Int64?
+        for receipt in receipts {
+            switch receipt {
+            case .cloudTransportChanged(let changed): transport = changed.state
+            case .cloudMergeBegan(let began): merge = began.mergeID
+            default: break
+            }
+        }
+        guard let merge else { preconditionFailure("The core began a merge without naming it.") }
+        return merge
+    }
+
+    /// Keeps the server fields `changes` collected, in the core's device store.
+    private func record(_ changes: inout CloudFieldChanges) async throws {
+        guard !changes.isEmpty else { return }
+        try await send(RecordCloudFields(updated: Array(changes.updated.values), removed: Array(changes.removed)))
+        changes = CloudFieldChanges()
+    }
+
     /// What the person is told of a failure: a refusal in the core's own words,
     /// anything else as it describes itself.
     private static func describe(_ error: any Error) -> String {
@@ -410,7 +410,7 @@ actor BrowserCloudSyncEngine {
         _ event: CKSyncEngine.Event.FetchedRecordZoneChanges,
         syncEngine: CKSyncEngine
     ) async throws {
-        guard !persistedState.requiresAccountConfirmation else { return }
+        guard !transport.awaitsAccountDecision else { return }
         // Each record is read on its own, so one this build cannot read never
         // costs the batch it arrived in: the change token advances whether or
         // not the records were applied, so a batch abandoned that way would
@@ -418,25 +418,28 @@ actor BrowserCloudSyncEngine {
         var records: [SyncRecord] = []
         var unreadable = 0
         var fromNewerBuild = 0
+        var fields = CloudFieldChanges()
         for modification in event.modifications {
             guard modification.record.recordID.zoneID == codec.recordZoneID else { continue }
-            persistedState.systemFields.update(with: modification.record)
+            fields.update(with: modification.record)
             if let record = codec.syncRecord(from: modification.record) {
                 records.append(record)
             } else {
                 unreadable += 1
             }
         }
+        // The server fields are kept before the merge, which may fail.
+        try await record(&fields)
         if !records.isEmpty {
-            if BrowserCloudConflictResolutionPolicy.shouldMergeFetchedContent(
-                resolution: persistedState.conflictResolution
-            ), let skipped = try await mergeDownloadedRecords(records) {
+            // While this device's copy overwrites the cloud's, fetched content
+            // is not merged.
+            if !transport.overwritesCloud, let skipped = try await mergeDownloadedRecords(records) {
                 unreadable += skipped.unreadable
                 fromNewerBuild += skipped.fromNewerBuild
             }
             await enqueueLocalChanges(on: syncEngine)
             let applied = records.count - unreadable - fromNewerBuild
-            if !persistedState.requiresFullPull, applied > 0 {
+            if !transport.requiresFullPull, applied > 0 {
                 await activityHandler?(.fetched(recordCount: applied))
             }
         }
@@ -453,26 +456,27 @@ actor BrowserCloudSyncEngine {
         // A record somebody deleted from iCloud is saved again; a later batch
         // drops the save of one the journal no longer holds.
         for deletion in event.deletions where deletion.recordID.zoneID == codec.recordZoneID {
-            persistedState.systemFields.remove(recordName: deletion.recordID.recordName)
+            fields.remove(recordName: deletion.recordID.recordName)
             if codec.reference(for: deletion.recordID) != nil {
                 syncEngine.state.add(pendingRecordZoneChanges: [.saveRecord(deletion.recordID)])
             }
         }
-        try persistence.save(persistedState)
+        try await record(&fields)
     }
 
     private func handleFetchedDatabaseChanges(
         _ event: CKSyncEngine.Event.FetchedDatabaseChanges,
         syncEngine: CKSyncEngine
     ) async throws {
-        guard !persistedState.requiresAccountConfirmation else { return }
+        guard !transport.awaitsAccountDecision else { return }
         guard
             let deletion = event.deletions.first(where: {
                 $0.zoneID == codec.recordZoneID
             })
         else { return }
-        persistedState.systemFields = BrowserCloudRecordSystemFields()
-        if Self.restoresLocalRecords(afterZoneDeletion: deletion.reason) {
+        let loss = Self.loss(afterZoneDeletion: deletion.reason)
+        try await send(ForgetCloudZone(loss: loss))
+        if loss.restoresLocalRecords {
             syncEngine.state.add(pendingDatabaseChanges: [
                 .saveZone(codec.recordZone)
             ])
@@ -482,27 +486,19 @@ actor BrowserCloudSyncEngine {
             // the zone and re-uploading every local record would undo that
             // before they finished reading the confirmation sheet. Local Spaces
             // stay untouched; the next deliberate start decides what to upload.
-            persistedState.engineStateSerialization = nil
             await activityHandler?(.cloudDataRemoved)
         }
-        try persistence.save(persistedState)
     }
 
-    /// Whether a zone that stopped existing should be rebuilt from local records.
-    ///
-    /// `encryptedDataReset` means iCloud discarded the encrypted contents while
-    /// the person kept their data, so this device is the surviving copy. A
-    /// deletion or a purge is a decision, and Crest does not overrule it.
-    static func restoresLocalRecords(
-        afterZoneDeletion reason: CKDatabase.DatabaseChange.Deletion.Reason
-    ) -> Bool {
+    /// Why a zone stopped existing, as the core decides whether to rebuild it
+    /// from local records. A reason this build cannot name reads as a
+    /// deletion, which Crest does not overrule.
+    static func loss(afterZoneDeletion reason: CKDatabase.DatabaseChange.Deletion.Reason) -> CloudZoneLoss {
         switch reason {
-        case .encryptedDataReset:
-            true
-        case .deleted, .purged:
-            false
-        @unknown default:
-            false
+        case .encryptedDataReset: .encryptedDataReset
+        case .purged: .purged
+        case .deleted: .deleted
+        @unknown default: .deleted
         }
     }
 
@@ -511,13 +507,14 @@ actor BrowserCloudSyncEngine {
         syncEngine: CKSyncEngine
     ) async throws {
         var uploaded: [UploadedRecord] = []
+        var fields = CloudFieldChanges()
         for record in event.savedRecords where record.recordID.zoneID == codec.recordZoneID {
-            persistedState.systemFields.update(with: record)
+            fields.update(with: record)
             if let saved = codec.uploadedRecord(record) { uploaded.append(saved) }
         }
         if !uploaded.isEmpty {
             try await deliver(AcknowledgeUploads(records: uploaded))
-            if !persistedState.requiresFullPull {
+            if !transport.requiresFullPull {
                 await activityHandler?(.uploaded(recordCount: uploaded.count))
             }
         }
@@ -528,8 +525,8 @@ actor BrowserCloudSyncEngine {
             switch failure.error.code {
             case .serverRecordChanged:
                 if let serverRecord = failure.error.serverRecord {
-                    persistedState.systemFields.update(with: serverRecord)
-                    if persistedState.conflictResolution == .useThisDevice {
+                    fields.update(with: serverRecord)
+                    if transport.overwritesCloud {
                         syncEngine.state.add(
                             pendingRecordZoneChanges: [.saveRecord(recordID)]
                         )
@@ -541,6 +538,9 @@ actor BrowserCloudSyncEngine {
                     // every atomic batch it rides in; yield until the app can
                     // read it.
                     let merged = codec.syncRecord(from: serverRecord)
+                    // The refreshed fields are kept before the merge, which
+                    // may fail.
+                    try await record(&fields)
                     let skipped: SyncRecordsSkipped? =
                         if let merged { try await mergeDownloadedRecords([merged]) } else {
                             SyncRecordsSkipped(unreadable: 1, fromNewerBuild: 0)
@@ -558,13 +558,13 @@ actor BrowserCloudSyncEngine {
                     await enqueueLocalChanges(on: syncEngine)
                 }
             case .zoneNotFound:
-                persistedState.systemFields.remove(recordName: recordID.recordName)
+                fields.remove(recordName: recordID.recordName)
                 syncEngine.state.add(pendingDatabaseChanges: [
                     .saveZone(codec.recordZone)
                 ])
                 syncEngine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
             case .unknownItem:
-                persistedState.systemFields.remove(recordName: recordID.recordName)
+                fields.remove(recordName: recordID.recordName)
                 syncEngine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
             case .networkFailure,
                 .networkUnavailable,
@@ -577,50 +577,55 @@ actor BrowserCloudSyncEngine {
                 syncEngine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
             }
         }
-        if persistedState.conflictResolution == .useThisDevice, (try? await pendingUploads())?.isEmpty == true {
-            persistedState.conflictResolution = nil
-        }
-        try persistence.save(persistedState)
+        try await record(&fields)
+        // The overwrite ends once everything this device staged uploaded.
+        if transport.overwritesCloud { try await send(SettleCloudOverwrite()) }
     }
 
+    /// Whether the account change pauses sync until the person decides which
+    /// copy to keep, as the core decides.
     private func handleAccountChange(
         _ event: CKSyncEngine.Event.AccountChange
-    ) throws -> Bool {
-        let transition: BrowserCloudAccountTransition
-        switch event.changeType {
-        case .switchAccounts:
-            transition = .switchAccounts
-        case .signOut:
-            transition = .signOut
-        case .signIn:
-            transition = .signIn
-        @unknown default:
-            transition = .unknown
-        }
-
-        let requiresReconciliation =
-            BrowserCloudAccountChangePolicy
-            .requiresReconciliation(
-                for: transition,
-                alreadyRequiresReconciliation:
-                    persistedState.requiresAccountConfirmation
-            )
-        guard requiresReconciliation else { return false }
-
-        switch transition {
-        case .switchAccounts, .signOut, .unknown:
-            persistedState.reconciliationReason = .accountChange
-            status = .pausedForAccountConfirmation
-            try persistence.save(persistedState)
-            return true
-        case .signIn:
-            status = .pausedForAccountConfirmation
-            return true
-        }
+    ) async throws -> Bool {
+        let transition: CloudAccountTransition =
+            switch event.changeType {
+            case .switchAccounts: .switchAccounts
+            case .signOut: .signOut
+            case .signIn: .signIn
+            @unknown default: .unknown
+            }
+        let observed = try await send(ObserveCloudAccountChange(transition: transition))
+        guard observed.awaitsAccountDecision else { return false }
+        status = .pausedForAccountConfirmation
+        return true
     }
 
     private func updateStatus(_ newStatus: BrowserCloudSyncStatus) async {
         status = newStatus
         await statusHandler?(newStatus)
+    }
+}
+
+/// The server fields a CloudKit event changed, collected to keep in one
+/// intent: each record's newest, and the records whose fields went.
+struct CloudFieldChanges {
+    // MARK: - Variables
+
+    private(set) var updated: [String: CloudRecordFields] = [:]
+    private(set) var removed: Set<String> = []
+
+    var isEmpty: Bool { updated.isEmpty && removed.isEmpty }
+
+    // MARK: - Actions - Changes
+
+    mutating func update(with record: CKRecord) {
+        let fields = CloudRecordFields(record: record)
+        removed.remove(fields.recordName)
+        updated[fields.recordName] = fields
+    }
+
+    mutating func remove(recordName: String) {
+        updated.removeValue(forKey: recordName)
+        removed.insert(recordName)
     }
 }

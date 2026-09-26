@@ -286,4 +286,19 @@ internal sealed partial class Device {
         shortcuts, links, new HashSet<DeviceAdoption>(adopted));
 
     #endregion
+
+    #region Actions - Adoptions
+
+    /// Whether the device store carried `adoption` from an installed release.
+    public bool HasAdopted(DeviceAdoption adoption) {
+        lock (gate) return adopted.Contains(adoption);
+    }
+
+    /// Notes `adoption`, which a component saved with its marker in its own
+    /// transaction, so every later write of the device records keeps it.
+    public void NoteAdopted(DeviceAdoption adoption) {
+        lock (gate) adopted.Add(adoption);
+    }
+
+    #endregion
 }

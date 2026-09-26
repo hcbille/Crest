@@ -30,6 +30,14 @@ public sealed partial class CrestApp {
 
     private CloudContentComparison Answer(CloudComparison query) => StoredSyncSession().Answer(query);
 
+    /// Whether the stored session's journal holds records waiting to upload,
+    /// once every stage queued before the call settled.
+    private bool JournalHoldsUploads() {
+        var session = StoredSyncSession();
+        storedSync?.Flush();
+        return session.Answer(new PendingUploads()).Records.Count > 0;
+    }
+
     /// Returns once every stage of the stored session's journal requested
     /// before the call has committed, failed or been superseded, without
     /// waiting for the host's turn or a coalescing delay, and at once while
