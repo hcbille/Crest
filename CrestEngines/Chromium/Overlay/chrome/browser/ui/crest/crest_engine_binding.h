@@ -217,10 +217,6 @@ class EngineBinding {
   bool Handle(const engine::DeleteProfile& request);
   bool Handle(const engine::AdoptOfferedPage& request);
   bool Handle(const engine::RejectOfferedPage& request);
-  bool Handle(const engine::AnswerEngineDownloadDestination& request);
-  bool Handle(const engine::CancelEngineDownload& request);
-  bool Handle(const engine::RemoveEngineDownload& request);
-  bool Handle(const engine::ApproveEngineDownload& request);
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);

@@ -31,6 +31,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly Pages pages;
     /// The questions the pages and engines ask the person.
     private readonly Prompts prompts;
+    /// The downloads engines run, in the download ledger.
+    private readonly EngineDownloads engineDownloads;
     /// Which Spaces this process may show.
     private readonly SpaceAccess access;
     /// The time session intents are stamped with.
@@ -64,6 +66,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, grants, Announce, RequestTurn, CloseBorrower);
             pages = new(device, engines, clock, ids);
             prompts = new(device, pages);
+            engineDownloads = new(downloads, device, pages, ids);
             access = new(device, grants);
             return;
         }
@@ -71,6 +74,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         device = new(configuration.Platform, storage, storage.Device, grants, Announce, RequestTurn, CloseBorrower);
         pages = new(device, engines, clock, ids);
         prompts = new(device, pages);
+        engineDownloads = new(downloads, device, pages, ids);
         access = new(device, grants);
         try {
             if (loaded.Session is { } stored) Establish(stored, loaded.Journal, loaded.LegacySelection);
@@ -99,6 +103,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             var changes = new ChangeFeed();
             switch (intent) {
                 case DownloadIntent download:
+                    engineDownloads.Before(download, changes, Issue);
                     downloads.Handle(download, changes);
                     break;
                 case AdoptLegacySession adoption:
@@ -127,6 +132,9 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                     break;
                 case SpaceAccessIntent grant:
                     access.Handle(grant, changes);
+                    break;
+                case PromptIntent prompt when EngineDownloads.Concerns(prompt):
+                    engineDownloads.Handle(prompt, changes, Issue);
                     break;
                 case PromptIntent prompt:
                     prompts.Handle(prompt, changes, Issue, clock.Now, ids);

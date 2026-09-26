@@ -21,17 +21,17 @@ namespace crest {
 
 class EngineProfiles;
 
-// The engine's downloads in Crest's profiles, as Crest shows them: each one's
-// state, its warning and where its file goes. The engine still decides what
-// is safe; the person may keep a download it only warned about, never one it
-// blocked. TRANSITIONAL until downloads move to the core (WP C (f)).
+// The engine's downloads in Crest's profiles, reported to the core, which
+// records each one in its ledger and answers where its file goes. The engine
+// still decides what is safe; the person may keep a download it only warned
+// about, never one it blocked.
 class EngineDownloads final {
  public:
-  using Present = base::RepeatingCallback<void(engine::EnginePresentation)>;
+  using Report = base::RepeatingCallback<void(engine::EngineEvent)>;
   // The page that shows a download's WebContents, if one does.
   using PageFor = base::RepeatingCallback<std::optional<engine::Guid>(download::DownloadItem*)>;
 
-  EngineDownloads(EngineProfiles& profiles, Present present, PageFor page_for);
+  EngineDownloads(EngineProfiles& profiles, Report report, PageFor page_for);
   EngineDownloads(const EngineDownloads&) = delete;
   EngineDownloads& operator=(const EngineDownloads&) = delete;
   ~EngineDownloads();
@@ -43,10 +43,10 @@ class EngineDownloads final {
                          DownloadConfirmationReason reason,
                          DownloadTargetDeterminerDelegate::ConfirmationCallback callback);
 
-  bool Answer(const engine::AnswerEngineDownloadDestination& answer);
-  bool Cancel(const engine::CancelEngineDownload& request);
-  bool Remove(const engine::RemoveEngineDownload& request);
-  bool Approve(const engine::ApproveEngineDownload& request);
+  bool Settle(const engine::SettleDownloadDestination& settlement);
+  bool Cancel(const engine::CancelEngineDownload& command);
+  bool Remove(const engine::RemoveEngineDownload& command);
+  bool Approve(const engine::ApproveEngineDownload& command);
 
  private:
   struct Destination {
@@ -60,7 +60,7 @@ class EngineDownloads final {
   void CancelIfBlocked(std::string profile, std::string download);
 
   const raw_ref<EngineProfiles> profiles_;
-  const Present present_;
+  const Report report_;
   const PageFor page_for_;
   // A download that started before this launch is one the engine restored.
   const base::Time started_at_ = base::Time::Now();

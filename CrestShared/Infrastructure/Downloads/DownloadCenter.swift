@@ -4,8 +4,8 @@ import os
 
 /// Crest's downloads for one browsing mode: the core's download records, the
 /// feedback they present, native data saves, and the transfers each engine
-/// runs. Every record change is an intent sent to the core. An engine
-/// either reports its own transfers (`receiveEngineDownload`) or runs them
+/// runs. Every record change is an intent sent to the core. An engine either
+/// reports its own downloads to the core, which records them, or runs them
 /// through a `BrowserDownloadTransport` it registers with the center.
 @Observable
 @MainActor
@@ -47,32 +47,6 @@ final class BrowserDownloadCenter: NSObject {
             Bool
         ) async -> BrowserPlatformDownloadResolution
 
-    private final class EngineTransfer {
-        let itemID: UUID
-        let assignment: BrowserSpaceRuntimeAssignment
-        var controller: (any BrowserEngineDownloadControlling)?
-        var estimator: DownloadTransferEstimator?
-        var securityScopedURL: URL?
-        var warningToken: String?
-        var resolvingDestination = false
-        var isFinished = false
-
-        init(
-            itemID: UUID, assignment: BrowserSpaceRuntimeAssignment,
-            controller: any BrowserEngineDownloadControlling
-        ) {
-            self.itemID = itemID
-            self.assignment = assignment
-            self.controller = controller
-        }
-        func finish() {
-            isFinished = true
-            warningToken = nil
-            securityScopedURL?.stopAccessingSecurityScopedResource()
-            securityScopedURL = nil
-        }
-    }
-
     // MARK: - Variables
 
     private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "Downloads")
@@ -94,10 +68,6 @@ final class BrowserDownloadCenter: NSObject {
     @ObservationIgnored private var transports: [ObjectIdentifier: any BrowserDownloadTransport] = [:]
     @ObservationIgnored private var feedbackExpirationTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var dataSaveAssignments: [UUID: BrowserSpaceRuntimeAssignment] = [:]
-    // Keep terminal identities until this center is released so a late engine
-    // event cannot recreate a cleared or expired record.
-    @ObservationIgnored private var engineTransfers: [BrowserEngineDownloadID: EngineTransfer] = [:]
-    @ObservationIgnored private let approveEngineDownload: @MainActor (String, String) async -> Bool
     @ObservationIgnored private var lastRetentionSweepAt: Date?
     @ObservationIgnored private let loadCredential: CredentialLoader
     @ObservationIgnored private let saveCredential: CredentialSaver
@@ -113,7 +83,6 @@ final class BrowserDownloadCenter: NSObject {
         loadCredential: @escaping CredentialLoader = { _, _ in nil },
         saveCredential: @escaping CredentialSaver = { _, _ in },
         approveRiskyDownload: @escaping RiskApprovalHandler = { _, _, _, _ in false },
-        approveEngineDownload: @escaping @MainActor (String, String) async -> Bool = { _, _ in false },
         permissionCenter: BrowserSitePermissionCenter = BrowserSitePermissionCenter(),
         resolveDownloadDestination:
             @escaping DownloadDestinationResolver = {
@@ -133,7 +102,6 @@ final class BrowserDownloadCenter: NSObject {
         self.loadCredential = loadCredential
         self.saveCredential = saveCredential
         self.approveRiskyDownload = approveRiskyDownload
-        self.approveEngineDownload = approveEngineDownload
         self.permissionCenter = permissionCenter
         self.resolveDownloadDestination = resolveDownloadDestination
         super.init()
@@ -297,44 +265,38 @@ final class BrowserDownloadCenter: NSObject {
         let changes = (try? core.send(expiry)) ?? []
         for case .downloadsRemoved(let removal) in changes {
             for itemID in removal.downloadIDs {
-                forgetEngineDownload(itemID)
                 for transport in transports.values { transport.forget(itemID) }
             }
         }
         return true
     }
 
+    /// Cancels a live download. One an engine reports to the core is cancelled
+    /// by the core, on its engine too.
     func cancel(_ itemID: UUID) {
-        if let (id, transfer) = engineTransfers.first(where: { $0.value.itemID == itemID && !$0.value.isFinished }) {
-            let controller = transfer.controller
-            transfer.finish()
-            send(CancelDownload(downloadID: itemID, message: "Canceled."))
-            controller?.cancelDownload(id)
-            return
-        }
         if dataSaveAssignments.removeValue(forKey: itemID) != nil {
             send(CancelDownload(downloadID: itemID, message: "Canceled."))
             return
         }
         for transport in transports.values where transport.cancel(itemID) { return }
+        if item(itemID)?.phase.isLive == true { send(CancelDownload(downloadID: itemID, message: "Canceled.")) }
     }
 
+    /// Clears a record whose download ended. One an engine reports to the core
+    /// also leaves the engine's own list.
     func clear(_ itemID: UUID) {
-        guard !engineTransfers.values.contains(where: { $0.itemID == itemID && !$0.isFinished }) else { return }
-        guard !transports.values.contains(where: { $0.isTransferring(itemID) }),
+        guard item(itemID)?.phase.isLive != true,
+            !transports.values.contains(where: { $0.isTransferring(itemID) }),
             dataSaveAssignments[itemID] == nil
         else { return }
-        forgetEngineDownload(itemID)
         send(RemoveDownload(downloadID: itemID))
         for transport in transports.values { transport.forget(itemID) }
     }
 
+    /// Deletes a Space's records. The core cancels and removes the downloads
+    /// its profile's engines still run.
     func deleteRecords(profileID: UUID, spaceID: SpaceID) {
         let assignment = BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: profileID)
-        for transfer in engineTransfers.values where transfer.assignment == assignment {
-            cancel(transfer.itemID)
-            forgetEngineDownload(transfer.itemID)
-        }
         dataSaveAssignments = dataSaveAssignments.filter { $0.value != assignment }
         for transport in transports.values { transport.removeTransfers(in: assignment) }
         send(RemoveProfileDownloads(profileID: profileID))
@@ -362,111 +324,6 @@ final class BrowserDownloadCenter: NSObject {
         }
         send(FailDownload(downloadID: itemID, message: "Reload the original page, then try the download again."))
         return false
-    }
-
-    // MARK: - Actions - Engine-reported transfers
-
-    func receiveEngineDownload(
-        _ update: BrowserEngineDownloadUpdate,
-        assignment: BrowserSpaceRuntimeAssignment,
-        controller: any BrowserEngineDownloadControlling
-    ) {
-        guard update.id.profileID == assignment.profileID else { return }
-        let transfer: EngineTransfer
-        if let existing = engineTransfers[update.id] {
-            guard existing.assignment == assignment, !existing.isFinished else { return }
-            transfer = existing
-        } else {
-            transfer = EngineTransfer(
-                itemID: begin(
-                    profileID: assignment.profileID,
-                    filename: BrowserDownloadDestination.safeFilename(from: update.filename),
-                    createdAt: update.createdAt,
-                    isAcknowledged: update.isRestored),
-                assignment: assignment, controller: controller)
-            engineTransfers[update.id] = transfer
-        }
-        if let destination = update.destination {
-            setDestination(destination, for: transfer.itemID)
-        }
-        if let reading = sampleProgress(
-            &transfer.estimator, completedUnitCount: update.bytesReceived, totalUnitCount: update.totalBytes,
-            fractionCompleted: update.totalBytes > 0 ? Double(update.bytesReceived) / Double(update.totalBytes) : 0,
-            isPaused: update.isPaused)
-        {
-            send(
-                RecordDownloadTransfer(
-                    downloadID: transfer.itemID, telemetry: reading.telemetry, progress: reading.progress))
-        }
-        switch update.state {
-        case .preparing, .downloading:
-            transfer.warningToken = nil
-        case .finished:
-            send(FinishDownload(downloadID: transfer.itemID, finalByteCount: update.bytesReceived))
-            transfer.finish()
-        case .canceled:
-            send(CancelDownload(downloadID: transfer.itemID, message: "Canceled."))
-            transfer.finish()
-        case .failed(let message):
-            send(FailDownload(downloadID: transfer.itemID, message: message))
-            transfer.finish()
-        case .awaitingApproval(let token, let message):
-            send(AwaitDownloadApproval(downloadID: transfer.itemID))
-            guard transfer.warningToken != token else { return }
-            transfer.warningToken = token
-            Task { [weak self, weak transfer] in
-                guard let self, let transfer else { return }
-                let approved = await approveEngineDownload(update.filename, message)
-                guard !transfer.isFinished, transfer.warningToken == token else { return }
-                if approved {
-                    transfer.controller?.approveDownload(update.id, warningToken: token)
-                } else {
-                    cancel(transfer.itemID)
-                }
-            }
-        }
-    }
-
-    private func forgetEngineDownload(_ itemID: UUID) {
-        guard let (id, transfer) = engineTransfers.first(where: { $0.value.itemID == itemID }),
-            transfer.isFinished
-        else { return }
-        transfer.controller?.removeDownload(id)
-        transfer.controller = nil
-    }
-
-    func resolveEngineDownloadDestination(
-        _ id: BrowserEngineDownloadID, suggestedFilename: String, forcesPrompt: Bool
-    ) async -> URL? {
-        guard let transfer = engineTransfers[id], !transfer.isFinished,
-            !transfer.resolvingDestination
-        else { return nil }
-        transfer.resolvingDestination = true
-        defer { transfer.resolvingDestination = false }
-        let resolution = await resolveDownloadDestination(
-            BrowserDownloadDestination.safeFilename(from: suggestedFilename), transfer.assignment.spaceID, forcesPrompt)
-        guard !transfer.isFinished else {
-            if case .destination(_, let scoped) = resolution { scoped?.stopAccessingSecurityScopedResource() }
-            return nil
-        }
-        switch resolution {
-        case .destination(let url, let scoped):
-            transfer.securityScopedURL?.stopAccessingSecurityScopedResource()
-            transfer.securityScopedURL = scoped
-            setDestination(url, for: transfer.itemID)
-            return url
-        case .cancelled:
-            cancel(transfer.itemID)
-        case .unavailable:
-            let controller = transfer.controller
-            send(
-                FailDownload(
-                    downloadID: transfer.itemID,
-                    message: "The download folder is unavailable. Choose another folder in Space settings."))
-            transfer.finish()
-            controller?.cancelDownload(id)
-        }
-        return nil
     }
 
     // MARK: - Actions - Native data saves

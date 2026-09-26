@@ -36,10 +36,11 @@ final class WebKitEngineBinding: EngineBinding {
             (engines.page(loading.pageID) ?? engines.request(loading.pageID)?.page)?.appLoad?(url)
         case .closePage(let closing):
             engines.report(PageClosed(pageID: closing.pageID), from: self)
-        case .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission, .settleExtensionInstall:
-            // WebKit recovers its own pages and answers its own prompts until
-            // its binding reports them to the core (WP C (j1)), so the core
-            // never asks it to.
+        case .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission, .settleExtensionInstall,
+            .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload, .approveEngineDownload:
+            // WebKit recovers its own pages, answers its own prompts and runs
+            // its own downloads until its binding reports them to the core
+            // (WP C (j1)), so the core never asks it to.
             break
         }
     }

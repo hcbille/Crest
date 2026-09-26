@@ -1,7 +1,7 @@
 import Foundation
 
 /// Transfers an engine runs through Crest's own download path rather than
-/// reporting them as `BrowserEngineDownloadUpdate`s. The download center keeps
+/// reporting its downloads to the core. The download center keeps
 /// the ledger and feedback; a transport owns the engine's download objects and
 /// reports their progress into that ledger.
 @MainActor

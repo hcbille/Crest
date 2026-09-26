@@ -70,6 +70,8 @@ enum Change: Equatable, Sendable {
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
     case authenticationAsked(AuthenticationAsked)
+    case downloadApprovalAsked(DownloadApprovalAsked)
+    case downloadDestinationAsked(DownloadDestinationAsked)
     case downloadUpdated(DownloadUpdated)
     case downloadsRemoved(DownloadsRemoved)
     case extensionInstallAsked(ExtensionInstallAsked)
@@ -258,11 +260,15 @@ enum Rejection: Equatable, Error, Sendable {
 
 /// What the core asks an engine binding to do, run by `EngineBinding.run`.
 enum EngineCommand: Equatable, Sendable {
+    case approveEngineDownload(ApproveEngineDownload)
+    case cancelEngineDownload(CancelEngineDownload)
     case closePage(ClosePage)
     case createPage(CreatePage)
     case loadPage(LoadPage)
     case recoverPage(RecoverPage)
+    case removeEngineDownload(RemoveEngineDownload)
     case settleAuthentication(SettleAuthentication)
+    case settleDownloadDestination(SettleDownloadDestination)
     case settleExtensionInstall(SettleExtensionInstall)
     case settlePermission(SettlePermission)
     case settleScriptDialog(SettleScriptDialog)
@@ -273,8 +279,6 @@ enum EnginePresentation: Equatable, Sendable {
     case contentFullscreenChanged(ContentFullscreenChanged)
     case contentMessagePosted(ContentMessagePosted)
     case contentScriptEvaluated(ContentScriptEvaluated)
-    case engineDownloadChanged(EngineDownloadChanged)
-    case engineDownloadDestinationRequested(EngineDownloadDestinationRequested)
     case extensionsChanged(ExtensionsChanged)
     case findFinished(FindFinished)
     case infoBarRemoved(InfoBarRemoved)
@@ -315,6 +319,8 @@ extension CoreState {
         case .appPreferencesChanged(let change): apply(change)
         case .archiveChanged(let change): apply(change)
         case .authenticationAsked(let change): apply(change)
+        case .downloadApprovalAsked(let change): apply(change)
+        case .downloadDestinationAsked(let change): apply(change)
         case .downloadUpdated(let change): apply(change)
         case .downloadsRemoved(let change): apply(change)
         case .extensionInstallAsked(let change): apply(change)
@@ -441,10 +447,13 @@ struct AnswerAuthentication: Intent, PromptIntent, Equatable, Sendable {
     let credential: AuthenticationCredential?
 }
 
-struct AnswerEngineDownloadDestination: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
+struct AnswerDownloadApproval: Intent, PromptIntent, Equatable, Sendable {
+    let promptID: UUID
+    let approved: Bool
+}
 
-    let requestID: UUID
+struct AnswerDownloadDestination: Intent, PromptIntent, Equatable, Sendable {
+    let promptID: UUID
     let path: String?
 }
 
@@ -504,9 +513,7 @@ struct ApplyManualSetup: Intent, ImportWorkspace, SessionIntent, Equatable, Send
     let orderWasEdited: Bool
 }
 
-struct ApproveEngineDownload: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
+struct ApproveEngineDownload: Equatable, Sendable {
     let profileID: UUID
     let downloadID: String
     let approvalToken: String
@@ -667,9 +674,7 @@ struct CancelDownload: Intent, DownloadIntent, Equatable, Sendable {
     let message: String
 }
 
-struct CancelEngineDownload: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
+struct CancelEngineDownload: Equatable, Sendable {
     let profileID: UUID
     let downloadID: String
 }
@@ -1085,6 +1090,21 @@ struct DissolveSplit: Intent, SessionIntent, Equatable, Sendable {
     let groupID: UUID
 }
 
+struct DownloadApprovalAsked: Equatable, Sendable {
+    let promptID: UUID
+    let downloadID: UUID
+    let filename: String
+    let warning: EngineDownloadWarning
+}
+
+struct DownloadDestinationAsked: Equatable, Sendable {
+    let promptID: UUID
+    let downloadID: UUID
+    let spaceID: UUID
+    let suggestedFilename: String
+    let forcesPrompt: Bool
+}
+
 struct DownloadLimitReached: Equatable, Sendable {
     let limit: Int
 }
@@ -1307,12 +1327,12 @@ struct EngineDownload: Equatable, Sendable {
     let approvalToken: String
 }
 
-struct EngineDownloadChanged: Equatable, Sendable {
+struct EngineDownloadChanged: EngineEvent, Equatable, Sendable {
     let download: EngineDownload
 }
 
-struct EngineDownloadDestinationRequested: Equatable, Sendable {
-    let requestID: UUID
+struct EngineDownloadDestinationRequested: EngineEvent, Equatable, Sendable {
+    let promptID: UUID
     let download: EngineDownload
     let suggestedFilename: String
     let forcesPrompt: Bool
@@ -2813,9 +2833,7 @@ struct RemoveDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
 }
 
-struct RemoveEngineDownload: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
+struct RemoveEngineDownload: Equatable, Sendable {
     let profileID: UUID
     let downloadID: String
 }
@@ -3175,6 +3193,11 @@ struct SetTranslationRule: Intent, SessionIntent, Equatable, Sendable {
 struct SettleAuthentication: Equatable, Sendable {
     let promptID: UUID
     let credential: AuthenticationCredential?
+}
+
+struct SettleDownloadDestination: Equatable, Sendable {
+    let promptID: UUID
+    let path: String?
 }
 
 struct SettleExtensionInstall: Equatable, Sendable {

@@ -2657,6 +2657,10 @@
     "2026-09-26-prompt-sheets-close-when-settled": {
       "category": "improved",
       "message": "A page's dialog or permission request closes by itself when the page no longer needs an answer"
+    },
+    "2026-09-26-engine-downloads-in-core": {
+      "category": "internal",
+      "message": "Chromium's downloads are recorded by the core, which asks where to save and whether to keep a warned file"
     }
   }
 }

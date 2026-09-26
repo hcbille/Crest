@@ -244,9 +244,6 @@ final class BrowserPagePool:
                         spaceName: spaceName
                     )
                 },
-                approveEngineDownload: { filename, message in
-                    await dialogPresenter.approveEngineDownload(filename: filename, message: message)
-                },
                 permissionCenter: permissionCenter
             )
         if monitorsMemoryPressure {

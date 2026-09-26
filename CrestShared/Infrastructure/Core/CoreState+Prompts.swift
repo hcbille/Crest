@@ -12,5 +12,9 @@ extension CoreState {
 
     func apply(_ change: ExtensionInstallAsked) {}
 
+    func apply(_ change: DownloadDestinationAsked) {}
+
+    func apply(_ change: DownloadApprovalAsked) {}
+
     func apply(_ change: PromptSettled) {}
 }

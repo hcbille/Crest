@@ -38,7 +38,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// the engine gives it.
     private let chromium: ChromiumEngine
     private let application: BrowserMacApplication
-    private var downloads: ChromiumDownloadAdapter?
     private var windows: [BrowserWindowID: NSWindow] = [:]
     private var quickWindows: [UUID: QuickWindow] = [:]
     private final class QuickWindow {
@@ -177,32 +176,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         restorationDefaults = Self.restorationDefaults()
         restorableWindowIDs = Self.storedRestorableWindowIDs(in: restorationDefaults)
         super.init()
-        downloads = ChromiumDownloadAdapter(engine: chromium) { [weak self] download in
-            guard let self else { return nil }
-            let profileID = download.profileID
-            var contexts = self.windows.keys.compactMap { id -> (BrowserStore, BrowserPagePool)? in
-                guard let model = self.application.windowCoordinator.existingModel(for: id) else { return nil }
-                return (model.browser, model.pages)
-            }
-            if self.privateWindow != nil { contexts.append((self.application.privateBrowser, self.application.privatePages)) }
-            for (browser, pages) in contexts {
-                let assignment: BrowserSpaceRuntimeAssignment?
-                if let pageID = download.sourcePageID?.uuidString {
-                    assignment = pages.engineDownloadAssignment(pageID: pageID, profileID: profileID)
-                } else {
-                    // Background extension downloads have no page. Only route a
-                    // uniquely owned profile; never borrow the selected Space.
-                    let spaces = browser.session.spaces.filter { $0.profile.id == profileID }
-                    assignment = spaces.count == 1 ? BrowserSpaceRuntimeAssignment(space: spaces[0]) : nil
-                }
-                guard let assignment, let space = browser.space(matching: assignment),
-                    !self.application.spaceAccess.isLocked(space) else { continue }
-                return ChromiumDownloadAdapter.Destination(center: pages.downloadCenter, assignment: assignment)
-            }
-            return nil
-        }
         chromium.follow(application.browser.core)
-        chromium.downloads = downloads
     }
 
     /// The engine offered a page of its own: a window that can take it adopts it

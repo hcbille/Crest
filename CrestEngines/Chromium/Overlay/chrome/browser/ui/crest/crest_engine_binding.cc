@@ -166,6 +166,14 @@ void EngineBinding::Perform(engine::EngineCommand command) {
     Prompts().Settle(*permission);
   } else if (const auto* install = std::get_if<engine::SettleExtensionInstall>(&command)) {
     Prompts().Settle(*install);
+  } else if (const auto* destination = std::get_if<engine::SettleDownloadDestination>(&command)) {
+    Downloads().Settle(*destination);
+  } else if (const auto* cancellation = std::get_if<engine::CancelEngineDownload>(&command)) {
+    Downloads().Cancel(*cancellation);
+  } else if (const auto* removal = std::get_if<engine::RemoveEngineDownload>(&command)) {
+    Downloads().Remove(*removal);
+  } else if (const auto* approval = std::get_if<engine::ApproveEngineDownload>(&command)) {
+    Downloads().Approve(*approval);
   }
 }
 
@@ -340,7 +348,7 @@ void EngineBinding::DockInspector(const std::string& key, content::WebContents* 
 EngineDownloads& EngineBinding::Downloads() {
   if (!downloads_) {
     downloads_ = std::make_unique<EngineDownloads>(
-        Profiles(), base::BindRepeating(&EngineBinding::Present, base::Unretained(this)),
+        Profiles(), base::BindRepeating(&EngineBinding::Report, base::Unretained(this)),
         base::BindRepeating(
             [](EngineBinding* binding, download::DownloadItem* item) -> std::optional<engine::Guid> {
               EnginePage* page = binding->PageFor(content::DownloadItemUtils::GetWebContents(item));
@@ -759,22 +767,6 @@ bool EngineBinding::Handle(const engine::AdoptOfferedPage& request) {
 
 bool EngineBinding::Handle(const engine::RejectOfferedPage& request) {
   return shell_ && !disposing_ && shell_->RejectAdoption(GuidText(request.adoption_id));
-}
-
-bool EngineBinding::Handle(const engine::AnswerEngineDownloadDestination& request) {
-  return !disposing_ && Downloads().Answer(request);
-}
-
-bool EngineBinding::Handle(const engine::CancelEngineDownload& request) {
-  return !disposing_ && Downloads().Cancel(request);
-}
-
-bool EngineBinding::Handle(const engine::RemoveEngineDownload& request) {
-  return !disposing_ && Downloads().Remove(request);
-}
-
-bool EngineBinding::Handle(const engine::ApproveEngineDownload& request) {
-  return !disposing_ && Downloads().Approve(request);
 }
 
 // Reports and presentations.

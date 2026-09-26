@@ -284,7 +284,7 @@ final class BrowserDialogPresenter {
         }
     }
 
-    func approveEngineDownload(filename: String, message: String) async -> Bool {
+    func approveEngineDownload(filename: String, message: String, dismissal: BrowserPromptDismissal? = nil) async -> Bool {
         await withCheckedContinuation { continuation in
             let alert = NSAlert()
             alert.messageText = "Keep “\(filename)”?"
@@ -292,7 +292,7 @@ final class BrowserDialogPresenter {
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Cancel")
             alert.addButton(withTitle: "Keep Download")
-            present(alert) { response in
+            present(alert, dismissal: dismissal) { response in
                 continuation.resume(returning: response == .alertSecondButtonReturn)
             }
         }

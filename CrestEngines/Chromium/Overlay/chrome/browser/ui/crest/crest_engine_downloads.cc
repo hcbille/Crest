@@ -63,8 +63,8 @@ std::string ApprovalToken(download::DownloadItem* item) {
 
 }  // namespace
 
-EngineDownloads::EngineDownloads(EngineProfiles& profiles, Present present, PageFor page_for)
-    : profiles_(profiles), present_(std::move(present)), page_for_(std::move(page_for)) {}
+EngineDownloads::EngineDownloads(EngineProfiles& profiles, Report report, PageFor page_for)
+    : profiles_(profiles), report_(std::move(report)), page_for_(std::move(page_for)) {}
 
 EngineDownloads::~EngineDownloads() = default;
 
@@ -126,7 +126,7 @@ std::optional<engine::EngineDownload> EngineDownloads::Describe(download::Downlo
 }
 
 // The engine's notification is not the place to change the download, so a
-// blocked one is canceled once the presentation is sent.
+// blocked one is canceled once the report is sent.
 void EngineDownloads::Changed(download::DownloadItem* item) {
   auto download = Describe(item);
   if (!download) {
@@ -135,7 +135,7 @@ void EngineDownloads::Changed(download::DownloadItem* item) {
   const bool failed = download->state == engine::EngineDownloadState::kFailed;
   std::string profile = GuidText(download->profile_id);
   std::string id = download->download_id;
-  present_.Run(engine::EngineDownloadChanged{.download = std::move(*download)});
+  report_.Run(engine::EngineDownloadChanged{.download = std::move(*download)});
   if (failed) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&EngineDownloads::CancelIfBlocked, weak_factory_.GetWeakPtr(), std::move(profile),
@@ -170,8 +170,8 @@ void EngineDownloads::ChooseDestination(download::DownloadItem* item,
   destinations_[id] = Destination{.profile = GuidText(download->profile_id),
                                   .download = download->download_id,
                                   .callback = std::move(callback)};
-  present_.Run(engine::EngineDownloadDestinationRequested{
-      .request_id = id,
+  report_.Run(engine::EngineDownloadDestinationRequested{
+      .prompt_id = id,
       .download = std::move(*download),
       .suggested_filename = suggested_path.BaseName().AsUTF8Unsafe(),
       .forces_prompt =
@@ -180,8 +180,8 @@ void EngineDownloads::ChooseDestination(download::DownloadItem* item,
 
 // Choosing where a file goes never overrides the engine's safety verdict,
 // even through a save panel; the engine still checks the file.
-bool EngineDownloads::Answer(const engine::AnswerEngineDownloadDestination& answer) {
-  auto found = destinations_.find(answer.request_id);
+bool EngineDownloads::Settle(const engine::SettleDownloadDestination& answer) {
+  auto found = destinations_.find(answer.prompt_id);
   if (found == destinations_.end()) {
     return false;
   }
@@ -199,7 +199,7 @@ bool EngineDownloads::Answer(const engine::AnswerEngineDownloadDestination& answ
 }
 
 // Never on the download's own notification stack.
-bool EngineDownloads::Cancel(const engine::CancelEngineDownload& request) {
+bool EngineDownloads::Cancel(const engine::CancelEngineDownload& command) {
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](base::WeakPtr<EngineDownloads> downloads, std::string profile, std::string download) {
@@ -210,11 +210,11 @@ bool EngineDownloads::Cancel(const engine::CancelEngineDownload& request) {
                          item->Cancel(true);
                        }
                      },
-                     weak_factory_.GetWeakPtr(), GuidText(request.profile_id), request.download_id));
+                     weak_factory_.GetWeakPtr(), GuidText(command.profile_id), command.download_id));
   return true;
 }
 
-bool EngineDownloads::Remove(const engine::RemoveEngineDownload& request) {
+bool EngineDownloads::Remove(const engine::RemoveEngineDownload& command) {
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](base::WeakPtr<EngineDownloads> downloads, std::string profile, std::string download) {
@@ -225,14 +225,14 @@ bool EngineDownloads::Remove(const engine::RemoveEngineDownload& request) {
                          item->Remove();
                        }
                      },
-                     weak_factory_.GetWeakPtr(), GuidText(request.profile_id), request.download_id));
+                     weak_factory_.GetWeakPtr(), GuidText(command.profile_id), command.download_id));
   return true;
 }
 
-bool EngineDownloads::Approve(const engine::ApproveEngineDownload& request) {
-  auto* item = Find(GuidText(request.profile_id), request.download_id);
+bool EngineDownloads::Approve(const engine::ApproveEngineDownload& command) {
+  auto* item = Find(GuidText(command.profile_id), command.download_id);
   if (!item || item->GetState() != download::DownloadItem::IN_PROGRESS ||
-      ApprovalToken(item) != request.approval_token) {
+      ApprovalToken(item) != command.approval_token) {
     return false;
   }
   bool blocked = false;

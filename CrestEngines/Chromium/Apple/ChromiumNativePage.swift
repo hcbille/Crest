@@ -577,7 +577,7 @@
             case .siteDataCleared(let cleared):
                 clearances.removeValue(forKey: cleared.clearanceID)?.resume(returning: cleared.cleared)
             case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileDeleted, .profileReleased,
-                .pageOffered, .engineDownloadChanged, .engineDownloadDestinationRequested:
+                .pageOffered:
                 break
             case .findFinished(let finished): receive(finished)
             case .pageCaptured(let captured): receive(captured)

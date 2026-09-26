@@ -66,6 +66,8 @@ public sealed partial class CrestApp {
         lock (gate) {
             if (Prompts.Concerns(report)) {
                 prompts.Report(engine, report, changes, Issue);
+            } else if (EngineDownloads.Concerns(report)) {
+                engineDownloads.Report(engine, report, changes, Issue, clock.Now);
             } else {
                 pages.Report(engine, report, changes, Issue);
                 prompts.Prune(changes);

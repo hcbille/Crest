@@ -306,6 +306,19 @@ internal sealed partial class Device {
         }
     }
 
+    /// The one Space of `profileId` the person may see: held by an attached
+    /// workspace, not locked and not being deleted. Null when no Space or more
+    /// than one holds the profile.
+    internal Guid? OnlySpaceOf(Guid profileId) {
+        NativeSessionAuthority[] attached;
+        lock (gate) attached = [.. workspaces.Values];
+        var owners = attached.SelectMany(workspace => workspace.Current.Spaces.Where(space => space.ProfileId == profileId)
+            .Select(space => (Workspace: workspace, Space: space))).DistinctBy(owner => owner.Space.Id).ToList();
+        if (owners.Count != 1) return null;
+        var (owner, only) = owners[0];
+        return owner.IsDeleting(only.Id) || owner.IsLocked(only) ? null : only.Id;
+    }
+
     /// The attached workspace, or null for one that is gone.
     internal NativeSessionAuthority? Attached(Guid workspaceId) {
         lock (gate) return workspaces.GetValueOrDefault(workspaceId);

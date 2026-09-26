@@ -225,7 +225,8 @@ final class Engines {
         switch command {
         case .createPage(let creation): hosts[creation.pageID] = kind
         case .loadPage, .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission,
-            .settleExtensionInstall:
+            .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
+            .approveEngineDownload:
             break
         case .closePage(let closing): forget(closing.pageID)
         }
