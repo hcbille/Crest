@@ -25,7 +25,7 @@ struct BrowserPrivacySettingsPane: View {
         BrowserSettingsPane(.privacy) {
             BrowserPrivacySpaceSection(
                 selectedSpaceID: selectedSpaceBinding,
-                spaces: browser.session.spaces
+                spaces: browser.spaceModels
             )
 
             if canRevealSelectedSpaceData {
@@ -93,16 +93,14 @@ struct BrowserPrivacySettingsPane: View {
         return permissionCenter.records(in: selectedSpaceID)
     }
 
-    private var selectedSpace: BrowserSpace? {
+    private var selectedSpace: SpaceModel? {
         guard let selectedSpaceID else { return nil }
-        return browser.session.space(id: selectedSpaceID)
+        return browser.spaceModel(selectedSpaceID)
     }
 
     private var canRevealSelectedSpaceData: Bool {
-        BrowserSettingsPrivacyPolicy.canRevealSpaceData(
-            in: selectedSpace,
-            accessController: spaceAccess
-        )
+        guard let selectedSpace else { return false }
+        return !spaceAccess.isLocked(selectedSpace)
     }
 
     /// Crest's own blocking is a WebKit content-rule list. The engine running this

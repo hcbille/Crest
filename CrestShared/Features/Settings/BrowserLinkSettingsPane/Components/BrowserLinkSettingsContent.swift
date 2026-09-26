@@ -50,27 +50,23 @@ struct BrowserLinkSettingsContent: View {
         }
     }
 
-    private var availableSpaces: [BrowserSpace] {
-        browser.session.spaces.filter {
-            !browser.deletingSpaceIDs.contains($0.id)
-        }
+    private var availableSpaces: [SpaceModel] {
+        browser.spaceModels.filter { !browser.isDeleting($0.id) }
     }
 
     private var resolvedSelectedSpaceID: SpaceID {
         BrowserLinkSettingsSpacePolicy.resolvedExternalSpaceID(
             preferredSpaceID: browser.selectedSpaceID,
-            spaces: browser.session.spaces,
-            selectedSpaceID: browser.selectedSpaceID,
-            unavailableSpaceIDs: browser.deletingSpaceIDs
+            spaces: availableSpaces,
+            selectedSpaceID: browser.selectedSpaceID
         )
     }
 
-    private var lockedRouteDestinationSpaces: [BrowserSpace] {
-        BrowserSettingsPrivacyPolicy.lockedRouteDestinationSpaces(
-            for: links.preferences.routes,
-            in: browser.session.spaces,
-            accessController: spaceAccess
-        )
+    /// The locked Spaces some route opens links in: while one is locked, the
+    /// routes stay hidden, since their patterns name the sites it is used for.
+    private var lockedRouteDestinationSpaces: [SpaceModel] {
+        let destinationIDs = Set(links.preferences.routes.map(\.destinationSpaceID))
+        return browser.spaceModels.filter { destinationIDs.contains($0.id) && spaceAccess.isLocked($0) }
     }
 
     private var externalDestinationBinding: Binding<ExternalLinkDestination> {
@@ -93,9 +89,8 @@ struct BrowserLinkSettingsContent: View {
         Binding {
             BrowserLinkSettingsSpacePolicy.resolvedExternalSpaceID(
                 preferredSpaceID: links.preferences.destinationSpaceID,
-                spaces: browser.session.spaces,
-                selectedSpaceID: browser.selectedSpaceID,
-                unavailableSpaceIDs: browser.deletingSpaceIDs
+                spaces: availableSpaces,
+                selectedSpaceID: browser.selectedSpaceID
             )
         } set: { value in
             guard let value else { return }

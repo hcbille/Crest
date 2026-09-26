@@ -133,53 +133,35 @@ final class BrowserSettingsPaneTests: XCTestCase {
 
     // MARK: - Shared bindings
 
-    /// Every shared binding writes through to the session rather than to the copy of
-    /// the Space the view happens to be holding — which is what the drifted private
-    /// copies did not all do.
-    func testSharedSpaceBindingsWriteThroughToTheLiveSession() {
+    /// Every shared binding reads the Space's settings from the read model and
+    /// writes them back through the core, so the next read shows the edit.
+    func testSharedSpaceBindingsWriteThroughTheCore() throws {
         let browser = BrowserStore.preview()
-        let space = browser.session.spaces[0]
+        let space = try XCTUnwrap(browser.spaceModels.first)
 
-        let name = browser.spaceIdentityBinding(\.name, in: space)
+        let name = browser.spaceNameBinding(in: space)
         name.wrappedValue = "Renamed"
-        XCTAssertEqual(browser.session.space(id: space.id)?.name, "Renamed")
+        XCTAssertEqual(space.settings.name, "Renamed")
         XCTAssertEqual(name.wrappedValue, "Renamed")
 
         let provider = browser.browsingPreferenceBinding(\.searchProvider, in: space)
-        let otherProvider = SearchProvider.all.first {
-            $0 != provider.wrappedValue
-        }!
+        let otherProvider = try XCTUnwrap(SearchProvider.all.first { $0 != provider.wrappedValue })
         provider.wrappedValue = otherProvider
-        XCTAssertEqual(
-            browser.session.space(id: space.id)?.browsingPreferences.searchProvider,
-            otherProvider
-        )
+        XCTAssertEqual(space.settings.editableBrowsingPreferences.searchProvider, otherProvider)
 
-        let offersCopy = browser.credentialPreferenceBinding(
-            \.alsoOffersSaveToSystemPasswords,
-            in: space
-        )
+        let offersCopy = browser.credentialPreferenceBinding(\.alsoOffersSaveToSystemPasswords, in: space)
         offersCopy.wrappedValue = !offersCopy.wrappedValue
-        XCTAssertEqual(
-            browser.session.space(id: space.id)?.credentialPreferences
-                .alsoOffersSaveToSystemPasswords,
-            offersCopy.wrappedValue
-        )
+        XCTAssertEqual(space.settings.credentialPreferences.alsoOffersSaveToSystemPasswords, offersCopy.wrappedValue)
 
-        let managerEnabled = browser.credentialPreferenceBinding(
-            \.isEnabled,
-            in: space
-        )
+        let managerEnabled = browser.credentialPreferenceBinding(\.isEnabled, in: space)
         managerEnabled.wrappedValue = false
-        XCTAssertFalse(
-            browser.session.space(id: space.id)?.credentialPreferences.isEnabled
-                ?? true
-        )
+        XCTAssertFalse(space.settings.credentialPreferences.isEnabled)
 
+        let other = try XCTUnwrap(browser.spaceModels.dropFirst().first)
         let defaultSpace = browser.defaultSpaceBinding()
-        defaultSpace.wrappedValue = browser.session.spaces[1].id
-        XCTAssertEqual(browser.session.defaultSpaceID, browser.session.spaces[1].id)
-        XCTAssertEqual(defaultSpace.wrappedValue, browser.session.spaces[1].id)
+        defaultSpace.wrappedValue = other.id
+        XCTAssertEqual(browser.workspaceModel?.defaultSpaceID, other.id)
+        XCTAssertEqual(defaultSpace.wrappedValue, other.id)
     }
 
 

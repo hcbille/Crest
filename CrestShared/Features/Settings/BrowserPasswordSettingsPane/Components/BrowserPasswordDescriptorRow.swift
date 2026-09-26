@@ -10,7 +10,7 @@ import SwiftUI
 /// simply missing on touch and is here now.
 struct BrowserPasswordDescriptorRow: View {
     let descriptor: CredentialDescriptor
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     var isDeleting = false
     var isSelectionActive = false
     var isSelected = false
@@ -165,7 +165,7 @@ struct BrowserPasswordDescriptorRow: View {
     #Preview("Saved account") {
         BrowserPasswordDescriptorRow(
             descriptor: BrowserCredentialDetailPreviewFixture.descriptor,
-            space: BrowserSpaceBrandingPreviewFixture.simpleSpace, showDetails: {}, requestDeletion: {}
+            space: BrowserSpaceBrandingPreviewFixture.simpleSpace.identity, showDetails: {}, requestDeletion: {}
         )
         .padding().frame(width: 400)
     }

@@ -2713,6 +2713,10 @@
     "2026-09-26-spaces-read-model": {
       "category": "internal",
       "message": "The Space switcher, Space pickers, Space pages, and the archive, history and downloads lists draw Spaces from the core's read model, and a Space's lock is the core's rule"
+    },
+    "2026-09-26-settings-read-model": {
+      "category": "internal",
+      "message": "Settings panes read Spaces and their settings from the core's read model and write edits through the core"
     }
   }
 }

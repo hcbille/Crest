@@ -166,7 +166,7 @@ struct BrowserPasswordSettingsPane: View {
             CrestSpaceMenuPicker(
                 "Passwords for",
                 selection: selectedSpaceBinding,
-                spaces: CrestSpaceIdentity.list(browser.session.spaces)
+                spaces: CrestSpaceIdentity.list(browser.spaceModels)
             )
         }
 
@@ -216,9 +216,9 @@ struct BrowserPasswordSettingsPane: View {
                             )
                         }
                     }
-                    .disabled(!space.credentialPreferences.isEnabled)
+                    .disabled(!space.settings.credentialPreferences.isEnabled)
 
-                    if !space.credentialPreferences.isEnabled {
+                    if !space.settings.credentialPreferences.isEnabled {
                         Text(BrowserCredentialSettingsPolicy.disabledDescription)
                             .crestFormFootnote()
                     }
@@ -303,16 +303,16 @@ struct BrowserPasswordSettingsPane: View {
         }
     }
 
-    private func importButton(space: BrowserSpace) -> some View {
+    private func importButton(space: SpaceModel) -> some View {
         Button(
-            "Import into \(space.name)…",
+            "Import into \(space.settings.name)…",
             systemImage: "square.and.arrow.down"
         ) {
             isChoosingImportFile = true
         }
         .buttonStyle(.crestTertiary)
         .disabled(
-            !space.credentialPreferences.isEnabled
+            !space.settings.credentialPreferences.isEnabled
                 || credentials.isPreparingImport
                 || credentials.isCommittingImport
         )
@@ -332,7 +332,7 @@ struct BrowserPasswordSettingsPane: View {
     }
 
     @ViewBuilder
-    private func credentialPreferences(in space: BrowserSpace) -> some View {
+    private func credentialPreferences(in space: SpaceModel) -> some View {
         Toggle(
             "Sync with iCloud Keychain",
             isOn: credentials.synchronizationBinding(
@@ -374,7 +374,7 @@ struct BrowserPasswordSettingsPane: View {
                 searchText.isEmpty ? "No Saved Passwords" : "No Matching Passwords",
                 systemImage: searchText.isEmpty ? "key.slash" : "magnifyingglass",
                 description: Text(
-                    space?.credentialPreferences.isEnabled == false
+                    space?.settings.credentialPreferences.isEnabled == false
                         ? BrowserCredentialSettingsPolicy.disabledDescription
                         : credentials.emptyDescription(
                             isSearching: !searchText.isEmpty
@@ -386,7 +386,7 @@ struct BrowserPasswordSettingsPane: View {
             ForEach(descriptors) { descriptor in
                 BrowserPasswordDescriptorRow(
                     descriptor: descriptor,
-                    space: space,
+                    space: space?.identity,
                     isDeleting: credentials.isDeleting(descriptor),
                     isSelectionActive: isSelectingCredentials,
                     isSelected: selectedCredentialIDs.contains(descriptor.id),
@@ -412,9 +412,9 @@ struct BrowserPasswordSettingsPane: View {
 
     // MARK: - Derived state
 
-    private var space: BrowserSpace? {
+    private var space: SpaceModel? {
         guard let selectedSpaceID else { return nil }
-        return browser.session.space(id: selectedSpaceID)
+        return browser.spaceModel(selectedSpaceID)
     }
 
     private var filteredDescriptors: [CredentialDescriptor] {
@@ -422,10 +422,8 @@ struct BrowserPasswordSettingsPane: View {
     }
 
     private var canRevealSelectedSpaceData: Bool {
-        BrowserSettingsPrivacyPolicy.canRevealSpaceData(
-            in: space,
-            accessController: spaceAccess
-        )
+        guard let space else { return false }
+        return !spaceAccess.isLocked(space)
     }
 
     private var credentialLoadRequest: BrowserSettingsSpaceDataRequest {
@@ -459,7 +457,7 @@ struct BrowserPasswordSettingsPane: View {
     }
 
     private var selectionDeletionMessage: String {
-        let spaceName = space?.name ?? "this Space"
+        let spaceName = space?.settings.name ?? "this Space"
         let count = selectedCredentialIDs.count
         let passwordLabel = count == 1 ? "password" : "passwords"
         return

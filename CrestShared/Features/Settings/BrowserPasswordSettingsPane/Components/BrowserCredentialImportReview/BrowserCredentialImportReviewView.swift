@@ -16,7 +16,7 @@ struct BrowserCredentialImportReviewView: View {
             Group {
                 if let plan = credentials.importPlan,
                     plan.id == initialPlanID,
-                    let space = browser.space(matching: plan.destination)
+                    let space = browser.spaceModel(matching: plan.destination)
                 {
                     VStack(spacing: 0) {
                         ScrollView {
@@ -25,7 +25,7 @@ struct BrowserCredentialImportReviewView: View {
                                 spacing: CrestSpacing.extraExtraLarge
                             ) {
                                 BrowserCredentialImportDestinationCard(
-                                    space: space,
+                                    space: space.identity,
                                     format: plan.format
                                 )
                                 BrowserCredentialImportSummaryView(plan: plan)
@@ -121,11 +121,11 @@ struct BrowserCredentialImportReviewView: View {
 
     private func importFooter(
         plan: BrowserCredentialImportPlan,
-        space: BrowserSpace
+        space: SpaceModel
     ) -> some View {
         HStack(spacing: CrestSpacing.medium) {
             VStack(alignment: .leading, spacing: CrestSpacing.extraSmall) {
-                Text("Ready for \(space.name)")
+                Text("Ready for \(space.settings.name)")
                     .font(.subheadline.weight(.semibold))
                 Text(importSummary(plan))
                     .font(.caption)
@@ -182,7 +182,7 @@ struct BrowserCredentialImportReviewView: View {
                 accessController: spaceAccess,
                 isStillSelected: {
                     guard let plan = credentials.importPlan else { return false }
-                    return browser.space(matching: plan.destination) != nil
+                    return browser.spaceModel(matching: plan.destination) != nil
                 }
             )
             if credentials.importPlan == nil { dismiss() }

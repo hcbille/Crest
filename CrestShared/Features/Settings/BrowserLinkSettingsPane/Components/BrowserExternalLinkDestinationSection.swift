@@ -3,7 +3,7 @@ import SwiftUI
 struct BrowserExternalLinkDestinationSection: View {
     @Binding var destination: ExternalLinkDestination
     @Binding var spaceID: SpaceID?
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
 
     var body: some View {
         Section("Links from other apps", systemImage: "link") {

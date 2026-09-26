@@ -156,7 +156,7 @@ extension BrowserStore {
         _ retention: BrowserSpaceDataRetentionPreferences,
         in spaceID: SpaceID
     ) {
-        guard var preferences = session.space(id: spaceID)?.browsingPreferences,
+        guard var preferences = spaceModel(spaceID)?.settings.editableBrowsingPreferences,
             preferences.dataRetention != retention
         else {
             return

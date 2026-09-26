@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserPlatformLinkRouteEditorContent: View {
     let route: LinkRoute
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
     let canMoveUp: Bool
     let canMoveDown: Bool
     let update: (BrowserLinkRouteFieldUpdate) -> Void
@@ -84,7 +84,7 @@ struct BrowserPlatformLinkRouteEditorContent: View {
                 titleVisibility: .visible
             ) {
                 ForEach(spaces) { space in
-                    Button(space.name) {
+                    Button(space.settings.name) {
                         update(.destinationSpaceID(space.id))
                     }
                 }
@@ -124,7 +124,7 @@ struct BrowserPlatformLinkRouteEditorContent: View {
     }
 
     private var destinationName: String {
-        spaces.first { $0.id == route.destinationSpaceID }?.name
+        spaces.first { $0.id == route.destinationSpaceID }?.settings.name
             ?? "Missing Space"
     }
 

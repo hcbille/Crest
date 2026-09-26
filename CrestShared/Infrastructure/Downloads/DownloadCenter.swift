@@ -238,11 +238,12 @@ final class BrowserDownloadCenter: NSObject {
         (try? core.send(AcknowledgeDownloads(profileID: profileID)))?.count ?? 0
     }
 
-    /// Removes only Crest's terminal download records. Files already written to
-    /// their destination remain untouched.
+    /// Removes only Crest's terminal download records, under the retention of
+    /// each of `spaces`. Files already written to their destination remain
+    /// untouched.
     @discardableResult
     func sweepExpiredRecords(
-        using session: BrowserSession,
+        in spaces: [SpaceModel],
         now: Date = .now,
         force: Bool = false
     ) -> Bool {
@@ -258,9 +259,10 @@ final class BrowserDownloadCenter: NSObject {
         lastRetentionSweepAt = now
         let expiry = ExpireDownloads(
             now: now,
-            retentions: session.spaces.map {
+            retentions: spaces.map {
                 DownloadRetention(
-                    profileID: $0.profile.id, lifetime: $0.browsingPreferences.dataRetention.downloads.lifetime)
+                    profileID: $0.profileID,
+                    lifetime: $0.settings.browsingPreferences.dataRetention.downloads.lifetime)
             })
         let changes = (try? core.send(expiry)) ?? []
         for case .downloadsRemoved(let removal) in changes {

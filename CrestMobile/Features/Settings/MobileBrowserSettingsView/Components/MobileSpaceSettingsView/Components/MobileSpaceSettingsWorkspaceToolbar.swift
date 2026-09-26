@@ -52,7 +52,7 @@ struct MobileSpaceSettingsWorkspaceToolbar: View {
 
     private var spacePicker: some View {
         Picker("Space", selection: $selectedSpaceID) {
-            ForEach(browser.session.spaces) { space in
+            ForEach(browser.spaceModels) { space in
                 BrowserSpaceIdentityLabel(space: space).tag(Optional(space.id))
             }
         }

@@ -7,7 +7,7 @@ struct CrestSpaceSelectionRepair: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onAppear(perform: repair)
-            .onChange(of: browser.session.spaces.map(\.id)) {
+            .onChange(of: browser.spaceModels.map(\.id)) {
                 repair()
             }
     }

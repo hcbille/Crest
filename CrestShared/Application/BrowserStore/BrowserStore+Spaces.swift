@@ -120,13 +120,12 @@ extension BrowserStore {
     }
 
     func updateSpaceAccessPolicy(
-        _ accessPolicy: BrowserSpaceAccessPolicy,
+        _ accessPolicy: SpaceAccessPolicy,
         in spaceID: SpaceID
     ) {
         sendSpaceSettings(
             SetSpaceAccess(
-                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID,
-                policy: SpaceAccessPolicy(copyTerm: accessPolicy) ?? .deviceOwnerAuthentication))
+                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID, policy: accessPolicy))
     }
 
     /// Sends an intent about a Space's settings to the workspace that owns
@@ -148,13 +147,13 @@ extension BrowserStore {
 
     /// Sets a Space's browsing preferences through the core: the settings the
     /// core sweeps the Space under, then the engine it searches with, each only
-    /// when it changed.
+    /// when it differs from what the read model holds.
     func updateBrowsingPreferences(
         _ preferences: BrowserSpaceBrowsingPreferences,
         in spaceID: SpaceID
     ) {
         let owner = profileSettingsBrowser
-        guard let current = owner.session.space(id: spaceID)?.browsingPreferences else { return }
+        guard let current = owner.spaceModel(spaceID)?.settings.editableBrowsingPreferences else { return }
         let workspaceID = owner.family.workspaceID
         if preferences.searchSuggestionsEnabled != current.searchSuggestionsEnabled
             || preferences.currentTabCleanupPolicy != current.currentTabCleanupPolicy
@@ -187,10 +186,10 @@ extension BrowserStore {
         in spaceID: SpaceID
     ) throws {
         let owner = profileSettingsBrowser
-        guard let space = owner.session.space(id: spaceID) else { return }
+        guard let space = owner.spaceModel(spaceID) else { return }
         let workspaceID = owner.family.workspaceID
         do throws(Rejection) {
-            if space.browsingPreferences.customSearchProviders.contains(where: { $0.id == provider.id }) {
+            if space.settings.browsingPreferences.customSearchProviders.contains(where: { $0.id == provider.id }) {
                 try owner.family.commit(
                     UpdateSearchEngine(workspaceID: workspaceID, spaceID: spaceID, engine: provider.engine),
                     from: owner)

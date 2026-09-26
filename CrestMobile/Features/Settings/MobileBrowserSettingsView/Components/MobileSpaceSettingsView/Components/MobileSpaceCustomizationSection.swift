@@ -1,17 +1,16 @@
 import SwiftUI
 
 struct MobileSpaceCustomizationSection: View {
-    let browser: BrowserStore
-    let space: BrowserSpace
+    let space: SpaceModel
     let editAppearance: () -> Void
 
     var body: some View {
         Section("Appearance", systemImage: "paintpalette") {
             Button(action: editAppearance) {
                 HStack(spacing: 16) {
-                    BrowserSpaceIdentityIcon(space: browser.liveSpace(space), size: 44)
+                    BrowserSpaceIdentityIcon(space: space, size: 44)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(browser.liveSpace(space).name).font(.headline)
+                        Text(space.settings.name).font(.headline)
                         Text("Name, crest, colors, and background").font(.subheadline).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 4)

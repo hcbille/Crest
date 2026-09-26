@@ -9,7 +9,7 @@ import SwiftUI
 /// needing the state at all.
 struct BrowserSpaceAccessPolicySection: View {
     let browser: BrowserStore
-    let space: BrowserSpace
+    let space: SpaceModel
     let spaceAccess: BrowserSpaceAccessController
 
     @State private var isUpdating = false
@@ -38,7 +38,7 @@ struct BrowserSpaceAccessPolicySection: View {
 
     private var requiresAuthentication: Binding<Bool> {
         Binding {
-            browser.liveSpace(space).accessPolicy.requiresAuthentication
+            space.settings.requiresAuthentication
         } set: { isRequired in
             Task { await updateAccessPolicy(isRequired: isRequired) }
         }

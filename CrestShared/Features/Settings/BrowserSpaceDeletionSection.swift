@@ -18,7 +18,7 @@ struct BrowserSpaceDeletionSection: View {
             ) {
                 isConfirmingDeletion = true
             }
-            .disabled(isDeleting || browser.session.spaces.count <= 1)
+            .disabled(isDeleting || browser.spaceModels.count <= 1)
             .accessibilityIdentifier("delete-selected-space")
 
             if isDeleting {
@@ -57,11 +57,11 @@ struct BrowserSpaceDeletionSection: View {
     }
 
     private var spaceName: String {
-        browser.session.space(id: spaceID)?.name ?? "Space"
+        browser.spaceModel(spaceID)?.settings.name ?? "Space"
     }
 
     private var disclosure: String {
-        if browser.session.spaces.count <= 1 {
+        if browser.spaceModels.count <= 1 {
             return "Crest needs at least one Space. Add another Space before deleting this one."
         }
         return "Deletes tabs, pins, folders, Archive, history, Crest Passwords, cookies, "

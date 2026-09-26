@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserPrivacySpaceSection: View {
     @Binding var selectedSpaceID: SpaceID?
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
 
     var body: some View {
         Section("Space", systemImage: "square.grid.2x2") {
@@ -17,8 +17,9 @@ struct BrowserPrivacySpaceSection: View {
 
 #if DEBUG
     #Preview("Space selection") {
+        @Previewable @State var browser = BrowserStore(session: .preview)
         @Previewable @State var selection: SpaceID? = BrowserSession.preview.spaces[0].id
-        Form { BrowserPrivacySpaceSection(selectedSpaceID: $selection, spaces: BrowserSession.preview.spaces) }
+        Form { BrowserPrivacySpaceSection(selectedSpaceID: $selection, spaces: browser.spaceModels) }
             .crestSettingsForm().frame(width: 420, height: 220)
     }
 #endif

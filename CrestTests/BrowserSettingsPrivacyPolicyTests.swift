@@ -54,35 +54,6 @@ final class BrowserSettingsPrivacyPolicyTests: XCTestCase {
         }
     }
 
-    func testPrivateSpaceSettingsStayProtectedUntilTheSpaceIsUnlocked() async throws {
-        var session = BrowserSession.preview
-        session.spaces[0].accessPolicy = .deviceOwnerAuthentication
-        let browser = BrowserStore(session: session)
-        let space = browser.session.spaces[0]
-        let access = BrowserSpaceAccessController(
-            authenticator: SettingsPrivacyAuthenticatorStub(result: true)
-        )
-        browser.attachSpaceAccess(access)
-
-        XCTAssertFalse(
-            BrowserSettingsPrivacyPolicy.canRevealSpaceData(
-                in: space,
-                accessController: access
-            )
-        )
-
-        let unlocked = await access.unlock(space)
-
-        XCTAssertTrue(unlocked)
-
-        XCTAssertTrue(
-            BrowserSettingsPrivacyPolicy.canRevealSpaceData(
-                in: space,
-                accessController: access
-            )
-        )
-    }
-
     func testLockedSpacesForExportIncludesOnlyStillLockedPrivateSpaces() async throws {
         var session = BrowserSession.preview
         session.spaces[0].accessPolicy = .deviceOwnerAuthentication

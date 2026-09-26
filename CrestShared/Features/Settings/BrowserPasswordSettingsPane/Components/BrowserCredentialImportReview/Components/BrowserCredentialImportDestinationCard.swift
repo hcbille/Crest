@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserCredentialImportDestinationCard: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let format: BrowserCredentialCSVImportFormat
 
     var body: some View {

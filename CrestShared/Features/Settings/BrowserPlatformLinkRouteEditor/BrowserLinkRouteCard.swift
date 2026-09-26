@@ -4,7 +4,7 @@ import SwiftUI
 /// gets a usable editing width; narrow containers stack the destination below it.
 struct BrowserLinkRouteCard: View {
     let route: LinkRoute
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
     let canMoveUp: Bool
     let canMoveDown: Bool
     let update: (BrowserLinkRouteFieldUpdate) -> Void

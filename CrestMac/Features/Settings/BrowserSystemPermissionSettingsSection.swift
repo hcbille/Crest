@@ -27,9 +27,8 @@ private struct BrowserSystemPermissionSettingsContent: View {
     }
 
     private var spaceID: SpaceID? {
-        guard BrowserSettingsPrivacyPolicy.canRevealSpaceData(in: browser.selectedSpace, accessController: spaceAccess)
-        else { return nil }
-        return browser.selectedSpace?.id
+        guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return nil }
+        return space.id
     }
 
     var body: some View {
@@ -41,7 +40,7 @@ private struct BrowserSystemPermissionSettingsContent: View {
                         status: controller.status(for: permission),
                         error: controller.errors[permission],
                         isWorking: controller.working.contains(permission),
-                        spaceName: spaceID == nil ? nil : browser.selectedSpace?.name,
+                        spaceName: spaceID == nil ? nil : browser.shownSpace?.settings.name,
                         request: { Task { await controller.request(permission, spaceID: spaceID) } },
                         openSettings: { controller.openSettings(for: permission) },
                         chooseFolder: {

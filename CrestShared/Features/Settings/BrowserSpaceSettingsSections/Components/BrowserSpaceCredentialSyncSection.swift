@@ -12,7 +12,7 @@ import SwiftUI
 /// own rows while still handing every one of them the disabled state.
 struct BrowserSpaceCredentialSyncSection: View {
     let browser: BrowserStore
-    let space: BrowserSpace
+    let space: SpaceModel
 
     @State private var isSynchronizing = false
     @State private var synchronizationError: String?
@@ -55,9 +55,9 @@ struct BrowserSpaceCredentialSyncSection: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             }
-            .disabled(!currentSpace.credentialPreferences.isEnabled)
+            .disabled(!space.settings.credentialPreferences.isEnabled)
 
-            if !currentSpace.credentialPreferences.isEnabled {
+            if !space.settings.credentialPreferences.isEnabled {
                 Text(
                     "Saved passwords stay in this Space and can still be viewed or deleted from Passwords settings."
                 )
@@ -67,13 +67,9 @@ struct BrowserSpaceCredentialSyncSection: View {
         }
     }
 
-    private var currentSpace: BrowserSpace {
-        browser.liveSpace(space)
-    }
-
     private var synchronization: Binding<Bool> {
         Binding {
-            currentSpace.credentialPreferences.syncsCrestPasswordsWithICloud
+            space.settings.credentialPreferences.syncsCrestPasswordsWithICloud
         } set: { enabled in
             synchronizationError = nil
             isSynchronizing = true

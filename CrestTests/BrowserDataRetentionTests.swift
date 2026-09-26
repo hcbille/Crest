@@ -151,6 +151,8 @@ final class BrowserDataRetentionTests: XCTestCase {
         var session = BrowserSession.preview
         let cleanedProfileID = session.spaces[0].profile.id
         session.spaces[0].browsingPreferences.dataRetention.downloads = .thirtyDays
+        let store = BrowserStore(session: session)
+        let spaces = store.spaceModels
         let center = BrowserDownloadCenter()
         let expiredID = center.begin(
             profileID: cleanedProfileID,
@@ -159,11 +161,11 @@ final class BrowserDataRetentionTests: XCTestCase {
         )
         center.send(FinishDownload(downloadID: expiredID, finalByteCount: nil))
 
-        XCTAssertTrue(center.sweepExpiredRecords(using: session, now: now))
+        XCTAssertTrue(center.sweepExpiredRecords(in: spaces, now: now))
         XCTAssertTrue(center.items.isEmpty)
         XCTAssertFalse(
             center.sweepExpiredRecords(
-                using: session,
+                in: spaces,
                 now: now.addingTimeInterval(
                     BrowserCurrentTabCleanupSchedule.minimumSweepSpacing - 1
                 )
@@ -171,7 +173,7 @@ final class BrowserDataRetentionTests: XCTestCase {
         )
         XCTAssertTrue(
             center.sweepExpiredRecords(
-                using: session,
+                in: spaces,
                 now: now.addingTimeInterval(
                     BrowserCurrentTabCleanupSchedule.minimumSweepSpacing
                 )

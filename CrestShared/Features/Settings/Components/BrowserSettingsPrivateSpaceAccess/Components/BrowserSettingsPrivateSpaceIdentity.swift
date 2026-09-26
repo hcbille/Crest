@@ -1,11 +1,21 @@
 import SwiftUI
 
 struct BrowserSettingsPrivateSpaceIdentity: View {
-    let space: BrowserSpace
+    // MARK: - Variables
+
+    let space: BrowserSpaceIdentity
+
+    // MARK: - Initializers
+
+    init(space: some BrowserSpaceIdentifying) {
+        self.space = space.identity
+    }
+
+    // MARK: - Body
 
     var body: some View {
         Group {
-            BrowserSpaceSymbolArtwork(space: space, size: 34, lockSize: 8)
+            BrowserSpaceSymbolArtwork(identity: space, size: 34, lockSize: 8)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: CrestFormRowMetrics.titleSpacing) {

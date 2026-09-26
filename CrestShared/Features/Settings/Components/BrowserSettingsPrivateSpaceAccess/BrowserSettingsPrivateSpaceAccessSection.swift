@@ -1,9 +1,25 @@
 import SwiftUI
 
 struct BrowserSettingsPrivateSpaceAccessSection: View {
-    let space: BrowserSpace
+    // MARK: - Variables
+
+    let space: BrowserSpaceIdentity
     let accessController: BrowserSpaceAccessController
-    var detail = "Unlock this Space to view or change its private settings."
+    let detail: String
+
+    // MARK: - Initializers
+
+    init(
+        space: some BrowserSpaceIdentifying,
+        accessController: BrowserSpaceAccessController,
+        detail: String = "Unlock this Space to view or change its private settings."
+    ) {
+        self.space = space.identity
+        self.accessController = accessController
+        self.detail = detail
+    }
+
+    // MARK: - Body
 
     var body: some View {
         Section("Private Space", systemImage: "lock.shield") {

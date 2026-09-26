@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserPlatformLinkRouteEditor: View {
     let route: LinkRoute
-    let spaces: [BrowserSpace]
+    let spaces: [SpaceModel]
     let canMoveUp: Bool
     let canMoveDown: Bool
     let update: (BrowserLinkRouteFieldUpdate) -> Void

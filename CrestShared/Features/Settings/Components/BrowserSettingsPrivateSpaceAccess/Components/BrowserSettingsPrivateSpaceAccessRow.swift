@@ -1,8 +1,19 @@
 import SwiftUI
 
 struct BrowserSettingsPrivateSpaceAccessRow: View {
-    let space: BrowserSpace
+    // MARK: - Variables
+
+    let space: BrowserSpaceIdentity
     let accessController: BrowserSpaceAccessController
+
+    // MARK: - Initializers
+
+    init(space: some BrowserSpaceIdentifying, accessController: BrowserSpaceAccessController) {
+        self.space = space.identity
+        self.accessController = accessController
+    }
+
+    // MARK: - Body
 
     var body: some View {
         HStack(spacing: CrestSpacing.medium) {

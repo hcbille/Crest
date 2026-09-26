@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSettingsPrivateSpaceUnlockControl: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let accessController: BrowserSpaceAccessController
 
     var body: some View {

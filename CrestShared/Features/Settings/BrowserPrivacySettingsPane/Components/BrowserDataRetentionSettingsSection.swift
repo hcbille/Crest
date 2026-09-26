@@ -83,10 +83,7 @@ struct BrowserDataRetentionSettingsSection: View {
     private func policy(
         for category: BrowserDataRetentionCategory
     ) -> DataRetention {
-        guard
-            let retention = browser.session.space(id: spaceID)?
-                .browsingPreferences.dataRetention
-        else {
+        guard let retention = browser.spaceModel(spaceID)?.settings.browsingPreferences.dataRetention else {
             return .forever
         }
         return switch category {
@@ -97,10 +94,7 @@ struct BrowserDataRetentionSettingsSection: View {
     }
 
     private func apply(_ change: BrowserDataRetentionChange) {
-        guard
-            var retention = browser.session.space(id: spaceID)?
-                .browsingPreferences.dataRetention
-        else {
+        guard var retention = browser.spaceModel(spaceID)?.settings.editableBrowsingPreferences.dataRetention else {
             pendingChange = nil
             return
         }
@@ -112,7 +106,7 @@ struct BrowserDataRetentionSettingsSection: View {
         let now = BrowserDataRetentionClock.now()
         browser.updateDataRetentionPreferences(retention, in: spaceID)
         downloadCenter.sweepExpiredRecords(
-            using: browser.session,
+            in: browser.spaceModels,
             now: now,
             force: true
         )

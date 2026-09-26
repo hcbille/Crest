@@ -31,7 +31,7 @@ struct BrowserGeneralSettingsPane: View {
                 CrestSpaceMenuPicker(
                     "Default Space",
                     selection: browser.defaultSpaceBinding(),
-                    spaces: CrestSpaceIdentity.list(browser.session.spaces),
+                    spaces: CrestSpaceIdentity.list(browser.spaceModels),
                     accessibilityIdentifier: "default-space-picker"
                 )
 

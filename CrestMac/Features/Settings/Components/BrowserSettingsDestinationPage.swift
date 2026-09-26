@@ -50,16 +50,18 @@ struct BrowserSettingsDestinationPage: View {
     }
 
     private var featureFlagsProfileID: UUID? {
-        let space: BrowserSpace?
+        let space: SpaceModel?
         if let tabAssignment {
-            space = browser.space(matching: BrowserSpaceRuntimeAssignment(
-                spaceID: tabAssignment.spaceID, profileID: tabAssignment.profileID))
+            space = browser.spaceModel(
+                matching: BrowserSpaceRuntimeAssignment(
+                    spaceID: tabAssignment.spaceID, profileID: tabAssignment.profileID))
         } else {
-            space = browser.selectedSpace
+            space = browser.shownSpace
         }
         guard let space,
-            !spaceAccess.isLocked(space) else { return nil }
-        return space.profile.id
+            !spaceAccess.isLocked(space)
+        else { return nil }
+        return space.profileID
     }
 
     private var setupActions: [BrowserAdvancedSetupAction] {

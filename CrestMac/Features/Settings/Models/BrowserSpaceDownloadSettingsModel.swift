@@ -28,7 +28,7 @@ final class BrowserSpaceDownloadSettingsModel {
     }
 
     /// The section's whole input for one Space, rebuilt as the Space changes.
-    func settings(for space: BrowserSpace) -> BrowserSpaceDownloadSettings {
+    func settings(for space: SpaceModel) -> BrowserSpaceDownloadSettings {
         BrowserSpaceDownloadSettings(
             asksWhereToSave: Binding { [self] in
                 asksWhereToSave
@@ -39,7 +39,7 @@ final class BrowserSpaceDownloadSettingsModel {
             usesCustomDirectory: usesCustomDirectory,
             errorMessage: errorMessage,
             explanation:
-                "This location belongs only to \(space.name) on this Mac. Opening a finished download opens the file directly; its menu also includes Show in Finder.",
+                "This location belongs only to \(space.settings.name) on this Mac. Opening a finished download opens the file directly; its menu also includes Show in Finder.",
             chooseDirectory: { [self] in chooseDirectory(for: space) },
             resetDirectory: { [self] in resetDirectory(for: space.id) }
         )
@@ -61,9 +61,9 @@ final class BrowserSpaceDownloadSettingsModel {
         preferences.setAsksWhereToSave(enabled, for: spaceID)
     }
 
-    private func chooseDirectory(for space: BrowserSpace) {
+    private func chooseDirectory(for space: SpaceModel) {
         let panel = NSOpenPanel()
-        panel.title = "Choose Download Folder for \(space.name)"
+        panel.title = "Choose Download Folder for \(space.settings.name)"
         panel.prompt = "Choose"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true

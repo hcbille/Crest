@@ -10,8 +10,8 @@ struct MobileSpaceSettingsView: View {
 
     @State private var selectedSpaceID: SpaceID?
     @State private var editorSection = BrowserSpaceEditorSection.appearance
-    @State private var managedSearchEngineSpace: BrowserSpace?
-    @State private var editingAppearanceSpace: BrowserSpace?
+    @State private var managedSearchEngineSpace: SpaceModel?
+    @State private var editingAppearanceSpace: SpaceModel?
 
     var body: some View {
         Group {
@@ -49,7 +49,6 @@ struct MobileSpaceSettingsView: View {
 
             if let space, canReveal(space) {
                 MobileSpaceCustomizationSection(
-                    browser: browser,
                     space: space,
                     editAppearance: { editingAppearanceSpace = space }
                 )
@@ -57,7 +56,7 @@ struct MobileSpaceSettingsView: View {
                 detailSections(for: space)
             } else if let space {
                 BrowserSettingsPrivateSpaceAccessSection(
-                    space: browser.liveSpace(space),
+                    space: space,
                     accessController: spaceAccess,
                     detail: "Unlock this Space before viewing its tab preview or changing its settings."
                 )
@@ -79,8 +78,8 @@ struct MobileSpaceSettingsView: View {
                         case .appearance:
                             BrowserCrestStudioWorkspace(
                                 branding: browser.spaceBrandingBinding(in: space),
-                                symbol: browser.spaceIdentityBinding(\.symbol, in: space),
-                                name: browser.spaceIdentityBinding(\.name, in: space))
+                                symbol: browser.spaceSymbolBinding(in: space),
+                                name: browser.spaceNameBinding(in: space))
                         case .settings:
                             ScrollView {
                                 BrowserSettingsSectionGrid {
@@ -94,7 +93,7 @@ struct MobileSpaceSettingsView: View {
                 } else {
                     BrowserSettingsPane(.spaces) {
                         BrowserSettingsPrivateSpaceAccessSection(
-                            space: browser.liveSpace(space), accessController: spaceAccess,
+                            space: space, accessController: spaceAccess,
                             detail: "Unlock this Space before viewing its tab preview or changing its settings.")
                     }
                 }
@@ -106,7 +105,7 @@ struct MobileSpaceSettingsView: View {
         .background(BrowserSettingsCanvas.background)
     }
 
-    private func detailSections(for space: BrowserSpace) -> some View {
+    private func detailSections(for space: SpaceModel) -> some View {
         BrowserSpaceSettingsSections(
             browser: browser,
             space: space,
@@ -118,18 +117,18 @@ struct MobileSpaceSettingsView: View {
 
     private func selectEditedSpace(_ id: SpaceID?) {
         selectedSpaceID = id
-        if usesLiveSidebar, let id, id != browser.selectedSpace?.id { liveSpaceSelection?.select(id) }
+        if usesLiveSidebar, let id, id != browser.shownSpace?.id { liveSpaceSelection?.select(id) }
     }
 
     @ViewBuilder
-    private func appearanceWorkspace(for requested: BrowserSpace) -> some View {
-        if let currentSpace = browser.session.space(id: requested.id),
+    private func appearanceWorkspace(for requested: SpaceModel) -> some View {
+        if let currentSpace = browser.spaceModel(requested.id),
             canReveal(currentSpace)
         {
             BrowserMobileSpaceAppearanceWorkspace(
                 branding: browser.spaceBrandingBinding(in: currentSpace),
-                symbol: browser.spaceIdentityBinding(\.symbol, in: currentSpace),
-                name: browser.spaceIdentityBinding(\.name, in: currentSpace), space: currentSpace)
+                symbol: browser.spaceSymbolBinding(in: currentSpace),
+                name: browser.spaceNameBinding(in: currentSpace), space: BrowserSpace(appearanceOf: currentSpace))
         }
     }
 
@@ -137,16 +136,13 @@ struct MobileSpaceSettingsView: View {
         usesLiveSidebar ? browser.selectedSpaceID : selectedSpaceID
     }
 
-    private var space: BrowserSpace? {
+    private var space: SpaceModel? {
         guard let editedSpaceID else { return nil }
-        return browser.session.space(id: editedSpaceID)
+        return browser.spaceModel(editedSpaceID)
     }
 
-    private func canReveal(_ space: BrowserSpace) -> Bool {
-        BrowserSettingsPrivacyPolicy.canRevealSpaceData(
-            in: browser.liveSpace(space),
-            accessController: spaceAccess
-        )
+    private func canReveal(_ space: SpaceModel) -> Bool {
+        !spaceAccess.isLocked(space)
     }
 
     private func dismissKeyboard() {

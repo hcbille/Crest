@@ -32,11 +32,7 @@ struct BrowserSpaceSettingsView: View {
             Divider()
 
             if let space {
-                let currentSpace = browser.liveSpace(space)
-                if BrowserSettingsPrivacyPolicy.canRevealSpaceData(
-                    in: currentSpace,
-                    accessController: spaceAccess
-                ) {
+                if !spaceAccess.isLocked(space) {
                     BrowserSpaceEditorView(
                         browser: browser,
                         space: space,
@@ -44,7 +40,7 @@ struct BrowserSpaceSettingsView: View {
                         spaceAccess: spaceAccess,
                         dataDeleter: dataDeleter,
                         spacePicker: BrowserSpaceCustomizationPicker(
-                            spaces: browser.session.spaces, selectedSpaceID: space.id,
+                            spaces: browser.spaceModels, selectedSpaceID: space.id,
                             selectSpace: { selectEditedSpace($0) }, moveSpace: moveSpace,
                             addSpace: addSpace)
                     )
@@ -52,7 +48,7 @@ struct BrowserSpaceSettingsView: View {
                 } else {
                     Form {
                         BrowserSettingsPrivateSpaceAccessSection(
-                            space: currentSpace,
+                            space: space,
                             accessController: spaceAccess,
                             detail: "Unlock this Space before viewing its tab preview or changing its settings."
                         )
@@ -77,7 +73,7 @@ struct BrowserSpaceSettingsView: View {
 
     private func selectEditedSpace(_ id: SpaceID?) {
         selectedSpaceID = id
-        if let id, id != browser.selectedSpace?.id { liveSpaceSelection?.select(id) }
+        if let id, id != browser.shownSpace?.id { liveSpaceSelection?.select(id) }
     }
 
     private var spaceToolbar: some View {
@@ -161,9 +157,9 @@ struct BrowserSpaceSettingsView: View {
 
     private func spacePicker(compact: Bool) -> some View {
         Picker("Space", selection: Binding(get: { editedSpaceID }, set: { selectEditedSpace($0) })) {
-            ForEach(browser.session.spaces) { space in
+            ForEach(browser.spaceModels) { space in
                 BrowserSpaceIdentityLabel(space: space)
-                    .accessibilityLabel("\(space.name), \(spaceSummary(space))")
+                    .accessibilityLabel("\(space.settings.name), \(spaceSummary(space))")
                     .tag(Optional(space.id))
             }
         }
@@ -208,7 +204,7 @@ struct BrowserSpaceSettingsView: View {
     }
 
     private func moveSpace(_ sourceID: SpaceID, to targetID: SpaceID) {
-        let spaces = browser.session.spaces
+        let spaces = browser.spaceModels
         guard let source = spaces.firstIndex(where: { $0.id == sourceID }),
             let target = spaces.firstIndex(where: { $0.id == targetID }), source != target
         else { return }
@@ -219,23 +215,32 @@ struct BrowserSpaceSettingsView: View {
         usesLiveSidebar ? browser.selectedSpaceID : selectedSpaceID
     }
 
-    private var space: BrowserSpace? {
+    private var space: SpaceModel? {
         guard let editedSpaceID else { return nil }
-        return browser.session.space(id: editedSpaceID)
+        return browser.spaceModel(editedSpaceID)
     }
 
-    private func spaceSummary(_ space: BrowserSpace) -> String {
-        BrowserSettingsPrivacyPolicy.spacePickerSummary(
-            for: browser.liveSpace(space),
-            isDefault: browser.session.defaultSpaceID == space.id,
-            accessController: spaceAccess
-        )
+    /// What the picker reads out for a Space: whether it is the default and
+    /// private, and its tab count while it is unlocked.
+    private func spaceSummary(_ space: SpaceModel) -> String {
+        var details: [String] = []
+        if browser.workspaceModel?.defaultSpaceID == space.id {
+            details.append(String(localized: "Default"))
+        }
+        if space.settings.requiresAuthentication {
+            details.append(String(localized: "Private"))
+        }
+        if !spaceAccess.isLocked(space) {
+            let count = space.tabs.models.count
+            details.append(count == 1 ? "1 tab" : "\(count) tabs")
+        }
+        return details.joined(separator: " · ")
     }
 
     private func applyRequestedSelection() {
         guard requestRevision > (tabState?.spaceRouteRevision ?? 0),
             let requestedSpaceID,
-            browser.session.space(id: requestedSpaceID) != nil
+            browser.spaceModel(requestedSpaceID) != nil
         else { return }
         tabState?.spaceRouteRevision = requestRevision
         selectedSpaceID = requestedSpaceID

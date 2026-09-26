@@ -121,7 +121,7 @@ struct BrowserMacWindowScene: View {
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
             await browser.sweepExpiredBrowsingDataWhileSceneIsActive {
-                pages.downloadCenter.sweepExpiredRecords(using: browser.session)
+                pages.downloadCenter.sweepExpiredRecords(in: browser.spaceModels)
             }
         }
         .onChange(of: chrome.columnVisibility, initial: true) { _, visibility in

@@ -15,7 +15,7 @@ import SwiftUI
 /// shared.
 struct BrowserSpaceSettingsSections: View {
     let browser: BrowserStore
-    let space: BrowserSpace
+    let space: SpaceModel
     let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     var capabilities = BrowserSpaceSettingsCapabilities()

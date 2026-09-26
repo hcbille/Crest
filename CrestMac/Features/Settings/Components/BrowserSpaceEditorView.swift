@@ -11,7 +11,7 @@ struct BrowserSpaceEditorView: View {
     }
 
     let browser: BrowserStore
-    let space: BrowserSpace
+    let space: SpaceModel
     let section: BrowserSpaceEditorSection
     let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
@@ -48,7 +48,7 @@ struct BrowserSpaceEditorView: View {
                         spacePicker
                         BrowserCrestStudioPreview(
                             branding: branding.wrappedValue, symbol: symbol.wrappedValue,
-                            name: currentSpace.name, space: currentSpace,
+                            name: space.settings.name, space: BrowserSpace(appearanceOf: space),
                             heroSize: geometry.size.height < 480 ? 96 : 140,
                             sidebarHeight: max(100, min(230, geometry.size.height - 344)))
                         Spacer(minLength: 0)
@@ -62,7 +62,7 @@ struct BrowserSpaceEditorView: View {
                             spacePicker
                         }
                         BrowserSpaceBrandingEditor(
-                            branding: branding, symbol: symbol, previewName: currentSpace.name,
+                            branding: branding, symbol: symbol, previewName: space.settings.name,
                             compact: !wide, showsPreview: !wide, editableName: name
                         )
                         .id(space.id)
@@ -88,7 +88,7 @@ struct BrowserSpaceEditorView: View {
                 spaceAccess: spaceAccess,
                 dataDeleter: dataDeleter,
                 capabilities: BrowserSpaceSettingsCapabilities(
-                    downloads: downloads.settings(for: currentSpace),
+                    downloads: downloads.settings(for: space),
                     editsCrestPasswords: true
                 )
             )
@@ -102,18 +102,14 @@ struct BrowserSpaceEditorView: View {
     }
 
     private var name: Binding<String> {
-        browser.spaceIdentityBinding(\.name, in: space)
+        browser.spaceNameBinding(in: space)
     }
 
     private var symbol: Binding<String> {
-        browser.spaceIdentityBinding(\.symbol, in: space)
+        browser.spaceSymbolBinding(in: space)
     }
 
     private var branding: Binding<BrowserSpaceBranding> {
         browser.spaceBrandingBinding(in: space)
-    }
-
-    private var currentSpace: BrowserSpace {
-        browser.liveSpace(space)
     }
 }

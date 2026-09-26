@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserSearchEngineManager: View {
     let browser: BrowserStore
-    let space: BrowserSpace
+    let space: SpaceModel
     let dismissKeyboard: @MainActor () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -12,7 +12,7 @@ struct BrowserSearchEngineManager: View {
 
     init(
         browser: BrowserStore,
-        space: BrowserSpace,
+        space: SpaceModel,
         dismissKeyboard: @escaping @MainActor () -> Void = {}
     ) {
         self.browser = browser
@@ -110,7 +110,7 @@ struct BrowserSearchEngineManager: View {
     }
 
     private var preferences: BrowserSpaceBrowsingPreferences {
-        browser.liveSpace(space).browsingPreferences
+        space.settings.editableBrowsingPreferences
     }
 
     private func providerRow(_ provider: SearchProvider) -> some View {
@@ -118,7 +118,7 @@ struct BrowserSearchEngineManager: View {
             select(provider)
         } label: {
             BrowserSearchEngineProviderLabel(
-                provider: provider, profileID: space.profile.id,
+                provider: provider, profileID: space.profileID,
                 isSelected: preferences.searchProvider == provider)
         }
         .buttonStyle(.plain)
@@ -132,7 +132,7 @@ struct BrowserSearchEngineManager: View {
                 select(custom.provider)
             } label: {
                 BrowserSearchEngineProviderLabel(
-                    provider: custom.provider, profileID: space.profile.id,
+                    provider: custom.provider, profileID: space.profileID,
                     isSelected: preferences.searchProvider == custom.provider
                 )
                 .contentShape(.rect)

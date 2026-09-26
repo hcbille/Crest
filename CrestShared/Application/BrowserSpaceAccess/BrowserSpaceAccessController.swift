@@ -93,17 +93,17 @@ final class BrowserSpaceAccessController {
     /// delete that profile while the system prompt is awaiting a response.
     @discardableResult
     func updatePolicy(
-        _ policy: BrowserSpaceAccessPolicy,
+        _ policy: SpaceAccessPolicy,
         matching assignment: BrowserSpaceRuntimeAssignment,
         in browser: BrowserStore
     ) async -> Bool {
         guard let space = browser.spaceModel(matching: assignment) else { return false }
-        if !policy.requiresAuthentication {
+        if policy == .open {
             guard await unlock(space) else { return false }
         }
         guard browser.spaceModel(matching: assignment) != nil else { return false }
         browser.updateSpaceAccessPolicy(policy, in: assignment.spaceID)
-        if policy.requiresAuthentication {
+        if policy != .open {
             lock(assignment.spaceID)
         }
         return true
