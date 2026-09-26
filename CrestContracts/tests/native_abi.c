@@ -269,10 +269,11 @@ static void engine_boundary(void) {
         &binding, &engine, &buffer) == CREST_REJECTED && buffer.bytes[0] == CREST_REJECTION_ENGINE_ALREADY_REGISTERED);
     crest_buffer_free(&buffer);
     engine = fixture.engine;
-    /* The engine lacks Reader, content blocking and translation, so the
-     * commands that need them are no longer offered: the shortcut bindings
-     * that change wait in the next drain. */
-    assert(crest_app_drain(app, &buffer) == CREST_OK && buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_SHORTCUTS_CHANGED);
+    /* The engines registered now wait in the next drain, first of two. The
+     * engine lacks Reader, content blocking and translation, so the commands
+     * that need them are no longer offered: the shortcut bindings that change
+     * follow. */
+    assert(crest_app_drain(app, &buffer) == CREST_OK && buffer.bytes[0] == 2 && buffer.bytes[1] == CREST_CHANGE_ENGINES_CHANGED);
     crest_buffer_free(&buffer);
 
     /* A workspace opened from a seed, with a window open over it. */

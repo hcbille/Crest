@@ -278,24 +278,25 @@ struct BrowserCommands: Commands {
         }
 
         CommandMenu("Page") {
-            // Features the running engine declares absent are left out of the
-            // menu rather than shown permanently dimmed.
-            if ShortcutCommand.toggleTranslationToolbar.isOfferedByCurrentEngine {
+            // Features no registered engine supports are left out of the menu
+            // rather than shown permanently dimmed; the shown page's engine
+            // decides whether one is enabled.
+            if ShortcutCommand.toggleTranslationToolbar.isOffered(in: browser.core.state) {
                 Button("Translate Page", systemImage: "translate") {
                     commandPages.activePage?.translation.present()
                 }
-                .disabled(!commandPages.hasActivePage || commandPages.readerModeState.isActive)
+                .disabled(!actions.canPerform(.toggleTranslationToolbar))
             }
-            if ShortcutCommand.toggleReaderMode.isOfferedByCurrentEngine {
+            if ShortcutCommand.toggleReaderMode.isOffered(in: browser.core.state) {
                 Button(
                     commandPages.readerModeActionTitle,
                     systemImage: ShortcutCommand.toggleReaderMode.symbol,
                     action: commandPages.toggleReaderMode
                 )
                 .keyboardShortcut(shortcut(.toggleReaderMode))
-                .disabled(!commandPages.readerModeState.canToggle)
+                .disabled(!actions.canPerform(.toggleReaderMode))
             }
-            if ShortcutCommand.toggleContentBlocking.isOfferedByCurrentEngine {
+            if ShortcutCommand.toggleContentBlocking.isOffered(in: browser.core.state) {
                 Button(
                     actions.contentBlockingActionTitle,
                     systemImage: ShortcutCommand.toggleContentBlocking.symbol,
@@ -396,7 +397,7 @@ struct BrowserCommands: Commands {
         }
 
         CommandGroup(after: .sidebar) {
-            if ShortcutCommand.toggleTranslationToolbar.isOfferedByCurrentEngine {
+            if ShortcutCommand.toggleTranslationToolbar.isOffered(in: browser.core.state) {
                 Toggle(
                     isOn: Binding(
                         get: { commandPages.activePage?.translation.showsToolbar == true },
@@ -408,7 +409,7 @@ struct BrowserCommands: Commands {
                         systemImage: ShortcutCommand.toggleTranslationToolbar.symbol)
                 }
                 .keyboardShortcut(shortcut(.toggleTranslationToolbar))
-                .disabled(!commandPages.hasActivePage || commandPages.readerModeState.isActive)
+                .disabled(!actions.canPerform(.toggleTranslationToolbar))
             }
             developerToolbarToggle
             Button(

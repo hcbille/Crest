@@ -36,6 +36,9 @@ public sealed class Engine {
     /// Whether the binding supports `capability`.
     internal bool Supports(EngineCapability capability) => capabilities.Contains(capability);
 
+    /// The engine as the read model shows it.
+    internal EngineState State => new(Kind, [.. EngineCapability.All.Where(Supports)], IsDefault);
+
     #endregion
 
     #region Actions - Commands

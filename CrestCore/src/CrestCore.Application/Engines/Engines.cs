@@ -13,10 +13,16 @@ internal sealed class Engines {
     /// The engine new pages open on, or null while none is registered.
     public Engine? Default => registered.Values.FirstOrDefault(engine => engine.IsDefault);
 
+    /// Every registered engine, as the read model shows them.
+    public EngineRoster Roster() => new([.. EngineKind.All.Where(registered.ContainsKey).Select(kind => registered[kind].State)]);
+
     /// The commands this device offers, in catalog order: those whose whole
-    /// feature the default engine supports, or every command before one registers.
-    public IReadOnlyList<ShortcutCommand> OfferedCommands() =>
-        Default is { } engine ? [.. ShortcutCommand.All.Where(command => command.IsOffered(engine.Supports))] : ShortcutCommand.All;
+    /// feature some registered engine supports, or every command before one
+    /// registers. A page's own engine decides whether the command can act on it.
+    public IReadOnlyList<ShortcutCommand> OfferedCommands() {
+        var offered = Roster().Offered;
+        return [.. ShortcutCommand.All.Where(command => command.IsOffered(offered.Contains))];
+    }
 
     #endregion
 

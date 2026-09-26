@@ -46,7 +46,7 @@ struct BrowserSettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            BrowserSettingsSidebar(navigation: $tabState.navigation)
+            BrowserSettingsSidebar(navigation: $tabState.navigation, state: browser.core.state)
                 .frame(width: 224)
             Divider()
 

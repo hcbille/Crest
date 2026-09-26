@@ -134,7 +134,7 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void OnlyCommandsTheDefaultEngineOffersHoldKeys() {
+    public void OnlyCommandsARegisteredEngineOffersHoldKeys() {
         using var app = new CrestApp(new AppConfiguration(null, DevicePlatform.Desktop));
         var reader = Typed("r", ShortcutModifiers.Command | ShortcutModifiers.Option);
         app.Send(new AssignShortcut(ShortcutCommand.ToggleReaderMode, reader));
@@ -144,5 +144,15 @@ public sealed partial class BrowserContractsTests {
         Assert.DoesNotContain(ShortcutCommand.ToggleReaderMode, offered);
         Assert.Contains(ShortcutCommand.NewTab, offered);
         Assert.Single(app.Send(new AssignShortcut(ShortcutCommand.NewTab, reader)).OfType<ShortcutsChanged>());
+
+        // A second engine with Reader offers the command again, though pages on the default engine still cannot use it.
+        app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, [.. EngineCapability.Required, EngineCapability.Reader],
+            IsDefault: false), _ => { });
+        var changes = app.Drain();
+        var roster = Assert.Single(changes.OfType<EnginesChanged>()).Roster;
+        Assert.Equal([EngineKind.Chromium, EngineKind.WebKit], roster.Engines.Select(engine => engine.Kind));
+        Assert.Equal([.. EngineCapability.Required, EngineCapability.Reader], roster.Offered);
+        Assert.Contains(ShortcutCommand.ToggleReaderMode,
+            Assert.Single(changes.OfType<ShortcutsChanged>()).Bindings.Select(binding => binding.Command));
     }
 }

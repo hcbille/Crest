@@ -62,9 +62,9 @@ struct BrowserGeneralSettingsPane: View {
                 }
             #endif
 
-            // Whole-page translation preferences; an engine without page
-            // translation has nothing for them to reach.
-            if BrowserEngineRegistration.current.supports(.translation) {
+            // Whole-page translation preferences, which reach only the pages of
+            // an engine with page translation.
+            if browser.core.state.offers(.translation) {
                 BrowserTranslationSettingsSection()
             }
 
@@ -263,7 +263,11 @@ struct BrowserNewTabSettingsSection: View {
         /// Read while the body evaluates, so the section follows the core's value.
         private var isEnabled: Binding<Bool> {
             let isEnabled = preferences.checksSpelling
-            return Binding { isEnabled } set: { preferences.setChecksSpellingForWebKit($0) }
+            return Binding {
+                isEnabled
+            } set: {
+                preferences.setChecksSpellingForWebKit($0)
+            }
         }
 
         var body: some View {

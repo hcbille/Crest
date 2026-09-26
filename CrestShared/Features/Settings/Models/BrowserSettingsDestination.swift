@@ -144,32 +144,26 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
 
     // MARK: - Actions - Platform capability
 
-    /// The destinations this platform can present, in catalog order.
+    /// The destinations this platform can present, in catalog order, whose
+    /// subject some engine the device registered provides.
     ///
     /// Shells iterate this rather than `all` so a destination that only one
     /// platform can host stays out of the other's list.
-    static var platformCases: [BrowserSettingsDestination] {
-        BrowserPlatformSettingsDestinationCatalog.cases
-            .filter(\.isProvidedByCurrentEngine)
+    @MainActor
+    static func platformCases(in state: CoreState) -> [BrowserSettingsDestination] {
+        BrowserPlatformSettingsDestinationCatalog.cases.filter { $0.isProvided(in: state) }
     }
 
-    /// Whether the running engine provides the destination's subject at all.
+    /// Whether some engine the device registered provides the destination's
+    /// subject at all.
     ///
     /// The set is fixed: accessibility identifiers derive from it and the
     /// automation suites pin it, so a destination never disappears from the
-    /// catalog because of which engine this process composed. Only its
-    /// availability follows the engine's declared capabilities.
-    var isProvidedByCurrentEngine: Bool {
-        requiredCapability.map(BrowserEngineRegistration.current.supports) ?? true
-    }
-
-    /// Whether this platform can present the destination at all.
-    ///
-    /// Keyboard shortcuts are a desktop concern: iOS has no rebindable command
-    /// table to edit, so `.shortcuts` is absent there.
-    var isAvailableOnCurrentPlatform: Bool {
-        isProvidedByCurrentEngine
-            && BrowserPlatformSettingsDestinationCatalog.isAvailable(self)
+    /// catalog because of which engines this process registered. Only its
+    /// availability follows their declared capabilities.
+    @MainActor
+    func isProvided(in state: CoreState) -> Bool {
+        requiredCapability.map(state.offers) ?? true
     }
 
     // MARK: - Actions - Identity

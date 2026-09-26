@@ -1,18 +1,15 @@
 import Foundation
 
 /// What this process makes of the core's command catalog: which commands the
-/// running engine offers, each command's default keys here, and the numbered
-/// commands by position.
+/// registered engines offer, each command's default keys here, and the
+/// numbered commands by position.
 extension ShortcutCommand {
     // MARK: - Variables
 
-    /// Whether the running engine offers the command anywhere a person can
-    /// find one: the menu bar and the launcher. A command whose whole feature
-    /// the engine declares absent is left out rather than shown permanently
-    /// dimmed. The core applies the same rule to the commands that may hold a
-    /// chord, which the shortcut settings list.
+    /// TRANSITIONAL until the Chromium menu reads `isOffered(in:)`: whether
+    /// the composition's own engine offers the command.
     var isOfferedByCurrentEngine: Bool {
-        isOffered(by: BrowserEngineRegistration.current)
+        requiredCapability.map(BrowserEngineRegistration.current.supports) ?? true
     }
 
     /// Crest's default keys for the command on this device.
@@ -22,8 +19,15 @@ extension ShortcutCommand {
 
     // MARK: - Actions - Offering
 
-    func isOffered(by registration: BrowserAdapterRegistration) -> Bool {
-        requiredCapability.map(registration.supports) ?? true
+    /// Whether the device offers the command anywhere a person can find one,
+    /// such as the menu bar and the launcher: some engine it registered
+    /// supports the command's whole feature. A command no engine supports is
+    /// left out rather than shown permanently dimmed, while one the shown
+    /// page's engine lacks stays dimmed. The core applies the same rule to the
+    /// commands that may hold a chord, which the shortcut settings list.
+    @MainActor
+    func isOffered(in state: CoreState) -> Bool {
+        requiredCapability.map(state.offers) ?? true
     }
 
     // MARK: - Actions - Numbered selection

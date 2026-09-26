@@ -232,11 +232,13 @@ Remaining. The Chromium registration declares both limits:
 
 ### WP6. Capability truth and UI hygiene. Done
 
-- `BrowserCommandActions.paletteCommands` and
-  `ShortcutCommand.offered` filter by the current engine's
-  capabilities.
-- Settings destinations filter on `isProvidedByCurrentEngine`, which covers
-  Feature Flags.
+- The core publishes the registered engines, with what each supports, as
+  `EnginesChanged`. Menus, the launcher and the shortcut settings offer a
+  command some registered engine supports, and the shown page's engine enables
+  it, so Reader is offered on a WebKit page and extensions on a Chromium page.
+  The Chromium product's own menu still reads its composition's engine.
+- Settings destinations filter on `isProvided(in:)`, which covers Feature
+  Flags.
 - When content blocking is unavailable, the Privacy pane says that blocking
   comes from the extensions the person installs.
 - Archives follow the engine: `.webarchive` on WebKit, `.mhtml` on Chromium.

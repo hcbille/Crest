@@ -1,15 +1,19 @@
 import Foundation
 
 enum MobileSettingsDestinationFilter {
+    /// The destinations the list shows: those `state`'s engines provide,
+    /// matching `searchText`.
+    @MainActor
     static func destinations(
         matching searchText: String,
-        locale: Locale
+        locale: Locale,
+        in state: CoreState
     ) -> [BrowserSettingsDestination] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
-            return BrowserSettingsDestination.platformCases
+            return BrowserSettingsDestination.platformCases(in: state)
         }
-        return BrowserSettingsDestination.platformCases.filter {
+        return BrowserSettingsDestination.platformCases(in: state).filter {
             $0.matchesSearchQuery(query, locale: locale)
         }
     }

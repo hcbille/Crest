@@ -96,6 +96,7 @@ enum Change: Equatable, Sendable {
     case downloadDestinationAsked(DownloadDestinationAsked)
     case downloadUpdated(DownloadUpdated)
     case downloadsRemoved(DownloadsRemoved)
+    case enginesChanged(EnginesChanged)
     case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
@@ -410,6 +411,7 @@ extension CoreState {
         case .downloadDestinationAsked(let change): apply(change)
         case .downloadUpdated(let change): apply(change)
         case .downloadsRemoved(let change): apply(change)
+        case .enginesChanged(let change): apply(change)
         case .extensionInstallAsked(let change): apply(change)
         case .foldersChanged(let change): apply(change)
         case .historyChanged(let change): apply(change)
@@ -1867,6 +1869,21 @@ struct EngineRegistration: Equatable, Sendable {
     let kind: EngineKind
     let capabilities: [EngineCapability]
     let isDefault: Bool
+}
+
+struct EngineRoster: Equatable, Sendable {
+    let engines: [EngineState]
+    let offered: [EngineCapability]
+}
+
+struct EngineState: Equatable, Sendable {
+    let kind: EngineKind
+    let capabilities: [EngineCapability]
+    let isDefault: Bool
+}
+
+struct EnginesChanged: Equatable, Sendable {
+    let roster: EngineRoster
 }
 
 struct EnterPictureInPicture: PageRequest, Equatable, Sendable {

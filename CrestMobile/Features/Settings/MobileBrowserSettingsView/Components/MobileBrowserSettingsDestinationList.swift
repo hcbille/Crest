@@ -3,6 +3,8 @@ import SwiftUI
 struct MobileBrowserSettingsDestinationList: View {
     @Binding var selection: BrowserSettingsDestination
     @Binding var searchText: String
+    /// The read model whose engines say which destinations exist.
+    let state: CoreState
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.browserSettingsUsesLiveSidebar) private var usesLiveSidebar
@@ -48,7 +50,8 @@ struct MobileBrowserSettingsDestinationList: View {
     private var filteredDestinations: [BrowserSettingsDestination] {
         MobileSettingsDestinationFilter.destinations(
             matching: searchText,
-            locale: locale
+            locale: locale,
+            in: state
         )
     }
 

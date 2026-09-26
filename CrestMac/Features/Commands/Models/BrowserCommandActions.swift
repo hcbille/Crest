@@ -82,7 +82,7 @@ struct BrowserCommandActions {
         shortcuts: BrowserShortcutStore?
     ) -> BrowserCommandPaletteCommandRegistry {
         BrowserCommandPaletteCommandRegistry(
-            commands: Self.paletteCommands.filter(\.isOfferedByCurrentEngine),
+            commands: Self.paletteCommands.filter { $0.isOffered(in: browser.core.state) },
             shortcut: { shortcuts?.shortcut(for: $0) },
             perform: perform
         )
@@ -199,11 +199,11 @@ struct BrowserCommandActions {
 
     /// The same question as `supportsPageCapability` for commands that are about
     /// the window rather than the document in it, so they stay available in the
-    /// moment before a page exists. The active page's own engine still answers
-    /// whenever there is one.
+    /// moment before a page exists, when the engine new pages open on answers.
+    /// The active page's own engine answers whenever there is one.
     private func supportsEngineCapability(_ capability: EngineCapability) -> Bool {
-        (pages.activePage?.pageEngine.registration ?? BrowserEngineRegistration.current)
-            .supports(capability)
+        pages.activePage?.pageEngine.registration.supports(capability)
+            ?? browser.core.state.defaultEngineSupports(capability)
     }
 
     /// Where each numbered selection command leads right now, per the core.

@@ -12,13 +12,16 @@ struct BrowserSettingsNavigationState: Equatable {
         self.searchText = searchText
     }
 
-    func visibleDestinations(locale: Locale) -> [BrowserSettingsDestination] {
+    /// The destinations the sidebar lists: those `state`'s engines provide,
+    /// matching the search.
+    @MainActor
+    func visibleDestinations(locale: Locale, in state: CoreState) -> [BrowserSettingsDestination] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
-            return BrowserSettingsDestination.platformCases
+            return BrowserSettingsDestination.platformCases(in: state)
         }
 
-        let matches = BrowserSettingsDestination.platformCases.filter {
+        let matches = BrowserSettingsDestination.platformCases(in: state).filter {
             $0.matchesSearchQuery(query, locale: locale)
         }
         guard selection == .passwords, !matches.contains(.passwords) else {

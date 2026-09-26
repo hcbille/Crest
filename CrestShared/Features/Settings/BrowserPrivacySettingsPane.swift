@@ -49,7 +49,7 @@ struct BrowserPrivacySettingsPane: View {
                     }
                 }
 
-                if BrowserEngineRegistration.current.supports(.permissions) {
+                if browser.core.state.offers(.permissions) {
                     BrowserSavedSitePermissionSection(
                         records: records,
                         permissionCenter: permissionCenter,
@@ -103,12 +103,12 @@ struct BrowserPrivacySettingsPane: View {
         return !spaceAccess.isLocked(selectedSpace)
     }
 
-    /// Crest's own blocking is a WebKit content-rule list. The engine running this
-    /// process either applies it or it does not, and a preference that cannot reach
-    /// the engine is worse than an absent one: where blocking comes from an
-    /// extension instead, the section only says so.
+    /// Crest's own blocking is a WebKit content-rule list. An engine either
+    /// applies it or it does not, and a preference that cannot reach any engine
+    /// is worse than an absent one: where blocking comes only from an extension,
+    /// the section says so instead.
     private var supportsContentBlocking: Bool {
-        BrowserEngineRegistration.current.supports(.contentBlocking)
+        browser.core.state.offers(.contentBlocking)
     }
 
     private var contentBlockingPolicyBinding: Binding<ContentBlockingPolicy> {

@@ -13,7 +13,8 @@ struct MobileBrowserRegularSettingsLayout: View {
         NavigationSplitView {
             MobileBrowserSettingsDestinationList(
                 selection: $selection,
-                searchText: $searchText
+                searchText: $searchText,
+                state: browser.core.state
             )
             .navigationTitle("Settings")
         } detail: {

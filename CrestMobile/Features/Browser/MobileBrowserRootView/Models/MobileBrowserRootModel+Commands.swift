@@ -44,6 +44,7 @@ extension MobileBrowserRootModel {
             isSelectedTabInSplit: controller.isSelectedTabInSplit,
             canSplitWithNextTab: controller.canSplitWithNextTab,
             layoutDirection: layoutDirection,
+            isOffered: { [state = browser.core.state] in $0.isOffered(in: state) },
             readerModeActionTitle: pageActions?.readerModeActionTitle ?? "Show Reader",
             canToggleReaderMode: pageActions?.readerModeState.canToggle == true,
             canToggleTranslationToolbar: usesPageToolbars && pageActions?.isAvailable == true

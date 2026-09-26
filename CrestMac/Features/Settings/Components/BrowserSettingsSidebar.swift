@@ -5,6 +5,8 @@ struct BrowserSettingsSidebar: View {
     @Environment(\.browserSettingsTabState) private var tabState
     @State private var standaloneScroll = BrowserNativeScrollState()
     @Binding var navigation: BrowserSettingsNavigationState
+    /// The read model whose engines say which destinations exist.
+    let state: CoreState
     @FocusState private var isSearchFocused: Bool
     @FocusState private var focusedDestination: BrowserSettingsDestination?
 
@@ -27,7 +29,7 @@ struct BrowserSettingsSidebar: View {
             Divider()
             ScrollView {
                 LazyVStack(spacing: 4) {
-                    ForEach(navigation.visibleDestinations(locale: locale)) { destination in
+                    ForEach(navigation.visibleDestinations(locale: locale, in: state)) { destination in
                         Button {
                             navigation.selection = destination
                         } label: {
@@ -52,7 +54,7 @@ struct BrowserSettingsSidebar: View {
             .browserNativeScrollState(tabState?.sidebarScroll ?? standaloneScroll)
             .onMoveCommand { direction in
                 guard focusedDestination != nil else { return }
-                let choices = navigation.visibleDestinations(locale: locale)
+                let choices = navigation.visibleDestinations(locale: locale, in: state)
                 guard let index = choices.firstIndex(of: navigation.selection) else { return }
                 let offset = direction == .down ? 1 : direction == .up ? -1 : 0
                 let next = choices[min(max(index + offset, 0), choices.count - 1)]
