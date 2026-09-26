@@ -98,15 +98,16 @@ final class WebKitEngineBinding: EngineBinding {
         guard let engines else { return }
         switch command {
         case .createPage(let creation):
-            guard let request = engines.request(creation.pageID) else {
+            if let request = engines.request(creation.pageID) {
+                request.built = keep(build(creation, from: request.webKit))
+            } else if let moving = engines.page(creation.pageID), let inputs = moving.webKitInputs?() {
+                // The core moved a page the platform already hosts to WebKit:
+                // its owner takes the new page before the core loads it.
+                engines.handOver(keep(build(creation, from: inputs)), movedPage: moving)
+            } else {
                 engines.report(PageCreationFailed(pageID: creation.pageID), from: self)
                 return
             }
-            let page = build(creation, from: request.webKit)
-            page.binding = self
-            pages = pages.filter { $0.value.value != nil }
-            pages[creation.pageID] = WeakPage(value: page)
-            request.built = page
             engines.report(PageCreated(pageID: creation.pageID), from: self)
         case .loadPage(let loading):
             guard let url = URL(string: loading.url) else { return }
@@ -165,6 +166,15 @@ final class WebKitEngineBinding: EngineBinding {
     }
 
     // MARK: - Actions - Pages
+
+    /// Keeps `page` as the binding's own, which its questions and its direct
+    /// path reach while its owner keeps it.
+    private func keep(_ page: WebKitEnginePage) -> WebKitEnginePage {
+        page.binding = self
+        pages = pages.filter { $0.value.value != nil }
+        pages[page.id] = WeakPage(value: page)
+        return page
+    }
 
     /// The page for `creation`, with the configuration `inputs` hands over, or
     /// one assembled for the page's profile with the platform's own settings.

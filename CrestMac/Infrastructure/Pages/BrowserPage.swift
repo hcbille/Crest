@@ -20,20 +20,30 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// The core's page, which `release(keepingState:)` ends.
     @ObservationIgnored let corePage: CorePage
     /// The engine's per-page adapter. Everything the page asks of its engine
-    /// goes through it or through `pageEngine`.
-    @ObservationIgnored let engineAdapter: any BrowserPageEngineAdapter
-    @ObservationIgnored let pageEngine: any BrowserPageEngine
+    /// goes through it or through `pageEngine`. It changes when the core moves
+    /// the page to another engine, and the page's card then shows the new
+    /// engine's view.
+    private(set) var engineAdapter: any BrowserPageEngineAdapter
+    var pageEngine: any BrowserPageEngine { engineAdapter.engine }
     /// The page's direct path to its engine: going back, reloading, zooming,
     /// finding text and keeping its history.
     var enginePage: EnginePage { engineAdapter.enginePage }
     var pictureInPicture: (any BrowserPagePictureInPictureController)? { engineAdapter.pictureInPicture }
     var linkHover: BrowserLinkHoverController? { engineAdapter.linkHover }
     var linkDrag: BrowserLinkDragController? { engineAdapter.linkDrag }
-    @ObservationIgnored lazy var focusRestoration: BrowserWebFocusRestorationController = {
+    /// Restores the editing focus of the engine's view, once asked for.
+    var focusRestoration: BrowserWebFocusRestorationController {
+        if let focusRestorationStorage { return focusRestorationStorage }
         let controller = BrowserWebFocusRestorationController(webView: nativeView)
         engineAdapter.install(controller)
+        focusRestorationStorage = controller
         return controller
-    }()
+    }
+    @ObservationIgnored private var focusRestorationStorage: BrowserWebFocusRestorationController?
+    /// What the page's engine is built with, which a new engine takes too.
+    @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
+    @ObservationIgnored private let allowsCredentialAccess: Bool
+    @ObservationIgnored private var isPrivateBrowsing = false
 
     /// What the page shows as the core holds it: its address, title,
     /// loading, history, security, failure and media. Presentation that
@@ -97,7 +107,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     let sitePermissionRequests = BrowserPagePermissionController()
     @ObservationIgnored let permissionCenter: BrowserSitePermissionCenter
     /// Carries Crest's site permission decisions to the engine as they change.
-    @ObservationIgnored let sitePermissionSession: BrowserPageSitePermissionSession
+    @ObservationIgnored private(set) var sitePermissionSession: BrowserPageSitePermissionSession
     @ObservationIgnored let hostedNotificationCenter: (any BrowserHostedWebNotificationCentering)?
     @ObservationIgnored let recoverNotificationSystemAuthorization: @MainActor () async -> Void
     /// The system's consent the page asks before it sends the person's Allow
@@ -238,7 +248,8 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.spaceName = spaceName
         self.corePage = corePage
         self.engineAdapter = engineAdapter
-        pageEngine = engineAdapter.engine
+        self.mediaSessionStore = mediaSessionStore
+        self.allowsCredentialAccess = allowsCredentialAccess
         sitePermissionSession = BrowserPageSitePermissionSession(
             page: engineAdapter.enginePage, permissionCenter: permissionCenter, spaceID: spaceID)
         let normalizedDefaultPageZoom = BrowserPageZoomPolicy.normalizedDefault(
@@ -296,15 +307,29 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         )
         super.init()
         corePage.appLoad = { [weak self] in self?.load($0) }
+        corePage.engineMoved = { [weak self] in self?.moveToNewEngine() }
+        corePage.webKitInputs = { [weak self] in
+            guard let self else { return nil }
+            return self.windowRouting?.pool?.webKitInputs(forSpaceID: self.spaceID)
+        }
+        installEngine()
+    }
+
+    /// Wires the engine adapter into the page: the site decisions it carries,
+    /// the Space's zoom, its delegates and bridges, its Media Session, and the
+    /// content bridges an engine runs itself.
+    private func installEngine() {
         sitePermissionSession.siteURL = { [weak self] in self?.pageEngine.currentURL ?? self?.live.documentURL }
         sitePermissionSession.siteDecisionDidChange = { [weak self] in self?.sitePermissionDidChange($0) }
         // The Space's default zoom; an engine that creates its page later
         // replays it then.
         enginePage.zoom(to: pageZoom)
         engineAdapter.attach(to: self, allowsCredentialAccess: allowsCredentialAccess)
+        engineAdapter.setPrivateBrowsing(isPrivateBrowsing)
         if let mediaSessionStore {
             mediaSessionCoordinator = engineAdapter.makeMediaSessionCoordinator(for: self, store: mediaSessionStore)
         }
+        if userActivityHandler != nil { engineAdapter.monitorUserActivity(for: self) }
         // An engine that runs Crest's content bridges itself receives them here;
         // the WebKit adapter installs its own through its user content controller.
         if allowsCredentialAccess, let scripting = pageEngine.contentScripting {
@@ -450,22 +475,64 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     }
 
     private func tearDown() {
-        faviconSession?.stop()
         sitePermissionRequests.setPresentationAvailable(false)
         translation.reset()
-        readerModeSession?.invalidate()
-        linkHover?.detach()
-        linkDrag?.detach()
-        focusRestoration.invalidate()
-        mediaSessionCoordinator?.prepareForRemoval()
-        pictureInPicture?.invalidate()
         fileUploadAccess.invalidate()
         userActivityHandler = nil
         linkContextCapture.clear()
+        tearDownEngine()
+    }
+
+    /// Takes down what the page's engine hosts for it, without telling the
+    /// core, which ends the page or has already moved it.
+    private func tearDownEngine() {
+        faviconSession?.stop()
+        readerModeSession?.invalidate()
+        linkHover?.detach()
+        linkDrag?.detach()
+        focusRestorationStorage?.invalidate()
+        focusRestorationStorage = nil
+        mediaSessionCoordinator?.prepareForRemoval()
+        pictureInPicture?.invalidate()
         sitePermissionSession.resetMediaGrants()
         webKitAdapter?.webKitPage.resetAutomaticDownloads()
         engineAdapter.detach(from: self)
         mediaSessionCoordinator = nil
+    }
+
+    /// Hosts the page on the engine the core moved it to. The old engine's
+    /// hosting comes down, the new engine's adapter and view take its place,
+    /// and the page keeps its identity, so the tab, lease or window that
+    /// holds it keeps it. What the old engine showed of the page, such as its
+    /// bars, a find or a translation, goes with it.
+    private func moveToNewEngine() {
+        guard let hosted = corePage.movedHost(from: pageEngine.registration.kind) else { return }
+        let adapter: any BrowserPageEngineAdapter
+        if let webKitPage = hosted as? WebKitEnginePage {
+            adapter = BrowserWebKitPageAdapter(page: webKitPage)
+        } else if let native = hosted as? any BrowserPageEngineAdapter {
+            adapter = native
+        } else {
+            preconditionFailure("An engine built something other than a desktop page.")
+        }
+        translation.reset()
+        linkContextCapture.clear()
+        findSession.dismiss(using: enginePage)
+        tearDownEngine()
+        engineAdapter = adapter
+        sitePermissionSession = BrowserPageSitePermissionSession(
+            page: adapter.enginePage, permissionCenter: permissionCenter, spaceID: spaceID)
+        engineInfoBars = []
+        developerPanel = nil
+        webContentFailureMessage = nil
+        installEngine()
+    }
+
+    /// Whether the page belongs to a private window, which its engine takes
+    /// on, now and whenever the page moves to another engine.
+    func setPrivateBrowsing(_ isPrivate: Bool) {
+        isPrivateBrowsing = isPrivate
+        engineAdapter.setPrivateBrowsing(isPrivate)
     }
 
     /// Tries again to show a page its engine couldn't create.

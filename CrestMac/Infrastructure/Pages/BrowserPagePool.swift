@@ -304,7 +304,7 @@ final class BrowserPagePool:
 
     func bindRuntimeRouting(_ runtime: BrowserTabRuntime, tabID: TabID) {
         for page in runtime.allPages {
-            page.engineAdapter.setPrivateBrowsing(browsingMode.isPrivate)
+            page.setPrivateBrowsing(browsingMode.isPrivate)
             page.host = self
             page.windowRouting?.pool = self
             page.downloadCenter = downloadCenter
@@ -1192,7 +1192,7 @@ final class BrowserPagePool:
             splitLinkHost: splitLinkHost,
             linkDestinationHost: linkDestinationHost
         )
-        page.engineAdapter.setPrivateBrowsing(browsingMode.isPrivate)
+        page.setPrivateBrowsing(browsingMode.isPrivate)
         page.host = self
         page.windowRouting = routing
         return page

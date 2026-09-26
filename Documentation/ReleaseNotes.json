@@ -2873,6 +2873,10 @@
     "2026-09-26-shared-page-host": {
       "category": "internal",
       "message": "One page host keeps each window's pages on Mac, iPhone and iPad, and the core decides which pages memory pressure unloads on every device"
+    },
+    "2026-09-26-pages-move-engines-in-place": {
+      "category": "internal",
+      "message": "A page can move to another engine while keeping its tab, window and card"
     }
   }
 }

@@ -14,6 +14,12 @@ extension BrowserPagePool {
         WebKitPageInputs(websiteDataStore: websiteDataStore(for: space.profile), contentRuleLists: contentRuleLists(for: space))
     }
 
+    /// What WebKit's binding builds a page of Space `spaceID` from when the
+    /// core moves the page to WebKit; nil once the Space is gone.
+    func webKitInputs(forSpaceID spaceID: SpaceID) -> WebKitPageInputs? {
+        browser.session.space(id: spaceID).map(webKitInputs(for:))
+    }
+
     /// Adopts the web view WebKit pre-made for a popup as a new tab in the
     /// opener's Space, selected unless `selecting` is false.
     ///

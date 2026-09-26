@@ -23,6 +23,14 @@ final class CorePage {
     /// the app's own load of an address in the platform's page, which WebKit
     /// runs when the core asks it to load one. Set by the page's owner.
     var appLoad: (@MainActor (URL) -> Void)?
+    /// What WebKit's binding builds the page from if the core moves it to
+    /// WebKit: its profile's store and its Space's content rules, as its
+    /// owner keeps them. Set by the page's owner.
+    var webKitInputs: (@MainActor () -> WebKitPageInputs?)?
+    /// Runs when the core moved the page to another engine, so its owner
+    /// hosts it there; `movedHost(from:)` answers what it hosts. Set by the
+    /// page's owner.
+    var engineMoved: (@MainActor () -> Void)?
 
     /// The core's model of the page, until the page is gone.
     var state: PageStateModel? { core?.state.pages[id] }
@@ -37,6 +45,14 @@ final class CorePage {
     init(id: UUID = UUID(), core: CrestCore) {
         self.id = id
         self.core = core
+    }
+
+    // MARK: - Actions - Engines
+
+    /// What the platform hosts for the page now that the core moved it off
+    /// engine `current`; nil when it did not move.
+    func movedHost(from current: EngineKind) -> AnyObject? {
+        core?.engines.movedHost(for: self, from: current)
     }
 
     // MARK: - Actions - Data

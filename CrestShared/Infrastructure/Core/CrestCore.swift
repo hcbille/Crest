@@ -301,7 +301,13 @@ final class CrestCore {
         var unloadedPages: [PageUnloaded] = []
         var closesReady: [CloseReady] = []
         var dataDeleted: [DataDeleted] = []
+        var movedPages: [UUID] = []
         for change in changes {
+            if case .pageChanged(let changed) = change, let before = state.pages[changed.page.id]?.engine,
+                before != changed.page.engine
+            {
+                movedPages.append(changed.page.id)
+            }
             state.apply(change)
             switch change {
             case .storageFailed(let failure): storageFailed(failure.reason)
@@ -328,6 +334,7 @@ final class CrestCore {
         if !promptChanges.isEmpty { promptsChanged(promptChanges) }
         if !downloadChanges.isEmpty { downloadsChanged(downloadChanges) }
         if !unloadedPages.isEmpty { pagesUnloaded(unloadedPages) }
+        if !movedPages.isEmpty { engines.pagesMoved(movedPages) }
         #if DEBUG
             batchApplied?(changes)
         #endif

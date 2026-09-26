@@ -82,6 +82,9 @@ final class Engines {
     @ObservationIgnored private var hosts: [UUID: EngineKind] = [:]
     /// The pages the core opened, while their owners keep them.
     @ObservationIgnored private var opened: [UUID: WeakPage] = [:]
+    /// What an engine the core moved a page to built for it, until the page's
+    /// owner takes it.
+    @ObservationIgnored private var moved: [UUID: AnyObject] = [:]
     /// The icon each page last reported, until a tab adopts it and the bytes
     /// move to `FaviconAssets` under that tab.
     @ObservationIgnored private var pageIcons: [UUID: Data] = [:]
@@ -169,6 +172,33 @@ final class Engines {
         requests[pageID]
     }
 
+    // MARK: - Actions - Moving pages
+
+    /// Hands the page's owner what `built` is: the page an engine built for a
+    /// page the core moved to it. The owner takes it before the engine reports
+    /// the page created, so the core's first load reaches the new page.
+    func handOver(_ built: AnyObject, movedPage page: CorePage) {
+        moved[page.id] = built
+        page.engineMoved?()
+    }
+
+    /// What the platform hosts for `page` now that the core moved it off
+    /// engine `current`: the page its new engine's binding built, or the host
+    /// of an engine the core runs directly. Nil when it did not move.
+    func movedHost(for page: CorePage, from current: EngineKind) -> AnyObject? {
+        if let built = moved.removeValue(forKey: page.id) { return built }
+        guard let kind = page.state?.engine, kind != current, let binding = natives[kind] else { return nil }
+        return binding.host(page)
+    }
+
+    /// Tells the owners of `pageIDs` the core moved their pages to another
+    /// engine.
+    func pagesMoved(_ pageIDs: [UUID]) {
+        for pageID in pageIDs {
+            opened[pageID]?.value?.engineMoved?()
+        }
+    }
+
     /// Reports what happened to one of `binding`'s pages. `icon` is the image
     /// a `PageIconChanged` names, which waits here for the tab that adopts it.
     func report(_ event: some EngineEvent, from binding: any EngineBinding, icon: (page: UUID, data: Data)? = nil) {
@@ -195,6 +225,7 @@ final class Engines {
         hosts[pageID] = nil
         pageIcons[pageID] = nil
         opened[pageID] = nil
+        moved[pageID] = nil
     }
 
     private func report(_ event: some EngineEvent, on kind: EngineKind, icon: (page: UUID, data: Data)?) {
@@ -222,7 +253,10 @@ final class Engines {
     // MARK: - Actions - Commands
 
     /// Hands a command the core issued to the binding it names. A page the
-    /// core asks an engine to create is that engine's until it closes.
+    /// core asks an engine to create is that engine's until it closes. The
+    /// page itself stays the core's: one the core moves to another engine
+    /// closes on this one and lives on, and its owner forgets it only when it
+    /// lets it go.
     func run(_ command: EngineCommand, on kind: EngineKind) {
         switch command {
         case .createPage(let creation): hosts[creation.pageID] = kind
@@ -230,7 +264,8 @@ final class Engines {
             .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
             .approveEngineDownload, .checkBeforeUnload, .eraseProfileData, .eraseSiteData:
             break
-        case .closePage(let closing): forget(closing.pageID)
+        case .closePage(let closing):
+            if hosts[closing.pageID] == kind { hosts[closing.pageID] = nil }
         }
         bindings[kind]?.run(command)
     }
