@@ -50,8 +50,9 @@ struct MobileBrowserCommandController {
     @discardableResult
     func dismissSelectedTab() -> TabID? {
         guard let selectedTab = browser.shownTab, canDismissSelectedTab else { return nil }
-        // TRANSITIONAL until WP C slice (g) moves before-unload into the core:
-        // a saved or pinned tab's page is put away before the core records it.
+        // TRANSITIONAL until the shared page host follows the core's page
+        // closes (WP C (j2)): a saved or pinned tab's page is put away before
+        // the core records it.
         if selectedTab.placement.isDurable {
             guard let space = browser.shownSpace,
                 BrowserDurableTabCloseAction(

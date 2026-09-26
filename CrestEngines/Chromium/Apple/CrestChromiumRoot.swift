@@ -161,8 +161,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         self.host = host
         let chromium = ChromiumEngine(host: host, table: binding, fingerprint: fingerprint, pages: pages)
         self.chromium = chromium
-        application = try BrowserMacApplication(pageClosePreparation: ChromiumPageClosePreparer(host: host),
-            profileRemover: ChromiumProfileRemover(engine: chromium),
+        application = try BrowserMacApplication(profileRemover: ChromiumProfileRemover(engine: chromium),
             defaultEngine: chromium,
             // Site Controls is where a keyboard-triggered extension popup opens
             // when the extension has no pinned tile to anchor to.
@@ -637,7 +636,10 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             ids += quickWindows.values.filter { $0.model.browser.isPrivateBrowsing }
                 .compactMap { $0.window.identifier.flatMap { UUID(uuidString: $0.rawValue) } }
         }
-        host.prepareToClose(pages: [], windows: ids, completion: completion)
+        // The core asks each page the windows host whether it may go.
+        application.browser.core.prepareToClose(PrepareToCloseWindows(requestID: UUID(), windowIDs: ids)) {
+            completion($0)
+        }
     }
 
     @objc private func windowClosed(_ notification: Notification) {
@@ -799,18 +801,19 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     static func deferQuit() -> Bool {
         guard let instance, !instance.hasStopped else { return false }
         guard !instance.quitting else { return true }
+        // A Space whose data is being deleted finishes that first; the quit
+        // waits for the person to ask again.
+        guard instance.application.browser.deletingSpaceIDs.isEmpty else { return true }
         instance.quitting = true
         instance.persistRestorableWindowIDs()
-        instance.host.prepareToQuit { allowed in
-            MainActor.assumeIsolated {
-                guard allowed else { instance.quitting = false; return }
-                Task { @MainActor in
-                    for quick in Array(instance.quickWindows.values) { quick.window.closeAfterApproval() }
-                    await instance.commands.flushPendingPersistenceBeforeQuit()
-                    instance.host.disposePages()
-                    instance.hasStopped = true
-                    instance.host.completeQuit()
-                }
+        instance.application.quitPreparation.prepare { allowed in
+            guard allowed else { instance.quitting = false; return }
+            Task { @MainActor in
+                for quick in Array(instance.quickWindows.values) { quick.window.closeAfterApproval() }
+                await instance.commands.flushPendingPersistenceBeforeQuit()
+                instance.host.disposePages()
+                instance.hasStopped = true
+                instance.host.completeQuit()
             }
         }
         return true

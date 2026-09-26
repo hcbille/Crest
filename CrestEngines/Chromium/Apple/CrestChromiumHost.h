@@ -148,10 +148,6 @@ NS_SWIFT_UI_ACTOR
 - (void)disposePages:(NSArray<NSUUID *> *)pageIDs windows:(NSArray<NSUUID *> *)windowIDs
     releaseProfiles:(NSArray<NSUUID *> *)profileIDs;
 - (void)completeQuit;
-- (void)prepareToClosePages:(NSArray<NSUUID *> *)pageIDs windows:(NSArray<NSUUID *> *)windowIDs
-                completion:(void (^)(BOOL allowed))completion NS_SWIFT_NAME(prepareToClose(pages:windows:completion:));
-- (void)prepareToQuit:(void (^)(BOOL allowed))completion NS_SWIFT_NAME(prepareToQuit(_:));
-- (void)cancelQuitPreparation;
 // Declines a system sign-in the core could not place, so the requesting app
 // learns at once rather than waiting on a window that will never open.
 - (void)cancelAuthenticationSessionForWindow:(NSUUID *)windowID NS_SWIFT_NAME(cancelAuthenticationSession(window:));

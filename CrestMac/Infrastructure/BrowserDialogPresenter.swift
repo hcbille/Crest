@@ -298,6 +298,23 @@ final class BrowserDialogPresenter {
         }
     }
 
+    /// Whether to quit and stop the `count` downloads still in progress.
+    func approveQuitWithDownloads(count: Int, dismissal: BrowserPromptDismissal? = nil) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let alert = NSAlert()
+            alert.messageText =
+                count == 1
+                ? String(localized: "Quit and cancel the download in progress?")
+                : String(localized: "Quit and cancel \(count) downloads in progress?")
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: String(localized: "Keep Browsing"))
+            alert.addButton(withTitle: String(localized: "Quit"))
+            present(alert, dismissal: dismissal) { response in
+                continuation.resume(returning: response == .alertSecondButtonReturn)
+            }
+        }
+    }
+
     static func sourceLabel(for request: URLRequest) -> String {
         guard let url = request.url, let host = url.host(), !host.isEmpty else {
             return ProductIdentity.name

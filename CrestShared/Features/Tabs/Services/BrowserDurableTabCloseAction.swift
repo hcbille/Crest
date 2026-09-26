@@ -16,9 +16,10 @@ struct BrowserDurableTabCloseAction {
             ), let tab = space.tabs.model(assignment.tabID),
             tab.placement.isDurable
         else { return false }
-        // TRANSITIONAL until WP C slice (g) sequences before-unload in the core:
-        // the engine closes the page first, keeping its state only when the
-        // core will leave the tab where it is, which the same preference says.
+        // The core asks the page whether it may go first. TRANSITIONAL until
+        // the shared page host follows the core's page closes (WP C (j2)): the
+        // engine then closes the page, keeping its state only when the core
+        // will leave the tab where it is, which the same preference says.
         let returnsToRoot = preferences.savedTabClosePolicy == .returnToSavedURL && (tab.savedURL ?? tab.url) != nil
         return browser.performPageDismissal(of: [assignment]) {
             guard

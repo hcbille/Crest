@@ -116,8 +116,7 @@ extension BrowserStore {
             space.tabs.contains(where: { $0.id == id && !$0.placement.isDurable })
         else { return false }
         let assignment = BrowserTabRuntimeAssignment(tabID: id, spaceID: spaceID, profileID: space.profile.id)
-        // TRANSITIONAL until WP C slice (g): the page's before-unload runs here,
-        // before the core closes the tab.
+        // The core asks the tab's page whether it may go before it closes the tab.
         return performPageDismissal(of: [assignment]) { [weak self] in
             guard let self, self.session.space(id: spaceID) != nil else { return false }
             return self.closeSessionTab(id, in: spaceID)

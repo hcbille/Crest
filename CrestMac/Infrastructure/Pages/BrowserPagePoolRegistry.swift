@@ -22,17 +22,14 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
     }
 
     private weak var spaceAccess: BrowserSpaceAccessController?
-    private let closePreparation: (any BrowserPageClosePreparing)?
     private let primary: BrowserPagePool
     private var pools: [ObjectIdentifier: WeakPool] = [:]
     private var windowRuntimes: [BrowserWindowID: WeakWindowRuntime] = [:]
     private var spacesDeletingData: Set<SpaceID> = []
 
-    init(primary: BrowserPagePool, spaceAccess: BrowserSpaceAccessController? = nil,
-        closePreparation: (any BrowserPageClosePreparing)? = nil) {
+    init(primary: BrowserPagePool, spaceAccess: BrowserSpaceAccessController? = nil) {
         self.primary = primary
         self.spaceAccess = spaceAccess
-        self.closePreparation = closePreparation
     }
 
     func register(_ pool: BrowserPagePool) {
@@ -112,12 +109,14 @@ extension BrowserPagePoolRegistry: BrowserPageDismissalAuthorizing {
         }
         guard isAvailable() else { return false }
         let pages = ownedPages()
-        guard let closePreparation,
-            pages.contains(where: { $0.pageEngine.registration.supports(.beforeUnload) })
-        else { return operation() }
+        guard !pages.isEmpty else { return operation() }
         let identities = Set(pages.map { ObjectIdentifier($0) })
         var committed = false
-        closePreparation.prepareToClose(pages.map { $0.pageEngine }) { [weak self, weak browser] allowed in
+        // The core asks each page in turn whether it may go. A page that needs
+        // no answer lets the core finish at once, so the dismissal commits
+        // before this returns; one that asks the person commits later.
+        let request = PrepareToClosePages(requestID: UUID(), pageIDs: pages.map(\.corePage.id))
+        browser.core.prepareToClose(request) { [weak self, weak browser] allowed in
             guard let self, let browser, allowed, isAvailable(),
                 Set(ownedPages().map { ObjectIdentifier($0) }) == identities else { return }
             committed = operation()

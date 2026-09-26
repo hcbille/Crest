@@ -287,6 +287,10 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
         )
         super.init()
         corePage.appLoad = { [weak self] in self?.load($0) }
+        corePage.appPrepareToClose = { [weak self] answer in
+            guard let engine = self?.webKitEngine else { return answer(true) }
+            engine.prepareToClose(completion: answer)
+        }
         sitePermissionSession.siteURL = { [weak self] in self?.pageEngine.currentURL ?? self?.live.documentURL }
         sitePermissionSession.siteDecisionDidChange = { [weak self] in self?.sitePermissionDidChange($0) }
         // The Space's default zoom; an engine that creates its page later

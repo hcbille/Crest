@@ -69,6 +69,8 @@ final class CrestCore {
     /// Who hears each tab page the core unloaded under memory pressure, once
     /// its batch is applied.
     @ObservationIgnored private var unloadFollowers: [Follower<PageUnloaded>] = []
+    /// Who waits for each close preparation to end, by its request.
+    @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     #if DEBUG
         /// Hears each batch of changes once `state` has applied it, so a test
         /// can apply the same batch again.
@@ -134,6 +136,22 @@ final class CrestCore {
         let changes = Self.decodeChanges(from: &reader, "\(type(of: intent))")
         apply(changes)
         return changes
+    }
+
+    // MARK: - Actions - Closing
+
+    /// Asks the core to prepare the close `request` asks for, and calls
+    /// `completion` once it ends: whether every page it covers may go and, for
+    /// a quit, whether the person agreed to stop downloads in progress. A
+    /// request the core refuses, such as one made while another preparation is
+    /// under way, answers false at once.
+    func prepareToClose(_ request: some CloseRequest, completion: @escaping @MainActor (Bool) -> Void) {
+        closeWaiters[request.requestID] = completion
+        do {
+            try send(request)
+        } catch {
+            closeWaiters.removeValue(forKey: request.requestID)?(false)
+        }
     }
 
     // MARK: - Actions - Cloud sync
@@ -249,6 +267,7 @@ final class CrestCore {
         var promptChanges: [Change] = []
         var downloadChanges: [DownloadState] = []
         var unloadedPages: [PageUnloaded] = []
+        var closesReady: [CloseReady] = []
         for change in changes {
             state.apply(change)
             switch change {
@@ -258,10 +277,11 @@ final class CrestCore {
             case .tabFaviconAssigned(let assigned) where assigned.pageID != nil: pageRecords.icons.append(assigned)
             case .sitePermissionsChanged(let changed): permissionChanges.append(changed)
             case .scriptDialogAsked, .authenticationAsked, .permissionAsked, .extensionInstallAsked,
-                .downloadDestinationAsked, .downloadApprovalAsked, .promptSettled:
+                .downloadDestinationAsked, .downloadApprovalAsked, .quitWithDownloadsAsked, .promptSettled:
                 promptChanges.append(change)
             case .downloadUpdated(let updated): downloadChanges.append(updated.download)
             case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
+            case .closeReady(let ready): closesReady.append(ready)
             default: break
             }
         }
@@ -277,6 +297,8 @@ final class CrestCore {
         #if DEBUG
             batchApplied?(changes)
         #endif
+        // Last, because a waiter may send the intent its close was waiting for.
+        for ready in closesReady { closeWaiters.removeValue(forKey: ready.requestID)?(ready.allowed) }
     }
 
     /// Calls `handler` with the workspaces whose session each batch changed,

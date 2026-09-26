@@ -27,6 +27,9 @@ final class BrowserMacApplication {
     let softwareUpdates: BrowserSoftwareUpdateService
     let sidebarWidgets: BrowserSidebarWidgetRuntime
     let pagePoolRegistry: BrowserPagePoolRegistry
+    /// Asks the core whether the app may quit, and the person about downloads
+    /// in progress.
+    let quitPreparation: BrowserQuitPreparation
     /// Follows the system's memory pressure for every window's pages; nil in
     /// an isolated launch, which leaves its pages alone.
     let memoryPressure: BrowserMemoryPressureMonitor?
@@ -43,8 +46,7 @@ final class BrowserMacApplication {
     ///     each window's Site Controls button.
     ///   - reviewPersistenceID: The isolated store a review build of this
     ///     composition keeps, so each engine's review app has its own.
-    init(pageClosePreparation: (any BrowserPageClosePreparing)? = nil,
-        profileRemover: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
+    init(profileRemover: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
         defaultEngine: (any NativeEngineBinding)? = nil,
         siteControlAnchor: BrowserSiteControlAnchor? = nil,
         reviewPersistenceID: String = "core-native-ui-review") throws {
@@ -285,8 +287,8 @@ final class BrowserMacApplication {
         self.sidebarWidgets = sidebarWidgets
         self.pages = pages
         self.privatePages = privatePages
-        pagePoolRegistry = BrowserPagePoolRegistry(primary: pages, spaceAccess: spaceAccess,
-            closePreparation: pageClosePreparation)
+        pagePoolRegistry = BrowserPagePoolRegistry(primary: pages, spaceAccess: spaceAccess)
+        quitPreparation = BrowserQuitPreparation(core: core)
         self.systemNowPlaying = systemNowPlaying
         self.startupBehavior = startupBehavior
         memoryPressure = usesIsolatedLaunch ? nil : BrowserMemoryPressureMonitor(core: core, pools: pagePoolRegistry)

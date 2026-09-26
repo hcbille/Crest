@@ -271,8 +271,9 @@ struct BrowserCommandActions {
             closeKeyWindow()
             return
         }
-        // TRANSITIONAL until WP C slice (g) moves before-unload into the core:
-        // a saved or pinned tab's page is put away before the core records it.
+        // TRANSITIONAL until the shared page host follows the core's page
+        // closes (WP C (j2)): a saved or pinned tab's page is put away before
+        // the core records it.
         if selectedTab.placement.isDurable {
             if BrowserDurableTabCloseAction(
                 browser: browser, spaceAccess: spaceAccess,

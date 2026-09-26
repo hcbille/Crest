@@ -2717,6 +2717,10 @@
     "2026-09-26-settings-read-model": {
       "category": "internal",
       "message": "Settings panes read Spaces and their settings from the core's read model and write edits through the core"
+    },
+    "2026-09-26-close-quit-through-core": {
+      "category": "improved",
+      "message": "Closing tabs and windows or quitting asks pages that want to confirm leaving, and quitting with downloads in progress asks first, in both engines"
     }
   }
 }

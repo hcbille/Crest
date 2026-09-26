@@ -23,6 +23,11 @@ final class CorePage {
     /// own load of an address in the platform's page, which WebKit runs when
     /// the core asks it to load one. Set by the page's owner.
     var appLoad: (@MainActor (URL) -> Void)?
+    /// TRANSITIONAL until the WebKit binding builds its own pages: asks the
+    /// platform's page whether it may close, which WebKit runs when the core
+    /// checks the page before closing it. Set by the page's owner where
+    /// WebKit can ask; a page without it may go.
+    var appPrepareToClose: (@MainActor (@escaping @MainActor (Bool) -> Void) -> Void)?
 
     /// The core's model of the page, until the page is gone.
     var state: PageStateModel? { core?.state.pages[id] }

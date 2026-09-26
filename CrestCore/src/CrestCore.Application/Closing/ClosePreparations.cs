@@ -8,8 +8,7 @@ namespace CrestCore.Application;
 /// time; the first that asks to stay ends the preparation not allowed. A page
 /// that goes meanwhile has nothing to ask, and one that shows another document
 /// after it agreed voids the answer. Quitting with downloads in progress then
-/// asks the person. TRANSITIONAL: nothing calls it until the platform's close
-/// and quit wiring moves here.
+/// asks the person.
 internal sealed class ClosePreparations(Pages pages, Downloads downloads, IIdSource ids) {
     #region Types
 

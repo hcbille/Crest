@@ -44,7 +44,8 @@ bool DeferQuit();
 // A Dock click or reopen with no windows. Crest activates an existing window
 // or opens its initial one; Chromium creates no browser of its own.
 bool Reopen();
-// Consumes the result of a native close preflight without destroying the page.
+// Hands the core a page's beforeunload answer when the core asked whether the
+// page may close, without destroying the page.
 bool CompletePageClosePreparation(content::WebContents* contents, bool proceed);
 // Shares HTTP Basic and Digest prompts with Crest's per-Space credential flow.
 // False leaves a WebContents that Crest does not own to Chromium.

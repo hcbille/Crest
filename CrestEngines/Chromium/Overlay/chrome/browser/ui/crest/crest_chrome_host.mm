@@ -103,7 +103,6 @@
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_item_model.h"
 #include "chrome/browser/ui/crest/crest_download_hooks.h"
 #include "chrome/browser/download/download_confirmation_result.h"
@@ -111,7 +110,6 @@
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
 #include "ui/shell_dialogs/selected_file_info.h"
-#include "chrome/browser/ui/unload_controller.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_destroyer.h"
@@ -513,16 +511,6 @@ struct HostState {
   bool started = false;
   bool disposing = false;
   bool quitting = false;
-  uint64_t close_generation = 0;
-  void (^close_preflight)(BOOL);
-  std::vector<std::string> close_pages;
-  std::map<std::string, uint64_t> close_revisions;
-  std::set<std::string> close_windows;
-  std::string close_pending;
-  size_t close_index = 0;
-  uint64_t quit_generation = 0;
-  Browser* quit_browser = nullptr;
-  void (^quit_preflight)(BOOL);
   std::string creating_window;
   // The profile `chrome.windows.create` is about to create a Browser in, for
   // the one turn between asking and creating: that Browser gets a Crest window
@@ -612,18 +600,6 @@ void StartAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
   if (![UI() openAuthenticationSession:request.URL window:window]) EndAuthenticationSession(key, nil, false);
 }
 
-
-
-
-
-// Re-states Crest's install affordance on every open Chrome Web Store listing.
-
-
-
-void AdvancePageClosePreparation(uint64_t generation, bool allowed);
-
-
-
 // Crest's vault owns credentials in every window, so the engine's own password
 // manager never saves, offers fills or shows its bubbles — in a private window
 // as much as in a Space, whether or not a credential bridge is installed. A
@@ -682,10 +658,6 @@ struct Page final : content::WebContentsObserver {
     if (!proceed) closing = false;
   }
   void WebContentsDestroyed() override {
-    if (State().close_preflight) {
-      const auto generation = State().close_generation;
-      dispatch_async(dispatch_get_main_queue(), ^{ AdvancePageClosePreparation(generation, false); });
-    }
     extension_popup.reset();
     side_panel.reset();
     devtools.reset();
@@ -825,100 +797,6 @@ bool RegisterEngineBrowser(Browser* browser) {
   return true;
 }
 
-// A batch retains all WebContents until the native semantic operation accepts it.
-// In particular, approving the first tab never destroys it if a later tab vetoes.
-void FinishPageClosePreparation(uint64_t generation, bool allowed) {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    auto& state = State();
-    if (state.close_generation != generation || !state.close_preflight) return;
-    bool current = allowed && !state.disposing;
-    for (const auto& [id, revision] : state.close_revisions) {
-      auto found = state.pages.find(id);
-      if (found == state.pages.end() || !found->second->web_contents() ||
-          found->second->navigation_revision != revision) current = false;
-    }
-    for (const auto& [id, page] : state.pages) {
-      for (const auto& [key, owner] : state.browsers) {
-        if (owner->browser == page->browser && state.close_windows.contains(owner->window) &&
-            !state.close_revisions.contains(id)) current = false;
-      }
-    }
-    auto completion = state.close_preflight;
-    state.close_preflight = nil;
-    state.close_pages.clear(); state.close_revisions.clear(); state.close_windows.clear();
-    state.close_pending.clear(); state.close_index = 0;
-    completion(current);
-  });
-}
-void AdvancePageClosePreparation(uint64_t generation, bool allowed) {
-  auto& state = State();
-  if (state.close_generation != generation || !state.close_preflight) return;
-  if (!allowed || state.disposing) { FinishPageClosePreparation(generation, false); return; }
-  while (state.close_index < state.close_pages.size()) {
-    const std::string id = state.close_pages[state.close_index++];
-    auto found = state.pages.find(id);
-    if (found == state.pages.end() || !found->second->web_contents()) {
-      FinishPageClosePreparation(generation, false); return;
-    }
-    auto* contents = found->second->web_contents();
-    if (!contents->NeedToFireBeforeUnloadOrUnloadEvents()) continue;
-    state.close_pending = id;
-    contents->DispatchBeforeUnload(false);
-    return;
-  }
-  FinishPageClosePreparation(generation, true);
-}
-
-void ResetQuitPreparation() {
-  GlobalBrowserCollection::GetInstance()->ForEach([](BrowserWindowInterface* browser) {
-    UnloadController::From(browser)->ResetTryToCloseWindow();
-    return true;
-  }, BrowserCollection::Order::kCreation);
-}
-void FinishQuitPreparation(uint64_t generation, bool allowed) {
-  auto& state = State();
-  if (state.quit_generation != generation || !state.quit_preflight) return;
-  auto completion = state.quit_preflight;
-  state.quit_preflight = nil; state.quit_browser = nullptr;
-  if (!allowed) ResetQuitPreparation();
-  completion(allowed);
-}
-void ContinueQuitPreparation(uint64_t generation, bool proceed) {
-  auto& state = State();
-  if (state.quit_generation != generation || !state.quit_preflight) return;
-  if (!proceed) { FinishQuitPreparation(generation, false); return; }
-  state.quit_browser = nullptr;
-  bool waiting = false;
-  GlobalBrowserCollection::GetInstance()->ForEach([&](BrowserWindowInterface* browser) {
-    Browser* candidate = browser->GetBrowserForMigrationOnly();
-    state.quit_browser = candidate;
-    if (UnloadController::From(browser)->TryToCloseWindow(false,
-        base::BindRepeating([](uint64_t generation, Browser* candidate, bool allowed) {
-          dispatch_async(dispatch_get_main_queue(), ^{
-            if (State().quit_browser == candidate) ContinueQuitPreparation(generation, allowed);
-          });
-        }, generation, candidate))) {
-      waiting = true;
-    } else { state.quit_browser = nullptr; }
-    return !waiting;
-  }, BrowserCollection::Order::kCreation);
-  if (waiting) return;
-  const int downloads = DownloadCoreService::BlockingShutdownCountAllProfiles();
-  if (downloads == 0) { FinishQuitPreparation(generation, true); return; }
-  NSAlert* alert = [[NSAlert alloc] init];
-  alert.messageText = @"Quit and cancel downloads?";
-  alert.informativeText = [NSString stringWithFormat:@"%d download(s) are still in progress.", downloads];
-  [alert addButtonWithTitle:@"Keep Browsing"];
-  [alert addButtonWithTitle:@"Quit"];
-  NSWindow* window = NSApp.keyWindow ?: [UI() windowWithID:nil];
-  if (window) {
-    [alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
-      FinishQuitPreparation(generation, response == NSAlertSecondButtonReturn);
-    }];
-  } else {
-    FinishQuitPreparation(generation, [alert runModal] == NSAlertSecondButtonReturn);
-  }
-}
 Page* FindPage(NSString* identifier) {
   auto found = State().pages.find(base::SysNSStringToUTF8(identifier));
   return found == State().pages.end() ? nullptr : found->second.get();
@@ -1425,44 +1303,9 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
   crest::EngineBinding::Get().Extensions().Clear();
   crest::EngineBinding::Get().Profiles().ReleaseAll();
 }
-- (void)prepareToClosePages:(NSArray<NSUUID*>*)pageIDs windows:(NSArray<NSUUID*>*)windowIDs
-                completion:(void (^)(BOOL))completion {
-  CHECK(NSThread.isMainThread);
-  auto& state = State();
-  if (state.close_preflight || state.quit_preflight || state.disposing) { completion(NO); return; }
-  std::set<std::string> selected;
-  for (NSUUID* id in pageIDs) selected.insert(KeyFor(id));
-  for (NSUUID* id in windowIDs) state.close_windows.insert(KeyFor(id));
-  for (const auto& [id, page] : state.pages) {
-    bool matches = selected.contains(id);
-    for (const auto& [key, owner] : state.browsers)
-      if (owner->browser == page->browser && state.close_windows.contains(owner->window)) matches = true;
-    if (!matches || !page->web_contents()) continue;
-    state.close_pages.push_back(id);
-    state.close_revisions.emplace(id, page->navigation_revision);
-  }
-  state.close_preflight = [completion copy];
-  AdvancePageClosePreparation(++state.close_generation, true);
-}
-- (void)prepareToQuit:(void (^)(BOOL))completion {
-  CHECK(NSThread.isMainThread);
-  auto& state = State();
-  if (state.quit_preflight || state.close_preflight || state.disposing ||
-      crest::EngineBinding::Get().Profiles().IsDeletingAny()) { completion(NO); return; }
-  state.quit_preflight = [completion copy];
-  ContinueQuitPreparation(++state.quit_generation, true);
-}
 - (void)cancelAuthenticationSessionForWindow:(NSUUID*)windowID {
   CHECK(NSThread.isMainThread);
   EndAuthenticationSession(KeyFor(windowID), nil, false);
-}
-- (void)cancelQuitPreparation {
-  CHECK(NSThread.isMainThread);
-  auto& state = State();
-  ++state.quit_generation;
-  auto completion = state.quit_preflight; state.quit_preflight = nil; state.quit_browser = nullptr;
-  ResetQuitPreparation();
-  if (completion) completion(NO);
 }
 - (void)completeQuit {
   State().quitting = true;
@@ -1737,18 +1580,9 @@ void AppendLinkMenuItem(NSMenu* menu, content::WebContents* contents, const GURL
   }
 }
 
-
+// A page the core asked whether it may close answers the core.
 bool CompletePageClosePreparation(content::WebContents* contents, bool proceed) {
-  // A page the core asked answers the core.
-  if (crest::AnswerBeforeUnload(contents, proceed)) return true;
-  auto& state = State();
-  if (!state.close_preflight || state.close_pending.empty()) return false;
-  auto found = state.pages.find(state.close_pending);
-  if (found == state.pages.end() || found->second->web_contents() != contents) return false;
-  state.close_pending.clear();
-  const auto generation = state.close_generation;
-  dispatch_async(dispatch_get_main_queue(), ^{ AdvancePageClosePreparation(generation, proceed); });
-  return true;
+  return crest::AnswerBeforeUnload(contents, proceed);
 }
 void ShowExtensionPrompt(
     std::unique_ptr<ExtensionInstallPromptShowParams> params,
@@ -1883,11 +1717,6 @@ void OnBrowserWindowCreated(Browser* browser) {
 void OnBrowserWindowDestroyed(Browser* browser) {
   if (State().bootstrap == browser) State().bootstrap = nullptr;
   std::erase_if(State().browsers, [browser](const auto& pair) { return pair.second->browser == browser; });
-  if (State().quit_browser == browser && State().quit_preflight) {
-    State().quit_browser = nullptr;
-    const auto generation = State().quit_generation;
-    dispatch_async(dispatch_get_main_queue(), ^{ ContinueQuitPreparation(generation, true); });
-  }
 }
 void EnsureCrestUIStarted(Browser* browser) {
   CHECK(NSThread.isMainThread);

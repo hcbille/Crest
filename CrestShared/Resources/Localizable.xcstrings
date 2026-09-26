@@ -1,6 +1,18 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Quit and cancel the download in progress?" : {
+
+    },
+    "Quit and cancel %lld downloads in progress?" : {
+
+    },
+    "Keep Browsing" : {
+
+    },
+    "Quit" : {
+
+    },
     "The download was interrupted." : {
 
     },
