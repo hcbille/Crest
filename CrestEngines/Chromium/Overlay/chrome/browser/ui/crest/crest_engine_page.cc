@@ -311,6 +311,16 @@ std::optional<std::vector<uint8_t>> EnginePage::SaveInteractionState() {
   return std::vector<uint8_t>(bytes.begin(), bytes.end());
 }
 
+std::optional<engine::PageRestoreState> EnginePage::RestoreState() {
+  std::optional<std::vector<uint8_t>> state = SaveInteractionState();
+  if (!state) {
+    return std::nullopt;
+  }
+  // `RestoreNow` checks the selected entry against this address.
+  const content::NavigationEntry* entry = web_contents()->GetController().GetLastCommittedEntry();
+  return engine::PageRestoreState{.url = PresentedURL(entry->GetVirtualURL()), .state = std::move(*state)};
+}
+
 bool EnginePage::RestoreNow(const std::vector<uint8_t>& state, const std::string& expected_url) {
   if (!web_contents() || state.empty() || state.size() > kInteractionStateBytes) {
     return false;

@@ -111,7 +111,7 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(issued, binding.Commands.Count);
 
         // A page its engine lost holds nothing to load into.
-        app.Report(engine, new PageClosed(page));
+        app.Report(engine, new PageClosed(page, RestoreState: null));
         Assert.Equal(new PageNotLoadable(page), Refusal(app, new Navigate(page, "example.org")));
     }
 

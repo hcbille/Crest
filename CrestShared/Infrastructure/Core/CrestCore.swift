@@ -66,6 +66,9 @@ final class CrestCore {
     /// Who hears each download record the core changed, once its batch is
     /// applied.
     @ObservationIgnored private var downloadFollowers: [Follower<DownloadState>] = []
+    /// Who hears each tab page the core unloaded under memory pressure, once
+    /// its batch is applied.
+    @ObservationIgnored private var unloadFollowers: [Follower<PageUnloaded>] = []
     #if DEBUG
         /// Hears each batch of changes once `state` has applied it, so a test
         /// can apply the same batch again.
@@ -245,6 +248,7 @@ final class CrestCore {
         var permissionChanges: [SitePermissionsChanged] = []
         var promptChanges: [Change] = []
         var downloadChanges: [DownloadState] = []
+        var unloadedPages: [PageUnloaded] = []
         for change in changes {
             state.apply(change)
             switch change {
@@ -257,6 +261,7 @@ final class CrestCore {
                 .downloadDestinationAsked, .downloadApprovalAsked, .promptSettled:
                 promptChanges.append(change)
             case .downloadUpdated(let updated): downloadChanges.append(updated.download)
+            case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
             default: break
             }
         }
@@ -268,6 +273,7 @@ final class CrestCore {
         if !permissionChanges.isEmpty { sitePermissionsChanged(permissionChanges) }
         if !promptChanges.isEmpty { promptsChanged(promptChanges) }
         if !downloadChanges.isEmpty { downloadsChanged(downloadChanges) }
+        if !unloadedPages.isEmpty { pagesUnloaded(unloadedPages) }
         #if DEBUG
             batchApplied?(changes)
         #endif
@@ -304,6 +310,23 @@ final class CrestCore {
     func followDownloads(_ owner: AnyObject, _ handler: @escaping @MainActor (DownloadState) -> Void) {
         downloadFollowers.removeAll { $0.owner == nil }
         downloadFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    /// Calls `handler` with each tab page the core unloaded under memory
+    /// pressure, once its batch is applied: the core already closed what the
+    /// page's engine held, so its owner lets the page go without releasing it.
+    /// The registration lasts as long as `owner`.
+    func followUnloadedPages(_ owner: AnyObject, _ handler: @escaping @MainActor (PageUnloaded) -> Void) {
+        unloadFollowers.removeAll { $0.owner == nil }
+        unloadFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    private func pagesUnloaded(_ pages: [PageUnloaded]) {
+        unloadFollowers.removeAll { $0.owner == nil }
+        let followers = unloadFollowers
+        for page in pages {
+            for follower in followers { follower.handler(page) }
+        }
     }
 
     private func downloadsChanged(_ downloads: [DownloadState]) {

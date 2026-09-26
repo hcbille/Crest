@@ -1,5 +1,4 @@
 import AppKit
-import Dispatch
 import Foundation
 import Observation
 import os
@@ -28,9 +27,6 @@ final class BrowserPagePool:
             BrowserHTTPAuthenticationSaveRequest,
             SpaceID
         ) async throws -> Void
-
-    typealias ResidencyDecisionProvider =
-        @MainActor (BrowserPage, Bool) async -> BrowserPageResidencyDecision
 
     typealias ModifiedLinkOpener =
         @MainActor (URL, SpaceID, Bool) -> BrowserModifiedLinkRegistration?
@@ -93,12 +89,6 @@ final class BrowserPagePool:
     }
     /// Per-profile engine state every window pool of this store family shares.
     @ObservationIgnored let profileDataStores: BrowserPageProfileDataStores
-    @ObservationIgnored private let residencyDecisionProvider: ResidencyDecisionProvider
-    private var memoryPressureReleaseTask: Task<Void, Never>? {
-        get { runtimeStore.memoryPressureTask }
-        set { runtimeStore.memoryPressureTask = newValue }
-    }
-    @ObservationIgnored private let monitorsMemoryPressure: Bool
     @ObservationIgnored private let contentRuleListProvider: any BrowserContentRuleListProviding
     /// The app's passkey access, refreshed as pages navigate. Nil where no
     /// composition supplied one.
@@ -126,11 +116,6 @@ final class BrowserPagePool:
     @ObservationIgnored private let profileRemover: any BrowserEngineProfileRemoving
     /// Built-in content blocking, which only the WebKit engine applies.
     @ObservationIgnored let contentBlocking: BrowserContentBlockingController
-    @ObservationIgnored private var memoryPressureSource: (any DispatchSourceMemoryPressure)?
-    private var memoryPressureCoalescer: BrowserMemoryPressureCoalescer {
-        get { runtimeStore.memoryPressureCoalescer }
-        set { runtimeStore.memoryPressureCoalescer = newValue }
-    }
     @ObservationIgnored private var peekPageLeases:
         [UUID: (request: BrowserPeekRequest, lease: BrowserTransientPageLease)] = [:]
     @ObservationIgnored private(set) var transientLeases: [UUID: WeakBrowserTransientPageLease] = [:]
@@ -153,7 +138,6 @@ final class BrowserPagePool:
         browser: BrowserStore,
         runtimeStore: BrowserPageRuntimeStore? = nil,
         profileDataStores: BrowserPageProfileDataStores? = nil,
-        monitorsMemoryPressure: Bool = false,
         browsingMode: BrowserBrowsingMode = .standard,
         usesEphemeralWebsiteDataStores: Bool =
             BrowserLaunchEnvironment.current.usesEphemeralProfileStorage,
@@ -180,17 +164,11 @@ final class BrowserPagePool:
         splitLinkHost: BrowserSplitLinkHost = .unavailable,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         activateHostedNotificationSource:
-            @escaping (SpaceID, TabID) -> Void = { _, _ in },
-        residencyDecisionProvider: @escaping ResidencyDecisionProvider = {
-            page,
-            isSelected in
-            await page.residencyDecision(isSelected: isSelected)
-        }
+            @escaping (SpaceID, TabID) -> Void = { _, _ in }
     ) {
         let dialogPresenter = BrowserDialogPresenter()
         let core = browser.core
         self.browser = browser
-        self.residencyDecisionProvider = residencyDecisionProvider
         self.browsingMode = browsingMode
         self.usesEphemeralWebsiteDataStores =
             usesEphemeralWebsiteDataStores || browsingMode.isPrivate
@@ -202,7 +180,6 @@ final class BrowserPagePool:
             )
         self.runtimeStore = owner
         self.profileDataStores = profileDataStores ?? BrowserPageProfileDataStores()
-        self.monitorsMemoryPressure = monitorsMemoryPressure
         let contentRuleListProvider =
             contentRuleListProvider ?? BrowserContentRuleListProvider.forLaunch(core: core)
         self.contentRuleListProvider = contentRuleListProvider
@@ -246,16 +223,10 @@ final class BrowserPagePool:
                 },
                 permissionCenter: permissionCenter
             )
-        if monitorsMemoryPressure {
-            installMemoryPressureSource()
-        }
         pageZoomPreferences.register(self)
         self.runtimeStore.register(self)
         core.engines.observeRecords(self) { [weak self] in self?.restyleVisitedLinks(after: $0) }
-    }
-
-    deinit {
-        memoryPressureSource?.cancel()
+        core.followUnloadedPages(self) { [weak self] in self?.pageUnloaded($0) }
     }
 
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
@@ -385,8 +356,7 @@ final class BrowserPagePool:
         let owner = sharesRuntimes ? runtimeStore : BrowserPageRuntimeStore()
         owner.publishesPageMetadataCentrally = true
         let pool = BrowserPagePool(
-            browser: browser, runtimeStore: owner, profileDataStores: profileDataStores,
-            monitorsMemoryPressure: monitorsMemoryPressure, browsingMode: browsingMode,
+            browser: browser, runtimeStore: owner, profileDataStores: profileDataStores, browsingMode: browsingMode,
             usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
             pageZoomPreferences: pageZoomPreferences,
 
@@ -419,8 +389,7 @@ final class BrowserPagePool:
             activateHostedNotificationSource: { [weak browser] spaceID, tabID in
                 browser?.selectSpace(spaceID)
                 browser?.selectTab(tabID)
-            },
-            residencyDecisionProvider: residencyDecisionProvider)
+            })
         pool.connectPictureInPictureSourceSelection(to: browser, spaceAccess: spaceAccess)
         browser.tabLinkProvider = pool
         browser.tabCopying = pool
@@ -1436,36 +1405,37 @@ final class BrowserPagePool:
         activePage?.exportWebArchive()
     }
 
-    /// WebKit pages stay resident until explicit unloading or real system
-    /// pressure. A pressure pass is deliberately asynchronous because WebKit is
-    /// the source of truth for media playback and capture activity.
-    func handleMemoryPressure(
-        _ level: MemoryPressureLevel,
-        at time: Date = .now
-    ) {
-        guard memoryPressureCoalescer.shouldHandle(level, at: time) else { return }
-        for pool in runtimeStore.registeredPools { pool.releaseTransientPages(for: level) }
-        memoryPressureReleaseTask?.cancel()
-        memoryPressureReleaseTask = Task { @MainActor [weak self] in
-            await self?.releaseInactivePages(for: level)
+    /// Releases what memory pressure takes back that the core does not
+    /// decide: this window's Quick Window and Peek pages, only the inactive
+    /// ones on a warning, and on critical pressure the native content of tabs
+    /// no window shows. The core unloads tab pages itself once the app reports
+    /// the pressure.
+    func relieveMemoryPressure(_ level: MemoryPressureLevel) {
+        releaseTransientPages(for: level)
+        guard level == .critical else { return }
+        for tabID in nativeTabs.inactiveTabIDs(excluding: Array(runtimeStore.presentedTabIDs)) {
+            evictPage(tabID)
         }
     }
 
-    func waitForPendingMemoryPressureResponse() async {
-        await memoryPressureReleaseTask?.value
-    }
-
-    /// Handles one kernel pressure event. The raw event has to be captured inside
-    /// the dispatch source's own handler, so it arrives here as a value rather than
-    /// being read back off the source.
-    func handleMemoryPressureEvent(
-        _ event: DispatchSource.MemoryPressureEvent,
-        at time: Date = .now
-    ) {
-        handleMemoryPressure(
-            event.contains(.critical) ? .critical : .warning,
-            at: time
-        )
+    /// The core unloaded the page of a tab under memory pressure and closed
+    /// what its engine held. TRANSITIONAL until WP C (j1): WebKit's close
+    /// leaves the web view alive and hands the core no restore state, so a
+    /// WebKit page's state is archived from the web view here first, with the
+    /// web view's own address, since the core no longer holds the page's.
+    private func pageUnloaded(_ unloaded: PageUnloaded) {
+        let tabID = unloaded.tabID
+        guard let runtime = tabRuntimes[tabID], runtime.page.corePage.id == unloaded.pageID else { return }
+        let page = runtime.page
+        if !page.pageEngine.registration.handsRestoreStateToCore {
+            tabState.archivePage(page, showing: page.webKitView?.url, for: tabID)
+        }
+        tabRuntimes.removeValue(forKey: tabID)
+        runtimeStore.removePresentation(of: tabID)
+        forgetBackgroundPageObservation(for: tabID)
+        runtime.unloaded()
+        inactiveSinceByTabID[tabID] = nil
+        residencyRevision &+= 1
     }
 
     /// The tab's resident page, or a new one the core opened for it; nil when
@@ -1739,73 +1709,6 @@ final class BrowserPagePool:
         return probes
     }
 
-    /// Releases the pages memory pressure can afford to take back.
-    ///
-    /// Every presented card is ineligible, not only the focused one: unloading
-    /// a web view the person is looking at is never a saving worth making.
-    private func releaseInactivePages(for level: MemoryPressureLevel) async {
-        // The core owns candidate eligibility and order; this store contributes
-        // the residency facts and the engine's own veto.
-        let candidatePages = inactiveSinceByTabID.reduce(into: [TabID: BrowserPage]()) { pages, entry in
-            // Automatic unload is only offered to engines that declare they can
-            // release and later restore a page.
-            guard !runtimeStore.presentedTabIDs.contains(entry.key),
-                let page = tabRuntimes[entry.key]?.page,
-                page.pageEngine.registration.supports(.pageResidency)
-            else { return }
-            pages[entry.key] = page
-        }
-        let plan = BrowserCorePolicy.residencyReleasePlan(
-            level: level,
-            platform: .desktop,
-            candidates: candidatePages.keys.map { tabID in
-                BrowserCorePolicy.ResidencyCandidate(
-                    tabID: tabID,
-                    inactiveSince: inactiveSinceByTabID[tabID],
-                    keepsPageLoaded: candidatePages[tabID]?.navigationContext?.keepsPageLoaded == true
-                )
-            },
-            focusedIndex: nil
-        )
-
-        var eligiblePages: [(tabID: TabID, page: BrowserPage?)] = []
-        for tabID in plan.offScreen {
-            guard !Task.isCancelled else { return }
-            guard let page = candidatePages[tabID] else { continue }
-            // `BrowserPageResidencyDecision.isSelected` now means "is
-            // presented" — a card of the split on screen, focused or not.
-            // Every candidate here is off screen, so it is answered `false`.
-            // The name stays until the decision type is revisited.
-            let decision = await residencyDecisionProvider(page, false)
-            let allRuntimesAllowAutomaticUnload = decision.allowsAutomaticUnload
-            // Re-checked after the await: a page can be selected back onto the
-            // screen while WebKit is answering for it.
-            guard tabRuntimes[tabID]?.page === page,
-                !runtimeStore.presentedTabIDs.contains(tabID),
-                allRuntimesAllowAutomaticUnload
-            else { continue }
-            eligiblePages.append((tabID, page))
-        }
-        eligiblePages += nativeTabs.inactiveTabIDs(excluding: Array(runtimeStore.presentedTabIDs)).map { ($0, nil) }
-        let releaseLimit = BrowserCorePolicy.memoryPressureReleaseLimit(
-            level: level,
-            eligiblePageCount: eligiblePages.count,
-            platform: .desktop
-        )
-        var releasedCount = 0
-        for candidate in eligiblePages {
-            guard !Task.isCancelled else { return }
-            guard releasedCount < releaseLimit else { break }
-            // Later decisions also await WebKit. An earlier candidate may have
-            // become visible in any window or acquired a different runtime.
-            guard !runtimeStore.presentedTabIDs.contains(candidate.tabID),
-                tabRuntimes[candidate.tabID]?.page === candidate.page
-            else { continue }
-            evictPage(candidate.tabID)
-            releasedCount += 1
-        }
-    }
-
     private func evictPage(_ tabID: TabID, preservingTabState: Bool = true) {
         nativeTabs.remove(tabID)
         runtimeStore.removePresentation(of: tabID)
@@ -1856,24 +1759,6 @@ final class BrowserPagePool:
         transientLeases = transientLeases.filter { $0.value.value != nil }
     }
 
-    private func installMemoryPressureSource() {
-        let source = DispatchSource.makeMemoryPressureSource(
-            eventMask: [.warning, .critical],
-            queue: .main
-        )
-        source.setEventHandler { [weak self] in
-            // `dispatch_source_get_data` is only defined while this handler is
-            // running: read after a hop it answers zero, and critical pressure
-            // would forever look like a warning. The source runs on the main
-            // queue, so the event is captured and handled without one.
-            MainActor.assumeIsolated {
-                guard let self, let source = self.memoryPressureSource else { return }
-                self.handleMemoryPressureEvent(source.data)
-            }
-        }
-        memoryPressureSource = source
-        source.resume()
-    }
 }
 
 extension BrowserPagePool: BrowserTabCopying {

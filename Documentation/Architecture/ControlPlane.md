@@ -416,10 +416,11 @@ window selection unchanged, including when a retained snapshot was relocked.
 Process-local completion receipts prevent a late dismissal or repeated promotion
 from creating another record. Canceling a prepared storage reservation does not
 consume the request. These receipts are not synced or restored. Page lifecycle
-ownership is now split the same way on both engines: residency release planning,
-tab dismissal and renderer-recovery decisions are core policy operations, while
-the native adapters own page creation, the media residency veto, unload and
-disposal.
+ownership is now split the same way on both engines: tab dismissal and
+renderer-recovery decisions are core policy operations, the core's `Pages`
+decides which pages memory pressure unloads, and the native adapters own page
+creation and disposal. iPhone and iPad still plan residency release through the
+core's policy operation until one WebKit binding serves both platforms.
 
 Portable archive import, reviewed import, and manual setup use one core workspace
 operation for both preview and commit. The core merges folders, enforces Space
@@ -663,10 +664,15 @@ and `BrowserWindow` aggregates have been removed. Their former rules now belong 
 
 Page creation, closure, residency operations and content blocking are native
 engine work driven by the store and page interfaces; they are no longer modeled
-as core messages. The decisions behind them are core policy operations: which
-pages a memory squeeze may release, in what order and how many, what dismissing
-a tab means, and when a terminated renderer stops reloading. The adapter keeps
-the per-page veto for media playback, capture and Picture in Picture.
+as core messages. The decisions behind them are core policy operations: what
+dismissing a tab means and when a terminated renderer stops reloading. On the
+Mac, the app reports memory pressure to the core with `ReportMemoryPressure`,
+and `Pages` unloads the tab pages off screen longest, never one a window shows,
+one whose tab keeps its page loaded or one playing, capturing or in Picture in
+Picture. It holds each unloaded page's engine restore state in memory, never
+saved, and hands it back to the tab's next page while the tab still shows that
+address. iPhone and iPad keep the adapter's per-page media veto until one
+WebKit binding serves both platforms.
 Downloads follow the same split on both engines: the process's one `CrestCore`
 owns the download ledger behind `crest_app_*` (record phases, ordering,
 acknowledgement and retention expiry), the `DownloadProgress` and

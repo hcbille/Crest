@@ -19,6 +19,10 @@ extension CoreState {
         publish(nil, forKey: change.pageID, into: \.pagesStorage, as: \.pages)
     }
 
+    /// An unloaded page is removed by the `PageRemoved` before it; its owner
+    /// hears of it through `CrestCore.followUnloadedPages`.
+    func apply(_ change: PageUnloaded) {}
+
     /// A recorded navigation changes no page: the session changes before it
     /// carry what it recorded, and `CrestCore` tells the engines' observers.
     func apply(_ change: NavigationRecorded) {}

@@ -51,4 +51,9 @@ final class BrowserTabRuntime {
             page.release(keepingState: keepingState)
         }
     }
+
+    /// Ends the tab's page the core unloaded; see `BrowserPage.unloaded()`.
+    func unloaded() {
+        page.unloaded()
+    }
 }

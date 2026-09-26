@@ -290,6 +290,16 @@ internal sealed partial class Device {
             return workspaces.TryGetValue(workspaceId, out var authority) ? authority : throw new Rejected(new UnknownWorkspace(workspaceId));
     }
 
+    /// The tabs the open windows over the workspace show on screen: the cards
+    /// of the Space each one shows.
+    internal IReadOnlySet<Guid> OnScreenTabs(Guid workspaceId) {
+        // The session is read outside the device lock, as the windows' rules read it.
+        if (Attached(workspaceId)?.Current is not { } session) return new HashSet<Guid>();
+        lock (gate)
+            return open.Values.Where(window => window.WorkspaceId == workspaceId).SelectMany(window => window.OnScreen(session))
+                .ToHashSet();
+    }
+
     /// Whether a window over the workspace shows `tabId` of `spaceId` on
     /// screen: the Space is the one it shows, and it shows the tab or another
     /// member of the tab's split.

@@ -26,9 +26,10 @@ blank windows, request bodies, and the source profile.
 
 ## Loading and residency
 
-Intentionally opened background links start immediately. Their initial navigation
-is protected from Crest's idle eviction until it finishes or fails; normal page
-residency applies afterward. Selecting the new tab reuses that page.
+Intentionally opened background links start immediately. Selecting the new tab
+reuses that page. On iPhone and iPad the initial navigation is protected from
+memory pressure until it finishes or fails; on the Mac memory pressure treats the
+page like any other tab page off screen.
 
 Entering a Space is a separate action. An existing unloaded tab remains unloaded
 on mere Space entry, and the Mac shows Start Page until explicit tab selection.

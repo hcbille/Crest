@@ -27,11 +27,17 @@ final class BrowserTabStateCoordinator {
     }
 
     func archivePage(_ page: BrowserPlatformPage, for tabID: TabID) {
+        archivePage(page, showing: page.live.documentURL, for: tabID)
+    }
+
+    /// Archives the page's state as showing `url`, for a page whose live state
+    /// the core no longer holds.
+    func archivePage(_ page: BrowserPlatformPage, showing url: URL?, for tabID: TabID) {
         // WebKit drives adopted popups; they are never persisted as user tabs.
         guard let archive, !page.wasOpenedAsPopup, let state = page.interactionState else { return }
         archive.archive(
             interactionState: state,
-            url: page.live.documentURL,
+            url: url,
             profileID: page.profileID,
             tabID: tabID
         )

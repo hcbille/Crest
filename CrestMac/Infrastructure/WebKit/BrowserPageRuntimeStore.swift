@@ -15,8 +15,6 @@ final class BrowserPageRuntimeStore {
     @ObservationIgnored var spacesDeletingData: Set<SpaceID> = []
     @ObservationIgnored var runtimes: [TabID: BrowserTabRuntime] = [:]
     @ObservationIgnored var inactiveSinceByTabID: [TabID: Date] = [:]
-    @ObservationIgnored var memoryPressureTask: Task<Void, Never>?
-    @ObservationIgnored var memoryPressureCoalescer = BrowserMemoryPressureCoalescer()
     @ObservationIgnored private var pools: [BrowserWindowID: WeakPool] = [:]
     @ObservationIgnored private var presentations: [BrowserWindowID: [TabID]] = [:]
     @ObservationIgnored private var focusOrder: [BrowserWindowID: Int] = [:]

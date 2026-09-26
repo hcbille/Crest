@@ -195,7 +195,12 @@ void EngineBinding::Create(const engine::CreatePage& creation, bool standalone) 
     }
     return;
   }
-  pages_.emplace(key, std::make_unique<EnginePage>(*this, creation, standalone));
+  EnginePage& page = *pages_.emplace(key, std::make_unique<EnginePage>(*this, creation, standalone)).first->second;
+  // A tab's page the core unloaded comes back with the history it had,
+  // restored once the page exists.
+  if (creation.restore_state) {
+    page.Restore(creation.restore_state->state, creation.restore_state->url);
+  }
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&EngineBinding::CreateNow, weak_factory_.GetWeakPtr(), key));
 }
@@ -267,9 +272,14 @@ void EngineBinding::Live(EnginePage& page, content::WebContents* contents) {
   page.LoadPending();
 }
 
+// A page closed keeping its state hands the core what brings it back.
 void EngineBinding::Close(const engine::ClosePage& closing) {
   const std::string key = GuidText(closing.page_id);
+  std::optional<engine::PageRestoreState> restore_state;
   if (auto page = pages_.extract(key)) {
+    if (closing.keeps_state) {
+      restore_state = page.mapped()->RestoreState();
+    }
     if (auto token = page.mapped()->TakeStagedToken()) {
       DiscardStagedNavigation(*token);
     }
@@ -283,7 +293,7 @@ void EngineBinding::Close(const engine::ClosePage& closing) {
   if (shell_) {
     shell_->DestroyContents(key);
   }
-  Report(engine::PageClosed{.page_id = closing.page_id});
+  Report(engine::PageClosed{.page_id = closing.page_id, .restore_state = std::move(restore_state)});
 }
 
 void EngineBinding::PageLost(const std::string& key) {
@@ -294,7 +304,7 @@ void EngineBinding::PageLost(const std::string& key) {
   // The engine closed the page on its own, as `window.close()` does. The
   // page is still inside its own teardown, so it is let go of afterwards.
   if (!page->standalone()) {
-    Report(engine::PageClosed{.page_id = page->id()});
+    Report(engine::PageClosed{.page_id = page->id(), .restore_state = std::nullopt});
   }
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&EngineBinding::Forget, weak_factory_.GetWeakPtr(), key));
@@ -559,7 +569,8 @@ bool EngineBinding::Handle(const engine::OpenStandalonePage& request) {
   Create(engine::CreatePage{.page_id = request.page_id,
                             .profile_id = request.profile_id,
                             .is_private = false,
-                            .window_id = request.window_id},
+                            .window_id = request.window_id,
+                            .restore_state = std::nullopt},
          /*standalone=*/true);
   Load(GuidText(request.page_id), request.url);
   return true;

@@ -89,6 +89,7 @@ enum Change: Equatable, Sendable {
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
     case pageRemoved(PageRemoved)
+    case pageUnloaded(PageUnloaded)
     case permissionAsked(PermissionAsked)
     case promptSettled(PromptSettled)
     case quitWithDownloadsAsked(QuitWithDownloadsAsked)
@@ -350,6 +351,7 @@ extension CoreState {
         case .pageChanged(let change): apply(change)
         case .pageOpened(let change): apply(change)
         case .pageRemoved(let change): apply(change)
+        case .pageUnloaded(let change): apply(change)
         case .permissionAsked(let change): apply(change)
         case .promptSettled(let change): apply(change)
         case .quitWithDownloadsAsked(let change): apply(change)
@@ -947,6 +949,7 @@ struct CreatePage: Equatable, Sendable {
     let profileID: UUID
     let isPrivate: Bool
     let windowID: UUID
+    let restoreState: PageRestoreState?
 }
 
 struct CreateSpace: Intent, SessionIntent, Equatable, Sendable {
@@ -2477,6 +2480,7 @@ struct PageChanged: Equatable, Sendable {
 
 struct PageClosed: EngineEvent, Equatable, Sendable {
     let pageID: UUID
+    let restoreState: PageRestoreState?
 }
 
 struct PageCrashed: EngineEvent, Equatable, Sendable {
@@ -2645,6 +2649,11 @@ struct PageRendererGone: Equatable, Sendable {
     let pageID: UUID
 }
 
+struct PageRestoreState: Equatable, Sendable {
+    let url: String
+    let state: Data
+}
+
 struct PageSnapshot: Equatable, Sendable {
     static let blank = PageSnapshot(
         url: nil,
@@ -2685,6 +2694,12 @@ struct PageStateChanged: EngineEvent, Equatable, Sendable {
 struct PageThemeChanged: Equatable, Sendable {
     let pageID: UUID
     let color: BrandColor?
+}
+
+struct PageUnloaded: Equatable, Sendable {
+    let pageID: UUID
+    let workspaceID: UUID
+    let tabID: UUID
 }
 
 struct PageViewClosed: Equatable, Sendable {
@@ -3060,6 +3075,10 @@ struct ReplaceSeedWithCloudRecords: Intent, CloudSyncIntent, Equatable, Sendable
 
 struct ReplaceWithCloudRecords: Intent, CloudSyncIntent, Equatable, Sendable {
     let records: [SyncRecord]
+}
+
+struct ReportMemoryPressure: Intent, PageIntent, Equatable, Sendable {
+    let level: MemoryPressureLevel
 }
 
 struct ResetPrivateBrowsing: Intent, SessionIntent, Equatable, Sendable {

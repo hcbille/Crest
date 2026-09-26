@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0x80, 0x84, 0x68, 0x23, 0x72, 0xfb, 0x60, 0xe8, 0x04, 0x8e, 0x4f, 0x3b, 0x32, 0x4f, 0x73, 0x55, 0xd2, 0x24, 0x37, 0x7b, 0x21, 0x68, 0x8f, 0x30, 0x55, 0x15, 0x4c, 0xf0, 0xd3, 0x2c, 0x11, 0xe1};
+    0xef, 0x50, 0x9a, 0x37, 0xd7, 0xa2, 0x49, 0x1e, 0xb3, 0x13, 0x11, 0x1f, 0x52, 0x8d, 0x5c, 0xa8, 0x54, 0x85, 0x96, 0x6f, 0xc9, 0x33, 0xfc, 0xa3, 0xb6, 0xd7, 0x0b, 0xa2, 0xcb, 0xd3, 0x3f, 0x2f};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -972,11 +972,27 @@ inline bool Read(WireReader& reader, ContentScriptEvaluated& value) {
       && Read(reader, value.json);
 }
 
+struct PageRestoreState {
+  std::string url;
+  Bytes state;
+
+  friend bool operator==(const PageRestoreState&, const PageRestoreState&) = default;
+};
+inline void Write(WireWriter& writer, const PageRestoreState& value) {
+  Write(writer, value.url);
+  Write(writer, value.state);
+}
+inline bool Read(WireReader& reader, PageRestoreState& value) {
+  return Read(reader, value.url)
+      && Read(reader, value.state);
+}
+
 struct CreatePage {
   Guid page_id = {};
   Guid profile_id = {};
   bool is_private = false;
   Guid window_id = {};
+  std::optional<PageRestoreState> restore_state;
 
   friend bool operator==(const CreatePage&, const CreatePage&) = default;
 };
@@ -985,12 +1001,14 @@ inline void Write(WireWriter& writer, const CreatePage& value) {
   Write(writer, value.profile_id);
   Write(writer, value.is_private);
   Write(writer, value.window_id);
+  Write(writer, value.restore_state);
 }
 inline bool Read(WireReader& reader, CreatePage& value) {
   return Read(reader, value.page_id)
       && Read(reader, value.profile_id)
       && Read(reader, value.is_private)
-      && Read(reader, value.window_id);
+      && Read(reader, value.window_id)
+      && Read(reader, value.restore_state);
 }
 
 struct DeleteProfile {
@@ -1793,14 +1811,17 @@ inline bool Read(WireReader& reader, PageCertificates& value) {
 
 struct PageClosed {
   Guid page_id = {};
+  std::optional<PageRestoreState> restore_state;
 
   friend bool operator==(const PageClosed&, const PageClosed&) = default;
 };
 inline void Write(WireWriter& writer, const PageClosed& value) {
   Write(writer, value.page_id);
+  Write(writer, value.restore_state);
 }
 inline bool Read(WireReader& reader, PageClosed& value) {
-  return Read(reader, value.page_id);
+  return Read(reader, value.page_id)
+      && Read(reader, value.restore_state);
 }
 
 struct PageCrashed {

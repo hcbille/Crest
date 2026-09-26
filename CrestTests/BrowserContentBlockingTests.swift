@@ -115,7 +115,7 @@ final class BrowserContentBlockingTests: XCTestCase {
         XCTAssertEqual(transientLease.page?.isContentBlockingActive, false)
 
         transientLease.setActive(false)
-        pool.handleMemoryPressure(.warning)
+        pool.relieveMemoryPressure(.warning)
         XCTAssertNil(transientLease.page)
         transientLease.restore()
         XCTAssertEqual(transientLease.page?.isContentBlockingActive, false)

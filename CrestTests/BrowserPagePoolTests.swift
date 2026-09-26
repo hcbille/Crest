@@ -430,32 +430,6 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertEqual(context.pool.activeTabID, context.sourceTabID)
     }
 
-    func testBackgroundModifiedLinkBecomesMemoryPressureEligibleAfterInitialLoad()
-        async throws
-    {
-        let context = try makeModifiedLinkContext()
-        let destinationURL = try XCTUnwrap(
-            URL(string: "about:blank#settled-background")
-        )
-        context.open(destinationURL, selecting: false)
-        let backgroundTab = try XCTUnwrap(context.openedTabs.first)
-        let webView = try XCTUnwrap(
-            context.pool.residentPage(
-                matching: BrowserTabRuntimeAssignment(
-                    tabID: backgroundTab.id, spaceID: context.spaceID,
-                    profileID: try XCTUnwrap(context.store.session.space(id: context.spaceID)).profile.id))?.webView
-        )
-        try await waitForLoad(destinationURL, in: webView)
-        await Task.yield()
-
-        context.pool.handleMemoryPressure(.critical)
-        await context.pool.waitForPendingMemoryPressureResponse()
-
-        XCTAssertFalse(context.pool.containsResidentPage(for: backgroundTab.id))
-        XCTAssertEqual(context.pool.activeTabID, context.sourceTabID)
-        XCTAssertTrue(context.pool.containsResidentPage(for: context.sourceTabID))
-    }
-
     func testCredentialAccessReconcilesAcrossAnExistingSpacePage() throws {
         var session = BrowserSession.preview
         let pool = BrowserPagePool(browser: .hostingPages(session))
@@ -1159,106 +1133,6 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertEqual(pool.activeTabID, tabs[0].id)
     }
 
-    func testWarningMemoryPressureUnloadsTheOldestInactiveTab() async {
-        let tabs = (1...6).map {
-            BrowserTab(title: "Tab \($0)", url: nil, placement: .current)
-        }
-        let space = makeSpace(tabs: tabs, selectedTabID: tabs[0].id)
-        let pool = BrowserPagePool(browser: hosting(space))
-
-        for tab in tabs {
-            pool.select(tab: tab, space: space)
-        }
-
-        pool.handleMemoryPressure(.warning)
-        await pool.waitForPendingMemoryPressureResponse()
-
-        XCTAssertFalse(pool.containsResidentPage(for: tabs[0].id))
-        XCTAssertEqual(pool.retainedTabIDs.count, tabs.count - 1)
-        XCTAssertEqual(pool.activeTabID, tabs[5].id)
-    }
-
-    func testMemoryPressureNeverUnloadsTheActivePage() async {
-        let tab = BrowserTab(title: "Tab", url: nil, placement: .current)
-        let space = makeSpace(tabs: [tab], selectedTabID: tab.id)
-        let pool = BrowserPagePool(browser: hosting(space))
-
-        pool.select(tab: tab, space: space)
-        pool.handleMemoryPressure(.critical)
-        await pool.waitForPendingMemoryPressureResponse()
-
-        XCTAssertEqual(pool.retainedTabIDs, [tab.id])
-        XCTAssertNotNil(pool.activePage)
-    }
-
-    func testManualKeepLoadedSkipsTheOldestTabUnderPressure() async {
-        let kept = BrowserTab(
-            title: "Kept",
-            url: nil,
-            placement: .saved,
-            keepsPageLoaded: true
-        )
-        let eligible = BrowserTab(title: "Eligible", url: nil, placement: .saved)
-        let active = BrowserTab(title: "Active", url: nil, placement: .current)
-        let space = makeSpace(
-            tabs: [kept, eligible, active],
-            selectedTabID: active.id
-        )
-        let pool = BrowserPagePool(browser: hosting(space))
-        let start = Date(timeIntervalSince1970: 1_000)
-
-        pool.select(tab: kept, space: space, at: start)
-        pool.select(tab: eligible, space: space, at: start.addingTimeInterval(1))
-        pool.select(tab: active, space: space, at: start.addingTimeInterval(2))
-        pool.handleMemoryPressure(.warning)
-        await pool.waitForPendingMemoryPressureResponse()
-
-        XCTAssertTrue(pool.containsResidentPage(for: kept.id))
-        XCTAssertFalse(pool.containsResidentPage(for: eligible.id))
-        XCTAssertTrue(pool.containsResidentPage(for: active.id))
-    }
-
-    func testPlayingAndCapturingPagesStayResidentUnderCriticalPressure() async {
-        let playing = BrowserTab(title: "Playing", url: nil, placement: .saved)
-        let capturing = BrowserTab(title: "Capturing", url: nil, placement: .saved)
-        let eligible = BrowserTab(title: "Eligible", url: nil, placement: .saved)
-        let active = BrowserTab(title: "Active", url: nil, placement: .current)
-        let space = makeSpace(
-            tabs: [playing, capturing, eligible, active],
-            selectedTabID: active.id
-        )
-        let protectedIDs = Set([playing.id, capturing.id])
-        let pool = BrowserPagePool(
-            browser: hosting(space),
-            residencyDecisionProvider: { page, isSelected in
-                BrowserPageResidencyDecision(
-                    isSelected: isSelected,
-                    keepsPageLoaded: false,
-                    isPlayingMedia: page.navigationContext.map {
-                        $0.tabID == playing.id
-                    } ?? false,
-                    isCapturingMedia: page.navigationContext.map {
-                        $0.tabID == capturing.id
-                    } ?? false
-                )
-            }
-        )
-
-        for (index, tab) in space.tabs.enumerated() {
-            pool.select(
-                tab: tab,
-                space: space,
-                at: Date(timeIntervalSince1970: TimeInterval(index))
-            )
-        }
-        pool.handleMemoryPressure(.critical)
-        await pool.waitForPendingMemoryPressureResponse()
-
-        XCTAssertTrue(protectedIDs.allSatisfy(pool.containsResidentPage(for:)))
-        XCTAssertFalse(pool.containsResidentPage(for: eligible.id))
-        XCTAssertTrue(pool.containsResidentPage(for: active.id))
-    }
-
     func testMemoryPressureReleasesTransientLeasesBeforeActiveTabPages() throws {
         let tab = BrowserTab(title: "Tab", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab], selectedTabID: tab.id)
@@ -1275,7 +1149,7 @@ final class BrowserPagePoolTests: XCTestCase {
         )
 
         XCTAssertEqual(pool.retainedTransientPageCount, 2)
-        pool.handleMemoryPressure(.warning)
+        pool.relieveMemoryPressure(.warning)
 
         XCTAssertNil(inactiveLease.page)
         XCTAssertTrue(inactiveLease.wasReleasedForMemoryPressure)
@@ -1283,7 +1157,7 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertNotNil(pool.activePage)
         XCTAssertEqual(pool.retainedTransientPageCount, 1)
 
-        pool.handleMemoryPressure(.critical)
+        pool.relieveMemoryPressure(.critical)
 
         XCTAssertNil(activeLease.page)
         XCTAssertTrue(activeLease.wasReleasedForMemoryPressure)
@@ -1295,10 +1169,12 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertFalse(inactiveLease.wasReleasedForMemoryPressure)
     }
 
-    func testCriticalPressureEventReleasesTheActiveTransientLeaseAWarningKeeps() throws {
+    func testCriticalPressureEventReleasesTheActiveTransientLeaseAWarningKeeps() async throws {
         let tab = BrowserTab(title: "Tab", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab], selectedTabID: tab.id)
-        let pool = BrowserPagePool(browser: hosting(space))
+        let browser = hosting(space)
+        let pool = BrowserPagePool(browser: browser)
+        let monitor = BrowserMemoryPressureMonitor(core: browser.core, pools: BrowserPagePoolRegistry(primary: pool))
         let url = try XCTUnwrap(URL(string: "about:blank"))
 
         pool.select(tab: tab, space: space)
@@ -1310,14 +1186,15 @@ final class BrowserPagePoolTests: XCTestCase {
         // value. Reading it back off the source after a hop is what made every
         // squeeze — critical included — arrive here as a warning.
 
-        pool.handleMemoryPressureEvent([.warning])
+        monitor.handle([.warning])
 
         XCTAssertNotNil(
             activeLease.page,
             "A warning deliberately preserves the transient surface in use."
         )
 
-        pool.handleMemoryPressureEvent([.critical])
+        monitor.handle([.critical])
+        await monitor.waitForReport()
 
         XCTAssertNil(
             activeLease.page,
@@ -2100,65 +1977,6 @@ final class BrowserPagePoolTests: XCTestCase {
         firstPage.webViewWebContentProcessDidTerminate(firstPage.webView)
         XCTAssertFalse(firstPage.focusRestoration.hasPendingRestoration)
         pool.reconcile(validTabIDs: [])
-    }
-
-    func testPressureSparesEveryPresentedMemberUntilItLeavesTheScreen() async {
-        let groupID = SplitGroupID()
-        let first = BrowserTab(
-            title: "First member",
-            url: nil,
-            placement: .current,
-            splitGroupID: groupID
-        )
-        let second = BrowserTab(
-            title: "Second member",
-            url: nil,
-            placement: .current,
-            splitGroupID: groupID
-        )
-        let background = BrowserTab(
-            title: "Background",
-            url: nil,
-            placement: .current
-        )
-        let space = makeSpace(
-            tabs: [first, second, background],
-            selectedTabID: second.id
-        )
-        let pool = BrowserPagePool(browser: hosting(space))
-        let start = Date(timeIntervalSince1970: 1_000)
-
-        pool.select(tab: background, space: space, at: start)
-        pool.select(tab: second, space: space, at: start.addingTimeInterval(1))
-        pool.handleMemoryPressure(.critical, at: start.addingTimeInterval(2))
-        await pool.waitForPendingMemoryPressureResponse()
-
-        XCTAssertTrue(
-            pool.containsResidentPage(for: first.id),
-            "An unfocused card is still on screen, so it is not a saving to make."
-        )
-        XCTAssertTrue(pool.containsResidentPage(for: second.id))
-        XCTAssertFalse(pool.containsResidentPage(for: background.id))
-
-        pool.select(tab: background, space: space, at: start.addingTimeInterval(3))
-        XCTAssertEqual(pool.presentedTabIDs, [background.id])
-
-        // One squeeze releases half of what is eligible, so both former members
-        // need two of them.
-        for squeeze in 0..<2 {
-            pool.handleMemoryPressure(
-                .critical,
-                at: start.addingTimeInterval(TimeInterval(120 + squeeze * 2))
-            )
-            await pool.waitForPendingMemoryPressureResponse()
-        }
-
-        XCTAssertFalse(
-            pool.containsResidentPage(for: first.id),
-            "A member that left the screen is stamped inactive and evictable."
-        )
-        XCTAssertFalse(pool.containsResidentPage(for: second.id))
-        XCTAssertTrue(pool.containsResidentPage(for: background.id))
     }
 
     func testReconcilePrunesClosedMembersFromThePresentedSet() {

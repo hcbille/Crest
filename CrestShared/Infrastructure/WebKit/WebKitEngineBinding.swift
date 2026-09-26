@@ -6,7 +6,9 @@ import Foundation
 /// stores; the binding runs it when the core asks WebKit to create the page,
 /// and loads an address through the owner's own load, which prepares the
 /// page for it. The owner tears the web view down when it releases the page,
-/// so closing only tells the core the page is gone.
+/// so closing only tells the core the page is gone. TRANSITIONAL until WP C
+/// (j1): a page the core unloads hands it no restore state; its owner archives
+/// WebKit's state from the live web view instead.
 @MainActor
 final class WebKitEngineBinding: EngineBinding {
     // MARK: - Variables
@@ -35,7 +37,7 @@ final class WebKitEngineBinding: EngineBinding {
             guard let url = URL(string: loading.url) else { return }
             (engines.page(loading.pageID) ?? engines.request(loading.pageID)?.page)?.appLoad?(url)
         case .closePage(let closing):
-            engines.report(PageClosed(pageID: closing.pageID), from: self)
+            engines.report(PageClosed(pageID: closing.pageID, restoreState: nil), from: self)
         case .checkBeforeUnload(let check):
             // WebKit runs a page's beforeunload only for its own navigations, so
             // closing a WebKit page asks nothing.

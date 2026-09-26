@@ -122,6 +122,9 @@ class EnginePage final : public content::WebContentsObserver,
   bool Restore(std::vector<uint8_t> state, const std::string& expected_url);
   // The page's navigation history, or nothing before its first commit.
   std::optional<std::vector<uint8_t>> SaveInteractionState();
+  // The navigation history with the address it restores, for a page closing
+  // so the core can bring it back later; nothing before its first commit.
+  std::optional<engine::PageRestoreState> RestoreState();
   // Runs what the app asked for before the page existed: the restore, the
   // staged navigation or the load.
   void LoadPending();

@@ -27,6 +27,9 @@ final class BrowserMacApplication {
     let softwareUpdates: BrowserSoftwareUpdateService
     let sidebarWidgets: BrowserSidebarWidgetRuntime
     let pagePoolRegistry: BrowserPagePoolRegistry
+    /// Follows the system's memory pressure for every window's pages; nil in
+    /// an isolated launch, which leaves its pages alone.
+    let memoryPressure: BrowserMemoryPressureMonitor?
     let systemNowPlaying: BrowserSystemNowPlayingCoordinator?
     let startupBehavior: BrowserStartupBehavior
     let presentsInstalledApplicationUI: Bool
@@ -146,7 +149,6 @@ final class BrowserMacApplication {
         }
         let pages = BrowserPagePool(
             browser: browser,
-            monitorsMemoryPressure: !usesIsolatedLaunch,
             usesEphemeralWebsiteDataStores: usesEphemeralProfileStorage,
             permissionCenter: permissionCenter,
             hostedNotificationCenter: hostedNotificationCenter,
@@ -198,10 +200,6 @@ final class BrowserMacApplication {
         )
         let privatePages = BrowserPagePool(
             browser: privateBrowser,
-            // A private window can hold as many live web views as a standard one,
-            // and they are the least surprising ones to lose: a private page comes
-            // back by reload because it deliberately archives no session state.
-            monitorsMemoryPressure: !usesIsolatedLaunch,
             browsingMode: .privateBrowsing,
             permissionCenter: permissionCenter,
             passkeyAccess: passkeyAccess,
@@ -291,7 +289,9 @@ final class BrowserMacApplication {
             closePreparation: pageClosePreparation)
         self.systemNowPlaying = systemNowPlaying
         self.startupBehavior = startupBehavior
+        memoryPressure = usesIsolatedLaunch ? nil : BrowserMemoryPressureMonitor(core: core, pools: pagePoolRegistry)
         browser.family.configureSpaceDataCleanup(pagePoolRegistry, from: browser)
+        memoryPressure?.start()
     }
 
     func settingsTabContent(

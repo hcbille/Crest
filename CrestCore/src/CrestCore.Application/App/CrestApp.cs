@@ -156,6 +156,9 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 default:
                     throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "No area handles this intent.");
             }
+            // Which pages windows show now, and what closed tabs no longer keep.
+            pages.Stamp(clock.Now);
+            pages.PruneRestoreStates();
             // What a page that went had asked no longer waits.
             prompts.Prune(changes);
             closePreparations.Prune(changes, Issue);

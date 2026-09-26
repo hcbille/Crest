@@ -433,6 +433,19 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
     /// its engine to close what it holds. `keepingState` says the owner kept
     /// what it needs to bring the page back.
     func release(keepingState: Bool) {
+        tearDown()
+        corePage.release(keepingState: keepingState)
+    }
+
+    /// Ends a page the core unloaded under memory pressure: its hosting comes
+    /// down as on any release, but the core already closed what its engine
+    /// held, so it hears nothing more.
+    func unloaded() {
+        tearDown()
+        corePage.unloaded()
+    }
+
+    private func tearDown() {
         faviconSession?.stop()
         sitePermissionRequests.setPresentationAvailable(false)
         translation.reset()
@@ -449,7 +462,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
         downloadCenter.resetAutomaticDownloadSequence(for: pageEngine)
         engineAdapter.detach(from: self)
         mediaSessionCoordinator = nil
-        corePage.release(keepingState: keepingState)
     }
 
     func retryAfterProcessFailure() {

@@ -81,7 +81,7 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
         XCTAssertFalse(fixture.coordinator.activateExistingWindow(for: temporary.browser))
         XCTAssertFalse(window.isVisible)
 
-        let primaryPages = BrowserPagePool(browser: fixture.browser.makeWindowStore(), monitorsMemoryPressure: false)
+        let primaryPages = BrowserPagePool(browser: fixture.browser.makeWindowStore())
         let registry = BrowserPagePoolRegistry(primary: primaryPages)
         registry.register(temporary.pages, browser: temporary.browser, for: temporary.id)
         let context = try XCTUnwrap(
@@ -333,7 +333,7 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
 
     private func makeCoordinator(over browser: BrowserStore) -> BrowserMacWindowCoordinator {
         BrowserMacWindowCoordinator(
-            browser: browser, pages: BrowserPagePool(browser: browser, monitorsMemoryPressure: false),
+            browser: browser, pages: BrowserPagePool(browser: browser),
             spaceAccess: BrowserSpaceAccessController(), windowLayouts: BrowserWindowLayouts(defaults: nil))
     }
 
@@ -345,7 +345,7 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
         let browser = BrowserStore.hostingPages(
             BrowserSession(spaces: [space]),
             showing: space.id, tabs: [space.id: tab.id])
-        let pages = BrowserPagePool(browser: browser, monitorsMemoryPressure: false)
+        let pages = BrowserPagePool(browser: browser)
         return (
             browser,
             BrowserMacWindowCoordinator(

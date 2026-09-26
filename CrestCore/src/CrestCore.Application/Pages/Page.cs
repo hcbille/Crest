@@ -61,6 +61,10 @@ internal sealed class Page {
     /// tell whether that document is still the one it shows.
     public long Documents { get; private set; }
 
+    /// When the page left the screen, or null while a window shows it. Memory
+    /// pressure unloads the pages off screen longest first.
+    public DateTimeOffset? HiddenSince { get; private set; }
+
     /// How many times in a row the page's renderer stopped since a document
     /// last finished loading or the person asked for one.
     private int crashes;
@@ -155,6 +159,14 @@ internal sealed class Page {
 
     /// The person left the page's failure for the document behind it.
     public void LeaveFailure() => failure = null;
+
+    /// The page restores what an earlier page of its tab showed at `url`, and
+    /// shows it heading there at once, so its owner does not load it anew.
+    public void Restoring(string url) => shown = shown with { PendingUrl = url };
+
+    /// Whether a window shows the page now. A page leaving the screen is
+    /// stamped at `now`; one already off screen keeps its stamp.
+    public void Seen(bool isShown, DateTimeOffset now) => HiddenSince = isShown ? null : HiddenSince ?? now;
 
     /// The engine reported what the page shows now.
     public void Show(PageSnapshot snapshot) => shown = snapshot;

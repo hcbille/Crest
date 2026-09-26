@@ -27,6 +27,16 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// or its workspace closes, so the list holds no more than the transient
     /// windows still open.
     private readonly Dictionary<Guid, TransientPage> unloaded = [];
+    /// What each tab's last page kept when it closed keeping its state, which
+    /// the tab's next page restores. Memory only, never saved or synced; a tab
+    /// that closes, is archived or loses its Space loses it.
+    private readonly Dictionary<(Guid WorkspaceId, Guid TabId), (Guid SpaceId, PageRestoreState State)> restoreStates = [];
+    /// The pages asked to close keeping their state, until their engine says
+    /// they are gone.
+    private readonly Dictionary<Guid, (Engine Engine, Guid WorkspaceId, Guid SpaceId, Guid TabId)> keeping = [];
+    /// The most restore states the core holds; past it, the oldest goes.
+    private const int MaximumRestoreStates = 64;
+    private readonly List<(Guid WorkspaceId, Guid TabId)> restoreOrder = [];
 
     /// Whether the engine new pages open on shows internal pages, such as an
     /// engine's settings.
@@ -49,6 +59,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             case ReleasePage releasing: Release(releasing, changes, issue); break;
             case Navigate navigation: Load(navigation, changes, issue); break;
             case LeavePageFailure leaving: LeaveFailure(leaving, changes); break;
+            case ReportMemoryPressure pressure: Relieve(pressure.Level, changes, issue); break;
             default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Pages do not handle this intent.");
         }
     }
@@ -63,8 +74,10 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         var page = new Page(intent.PageId, engine, space.ProfileId, intent.WorkspaceId, space.Id, intent.TabId, intent.WindowId,
             intent.Transient);
         open[page.Id] = page;
+        var restore = intent.TabId is { } tabId ? Restorable(intent.WorkspaceId, space, tabId) : null;
+        if (restore is not null) page.Restoring(restore.Url);
         changes.Publish(new PageOpened(page.State));
-        issue(engine, new CreatePage(page.Id, page.ProfileId, workspace.IsPrivateBrowsing, page.WindowId));
+        issue(engine, new CreatePage(page.Id, page.ProfileId, workspace.IsPrivateBrowsing, page.WindowId, restore));
     }
 
     private void Move(MovePage intent, ChangeFeed changes) {
@@ -91,7 +104,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         }
         if (page.TabId is null && intent.KeepsState) unloaded[page.Id] = Transient(page) with { MovesBetweenWindows = false };
         changes.Publish(new PageRemoved(page.Id));
-        if (page.Phase.HoldsEnginePage) issue(page.Engine, new ClosePage(page.Id, intent.KeepsState));
+        if (page.Phase.HoldsEnginePage) Close(page, intent.KeepsState, issue);
     }
 
     /// Resolves what the person asked for by the address rules of the page's
@@ -130,6 +143,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         }
         foreach (var remembered in unloaded.Values.Where(remembered => remembered.WorkspaceId == workspaceId).ToArray())
             unloaded.Remove(remembered.Id);
+        foreach (var key in restoreStates.Keys.Where(key => key.WorkspaceId == workspaceId).ToArray()) Forget(key);
     }
 
     #endregion
@@ -184,6 +198,9 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(issue);
+        if (report is PageClosed closedKeeping && keeping.Remove(closedKeeping.PageId, out var kept) && ReferenceEquals(kept.Engine, engine)
+            && closedKeeping.RestoreState is { } restoreState)
+            Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, restoreState);
         var pageId = report switch {
             PageCreated created => created.PageId,
             PageCreationFailed failed => failed.PageId,
@@ -260,6 +277,94 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         if (device.Attached(page.WorkspaceId) is not { } workspace) return;
         foreach (var change in workspace.Apply(edit)) changes.Publish(change);
     }
+
+    #endregion
+
+    #region Actions - Residency
+
+    /// Unloads the pages memory pressure may take back: off screen, live on
+    /// an engine that can bring them back, owned by a tab that does not keep
+    /// its page loaded, and running no media. The pages off screen longest go
+    /// first, as many as the device's platform gives back at `level`.
+    private void Relieve(MemoryPressureLevel level, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+        Stamp(clock.Now);
+        const PageMediaActivity keepsLoaded = PageMediaActivity.Playing | PageMediaActivity.Capturing | PageMediaActivity.PictureInPicture;
+        var candidates = open.Values
+            .Where(page => page.TabId is not null && page.Phase == PagePhase.Live && page.HiddenSince is not null
+                && page.Engine.Supports(EngineCapability.PageResidency) && (page.Live.Media & keepsLoaded) == 0
+                && Tab(page) is { KeepsPageLoaded: false })
+            .OrderBy(page => page.HiddenSince).ThenBy(page => page.Id)
+            .Take(PageResidencyPolicy.MaximumCandidates)
+            .ToDictionary(page => page.Id.ToString(), page => page);
+        var plan = PageResidencyPolicy.ReleasePlan(
+            [.. candidates.Select(entry => new ResidencyCandidate(entry.Key, entry.Value.HiddenSince!.Value.ToUnixTimeMilliseconds() / 1000.0,
+                KeepsPageLoaded: false, IsPresented: false, PresentedIndex: null))],
+            level, device.Platform, focusedIndex: null);
+        int limit = PageResidencyPolicy.ReleaseLimit(level, plan.OffScreen.Count, device.Platform);
+        foreach (var candidate in plan.OffScreen.Take(limit)) {
+            var page = candidates[candidate];
+            open.Remove(page.Id);
+            changes.Publish(new PageRemoved(page.Id));
+            changes.Publish(new PageUnloaded(page.Id, page.WorkspaceId, page.TabId!.Value));
+            Close(page, keepsState: true, issue);
+        }
+    }
+
+    /// Stamps each tab's page with whether a window shows it now.
+    public void Stamp(DateTimeOffset now) {
+        var shown = new Dictionary<Guid, IReadOnlySet<Guid>>();
+        foreach (var page in open.Values) {
+            if (page.TabId is not { } tabId) continue;
+            if (!shown.TryGetValue(page.WorkspaceId, out var tabs)) shown[page.WorkspaceId] = tabs = device.OnScreenTabs(page.WorkspaceId);
+            page.Seen(tabs.Contains(tabId), now);
+        }
+    }
+
+    /// Forgets what a tab kept once the tab is gone from its Space, closed or
+    /// archived, or its Space is gone or being deleted.
+    public void PruneRestoreStates() {
+        foreach (var (key, kept) in restoreStates.ToArray())
+            if (Held(key.WorkspaceId, kept.SpaceId, key.TabId) is null) Forget(key);
+    }
+
+    /// Asks the engine to close the page. A tab's page closed keeping its
+    /// state hands back what brings it back, which the tab keeps.
+    private void Close(Page page, bool keepsState, Action<Engine, EngineCommand> issue) {
+        if (keepsState && page.TabId is { } tabId) keeping[page.Id] = (page.Engine, page.WorkspaceId, page.SpaceId, tabId);
+        issue(page.Engine, new ClosePage(page.Id, keepsState));
+    }
+
+    /// What the tab kept for its next page, taken once, when the tab still
+    /// shows the address it kept. What it kept for another address is dropped.
+    private PageRestoreState? Restorable(Guid workspaceId, SpaceState space, Guid tabId) {
+        var key = (workspaceId, tabId);
+        if (!restoreStates.TryGetValue(key, out var kept)) return null;
+        Forget(key);
+        var tab = space.Tabs.FirstOrDefault(tab => tab.Id == tabId);
+        return kept.SpaceId == space.Id && tab?.Url is { } url && new WebAddress(url).IsSamePage(new WebAddress(kept.State.Url))
+            ? kept.State : null;
+    }
+
+    private void Keep((Guid WorkspaceId, Guid TabId) key, Guid spaceId, PageRestoreState state) {
+        Forget(key);
+        restoreStates[key] = (spaceId, state);
+        restoreOrder.Add(key);
+        while (restoreOrder.Count > MaximumRestoreStates) Forget(restoreOrder[0]);
+    }
+
+    private void Forget((Guid WorkspaceId, Guid TabId) key) {
+        restoreStates.Remove(key);
+        restoreOrder.Remove(key);
+    }
+
+    /// The tab a page belongs to, as its Space holds it now.
+    private TabState? Tab(Page page) => page.TabId is { } tabId ? Held(page.WorkspaceId, page.SpaceId, tabId) : null;
+
+    /// A tab its Space still holds, in a Space that is not being deleted.
+    private TabState? Held(Guid workspaceId, Guid spaceId, Guid tabId) =>
+        device.Attached(workspaceId) is { } workspace && !workspace.IsDeleting(spaceId)
+            && workspace.Current.Spaces.FirstOrDefault(space => space.Id == spaceId) is { } space
+            ? space.Tabs.FirstOrDefault(tab => tab.Id == tabId) : null;
 
     #endregion
 

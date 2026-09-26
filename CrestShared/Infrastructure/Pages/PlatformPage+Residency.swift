@@ -8,19 +8,19 @@ extension BrowserPlatformPage {
         completedNavigationCount > 0 || live.failure != nil || (live.url != nil && !live.isLoading)
     }
 
+    #if !os(macOS)
+    /// TRANSITIONAL until WP C (j1): iPhone and iPad still decide which pages
+    /// memory pressure unloads in their page store. The Mac asks the core,
+    /// which reads the media each page reports.
     func residencyDecision(isSelected: Bool) async -> BrowserPageResidencyDecision {
         let media = await pageEngine.mediaActivity()
-        #if os(macOS)
-        let hasPresentedVideo = pictureInPicture?.protectsPageResidency == true
-        #else
-        let hasPresentedVideo = false
-        #endif
         return BrowserPageResidencyDecision(
             isSelected: isSelected,
-            keepsPageLoaded: navigationContext?.keepsPageLoaded == true || hasPresentedVideo
+            keepsPageLoaded: navigationContext?.keepsPageLoaded == true
                 || media?.contains(.pictureInPicture) == true || media == nil,
             isPlayingMedia: media?.contains(.playing) == true,
             isCapturingMedia: media?.contains(.capturing) == true
         )
     }
+    #endif
 }

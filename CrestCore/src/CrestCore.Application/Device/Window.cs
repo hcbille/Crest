@@ -87,6 +87,14 @@ internal sealed class Window {
             cards, [.. ShortcutCommand.All.Where(command => !command.IsAvailable(facts))]);
     }
 
+    /// The tabs the window's content shows on screen over `session`: the cards
+    /// of the Space it shows, or none.
+    public IReadOnlyList<Guid> OnScreen(SessionState session) {
+        ArgumentNullException.ThrowIfNull(session);
+        var space = session.Spaces.FirstOrDefault(candidate => candidate.Id == ShownSpaceId);
+        return space is not null && Tab(space.Id) is { } tabId && Contains(space, tabId) ? Cards(space, tabId).TabIds : [];
+    }
+
     /// The tabs a window's content shows for `shown` in `space`, side by
     /// side: the members of the split its sidebar row shows, in order, or
     /// `shown` alone.

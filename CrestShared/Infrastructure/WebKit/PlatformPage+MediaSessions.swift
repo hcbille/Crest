@@ -21,6 +21,18 @@ extension BrowserPlatformPage {
         }
     }
 
+    /// Asks WebKit what media the page runs and tells the core before
+    /// returning, for memory pressure to decide on. The page's state goes to
+    /// the core even when WebKit's answer is unchanged, because what else keeps
+    /// a page's video on screen, such as Crest's own Picture in Picture,
+    /// changes without WebKit saying so. A page on another engine reports its
+    /// own media. TRANSITIONAL until WP C (j1).
+    func reportMediaActivity() async {
+        guard let engine = webKitEngine else { return }
+        _ = await engine.refreshMediaActivity()
+        navigationReporter?.stateChanged()
+    }
+
     func performMediaSessionAction(
         _ action: BrowserMediaSessionAction,
         documentIdentifier: String

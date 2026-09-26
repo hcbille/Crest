@@ -376,7 +376,9 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     /// What WebKit shows for the page now: the document and its title,
     /// whether it loads, its history with Crest's supplement, the page's
     /// security from its secure-content flag and the trust it kept, and the
-    /// media WebKit last said it runs.
+    /// media WebKit last said it runs, with Picture in Picture while Crest's
+    /// own controller holds or is entering it, so memory pressure never
+    /// unloads that video.
     private func snapshot(pendingURL: String?) -> PageSnapshot? {
         guard let page else { return nil }
         let overrides = page.serverTrustOverrides
@@ -393,6 +395,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
                 hasOnlySecureContent: webView.hasOnlySecureContent,
                 serverTrust: webView.serverTrust,
                 isApprovedOverride: { overrides.isApproved($0, for: profileID) }),
-            media: webKit.knownMediaActivity)
+            media: pictureInPicture?.protectsPageResidency == true
+                ? webKit.knownMediaActivity.union(.pictureInPicture) : webKit.knownMediaActivity)
     }
 }

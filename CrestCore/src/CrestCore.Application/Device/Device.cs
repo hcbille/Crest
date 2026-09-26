@@ -43,6 +43,9 @@ internal sealed partial class Device {
     private readonly Action<Guid> closeBorrower;
     /// The device class whose defaults the device's rules apply.
     private readonly DevicePlatform platform;
+
+    /// The platform this device runs, whose rules memory pressure follows.
+    internal DevicePlatform Platform => platform;
     /// The tabs an older release kept in the session, which a window without a
     /// record adopts during the launch that loaded them.
     private IReadOnlyDictionary<Guid, Guid> legacyTabs = new Dictionary<Guid, Guid>();

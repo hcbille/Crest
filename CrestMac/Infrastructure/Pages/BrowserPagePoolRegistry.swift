@@ -61,6 +61,12 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
         windowRuntimes.removeValue(forKey: windowID)
     }
 
+    /// The primary pool and every other pool still registered.
+    var livePools: [BrowserPagePool] {
+        pools = pools.filter { $0.value.value != nil }
+        return [primary] + pools.values.compactMap(\.value).filter { $0 !== primary }
+    }
+
     func runtime(for windowID: BrowserWindowID) -> BrowserPagePoolWindowRuntime? {
         guard let runtime = windowRuntimes[windowID],
             let browser = runtime.browser,
@@ -79,8 +85,6 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
         guard spacesDeletingData.insert(space.id).inserted else { return }
         defer { spacesDeletingData.remove(space.id) }
 
-        pools = pools.filter { $0.value.value != nil }
-        let livePools = [primary] + pools.values.compactMap(\.value).filter { $0 !== primary }
         for pool in livePools where pool !== primary {
             await pool.releaseWindowRuntime(for: space)
         }

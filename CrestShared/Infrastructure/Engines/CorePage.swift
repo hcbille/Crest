@@ -73,6 +73,15 @@ final class CorePage {
         if isFirst { core?.engines.forget(id) }
     }
 
+    /// The core unloaded the page under memory pressure and already asked its
+    /// engine to close it, keeping what brings it back; the page is released
+    /// without telling the core again.
+    func unloaded() {
+        guard !isReleased else { return }
+        isReleased = true
+        core?.engines.forget(id)
+    }
+
     // MARK: - Actions - Navigation
 
     /// Asks the core to load what the person typed or chose, an address or

@@ -101,51 +101,6 @@ final class BrowserSharedPageRuntimeTests: XCTestCase {
         XCTAssertTrue(page.host === destination)
     }
 
-    func testMemoryPressureProtectsPagesPresentedByOtherWindows() async throws {
-        let tabs = (0..<4).map { _ in BrowserTab.startPage() }
-        let space = makeSpace(tabs: tabs)
-        let runtimeStore = BrowserPageRuntimeStore()
-        let browser = hosting(space)
-        var decisions = 0
-        var laterDecision: CheckedContinuation<Void, Never>?
-        defer { laterDecision?.resume() }
-        let first = BrowserPagePool(
-            browser: browser,
-            runtimeStore: runtimeStore,
-            residencyDecisionProvider: { _, _ in
-                decisions += 1
-                if decisions == 2 {
-                    await withCheckedContinuation { laterDecision = $0 }
-                }
-                return BrowserPageResidencyDecision(
-                    isSelected: false, keepsPageLoaded: false, isPlayingMedia: false, isCapturingMedia: false)
-            })
-        let second = BrowserPagePool(browser: browser.makeWindowStore(), runtimeStore: runtimeStore)
-        first.select(tab: tabs[0], space: space, at: Date(timeIntervalSince1970: 1))
-        first.select(tab: tabs[1], space: space, at: Date(timeIntervalSince1970: 2))
-        second.select(tab: tabs[0], space: space, at: Date(timeIntervalSince1970: 3))
-        first.select(tab: tabs[2], space: space, at: Date(timeIntervalSince1970: 4))
-        first.select(tab: tabs[3], space: space, at: Date(timeIntervalSince1970: 5))
-        let returningPage = try XCTUnwrap(
-            first.residentPage(
-                matching: BrowserTabRuntimeAssignment(
-                    tabID: tabs[1].id, spaceID: space.id, profileID: space.profile.id)))
-        first.handleMemoryPressure(.critical)
-        try await waitUntil { laterDecision != nil }
-        // The first candidate was approved before WebKit began evaluating the
-        // second. Bringing it into another window must still protect its page.
-        second.select(tab: tabs[1], space: space, at: Date(timeIntervalSince1970: 6))
-        let decision = try XCTUnwrap(laterDecision)
-        laterDecision = nil
-        decision.resume()
-        await first.waitForPendingMemoryPressureResponse()
-        XCTAssertTrue(second.containsResidentPage(for: tabs[0].id))
-        XCTAssertTrue(second.presentedPage(for: tabs[1].id) === returningPage)
-        XCTAssertTrue(second.activePage === returningPage)
-        XCTAssertTrue(first.containsResidentPage(for: tabs[3].id))
-        XCTAssertFalse(first.containsResidentPage(for: tabs[2].id))
-    }
-
     func testWindowHandoffAndWorkspaceTransferPreserveTheLiveDocumentAndHistory() async throws {
         let tab = BrowserTab.startPage()
         let space = makeSpace(tabs: [tab])

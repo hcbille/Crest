@@ -139,7 +139,7 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
             coordinator = BrowserMacWindowCoordinator(
                 browser: browser,
                 pages: BrowserPagePool(
-                    browser: browser, monitorsMemoryPressure: false, usesEphemeralWebsiteDataStores: true),
+                    browser: browser, usesEphemeralWebsiteDataStores: true),
                 spaceAccess: access, windowLayouts: BrowserWindowLayouts(defaults: nil))
             source = try XCTUnwrap(coordinator.model(for: .initial))
             root = BrowserRootModel(
