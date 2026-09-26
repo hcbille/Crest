@@ -88,6 +88,14 @@ public sealed unsafe partial class BrowserContractsTests {
         return drained;
     }
 
+    /// Drains `app` until a launch over an adopted session has saved it and
+    /// staged it. Attaching sync first announces the journal it found, which
+    /// holds nothing to upload, and the launch stage announces what it staged
+    /// after it, a drain later when the save already travelled in the answer.
+    private static IReadOnlyList<Change> DrainLaunch(CrestApp app, IReadOnlyList<Change> answered) =>
+        DrainUntil(app, changes => changes.OfType<Saved>().Any()
+            && changes.Any(change => change is SyncJournalChanged { PendingRecords: > 0 }), answered);
+
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void CountWake(nint context) {
         Assert.Equal(42, context);
@@ -172,8 +180,7 @@ public sealed unsafe partial class BrowserContractsTests {
         var session = app.Workspace(workspace);
         var sync = app.StoredSync!;
         sync.Flush();
-        var launched = DrainUntil(app,
-            changes => changes.OfType<SyncJournalChanged>().Any() && changes.OfType<Saved>().Any(), [.. answered, .. opened]);
+        var launched = DrainLaunch(app, [.. answered, .. opened]);
         Assert.Contains(launched, change => change is SyncJournalChanged { PendingRecords: > 0 });
         var deleting = SpaceId(second);
         var operation = Guid.NewGuid();
@@ -214,8 +221,7 @@ public sealed unsafe partial class BrowserContractsTests {
             var (_, opened) = TestWorkspaces.OpenStored(app);
             var sync = app.StoredSync!;
             sync.Flush();
-            _ = DrainUntil(app, changes => changes.OfType<SyncJournalChanged>().Any() && changes.OfType<Saved>().Any(),
-                [.. answered, .. opened]);
+            _ = DrainLaunch(app, [.. answered, .. opened]);
             before = StoredParts(directory.File);
             var staged = sync.Snapshot;
 

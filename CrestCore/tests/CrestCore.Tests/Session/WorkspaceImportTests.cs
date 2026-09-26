@@ -184,7 +184,7 @@ public sealed partial class BrowserContractsTests {
         var session = app.Workspace(workspace);
         var sync = app.StoredSync!;
         sync.Flush();
-        _ = DrainUntil(app, changes => changes.OfType<SyncJournalChanged>().Any() && changes.OfType<Saved>().Any(), [.. answered, .. opened]);
+        _ = DrainLaunch(app, [.. answered, .. opened]);
         var import = new ImportSpaces(workspace, Guid.NewGuid(), ImportedSpaces(ImportedSpace("Imported", ImportedTab("https://imported.example/"))));
         var (stored, staged, kept) = (StoredParts(directory.File), sync.Snapshot, session.Current);
 

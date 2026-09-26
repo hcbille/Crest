@@ -23,8 +23,7 @@ public sealed partial class BrowserContractsTests {
         var owner = app.Workspace(workspace);
         var sync = app.StoredSync!;
         sync.Flush();
-        _ = DrainUntil(app, changes => changes.OfType<SyncJournalChanged>().Any() && changes.OfType<Saved>().Any(),
-            [.. answered, .. opened]);
+        _ = DrainLaunch(app, [.. answered, .. opened]);
         var borrowing = TestWorkspaces.Borrow(app, workspace, document["spaces"]![0]!);
         var borrowed = app.Workspace(borrowing);
         var windows = new Dictionary<Guid, WindowState>();
