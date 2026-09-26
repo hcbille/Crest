@@ -25,7 +25,9 @@ extension BrowserStore {
         _ id: SpaceID,
         dataDeleter: any BrowserSpaceDataDeleting
     ) async throws {
-        guard let space = session.space(id: id) else {
+        // The page engines still erase a profile from the session's copy of
+        // the Space; TRANSITIONAL until Lane 2 moves them to the read model.
+        guard spaceModel(id) != nil, let space = session.space(id: id) else {
             throw BrowserSpaceDeletionError.missingSpace
         }
         guard family.beginDeletingSpace(id) else {
@@ -33,7 +35,7 @@ extension BrowserStore {
         }
         defer { family.finishDeletingSpace(id) }
 
-        let operationID = session.spaceDeletions?.first(where: { $0.spaceID == id })?.operationID ?? UUID()
+        let operationID = workspaceModel?.spaceDeletions.first(where: { $0.spaceID == id })?.id ?? UUID()
         try family.commit(
             BeginDeletingSpace(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: id,
@@ -52,7 +54,7 @@ extension BrowserStore {
 
     func resumePendingSpaceDeletions(dataDeleter: any BrowserSpaceDataDeleting) async {
         var attempted: Set<SpaceID> = []
-        while let intent = (session.spaceDeletions ?? []).first(where: {
+        while let intent = (workspaceModel?.spaceDeletions ?? []).first(where: {
             !attempted.contains($0.spaceID) && !family.isActivelyDeletingSpace($0.spaceID)
         }) {
             attempted.insert(intent.spaceID)
@@ -137,7 +139,7 @@ extension BrowserStore {
     }
 
     func moveSpaces(from source: IndexSet, to destination: Int) {
-        var order = session.spaces.map(\.id)
+        var order = spaceModels.map(\.id)
         order.move(fromOffsets: source, toOffset: destination)
         family.send(
             ReorderSpaces(workspaceID: family.workspaceID, spaceIDs: order), from: self,

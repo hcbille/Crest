@@ -59,8 +59,8 @@ struct BrowserSpaceSwitcher: View {
         )
     }
 
-    private var spaces: [BrowserSpace] {
-        BrowserSidebarAccessPolicy.availableSpaceCopies(in: browser)
+    private var spaces: [BrowserSpaceIdentity] {
+        BrowserSidebarAccessPolicy.availableSpaces(in: browser).map(BrowserSpaceIdentity.init(space:))
     }
 
     private var selectedSpaceID: SpaceID {

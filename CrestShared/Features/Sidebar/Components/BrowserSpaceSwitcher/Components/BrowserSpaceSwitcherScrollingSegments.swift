@@ -3,7 +3,7 @@ import SwiftUI
 /// Touch keeps the capsule appearance, using the same progress-driven buttons
 /// and clear overflow controls as the compact desktop lane.
 struct BrowserSpaceSwitcherScrollingSegments: View {
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     let selectedSpaceID: SpaceID
     let reorderState: BrowserSidebarReorderState
     let metrics: BrowserSpacePickerMetrics

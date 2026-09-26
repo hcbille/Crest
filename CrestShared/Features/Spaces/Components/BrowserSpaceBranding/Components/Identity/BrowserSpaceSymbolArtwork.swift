@@ -13,12 +13,8 @@ struct BrowserSpaceSymbolArtwork: View {
     @Environment(\.displayScale) private var displayScale
     @State private var renderedArtwork: BrowserSpaceRenderedSymbolArtwork?
 
-    init(space: BrowserSpace, size: CGFloat, lockSize: CGFloat) {
-        self.init(identity: BrowserSpaceIdentity(space: space), size: size, lockSize: lockSize)
-    }
-
-    init(space: SpaceModel, size: CGFloat, lockSize: CGFloat) {
-        self.init(identity: BrowserSpaceIdentity(space: space), size: size, lockSize: lockSize)
+    init(space: some BrowserSpaceIdentifying, size: CGFloat, lockSize: CGFloat) {
+        self.init(identity: space.identity, size: size, lockSize: lockSize)
     }
 
     init(identity: BrowserSpaceIdentity, size: CGFloat, lockSize: CGFloat) {
@@ -79,7 +75,7 @@ struct BrowserSpaceSymbolArtwork: View {
         BrowserSpaceSymbolArtworkIdentity(
             branding: identity.branding,
             symbol: identity.symbol,
-            accessPolicy: identity.accessPolicy,
+            requiresAuthentication: identity.requiresAuthentication,
             size: size,
             lockSize: lockSize,
             colorScheme: colorScheme,

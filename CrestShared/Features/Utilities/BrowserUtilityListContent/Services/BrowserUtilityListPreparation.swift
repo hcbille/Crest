@@ -86,10 +86,10 @@ enum BrowserUtilityListPreparation {
         switch item {
         case .archive(let archived):
             return archived.tab.displayTitle.localizedStandardContains(query)
-                || archived.tab.url?.absoluteString.localizedStandardContains(query) == true
+                || archived.tab.url?.localizedStandardContains(query) == true
         case .history(let entry):
             return entry.title.localizedStandardContains(query)
-                || entry.url.absoluteString.localizedStandardContains(query)
+                || entry.url.localizedStandardContains(query)
         case .download(let download):
             return download.filename.localizedStandardContains(query)
                 || BrowserDownloadRowPresentation.status(of: download)

@@ -21,7 +21,7 @@ extension BrowserSidebarPageAccess {
             selectPages: { pages.selectSpace(in: browser) },
             deactivatePagePresentation: { pages.deactivatePagePresentation() },
             unloadPage: { tabID, assignment in
-                guard let tab = browser.space(matching: assignment)?.tabs.first(where: { $0.id == tabID })
+                guard let tab = browser.spaceModel(matching: assignment)?.tabs.model(tabID)
                 else { return }
                 if !tab.placement.isDurable {
                     pages.unloadPage(for: tabID, matching: assignment)

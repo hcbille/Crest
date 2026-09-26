@@ -9,13 +9,6 @@ enum BrowserSidebarAccessPolicy {
         browser.spaceModels.filter { !browser.isDeleting($0.id) }
     }
 
-    /// The same Spaces as the session copy holds them, for the Space pickers
-    /// that still draw a copy's identity. TRANSITIONAL until the Space pass
-    /// draws every Space identity from the read model.
-    static func availableSpaceCopies(in browser: BrowserStore) -> [BrowserSpace] {
-        browser.session.spaces.filter { !browser.isDeleting($0.id) }
-    }
-
     static func unlockedSpace(
         matching assignment: BrowserSpaceRuntimeAssignment,
         in browser: BrowserStore,
@@ -34,19 +27,6 @@ enum BrowserSidebarAccessPolicy {
     ) -> SpaceModel? {
         guard browser.selectedSpaceID == assignment.spaceID else { return nil }
         return unlockedSpace(matching: assignment, in: browser, accessController: accessController)
-    }
-
-    /// The selected unlocked Space as the session copy holds it, for the list
-    /// panels that still draw a copy. TRANSITIONAL until the utilities pass
-    /// reads archive, history and downloads from the read model.
-    static func selectedUnlockedSpaceCopy(
-        matching assignment: BrowserSpaceRuntimeAssignment,
-        in browser: BrowserStore,
-        accessController: BrowserSpaceAccessController
-    ) -> BrowserSpace? {
-        guard selectedUnlockedSpace(matching: assignment, in: browser, accessController: accessController) != nil
-        else { return nil }
-        return browser.session.space(id: assignment.spaceID)
     }
 
     static func showsSelectedSpaceActions(

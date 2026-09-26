@@ -5,13 +5,15 @@ struct BrowserUtilityListRow: View {
     let assignment: BrowserSpaceRuntimeAssignment
     let actions: BrowserUtilityListActions
 
+    @Environment(\.browserFavicons) private var favicons
+
     var body: some View {
         // List can gather row identities without resolving every row's branch.
         VStack(alignment: .leading, spacing: 0) {
             switch item {
             case .archive(let archived):
                 Button {
-                    actions.restoreArchivedTab(archived.id, assignment)
+                    actions.restoreArchivedTab(archived.tab.id, assignment)
                 } label: {
                     BrowserUtilityListRowLabel(
                         title: archived.tab.displayTitle,
@@ -21,7 +23,8 @@ struct BrowserUtilityListRow: View {
                         )
                     ) {
                         TabFaviconView(
-                            tab: archived.tab,
+                            subject: BrowserTabFaviconSubject(
+                                tab: archived.tab, image: favicons?.icon(of: archived.tab.id)),
                             profileID: assignment.profileID
                         )
                     } trailing: {
@@ -32,7 +35,7 @@ struct BrowserUtilityListRow: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Restore \(archived.tab.displayTitle)")
                 .accessibilityIdentifier(
-                    BrowserTabAccessibilityID.archivedRow(archived.id)
+                    BrowserTabAccessibilityID.archivedRow(archived.tab.id)
                 )
 
             case .history(let entry):
@@ -68,17 +71,17 @@ struct BrowserUtilityListRow: View {
         )
     }
 
-    private func archiveSubtitle(_ archived: ArchivedTab) -> Text {
+    private func archiveSubtitle(_ archived: ArchivedTabState) -> Text {
         let icon = Image(systemName: archived.reason.symbol)
         let status = Text(archived.reason.title)
-        if let host = archived.tab.url?.host() {
+        if let host = archived.tab.url.flatMap(URL.init(string:))?.host() {
             return Text("\(icon) \(status) · \(host)")
         }
         return Text("\(icon) \(status)")
     }
 
-    private func historySubtitle(_ entry: BrowserHistoryEntry) -> Text {
-        let host = entry.url.host() ?? entry.url.absoluteString
+    private func historySubtitle(_ entry: HistoryEntryState) -> Text {
+        let host = URL(string: entry.url)?.host() ?? entry.url
         guard entry.visitCount > 1 else { return Text(host) }
         return Text(
             BrowserUtilityPresentation.historyVisits(
@@ -94,6 +97,8 @@ private struct BrowserUtilityDownloadRow: View {
     let download: DownloadState
     let assignment: BrowserSpaceRuntimeAssignment
     let actions: BrowserUtilityListActions
+
+    @Environment(\.browserFavicons) private var favicons
 
     var body: some View {
         HStack(spacing: 0) {

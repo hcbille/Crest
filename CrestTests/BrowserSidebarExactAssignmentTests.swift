@@ -321,7 +321,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         context.store.seedVisit(to: historyURL, titled: "Selection", in: assignment.spaceID)
         let confirmation = try XCTUnwrap(
             BrowserSidebarSpacePresentationPolicy.clearHistoryConfirmation(
-                for: context.source,
+                for: try XCTUnwrap(context.store.spaceModel(context.source.id)),
                 in: context.store,
                 accessController: access
             )
@@ -364,7 +364,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         context.store.seedVisit(to: historyURL, titled: "Relock", in: assignment.spaceID)
         let confirmation = try XCTUnwrap(
             BrowserSidebarSpacePresentationPolicy.clearHistoryConfirmation(
-                for: context.source,
+                for: try XCTUnwrap(context.store.spaceModel(context.source.id)),
                 in: context.store,
                 accessController: access
             )

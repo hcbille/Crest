@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct MobileHistoryList: View {
-    let space: BrowserSpace?
+    let space: SpaceModel?
     let searchText: String
-    let openHistoryEntry: (BrowserHistoryEntry) -> Void
+    let openHistoryEntry: (HistoryEntryState) -> Void
 
     var body: some View {
         Group {

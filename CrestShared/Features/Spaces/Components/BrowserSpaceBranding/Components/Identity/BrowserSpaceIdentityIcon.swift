@@ -4,12 +4,8 @@ struct BrowserSpaceIdentityIcon: View {
     let identity: BrowserSpaceIdentity
     var size: CGFloat = 24
 
-    init(space: BrowserSpace, size: CGFloat = 24) {
-        self.init(identity: BrowserSpaceIdentity(space: space), size: size)
-    }
-
-    init(space: SpaceModel, size: CGFloat = 24) {
-        self.init(identity: BrowserSpaceIdentity(space: space), size: size)
+    init(space: some BrowserSpaceIdentifying, size: CGFloat = 24) {
+        self.init(identity: space.identity, size: size)
     }
 
     init(identity: BrowserSpaceIdentity, size: CGFloat = 24) {

@@ -53,14 +53,11 @@ struct MobileBrowserSidebarBottomChromeLayout<Content: View>: View {
     private func ownerFaviconData(
         _ assignment: BrowserTabRuntimeAssignment
     ) -> Data? {
-        guard
-            let space = configuration.context.browser.session.space(
-                id: assignment.spaceID
-            ),
-            space.profile.id == assignment.profileID,
-            let tab = space.tabs.first(where: { $0.id == assignment.tabID })
-        else { return nil }
-        return tab.displayFaviconData
+        let browser = configuration.context.browser
+        guard browser.spaceModel(matching: assignment.spaceAssignment)?.tabs.model(assignment.tabID) != nil else {
+            return nil
+        }
+        return browser.core.state.favicons.image(of: assignment.tabID)
     }
 
     private func activateMediaSession(
@@ -69,11 +66,8 @@ struct MobileBrowserSidebarBottomChromeLayout<Content: View>: View {
         Task { @MainActor in
             guard
                 configuration.pages.containsResidentPage(matching: assignment),
-                let space = configuration.context.browser.session.space(
-                    id: assignment.spaceID
-                ),
-                space.profile.id == assignment.profileID,
-                space.tabs.contains(where: { $0.id == assignment.tabID }),
+                let space = configuration.context.browser.spaceModel(matching: assignment.spaceAssignment),
+                space.tabs.model(assignment.tabID) != nil,
                 await configuration.context.spaceAccess.unlock(space)
             else { return }
             configuration.context.selectSpace(assignment.spaceID)

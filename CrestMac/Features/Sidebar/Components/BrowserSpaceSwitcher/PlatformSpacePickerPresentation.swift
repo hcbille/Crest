@@ -7,7 +7,7 @@ import SwiftUI
 struct PlatformSpacePickerPresentation: NSViewRepresentable {
     let presentation: SpacePagerPresentation
     let style: CrestSpaceIconPickerStyle
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     let selectedSpaceID: SpaceID?
     let frames: [SpaceID: CGRect]
     let selectionTint: Color?
@@ -78,7 +78,7 @@ final class SpacePickerPresentationView: NSView {
     }
 
     func update(
-        presentation: SpacePagerPresentation, style: CrestSpaceIconPickerStyle, spaces: [BrowserSpace],
+        presentation: SpacePagerPresentation, style: CrestSpaceIconPickerStyle, spaces: [BrowserSpaceIdentity],
         selectedSpaceID: SpaceID?, frames: [SpaceID: CGRect], selectionTint: Color?
     ) {
         if self.presentation !== presentation {

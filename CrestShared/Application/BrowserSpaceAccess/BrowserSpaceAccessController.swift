@@ -48,8 +48,10 @@ final class BrowserSpaceAccessController {
 
     // MARK: - Actions - Access
 
-    /// A Space that asks for authentication shows only while this process
-    /// holds the grant for its profile.
+    /// A Space value that asks for authentication shows only while this
+    /// process holds the grant for its profile. TRANSITIONAL for the Chromium
+    /// views and the setup flows that still hold Space values; everything
+    /// else asks with a Space of the read model.
     func isLocked(_ space: BrowserSpace) -> Bool {
         guard space.accessPolicy.requiresAuthentication else { return false }
         return core?.state.spaceAccess[BrowserSpaceRuntimeAssignment(space: space)]?.isUnlocked != true
@@ -58,7 +60,7 @@ final class BrowserSpaceAccessController {
     /// A Space of the read model that asks for authentication shows only
     /// while this process holds the grant for its profile.
     func isLocked(_ space: SpaceModel) -> Bool {
-        guard space.settings.accessPolicy == .deviceOwnerAuthentication else { return false }
+        guard space.settings.requiresAuthentication else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID)
         return core?.state.spaceAccess[assignment]?.isUnlocked != true
     }
@@ -66,7 +68,7 @@ final class BrowserSpaceAccessController {
     /// Whether a Space, as its identity views draw it, shows only once this
     /// process holds the grant for its profile.
     func isLocked(_ space: BrowserSpaceIdentity) -> Bool {
-        guard space.accessPolicy.requiresAuthentication else { return false }
+        guard space.requiresAuthentication else { return false }
         return core?.state.spaceAccess[space.assignment]?.isUnlocked != true
     }
 
@@ -74,6 +76,7 @@ final class BrowserSpaceAccessController {
         isAuthenticating(space.assignment)
     }
 
+    /// TRANSITIONAL, as `isLocked(_:)` for a Space value.
     func isAuthenticating(_ space: BrowserSpace) -> Bool {
         isAuthenticating(BrowserSpaceRuntimeAssignment(space: space))
     }
@@ -109,6 +112,7 @@ final class BrowserSpaceAccessController {
     /// Asks the device owner to unlock `space`, answering whether it is
     /// unlocked afterwards. One request waits at a time; only its own answer
     /// can unlock the Space, so a lock while the prompt is up keeps it locked.
+    /// TRANSITIONAL, as `isLocked(_:)` for a Space value.
     @discardableResult
     func unlock(_ space: BrowserSpace) async -> Bool {
         guard isLocked(space) else { return true }

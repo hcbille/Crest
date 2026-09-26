@@ -9,7 +9,7 @@ import SwiftUI
 struct SpaceSidebarBrowsingContent: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
 
-    let space: BrowserSpace
+    let space: SpaceModel
     let browser: BrowserStore
     let pages: BrowserPagePool
     let spaceAccess: BrowserSpaceAccessController
@@ -101,9 +101,9 @@ struct SpaceSidebarBrowsingContent: View {
     /// The Space and this window as the read model keeps them, and what the
     /// rows act through.
     private var listContext: BrowserSidebarListContext? {
-        guard let spaceModel = browser.spaceModel(space.id), let window = browser.windowModel else { return nil }
+        guard let window = browser.windowModel else { return nil }
         return BrowserSidebarListContext(
-            space: spaceModel, window: window, favicons: browser.core.state.favicons, browser: browser,
+            space: space, window: window, favicons: browser.core.state.favicons, browser: browser,
             spaceAccess: spaceAccess, pageAccess: pageAccess, tabActions: tabActions, capabilities: capabilities,
             promotionNamespaces: [.current: tabPromotionNamespace], select: activate,
             restoreSavedLocation: restoreSavedLocation)
@@ -144,7 +144,7 @@ struct SpaceSidebarBrowsingContent: View {
             BrowserTabRuntimeAssignment(
                 tabID: tabID,
                 spaceID: space.id,
-                profileID: space.profile.id
+                profileID: space.profileID
             )
         )
     }

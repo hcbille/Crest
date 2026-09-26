@@ -51,7 +51,7 @@ struct BrowserSidebarUtilityCoordinator {
     }
 
     private func openHistoryEntry(
-        _ entry: BrowserHistoryEntry,
+        _ entry: HistoryEntryState,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) {
         guard
@@ -59,9 +59,10 @@ struct BrowserSidebarUtilityCoordinator {
                 matching: assignment,
                 in: browser,
                 accessController: spaceAccess
-            ) != nil
+            ) != nil,
+            let url = URL(string: entry.url)
         else { return }
-        platformActions.openHistoryEntry(entry.url, assignment)
+        platformActions.openHistoryEntry(url, assignment)
     }
 
     private func performDownloadAction(

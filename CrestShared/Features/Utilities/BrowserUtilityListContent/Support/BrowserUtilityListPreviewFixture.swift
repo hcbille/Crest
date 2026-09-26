@@ -7,16 +7,16 @@ enum BrowserUtilityListPreviewFixture {
         profileID: identifier(0x11)
     )
 
-    static let historyEntry = BrowserHistoryEntry(
+    static let historyEntry = HistoryEntryState(
         id: identifier(0x31),
-        url: previewURL("history"),
+        url: previewURL("history").absoluteString,
         title: "Crest Project Notes",
         firstVisitedAt: referenceDate.addingTimeInterval(-3_600),
         lastVisitedAt: referenceDate,
         visitCount: 3
     )
 
-    static let archivedTab = ArchivedTab(
+    private static let archivedPreviewTab = ArchivedTab(
         tab: BrowserTab(
             id: identifier(0x41),
             title: "Architecture Notes",
@@ -50,9 +50,16 @@ enum BrowserUtilityListPreviewFixture {
                 lastActivatedAt: referenceDate
             )
         ],
-        archivedTabs: [archivedTab],
-        history: [historyEntry]
+        archivedTabs: [archivedPreviewTab],
+        history: [BrowserHistoryEntry(core: historyEntry)].compactMap { $0 }
     )
+
+    /// The history Space as the read model of a preview store holds it.
+    @MainActor
+    static var historySpaceModel: SpaceModel? {
+        BrowserStore(session: BrowserSession(spaces: [historySpace]), showing: historySpace.id).spaceModel(
+            historySpace.id)
+    }
 
     static let preparingDownload = download(
         id: identifier(0x51),

@@ -10,14 +10,13 @@ struct MobileSavedLocationRestoreAction {
     @discardableResult
     func perform(_ assignment: BrowserTabRuntimeAssignment) -> Bool {
         guard
-            let space = browser.selectedSpace,
+            let space = browser.shownSpace,
             space.id == assignment.spaceID,
-            space.profile.id == assignment.profileID,
-            !browser.deletingSpaceIDs.contains(space.id),
+            space.profileID == assignment.profileID,
             !spaceAccess.isLocked(space),
-            let tab = space.tabs.first(where: { $0.id == assignment.tabID }),
-            browser.returnsToSavedAddress(tab.id, in: space.id),
-            !pages.containsResidentPage(for: tab.id) || pages.containsResidentPage(matching: assignment)
+            space.tabs.contains(assignment.tabID),
+            browser.returnsToSavedAddress(assignment.tabID, in: space.id),
+            !pages.containsResidentPage(for: assignment.tabID) || pages.containsResidentPage(matching: assignment)
         else { return false }
 
         let hadResidentPage = pages.containsResidentPage(matching: assignment)

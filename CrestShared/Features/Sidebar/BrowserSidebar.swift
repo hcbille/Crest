@@ -123,7 +123,7 @@ struct BrowserSidebar<Content: View>: View {
         )
     }
 
-    private func confirmClearHistory(for space: BrowserSpace) {
+    private func confirmClearHistory(for space: SpaceModel) {
         clearHistoryConfirmation =
             BrowserSidebarSpacePresentationPolicy.clearHistoryConfirmation(
                 for: space,

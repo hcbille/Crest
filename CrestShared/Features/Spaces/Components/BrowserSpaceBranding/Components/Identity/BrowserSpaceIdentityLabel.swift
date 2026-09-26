@@ -5,12 +5,8 @@ struct BrowserSpaceIdentityLabel: View {
     var title: String?
     var iconSize: CGFloat = 20
 
-    init(space: BrowserSpace, title: String? = nil, iconSize: CGFloat = 20) {
-        self.init(identity: BrowserSpaceIdentity(space: space), title: title, iconSize: iconSize)
-    }
-
-    init(space: SpaceModel, title: String? = nil, iconSize: CGFloat = 20) {
-        self.init(identity: BrowserSpaceIdentity(space: space), title: title, iconSize: iconSize)
+    init(space: some BrowserSpaceIdentifying, title: String? = nil, iconSize: CGFloat = 20) {
+        self.init(identity: space.identity, title: title, iconSize: iconSize)
     }
 
     init(identity: BrowserSpaceIdentity, title: String? = nil, iconSize: CGFloat = 20) {

@@ -17,7 +17,7 @@ struct CrestSpaceMenuPicker<Tag: Hashable>: View {
         Picker(label, selection: $selection) {
             ForEach(spaces) { identity in
                 BrowserSpaceIdentityLabel(
-                    space: identity.space,
+                    identity: identity.space,
                     title: identity.name,
                     iconSize: iconSize
                 )

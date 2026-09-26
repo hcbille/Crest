@@ -52,17 +52,15 @@ struct BrowserSidebarLoadedContent: View {
             }
 
             BrowserSidebarSpacePager(context: context) { space, isSelected in
-                if let copy = context.spaceCopy(space) {
-                    BrowserSidebarSpacePage(
-                        space: copy,
-                        isSelected: isSelected,
-                        context: context,
-                        pages: pages,
-                        openNewTab: openNewTab,
-                        commandSurfaceNamespace: commandSurfaceNamespace,
-                        tabPromotionNamespace: tabPromotionNamespace
-                    )
-                }
+                BrowserSidebarSpacePage(
+                    space: space,
+                    isSelected: isSelected,
+                    context: context,
+                    pages: pages,
+                    openNewTab: openNewTab,
+                    commandSurfaceNamespace: commandSurfaceNamespace,
+                    tabPromotionNamespace: tabPromotionNamespace
+                )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
@@ -93,8 +91,8 @@ struct BrowserSidebarLoadedContent: View {
             )
             .environment(
                 \.colorScheme,
-                context.browser.selectedSpace.map {
-                    BrowserSpaceForegroundPolicy.colorScheme(for: $0.branding)
+                context.browser.shownSpace.map {
+                    BrowserSpaceForegroundPolicy.colorScheme(for: BrowserSpaceBranding(look: $0.settings.look))
                 } ?? .dark
             )
             .modifier(
@@ -104,7 +102,7 @@ struct BrowserSidebarLoadedContent: View {
         .environment(\.spacePagerPresentation, spacePagerPresentation)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            "\(context.browser.selectedSpace?.name ?? "Browser") Space"
+            "\(context.browser.shownSpace?.settings.name ?? "Browser") Space"
         )
     }
 
@@ -114,11 +112,8 @@ struct BrowserSidebarLoadedContent: View {
         Task { @MainActor in
             guard
                 pages.containsResidentPage(matching: assignment),
-                let space = context.browser.session.space(
-                    id: assignment.spaceID
-                ),
-                space.profile.id == assignment.profileID,
-                space.tabs.contains(where: { $0.id == assignment.tabID }),
+                let space = context.browser.spaceModel(matching: assignment.spaceAssignment),
+                space.tabs.model(assignment.tabID) != nil,
                 await context.spaceAccess.unlock(space)
             else { return }
             context.selectSpace(assignment.spaceID)
@@ -134,12 +129,9 @@ struct BrowserSidebarLoadedContent: View {
     private func ownerFaviconData(
         _ assignment: BrowserTabRuntimeAssignment
     ) -> Data? {
-        guard
-            let space = context.browser.session.space(id: assignment.spaceID),
-            space.profile.id == assignment.profileID,
-            let tab = space.tabs.first(where: { $0.id == assignment.tabID })
+        guard context.browser.spaceModel(matching: assignment.spaceAssignment)?.tabs.model(assignment.tabID) != nil
         else { return nil }
-        return tab.displayFaviconData
+        return context.browser.core.state.favicons.image(of: assignment.tabID)
     }
 
     /// The scroll wheel flips the widget deck, so the wheel handler owns no

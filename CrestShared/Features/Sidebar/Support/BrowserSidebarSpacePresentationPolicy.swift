@@ -1,7 +1,7 @@
 @MainActor
 enum BrowserSidebarSpacePresentationPolicy {
     static func clearHistoryConfirmation(
-        for space: BrowserSpace,
+        for space: SpaceModel,
         in browser: BrowserStore,
         accessController: BrowserSpaceAccessController
     ) -> BrowserSidebarClearHistoryConfirmation? {
@@ -14,8 +14,8 @@ enum BrowserSidebarSpacePresentationPolicy {
             ) != nil
         else { return nil }
         return BrowserSidebarClearHistoryConfirmation(
-            assignment: BrowserSpaceRuntimeAssignment(space: space),
-            spaceName: space.name
+            assignment: assignment,
+            spaceName: space.settings.name
         )
     }
 

@@ -28,7 +28,9 @@ struct BrowserUtilitySurface: Hashable, Identifiable, Sendable {
         noResults: { query in "No archived tabs in this Space match “\(query)”." },
         filterLabel: "Filter Archive",
         filters: [.all] + BrowserUtilityListFilter.archive,
-        items: { request in request.archivedTabs.filter { !$0.tab.isStartPage }.map(BrowserUtilityListItem.archive) }
+        items: { request in
+            request.archivedTabs.filter { $0.tab.surface != .startPage }.map(BrowserUtilityListItem.archive)
+        }
     )
     static let history = BrowserUtilitySurface(
         kind: .history,

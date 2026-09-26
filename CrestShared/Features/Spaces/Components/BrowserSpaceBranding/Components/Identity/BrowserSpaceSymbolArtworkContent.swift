@@ -5,8 +5,8 @@ struct BrowserSpaceSymbolArtworkContent: View {
     let size: CGFloat
     let lockSize: CGFloat
 
-    init(space: BrowserSpace, size: CGFloat, lockSize: CGFloat) {
-        self.init(identity: BrowserSpaceIdentity(space: space), size: size, lockSize: lockSize)
+    init(space: some BrowserSpaceIdentifying, size: CGFloat, lockSize: CGFloat) {
+        self.init(identity: space.identity, size: size, lockSize: lockSize)
     }
 
     init(identity: BrowserSpaceIdentity, size: CGFloat, lockSize: CGFloat) {
@@ -18,7 +18,7 @@ struct BrowserSpaceSymbolArtworkContent: View {
     var body: some View {
         BrowserSpaceIdentityIcon(identity: identity, size: size)
             .overlay(alignment: .bottomTrailing) {
-                if identity.accessPolicy.requiresAuthentication {
+                if identity.requiresAuthentication {
                     Image(systemName: "lock.fill")
                         .font(.system(size: lockSize, weight: .bold))
                         .padding(2)

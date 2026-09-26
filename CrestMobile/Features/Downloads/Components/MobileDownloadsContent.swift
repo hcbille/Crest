@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MobileDownloadsContent: View {
-    let space: BrowserSpace?
+    let space: SpaceModel?
     let downloads: [DownloadState]
     let actions: BrowserUtilityListActions
     let dismiss: () -> Void

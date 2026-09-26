@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SpaceSidebarContent: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
-    let space: BrowserSpace
+    let space: SpaceModel
     let browser: BrowserStore
     let pages: BrowserPagePool
     let spaceAccess: BrowserSpaceAccessController
@@ -23,15 +23,16 @@ struct SpaceSidebarContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if utilitySurface == nil {
+            if utilitySurface == nil, let engineSpace = browser.engineSpace(space.id) {
                 BrowserEngineSidebarAccessory(
-                    space: space, browser: browser, pages: pages)
+                    space: engineSpace, browser: browser, pages: pages)
             }
             Group {
                 if let utilitySurface {
                     SpaceSidebarUtilityContent(
                         surface: utilitySurface,
                         space: space,
+                        favicons: browser.core.state.favicons,
                         searchText: $utilitySearchText,
                         filter: $utilityFilter,
                         commandSurfaceNamespace: commandSurfaceNamespace,
@@ -79,7 +80,7 @@ struct SpaceSidebarContent: View {
 
     private var savedTabsExpansionBinding: Binding<Bool> {
         Binding {
-            space.isSavedTabsExpanded
+            space.settings.isSavedTabsExpanded
         } set: { isExpanded in
             guard isCurrentAndUnlocked else { return }
             browser.setSavedTabsExpanded(isExpanded, matching: assignment)

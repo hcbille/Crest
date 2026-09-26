@@ -9,10 +9,7 @@ struct MobileBrowserSidebarPager: View {
                 MobileBrowserSidebarChrome(configuration: configuration)
                     .fixedSize(horizontal: false, vertical: true)
                 BrowserSidebarSpacePager(context: configuration.context) { space, isSelected in
-                    if let copy = configuration.context.spaceCopy(space) {
-                        MobileBrowserSidebarSpaceSurface(
-                            configuration: configuration, space: copy, spaceModel: space, isSelected: isSelected)
-                    }
+                    MobileBrowserSidebarSpaceSurface(configuration: configuration, space: space, isSelected: isSelected)
                 }
             }
         }

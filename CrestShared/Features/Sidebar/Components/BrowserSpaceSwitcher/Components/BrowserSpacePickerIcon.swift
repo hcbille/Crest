@@ -5,12 +5,12 @@ import SwiftUI
 /// The shared artwork preserves the crest's original colors and layered badge
 /// in both the compact desktop track and the expanded touch segments.
 struct BrowserSpacePickerIcon: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let metrics: BrowserSpacePickerMetrics
 
     var body: some View {
         BrowserSpaceSymbolArtwork(
-            space: space,
+            identity: space,
             size: metrics.iconSize,
             lockSize: metrics.lockSize
         )

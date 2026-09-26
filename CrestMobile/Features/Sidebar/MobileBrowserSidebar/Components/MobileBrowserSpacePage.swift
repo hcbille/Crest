@@ -9,7 +9,7 @@ import SwiftUI
 /// compact page can answer.
 struct MobileBrowserSpacePage: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
-    let space: BrowserSpace
+    let space: SpaceModel
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     let spaceAccess: BrowserSpaceAccessController
@@ -78,15 +78,15 @@ struct MobileBrowserSpacePage: View {
         .accessibilityIdentifier(
             BrowserSpaceAccessibilityID.sidebar(space.id)
         )
-        .accessibilityLabel("\(space.name) Space sidebar")
+        .accessibilityLabel("\(space.settings.name) Space sidebar")
     }
 
     /// The Space and this window as the read model keeps them, and what the
     /// rows act through. Every section anchors its rows' pages here.
     private var listContext: BrowserSidebarListContext? {
-        guard let spaceModel = browser.spaceModel(space.id), let window = browser.windowModel else { return nil }
+        guard let window = browser.windowModel else { return nil }
         return BrowserSidebarListContext(
-            space: spaceModel, window: window, favicons: browser.core.state.favicons, browser: browser,
+            space: space, window: window, favicons: browser.core.state.favicons, browser: browser,
             spaceAccess: spaceAccess, pageAccess: pageAccess, tabActions: tabActions, capabilities: capabilities,
             promotionNamespaces: [
                 .pinned: tabPromotionNamespace, .saved: tabPromotionNamespace, .current: tabPromotionNamespace,
@@ -123,7 +123,7 @@ struct MobileBrowserSpacePage: View {
             BrowserTabRuntimeAssignment(
                 tabID: tabID,
                 spaceID: space.id,
-                profileID: space.profile.id
+                profileID: space.profileID
             )
         )
     }
@@ -142,7 +142,7 @@ struct MobileBrowserSpacePage: View {
 
     private var savedTabsExpansionBinding: Binding<Bool> {
         Binding {
-            browser.space(matching: assignment)?.isSavedTabsExpanded ?? true
+            browser.spaceModel(matching: assignment)?.settings.isSavedTabsExpanded ?? true
         } set: { isExpanded in
             guard isCurrentAndUnlocked else { return }
             browser.setSavedTabsExpanded(isExpanded, matching: assignment)

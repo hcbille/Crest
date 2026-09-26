@@ -9,6 +9,7 @@ struct MobileArchiveView: View {
     var body: some View {
         MobileArchiveContent(
             space: space,
+            favicons: browser.core.state.favicons,
             restoreArchivedTab: restoreArchivedTab
         )
         .presentationDetents([.medium, .large])
@@ -21,8 +22,8 @@ struct MobileArchiveView: View {
         selectTab(tabID)
     }
 
-    private var space: BrowserSpace? {
-        BrowserSidebarAccessPolicy.selectedUnlockedSpaceCopy(
+    private var space: SpaceModel? {
+        BrowserSidebarAccessPolicy.selectedUnlockedSpace(
             matching: assignment,
             in: browser,
             accessController: spaceAccess

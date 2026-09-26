@@ -8,13 +8,24 @@ import SwiftUI
 /// `BrowserInteractionCapabilities`: the geometry comes from a metrics profile
 /// and the menu from the closures the shell handed down.
 struct BrowserSpaceHeader: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let isPrivateBrowsing: Bool
     @Binding var isSavedTabsExpanded: Bool
     let capabilities: BrowserInteractionCapabilities
     let actions: BrowserSpaceHeaderActions
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(
+        space: some BrowserSpaceIdentifying, isPrivateBrowsing: Bool, isSavedTabsExpanded: Binding<Bool>,
+        capabilities: BrowserInteractionCapabilities, actions: BrowserSpaceHeaderActions
+    ) {
+        self.space = space.identity
+        self.isPrivateBrowsing = isPrivateBrowsing
+        _isSavedTabsExpanded = isSavedTabsExpanded
+        self.capabilities = capabilities
+        self.actions = actions
+    }
 
     var body: some View {
         heightConstrained(
@@ -46,7 +57,7 @@ struct BrowserSpaceHeader: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                if space.accessPolicy.requiresAuthentication {
+                if space.requiresAuthentication {
                     Image(systemName: "lock.fill")
                         .font(.caption2.weight(.bold))
                         .accessibilityLabel("Private Space")
@@ -89,7 +100,7 @@ struct BrowserSpaceHeader: View {
                     .foregroundStyle(.secondary)
                     .transition(.opacity)
             } else {
-                BrowserSpaceIdentityIcon(space: space, size: metrics.iconSize)
+                BrowserSpaceIdentityIcon(identity: space, size: metrics.iconSize)
                     .transition(.opacity)
             }
         }

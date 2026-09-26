@@ -99,7 +99,7 @@ struct MobileBrowserSidebarTopChrome: View {
             morphNamespace: configuration.compactChromeNamespace,
             spaceID: selectedSpaceID,
             commandPaletteHandoff: configuration.commandPaletteHandoff,
-            branding: configuration.context.browser.selectedSpace?.branding
+            branding: configuration.context.browser.shownSpace.map { BrowserSpaceBranding(look: $0.settings.look) }
         )
     }
 
@@ -113,7 +113,7 @@ struct MobileBrowserSidebarTopChrome: View {
 
     private var displayedURL: URL? {
         selectedPageActions?.activeURL
-            ?? configuration.context.browser.selectedTab?.url
+            ?? configuration.context.browser.shownTab?.url.flatMap(URL.init(string:))
     }
 
     /// The chrome sits above the pager, so the field and the toolbar belong
@@ -125,7 +125,7 @@ struct MobileBrowserSidebarTopChrome: View {
     /// The toolbar sits above the pager, so the Space it clears is the selected
     /// one. The root refuses the request unless that Space is still reachable.
     private func confirmClearHistory() {
-        guard let space = configuration.context.browser.selectedSpace else {
+        guard let space = configuration.context.browser.shownSpace else {
             return
         }
         configuration.context.confirmClearHistory(space)

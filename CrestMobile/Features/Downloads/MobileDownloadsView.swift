@@ -19,7 +19,7 @@ struct MobileDownloadsView: View {
 
     private var downloads: [DownloadState] {
         guard let space else { return [] }
-        return pages.downloadCenter.items(for: space.profile.id)
+        return pages.downloadCenter.items(for: space.profileID)
     }
 
     private var actions: BrowserUtilityListActions {
@@ -79,8 +79,8 @@ struct MobileDownloadsView: View {
         )
     }
 
-    private var space: BrowserSpace? {
-        BrowserSidebarAccessPolicy.selectedUnlockedSpaceCopy(
+    private var space: SpaceModel? {
+        BrowserSidebarAccessPolicy.selectedUnlockedSpace(
             matching: assignment,
             in: browser,
             accessController: spaceAccess

@@ -30,16 +30,16 @@ struct BrowserUtilityListRequest: Equatable, Sendable {
     let assignment: BrowserSpaceRuntimeAssignment
     let searchText: String
     let filter: BrowserUtilityListFilter
-    let archivedTabs: [ArchivedTab]
-    let history: [BrowserHistoryEntry]
+    let archivedTabs: [ArchivedTabState]
+    let history: [HistoryEntryState]
     let downloads: [DownloadState]
     private let downloadPreparationIdentities: [BrowserUtilityDownloadPreparationIdentity]
 
     init(
         surface: BrowserUtilitySurface,
         assignment: BrowserSpaceRuntimeAssignment,
-        archivedTabs: [ArchivedTab],
-        history: [BrowserHistoryEntry],
+        archivedTabs: [ArchivedTabState],
+        history: [HistoryEntryState],
         downloads: [DownloadState],
         searchText: String,
         filter: BrowserUtilityListFilter
@@ -64,9 +64,10 @@ struct BrowserUtilityListRequest: Equatable, Sendable {
     /// downloads into a request and then blurring the result still materialises
     /// the titles and URLs the lock exists to withhold, so the gate belongs here
     /// rather than in the drawing layer.
+    @MainActor
     init(
         surface: BrowserUtilitySurface,
-        space: BrowserSpace,
+        space: SpaceModel,
         downloads: [DownloadState],
         searchText: String,
         filter: BrowserUtilityListFilter,
@@ -75,8 +76,8 @@ struct BrowserUtilityListRequest: Equatable, Sendable {
         self.init(
             surface: surface,
             assignment: BrowserSpaceRuntimeAssignment(space: space),
-            archivedTabs: isUnlocked && surface == .archive ? space.archivedTabs : [],
-            history: isUnlocked && surface == .history ? space.history : [],
+            archivedTabs: isUnlocked && surface == .archive ? space.archive.entries : [],
+            history: isUnlocked && surface == .history ? space.history.entries : [],
             downloads: isUnlocked && surface == .downloads ? downloads : [],
             searchText: searchText,
             filter: filter

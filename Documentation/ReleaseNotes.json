@@ -2709,6 +2709,10 @@
     "2026-09-26-site-rules-typed-queries": {
       "category": "internal",
       "message": "Link, scheme, sign-in, media, location, notification, popup and automatic-download rules are answered by typed core queries"
+    },
+    "2026-09-26-spaces-read-model": {
+      "category": "internal",
+      "message": "The Space switcher, Space pickers, Space pages, and the archive, history and downloads lists draw Spaces from the core's read model, and a Space's lock is the core's rule"
     }
   }
 }

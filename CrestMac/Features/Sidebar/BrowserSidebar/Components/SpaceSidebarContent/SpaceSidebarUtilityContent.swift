@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SpaceSidebarUtilityContent: View {
     let surface: BrowserUtilitySurface
-    let space: BrowserSpace
+    let space: SpaceModel
+    let favicons: FaviconAssets
     @Binding var searchText: String
     @Binding var filter: BrowserUtilityListFilter
     let commandSurfaceNamespace: Namespace.ID
@@ -34,7 +35,8 @@ struct SpaceSidebarUtilityContent: View {
                 searchText: searchText,
                 filter: filter,
                 actions: actions,
-                dismissOnBlankSpace: dismissOnBlankSpace
+                dismissOnBlankSpace: dismissOnBlankSpace,
+                favicons: favicons
             )
             .transition(.opacity)
         } else {

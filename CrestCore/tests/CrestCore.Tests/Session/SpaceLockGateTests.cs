@@ -78,6 +78,21 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal("After relock", core.Current.Spaces[0].Tabs[0].CustomTitle);
     }
 
+    [Fact]
+    public void TheResolvedLockRuleIsTheRuleTheGrantGateApplies() {
+        using var device = new TestDevice(GuardedSession(withOpenSecondSpace: true));
+        var (guarded, open) = (device.Authority.Current.Spaces[0], device.Authority.Current.Spaces[1]);
+
+        // Platforms draw a Space's lock from the rule the gate refuses edits by.
+        Assert.True(guarded.Settings.RequiresAuthentication);
+        Assert.IsType<SpaceLocked>(Assert.Throws<Rejected>(() =>
+            device.Send(new RenameTab(device.Workspace, guarded.Id, guarded.Tabs[0].Id, "Leaked"))).Rejection);
+        Assert.False(open.Settings.RequiresAuthentication);
+        device.Send(new RenameTab(device.Workspace, open.Id, open.Tabs[0].Id, "Open"));
+        // A policy this build has never heard of reads as guarded.
+        Assert.True((guarded.Settings with { AccessPolicy = (SpaceAccessPolicy)99 }).RequiresAuthentication);
+    }
+
     /// A Space as the stored format writes it, byte for byte.
     private static string Stored(SpaceState space) => StoredSessionCodec.Encode(space).ToJsonString();
 

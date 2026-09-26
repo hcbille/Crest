@@ -14,9 +14,10 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         let port = RecordedPlatformActions()
         let coordinator = makeCoordinator(context, port: port)
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
+        let entry = try XCTUnwrap(context.browser.spaceModel(context.source.id)?.history.entries.first)
 
         coordinator.actions.restoreArchivedTab(context.archived.id, assignment)
-        coordinator.actions.openHistoryEntry(context.history, assignment)
+        coordinator.actions.openHistoryEntry(entry, assignment)
 
         let source = try XCTUnwrap(
             context.browser.session.space(id: context.source.id)
@@ -216,10 +217,11 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         let port = RecordedPlatformActions()
         let coordinator = makeCoordinator(context, port: port)
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
+        let entry = try XCTUnwrap(context.browser.spaceModel(context.source.id)?.history.entries.first)
         mutation(context)
 
         coordinator.actions.restoreArchivedTab(context.archived.id, assignment)
-        coordinator.actions.openHistoryEntry(context.history, assignment)
+        coordinator.actions.openHistoryEntry(entry, assignment)
 
         XCTAssertTrue(port.restoredTabs.isEmpty, file: file, line: line)
         XCTAssertTrue(port.openedURLs.isEmpty, file: file, line: line)

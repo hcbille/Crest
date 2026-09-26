@@ -3927,6 +3927,7 @@ struct SpaceSettings: Equatable, Sendable {
     let isSavedTabsExpanded: Bool
     let savedTabsExpansionModifiedAt: Date?
     let look: SpaceBranding
+    let requiresAuthentication: Bool
 }
 
 struct SpaceSettingsChanged: Equatable, Sendable {
@@ -11076,6 +11077,10 @@ final class SpaceSettingsModel: ObservedModel {
         access(keyPath: \.look)
         return lookStorage
     }
+    var requiresAuthentication: Bool {
+        access(keyPath: \.requiresAuthentication)
+        return requiresAuthenticationStorage
+    }
 
     @ObservationIgnored private var nameStorage: String
     @ObservationIgnored private var symbolStorage: String
@@ -11087,6 +11092,7 @@ final class SpaceSettingsModel: ObservedModel {
     @ObservationIgnored private var isSavedTabsExpandedStorage: Bool
     @ObservationIgnored private var savedTabsExpansionModifiedAtStorage: Date?
     @ObservationIgnored private var lookStorage: SpaceBranding
+    @ObservationIgnored private var requiresAuthenticationStorage: Bool
 
     var value: SpaceSettings {
         SpaceSettings(
@@ -11099,7 +11105,8 @@ final class SpaceSettingsModel: ObservedModel {
             accessPolicy: accessPolicy,
             isSavedTabsExpanded: isSavedTabsExpanded,
             savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt,
-            look: look
+            look: look,
+            requiresAuthentication: requiresAuthentication
         )
     }
 
@@ -11114,6 +11121,7 @@ final class SpaceSettingsModel: ObservedModel {
         isSavedTabsExpandedStorage = value.isSavedTabsExpanded
         savedTabsExpansionModifiedAtStorage = value.savedTabsExpansionModifiedAt
         lookStorage = value.look
+        requiresAuthenticationStorage = value.requiresAuthentication
     }
 
     func update(_ value: SpaceSettings) {
@@ -11156,6 +11164,10 @@ final class SpaceSettingsModel: ObservedModel {
         if lookStorage != value.look {
             lookStorage = value.look
             withMutation(keyPath: \.look) {}
+        }
+        if requiresAuthenticationStorage != value.requiresAuthentication {
+            requiresAuthenticationStorage = value.requiresAuthentication
+            withMutation(keyPath: \.requiresAuthentication) {}
         }
     }
 }

@@ -8,14 +8,14 @@ import SwiftUI
 /// side, the icon picker's button on the other — so the segment registers its
 /// drop zone and otherwise stays out of the way.
 struct BrowserSpacePickerSegment: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let reorderState: BrowserSidebarReorderState
     let metrics: BrowserSpacePickerMetrics
 
     var body: some View {
         BrowserSpacePickerIcon(space: space, metrics: metrics)
             .browserSidebarReorderZone(
-                .space(BrowserSpaceRuntimeAssignment(space: space)),
+                .space(space.assignment),
                 state: reorderState
             )
             .accessibilityHint(

@@ -38,13 +38,9 @@ public sealed partial class NativeSessionAuthority {
             var space = session.Spaces.FirstOrDefault(candidate => candidate.Id == spaceId) ?? throw new Rejected(new UnknownSpace(spaceId));
             if (PendingDeletion(session, spaceId) is not null || borrowedSource?.IsDeleting(spaceId) == true)
                 throw new Rejected(new SpaceBeingDeleted(spaceId));
-            return (new(space.Id, space.ProfileId), RequiresAuthentication(space));
+            return (new(space.Id, space.ProfileId), space.Settings.RequiresAuthentication);
         }
     }
-
-    /// A policy this build cannot name reads as guarded (see `StoredSessionCodec`),
-    /// so only an open Space skips authentication.
-    private static bool RequiresAuthentication(SpaceState space) => space.Settings.AccessPolicy != SpaceAccessPolicy.Open;
 
     #endregion
 }

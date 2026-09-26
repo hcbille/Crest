@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xec, 0x58, 0x49, 0x92, 0x26, 0x51, 0xc9, 0xd8, 0x43, 0x68, 0x96, 0x6d, 0x36, 0xfc, 0x37, 0x74, 0x28, 0xdb, 0xb7, 0x34, 0xc3, 0xc5, 0xfb, 0xb2, 0xb7, 0x18, 0x92, 0x76, 0x30, 0x8e, 0xbe, 0xf4
+        0xa8, 0x13, 0x6f, 0xc0, 0xec, 0xf5, 0xc0, 0xe5, 0xa6, 0xfc, 0x82, 0xe5, 0x7a, 0x8f, 0x3d, 0x13, 0x1c, 0x0d, 0xa2, 0xcc, 0xc2, 0xf9, 0x29, 0x08, 0x62, 0xbc, 0x4a, 0xde, 0xef, 0x02, 0xfc, 0x01
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -14288,7 +14288,8 @@ extension SpaceSettings {
             savedTabsExpansionModifiedAt = nil
         }
         let look = try SpaceBranding(from: &reader)
-        self.init(name: name, symbol: symbol, accent: accent, branding: branding, browsingPreferences: browsingPreferences, credentialPreferences: credentialPreferences, accessPolicy: accessPolicy, isSavedTabsExpanded: isSavedTabsExpanded, savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt, look: look)
+        let requiresAuthentication = try reader.readBool()
+        self.init(name: name, symbol: symbol, accent: accent, branding: branding, browsingPreferences: browsingPreferences, credentialPreferences: credentialPreferences, accessPolicy: accessPolicy, isSavedTabsExpanded: isSavedTabsExpanded, savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt, look: look, requiresAuthentication: requiresAuthentication)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -14312,6 +14313,7 @@ extension SpaceSettings {
             writer.writePresence(false)
         }
         look.encode(into: &writer)
+        writer.writeBool(requiresAuthentication)
     }
 }
 

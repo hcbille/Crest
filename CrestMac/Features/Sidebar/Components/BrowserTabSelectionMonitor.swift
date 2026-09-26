@@ -215,7 +215,7 @@ struct BrowserTabSelectionMonitor: View {
             if BrowserShortcutHardwareKeyCode(rawValue: event.keyCode) == .returnKey, let id = selection.focusedItem {
                 if let tabID = id.tabID { activate?(tabID) }
                 if let folderID = id.folderID,
-                    let folder = browser.selectedSpace?.folders.first(where: { $0.id == folderID })
+                    let folder = browser.shownSpace?.folders.model(folderID)
                 {
                     browser.setFolderCollapsed(
                         folderID, in: browser.selectedSpaceID, isCollapsed: !folder.isCollapsed)

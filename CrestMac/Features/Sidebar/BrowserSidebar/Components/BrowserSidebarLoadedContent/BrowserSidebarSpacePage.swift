@@ -21,10 +21,10 @@ struct BrowserSidebarSpacePage: View {
     private let utilityFilter: Binding<BrowserUtilityListFilter>
     private let downloadCenter: BrowserDownloadCenter
     private let dismissUtilityOnBlankSpace: () -> Void
-    private let confirmClearHistory: (BrowserSpace) -> Void
+    private let confirmClearHistory: (SpaceModel) -> Void
 
     init(
-        space: BrowserSpace,
+        space: SpaceModel,
         isSelected: Bool,
         context: BrowserSidebarContext,
         pages: BrowserPagePool,
@@ -55,12 +55,12 @@ struct BrowserSidebarSpacePage: View {
     var body: some View {
         // AppKit retains this root between pager updates. Resolve its Space
         // here so tab removal and selection cannot lag behind live residency.
-        if let space = browser.space(matching: assignment) {
+        if let space = browser.spaceModel(matching: assignment) {
             content(for: space)
         }
     }
 
-    private func content(for space: BrowserSpace) -> some View {
+    private func content(for space: SpaceModel) -> some View {
         let isLocked = spaceAccess.isLocked(space)
         // These callbacks use the page and their action owners, independently
         // of the selected role that changes on the surrounding native host.
@@ -83,16 +83,13 @@ struct BrowserSidebarSpacePage: View {
             utilitySearchText: utilitySearchText,
             utilityFilter: utilityFilter,
             utilityDownloads: downloadCenter.items(
-                for: space.profile.id
+                for: space.profileID
             ),
             utilityActions: utilityActions,
             dismissUtilityOnBlankSpace: dismissUtilityOnBlankSpace,
             clearHistory: { confirmClear(pageSpace) }
         )
-        .environment(
-            \.sidebarSpacePresentation,
-            browser.spaceModel(space.id).map { SidebarSpacePresentation(space: $0, isUnlocked: !isLocked) }
-        )
+        .environment(\.sidebarSpacePresentation, SidebarSpacePresentation(space: space, isUnlocked: !isLocked))
         .environment(\.sidebarSpaceIsSelected, isSelected)
         // Blur and redaction are drawing effects; rows still run their tasks.
         // This stops the ones that would otherwise disclose a locked Space's
@@ -103,7 +100,7 @@ struct BrowserSidebarSpacePage: View {
         }
         .environment(
             \.colorScheme,
-            BrowserSpaceForegroundPolicy.colorScheme(for: space.branding)
+            BrowserSpaceForegroundPolicy.colorScheme(for: BrowserSpaceBranding(look: space.settings.look))
         )
         .blur(
             radius: isLocked
@@ -118,7 +115,7 @@ struct BrowserSidebarSpacePage: View {
         .focusable(isSelected && !isLocked, interactions: [])
         .accessibilityHidden(!isSelected || isLocked)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(space.name) Space")
+        .accessibilityLabel("\(space.settings.name) Space")
     }
 
 }

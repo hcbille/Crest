@@ -25,5 +25,11 @@ public sealed record SpaceSettings(
     [Resolved]
     public SpaceBranding Look => Branding?.InTodaysUnits() ?? SpaceBranding.Legacy(Accent, Symbol);
 
+    /// <summary>The Space shows only while this process holds the grant for its
+    /// profile. A policy this build cannot name reads as guarded (see
+    /// `StoredSessionCodec`), so only an open Space skips authentication.</summary>
+    [Resolved]
+    public bool RequiresAuthentication => AccessPolicy != SpaceAccessPolicy.Open;
+
     #endregion
 }

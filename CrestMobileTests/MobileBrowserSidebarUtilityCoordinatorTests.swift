@@ -20,9 +20,10 @@ final class MobileBrowserSidebarUtilityCoordinatorTests: XCTestCase {
             openURL: { openedURLs.append($0) }
         )
         let assignment = BrowserSpaceRuntimeAssignment(space: context.source)
+        let entry = try XCTUnwrap(context.browser.spaceModel(context.source.id)?.history.entries.first)
 
         coordinator.actions.restoreArchivedTab(context.archived.id, assignment)
-        coordinator.actions.openHistoryEntry(context.history, assignment)
+        coordinator.actions.openHistoryEntry(entry, assignment)
 
         XCTAssertEqual(selectedTabs, [context.archived.id])
         XCTAssertEqual(openedURLs, [context.history.url])

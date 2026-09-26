@@ -40,7 +40,7 @@ struct BrowserSidebarContext {
 
     /// Asks for the clear-history confirmation for one Space. The root refuses
     /// unless that Space is still the selected, unlocked one.
-    let confirmClearHistory: (BrowserSpace) -> Void
+    let confirmClearHistory: (SpaceModel) -> Void
 
     /// Dismisses an open utility surface because the reader tapped the sidebar
     /// itself rather than anything in it.
@@ -49,13 +49,4 @@ struct BrowserSidebarContext {
     /// Opens or closes the archive, history, and downloads switcher, landing on
     /// downloads when some have not been looked at yet.
     let toggleUtilitySwitcher: () -> Void
-
-    // MARK: - Actions - Spaces
-
-    /// The Space as the session copy holds it, for the sidebar pages that
-    /// still draw a copy. TRANSITIONAL until the Space pass draws the Space
-    /// header and site controls from the read model.
-    func spaceCopy(_ space: SpaceModel) -> BrowserSpace? {
-        browser.session.space(id: space.id)
-    }
 }

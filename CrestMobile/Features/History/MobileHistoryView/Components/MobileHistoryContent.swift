@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MobileHistoryContent: View {
-    let space: BrowserSpace?
+    let space: SpaceModel?
     let clearHistory: () -> Void
     let openURL: (URL) -> Void
 
@@ -16,11 +16,11 @@ struct MobileHistoryContent: View {
                 searchText: searchText,
                 openHistoryEntry: openAndDismiss
             )
-            .navigationTitle("\(space?.name ?? "Space") History")
+            .navigationTitle("\(space?.settings.name ?? "Space") History")
             .searchable(text: $searchText, prompt: "Search this Space")
             .toolbar { historyToolbar }
             .confirmationDialog(
-                "Clear history for \(space?.name ?? "this Space")?",
+                "Clear history for \(space?.settings.name ?? "this Space")?",
                 isPresented: $confirmsClear,
                 titleVisibility: .visible
             ) {
@@ -34,7 +34,7 @@ struct MobileHistoryContent: View {
     @ToolbarContentBuilder
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            if !(space?.history ?? []).isEmpty {
+            if space?.history.entries.isEmpty == false {
                 Button("Clear", role: .destructive) { confirmsClear = true }
             }
         }
@@ -43,8 +43,9 @@ struct MobileHistoryContent: View {
         }
     }
 
-    private func openAndDismiss(_ entry: BrowserHistoryEntry) {
-        openURL(entry.url)
+    private func openAndDismiss(_ entry: HistoryEntryState) {
+        guard let url = URL(string: entry.url) else { return }
+        openURL(url)
         dismiss()
     }
 }

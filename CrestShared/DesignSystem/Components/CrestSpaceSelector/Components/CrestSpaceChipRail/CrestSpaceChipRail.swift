@@ -48,7 +48,7 @@ struct CrestSpaceChipRail: View {
         } label: {
             HStack(spacing: CrestSpaceChipMetrics.contentSpacing) {
                 BrowserSpaceSymbolArtwork(
-                    space: identity.space,
+                    identity: identity.space,
                     size: CrestSpaceChipMetrics.iconSize,
                     lockSize: CrestSpaceChipMetrics.lockSize
                 )

@@ -7,7 +7,7 @@ import SwiftUI
 /// larger occupied utility side. Its segments keep their native size and
 /// identity, so overflow scrolls and the active Space can always be revealed.
 struct BrowserSpaceSwitcherCompactStrip: View {
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     let selectedSpaceID: SpaceID
     let reorderState: BrowserSidebarReorderState
     let metrics: BrowserSpacePickerMetrics

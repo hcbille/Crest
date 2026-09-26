@@ -3,7 +3,10 @@ import SwiftUI
 /// Fixed address controls. The pager owns the changing extension-strip seam
 /// so semantic selection cannot resize the viewport during a Space transition.
 struct SpaceSidebarAddressBand: View {
-    let space: BrowserSpace
+    let space: SpaceModel
+    /// The same Space for the engine's extension controls. TRANSITIONAL until
+    /// Lane 2 moves them to the read model.
+    let engineSpace: BrowserSpace?
     /// The tab this window shows in `space`.
     let selectedTabID: TabID?
     let pages: BrowserPagePool
@@ -59,37 +62,36 @@ struct SpaceSidebarAddressBand: View {
             morphNamespace: commandSurfaceNamespace,
             spaceID: space.id,
             commandPaletteHandoff: commandPaletteHandoff,
-            branding: space.branding
+            branding: BrowserSpaceBranding(look: space.settings.look)
         )
     }
 
-    private var selectedTab: BrowserTab? {
-        guard let selectedTabID else { return nil }
-        return space.tabs.first { $0.id == selectedTabID }
+    private var selectedTab: TabStateModel? {
+        selectedTabID.flatMap { space.tabs.model($0) }
     }
 
     private var displayedPage: BrowserPage? {
         guard let selectedTabID else { return nil }
         let assignment = BrowserTabRuntimeAssignment(
-            tabID: selectedTabID, spaceID: space.id, profileID: space.profile.id
+            tabID: selectedTabID, spaceID: space.id, profileID: space.profileID
         )
         return pages.activePage(matching: assignment)
     }
 
     private var isSecure: Bool {
         if let page = displayedPage { return page.live.security.isSecure }
-        return selectedTab?.url?.scheme?.lowercased() == "https"
+        return selectedTab?.url.flatMap(URL.init(string:))?.scheme?.lowercased() == "https"
     }
 
     private var siteControl: BrowserSiteControlConfiguration? {
-        guard let page = displayedPage,
+        guard let page = displayedPage, let engineSpace,
             page.live.displayURL != nil
         else {
             return nil
         }
         return BrowserSiteControlConfiguration(
             page: page,
-            space: space,
+            space: engineSpace,
             selectedTabID: selectedTabID,
             permissionCenter: pages.permissionCenter,
             presentationChanged: siteControlPresentationChanged,

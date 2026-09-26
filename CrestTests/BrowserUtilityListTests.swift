@@ -285,12 +285,13 @@ final class BrowserUtilityListTests: XCTestCase {
         let visitDate = try XCTUnwrap(
             formatter.date(from: "2026-08-01T15:00:00Z")
         )
-        let entry = BrowserHistoryEntry(
+        let entry = HistoryEntryState(
             id: identifier(0x67),
-            url: URL(filePath: "/crest-preview/history"),
+            url: "file:///crest-preview/history",
             title: "History",
             firstVisitedAt: visitDate,
-            lastVisitedAt: visitDate
+            lastVisitedAt: visitDate,
+            visitCount: 1
         )
         let request = BrowserUtilityListRequest(
             surface: .history,
@@ -349,20 +350,24 @@ final class BrowserUtilityListTests: XCTestCase {
         let now = try XCTUnwrap(
             ISO8601DateFormatter().date(from: "2026-08-07T12:00:00Z")
         )
-        let today = BrowserHistoryEntry(
-            url: try XCTUnwrap(URL(string: "https://example.com/today")),
+        let today = HistoryEntryState(
+            id: UUID(),
+            url: "https://example.com/today",
             title: "Today",
             firstVisitedAt: now,
-            lastVisitedAt: now
+            lastVisitedAt: now,
+            visitCount: 1
         )
         let yesterdayDate = try XCTUnwrap(
             calendar.date(byAdding: .day, value: -1, to: now)
         )
-        let yesterday = BrowserHistoryEntry(
-            url: try XCTUnwrap(URL(string: "https://example.com/yesterday")),
+        let yesterday = HistoryEntryState(
+            id: UUID(),
+            url: "https://example.com/yesterday",
             title: "Yesterday",
             firstVisitedAt: yesterdayDate,
-            lastVisitedAt: yesterdayDate
+            lastVisitedAt: yesterdayDate,
+            visitCount: 1
         )
         let request = BrowserUtilityListRequest(
             surface: .history,
@@ -455,6 +460,7 @@ final class BrowserUtilityListTests: XCTestCase {
         )
     }
 
+    @MainActor
     func testArchivePreparationSortsByTheTimeTheTabWasClosed() throws {
         let now = Date(timeIntervalSinceReferenceDate: 900)
         let older = ArchivedTab(
@@ -481,10 +487,14 @@ final class BrowserUtilityListTests: XCTestCase {
             archivedAt: now,
             reason: .autoCleanup
         )
+        let space = BrowserSpace(
+            id: identifier(0x61), profile: BrowsingProfile(id: identifier(0x62)), name: "Archive",
+            symbol: "archivebox", accent: .indigo, folders: [], tabs: [], archivedTabs: [older, newer])
+        let store = BrowserStore(session: BrowserSession(spaces: [space]), showing: space.id)
         let request = BrowserUtilityListRequest(
             surface: .archive,
             assignment: utilityDownloadContext().assignment,
-            archivedTabs: [older, newer],
+            archivedTabs: try XCTUnwrap(store.spaceModel(space.id)?.archive.entries),
             history: [],
             downloads: [],
             searchText: "",
@@ -500,7 +510,7 @@ final class BrowserUtilityListTests: XCTestCase {
         XCTAssertEqual(
             sections.flatMap(\.items).compactMap { item -> TabID? in
                 guard case .archive(let archived) = item else { return nil }
-                return archived.id
+                return archived.tab.id
             },
             [newer.id, older.id]
         )

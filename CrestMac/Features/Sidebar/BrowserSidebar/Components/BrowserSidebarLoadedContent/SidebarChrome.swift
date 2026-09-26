@@ -42,6 +42,7 @@ struct SidebarChrome: View {
                 if context.utilityPresentation.surface == nil {
                     SpaceSidebarAddressBand(
                         space: space,
+                        engineSpace: context.browser.engineSpace(space.id),
                         selectedTabID: context.browser.selectedTabID(in: space.id),
                         pages: pages,
                         capabilities: context.capabilities,
@@ -61,7 +62,10 @@ struct SidebarChrome: View {
                     )
                 }
             }
-            .environment(\.colorScheme, BrowserSpaceForegroundPolicy.colorScheme(for: space.branding))
+            .environment(
+                \.colorScheme,
+                BrowserSpaceForegroundPolicy.colorScheme(for: BrowserSpaceBranding(look: space.settings.look))
+            )
             .modifier(SpaceForegroundBlend(spaces: context.availableSpaces, selectedSpaceID: space.id))
             .blur(radius: isLocked ? BrowserSidebarMetrics.lockedSpaceBlurRadius : 0)
             .redacted(reason: isLocked ? .placeholder : [])
@@ -70,11 +74,8 @@ struct SidebarChrome: View {
         }
     }
 
-    /// TRANSITIONAL until the site controls read their Space from the read
-    /// model: the Space on show as the session copy holds it.
-    private var selectedSpace: BrowserSpace? {
-        BrowserSidebarAccessPolicy.availableSpaceCopies(in: context.browser).first {
-            $0.id == context.browser.selectedSpaceID
-        }
+    /// The Space the window shows, unless it is being deleted.
+    private var selectedSpace: SpaceModel? {
+        context.browser.shownSpace
     }
 }

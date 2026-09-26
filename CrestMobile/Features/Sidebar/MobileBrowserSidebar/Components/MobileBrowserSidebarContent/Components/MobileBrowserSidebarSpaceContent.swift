@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MobileBrowserSidebarSpaceContent: View {
     let configuration: MobileBrowserSidebarContentConfiguration
-    let space: BrowserSpace
+    let space: SpaceModel
     let isSelected: Bool
 
     var body: some View {
@@ -14,13 +14,14 @@ struct MobileBrowserSidebarSpaceContent: View {
                     surface: utilitySurface,
                     space: space,
                     downloads: configuration.context.pageAccess.downloadCenter
-                        .items(for: space.profile.id),
+                        .items(for: space.profileID),
                     searchText: configuration.context.utilitySearchText
                         .wrappedValue,
                     filter: configuration.context.utilityFilter.wrappedValue,
                     actions: configuration.context.utilityActions,
                     dismissOnBlankSpace:
-                        configuration.context.dismissUtilityOnBlankSpace
+                        configuration.context.dismissUtilityOnBlankSpace,
+                    favicons: configuration.context.browser.core.state.favicons
                 )
             } else {
                 Color.clear

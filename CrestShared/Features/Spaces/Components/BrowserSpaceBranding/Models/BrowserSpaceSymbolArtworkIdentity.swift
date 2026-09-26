@@ -9,7 +9,7 @@ struct BrowserSpaceSymbolArtworkIdentity: Equatable, Sendable {
 
     private let artwork: Artwork
     let symbol: String
-    let accessPolicy: BrowserSpaceAccessPolicy
+    let requiresAuthentication: Bool
     let size: CGFloat
     let lockSize: CGFloat
     let colorScheme: ColorScheme
@@ -18,7 +18,7 @@ struct BrowserSpaceSymbolArtworkIdentity: Equatable, Sendable {
     init(
         branding: BrowserSpaceBranding,
         symbol: String,
-        accessPolicy: BrowserSpaceAccessPolicy,
+        requiresAuthentication: Bool,
         size: CGFloat,
         lockSize: CGFloat,
         colorScheme: ColorScheme,
@@ -34,7 +34,7 @@ struct BrowserSpaceSymbolArtworkIdentity: Equatable, Sendable {
             artwork = .symbol(color: branding.resolvedSymbolColor)
         }
         self.symbol = symbol
-        self.accessPolicy = accessPolicy
+        self.requiresAuthentication = requiresAuthentication
         self.size = size
         self.lockSize = lockSize
         self.colorScheme = colorScheme
