@@ -2625,6 +2625,10 @@
     "2026-09-25-review-harness-commands": {
       "category": "internal",
       "message": "Debug review builds take commands from a test harness"
+    },
+    "2026-09-25-chromium-shell-forwarders": {
+      "category": "internal",
+      "message": "The Chromium shell keeps forwarding page loads, staged navigations and the private profile"
     }
   }
 }

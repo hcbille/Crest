@@ -1147,6 +1147,19 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
                                       const crest_engine_pages_t* pages);
 
 @implementation CrestChromiumHost
+- (BOOL)stageNavigation:(NSString*)token page:(NSString*)pageID url:(NSString*)url {
+  CHECK(NSThread.isMainThread);
+  return crest::EngineBinding::Get().Stage(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(token),
+                                           base::SysNSStringToUTF8(url));
+}
+- (void)loadPage:(NSString*)pageID url:(NSString*)url {
+  CHECK(NSThread.isMainThread);
+  crest::EngineBinding::Get().Load(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(url));
+}
+- (void)setPrivateSourceProfile:(NSString*)profileID {
+  CHECK(NSThread.isMainThread);
+  crest::EngineBinding::Get().SetPrivateSourceProfile(base::SysNSStringToUTF8(profileID));
+}
 - (NSView*)viewForPage:(NSString*)pageID {
   CHECK(NSThread.isMainThread);
   Page* page = FindPage(pageID);
