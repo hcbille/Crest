@@ -36,7 +36,8 @@ final class WebKitEnginePage {
             preconditionFailure("A WebKit page came without the binding that built it.")
         }
         return EnginePage(
-            id: id, pages: pages, historyFamily: .webKit, historyVersion: { BrowserTabStateEnvelope.currentOSBuild })
+            id: id, pages: pages, historyFamily: .webKit, historyVersion: { BrowserTabStateEnvelope.currentOSBuild },
+            inspectorPanels: Set(InspectorPanel.allCases))
     }
 
     // MARK: - Initializers

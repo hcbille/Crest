@@ -1,14 +1,13 @@
 #if CREST_CHROMIUM_HOST
     import AppKit
     import Observation
-    import PDFKit
 
-    /// Hosts the view of one Chromium page and makes the page's direct calls:
-    /// history, find, zoom, capture and the rest. Chromium's C++ binding creates,
+    /// Hosts the view of one Chromium page. Chromium's C++ binding creates,
     /// loads and closes the page when the core asks, under the identity the
     /// core gave it, and tells the core what it does; this reports nothing. It
     /// presents the page to this one: what its view shows, as the page's
-    /// engine-neutral events.
+    /// engine-neutral events. The page's direct requests, such as going back
+    /// or capturing it, go through its shared `EnginePage`.
     @Observable @MainActor
     final class ChromiumNativePage: BrowserPageEngine {
         let registration = BrowserEngineRegistration.chromium
@@ -46,9 +45,7 @@
         private var opening = false
         private var created = false
         private var disposed = false
-        /// What waits for the engine: each capture and export by its identity.
-        private var captures: [UUID: @MainActor (NSImage?) -> Void] = [:]
-        private var exports: [UUID: CheckedContinuation<Data, any Error>] = [:]
+        /// What waits for the engine: each script evaluation by its identity.
         private var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
 
         /// A page the core opened, which Chromium's binding creates.
@@ -84,14 +81,15 @@
         /// The page's direct path to the binding, while the engine is running.
         private var pages: NativeEnginePages? { disposed ? nil : engine?.pages }
 
-        /// The shared direct path to this page: going back, reloading, zooming,
-        /// finding text and keeping its history, which Chromium restores in
-        /// place of the page's first load.
+        /// The shared direct path to this page. Chromium restores its history
+        /// in place of the page's first load, and starts its inspector on the
+        /// Console or Elements, never the Network panel.
         func makeEnginePage() -> EnginePage {
             guard let engine else { preconditionFailure("A Chromium page came without its engine.") }
             return EnginePage(
                 id: pageID, pages: engine.pages, historyFamily: .chromium,
-                historyVersion: { [weak self] in self?.host?.engineVersion() })
+                historyVersion: { [weak self] in self?.host?.engineVersion() },
+                inspectorPanels: [.console, .elements])
         }
 
         var nativeView: NSView { surface }
@@ -105,29 +103,6 @@
         func discardNavigation(_ token: String) {
             (host ?? CrestChromiumRoot.engineHost)?.discardPendingNavigation(token)
         }
-        func showInspector() -> Bool {
-            guard created, let pages else { return false }
-            return pages.request(OpenInspector(pageID: pageID, panel: nil))
-        }
-        func toggleInspector(_ panel: BrowserDeveloperPanel, current: BrowserDeveloperPanel?)
-            -> BrowserWebInspectorToggleResult
-        {
-            guard created, let pages else { return .unavailable }
-            if pages.request(PageInspected(pageID: pageID)), current == panel {
-                return pages.request(CloseInspector(pageID: pageID)) ? .closed : .unavailable
-            }
-            let starting: InspectorPanel
-            switch panel {
-            case .console: starting = .console
-            case .elements: starting = .elements
-            case .network: starting = .network
-            }
-            guard pages.request(OpenInspector(pageID: pageID, panel: starting)) else { return .unavailable }
-            // Chromium selects a starting panel for Console and Elements only. A
-            // Network request opens DevTools wherever it was, so report no panel
-            // rather than claiming a selection the engine did not make.
-            return .opened(panel == .network ? nil : panel)
-        }
         private(set) var backHistory: [BrowserNavigationHistoryItem] = []
         private(set) var forwardHistory: [BrowserNavigationHistoryItem] = []
         private(set) var currentURL: URL?
@@ -136,37 +111,9 @@
         /// The binding presents the page's history, loading and failures, so the
         /// page reads them from its presentations.
         var reportsNavigationState: Bool { true }
-        var currentMediaActivity: PageMediaActivity? {
+        func mediaActivity() async -> PageMediaActivity? {
             guard created, let pages else { return nil }
             return pages.request(PageMedia(pageID: pageID)).activity
-        }
-        func mediaActivity() async -> PageMediaActivity? { currentMediaActivity }
-        func enterPictureInPicture() -> Bool {
-            guard created, let pages else { return false }
-            return pages.request(EnterPictureInPicture(pageID: pageID))
-        }
-        func transferOwnership(to windowID: BrowserWindowID) -> Bool {
-            guard created, let pages else { return false }
-            return pages.request(MovePageToWindow(pageID: pageID, windowID: windowID))
-        }
-
-        func capture(rect: CGRect?, width: CGFloat?, completion: @escaping @MainActor (NSImage?) -> Void) {
-            let captureID = UUID()
-            let area = rect.flatMap { $0.isEmpty ? nil : $0 }.map {
-                PageArea(x: $0.origin.x, y: $0.origin.y, width: $0.size.width, height: $0.size.height)
-            }
-            guard created, let pages,
-                pages.request(CapturePage(pageID: pageID, captureID: captureID, area: area, width: width ?? 0))
-            else {
-                completion(nil)
-                return
-            }
-            captures[captureID] = completion
-        }
-
-        /// The capture the engine made for this page.
-        func receive(_ captured: PageCaptured) {
-            captures.removeValue(forKey: captured.captureID)?(captured.png.flatMap(NSImage.init(data:)))
         }
 
         func load(_ request: URLRequest) {
@@ -220,8 +167,6 @@
             return pages.request(AdoptOfferedPage(pageID: pageID, adoptionID: adoptionID))
         }
 
-        /// The engine's find wraps at the end of the page, as Crest's find always
-        /// does, and counts every match.
         // MARK: Content bridges
 
         private var contentScripts: [BrowserContentScript] = []
@@ -241,68 +186,9 @@
                         host: message.frame.host, port: Int(message.frame.port), handle: message.frame.id as NSString)))
         }
 
-        // Chromium's content-setting values: 1 allows; 0 clears the site's own
-        // setting, which leaves the engine's default of blocking.
-        func applyAutomaticPopups(_ allowed: Bool) -> Bool {
-            guard created, let pages else { return true }
-            pages.request(SetSitePermission(pageID: pageID, permission: .popups, allowed: allowed ? true : nil))
-            return true
-        }
-
-        func respondToInfoBar(_ barID: Int, response: String) -> Bool {
-            let answer: InfoBarAnswer
-            switch BrowserEngineInfoBar.Response(rawValue: response) {
-            case .accept: answer = .accept
-            case .cancel: answer = .cancel
-            case .dismiss: answer = .dismiss
-            case nil: return false
-            }
-            guard created, let pages else { return false }
-            return pages.request(AnswerInfoBar(pageID: pageID, infoBarID: barID, answer: answer))
-        }
-
-        /// Rebuilt from the chain the engine verified, so the system certificate
-        /// sheet can show it. The trust carries an SSL policy for the page's host.
-        var serverTrust: SecTrust? {
-            guard created, let pages else { return nil }
-            let chain = pages.request(PageCertificates(pageID: pageID)).certificates
-            guard !chain.isEmpty else { return nil }
-            let certificates = chain.compactMap { SecCertificateCreateWithData(nil, $0 as CFData) }
-            guard certificates.count == chain.count else { return nil }
-            var trust: SecTrust?
-            let policy = SecPolicyCreateSSL(true, pageHost as CFString?)
-            guard SecTrustCreateWithCertificates(certificates as CFArray, policy, &trust) == errSecSuccess else {
-                return nil
-            }
-            return trust
-        }
-        private var pageHost: String?
+        /// The committed document's address, which the page's Media Session
+        /// names.
         private(set) var mediaSessionLocation: String?
-        var mediaSessionTransport: (any BrowserMediaSessionTransport)? { self }
-
-        /// The host keys the content settings it enforces by the permissions'
-        /// names: 1 allows, 2 blocks and 0 clears the site's own setting.
-        func applySitePermission(_ permission: SitePermission, allowed: Bool?) -> Bool {
-            guard Self.enforcedPermissions.contains(permission) else { return false }
-            guard created, let pages else { return true }
-            pages.request(SetSitePermission(pageID: pageID, permission: permission, allowed: allowed))
-            return true
-        }
-
-        private static let enforcedPermissions = SitePermission.all.filter(\.isEngineEnforced)
-
-        /// Answers the engine's site permission requests from Crest's record and
-        /// prompt.
-        /// The engine clears the site its page is showing.
-        func refreshFavicon() {
-            guard created else { return }
-            pages?.request(RefreshPageIcon(pageID: pageID))
-        }
-
-        func showBlockedPopups() -> Bool {
-            guard created, let pages else { return false }
-            return pages.request(ShowBlockedPopups(pageID: pageID))
-        }
 
         /// The extension actions the page's toolbar offers, with each one's state
         /// for the page's own tab.
@@ -420,10 +306,6 @@
             surface.devToolsView = nil
             for subview in surface.subviews { subview.removeFromSuperview() }
             host = nil
-            for (_, completion) in captures { completion(nil) }
-            captures = [:]
-            for (_, export) in exports { export.resume(throwing: BrowserPageExportError.pageUnavailable) }
-            exports = [:]
             for (_, evaluation) in evaluations { evaluation.resume(returning: nil) }
             evaluations = [:]
         }
@@ -447,7 +329,6 @@
             case .pageNavigationStarted: observer(.navigationStarted)
             case .pageNavigationCommitted(let committed):
                 currentURL = URL(string: committed.url)
-                pageHost = currentURL?.host()
                 mediaSessionLocation = committed.url
                 surface.layoutEngineView()
                 observer(.navigationCommitted(currentURL, isLoading: committed.isLoading))
@@ -496,11 +377,9 @@
             case .inspectorClosed: developerPanelDidClose()
             case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileReleased, .pageOffered:
                 break
-            case .findFinished:
-                // The page's shared direct path hears its finds.
+            case .findFinished, .pageCaptured, .pageExported:
+                // The page's shared direct path hears what it asked for.
                 break
-            case .pageCaptured(let captured): receive(captured)
-            case .pageExported(let exported): receive(exported)
             }
         }
 
@@ -611,60 +490,6 @@
                     }
                     reply(decision.name, deferred)
                 }
-            }
-        }
-    }
-
-    extension ChromiumNativePage: BrowserPageDocumentServices {
-        var documentServices: (any BrowserPageDocumentServices)? { self }
-        var archiveFormat: BrowserPageArchiveFormat { .mhtml }
-
-        func fullPageSnapshot(width: CGFloat?) async throws -> NSImage {
-            let backingScale = surface.window?.backingScaleFactor ?? 1
-            let data = try await exportData(format: .png, width: width ?? 0)
-            guard let image = NSImage(data: data) else {
-                throw BrowserPageExportError.renderingFailed("The page capture could not be decoded.")
-            }
-            // Chromium returns device pixels; AppKit composes the capture in points.
-            let logicalWidth = width ?? image.size.width / backingScale
-            image.size = NSSize(width: logicalWidth, height: image.size.height * logicalWidth / image.size.width)
-            return image
-        }
-
-        func pdfData() async throws -> Data { try await exportData(format: .pdf) }
-        func webArchiveData() async throws -> Data { try await exportData(format: .mhtml) }
-
-        func printOperation(with info: NSPrintInfo) async throws -> NSPrintOperation {
-            let data = try await pdfData()
-            guard let document = PDFDocument(data: data),
-                let operation = document.printOperation(for: info, scalingMode: .pageScaleToFit, autoRotate: true)
-            else {
-                throw BrowserPageExportError.renderingFailed("The page could not be prepared for printing.")
-            }
-            return operation
-        }
-
-        private func exportData(format: PageExportFormat, width: CGFloat = 0) async throws -> Data {
-            guard created, let pages else { throw BrowserPageExportError.pageUnavailable }
-            let exportID = UUID()
-            return try await withCheckedThrowingContinuation { continuation in
-                guard pages.request(ExportPage(pageID: pageID, exportID: exportID, format: format, width: width)) else {
-                    continuation.resume(throwing: BrowserPageExportError.pageUnavailable)
-                    return
-                }
-                exports[exportID] = continuation
-            }
-        }
-
-        /// The export the engine made for this page, or why there is none.
-        func receive(_ exported: PageExported) {
-            guard let continuation = exports.removeValue(forKey: exported.exportID) else { return }
-            if let document = exported.document {
-                continuation.resume(returning: document)
-            } else {
-                let failure = exported.failure ?? PageExportFailure.failed
-                continuation.resume(
-                    throwing: BrowserPageExportError.renderingFailed(String(localized: failure.message)))
             }
         }
     }

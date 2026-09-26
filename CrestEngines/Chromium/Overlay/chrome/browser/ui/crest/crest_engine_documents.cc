@@ -73,6 +73,9 @@ void PageDocuments::Export(engine::PageExportFormat format, double width, Done d
       measuring_ = true;
       Send("Page.getLayoutMetrics", base::DictValue());
       break;
+    case engine::PageExportFormat::kWebArchive:
+      Finish(std::nullopt, engine::PageExportFailure::kUnsupported);
+      break;
   }
 }
 

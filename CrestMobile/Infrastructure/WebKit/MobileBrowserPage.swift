@@ -87,7 +87,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// Carries Crest's site permission decisions to the page as they change.
     @ObservationIgnored lazy var sitePermissionSession: BrowserPageSitePermissionSession = {
         let session = BrowserPageSitePermissionSession(
-            engine: pageEngine, permissionCenter: permissionCenter, spaceID: spaceID)
+            page: enginePage, permissionCenter: permissionCenter, spaceID: spaceID)
         session.siteURL = { [weak self] in self?.pageEngine.currentURL ?? self?.live.documentURL }
         session.siteDecisionDidChange = { [weak self] permission in
             if permission == .popups { self?.synchronizePopupPermission() }
@@ -502,6 +502,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     }
 
     private func tearDownWebView() {
+        enginePage.close()
         faviconSession.stop()
         sitePermissionSession.resetMediaGrants()
         sitePermissionRequests.setPresentationAvailable(false)

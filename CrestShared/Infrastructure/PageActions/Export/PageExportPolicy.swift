@@ -3,6 +3,14 @@ import Foundation
 enum BrowserPageArchiveFormat: String {
     case webKit = "webarchive"
     case mhtml
+
+    /// What the page's engine exports an archive as.
+    var exportFormat: PageExportFormat {
+        switch self {
+        case .webKit: .webArchive
+        case .mhtml: .mhtml
+        }
+    }
 }
 
 enum BrowserPageExportPolicy {

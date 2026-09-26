@@ -1,4 +1,3 @@
-import WebKit
 import XCTest
 
 @testable import Crest
@@ -40,41 +39,40 @@ final class BrowserPagePermissionControllerTests: XCTestCase {
     }
 
     func testMediaRevocationStopsOnlyTheRevokedCapture() {
-        let view = RecordingCaptureWebView()
+        let pages = RecordingEnginePages()
         let center = BrowserSitePermissionCenter()
         let spaceID = SpaceID()
         let origin = SiteOrigin(scheme: "https", host: "media.example", port: 443)
         center.setDecision(.grantPersistently, for: .camera, origin: origin, in: spaceID)
         center.setDecision(.grantPersistently, for: .microphone, origin: origin, in: spaceID)
         let session = BrowserPageSitePermissionSession(
-            engine: BrowserWebKitPageEngine(webView: view), permissionCenter: center, spaceID: spaceID)
+            page: pages.page(), permissionCenter: center, spaceID: spaceID)
         session.recordMediaGrant(.camera, origin: origin)
         session.recordMediaGrant(.microphone, origin: origin)
         center.setDecision(.denyPersistently, for: .notifications, origin: origin, in: spaceID)
         center.setDecision(.ask, for: .camera, origin: origin, in: spaceID)
-        XCTAssertEqual(view.cameraStops, 1)
-        XCTAssertEqual(view.microphoneStops, 0)
+        XCTAssertEqual(pages.stopped, [.camera])
     }
 
     func testDecisionChangedElsewhereReachesAnEngineThatEnforcesItAtOnce() {
-        let engine = EnforcingPageEngine()
+        let pages = RecordingEnginePages()
         let center = BrowserSitePermissionCenter()
         let spaceID = SpaceID()
         let page = URL(string: "https://maps.example/route")!
         let origin = SiteOrigin(scheme: "https", host: "maps.example", port: 443)
         let other = SiteOrigin(scheme: "https", host: "other.example", port: 443)
-        let session = BrowserPageSitePermissionSession(engine: engine, permissionCenter: center, spaceID: spaceID)
+        let session = BrowserPageSitePermissionSession(page: pages.page(), permissionCenter: center, spaceID: spaceID)
         session.siteURL = { page }
         var refreshed: [SitePermission] = []
         session.siteDecisionDidChange = { refreshed.append($0) }
 
         center.setDecision(.grantPersistently, for: .location, origin: other, in: spaceID)
         center.setDecision(.grantPersistently, for: .location, origin: origin, in: SpaceID())
-        XCTAssertTrue(engine.applied.isEmpty)
+        XCTAssertTrue(pages.applied.isEmpty)
 
         center.setDecision(.denyPersistently, for: .location, origin: origin, in: spaceID)
-        XCTAssertEqual(engine.applied.map(\.permission), [.location])
-        XCTAssertEqual(engine.applied.map(\.allowed), [false])
+        XCTAssertEqual(pages.applied.map(\.permission), [.location])
+        XCTAssertEqual(pages.applied.map(\.allowed), [false])
         XCTAssertEqual(refreshed, [.location])
     }
 
@@ -124,58 +122,26 @@ final class BrowserPagePermissionControllerTests: XCTestCase {
     }
 }
 
-/// A page engine that enforces site permissions itself, as Chromium does.
+/// An engine's direct path that records the site decisions carried to it.
 @MainActor
-private final class EnforcingPageEngine: BrowserPageEngine {
-    var applied: [(permission: SitePermission, allowed: Bool?)] = []
+private final class RecordingEnginePages: EnginePages {
+    private(set) var applied: [(permission: SitePermission, allowed: Bool?)] = []
+    private(set) var stopped: [SitePermission] = []
 
-    let registration = BrowserEngineRegistration.chromium
-    let nativeView = NSView()
-    var backHistory: [BrowserNavigationHistoryItem] { [] }
-    var forwardHistory: [BrowserNavigationHistoryItem] { [] }
-    var currentURL: URL? { nil }
-    var canGoBack: Bool { false }
-    var canGoForward: Bool { false }
-
-    func applySitePermission(_ permission: SitePermission, allowed: Bool?) -> Bool {
-        applied.append((permission, allowed))
-        return true
+    /// A page over this path.
+    func page() -> EnginePage {
+        EnginePage(id: UUID(), pages: self, historyFamily: .chromium, historyVersion: { nil }, inspectorPanels: [])
     }
 
-    func load(_ request: URLRequest) {}
-    func navigateHistory(by offset: Int) {}
-    func reload(bypassingCache: Bool) {}
-    func stop() {}
-    func mediaActivity() async -> PageMediaActivity? { nil }
-    func transferOwnership(to windowID: BrowserWindowID) -> Bool { true }
-    func capture(rect: CGRect?, width: CGFloat?, completion: @escaping @MainActor (NSImage?) -> Void) {
-        completion(nil)
-    }
-    func setZoom(_ zoom: CGFloat) {}
-    func performFind(
-        _ query: String, configuration: BrowserFindConfiguration,
-        completion: @escaping @MainActor (BrowserFindResult) -> Void
-    ) {
-        completion(.notFound)
-    }
-}
+    func attach(_ page: EnginePage) {}
 
-@MainActor
-private final class RecordingCaptureWebView: WKWebView {
-    var cameraStops = 0
-    var microphoneStops = 0
-
-    override func setCameraCaptureState(
-        _ state: WKMediaCaptureState, completionHandler: (@MainActor @Sendable () -> Void)? = nil
-    ) {
-        if state == .none { cameraStops += 1 }
-        completionHandler?()
-    }
-
-    override func setMicrophoneCaptureState(
-        _ state: WKMediaCaptureState, completionHandler: (@MainActor @Sendable () -> Void)? = nil
-    ) {
-        if state == .none { microphoneStops += 1 }
-        completionHandler?()
+    func request<Request: PageRequest>(_ request: Request) -> Request.Answer {
+        switch request {
+        case let setting as SetSitePermission: applied.append((setting.permission, setting.allowed))
+        case let stopping as StopMediaCapture: stopped.append(stopping.permission)
+        default: XCTFail("The session asked for \(Request.self).")
+        }
+        guard let answer = true as? Request.Answer else { preconditionFailure("A site request answers Bool.") }
+        return answer
     }
 }

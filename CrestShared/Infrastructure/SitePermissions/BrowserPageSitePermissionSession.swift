@@ -1,7 +1,7 @@
 import Foundation
 
 /// Keeps one open page's engine in step with Crest's per-Space site permission
-/// records, whichever engine hosts it.
+/// records, whichever engine hosts it, over the page's `EnginePage`.
 ///
 /// The core decides every answer through `BrowserSitePermissionCenter`; this
 /// session only carries the answers to the page. A change made anywhere — the
@@ -9,9 +9,9 @@ import Foundation
 /// once rather than on its next navigation:
 ///
 /// - An engine that enforces site permissions itself is told the decision for
-///   the page's site through `BrowserPageEngine.applySitePermission`.
-/// - Camera or microphone capture the page was granted is stopped through
-///   `BrowserPageEngine.stopMediaCapture` when that grant is withdrawn.
+///   the page's site.
+/// - Camera or microphone capture the page was granted is stopped when that
+///   grant is withdrawn.
 /// - `siteDecisionDidChange` runs for each affected permission, so bridges Crest
 ///   runs inside the page can refresh what the document sees.
 @MainActor
@@ -40,15 +40,15 @@ final class BrowserPageSitePermissionSession: BrowserSitePermissionObserver {
     /// page's site.
     var siteDecisionDidChange: @MainActor (SitePermission) -> Void = { _ in }
 
-    private let engine: any BrowserPageEngine
+    private let page: EnginePage
     private let permissionCenter: BrowserSitePermissionCenter
     private let spaceID: SpaceID
     private var mediaGrants: [MediaGrant: SitePermissionDecision] = [:]
 
     // MARK: - Initializers
 
-    init(engine: any BrowserPageEngine, permissionCenter: BrowserSitePermissionCenter, spaceID: SpaceID) {
-        self.engine = engine
+    init(page: EnginePage, permissionCenter: BrowserSitePermissionCenter, spaceID: SpaceID) {
+        self.page = page
         self.permissionCenter = permissionCenter
         self.spaceID = spaceID
         permissionCenter.addObserver(self)
@@ -77,7 +77,7 @@ final class BrowserPageSitePermissionSession: BrowserSitePermissionObserver {
                 continue
             }
             mediaGrants.removeValue(forKey: grant)
-            engine.stopMediaCapture(grant.permission)
+            page.stopCapture(grant.permission)
         }
     }
 
@@ -97,7 +97,7 @@ final class BrowserPageSitePermissionSession: BrowserSitePermissionObserver {
         let decision = ([permission] + permission.combinations).lazy
             .map { self.permissionCenter.decision(for: $0, origin: origin, in: self.spaceID) }
             .first { $0.verdict != .ask }
-        _ = engine.applySitePermission(permission, allowed: decision?.grants)
+        page.setSitePermission(permission, allowed: decision?.grants)
     }
 
     private func affects(

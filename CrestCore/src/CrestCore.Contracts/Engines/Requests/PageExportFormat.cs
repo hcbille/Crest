@@ -8,6 +8,10 @@ public enum PageExportFormat {
     /// A PNG of the whole document.
     Png,
 
-    /// An MHTML archive of the document and its resources.
-    Mhtml
+    /// An MHTML archive of the document and its resources, as Chromium keeps
+    /// one.
+    Mhtml,
+
+    /// A web archive of the document and its resources, as WebKit keeps one.
+    WebArchive
 }

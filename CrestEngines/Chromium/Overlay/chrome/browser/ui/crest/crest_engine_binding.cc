@@ -727,6 +727,12 @@ bool EngineBinding::Handle(const engine::SetSitePermission& request) {
   return page && page->SetSitePermission(request.permission, request.allowed);
 }
 
+// Chromium enforces capture permissions itself: the SetSitePermission that
+// withdraws a grant ends the capture it allowed.
+bool EngineBinding::Handle(const engine::StopMediaCapture&) {
+  return false;
+}
+
 // A Space's profile loads before anything opens in it, so its extensions
 // can be listed; its extensions are followed from then on.
 bool EngineBinding::Handle(const engine::PrepareProfile& request) {

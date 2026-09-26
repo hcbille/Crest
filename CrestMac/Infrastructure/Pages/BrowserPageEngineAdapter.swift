@@ -9,8 +9,9 @@ import Foundation
 @MainActor
 protocol BrowserPageEngineAdapter: AnyObject {
     var engine: any BrowserPageEngine { get }
-    /// The page's direct path to its engine: going back, reloading, zooming,
-    /// finding text and keeping its history.
+    /// The page's direct path to its engine: going back, reloading, finding
+    /// text, capturing and exporting the page, and carrying Crest's site
+    /// decisions to it.
     var enginePage: EnginePage { get }
 
     var linkHover: BrowserLinkHoverController? { get }
@@ -26,8 +27,8 @@ protocol BrowserPageEngineAdapter: AnyObject {
     /// engine whose bridges are not installed through `contentScripting`.
     var credentialEvaluator: BrowserCredentialSession.Evaluate? { get }
 
-    /// Builds the Media Session coordinator for an engine whose own bridge
-    /// reports it; nil when the engine reports it through `mediaSessionTransport`.
+    /// Builds the page's Media Session coordinator: over Crest's bridge in the
+    /// page, or over an engine that reports the session itself.
     func makeMediaSessionCoordinator(
         for page: BrowserPage,
         store: BrowserMediaSessionStore

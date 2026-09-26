@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0x32, 0x69, 0x95, 0x8d, 0xfc, 0x0d, 0x96, 0x7e, 0x08, 0x83, 0xaf, 0x3f, 0x67, 0x63, 0x5c, 0xa0, 0x0f, 0xd7, 0x1e, 0xef, 0x75, 0x26, 0x61, 0xaf, 0xd4, 0x7e, 0x3b, 0x84, 0xb6, 0x23, 0xc2, 0x1d};
+    0x30, 0xa1, 0xc6, 0xf2, 0xc2, 0xed, 0x79, 0x92, 0xf7, 0x2a, 0x6f, 0x3d, 0xf6, 0x88, 0xdd, 0x19, 0x12, 0x53, 0x84, 0x1f, 0x4c, 0x55, 0x10, 0xff, 0xc5, 0x77, 0xea, 0x6d, 0xdd, 0xa5, 0x1a, 0xbe};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -410,10 +410,11 @@ enum class PageExportFormat : uint32_t {
   kPdf = 0,
   kPng = 1,
   kMhtml = 2,
+  kWebArchive = 3,
 };
 inline void Write(WireWriter& writer, PageExportFormat value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
 inline bool Read(WireReader& reader, PageExportFormat& value) {
-  value = static_cast<PageExportFormat>(reader.ReadEnum(3));
+  value = static_cast<PageExportFormat>(reader.ReadEnum(4));
   return reader.ok();
 }
 
@@ -2764,6 +2765,21 @@ inline bool Read(WireReader& reader, StopLoading& value) {
   return Read(reader, value.page_id);
 }
 
+struct StopMediaCapture {
+  Guid page_id = {};
+  SitePermission permission = {};
+
+  friend bool operator==(const StopMediaCapture&, const StopMediaCapture&) = default;
+};
+inline void Write(WireWriter& writer, const StopMediaCapture& value) {
+  Write(writer, value.page_id);
+  Write(writer, value.permission);
+}
+inline bool Read(WireReader& reader, StopMediaCapture& value) {
+  return Read(reader, value.page_id)
+      && Read(reader, value.permission);
+}
+
 struct StoreInstallRequested {
   Guid page_id = {};
   std::string extension_id;
@@ -3051,7 +3067,7 @@ inline bool Read(WireReader& reader, EngineEvent& value) {
   }
 }
 
-using PageRequest = std::variant<ActivateMediaSession, AddContentScript, AdoptOfferedPage, AnswerInfoBar, CapturePage, ChangeExtension, CloseInspector, CloseStandalonePage, EnterPictureInPicture, EvaluateContentScript, ExportPage, FindInPage, GoToHistoryOffset, HasSidePanel, HidePage, InstalledExtensions, LayoutInspector, MovePageToWindow, MuteMediaSession, OpenInspector, OpenStandalonePage, PageCertificates, PageExtensions, PageIcon, PageInspected, PageMedia, PerformMediaAction, PinnedExtensions, PrepareProfile, RefreshPageIcon, RefreshStoreListing, RejectOfferedPage, ReloadPage, RestoreInteractionState, SaveInteractionState, SetSitePermission, ShowBlockedPopups, ShowPage, StopLoading, WatchPage, ZoomPage>;
+using PageRequest = std::variant<ActivateMediaSession, AddContentScript, AdoptOfferedPage, AnswerInfoBar, CapturePage, ChangeExtension, CloseInspector, CloseStandalonePage, EnterPictureInPicture, EvaluateContentScript, ExportPage, FindInPage, GoToHistoryOffset, HasSidePanel, HidePage, InstalledExtensions, LayoutInspector, MovePageToWindow, MuteMediaSession, OpenInspector, OpenStandalonePage, PageCertificates, PageExtensions, PageIcon, PageInspected, PageMedia, PerformMediaAction, PinnedExtensions, PrepareProfile, RefreshPageIcon, RefreshStoreListing, RejectOfferedPage, ReloadPage, RestoreInteractionState, SaveInteractionState, SetSitePermission, ShowBlockedPopups, ShowPage, StopLoading, StopMediaCapture, WatchPage, ZoomPage>;
 template <typename T>
 struct PageRequestAnswer;
 template <>
@@ -3208,6 +3224,10 @@ struct PageRequestAnswer<ShowPage> {
 };
 template <>
 struct PageRequestAnswer<StopLoading> {
+  using Type = bool;
+};
+template <>
+struct PageRequestAnswer<StopMediaCapture> {
   using Type = bool;
 };
 template <>
@@ -3459,12 +3479,18 @@ inline bool Read(WireReader& reader, PageRequest& value) {
       return true;
     }
     case 39: {
-      WatchPage member;
+      StopMediaCapture member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 40: {
+      WatchPage member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
+    case 41: {
       ZoomPage member;
       if (!Read(reader, member)) return false;
       value = std::move(member);

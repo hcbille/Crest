@@ -2865,6 +2865,10 @@
     "2026-09-26-space-deletion-erases-every-engine": {
       "category": "improved",
       "message": "Deleting a Space erases its website data in every browser engine Crest runs, including one that never opened a page for it"
+    },
+    "2026-09-26-engine-page-direct-path": {
+      "category": "internal",
+      "message": "Every engine answers a page's captures, exports, inspector, certificate and site decisions through one direct path"
     }
   }
 }

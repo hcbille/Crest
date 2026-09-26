@@ -929,7 +929,7 @@ final class BrowserPagePool:
         // caller to load the tab afresh instead, and so does the core when
         // the tab may not take the page.
         guard page.pageEngine.registration.supports(.workspaceTransfer),
-            page.pageEngine.transferOwnership(to: windowID),
+            page.enginePage.move(to: windowID),
             browser.adoptPage(page.corePage, in: space.id, as: tabID)
         else { return false }
         guard lease.relinquishPage() === page else {

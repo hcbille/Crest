@@ -335,7 +335,7 @@ struct BrowserCommandActions {
     func openFile() {
         guard let space = browser.shownSpace else { return }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        let format = pages.activePage?.pageEngine.documentServices?.archiveFormat ?? .registered
+        let format = pages.activePage?.pageEngine.registration.archiveFormat ?? .registered
         let actions = self
         Task { @MainActor in
             let panel = NSOpenPanel()

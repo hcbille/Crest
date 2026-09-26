@@ -249,70 +249,28 @@ final class BrowserPageActionsTests: XCTestCase {
     func testWebInspectorAccessShowsWebKitsInspectorOnlyForInspectableContent() {
         let host = BrowserWebInspectorHost()
 
-        XCTAssertFalse(
-            BrowserWebInspectorAccess.show(
-                inspectorOwner: host,
-                isInspectable: false
-            )
-        )
+        XCTAssertFalse(BrowserWebInspectorAccess.open(nil, inspectorOwner: host, isInspectable: false))
         XCTAssertEqual(host.inspector.showCount, 0)
 
-        XCTAssertTrue(
-            BrowserWebInspectorAccess.show(
-                inspectorOwner: host,
-                isInspectable: true
-            )
-        )
+        XCTAssertTrue(BrowserWebInspectorAccess.open(nil, inspectorOwner: host, isInspectable: true))
         XCTAssertEqual(host.inspector.showCount, 1)
     }
 
-    func testWebInspectorAccessTogglesConsoleNetworkAndElementSelection() {
+    func testWebInspectorAccessOpensPanelsClosesAndFollowsElementSelection() {
         let host = BrowserWebInspectorHost()
 
-        XCTAssertEqual(
-            BrowserWebInspectorAccess.toggle(
-                .console,
-                currentPanel: nil,
-                inspectorOwner: host,
-                isInspectable: true
-            ),
-            .opened(.console)
-        )
+        XCTAssertTrue(BrowserWebInspectorAccess.open(.console, inspectorOwner: host, isInspectable: true))
         XCTAssertEqual(host.inspector.showConsoleCount, 1)
-        XCTAssertTrue(host.inspector.isVisible)
+        XCTAssertTrue(BrowserWebInspectorAccess.isVisible(inspectorOwner: host))
 
-        XCTAssertEqual(
-            BrowserWebInspectorAccess.toggle(
-                .network,
-                currentPanel: .console,
-                inspectorOwner: host,
-                isInspectable: true
-            ),
-            .opened(.network)
-        )
+        XCTAssertTrue(BrowserWebInspectorAccess.open(.network, inspectorOwner: host, isInspectable: true))
         XCTAssertEqual(host.inspector.showResourcesCount, 1)
 
-        XCTAssertEqual(
-            BrowserWebInspectorAccess.toggle(
-                .network,
-                currentPanel: .network,
-                inspectorOwner: host,
-                isInspectable: true
-            ),
-            .closed
-        )
+        XCTAssertTrue(BrowserWebInspectorAccess.close(inspectorOwner: host))
         XCTAssertEqual(host.inspector.closeCount, 1)
-        XCTAssertFalse(host.inspector.isVisible)
+        XCTAssertFalse(BrowserWebInspectorAccess.isVisible(inspectorOwner: host))
 
-        XCTAssertEqual(
-            BrowserWebInspectorAccess.toggle(
-                .elements,
-                currentPanel: .network,
-                inspectorOwner: host,
-                isInspectable: true
-            ),
-            .opened(.elements)
-        )
+        XCTAssertTrue(BrowserWebInspectorAccess.open(.elements, inspectorOwner: host, isInspectable: true))
         XCTAssertEqual(host.inspector.showCount, 1)
         XCTAssertEqual(host.inspector.toggleElementSelectionCount, 1)
         XCTAssertTrue(host.inspector.isElementSelectionActive)

@@ -10,14 +10,19 @@ extension BrowserPage {
     var canReviewCertificate: Bool {
         BrowserSiteCertificatePresentationPolicy.isAvailable(
             url: live.displayURL,
-            hasServerTrust: pageEngine.serverTrust != nil
+            hasServerTrust: serverTrust != nil
         )
+    }
+
+    /// The trust the page's current document was verified with.
+    private var serverTrust: SecTrust? {
+        enginePage.serverTrust(host: pageEngine.currentURL?.host())
     }
 
     /// Capture the certificate and its window before dismissing a popover.
     /// A later navigation must not change which certificate the action reviews.
     func certificateReviewAction() -> (@MainActor () -> Void)? {
-        guard let trust = pageEngine.serverTrust else { return nil }
+        guard let trust = serverTrust else { return nil }
         let window = presentationWindow
         return { BrowserSiteCertificatePresenter.present(trust: trust, for: window) }
     }
@@ -30,6 +35,6 @@ extension BrowserPage {
         width: CGFloat? = nil,
         completion: @escaping @MainActor (NSImage?) -> Void
     ) {
-        pageEngine.capture(rect: nil, width: width, completion: completion)
+        enginePage.capture(width: width) { completion($0.flatMap(NSImage.init(data:))) }
     }
 }

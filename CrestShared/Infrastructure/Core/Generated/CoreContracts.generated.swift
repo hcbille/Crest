@@ -5007,6 +5007,13 @@ struct StopLoading: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct StopMediaCapture: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let permission: SitePermission
+}
+
 struct StorageFailed: Equatable, Sendable {
     let reason: StorageFailure
 }
@@ -5800,6 +5807,7 @@ enum PageExportFormat: Int, CaseIterable, Sendable {
     case pdf = 0
     case png = 1
     case mhtml = 2
+    case webArchive = 3
 }
 
 struct PageMediaActivity: OptionSet, Sendable {

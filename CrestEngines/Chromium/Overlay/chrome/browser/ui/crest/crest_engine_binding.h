@@ -212,6 +212,7 @@ class EngineBinding {
   bool Handle(const engine::HasSidePanel& request);
   engine::CertificateChain Handle(const engine::PageCertificates& request);
   bool Handle(const engine::SetSitePermission& request);
+  bool Handle(const engine::StopMediaCapture& request);
   bool Handle(const engine::PrepareProfile& request);
   bool Handle(const engine::AdoptOfferedPage& request);
   bool Handle(const engine::RejectOfferedPage& request);

@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Observation
+import PDFKit
 import UniformTypeIdentifiers
 import os
 
@@ -239,7 +240,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.engineAdapter = engineAdapter
         pageEngine = engineAdapter.engine
         sitePermissionSession = BrowserPageSitePermissionSession(
-            engine: engineAdapter.engine, permissionCenter: permissionCenter, spaceID: spaceID)
+            page: engineAdapter.enginePage, permissionCenter: permissionCenter, spaceID: spaceID)
         let normalizedDefaultPageZoom = BrowserPageZoomPolicy.normalizedDefault(
             defaultPageZoom
         )
@@ -302,12 +303,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         enginePage.zoom(to: pageZoom)
         engineAdapter.attach(to: self, allowsCredentialAccess: allowsCredentialAccess)
         if let mediaSessionStore {
-            mediaSessionCoordinator =
-                pageEngine.mediaSessionTransport.map {
-                    BrowserMediaSessionPageCoordinator(
-                        transport: $0, endpoint: self, store: mediaSessionStore,
-                        owner: mediaSessionOwner, fallbackTitle: mediaSessionFallbackTitle)
-                } ?? engineAdapter.makeMediaSessionCoordinator(for: self, store: mediaSessionStore)
+            mediaSessionCoordinator = engineAdapter.makeMediaSessionCoordinator(for: self, store: mediaSessionStore)
         }
         // An engine that runs Crest's content bridges itself receives them here;
         // the WebKit adapter installs its own through its user content controller.
@@ -491,17 +487,19 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
     @discardableResult
     func showWebInspector() -> Bool {
-        pageEngine.showInspector()
+        enginePage.openInspector()
     }
 
+    /// Closes the inspector showing `panel`, or opens one on it. An engine
+    /// that cannot start on `panel` opens wherever it last was, and the page
+    /// claims no panel it did not choose.
     func toggleDeveloperPanel(_ panel: BrowserDeveloperPanel) {
-        let result = pageEngine.toggleInspector(panel, current: developerPanel)
-        switch result {
-        case .opened(let openedPanel):
-            developerPanel = openedPanel
-        case .closed:
-            developerPanel = nil
-        case .unavailable:
+        let requested = InspectorPanel(panel)
+        if developerPanel == panel, enginePage.isInspected {
+            if enginePage.closeInspector() { developerPanel = nil } else { NSSound.beep() }
+        } else if enginePage.openInspector(on: requested) {
+            developerPanel = enginePage.inspectorStarts(on: requested) ? panel : nil
+        } else {
             NSSound.beep()
         }
     }
@@ -521,10 +519,12 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let image = await withCheckedContinuation { continuation in
-                    pageEngine.capture(rect: rect, width: nil) { continuation.resume(returning: $0) }
+                let png = await withCheckedContinuation { continuation in
+                    enginePage.capture(area: rect) { continuation.resume(returning: $0) }
                 }
-                guard let image else { throw BrowserDeveloperCaptureError.pageUnavailable }
+                guard let image = png.flatMap(NSImage.init(data:)) else {
+                    throw BrowserDeveloperCaptureError.pageUnavailable
+                }
                 guard Self.copyImageToPasteboard(image) else {
                     throw BrowserDeveloperCaptureError.encodingFailed
                 }
@@ -651,7 +651,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
     func respond(to bar: BrowserEngineInfoBar, with response: BrowserEngineInfoBar.Response) {
         // The engine withdraws the bar itself once it has taken the answer.
-        if !pageEngine.respondToInfoBar(bar.id, response: response.rawValue) {
+        if !enginePage.answerInfoBar(bar.id, with: InfoBarAnswer(response)) {
             engineInfoBars.removeAll { $0.id == bar.id }
         }
     }
@@ -716,11 +716,19 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         return true
     }
 
+    /// The whole page as an image `snapshotWidth` points wide, or as wide in
+    /// points as the engine drew it on this screen.
     private func fullPageSnapshot(snapshotWidth: CGFloat? = nil) async throws -> NSImage {
-        guard live.url != nil, let service = pageEngine.documentServices else {
-            throw BrowserDeveloperCaptureError.pageUnavailable
-        }
-        return try await service.fullPageSnapshot(width: snapshotWidth)
+        guard live.url != nil else { throw BrowserDeveloperCaptureError.pageUnavailable }
+        let backingScale = nativeView.window?.backingScaleFactor ?? 1
+        let data = try await enginePage.export(.png, width: snapshotWidth)
+        guard let image = NSImage(data: data), let bitmap = image.representations.first,
+            bitmap.pixelsWide > 0, bitmap.pixelsHigh > 0
+        else { throw BrowserDeveloperCaptureError.pageUnavailable }
+        // Engines draw in device pixels; AppKit composes the capture in points.
+        let width = snapshotWidth ?? CGFloat(bitmap.pixelsWide) / backingScale
+        image.size = NSSize(width: width, height: CGFloat(bitmap.pixelsHigh) * width / CGFloat(bitmap.pixelsWide))
+        return image
     }
 
     private static func copyImageToPasteboard(_ image: NSImage) -> Bool {
@@ -816,9 +824,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     }
 
     func printPage() {
-        guard !preparingPrint, printOperation == nil, let service = pageEngine.documentServices,
-            live.url != nil, let window = nativeView.window
-        else { return }
+        guard !preparingPrint, printOperation == nil, live.url != nil, let window = nativeView.window else { return }
         let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo.shared
         let title = live.title
         let jobTitle = title.isEmpty ? live.documentURL?.host() ?? ProductIdentity.name : title
@@ -828,7 +834,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             defer { preparingPrint = false }
             guard let window else { return }
             do {
-                let operation = try await service.printOperation(with: printInfo)
+                let operation = try await printOperation(with: printInfo)
                 guard nativeView.window === window, window.isVisible else { return }
                 operation.jobTitle = jobTitle
                 printOperation = operation
@@ -842,11 +848,21 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
     }
 
-    func pdfData() async throws -> Data {
-        guard live.url != nil, let service = pageEngine.documentServices else {
-            throw BrowserPageExportError.pageUnavailable
+    /// The engine's own print operation for its view, or one over the PDF
+    /// the engine exports.
+    private func printOperation(with info: NSPrintInfo) async throws -> NSPrintOperation {
+        if let operation = pageEngine.printOperation(with: info) { return operation }
+        guard let document = PDFDocument(data: try await pdfData()),
+            let operation = document.printOperation(for: info, scalingMode: .pageScaleToFit, autoRotate: true)
+        else {
+            throw BrowserPageExportError.renderingFailed("The page could not be prepared for printing.")
         }
-        return try await service.pdfData()
+        return operation
+    }
+
+    func pdfData() async throws -> Data {
+        guard live.url != nil else { throw BrowserPageExportError.pageUnavailable }
+        return try await enginePage.export(.pdf)
     }
 
     func exportPDF() {
@@ -874,18 +890,15 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
     }
 
+    /// The page's document and resources, in the archive its engine keeps.
     func webArchiveData() async throws -> Data {
-        guard live.url != nil, let service = pageEngine.documentServices else {
-            throw BrowserPageExportError.pageUnavailable
-        }
-        return try await service.webArchiveData()
+        guard live.url != nil else { throw BrowserPageExportError.pageUnavailable }
+        return try await enginePage.export(pageEngine.registration.archiveFormat.exportFormat)
     }
 
     func exportWebArchive() {
-        guard let window = nativeView.window, live.url != nil,
-            let service = pageEngine.documentServices
-        else { return }
-        let format = service.archiveFormat
+        guard let window = nativeView.window, live.url != nil else { return }
+        let format = pageEngine.registration.archiveFormat
         let suggestedFilename = BrowserPageExportPolicy.webArchiveFilename(
             title: live.title,
             url: live.documentURL,
@@ -1123,7 +1136,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         if let faviconSession {
             faviconSession.refresh()
         } else {
-            pageEngine.refreshFavicon()
+            enginePage.refreshIcon()
         }
     }
 

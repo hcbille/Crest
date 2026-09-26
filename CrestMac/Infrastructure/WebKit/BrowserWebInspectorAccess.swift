@@ -54,41 +54,36 @@ enum BrowserWebInspectorAccess {
         return true
     }
 
-    static func show(
+    /// Whether the web view's inspector is showing.
+    static func isVisible(inspectorOwner: NSObject) -> Bool {
+        inspector(for: inspectorOwner).map { booleanValue(isVisibleSelector, from: $0) } ?? false
+    }
+
+    /// Closes the web view's inspector; false when it has none to close.
+    static func close(inspectorOwner: NSObject) -> Bool {
+        guard let inspector = inspector(for: inspectorOwner), inspector.responds(to: closeSelector) else {
+            return false
+        }
+        inspector.perform(closeSelector)
+        return true
+    }
+
+    /// Opens the web view's inspector where it last was, or on
+    /// `requestedPanel`; false when the web view cannot be inspected.
+    static func open(
+        _ requestedPanel: InspectorPanel?,
         inspectorOwner: NSObject,
         isInspectable: Bool
     ) -> Bool {
         guard isInspectable,
-            let inspector = inspector(for: inspectorOwner),
-            inspector.responds(to: showSelector)
+            let inspector = inspector(for: inspectorOwner)
         else {
             return false
         }
-
-        inspector.perform(showSelector)
-        return true
-    }
-
-    static func toggle(
-        _ requestedPanel: BrowserDeveloperPanel,
-        currentPanel: BrowserDeveloperPanel?,
-        inspectorOwner: NSObject,
-        isInspectable: Bool
-    ) -> BrowserWebInspectorToggleResult {
-        guard isInspectable,
-            let inspector = inspector(for: inspectorOwner)
-        else {
-            return .unavailable
-        }
-
-        if currentPanel == requestedPanel,
-            booleanValue(isVisibleSelector, from: inspector)
-        {
-            guard inspector.responds(to: closeSelector) else {
-                return .unavailable
-            }
-            inspector.perform(closeSelector)
-            return .closed
+        guard let requestedPanel else {
+            guard inspector.responds(to: showSelector) else { return false }
+            inspector.perform(showSelector)
+            return true
         }
 
         if requestedPanel != .elements,
@@ -108,7 +103,7 @@ enum BrowserWebInspectorAccess {
             presentationSelector = showSelector
         }
         guard inspector.responds(to: presentationSelector) else {
-            return .unavailable
+            return false
         }
         inspector.perform(presentationSelector)
 
@@ -122,7 +117,7 @@ enum BrowserWebInspectorAccess {
         {
             inspector.perform(toggleElementSelectionSelector)
         }
-        return .opened(requestedPanel)
+        return true
     }
 
     private static func inspector(for owner: NSObject) -> NSObject? {
@@ -142,7 +137,7 @@ enum BrowserWebInspectorAccess {
     }
 
     private static func showFrontendPanel(
-        _ panel: BrowserDeveloperPanel,
+        _ panel: InspectorPanel,
         in inspector: NSObject
     ) {
         guard inspector.responds(to: inspectorWebViewSelector),

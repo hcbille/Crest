@@ -1070,7 +1070,8 @@ bool EnginePage::Capture(const engine::Guid& capture_id,
 }
 
 bool EnginePage::Export(const engine::Guid& export_id, engine::PageExportFormat format, double width) {
-  if (!web_contents()) {
+  // Chromium keeps its archives as MHTML, never as WebKit's web archives.
+  if (!web_contents() || format == engine::PageExportFormat::kWebArchive) {
     return false;
   }
   if (!documents_) {

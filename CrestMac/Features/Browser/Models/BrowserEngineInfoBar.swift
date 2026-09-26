@@ -25,3 +25,14 @@ struct BrowserEngineInfoBar: Identifiable, Equatable {
         self.isCloseable = isCloseable
     }
 }
+
+extension InfoBarAnswer {
+    /// The engine's answer for the person's response to its bar.
+    init(_ response: BrowserEngineInfoBar.Response) {
+        switch response {
+        case .accept: self = .accept
+        case .cancel: self = .cancel
+        case .dismiss: self = .dismiss
+        }
+    }
+}

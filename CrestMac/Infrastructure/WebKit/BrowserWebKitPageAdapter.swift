@@ -190,6 +190,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     }
 
     func detach(from page: BrowserPage) {
+        enginePage.close()
         webView.linkHover = nil
         webView.linkDrag = nil
         webView.stopLoading()

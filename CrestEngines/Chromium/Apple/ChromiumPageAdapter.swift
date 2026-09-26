@@ -21,7 +21,7 @@
             context: { [weak self] in self?.page?.navigationContext },
             handle: { [weak self] event in self?.page?.handleLinkDrag(event) })
         private(set) lazy var pictureInPicture: (any BrowserPagePictureInPictureController)? =
-            ChromiumPictureInPicturePageController(native: native)
+            ChromiumPictureInPicturePageController(page: enginePage)
         // Chromium presents favicons and its error pages itself; reader and
         // content blocking are unavailable.
         var readerModeSession: BrowserReaderModeSession? { nil }
@@ -41,10 +41,16 @@
 
         // MARK: - Actions - Lifecycle
 
+        /// Chromium reports the page's Media Session and runs its commands
+        /// itself.
         func makeMediaSessionCoordinator(
             for page: BrowserPage,
             store: BrowserMediaSessionStore
-        ) -> BrowserMediaSessionPageCoordinator? { nil }
+        ) -> BrowserMediaSessionPageCoordinator? {
+            BrowserMediaSessionPageCoordinator(
+                transport: native, endpoint: page, store: store,
+                owner: page.mediaSessionOwner, fallbackTitle: page.mediaSessionFallbackTitle)
+        }
 
         func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
             self.page = page
@@ -76,6 +82,7 @@
 
         func detach(from page: BrowserPage) {
             pictureInPicture?.invalidate()
+            enginePage.close()
             native.dispose()
         }
 
@@ -92,7 +99,7 @@
         func styleVisitedLinks(history: [BrowserHistoryEntry]) async {}
         func prepareForNavigation() {}
         /// The engine enforces site permissions itself; the page's permission
-        /// session has already applied the change through `applySitePermission`.
+        /// session has already carried the change to it.
         func sitePermissionDidChange(_ permission: SitePermission, on page: BrowserPage) {}
     }
 
@@ -145,19 +152,20 @@
     private final class ChromiumPictureInPicturePageController:
         BrowserPagePictureInPictureController, BrowserAutomaticPictureInPictureClient
     {
-        private let native: ChromiumNativePage
+        private let page: EnginePage
         private let coordinator: BrowserAutomaticPictureInPictureCoordinator
         private var completion: (@MainActor (Bool) -> Void)?
         private var check: Task<Void, Never>?
 
-        var isPictureInPictureActive: Bool { native.currentMediaActivity?.contains(.pictureInPicture) == true }
+        var isPictureInPictureActive: Bool { page.mediaActivity.contains(.pictureInPicture) }
         var protectsPageResidency: Bool { isPictureInPictureActive || completion != nil }
         var canAutomaticallyEnterPictureInPicture: Bool {
-            native.currentMediaActivity.map { $0.contains(.playing) && !$0.contains(.pictureInPicture) } == true
+            let activity = page.mediaActivity
+            return activity.contains(.playing) && !activity.contains(.pictureInPicture)
         }
 
-        init(native: ChromiumNativePage, coordinator: BrowserAutomaticPictureInPictureCoordinator = .shared) {
-            self.native = native
+        init(page: EnginePage, coordinator: BrowserAutomaticPictureInPictureCoordinator = .shared) {
+            self.page = page
             self.coordinator = coordinator
             coordinator.register(self)
         }
@@ -168,7 +176,7 @@
         func returnToTab() { coordinator.cancel(self) }
 
         func beginAutomaticPictureInPicture(completion: @escaping @MainActor (Bool) -> Void) {
-            guard native.enterPictureInPicture() else {
+            guard page.enterPictureInPicture() else {
                 completion(false)
                 return
             }

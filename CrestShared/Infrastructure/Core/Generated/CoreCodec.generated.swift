@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x44, 0x3f, 0x52, 0xab, 0xc0, 0x55, 0x0c, 0x97, 0x5f, 0xe9, 0x79, 0x0e, 0x60, 0xa3, 0x4f, 0x83, 0x96, 0x5c, 0xec, 0x33, 0x8e, 0x92, 0xf1, 0xd5, 0x92, 0x38, 0x14, 0xa5, 0x5c, 0x2c, 0xaf, 0xd1
+        0xd5, 0x2b, 0xf3, 0x30, 0x0f, 0x15, 0x39, 0x22, 0xad, 0xc2, 0x73, 0x83, 0xc0, 0x67, 0x86, 0x1b, 0x63, 0x19, 0xee, 0x03, 0xa9, 0x03, 0xda, 0x90, 0xa8, 0xd6, 0xdb, 0x22, 0xd3, 0x36, 0xa7, 0x9d
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0x32, 0x69, 0x95, 0x8d, 0xfc, 0x0d, 0x96, 0x7e, 0x08, 0x83, 0xaf, 0x3f, 0x67, 0x63, 0x5c, 0xa0, 0x0f, 0xd7, 0x1e, 0xef, 0x75, 0x26, 0x61, 0xaf, 0xd4, 0x7e, 0x3b, 0x84, 0xb6, 0x23, 0xc2, 0x1d
+        0x30, 0xa1, 0xc6, 0xf2, 0xc2, 0xed, 0x79, 0x92, 0xf7, 0x2a, 0x6f, 0x3d, 0xf6, 0x88, 0xdd, 0x19, 0x12, 0x53, 0x84, 0x1f, 0x4c, 0x55, 0x10, 0xff, 0xc5, 0x77, 0xea, 0x6d, 0xdd, 0xa5, 0x1a, 0xbe
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -374,8 +374,9 @@ enum CoreCodec {
         case 36: return try ShowBlockedPopups(from: &reader)
         case 37: return try ShowPage(from: &reader)
         case 38: return try StopLoading(from: &reader)
-        case 39: return try WatchPage(from: &reader)
-        case 40: return try ZoomPage(from: &reader)
+        case 39: return try StopMediaCapture(from: &reader)
+        case 40: return try WatchPage(from: &reader)
+        case 41: return try ZoomPage(from: &reader)
         default: throw WireError.malformed("Unknown PageRequest tag \(tag)")
         }
     }
@@ -18143,6 +18144,29 @@ extension StopLoading {
     }
 }
 
+extension StopMediaCapture {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        let permission = try SitePermission(from: &reader)
+        self.init(pageID: pageID, permission: permission)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
+        permission.encode(into: &writer)
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(39)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
+    }
+}
+
 extension StorageFailed {
     init(from reader: inout WireReader) throws(WireError) {
         let reason = try StorageFailure(from: &reader)
@@ -19594,7 +19618,7 @@ extension WatchPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(39)
+        writer.writeTag(40)
         encode(into: &writer)
     }
 
@@ -19862,7 +19886,7 @@ extension ZoomPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(40)
+        writer.writeTag(41)
         encode(into: &writer)
     }
 

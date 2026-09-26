@@ -7,7 +7,9 @@ extension BrowserPlatformPage {
             .flatMap(SiteOrigin.init(url:))
         let allowsAutomaticPopups =
             origin.map { permissionCenter.decision(for: .popups, origin: $0, in: spaceID).grants } ?? false
-        _ = pageEngine.applyAutomaticPopups(allowsAutomaticPopups)
+        // An engine's own popup blocker takes the site's own allowance, and
+        // otherwise its default of blocking.
+        enginePage.setSitePermission(.popups, allowed: allowsAutomaticPopups ? true : nil)
         recordPopupPermissionSynchronized(
             allowsAutomaticPopups: allowsAutomaticPopups,
             origin: origin
@@ -60,7 +62,7 @@ extension BrowserPlatformPage {
         synchronizePopupPermission(for: currentURL)
         // An engine that kept the blocked popups opens them now; WebKit waits
         // for the page to try again.
-        if pageEngine.showBlockedPopups() { recordAcceptedPopup() }
+        if enginePage.showBlockedPopups() { recordAcceptedPopup() }
     }
 
     func recordPopupPermissionSynchronized(
