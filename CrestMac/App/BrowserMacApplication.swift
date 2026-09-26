@@ -30,6 +30,9 @@ final class BrowserMacApplication {
     /// Asks the core whether the app may quit, and the person about downloads
     /// in progress.
     let quitPreparation: BrowserQuitPreparation
+    /// Answers the core's questions about every engine's downloads: where each
+    /// file goes, and whether to keep one its engine warned about.
+    let downloadPrompts: BrowserDownloadPrompts
     /// Follows the system's memory pressure for every window's pages; nil in
     /// an isolated launch, which leaves its pages alone.
     let memoryPressure: BrowserMemoryPressureMonitor?
@@ -289,6 +292,11 @@ final class BrowserMacApplication {
         self.privatePages = privatePages
         pagePoolRegistry = BrowserPagePoolRegistry(primary: pages, spaceAccess: spaceAccess)
         quitPreparation = BrowserQuitPreparation(core: core)
+        let downloadDialogs = BrowserDialogPresenter()
+        downloadPrompts = BrowserDownloadPrompts(core: core) { asked, dismissal in
+            await downloadDialogs.approveEngineDownload(
+                filename: asked.filename, message: asked.warning.approvalMessage, dismissal: dismissal)
+        }
         self.systemNowPlaying = systemNowPlaying
         self.startupBehavior = startupBehavior
         memoryPressure = usesIsolatedLaunch ? nil : BrowserMemoryPressureMonitor(core: core, pools: pagePoolRegistry)

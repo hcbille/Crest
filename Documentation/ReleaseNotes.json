@@ -2777,6 +2777,10 @@
     "2026-09-26-system-consent-before-saving": {
       "category": "fixed",
       "message": "Allowing location or notifications for a site is only remembered once macOS or iOS also allows it"
+    },
+    "2026-09-26-shared-download-prompts": {
+      "category": "internal",
+      "message": "Download location and keep-this-file questions are answered in one place for every engine"
     }
   }
 }

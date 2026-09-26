@@ -27,12 +27,6 @@
         private weak var core: CrestCore?
         /// What closes each question a page shows, until the core settles it.
         private var dismissals: [UUID: BrowserPromptDismissal] = [:]
-        /// Shows the questions the engine asks for itself, such as keeping a
-        /// download it warned about.
-        private let dialogPresenter = BrowserDialogPresenter()
-        /// The folder access each download writing into a chosen folder holds
-        /// until it ends.
-        private var downloadFolders: [UUID: URL] = [:]
         /// Each page this hosts, while its owner keeps it.
         private var hosted: [UUID: WeakNativePage] = [:]
         /// What waits for the binding's profiles: each preparation and deletion by
@@ -71,14 +65,10 @@
         // MARK: - Actions - Prompts
 
         /// Hears the questions `core` asks the person, which this engine's
-        /// pages show.
+        /// pages show. Its downloads' questions are the app's to answer.
         func follow(_ core: CrestCore) {
             self.core = core
             core.followPrompts(self) { [weak self] change in self?.ask(change) }
-            core.followDownloads(self) { [weak self] download in
-                guard !download.phase.isLive else { return }
-                self?.downloadFolders.removeValue(forKey: download.id)?.stopAccessingSecurityScopedResource()
-            }
         }
 
         /// Sends the person's answer to a question the core asked.
@@ -115,15 +105,6 @@
                     self?.answer(
                         AnswerExtensionInstall(promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
                 }
-            case .downloadDestinationAsked(let asked): resolveDestination(asked)
-            case .downloadApprovalAsked(let asked):
-                let dismissal = dismissal(for: asked.promptID)
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    let approved = await dialogPresenter.approveEngineDownload(
-                        filename: asked.filename, message: Self.message(for: asked.warning), dismissal: dismissal)
-                    answer(AnswerDownloadApproval(promptID: asked.promptID, approved: approved))
-                }
             case .promptSettled(let settled):
                 dismissals.removeValue(forKey: settled.promptID)?.dismiss()
             default:
@@ -135,53 +116,6 @@
         private func isAnotherEnginesPage(_ pageID: UUID) -> Bool {
             guard let engine = core?.state.pages[pageID]?.engine else { return false }
             return engine != .chromium
-        }
-
-        /// Where a download's file goes: the Space's download folder, or where
-        /// the person chooses when the Space or the engine asks for that.
-        private func resolveDestination(_ asked: DownloadDestinationAsked) {
-            Task { @MainActor [weak self] in
-                let resolution = await BrowserPlatformDownloadDirectory.resolve(
-                    suggestedFilename: asked.suggestedFilename, spaceID: asked.spaceID, forcesPrompt: asked.forcesPrompt)
-                guard let self else {
-                    if case .destination(_, let scoped) = resolution { scoped?.stopAccessingSecurityScopedResource() }
-                    return
-                }
-                switch resolution {
-                case .destination(let url, let scoped):
-                    if let scoped { downloadFolders[asked.downloadID] = scoped }
-                    answer(AnswerDownloadDestination(promptID: asked.promptID, path: url.path))
-                case .cancelled:
-                    answer(AnswerDownloadDestination(promptID: asked.promptID, path: nil))
-                case .unavailable:
-                    _ = try? core?.send(
-                        FailDownload(downloadID: asked.downloadID, reason: .folderUnavailable, message: nil))
-                    answer(AnswerDownloadDestination(promptID: asked.promptID, path: nil))
-                }
-            }
-        }
-
-        /// What the person is told about a download the engine warned about.
-        private static func message(for warning: EngineDownloadWarning) -> String {
-            switch warning {
-            case .insecureConnection:
-                String(
-                    localized:
-                        "This file was transferred over an insecure connection and could have been changed by someone else. Keep it only if you trust its source."
-                )
-            case .dangerousFile:
-                String(localized: "This type of file can change your computer. Keep it only if you trust its source.")
-            case .uncommonContent:
-                String(localized: "This file is not commonly downloaded. The engine could not confirm that it is safe.")
-            case .potentiallyUnwanted:
-                String(localized: "This file may change your browser or computer settings without your permission.")
-            case .insecureBlocked:
-                String(localized: "The engine blocked this insecure download.")
-            case .policyBlocked:
-                String(
-                    localized:
-                        "The engine blocked this download because of its safety or organization policy verdict.")
-            }
         }
 
         /// A new dismissal for a question a page shows.
