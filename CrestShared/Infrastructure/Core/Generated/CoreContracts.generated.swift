@@ -1404,8 +1404,11 @@ struct DissolveSplit: Intent, SessionIntent, Equatable, Sendable {
 struct DownloadApprovalAsked: Equatable, Sendable {
     let promptID: UUID
     let downloadID: UUID
+    let spaceID: UUID?
     let filename: String
-    let warning: EngineDownloadWarning
+    let reasons: [DownloadRiskReason]
+    let warning: EngineDownloadWarning?
+    let sourceHost: String?
 }
 
 struct DownloadDestinationAsked: Equatable, Sendable {
@@ -1668,6 +1671,9 @@ struct EngineDownloadDestinationRequested: EngineEvent, Equatable, Sendable {
     let download: EngineDownload
     let suggestedFilename: String
     let forcesPrompt: Bool
+    let facts: DownloadRiskFacts
+    let userInitiated: Bool
+    let sourceHost: String?
 }
 
 struct EngineLacksCapability: Equatable, Sendable {
@@ -4961,6 +4967,7 @@ enum EngineDownloadState: Int, CaseIterable, Sendable {
     case finished = 3
     case canceled = 4
     case failed = 5
+    case blocked = 6
 }
 
 enum EngineDownloadWarning: Int, CaseIterable, Sendable {

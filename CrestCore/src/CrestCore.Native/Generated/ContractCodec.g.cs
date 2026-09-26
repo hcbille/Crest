@@ -14,12 +14,12 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0xf7, 0xbb, 0x91, 0xba, 0x92, 0x5d, 0xe2, 0xc1, 0x85, 0xe0, 0xd6, 0xa4, 0x84, 0xfe, 0x10, 0x10, 0xf1, 0x12, 0x7b, 0x0d, 0x38, 0x9b, 0x1d, 0xac, 0x06, 0x28, 0x12, 0x6f, 0xcf, 0x78, 0x61, 0x9e
+        0xb0, 0xdb, 0x1d, 0x29, 0xc6, 0xa4, 0xcf, 0x18, 0x95, 0x7d, 0x20, 0x0f, 0x3b, 0x63, 0x74, 0x78, 0x74, 0x2b, 0x52, 0x28, 0xe0, 0xeb, 0xdf, 0x5f, 0x60, 0x35, 0x05, 0xee, 0x0f, 0xed, 0x47, 0x53
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
     public static ReadOnlySpan<byte> EngineFingerprint => [
-        0xef, 0x50, 0x9a, 0x37, 0xd7, 0xa2, 0x49, 0x1e, 0xb3, 0x13, 0x11, 0x1f, 0x52, 0x8d, 0x5c, 0xa8, 0x54, 0x85, 0x96, 0x6f, 0xc9, 0x33, 0xfc, 0xa3, 0xb6, 0xd7, 0x0b, 0xa2, 0xcb, 0xd3, 0x3f, 0x2f
+        0xed, 0x18, 0x11, 0x97, 0xe5, 0x9d, 0x8d, 0x4f, 0xfa, 0x7e, 0xca, 0x82, 0xce, 0x4e, 0x50, 0xd0, 0xbb, 0x0f, 0x5c, 0x66, 0x66, 0x5a, 0xa7, 0x47, 0x22, 0x56, 0x15, 0xd1, 0x48, 0x11, 0x90, 0x46
     ];
 
     public static Intent ReadIntent(WireReader reader) {
@@ -5238,8 +5238,11 @@ public static class ContractCodec {
         return new DownloadApprovalAsked(
             reader.ReadGuid(),
             reader.ReadGuid(),
+            reader.ReadPresence() ? (Guid?)reader.ReadGuid() : null,
             reader.ReadString(),
-            ReadEngineDownloadWarning(reader));
+            reader.ReadList(() => ReadDownloadRiskReason(reader)),
+            reader.ReadPresence() ? (EngineDownloadWarning?)ReadEngineDownloadWarning(reader) : null,
+            reader.ReadPresence() ? (string?)reader.ReadString() : null);
     }
 
     public static void WriteDownloadApprovalAsked(WireWriter writer, DownloadApprovalAsked value) {
@@ -5247,8 +5250,29 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteGuid(value.PromptId);
         writer.WriteGuid(value.DownloadId);
+        if (value.SpaceId is { } presentSpaceId) {
+            writer.WritePresence(true);
+            writer.WriteGuid(presentSpaceId);
+        } else {
+            writer.WritePresence(false);
+        }
         writer.WriteString(value.Filename);
-        WriteEngineDownloadWarning(writer, value.Warning);
+        writer.WriteCount(value.Reasons.Count);
+        foreach (var itemReasons in value.Reasons) {
+            WriteDownloadRiskReason(writer, itemReasons);
+        }
+        if (value.Warning is { } presentWarning) {
+            writer.WritePresence(true);
+            WriteEngineDownloadWarning(writer, presentWarning);
+        } else {
+            writer.WritePresence(false);
+        }
+        if (value.SourceHost is { } presentSourceHost) {
+            writer.WritePresence(true);
+            writer.WriteString(presentSourceHost);
+        } else {
+            writer.WritePresence(false);
+        }
     }
 
     public static DownloadDestinationAsked ReadDownloadDestinationAsked(WireReader reader) {
@@ -5993,7 +6017,10 @@ public static class ContractCodec {
             reader.ReadGuid(),
             ReadEngineDownload(reader),
             reader.ReadString(),
-            reader.ReadBool());
+            reader.ReadBool(),
+            ReadDownloadRiskFacts(reader),
+            reader.ReadBool(),
+            reader.ReadPresence() ? (string?)reader.ReadString() : null);
     }
 
     public static void WriteEngineDownloadDestinationRequested(WireWriter writer, EngineDownloadDestinationRequested value) {
@@ -6003,6 +6030,14 @@ public static class ContractCodec {
         WriteEngineDownload(writer, value.Download);
         writer.WriteString(value.SuggestedFilename);
         writer.WriteBool(value.ForcesPrompt);
+        WriteDownloadRiskFacts(writer, value.Facts);
+        writer.WriteBool(value.UserInitiated);
+        if (value.SourceHost is { } presentSourceHost) {
+            writer.WritePresence(true);
+            writer.WriteString(presentSourceHost);
+        } else {
+            writer.WritePresence(false);
+        }
     }
 
     public static EngineLacksCapability ReadEngineLacksCapability(WireReader reader) {
@@ -13766,7 +13801,7 @@ public static class ContractCodec {
 
     public static EngineDownloadState ReadEngineDownloadState(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
-        return (EngineDownloadState)reader.ReadEnum(6);
+        return (EngineDownloadState)reader.ReadEnum(7);
     }
 
     public static void WriteEngineDownloadState(WireWriter writer, EngineDownloadState value) {

@@ -284,16 +284,40 @@ final class BrowserDialogPresenter {
         }
     }
 
-    func approveEngineDownload(filename: String, message: String, dismissal: BrowserPromptDismissal? = nil) async -> Bool {
+    /// Whether to go on with a download the core judged dangerous, before its
+    /// file has a place, or to keep one its engine warned about while it
+    /// downloads: the core's reasons, the engine's warning, where it came from
+    /// and the Space it belongs to.
+    func approveDownload(
+        _ asked: DownloadApprovalAsked, spaceName: String?, dismissal: BrowserPromptDismissal? = nil
+    ) async -> Bool {
         await withCheckedContinuation { continuation in
             let alert = NSAlert()
-            alert.messageText = "Keep “\(filename)”?"
-            alert.informativeText = message
+            let keeps = asked.warning != nil
+            alert.messageText = keeps ? "Keep “\(asked.filename)”?" : "Download “\(asked.filename)”?"
+            var paragraphs = asked.reasons.map { String(localized: $0.message) }
+            if let warning = asked.warning { paragraphs.append(warning.approvalMessage) }
+            switch (asked.sourceHost, spaceName) {
+            case (let host?, let space?): paragraphs.append("Source: \(host) · Space: \(space)")
+            case (let host?, nil): paragraphs.append("Source: \(host)")
+            case (nil, let space?): paragraphs.append("Space: \(space)")
+            case (nil, nil): break
+            }
+            if !keeps {
+                paragraphs.append("macOS will quarantine the completed file. Open it only if you trust its source.")
+            }
+            alert.informativeText = paragraphs.joined(separator: "\n\n")
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "Cancel")
-            alert.addButton(withTitle: "Keep Download")
+            if keeps {
+                alert.addButton(withTitle: "Cancel")
+                alert.addButton(withTitle: "Keep Download")
+            } else {
+                alert.addButton(withTitle: "Download")
+                alert.addButton(withTitle: "Cancel")
+            }
             present(alert, dismissal: dismissal) { response in
-                continuation.resume(returning: response == .alertSecondButtonReturn)
+                continuation.resume(
+                    returning: response == (keeps ? .alertSecondButtonReturn : .alertFirstButtonReturn))
             }
         }
     }

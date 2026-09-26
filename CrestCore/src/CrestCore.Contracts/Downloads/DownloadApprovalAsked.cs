@@ -1,6 +1,8 @@
 namespace CrestCore.Contracts;
 
-/// Whether to keep the file of the download `DownloadId`, which the engine
-/// warned about for `Warning`, waits on the person.
-public sealed record DownloadApprovalAsked(Guid PromptId, Guid DownloadId, string Filename, EngineDownloadWarning Warning)
-    : Change;
+/// Whether to keep the file of the download `DownloadId` waits on the person:
+/// the core's `Reasons` it looks dangerous, and the engine's `Warning` when the
+/// engine warned about it. `SpaceId` is the Space it belongs to and
+/// `SourceHost` the host it came from, when known.
+public sealed record DownloadApprovalAsked(Guid PromptId, Guid DownloadId, Guid? SpaceId, string Filename,
+    IReadOnlyList<DownloadRiskReason> Reasons, EngineDownloadWarning? Warning, string? SourceHost) : Change;

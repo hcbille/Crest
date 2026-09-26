@@ -294,8 +294,10 @@ final class BrowserMacApplication {
         quitPreparation = BrowserQuitPreparation(core: core)
         let downloadDialogs = BrowserDialogPresenter()
         downloadPrompts = BrowserDownloadPrompts(core: core) { asked, dismissal in
-            await downloadDialogs.approveEngineDownload(
-                filename: asked.filename, message: asked.warning.approvalMessage, dismissal: dismissal)
+            let spaceName = asked.spaceID.flatMap {
+                browser.session.space(id: $0)?.name ?? privateBrowser.session.space(id: $0)?.name
+            }
+            return await downloadDialogs.approveDownload(asked, spaceName: spaceName, dismissal: dismissal)
         }
         self.systemNowPlaying = systemNowPlaying
         self.startupBehavior = startupBehavior

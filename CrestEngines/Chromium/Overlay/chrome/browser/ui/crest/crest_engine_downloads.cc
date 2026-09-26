@@ -17,6 +17,7 @@
 #include "components/download/public/common/download_item.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/download_manager.h"
+#include "net/base/mime_util.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 
 namespace crest {
@@ -25,6 +26,25 @@ namespace {
 
 // Seconds from the Unix epoch to the wire's reference date, 2001-01-01.
 constexpr double kReferenceDateOffset = 978307200;
+
+// What the platform knows about a file before the core judges its risk: its
+// name, the type its server declared, and whether that type matches the one
+// its name implies (unknown when either type is). Which types run code is the
+// core's to say.
+engine::DownloadRiskFacts RiskFacts(download::DownloadItem* item, const base::FilePath& path) {
+  const std::string name = path.BaseName().AsUTF8Unsafe();
+  engine::DownloadRiskFacts facts{.suggested_filename = name, .sanitized_filename = name};
+  const std::string declared = item->GetMimeType();
+  if (declared.empty()) {
+    return facts;
+  }
+  facts.mime_type = declared;
+  std::string implied;
+  if (net::GetMimeTypeFromFile(path, &implied)) {
+    facts.types_related = net::MatchesMimeType(implied, declared) || net::MatchesMimeType(declared, implied);
+  }
+  return facts;
+}
 
 // Only a warning the person may override enters the approval path. A policy
 // block or known malware stays blocked; a pending scan stays the engine's.
@@ -205,12 +225,18 @@ void EngineDownloads::ChooseDestination(download::DownloadItem* item,
   destinations_[id] = Destination{.profile = GuidText(download->profile_id),
                                   .download = download->download_id,
                                   .callback = std::move(callback)};
+  // Only the host of the file's address leaves the engine, for the question
+  // about a file the core judges dangerous.
+  const std::string host(item->GetURL().host());
   report_.Run(engine::EngineDownloadDestinationRequested{
       .prompt_id = id,
       .download = std::move(*download),
       .suggested_filename = suggested_path.BaseName().AsUTF8Unsafe(),
       .forces_prompt =
-          reason != DownloadConfirmationReason::NONE && reason != DownloadConfirmationReason::PREFERENCE});
+          reason != DownloadConfirmationReason::NONE && reason != DownloadConfirmationReason::PREFERENCE,
+      .facts = RiskFacts(item, suggested_path),
+      .user_initiated = item->HasUserGesture(),
+      .source_host = host.empty() ? std::nullopt : std::optional<std::string>(host)});
 }
 
 // Choosing where a file goes never overrides the engine's safety verdict,

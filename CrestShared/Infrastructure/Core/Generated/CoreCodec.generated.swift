@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xf7, 0xbb, 0x91, 0xba, 0x92, 0x5d, 0xe2, 0xc1, 0x85, 0xe0, 0xd6, 0xa4, 0x84, 0xfe, 0x10, 0x10, 0xf1, 0x12, 0x7b, 0x0d, 0x38, 0x9b, 0x1d, 0xac, 0x06, 0x28, 0x12, 0x6f, 0xcf, 0x78, 0x61, 0x9e
+        0xb0, 0xdb, 0x1d, 0x29, 0xc6, 0xa4, 0xcf, 0x18, 0x95, 0x7d, 0x20, 0x0f, 0x3b, 0x63, 0x74, 0x78, 0x74, 0x2b, 0x52, 0x28, 0xe0, 0xeb, 0xdf, 0x5f, 0x60, 0x35, 0x05, 0xee, 0x0f, 0xed, 0x47, 0x53
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0xef, 0x50, 0x9a, 0x37, 0xd7, 0xa2, 0x49, 0x1e, 0xb3, 0x13, 0x11, 0x1f, 0x52, 0x8d, 0x5c, 0xa8, 0x54, 0x85, 0x96, 0x6f, 0xc9, 0x33, 0xfc, 0xa3, 0xb6, 0xd7, 0x0b, 0xa2, 0xcb, 0xd3, 0x3f, 0x2f
+        0xed, 0x18, 0x11, 0x97, 0xe5, 0x9d, 0x8d, 0x4f, 0xfa, 0x7e, 0xca, 0x82, 0xce, 0x4e, 0x50, 0xd0, 0xbb, 0x0f, 0x5c, 0x66, 0x66, 0x5a, 0xa7, 0x47, 0x22, 0x56, 0x15, 0xd1, 0x48, 0x11, 0x90, 0x46
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -5051,16 +5051,64 @@ extension DownloadApprovalAsked {
     init(from reader: inout WireReader) throws(WireError) {
         let promptID = try reader.readUUID()
         let downloadID = try reader.readUUID()
+        let spaceID: UUID?
+        if try reader.readPresence() {
+            let spaceIDValue = try reader.readUUID()
+            spaceID = spaceIDValue
+        } else {
+            spaceID = nil
+        }
         let filename = try reader.readString()
-        let warning = try EngineDownloadWarning(from: &reader)
-        self.init(promptID: promptID, downloadID: downloadID, filename: filename, warning: warning)
+        let reasonsCount = try reader.readCount()
+        var reasons: [DownloadRiskReason] = []
+        reasons.reserveCapacity(reasonsCount)
+        for _ in 0..<reasonsCount {
+            let reasonsElement = try DownloadRiskReason(from: &reader)
+            reasons.append(reasonsElement)
+        }
+        let warning: EngineDownloadWarning?
+        if try reader.readPresence() {
+            let warningValue = try EngineDownloadWarning(from: &reader)
+            warning = warningValue
+        } else {
+            warning = nil
+        }
+        let sourceHost: String?
+        if try reader.readPresence() {
+            let sourceHostValue = try reader.readString()
+            sourceHost = sourceHostValue
+        } else {
+            sourceHost = nil
+        }
+        self.init(promptID: promptID, downloadID: downloadID, spaceID: spaceID, filename: filename, reasons: reasons, warning: warning, sourceHost: sourceHost)
     }
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(promptID)
         writer.writeUUID(downloadID)
+        if let present0 = spaceID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
         writer.writeString(filename)
-        warning.encode(into: &writer)
+        writer.writeCount(reasons.count)
+        for element0 in reasons {
+            element0.encode(into: &writer)
+        }
+        if let present0 = warning {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = sourceHost {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
     }
 }
 
@@ -6070,7 +6118,16 @@ extension EngineDownloadDestinationRequested {
         let download = try EngineDownload(from: &reader)
         let suggestedFilename = try reader.readString()
         let forcesPrompt = try reader.readBool()
-        self.init(promptID: promptID, download: download, suggestedFilename: suggestedFilename, forcesPrompt: forcesPrompt)
+        let facts = try DownloadRiskFacts(from: &reader)
+        let userInitiated = try reader.readBool()
+        let sourceHost: String?
+        if try reader.readPresence() {
+            let sourceHostValue = try reader.readString()
+            sourceHost = sourceHostValue
+        } else {
+            sourceHost = nil
+        }
+        self.init(promptID: promptID, download: download, suggestedFilename: suggestedFilename, forcesPrompt: forcesPrompt, facts: facts, userInitiated: userInitiated, sourceHost: sourceHost)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -6078,6 +6135,14 @@ extension EngineDownloadDestinationRequested {
         download.encode(into: &writer)
         writer.writeString(suggestedFilename)
         writer.writeBool(forcesPrompt)
+        facts.encode(into: &writer)
+        writer.writeBool(userInitiated)
+        if let present0 = sourceHost {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {

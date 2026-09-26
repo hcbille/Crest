@@ -14,5 +14,11 @@ public enum EngineDownloadState {
     Canceled,
 
     /// It stopped: `Failure` or its warning says why.
-    Failed
+    Failed,
+
+    /// A download the site sent without the person's gesture, which the
+    /// Space's choices refused. It waits for the person to retry it, which
+    /// the engine hears as an approval of its `ApprovalToken` and replays
+    /// under the same `DownloadId`.
+    Blocked
 }

@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0xef, 0x50, 0x9a, 0x37, 0xd7, 0xa2, 0x49, 0x1e, 0xb3, 0x13, 0x11, 0x1f, 0x52, 0x8d, 0x5c, 0xa8, 0x54, 0x85, 0x96, 0x6f, 0xc9, 0x33, 0xfc, 0xa3, 0xb6, 0xd7, 0x0b, 0xa2, 0xcb, 0xd3, 0x3f, 0x2f};
+    0xed, 0x18, 0x11, 0x97, 0xe5, 0x9d, 0x8d, 0x4f, 0xfa, 0x7e, 0xca, 0x82, 0xce, 0x4e, 0x50, 0xd0, 0xbb, 0x0f, 0x5c, 0x66, 0x66, 0x5a, 0xa7, 0x47, 0x22, 0x56, 0x15, 0xd1, 0x48, 0x11, 0x90, 0x46};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -314,10 +314,11 @@ enum class EngineDownloadState : uint32_t {
   kFinished = 3,
   kCanceled = 4,
   kFailed = 5,
+  kBlocked = 6,
 };
 inline void Write(WireWriter& writer, EngineDownloadState value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
 inline bool Read(WireReader& reader, EngineDownloadState& value) {
-  value = static_cast<EngineDownloadState>(reader.ReadEnum(6));
+  value = static_cast<EngineDownloadState>(reader.ReadEnum(7));
   return reader.ok();
 }
 
@@ -1029,6 +1030,33 @@ inline bool Read(WireReader& reader, DeleteProfile& value) {
       && Read(reader, value.deletion_id);
 }
 
+struct DownloadRiskFacts {
+  std::string suggested_filename;
+  std::string sanitized_filename;
+  std::optional<std::string> mime_type;
+  bool extension_runs_code = false;
+  bool mime_type_runs_code = false;
+  std::optional<bool> types_related;
+
+  friend bool operator==(const DownloadRiskFacts&, const DownloadRiskFacts&) = default;
+};
+inline void Write(WireWriter& writer, const DownloadRiskFacts& value) {
+  Write(writer, value.suggested_filename);
+  Write(writer, value.sanitized_filename);
+  Write(writer, value.mime_type);
+  Write(writer, value.extension_runs_code);
+  Write(writer, value.mime_type_runs_code);
+  Write(writer, value.types_related);
+}
+inline bool Read(WireReader& reader, DownloadRiskFacts& value) {
+  return Read(reader, value.suggested_filename)
+      && Read(reader, value.sanitized_filename)
+      && Read(reader, value.mime_type)
+      && Read(reader, value.extension_runs_code)
+      && Read(reader, value.mime_type_runs_code)
+      && Read(reader, value.types_related);
+}
+
 struct EngineDownload {
   std::string download_id;
   Guid profile_id = {};
@@ -1100,6 +1128,9 @@ struct EngineDownloadDestinationRequested {
   EngineDownload download;
   std::string suggested_filename;
   bool forces_prompt = false;
+  DownloadRiskFacts facts;
+  bool user_initiated = false;
+  std::optional<std::string> source_host;
 
   friend bool operator==(const EngineDownloadDestinationRequested&, const EngineDownloadDestinationRequested&) = default;
 };
@@ -1108,12 +1139,18 @@ inline void Write(WireWriter& writer, const EngineDownloadDestinationRequested& 
   Write(writer, value.download);
   Write(writer, value.suggested_filename);
   Write(writer, value.forces_prompt);
+  Write(writer, value.facts);
+  Write(writer, value.user_initiated);
+  Write(writer, value.source_host);
 }
 inline bool Read(WireReader& reader, EngineDownloadDestinationRequested& value) {
   return Read(reader, value.prompt_id)
       && Read(reader, value.download)
       && Read(reader, value.suggested_filename)
-      && Read(reader, value.forces_prompt);
+      && Read(reader, value.forces_prompt)
+      && Read(reader, value.facts)
+      && Read(reader, value.user_initiated)
+      && Read(reader, value.source_host);
 }
 
 struct EngineRegistration {
