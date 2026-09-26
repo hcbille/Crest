@@ -29,16 +29,16 @@ final class ChromiumExtensionStore {
         }
         /// The package an install review describes. TRANSITIONAL until the
         /// review travels as a presentation (WP C (e)).
-        init(review item: [String: Any]) {
-            id = item["id"] as? String ?? ""
-            name = item["name"] as? String ?? id
-            version = item["version"] as? String ?? ""
-            detail = item["description"] as? String ?? ""
-            icon = item["icon"] as? NSImage
-            enabled = item["enabled"] as? Bool ?? true
-            permissions = item["permissions"] as? [String] ?? []
-            webStore = item["webStore"] as? Bool ?? true
-            options = item["options"] as? String ?? ""
+        init(review: any CrestExtensionReview) {
+            id = review.extensionID
+            name = review.name.isEmpty ? review.extensionID : review.name
+            version = review.version
+            detail = review.summary
+            icon = review.icon
+            enabled = true
+            permissions = review.permissions
+            webStore = true
+            options = ""
         }
         var permissionIdentity: [String] { [id, version] + permissions.sorted() }
     }
@@ -130,8 +130,8 @@ final class ChromiumExtensionStore {
                                                           sourceWindow: fallback)
         guard let host = CrestChromiumRoot.engineHost,
               let source = anchor.presentationSource(fallbackWindow: fallback),
-              let windowID = source.view.window?.identifier?.rawValue,
-              host.runExtension(action.id, profile: space.profile.id.uuidString, window: windowID,
+              let windowID = source.view.window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) }),
+              host.runExtension(action.id, profile: space.profile.id, window: windowID,
                                 anchorView: source.view, anchorRect: source.rect) else {
             CrestChromiumRoot.showNativeNotice(
                 String(localized: "This extension action needs an open page."),
@@ -336,13 +336,13 @@ final class ChromiumExtensionStore {
         }
         Task { await job.start() }
     }
-    func review(_ values: [String: Any], window: NSWindow, reply: @escaping (Bool, Bool) -> Void) {
-        guard let job = installation, job.window === window, values["id"] as? String == job.id else {
+    func review(_ review: any CrestExtensionReview, window: NSWindow, reply: @escaping (Bool, Bool) -> Void) {
+        guard let job = installation, job.window === window, review.extensionID == job.id else {
             // No user-owned install operation may inherit an unrelated consent.
             reply(false, false)
             return
         }
-        job.review(values, reply: reply)
+        job.review(review, reply: reply)
     }
     func dismissInstallation() {
         installation?.cancel()
@@ -446,29 +446,30 @@ final class ChromiumExtensionInstallation {
     }
     private func installPackage(in target: BrowserSpace) async throws {
         guard !canceled, store.authorized(target), let package, let host = CrestChromiumRoot.engineHost,
-              let windowID = window?.identifier?.rawValue else { throw URLError(.cancelled) }
+              let windowID = window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) })
+        else { throw URLError(.cancelled) }
         targetSpace = target
         let staged = FileManager.default.temporaryDirectory.appendingPathComponent("crest-extension-\(UUID()).crx")
         try FileManager.default.copyItem(at: package, to: staged)
         defer { try? FileManager.default.removeItem(at: staged) }
         let result: (Bool, String) = await withCheckedContinuation { continuation in
-            if !host.installExtension(id, package: staged.path, profile: target.profile.id.uuidString, window: windowID, completion: { success, message in
+            if !host.installExtension(id, package: staged.path, profile: target.profile.id, window: windowID, completion: { success, message in
                 continuation.resume(returning: (success, message))
             }) { continuation.resume(returning: (false, "The Space is no longer available.")) }
         }
         guard result.0 else { throw NSError(domain: "CrestExtension", code: 1, userInfo: [NSLocalizedDescriptionKey: result.1.isEmpty ? "Installation canceled." : result.1]) }
     }
-    func review(_ values: [String: Any], reply: @escaping (Bool, Bool) -> Void) {
+    func review(_ review: any CrestExtensionReview, reply: @escaping (Bool, Bool) -> Void) {
         guard !canceled, store.authorized(space), let targetSpace, store.authorized(targetSpace) else { reply(false, false); return }
-        let candidate = ChromiumExtensionStore.Installed(review: values)
+        let candidate = ChromiumExtensionStore.Installed(review: review)
         if let approvedIdentity {
             // Consent applies only to the same verified package and warnings.
             reply(candidate.permissionIdentity == approvedIdentity, withhold)
             return
         }
         self.candidate = candidate
-        canWithhold = values["canWithhold"] as? Bool ?? false
-        withhold = values["withhold"] as? Bool ?? false
+        canWithhold = review.canWithholdSiteAccess
+        withhold = review.withholdsSiteAccess
         consent = reply
         preparing = false
         Task { @MainActor [weak self] in

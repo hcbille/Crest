@@ -22,7 +22,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
                 }
         }
     }
-    static var engineHost: (any CrestChromiumEngineHost)? { instance?.host }
+    static var engineHost: (any CrestMacShell)? { instance?.host }
     /// Chromium, while Crest runs over it.
     static var chromiumEngine: ChromiumEngine? { instance?.chromium }
     /// The browser operations engine requests run through.
@@ -33,7 +33,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// on screen; they open once the first window exists.
     private static var pendingExternalURLs: [URL] = []
     private static var pendingAuthenticationSessions: [(url: URL, id: UUID)] = []
-    private let host: any CrestChromiumEngineHost
+    private let host: any CrestMacShell
     /// Chromium, the default engine, which knows each live page by the name
     /// the engine gives it.
     private let chromium: ChromiumEngine
@@ -85,7 +85,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// `binding`, built against the engine contract `fingerprint` names, with
     /// the core; its pages reach the binding directly through `pages`.
     static func start(
-        host: any CrestChromiumEngineHost, binding: crest_engine_binding_t, fingerprint: [UInt8],
+        host: any CrestMacShell, binding: crest_engine_binding_t, fingerprint: [UInt8],
         pages: crest_engine_pages_t
     ) {
         guard instance == nil, launch == nil else { return }
@@ -156,7 +156,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     }
 
     private init(
-        host: any CrestChromiumEngineHost, binding: crest_engine_binding_t, fingerprint: [UInt8],
+        host: any CrestMacShell, binding: crest_engine_binding_t, fingerprint: [UInt8],
         pages: crest_engine_pages_t
     ) throws {
         self.host = host
@@ -201,8 +201,8 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             }
             return nil
         }
-        host.setExtensionReview { values, window, reply in
-            MainActor.assumeIsolated { Self.extensions.review(values, window: window, reply: reply) }
+        host.setExtensionReview { review, window, reply in
+            MainActor.assumeIsolated { Self.extensions.review(review, window: window, reply: reply) }
         }
         chromium.downloads = downloads
     }
@@ -320,7 +320,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         guard let source = activeModel?.browser.selectedSpace?.profile.id
             ?? application.browser.selectedSpace?.profile.id else { return }
         privateSourceProfile = source
-        host.setPrivateSourceProfile(source.uuidString)
+        host.setPrivateSourceProfile(source)
         let window = CrestChromiumWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
@@ -590,12 +590,12 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     private func openAuthenticationSession(_ url: URL, id: UUID) {
         Task { @MainActor in
             guard let (model, assignment, _) = await externalDestination(for: url) else {
-                host.cancelAuthenticationSession(window: id.uuidString)
+                host.cancelAuthenticationSession(window: id)
                 return
             }
             openQuickWindow(BrowserQuickWindowRequest(id: id, url: url, spaceAssignment: assignment, targetWindowID: model.id))
             guard let window = quickWindows[id]?.window else {
-                host.cancelAuthenticationSession(window: id.uuidString)
+                host.cancelAuthenticationSession(window: id)
                 return
             }
             window.makeKeyAndOrderFront(nil)
@@ -660,11 +660,14 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     }
 
     private func prepareWindowClose(_ window: NSWindow, completion: @escaping (Bool) -> Void) {
-        guard !quitting, let id = window.identifier?.rawValue else { completion(false); return }
+        guard !quitting, let id = window.identifier.flatMap({ UUID(uuidString: $0.rawValue) }) else {
+            completion(false)
+            return
+        }
         var ids = [id]
         if window === privateWindow {
             ids += quickWindows.values.filter { $0.model.browser.isPrivateBrowsing }
-                .compactMap { $0.window.identifier?.rawValue }
+                .compactMap { $0.window.identifier.flatMap { UUID(uuidString: $0.rawValue) } }
         }
         host.prepareToClose(pages: [], windows: ids, completion: completion)
     }
@@ -687,16 +690,16 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             let quick = quickWindows.removeValue(forKey: id) {
             quick.model.releaseForDismissal()
             window.contentViewController = nil
-            host.disposePages([], windows: [id.uuidString], releaseProfiles: [])
+            host.disposePages([], windows: [id], releaseProfiles: [])
             NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: window)
             return
         }
         if window === privateWindow {
             for quick in Array(quickWindows.values) where quick.model.browser.isPrivateBrowsing { quick.window.closeAfterApproval() }
-            let profiles = application.privateBrowser.session.spaces.map { $0.profile.id.uuidString }
+            let profiles = application.privateBrowser.session.spaces.map(\.profile.id)
             application.pagePoolRegistry.unregister(application.privatePages, for: application.privatePages.windowID)
             commands.closePrivateBrowsing()
-            host.disposePages([], windows: [application.privatePages.windowID.uuidString], releaseProfiles: profiles)
+            host.disposePages([], windows: [application.privatePages.windowID], releaseProfiles: profiles)
             privateWindow = nil
             privateSourceProfile = nil
             NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: window)
@@ -872,12 +875,12 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// active page's own Space.
     private func dispatchExtensionShortcut(_ event: NSEvent) -> Bool {
         guard let page = activeContext?.pages.activePage?.chromiumPage,
-            let result = host.dispatchExtensionShortcut(event, page: page.id) else { return false }
+            let result = host.dispatchExtensionShortcut(event, page: page.pageID) else { return false }
         // An `_execute_action` binding runs through the core so the popup keeps
         // the anchor a click on the extension's own button would have used: its
         // pinned tile, or the control that opens the window's extension list. A
         // shortcut has no pointer location, so the pointer is never the answer.
-        if let extensionID = result["action"] as? String {
+        if let extensionID = result.actionExtensionID {
             page.runExtension(extensionID, anchor: BrowserExtensionToolbarAnchorRegistry.anchor(
                 for: extensionID, in: page.surface.window))
         }

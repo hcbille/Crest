@@ -18,7 +18,7 @@
         /// Chrome Web Store listing installs into. Weak: the composition owns it.
         weak var hostCommands: (any BrowserEngineHostCommands)?
         /// The Mac shell, for what only AppKit does.
-        let host: any CrestChromiumEngineHost
+        let host: any CrestMacShell
         /// The pages' direct path to the binding, which hears the binding's
         /// presentations from the engine's start on.
         private(set) var pages: NativeEnginePages!
@@ -34,7 +34,7 @@
         // MARK: - Initializers
 
         init(
-            host: any CrestChromiumEngineHost, table: crest_engine_binding_t, fingerprint: [UInt8],
+            host: any CrestMacShell, table: crest_engine_binding_t, fingerprint: [UInt8],
             pages: crest_engine_pages_t
         ) {
             self.host = host
@@ -184,7 +184,7 @@
     @MainActor
     @_cdecl("crest_chromium_ui_start")
     public func crestChromiumUIStart(
-        _ host: any CrestChromiumEngineHost, _ binding: UnsafePointer<crest_engine_binding_t>,
+        _ host: any CrestMacShell, _ binding: UnsafePointer<crest_engine_binding_t>,
         _ fingerprint: UnsafePointer<UInt8>, _ fingerprintLength: Int, _ pages: UnsafePointer<crest_engine_pages_t>
     ) {
         let contract = Array(UnsafeBufferPointer(start: fingerprint, count: fingerprintLength))

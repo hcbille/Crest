@@ -2637,6 +2637,10 @@
     "2026-09-25-chromium-windows-join-crest-window": {
       "category": "improved",
       "message": "Windows Chromium opens for a page now open in the Crest window you're using"
+    },
+    "2026-09-25-chromium-typed-mac-shell": {
+      "category": "internal",
+      "message": "The Chromium host's Objective-C port is a typed Mac shell"
     }
   }
 }

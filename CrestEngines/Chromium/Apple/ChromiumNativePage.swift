@@ -45,7 +45,7 @@
         var modifiedLinkHandler: (URL, Int, String) -> (LinkNavigationDecision, (() -> Void)?) = { _, _, _ in
             (.navigate, nil)
         }
-        private var host: (any CrestChromiumEngineHost)?
+        private var host: (any CrestMacShell)?
         /// What a standalone page loads once it opens.
         private var requestedURL: URL?
         private var opening = false
@@ -98,7 +98,7 @@
                 navigation.implementation == registration.implementationId,
                 UUID(uuidString: navigation.token) != nil
             else { return false }
-            return host.stageNavigation(navigation.token, page: id, url: url.absoluteString)
+            return host.stageNavigation(navigation.token, page: pageID, url: url.absoluteString)
         }
         func discardNavigation(_ token: String) {
             (host ?? CrestChromiumRoot.engineHost)?.discardPendingNavigation(token)
@@ -207,7 +207,7 @@
         func load(_ url: URL) {
             guard !disposed else { return }
             guard isStandalone, !opening else {
-                host?.loadPage(id, url: url.absoluteString)
+                host?.loadPage(pageID, url: url.absoluteString)
                 return
             }
             requestedURL = url
@@ -220,7 +220,7 @@
             else { return }
             if created {
                 guard pages.request(MovePageToWindow(pageID: pageID, windowID: windowID)),
-                    let view = host?.view(forPage: id)
+                    let view = host?.view(forPage: pageID)
                 else { return }
                 if view.superview !== surface {
                     view.removeFromSuperview()
@@ -385,7 +385,7 @@
             let anchor =
                 anchor ?? BrowserExtensionPopupAnchor(screenPoint: NSEvent.mouseLocation, sourceWindow: surface.window)
             guard let source = anchor.presentationSource(fallbackWindow: surface.window) else { return }
-            if host?.runExtension(extensionID, page: id, anchorView: source.view, anchorRect: source.rect) != true {
+            if host?.runExtension(extensionID, page: pageID, anchorView: source.view, anchorRect: source.rect) != true {
                 CrestChromiumRoot.showNativeNotice(
                     "This extension action is unavailable on this page.", icon: "puzzlepiece.extension")
             }
@@ -401,12 +401,12 @@
         /// `closed` runs when the panel or its extension host goes away on its own.
         func openSidePanel(_ extensionID: String, closed: @escaping () -> Void) -> NSView? {
             guard created, !disposed, let host else { return nil }
-            return host.openSidePanel(extensionID, page: id, closed: closed)
+            return host.openSidePanel(extensionID, page: pageID, closed: closed)
         }
 
         func closeSidePanel() {
             guard created, !disposed else { return }
-            host?.closeSidePanel(page: id)
+            host?.closeSidePanel(page: pageID)
         }
 
         /// Mounts, relayouts or removes the docked DevTools frontend the engine is
@@ -419,7 +419,7 @@
         /// user asked for — and so does closing the inspector by any route.
         func refreshDevTools() {
             guard !disposed, let host else { return }
-            surface.devToolsView = host.devToolsView(page: id)
+            surface.devToolsView = host.devToolsView(page: pageID)
             surface.layoutEngineView()
         }
 
@@ -647,14 +647,14 @@
         /// its own stack. TRANSITIONAL until link questions travel as
         /// presentations (WP C (l)).
         private func installHandlers() {
-            host?.setLinkHandler(page: id) { [weak self] action, address, label in
+            host?.setLinkHandler(page: pageID) { [weak self] action, address, label in
                 MainActor.assumeIsolated {
                     guard let self, !self.disposed, let url = URL(string: address) else { return false }
                     return self.linkHandler(action, url, label)
                 }
             }
             host?.setContextMenuHandler(
-                page: id,
+                page: pageID,
                 provider: { [weak self] address, selection in
                     MainActor.assumeIsolated {
                         guard let self, !self.disposed else { return [] }
@@ -669,7 +669,7 @@
                         return self.contextMenuAction(identifier, url, selection.isEmpty ? nil : selection)
                     }
                 })
-            host?.setProtectedLinkHandler(page: id) { [weak self] address in
+            host?.setProtectedLinkHandler(page: pageID) { [weak self] address in
                 var deferred: CrestDeferredNavigation?
                 MainActor.assumeIsolated {
                     guard let self, !self.disposed, let url = URL(string: address),
@@ -684,7 +684,7 @@
                 }
                 return deferred
             }
-            host?.setModifiedLinkHandler(page: id) { [weak self] address, modifiers, token, reply in
+            host?.setModifiedLinkHandler(page: pageID) { [weak self] address, modifiers, token, reply in
                 MainActor.assumeIsolated {
                     guard let self, !self.disposed, let url = URL(string: address) else {
                         reply(LinkNavigationDecision.navigate.name, nil)

@@ -158,6 +158,27 @@
 #include "content/public/browser/global_routing_id.h"
 #include "ui/base/page_transition_types.h"
 
+// What an extension shortcut did, for the platform.
+@interface CrestExtensionShortcutResult : NSObject <CrestExtensionShortcut>
+@property(nonatomic, nullable) NSString* actionExtensionID;
+@end
+@implementation CrestExtensionShortcutResult
+@end
+
+// An install review, for the platform to show.
+@interface CrestPendingExtensionReview : NSObject <CrestExtensionReview>
+@property(nonatomic) NSString* extensionID;
+@property(nonatomic) NSString* name;
+@property(nonatomic) NSString* version;
+@property(nonatomic) NSString* summary;
+@property(nonatomic) NSArray<NSString*>* permissions;
+@property(nonatomic, nullable) NSImage* icon;
+@property(nonatomic) BOOL canWithholdSiteAccess;
+@property(nonatomic) BOOL withholdsSiteAccess;
+@end
+@implementation CrestPendingExtensionReview
+@end
+
 @interface CrestLinkMenuAction : NSObject
 @property(copy) void (^run)(void);
 - (void)invoke:(id)sender;
@@ -502,7 +523,7 @@ struct HostState {
   const base::Time started_at = base::Time::Now();
   // Crest's own UI, which the framework attaches when it starts.
   id<CrestMacUI> ui = nil;
-  void (^extension_review)(NSDictionary<NSString*, id>*, NSWindow*, void (^)(BOOL, BOOL));
+  void (^extension_review)(id<CrestExtensionReview>, NSWindow*, void (^)(BOOL, BOOL));
   Browser* bootstrap = nullptr;
   bool started = false;
   bool disposing = false;
@@ -539,6 +560,11 @@ HostState& State() { static base::NoDestructor<HostState> state; return *state; 
 
 // Crest's own UI, or nil before the framework starts.
 id<CrestMacUI> UI() { return State().ui; }
+
+// The text the shell keeps a Crest identifier as.
+std::string KeyFor(NSUUID* identifier) {
+  return identifier ? base::SysNSStringToUTF8(identifier.UUIDString) : std::string();
+}
 
 // A Crest identifier the shell keeps as text, or nil for none.
 NSUUID* UUIDFor(const std::string& identifier) {
@@ -1142,64 +1168,64 @@ void DeliverExtensionCommand(Profile* profile, const extensions::Extension& exte
 }
 }  // namespace
 
-@interface CrestChromiumHost : NSObject <CrestChromiumEngineHost>
+@interface CrestChromiumMacShell : NSObject <CrestMacShell>
 @end
 
 // The UI framework's entry point: the shell's host, and the engine binding
 // the framework registers with its core.
-using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const crest_engine_binding_t* binding,
+using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engine_binding_t* binding,
                                       const uint8_t* fingerprint, size_t fingerprint_length,
                                       const crest_engine_pages_t* pages);
 
-@implementation CrestChromiumHost
-- (BOOL)stageNavigation:(NSString*)token page:(NSString*)pageID url:(NSString*)url {
+@implementation CrestChromiumMacShell
+- (BOOL)stageNavigation:(NSString*)token page:(NSUUID*)pageID url:(NSString*)url {
   CHECK(NSThread.isMainThread);
-  return crest::EngineBinding::Get().Stage(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(token),
+  return crest::EngineBinding::Get().Stage(KeyFor(pageID), base::SysNSStringToUTF8(token),
                                            base::SysNSStringToUTF8(url));
 }
-- (void)loadPage:(NSString*)pageID url:(NSString*)url {
+- (void)loadPage:(NSUUID*)pageID url:(NSString*)url {
   CHECK(NSThread.isMainThread);
-  crest::EngineBinding::Get().Load(base::SysNSStringToUTF8(pageID), base::SysNSStringToUTF8(url));
+  crest::EngineBinding::Get().Load(KeyFor(pageID), base::SysNSStringToUTF8(url));
 }
-- (void)setPrivateSourceProfile:(NSString*)profileID {
+- (void)setPrivateSourceProfile:(NSUUID*)profileID {
   CHECK(NSThread.isMainThread);
-  crest::EngineBinding::Get().SetPrivateSourceProfile(base::SysNSStringToUTF8(profileID));
+  crest::EngineBinding::Get().SetPrivateSourceProfile(KeyFor(profileID));
 }
-- (NSView*)viewForPage:(NSString*)pageID {
+- (NSView*)viewForPage:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
+  Page* page = FindPage(pageID.UUIDString);
   return page && page->web_contents() ? page->web_contents()->GetNativeView().GetNativeNSView() : nil;
 }
-- (void)setLinkHandlerForPage:(NSString*)pageID handler:(BOOL (^)(NSString*, NSString*, NSString*))handler {
+- (void)setLinkHandlerForPage:(NSUUID*)pageID handler:(BOOL (^)(NSString*, NSString*, NSString*))handler {
   CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID)) page->link_handler = [handler copy];
+  if (Page* page = FindPage(pageID.UUIDString)) page->link_handler = [handler copy];
 }
-- (void)setContextMenuHandlerForPage:(NSString*)pageID
+- (void)setContextMenuHandlerForPage:(NSUUID*)pageID
     provider:(NSArray<NSDictionary<NSString*, NSString*>*>* (^)(NSString*, NSString*))provider
     action:(BOOL (^)(NSString*, NSString*, NSString*))action {
   CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID)) {
+  if (Page* page = FindPage(pageID.UUIDString)) {
     page->context_menu_provider = [provider copy];
     page->context_menu_action = [action copy];
   }
 }
-- (void)setProtectedLinkHandlerForPage:(NSString*)pageID handler:(CrestDeferredNavigation (^)(NSString*))handler {
+- (void)setProtectedLinkHandlerForPage:(NSUUID*)pageID handler:(CrestDeferredNavigation (^)(NSString*))handler {
   CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID)) page->protected_link_handler = [handler copy];
+  if (Page* page = FindPage(pageID.UUIDString)) page->protected_link_handler = [handler copy];
 }
-- (void)setModifiedLinkHandlerForPage:(NSString*)pageID
+- (void)setModifiedLinkHandlerForPage:(NSUUID*)pageID
     handler:(void (^)(NSString*, NSUInteger, NSString*, void (^)(NSString*, CrestDeferredNavigation)))handler {
   CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID)) page->modified_link_handler = [handler copy];
+  if (Page* page = FindPage(pageID.UUIDString)) page->modified_link_handler = [handler copy];
 }
 - (void)discardPendingNavigation:(NSString*)token {
   CHECK(NSThread.isMainThread);
   State().pending_link_navigations.erase(base::SysNSStringToUTF8(token));
 }
-- (BOOL)runExtension:(NSString*)extensionID page:(NSString*)pageID
+- (BOOL)runExtension:(NSString*)extensionID page:(NSUUID*)pageID
          anchorView:(NSView*)anchorView anchorRect:(NSRect)anchorRect {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
+  Page* page = FindPage(pageID.UUIDString);
   if (!page || !page->web_contents() || !anchorView.window ||
       anchorView.window != crest::WindowForBrowser(page->browser)) return NO;
   Profile* profile = page->browser->GetProfile();
@@ -1223,7 +1249,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   if (result == extensions::ExtensionAction::ShowAction::kToggleSidePanel) {
     // The action opens a panel instead of a popup. The card belongs to the
     // platform, so the click toggles the one this page is already showing.
-    crest::EngineBinding::Get().RequestSidePanel(base::SysNSStringToUTF8(pageID), id,
+    crest::EngineBinding::Get().RequestSidePanel(KeyFor(pageID), id,
                                                 crest::engine::SidePanelRequest::kToggle);
     return YES;
   }
@@ -1236,7 +1262,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   page->extension_popup = std::make_unique<ExtensionPopup>(std::move(popup), anchorView, anchorRect);
   return YES;
 }
-- (BOOL)runExtension:(NSString*)extensionID profile:(NSString*)profileID window:(NSString*)windowID
+- (BOOL)runExtension:(NSString*)extensionID profile:(NSUUID*)profileID window:(NSUUID*)windowID
           anchorView:(NSView*)anchorView anchorRect:(NSRect)anchorRect {
   CHECK(NSThread.isMainThread);
   // The page-less click. There is no tab to activate, no host permission to
@@ -1244,7 +1270,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   // document can run: it is opened against the Space's Browser directly rather
   // than through the WebContents-scoped action runner.
   if (!anchorView.window) return NO;
-  const auto profile_id = base::SysNSStringToUTF8(profileID);
+  const auto profile_id = KeyFor(profileID);
   Profile* profile = crest::EngineBinding::Get().Profiles().Find(profile_id);
   if (!profile) return NO;
   Profile* owner = profile->GetOriginalProfile();
@@ -1258,16 +1284,16 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   if (action->action_type() == extensions::ActionInfo::Type::kPage) return NO;
   const GURL popup_url = action->GetPopupUrl(extensions::ExtensionAction::kDefaultTabId);
   if (!popup_url.is_valid()) return NO;
-  Browser* browser = BrowserFor(profile_id, base::SysNSStringToUTF8(windowID));
+  Browser* browser = BrowserFor(profile_id, KeyFor(windowID));
   if (!browser || anchorView.window != crest::WindowForBrowser(browser)) return NO;
   auto popup = extensions::ExtensionViewHostFactory::CreatePopupHost(*extension, popup_url, browser);
   if (!popup) return NO;
   State().space_extension_popup = std::make_unique<ExtensionPopup>(std::move(popup), anchorView, anchorRect);
   return YES;
 }
-- (NSView*)openSidePanel:(NSString*)extensionID page:(NSString*)pageID closed:(void (^)(void))closed {
+- (NSView*)openSidePanel:(NSString*)extensionID page:(NSUUID*)pageID closed:(void (^)(void))closed {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
+  Page* page = FindPage(pageID.UUIDString);
   const auto* extension = page ? crest::EngineExtensions::SidePanelExtension(
       page->web_contents(), base::SysNSStringToUTF8(extensionID)) : nullptr;
   if (!extension) return nil;
@@ -1283,20 +1309,20 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   page->side_panel = std::make_unique<ExtensionSidePanel>(std::move(panel), extension->id(), closed);
   return page->side_panel->container();
 }
-- (void)closeSidePanelForPage:(NSString*)pageID {
+- (void)closeSidePanelForPage:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
+  Page* page = FindPage(pageID.UUIDString);
   if (!page) return;
   page->side_panel.reset();
 }
-- (NSView*)devToolsViewForPage:(NSString*)pageID {
+- (NSView*)devToolsViewForPage:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
+  Page* page = FindPage(pageID.UUIDString);
   return page && page->devtools ? page->devtools->container() : nil;
 }
-- (NSDictionary<NSString*, id>*)dispatchExtensionShortcut:(NSEvent*)event page:(NSString*)pageID {
+- (id<CrestExtensionShortcut>)dispatchExtensionShortcut:(NSEvent*)event page:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
+  Page* page = FindPage(pageID.UUIDString);
   if (!page || !page->web_contents() || State().disposing) return nil;
   const ui::Accelerator accelerator = ShortcutAccelerator(event);
   if (accelerator.key_code() == ui::VKEY_UNKNOWN) return nil;
@@ -1313,7 +1339,9 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
     if (commands->GetExtensionActionCommand(id, extensions::ActionInfo::Type::kAction,
             extensions::CommandService::ACTIVE, &action, &active) &&
         active && action.accelerator() == accelerator) {
-      return @{@"action": base::SysUTF8ToNSString(id)};
+      CrestExtensionShortcutResult* result = [[CrestExtensionShortcutResult alloc] init];
+      result.actionExtensionID = base::SysUTF8ToNSString(id);
+      return result;
     }
     ui::CommandMap named;
     if (!commands->GetNamedCommands(id, extensions::CommandService::ACTIVE,
@@ -1321,7 +1349,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
     for (const auto& [name, command] : named) {
       if (command.accelerator() != accelerator) continue;
       DeliverExtensionCommand(profile, *extension, name, page->web_contents());
-      return @{@"handled": @YES};
+      return [[CrestExtensionShortcutResult alloc] init];
     }
   }
   return nil;
@@ -1331,16 +1359,15 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   CHECK(NSThread.isMainThread);
   State().ui = ui;
 }
-- (void)setExtensionReview:(void (^)(NSDictionary<NSString*, id>*, NSWindow*, void (^)(BOOL, BOOL)))review {
+- (void)setExtensionReview:(void (^)(id<CrestExtensionReview>, NSWindow*, void (^)(BOOL, BOOL)))review {
   State().extension_review = [review copy];
 }
-- (BOOL)installExtension:(NSString*)extensionID package:(NSString*)path profile:(NSString*)profileID window:(NSString*)windowID
-              completion:(void (^)(BOOL, NSString*))completion {
+- (BOOL)installExtension:(NSString*)extensionID package:(NSString*)path profile:(NSUUID*)profileID
+                  window:(NSUUID*)windowID completion:(void (^)(BOOL, NSString*))completion {
   CHECK(NSThread.isMainThread);
   const std::string id = base::SysNSStringToUTF8(extensionID);
-  Profile* profile = crest::EngineBinding::Get().Profiles().Find(base::SysNSStringToUTF8(profileID));
-  NSUUID* window_id = [[NSUUID alloc] initWithUUIDString:windowID];
-  NSWindow* window = window_id ? [UI() windowWithID:window_id] : nil;
+  Profile* profile = crest::EngineBinding::Get().Profiles().Find(KeyFor(profileID));
+  NSWindow* window = [UI() windowWithID:windowID];
   if (!profile || profile->IsOffTheRecord() || !window ||
       id.size() != 32 || id.find_first_not_of("abcdefghijklmnop") != std::string::npos) return NO;
   auto prompt = std::make_unique<ExtensionInstallPrompt>(profile, gfx::NativeWindow(window),
@@ -1357,16 +1384,16 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   installer->InstallCrx(base::FilePath(base::SysNSStringToUTF8(path)));
   return YES;
 }
-- (void)disposePages:(NSArray<NSString*>*)pageIDs windows:(NSArray<NSString*>*)windowIDs
-    releaseProfiles:(NSArray<NSString*>*)profileIDs {
+- (void)disposePages:(NSArray<NSUUID*>*)pageIDs windows:(NSArray<NSUUID*>*)windowIDs
+    releaseProfiles:(NSArray<NSUUID*>*)profileIDs {
   CHECK(NSThread.isMainThread);
   auto& state = State();
   // A Space-scoped popup is anchored in one of the windows or profiles being
   // released, and nothing else would close it.
   if (windowIDs.count || profileIDs.count) state.space_extension_popup.reset();
-  for (NSString* identifier in pageIDs) DisposePage(base::SysNSStringToUTF8(identifier));
-  for (NSString* identifier in windowIDs) {
-    const auto id = base::SysNSStringToUTF8(identifier);
+  for (NSUUID* identifier in pageIDs) DisposePage(KeyFor(identifier));
+  for (NSUUID* identifier in windowIDs) {
+    const auto id = KeyFor(identifier);
     // A sign-in window closed before its page reached the callback.
     EndAuthenticationSession(id, nil, false);
     for (;;) {
@@ -1381,8 +1408,8 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   }
   std::erase_if(state.adoptions, [](const auto& entry) { return !entry.second.contents; });
   auto& binding = crest::EngineBinding::Get();
-  for (NSString* identifier in profileIDs) {
-    const std::string id = base::SysNSStringToUTF8(identifier);
+  for (NSUUID* identifier in profileIDs) {
+    const std::string id = KeyFor(identifier);
     Profile* profile = binding.Profiles().Find(id);
     if (!profile) continue;
     // Native popups may still await core adoption. Revoke them with their owner.
@@ -1416,14 +1443,14 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   crest::EngineBinding::Get().Extensions().Clear();
   crest::EngineBinding::Get().Profiles().ReleaseAll();
 }
-- (void)prepareToClosePages:(NSArray<NSString*>*)pageIDs windows:(NSArray<NSString*>*)windowIDs
+- (void)prepareToClosePages:(NSArray<NSUUID*>*)pageIDs windows:(NSArray<NSUUID*>*)windowIDs
                 completion:(void (^)(BOOL))completion {
   CHECK(NSThread.isMainThread);
   auto& state = State();
   if (state.close_preflight || state.quit_preflight || state.disposing) { completion(NO); return; }
   std::set<std::string> selected;
-  for (NSString* id in pageIDs) selected.insert(base::SysNSStringToUTF8(id));
-  for (NSString* id in windowIDs) state.close_windows.insert(base::SysNSStringToUTF8(id));
+  for (NSUUID* id in pageIDs) selected.insert(KeyFor(id));
+  for (NSUUID* id in windowIDs) state.close_windows.insert(KeyFor(id));
   for (const auto& [id, page] : state.pages) {
     bool matches = selected.contains(id);
     for (const auto& [key, owner] : state.browsers)
@@ -1443,9 +1470,9 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   state.quit_preflight = [completion copy];
   ContinueQuitPreparation(++state.quit_generation, true);
 }
-- (void)cancelAuthenticationSessionForWindow:(NSString*)windowID {
+- (void)cancelAuthenticationSessionForWindow:(NSUUID*)windowID {
   CHECK(NSThread.isMainThread);
-  EndAuthenticationSession(base::SysNSStringToUTF8(windowID), nil, false);
+  EndAuthenticationSession(KeyFor(windowID), nil, false);
 }
 - (void)cancelQuitPreparation {
   CHECK(NSThread.isMainThread);
@@ -1766,13 +1793,17 @@ void ShowExtensionPrompt(
       if (i < permission_details.details.size() && !permission_details.details[i].empty())
         [permissions addObject:base::SysUTF16ToNSString(permission_details.details[i])];
     }
-    NSDictionary* values = @{@"id": base::SysUTF8ToNSString(extension->id()),
-      @"name": base::SysUTF8ToNSString(extension->name()), @"version": base::SysUTF8ToNSString(extension->version().GetString()),
-      @"description": base::SysUTF8ToNSString(extension->manifest()->FindStringPath("description") ? *extension->manifest()->FindStringPath("description") : std::string()), @"permissions": permissions,
-      @"icon": pending->prompt->icon().IsEmpty() ? (id)NSNull.null : pending->prompt->icon().ToNSImage(),
-      @"canWithhold": @(extensions::util::CanWithholdPermissionsFromExtension(*extension)),
-      @"withhold": @(pending->prompt->ShouldWithheldPermissionsOnDialogAccept())};
-    State().extension_review(values, window, ^(BOOL accepted, BOOL withhold) {
+    CrestPendingExtensionReview* review = [[CrestPendingExtensionReview alloc] init];
+    review.extensionID = base::SysUTF8ToNSString(extension->id());
+    review.name = base::SysUTF8ToNSString(extension->name());
+    review.version = base::SysUTF8ToNSString(extension->version().GetString());
+    const std::string* summary = extension->manifest()->FindStringPath("description");
+    review.summary = base::SysUTF8ToNSString(summary ? *summary : std::string());
+    review.permissions = permissions;
+    review.icon = pending->prompt->icon().IsEmpty() ? nil : pending->prompt->icon().ToNSImage();
+    review.canWithholdSiteAccess = extensions::util::CanWithholdPermissionsFromExtension(*extension);
+    review.withholdsSiteAccess = pending->prompt->ShouldWithheldPermissionsOnDialogAccept();
+    State().extension_review(review, window, ^(BOOL accepted, BOOL withhold) {
       if (!pending->callback) return;
       Result result = Result::USER_CANCELED;
       if (pending->params->WasParentDestroyed()) result = Result::ABORTED;
@@ -1902,7 +1933,7 @@ void EnsureCrestUIStarted(Browser* browser) {
   const crest_engine_binding_t table = binding.Table();
   const crest_engine_pages_t pages = binding.Pages();
   const auto& fingerprint = crest::EngineBinding::Fingerprint();
-  start([[CrestChromiumHost alloc] init], &table, fingerprint.data(), fingerprint.size(), &pages);
+  start([[CrestChromiumMacShell alloc] init], &table, fingerprint.data(), fingerprint.size(), &pages);
   auto pending = std::move(State().pending_authentication_sessions);
   State().pending_authentication_sessions.clear();
   for (ASWebAuthenticationSessionRequest* request : pending) StartAuthenticationSession(request);
