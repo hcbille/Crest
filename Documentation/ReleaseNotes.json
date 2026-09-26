@@ -2629,6 +2629,10 @@
     "2026-09-25-chromium-shell-forwarders": {
       "category": "internal",
       "message": "The Chromium shell keeps forwarding page loads, staged navigations and the private profile"
+    },
+    "2026-09-25-chromium-typed-ui-protocol": {
+      "category": "internal",
+      "message": "Chromium asks Crest's interface through a typed protocol instead of finding it by name"
     }
   }
 }

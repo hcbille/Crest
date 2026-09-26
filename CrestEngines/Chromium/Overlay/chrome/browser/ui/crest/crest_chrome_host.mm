@@ -158,19 +158,6 @@
 #include "content/public/browser/global_routing_id.h"
 #include "ui/base/page_transition_types.h"
 
-@interface CrestRoot : NSObject
-+ (NSWindow*)windowForIdentifier:(NSString*)identifier;
-+ (NSDictionary<NSString*, NSString*>*)reserveEngineWindowForProfile:(NSString*)profileID;
-+ (void)presentEngineWindow:(NSString*)windowID space:(NSString*)spaceID focused:(BOOL)focused;
-+ (BOOL)deferQuit;
-+ (BOOL)reopen;
-+ (BOOL)openExternalURLs:(NSArray<NSURL*>*)urls;
-+ (void)showNativeNotice:(NSString*)message icon:(NSString*)icon;
-+ (void)translateText:(NSString*)text;
-+ (BOOL)openAuthenticationSession:(NSURL*)url window:(NSString*)windowID;
-+ (void)closeAuthenticationSession:(NSString*)windowID;
-@end
-
 @interface CrestLinkMenuAction : NSObject
 @property(copy) void (^run)(void);
 - (void)invoke:(id)sender;
@@ -513,6 +500,8 @@ struct PendingLinkNavigation {
 };
 struct HostState {
   const base::Time started_at = base::Time::Now();
+  // Crest's own UI, which the framework attaches when it starts.
+  id<CrestMacUI> ui = nil;
   void (^extension_review)(NSDictionary<NSString*, id>*, NSWindow*, void (^)(BOOL, BOOL));
   Browser* bootstrap = nullptr;
   bool started = false;
@@ -544,6 +533,14 @@ struct HostState {
 };
 HostState& State() { static base::NoDestructor<HostState> state; return *state; }
 
+// Crest's own UI, or nil before the framework starts.
+id<CrestMacUI> UI() { return State().ui; }
+
+// A Crest identifier the shell keeps as text, or nil for none.
+NSUUID* UUIDFor(const std::string& identifier) {
+  return identifier.empty() ? nil : [[NSUUID alloc] initWithUUIDString:base::SysUTF8ToNSString(identifier)];
+}
+
 // System sign-in (`ASWebAuthenticationSession`). Chromium's own handler opens a
 // Views popup Browser in the last-used engine profile; that profile belongs to
 // no Space and the popup never appears, so the sign-in page loads where nobody
@@ -567,8 +564,7 @@ void EndAuthenticationSession(const std::string& window, NSURL* callback, bool c
                                                  code:ASWebAuthenticationSessionErrorCodeCanceledLogin
                                              userInfo:nil]];
   }
-  if (close_window)
-    [NSClassFromString(@"CrestRoot") closeAuthenticationSession:base::SysUTF8ToNSString(window)];
+  if (NSUUID* identifier = close_window ? UUIDFor(window) : nil) [UI() closeAuthenticationSession:identifier];
 }
 
 // The system's sign-in broker hands out one request at a time and waits for
@@ -595,10 +591,10 @@ void StartAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
                                              userInfo:nil]];
     return;
   }
-  NSString* window = NSUUID.UUID.UUIDString;
-  State().authentication_sessions[base::SysNSStringToUTF8(window)] = request;
-  if (![NSClassFromString(@"CrestRoot") openAuthenticationSession:request.URL window:window])
-    EndAuthenticationSession(base::SysNSStringToUTF8(window), nil, false);
+  NSUUID* window = NSUUID.UUID;
+  const std::string key = base::SysNSStringToUTF8(window.UUIDString);
+  State().authentication_sessions[key] = request;
+  if (![UI() openAuthenticationSession:request.URL window:window]) EndAuthenticationSession(key, nil, false);
 }
 
 
@@ -750,9 +746,9 @@ void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foregrou
   // beside the page that opened it, exactly as it was before this path existed.
   if (host && host->engine_window && !host->presented && !source_id) {
     host->presented = true;
-    [NSClassFromString(@"CrestRoot") presentEngineWindow:base::SysUTF8ToNSString(host->window)
-                                                  space:base::SysUTF8ToNSString(host->space)
-                                                focused:host->focused ? YES : NO];
+    NSUUID* window = UUIDFor(host->window);
+    NSUUID* space = UUIDFor(host->space);
+    if (window && space) [UI() presentEngineWindow:window space:space focused:host->focused ? YES : NO];
   }
   crest::EngineBinding::Get().Present(crest::engine::PageOffered{
       .adoption_id = adoption,
@@ -795,15 +791,14 @@ bool RegisterEngineBrowser(Browser* browser) {
   const auto& profiles = crest::EngineBinding::Get().Profiles();
   const std::string profile_id = profiles.IdFor(browser->GetProfile());
   if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
-  NSDictionary<NSString*, NSString*>* placement = [NSClassFromString(@"CrestRoot")
-      reserveEngineWindowForProfile:base::SysUTF8ToNSString(profile_id)];
-  NSString* window = placement[@"windowId"];
-  NSString* space = placement[@"spaceId"];
-  if (!window.length || !space.length) return false;
-  const std::string key = profile_id + "/" + base::SysNSStringToUTF8(window);
+  NSUUID* profile = UUIDFor(profile_id);
+  id<CrestEngineWindowPlacement> placement = profile ? [UI() reserveEngineWindowForProfile:profile] : nil;
+  if (!placement) return false;
+  const std::string window = base::SysNSStringToUTF8(placement.window.UUIDString);
+  const std::string key = profile_id + "/" + window;
   if (state.browsers.contains(key)) return false;
-  auto owner = std::make_unique<BrowserOwner>(browser, base::SysNSStringToUTF8(window));
-  owner->space = base::SysNSStringToUTF8(space);
+  auto owner = std::make_unique<BrowserOwner>(browser, window);
+  owner->space = base::SysNSStringToUTF8(placement.space.UUIDString);
   owner->engine_window = true;
   state.browsers.emplace(key, std::move(owner));
   return true;
@@ -894,7 +889,7 @@ void ContinueQuitPreparation(uint64_t generation, bool proceed) {
   alert.informativeText = [NSString stringWithFormat:@"%d download(s) are still in progress.", downloads];
   [alert addButtonWithTitle:@"Keep Browsing"];
   [alert addButtonWithTitle:@"Quit"];
-  NSWindow* window = NSApp.keyWindow ?: [NSClassFromString(@"CrestRoot") windowForIdentifier:nil];
+  NSWindow* window = NSApp.keyWindow ?: [UI() windowWithID:nil];
   if (window) {
     [alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
       FinishQuitPreparation(generation, response == NSAlertSecondButtonReturn);
@@ -1322,6 +1317,10 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   return nil;
 }
 - (NSString*)engineVersion { return base::SysUTF8ToNSString(version_info::GetVersionNumber()); }
+- (void)attachUI:(id<CrestMacUI>)ui {
+  CHECK(NSThread.isMainThread);
+  State().ui = ui;
+}
 - (void)setExtensionReview:(void (^)(NSDictionary<NSString*, id>*, NSWindow*, void (^)(BOOL, BOOL)))review {
   State().extension_review = [review copy];
 }
@@ -1330,7 +1329,8 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   CHECK(NSThread.isMainThread);
   const std::string id = base::SysNSStringToUTF8(extensionID);
   Profile* profile = crest::EngineBinding::Get().Profiles().Find(base::SysNSStringToUTF8(profileID));
-  NSWindow* window = [NSClassFromString(@"CrestRoot") windowForIdentifier:windowID];
+  NSUUID* window_id = [[NSUUID alloc] initWithUUIDString:windowID];
+  NSWindow* window = window_id ? [UI() windowWithID:window_id] : nil;
   if (!profile || profile->IsOffTheRecord() || !window ||
       id.size() != 32 || id.find_first_not_of("abcdefghijklmnop") != std::string::npos) return NO;
   auto prompt = std::make_unique<ExtensionInstallPrompt>(profile, gfx::NativeWindow(window),
@@ -1897,6 +1897,9 @@ void EnsureCrestUIStarted(Browser* browser) {
   State().pending_authentication_sessions.clear();
   for (ASWebAuthenticationSessionRequest* request : pending) StartAuthenticationSession(request);
 }
+id<CrestMacUI> MacUI() {
+  return UI();
+}
 void OnEngineWindowShown(Browser* browser, bool focused) {
   if (!State().started) return;
   for (const auto& [key, owner] : State().browsers) {
@@ -1914,9 +1917,8 @@ bool CanCreateEngineBrowser(Profile* profile) {
   const auto& profiles = crest::EngineBinding::Get().Profiles();
   const std::string profile_id = profiles.IdFor(profile);
   if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
-  NSDictionary<NSString*, NSString*>* placement = [NSClassFromString(@"CrestRoot")
-      reserveEngineWindowForProfile:base::SysUTF8ToNSString(profile_id)];
-  return placement[@"windowId"].length > 0 && placement[@"spaceId"].length > 0;
+  NSUUID* space_profile = UUIDFor(profile_id);
+  return space_profile && [UI() reserveEngineWindowForProfile:space_profile] != nil;
 }
 NSWindow* WindowForBrowser(Browser* browser) {
   if (!State().started) return nil;
@@ -1926,29 +1928,25 @@ NSWindow* WindowForBrowser(Browser* browser) {
     // renderer popup never opens the one reserved for it, because its tab is
     // adopted into the opener's window. Those Browsers keep the same fallback
     // they had before they carried an identifier at all.
-    if (NSWindow* window = [NSClassFromString(@"CrestRoot")
-            windowForIdentifier:base::SysUTF8ToNSString(owner->window)]) {
-      return window;
-    }
+    if (NSWindow* window = [UI() windowWithID:UUIDFor(owner->window)]) return window;
     break;
   }
-  if (!State().creating_window.empty())
-    return [NSClassFromString(@"CrestRoot") windowForIdentifier:base::SysUTF8ToNSString(State().creating_window)];
-  return [NSClassFromString(@"CrestRoot") windowForIdentifier:nil];
+  if (!State().creating_window.empty()) return [UI() windowWithID:UUIDFor(State().creating_window)];
+  return [UI() windowWithID:nil];
 }
 bool DeferQuit() {
-  return IsEnabled() && State().started && !State().quitting && [NSClassFromString(@"CrestRoot") deferQuit];
+  return IsEnabled() && State().started && !State().quitting && [UI() deferQuit];
 }
 bool Reopen() {
   if (!IsEnabled() || !State().started || State().disposing || State().quitting) return false;
-  return [NSClassFromString(@"CrestRoot") reopen];
+  return [UI() reopen];
 }
 bool OpenExternalURLs(NSArray<NSURL*>* urls) {
   // Before the native root exists there is nothing to route into, and after a
   // quit has been accepted there is nothing left to open. Chromium then keeps
   // its own behavior rather than dropping the request.
   if (!IsEnabled() || !State().started || State().disposing || State().quitting) return false;
-  return [NSClassFromString(@"CrestRoot") openExternalURLs:urls];
+  return [UI() openExternalURLs:urls];
 }
 bool BeginAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
   CHECK(NSThread.isMainThread);
@@ -1980,11 +1978,13 @@ bool CancelAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
 }
 void TranslateSelection(const std::u16string& text) {
   if (!IsEnabled() || !State().started || State().disposing || text.empty()) return;
-  [NSClassFromString(@"CrestRoot") translateText:base::SysUTF16ToNSString(text)];
+  [UI() translateText:base::SysUTF16ToNSString(text)];
 }
 void ShowEngineNotice(const std::u16string& message, const std::string& symbol) {
   if (!IsEnabled() || !State().started || State().disposing || message.empty()) return;
-  [NSClassFromString(@"CrestRoot") showNativeNotice:base::SysUTF16ToNSString(message)
-                                               icon:base::SysUTF8ToNSString(symbol)];
+  // TRANSITIONAL until the toast hunk passes its ToastId: the hook still names
+  // the SF Symbol Chromium's link-copied toast used.
+  [UI() showEngineNotice:base::SysUTF16ToNSString(message)
+                    kind:symbol == "link" ? CrestEngineNoticeKindLinkCopied : CrestEngineNoticeKindConfirmation];
 }
 }  // namespace crest

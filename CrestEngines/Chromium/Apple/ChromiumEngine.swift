@@ -188,6 +188,7 @@
         _ fingerprint: UnsafePointer<UInt8>, _ fingerprintLength: Int, _ pages: UnsafePointer<crest_engine_pages_t>
     ) {
         let contract = Array(UnsafeBufferPointer(start: fingerprint, count: fingerprintLength))
+        host.attach(ui: ChromiumMacUI())
         CrestChromiumRoot.start(host: host, binding: binding.pointee, fingerprint: contract, pages: pages.pointee)
     }
 #endif

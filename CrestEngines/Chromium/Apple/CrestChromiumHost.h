@@ -2,8 +2,80 @@
 
 NS_ASSUME_NONNULL_BEGIN
 typedef void (^CrestDeferredNavigation)(void);
+
+// A Chromium feature whose own UI this build never shows. Crest says so in a
+// notice instead, in its own words.
+typedef NS_ENUM(NSInteger, CrestUnavailableFeature) {
+  CrestUnavailableFeatureAutofill,
+  CrestUnavailableFeatureAddressAutofill,
+  CrestUnavailableFeatureAddressAutofillSignIn,
+  CrestUnavailableFeatureAutofillAI,
+  CrestUnavailableFeatureAutofillOffers,
+  CrestUnavailableFeatureAutofillReauthentication,
+  CrestUnavailableFeaturePaymentAutofill,
+  CrestUnavailableFeatureVirtualCardEnrollment,
+  CrestUnavailableFeatureProfiles,
+  CrestUnavailableFeatureEyeDropper,
+  CrestUnavailableFeatureCaretBrowsing,
+  CrestUnavailableFeaturePrivateBrowsing,
+  CrestUnavailableFeatureChromeLabs,
+} NS_SWIFT_NAME(UnavailableEngineFeature);
+
+// What one of Chromium's own toasts is about. The message is Chromium's own.
+typedef NS_ENUM(NSInteger, CrestEngineNoticeKind) {
+  CrestEngineNoticeKindLinkCopied,
+  CrestEngineNoticeKindConfirmation,
+} NS_SWIFT_NAME(EngineNoticeKind);
+
+// The Crest window a Browser the engine created for itself belongs in, and the
+// Space its tabs join.
+@protocol CrestEngineWindowPlacement <NSObject>
+@property(nonatomic, readonly) NSUUID *window;
+@property(nonatomic, readonly) NSUUID *space;
+@end
+
+// Crest's own UI, which the Mac shell asks on the main thread for what only
+// Crest's windows can answer. The UI framework attaches it when it starts.
+NS_SWIFT_UI_ACTOR
+@protocol CrestMacUI <NSObject>
+// The Crest window named `windowID`, or with none, the window an engine
+// surface with no window of its own is shown in.
+- (nullable NSWindow *)windowWithID:(nullable NSUUID *)windowID NS_SWIFT_NAME(window(id:));
+// Reserves the Crest window for a Browser the engine created for itself —
+// `chrome.windows.create`, an extension app window — and names the Space its
+// tabs belong to. None when no Space can host the profile's tabs.
+- (nullable id<CrestEngineWindowPlacement>)reserveEngineWindowForProfile:(NSUUID *)profileID
+    NS_SWIFT_NAME(reserveEngineWindow(profile:));
+// Opens the reserved window just before its first tab is offered.
+- (void)presentEngineWindow:(NSUUID *)windowID space:(NSUUID *)spaceID focused:(BOOL)focused
+    NS_SWIFT_NAME(presentEngineWindow(_:space:focused:));
+// A quit the application asked for; true while Crest finishes it itself.
+- (BOOL)deferQuit;
+// A Dock click or `Open` with no Crest window.
+- (BOOL)reopen;
+// A link or document from another app.
+- (BOOL)openExternalURLs:(NSArray<NSURL *> *)urls NS_SWIFT_NAME(openExternal(_:));
+// An app's system sign-in, in the Quick Window named `windowID`, and its end.
+- (BOOL)openAuthenticationSession:(NSURL *)url window:(NSUUID *)windowID
+    NS_SWIFT_NAME(openAuthenticationSession(_:window:));
+- (void)closeAuthenticationSession:(NSUUID *)windowID NS_SWIFT_NAME(closeAuthenticationSession(window:));
+// What the engine's browser window asks of Crest's: a key equivalent web
+// content did not take, the location field, a bookmark for the active page,
+// translation and tab search.
+- (BOOL)handleShortcutEvent:(NSEvent *)event NS_SWIFT_NAME(handleShortcut(_:));
+- (void)focusLocation;
+- (void)bookmarkActivePage;
+- (void)translatePage;
+- (void)translateText:(NSString *)text NS_SWIFT_NAME(translate(_:));
+- (void)showTabSearch;
+- (void)showUnavailableFeature:(CrestUnavailableFeature)feature NS_SWIFT_NAME(showUnavailable(_:));
+- (void)showEngineNotice:(NSString *)message kind:(CrestEngineNoticeKind)kind NS_SWIFT_NAME(showEngineNotice(_:kind:));
+@end
+
 // In-process, main-thread native port. Objects and blocks never enter .NET.
 @protocol CrestChromiumEngineHost <NSObject>
+// Crest's own UI, which the shell keeps for as long as it runs.
+- (void)attachUI:(id<CrestMacUI>)ui NS_SWIFT_NAME(attach(ui:));
 // The engine binding creates, loads and closes the pages the core opens,
 // reports what they do straight to the core and presents them to the platform.
 // What the platform asks of a page directly that no PageRequest carries yet.

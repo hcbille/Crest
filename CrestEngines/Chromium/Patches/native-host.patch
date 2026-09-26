@@ -196,6 +196,20 @@
        "views/certificate_viewer_mac_views.mm",
        "views/frame/browser_frame_view_factory_mac.mm",
        "views/frame/browser_frame_view_mac.h",
+@@ -3487,6 +3520,13 @@
+       "//ui/accelerated_widget_mac",
+     ]
+     include_dirs = [ "$target_gen_dir" ]
++    # The shell host implements the Objective-C protocols Crest's Swift UI
++    # calls. A method missing from one must fail the build, not raise an
++    # unrecognized selector at run time.
++    cflags_objcc = [
++      "-Werror=protocol",
++      "-Werror=objc-method-access",
++    ]
+     frameworks = [
+       "Carbon.framework",
+       "Quartz.framework",
 --- a/chrome/browser/ui/tabs/tab_features.cc
 +++ b/chrome/browser/ui/tabs/tab_features.cc
 @@ -9,6 +9,10 @@

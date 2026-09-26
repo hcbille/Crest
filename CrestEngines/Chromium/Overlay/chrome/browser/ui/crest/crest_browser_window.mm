@@ -9,6 +9,7 @@ static_assert(!std::is_abstract_v<CrestBrowserWindow>);
 
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
+#import "CrestChromiumHost.h"
 
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/share/share_attempt.h"
@@ -31,20 +32,6 @@ static_assert(!std::is_abstract_v<CrestBrowserWindow>);
 #include "ui/native_theme/native_theme.h"
 #include "ui/color/color_provider_manager.h"
 
-// Swift-exported surface of CrestRoot (see CrestRoot.swift); declared locally so
-// this window can route web-content key events through the same shortcut
-// registry the app-level NSEvent monitor uses, without pulling in the bridge.
-@interface CrestRoot : NSObject
-+ (BOOL)handleShortcutEvent:(NSEvent*)event;
-+ (void)toggleBookmarkForURL:(NSString*)url title:(NSString*)title;
-+ (void)shareURL:(NSString*)url title:(NSString*)title;
-+ (void)showQRCodeForURL:(NSString*)url title:(NSString*)title;
-+ (void)translateURL:(NSString*)url;
-+ (void)translateText:(NSString*)text;
-+ (void)showNativeNotice:(NSString*)message icon:(NSString*)icon;
-+ (void)showTabSearch;
-+ (void)focusOmnibox;
-@end
 
 namespace {
 
@@ -64,7 +51,7 @@ bool HandleCrestShortcut(const input::NativeWebKeyboardEvent& event) {
   if (!ns_event || ns_event.type != NSEventTypeKeyDown) {
     return false;
   }
-  return [NSClassFromString(@"CrestRoot") handleShortcutEvent:ns_event] == YES;
+  return [crest::MacUI() handleShortcutEvent:ns_event] == YES;
 }
 
 NSString* OriginDisclosureLabel(const url::Origin& origin) {
@@ -96,8 +83,7 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       content::WebContents* web_contents,
       autofill::SaveCardBubbleController* controller,
       bool is_user_gesture) override {
-    Notice(@"Payment autofill bubbles are not exposed in Crest yet.",
-           @"creditcard");
+    Unavailable(CrestUnavailableFeaturePaymentAutofill);
     return nullptr;
   }
 
@@ -106,8 +92,7 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       autofill::IbanBubbleController* controller,
       bool is_user_gesture,
       autofill::IbanBubbleType bubble_type) override {
-    Notice(@"Payment autofill bubbles are not exposed in Crest yet.",
-           @"creditcard");
+    Unavailable(CrestUnavailableFeaturePaymentAutofill);
     return nullptr;
   }
 
@@ -115,21 +100,21 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       content::WebContents* web_contents,
       autofill::OfferNotificationBubbleController* controller,
       bool is_user_gesture) override {
-    Notice(@"Autofill offer bubbles are not exposed in Crest yet.", @"tag");
+    Unavailable(CrestUnavailableFeatureAutofillOffers);
     return nullptr;
   }
 
   autofill::AutofillBubbleBase* ShowSaveAutofillAiDataBubble(
       content::WebContents* web_contents,
       autofill::AutofillAiImportDataController* controller) override {
-    Notice(@"Autofill AI bubbles are not exposed in Crest yet.", @"sparkles");
+    Unavailable(CrestUnavailableFeatureAutofillAI);
     return nullptr;
   }
 
   autofill::AutofillBubbleBase* ShowAutofillAiLocalSaveNotification(
       content::WebContents* web_contents,
       autofill::AutofillAiImportDataController* controller) override {
-    Notice(@"Autofill AI bubbles are not exposed in Crest yet.", @"sparkles");
+    Unavailable(CrestUnavailableFeatureAutofillAI);
     return nullptr;
   }
 
@@ -137,8 +122,7 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       content::WebContents* web_contents,
       std::unique_ptr<autofill::SaveAddressBubbleController> controller,
       bool is_user_gesture) override {
-    Notice(@"Address autofill bubbles are not exposed in Crest yet.",
-           @"person.text.rectangle");
+    Unavailable(CrestUnavailableFeatureAddressAutofill);
     return nullptr;
   }
 
@@ -146,8 +130,7 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
   autofill::AutofillBubbleBase* ShowAddressSignInPromo(
       content::WebContents* web_contents,
       const autofill::AutofillProfile& autofill_profile) override {
-    Notice(@"Address autofill sign-in is not exposed in Crest yet.",
-           @"person.crop.circle.badge.plus");
+    Unavailable(CrestUnavailableFeatureAddressAutofillSignIn);
     return nullptr;
   }
 #endif
@@ -156,8 +139,7 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       content::WebContents* web_contents,
       std::unique_ptr<autofill::UpdateAddressBubbleController> controller,
       bool is_user_gesture) override {
-    Notice(@"Address autofill bubbles are not exposed in Crest yet.",
-           @"person.text.rectangle");
+    Unavailable(CrestUnavailableFeatureAddressAutofill);
     return nullptr;
   }
 
@@ -165,8 +147,7 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       content::WebContents* web_contents,
       autofill::FilledCardInformationBubbleController* controller,
       bool is_user_gesture) override {
-    Notice(@"Payment autofill bubbles are not exposed in Crest yet.",
-           @"creditcard");
+    Unavailable(CrestUnavailableFeaturePaymentAutofill);
     return nullptr;
   }
 
@@ -174,16 +155,14 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       content::WebContents* web_contents,
       autofill::VirtualCardEnrollBubbleController* controller,
       bool is_user_gesture) override {
-    Notice(@"Virtual card enrollment is not exposed in Crest yet.",
-           @"creditcard.trianglebadge.exclamationmark");
+    Unavailable(CrestUnavailableFeatureVirtualCardEnrollment);
     return nullptr;
   }
 
   autofill::AutofillBubbleBase* ShowVirtualCardEnrollConfirmationBubble(
       content::WebContents* web_contents,
       autofill::VirtualCardEnrollBubbleController* controller) override {
-    Notice(@"Virtual card enrollment is not exposed in Crest yet.",
-           @"creditcard.trianglebadge.exclamationmark");
+    Unavailable(CrestUnavailableFeatureVirtualCardEnrollment);
     return nullptr;
   }
 
@@ -192,38 +171,37 @@ class CrestAutofillBubbleHandler final : public autofill::AutofillBubbleHandler 
       autofill::MandatoryReauthBubbleController* controller,
       bool is_user_gesture,
       autofill::MandatoryReauthBubbleType bubble_type) override {
-    Notice(@"Autofill reauthentication is not exposed in Crest yet.",
-           @"lock.shield");
+    Unavailable(CrestUnavailableFeatureAutofillReauthentication);
     return nullptr;
   }
 
   autofill::AutofillBubbleBase* ShowSaveCardConfirmationBubble(
       content::WebContents* web_contents,
       autofill::SaveCardBubbleController* controller) override {
-    Notice(@"Payment autofill bubbles are not exposed in Crest yet.",
-           @"creditcard");
+    Unavailable(CrestUnavailableFeaturePaymentAutofill);
     return nullptr;
   }
 
   autofill::AutofillBubbleBase* ShowSaveIbanConfirmationBubble(
       content::WebContents* web_contents,
       autofill::IbanBubbleController* controller) override {
-    Notice(@"Payment autofill bubbles are not exposed in Crest yet.",
-           @"creditcard");
+    Unavailable(CrestUnavailableFeaturePaymentAutofill);
     return nullptr;
   }
 
   autofill::AutofillBubbleBase* ShowOmniboxAutofillBubble(
       content::WebContents*, autofill::OmniboxAutofillBubbleController*) override {
-    Notice(@"Autofill is not connected in this host.", @"person"); return nullptr;
+    Unavailable(CrestUnavailableFeatureAutofill);
+    return nullptr;
   }
   autofill::AutofillBubbleBase* ShowPaymentsChurnedUsersBubble(
       content::WebContents*, autofill::PaymentsChurnedUsersBubbleController*, bool) override {
-    Notice(@"Payment autofill is not connected in this host.", @"creditcard"); return nullptr;
+    Unavailable(CrestUnavailableFeaturePaymentAutofill);
+    return nullptr;
   }
  private:
-  static void Notice(NSString* message, NSString* icon) {
-    [NSClassFromString(@"CrestRoot") showNativeNotice:message icon:icon];
+  static void Unavailable(CrestUnavailableFeature feature) {
+    [crest::MacUI() showUnavailableFeature:feature];
   }
 };
 
@@ -736,7 +714,7 @@ LocationBar* CrestBrowserWindow::GetLocationBar() const {
 }
 
 void CrestBrowserWindow::SetFocusToLocationBar(bool is_user_initiated) {
-  [NSClassFromString(@"CrestRoot") focusOmnibox];
+  [crest::MacUI() focusLocation];
 }
 
 void CrestBrowserWindow::UpdateReloadStopState(bool is_loading, bool force) {}
@@ -816,19 +794,14 @@ void CrestBrowserWindow::ShowIntentPickerBubble( std::vector<apps::IntentPickerA
                           false);
 }
 
+// Crest keeps a page by pinning its tab, so bookmarking is that.
 void CrestBrowserWindow::ShowBookmarkBubble(const GURL& url, bool already_bookmarked) {
-  const std::string spec = url.is_valid() ? url.spec() : std::string();
-  NSString* title = @"";
-  if (content::WebContents* contents =
-          browser_->tab_strip_model()->GetActiveWebContents()) {
-    title = base::SysUTF16ToNSString(contents->GetTitle());
-  }
-  [NSClassFromString(@"CrestRoot") toggleBookmarkForURL:base::SysUTF8ToNSString(spec) title:title];
+  [crest::MacUI() bookmarkActivePage];
 }
 
 ShowTranslateBubbleResult CrestBrowserWindow::ShowTranslateBubble( content::WebContents* contents, translate::TranslateStep step, const std::string& source_language, const std::string& target_language, translate::TranslateErrors error_type, bool is_user_gesture) {
   if (contents) {
-    [NSClassFromString(@"CrestRoot") translateURL:base::SysUTF8ToNSString(contents->GetVisibleURL().spec())];
+    [crest::MacUI() translatePage];
   }
   return {};
 }
@@ -901,8 +874,7 @@ CrestBrowserWindow::GetWebContentsModalDialogHostFor(
 }
 
 void CrestBrowserWindow::ShowAvatarBubbleFromAvatarButton(bool is_source_accelerator) {
-  [NSClassFromString(@"CrestRoot") showNativeNotice:@"Profiles are not exposed in Crest yet."
-                        icon:@"person.crop.circle"];
+  [crest::MacUI() showUnavailableFeature:CrestUnavailableFeatureProfiles];
 }
 
 void CrestBrowserWindow::MaybeShowProfileSwitchIPH() {}
@@ -928,30 +900,26 @@ void CrestBrowserWindow::ShowEmojiPanel() {
 }
 
 std::unique_ptr<content::EyeDropper> CrestBrowserWindow::OpenEyeDropper( content::RenderFrameHost* frame, content::EyeDropperListener* listener) {
-  [NSClassFromString(@"CrestRoot") showNativeNotice:@"Eye dropper is not exposed in Crest yet."
-                        icon:@"eyedropper"];
+  [crest::MacUI() showUnavailableFeature:CrestUnavailableFeatureEyeDropper];
   return {};
 }
 
 void CrestBrowserWindow::ShowCaretBrowsingDialog() {
-  [NSClassFromString(@"CrestRoot") showNativeNotice:@"Caret browsing is not exposed in Crest yet."
-                        icon:@"text.cursor"];
+  [crest::MacUI() showUnavailableFeature:CrestUnavailableFeatureCaretBrowsing];
 }
 
 void CrestBrowserWindow::CreateTabSearchBubble() {
-  [NSClassFromString(@"CrestRoot") showTabSearch];
+  [crest::MacUI() showTabSearch];
 }
 
 void CrestBrowserWindow::CloseTabSearchBubble() {}
 
 void CrestBrowserWindow::ShowIncognitoClearBrowsingDataDialog() {
-  [NSClassFromString(@"CrestRoot") showNativeNotice:@"Private browsing is not exposed in Crest yet."
-                        icon:@"eye.slash"];
+  [crest::MacUI() showUnavailableFeature:CrestUnavailableFeaturePrivateBrowsing];
 }
 
 void CrestBrowserWindow::ShowIncognitoHistoryDisclaimerDialog() {
-  [NSClassFromString(@"CrestRoot") showNativeNotice:@"Private browsing is not exposed in Crest yet."
-                        icon:@"eye.slash"];
+  [crest::MacUI() showUnavailableFeature:CrestUnavailableFeaturePrivateBrowsing];
 }
 
 bool CrestBrowserWindow::IsUnframedModeEnabled() const {
@@ -967,8 +935,7 @@ ui::mojom::WindowShowState CrestBrowserWindow::GetWindowShowState() const {
 }
 
 void CrestBrowserWindow::ShowChromeLabs() {
-  [NSClassFromString(@"CrestRoot") showNativeNotice:@"Chrome Labs is not exposed in Crest."
-                        icon:@"flask"];
+  [crest::MacUI() showUnavailableFeature:CrestUnavailableFeatureChromeLabs];
 }
 
 BrowserView* CrestBrowserWindow::AsBrowserView() {

@@ -4,6 +4,7 @@
 #ifdef __OBJC__
 #import <Cocoa/Cocoa.h>
 @class ASWebAuthenticationSessionRequest;
+@protocol CrestMacUI;
 #endif
 
 #include <string>
@@ -96,6 +97,8 @@ bool RouteModifiedLink(content::WebContents* source, content::OpenURLParams& par
 // WebKit uses. Other Chromium pages keep their engine dialog manager.
 content::JavaScriptDialogManager* JavaScriptDialogManagerFor(content::WebContents* contents);
 #ifdef __OBJC__
+// Crest's own UI, which the UI framework attaches when it starts; nil before.
+id<CrestMacUI> MacUI();
 // Consumes an external open: a link from another app, a document, or the
 // default-browser role. Crest applies its own routing policy.
 bool OpenExternalURLs(NSArray<NSURL*>* urls);

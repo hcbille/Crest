@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Chromium owns the process and AppController. Crest owns the same window
 /// composition, stores, and SwiftUI views used by its WebKit application.
-@objc(CrestRoot) @MainActor
+@MainActor
 final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     static let extensions = ChromiumExtensionStore()
     private static var instance: CrestChromiumRoot?
@@ -453,7 +453,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// brings an existing window forward and otherwise opens the initial
     /// window; Chromium must not create a browser of its own here because it
     /// would have no registered native window.
-    @objc static func reopen() -> Bool {
+    static func reopen() -> Bool {
         guard let instance, !instance.quitting else { return false }
         if let window = activeNativeWindow ?? instance.privateWindow
             ?? instance.quickWindows.values.first?.window {
@@ -470,7 +470,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
 
     /// Chromium's `AppController` hands over every external open. Routing then
     /// matches the SwiftUI application's own external-link handling.
-    @objc(openExternalURLs:)
     static func openExternalURLs(_ urls: [URL]) -> Bool {
         let accepted = urls.filter {
             $0.isFileURL
@@ -566,9 +565,8 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// transient and the engine closes the window when the page reaches the
     /// app's callback. `window` names the Quick Window so the engine can match
     /// the page to its request.
-    @objc(openAuthenticationSession:window:)
-    static func openAuthenticationSession(_ url: URL, window: String) -> Bool {
-        guard let id = UUID(uuidString: window), BrowserCorePolicy.acceptsExternalURL(url) else { return false }
+    static func openAuthenticationSession(_ url: URL, window id: UUID) -> Bool {
+        guard BrowserCorePolicy.acceptsExternalURL(url) else { return false }
         guard let instance else {
             pendingAuthenticationSessions.append((url, id))
             return true
@@ -577,9 +575,8 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         return true
     }
 
-    @objc(closeAuthenticationSession:)
-    static func closeAuthenticationSession(_ window: String) {
-        guard let instance, let id = UUID(uuidString: window) else { return }
+    static func closeAuthenticationSession(_ id: UUID) {
+        guard let instance else { return }
         // The sign-in is over; a before-unload prompt would only get in the way.
         instance.quickWindows[id]?.window.closeAfterApproval()
     }
@@ -731,9 +728,8 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// declined outright when that window is closed. A Space that is locked or
     /// being deleted is declined as well, so engine-created tabs never appear
     /// inside one the user has not unlocked.
-    @objc(reserveEngineWindowForProfile:)
-    static func reserveEngineWindow(forProfile profileID: String) -> [String: String]? {
-        guard let instance, !instance.quitting, let profile = UUID(uuidString: profileID) else { return nil }
+    static func reserveEngineWindow(forProfile profile: UUID) -> (window: UUID, space: UUID)? {
+        guard let instance, !instance.quitting else { return nil }
         // A profile belongs to exactly one Space. Resolve that Space instead of
         // accepting whichever one matched first, and refuse an ambiguous answer.
         func host(in browser: BrowserStore) -> BrowserSpace? {
@@ -747,25 +743,22 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         let privateBrowser = instance.application.privateBrowser
         if privateBrowser.session.spaces.contains(where: { $0.profile.id == profile }) {
             guard let space = host(in: privateBrowser),
-                let identifier = instance.privateWindow?.identifier?.rawValue
+                let identifier = instance.privateWindow?.identifier.flatMap({ UUID(uuidString: $0.rawValue) })
             else { return nil }
-            return ["windowId": identifier, "spaceId": space.id.uuidString]
+            return (identifier, space.id)
         }
         guard let space = host(in: instance.application.browser) else { return nil }
-        return ["windowId": BrowserWindowID().uuidString, "spaceId": space.id.uuidString]
+        return (BrowserWindowID(), space.id)
     }
 
     /// Opens the window reserved for an engine-created Browser, just before its
     /// first tab is offered for adoption.
-    @objc(presentEngineWindow:space:focused:)
-    static func presentEngineWindow(_ windowID: String, space spaceID: String, focused: Bool) {
-        guard let instance, !instance.quitting, let identifier = UUID(uuidString: windowID),
-            let space = UUID(uuidString: spaceID) else { return }
-        if let window = instance.privateWindow, window.identifier?.rawValue == windowID {
+    static func presentEngineWindow(_ id: UUID, space: UUID, focused: Bool) {
+        guard let instance, !instance.quitting else { return }
+        if let window = instance.privateWindow, window.identifier?.rawValue == id.uuidString {
             if focused { window.makeKeyAndOrderFront(nil) }
             return
         }
-        let id = identifier
         if instance.windows[id] == nil { instance.openWindow(BrowserMacWindowRequest(id: id, kind: .normal)) }
         guard let window = instance.windows[id] else { return }
         instance.commands.selectSpace(space, in: id)
@@ -777,9 +770,9 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         }
     }
 
-    @objc(windowForIdentifier:)
-    static func window(for identifier: String?) -> NSWindow? {
+    static func window(for id: UUID?) -> NSWindow? {
         guard let instance else { return nil }
+        let identifier = id?.uuidString
         if let identifier, let quick = instance.quickWindows.values.first(where: { $0.window.identifier?.rawValue == identifier }) {
             return quick.window
         }
@@ -821,7 +814,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         BrowserExtensionSidePanelHost.route(request, extensionID: extensionID, page: page, host: host)
     }
 
-    @objc static func deferQuit() -> Bool {
+    static func deferQuit() -> Bool {
         guard let instance, !instance.hasStopped else { return false }
         guard !instance.quitting else { return true }
         instance.quitting = true
@@ -841,7 +834,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         return true
     }
 
-    @objc static func handleShortcutEvent(_ event: NSEvent) -> Bool {
+    static func handleShortcutEvent(_ event: NSEvent) -> Bool {
         guard let instance, event.type == .keyDown,
             NSApp.modalWindow == nil, NSApp.keyWindow?.attachedSheet == nil,
             (NSApp.keyWindow?.firstResponder as? ShortcutRecorderButton)?.isRecording != true,
@@ -920,21 +913,17 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
 
     /// Engine messages that ask nothing of the person — a toast, an action
     /// that could not run — are browser notices, never alerts.
-    @objc static func showNativeNotice(_ message: String, icon: String) {
+    static func showNativeNotice(_ message: String, icon: String) {
         BrowserNoticeCenter.shared.post(BrowserNotice(
             message: message, systemImage: NSImage(systemSymbolName: icon, accessibilityDescription: nil) == nil
                 ? "info.circle" : icon))
     }
-    @objc static func focusOmnibox() { instance?.actions?.openLocation() }
-    @objc static func toggleBookmark(forURL url: String, title: String) { instance?.actions?.toggleSelectedTabPinned() }
-    @objc static func shareURL(_ url: String, title: String) {
-        guard let item = URL(string: url), let view = NSApp.keyWindow?.contentView else { return }
-        NSSharingServicePicker(items: [item]).show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
-    }
-    @objc static func showQRCode(forURL url: String, title: String) { showNativeNotice("QR sharing is not yet connected in this host.", icon: "qrcode") }
+    static func focusLocation() { instance?.actions?.openLocation() }
+    /// Crest keeps a page by pinning its tab.
+    static func bookmarkActivePage() { instance?.actions?.toggleSelectedTabPinned() }
     /// Chromium's own translate bubble asks for whole-page translation, which
     /// this adapter declares unavailable; the notice points at what is offered.
-    @objc static func translateURL(_ url: String) {
+    static func translatePage() {
         showNativeNotice(
             BrowserEngineRegistration.chromium.supports(.selectionTranslation)
                 ? "Whole-page translation is not available in this engine. Select text on the page, then translate the selection."
@@ -942,11 +931,11 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             icon: "globe"
         )
     }
-    @objc static func translateText(_ text: String) {
+    static func translateText(_ text: String) {
         guard BrowserEngineRegistration.chromium.supports(.selectionTranslation) else { return }
         ChromiumSelectionTranslation.present(text)
     }
-    @objc static func showTabSearch() { instance?.activeContext?.chrome.presentCommandPalette() }
+    static func showTabSearch() { instance?.activeContext?.chrome.presentCommandPalette() }
 }
 
 #if CREST_REVIEW_BUILD && DEBUG
