@@ -170,14 +170,22 @@ public sealed partial class NativeSessionAuthority {
             new([new SessionTabCopy(intent.TabId, copy.Id)], null));
     }
 
-    /// Moves the tab. One that leaves its split takes the split's metadata
-    /// with it when no other tab keeps it.
+    /// Moves a pinned tab to the open tabs and any other tab to the pinned
+    /// tabs, each at the end of its section.
+    private SessionEdit TogglingPin(SessionState basis, TogglePin intent, DateTimeOffset now) {
+        var pinned = Editable(basis, intent.SpaceId).Tabs.FirstOrDefault(tab => tab.Id == intent.TabId)?.Placement == TabPlacement.Pinned;
+        return MovingTab(basis, new MoveTab(intent.WorkspaceId, intent.SpaceId, intent.TabId,
+            pinned ? TabPlacement.Current : TabPlacement.Pinned, FolderId: null, BeforeTabId: null, LeavesSplit: false), now);
+    }
+
+    /// Moves the tab, which leaves its split for a section that holds none.
+    /// One that leaves its split takes the split's metadata with it when no
+    /// other tab keeps it.
     private SessionEdit MovingTab(SessionState basis, MoveTab intent, DateTimeOffset now) =>
         Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => {
-            if (!intent.LeavesSplit && !intent.Placement.HoldsSplits && edited.SplitMembers(intent.TabId).Count > 1)
-                throw new Rejected(new CannotPinSplit(intent.TabId));
-            edited.MoveTab(intent.TabId, intent.Placement, intent.FolderId, intent.BeforeTabId, intent.LeavesSplit, now);
-            if (intent.LeavesSplit) edited.PruneSplitMetadata();
+            bool leaves = intent.LeavesSplit || !intent.Placement.HoldsSplits;
+            edited.MoveTab(intent.TabId, intent.Placement, intent.FolderId, intent.BeforeTabId, leaves, now);
+            if (leaves) edited.PruneSplitMetadata();
         });
 
     #endregion

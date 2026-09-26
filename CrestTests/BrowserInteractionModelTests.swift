@@ -802,7 +802,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         let plan = BrowserSidebarLiftPlan(
             selection: TabSelection(tabIDs: [], folderIDs: [], memberTabIDs: []),
             targets: DropTargetList(
-                refusal: nil, lists: [ListDropTarget(section: .saved, folderID: nil, refusal: nil)], spaces: [],
+                refusal: nil, lists: [ListDropTarget(section: .saved, folderID: nil)], spaceIDs: [],
                 split: nil, folderAroundTabIDs: []))
 
         XCTAssertEqual(

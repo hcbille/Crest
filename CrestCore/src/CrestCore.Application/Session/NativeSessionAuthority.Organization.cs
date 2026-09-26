@@ -107,7 +107,9 @@ public sealed partial class NativeSessionAuthority {
         Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => edited.MoveSplitMember(intent.TabId, intent.Index, now));
 
     private SessionEdit SteppingSplitMember(SessionState basis, StepSplitMember intent, DateTimeOffset now) =>
-        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => edited.StepSplitMember(intent.TabId, intent.Offset, now));
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => {
+            if (!edited.StepSplitMember(intent.TabId, intent.Offset, now)) throw new Rejected(new NoSplitStep(intent.TabId, intent.Offset));
+        });
 
     private SessionEdit DissolvingSplit(SessionState basis, DissolveSplit intent, DateTimeOffset now) =>
         Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => {
@@ -137,9 +139,13 @@ public sealed partial class NativeSessionAuthority {
             group with { CustomTitle = string.IsNullOrWhiteSpace(intent.Name) ? null : intent.Name.Trim() },
             (group, changedAt) => group with { TitleModifiedAt = changedAt });
 
-    private SessionEdit SettingSplitIcon(SessionState basis, SetSplitIcon intent, DateTimeOffset now) =>
-        Identifying(basis, intent.SpaceId, intent.GroupId, now, group => group with { CustomIconSymbol = intent.Symbol },
+    /// An emoji icon is kept as the one character that presents as an emoji.
+    private SessionEdit SettingSplitIcon(SessionState basis, SetSplitIcon intent, DateTimeOffset now) {
+        string? symbol = intent.Emoji is null ? null
+            : (EmojiIcon.Chosen(intent.Emoji) ?? throw new Rejected(new InvalidSplitIcon(intent.GroupId))).Symbol;
+        return Identifying(basis, intent.SpaceId, intent.GroupId, now, group => group with { CustomIconSymbol = symbol },
             (group, changedAt) => group with { IconModifiedAt = changedAt });
+    }
 
     private SessionEdit TintingSplit(SessionState basis, TintSplit intent, DateTimeOffset now) =>
         Identifying(basis, intent.SpaceId, intent.GroupId, now, group => group with { Tint = intent.Tint },

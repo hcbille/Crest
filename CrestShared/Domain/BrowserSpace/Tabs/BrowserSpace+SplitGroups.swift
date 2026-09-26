@@ -1,8 +1,9 @@
 import Foundation
 
-/// TRANSITIONAL until S6.6d moves the window's root and commands onto the
-/// read model: the splits of a Space of the session copy, as the content area
-/// and the commands still read them. The sidebar reads the core's outline.
+/// TRANSITIONAL until the WebKit binding hosts pages from the read model (WP C
+/// j1/j2): the splits of a Space of the session copy, as the page pool and
+/// store still present them, and the Getting Started practice, which runs on
+/// a copy of its own. Every window view reads the core's cards instead.
 extension BrowserSpace {
     /// The renderable split group this tab belongs to, or `nil`.
     ///

@@ -408,9 +408,7 @@ struct BrowserCommandActions {
     // MARK: - Tabs
 
     func toggleSelectedTabPinned() {
-        guard let tab = browser.shownTab else { return }
-        let destination: TabPlacement = tab.placement == .pinned ? .current : .pinned
-        guard browser.moveTab(tab.id, to: destination) else { return }
+        guard let tab = browser.shownTab, browser.togglePin(tab.id) else { return }
         pages.select()
     }
 

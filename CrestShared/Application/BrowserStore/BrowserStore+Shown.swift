@@ -49,6 +49,15 @@ extension BrowserStore {
         windowModel?.cards(in: space.id)?.splitGroupID
     }
 
+    /// The Space `assignment` names, while this device is not deleting it and
+    /// it keeps that profile.
+    func spaceModel(matching assignment: BrowserSpaceRuntimeAssignment) -> SpaceModel? {
+        guard !isDeleting(assignment.spaceID), let space = spaceModel(assignment.spaceID),
+            space.profileID == assignment.profileID
+        else { return nil }
+        return space
+    }
+
     /// Whether this device is deleting the Space, here or in the core.
     func isDeleting(_ spaceID: UUID) -> Bool {
         family.locallyDeletingSpaceIDs.contains(spaceID)

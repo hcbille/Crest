@@ -214,8 +214,9 @@ internal sealed partial class Device {
         return new(space, shown, authority.Kind.IsPrivate, allowsInternalPages);
     }
 
-    /// Where a lift in a window's sidebar may drop: each drop it could commit,
-    /// checked as the drop would be now, at the end of each list.
+    /// Where a lift in a window's sidebar may drop: the lists and Spaces it
+    /// may reach, and the cards on show, whose join is checked now. The lists
+    /// and Spaces are checked as the lift reaches them.
     public DropTargetList Answer(DropTargets question, DateTimeOffset now, Pages pages) {
         ArgumentNullException.ThrowIfNull(question);
         var window = Opened(question.WindowId);
@@ -228,11 +229,8 @@ internal sealed partial class Device {
         var session = authority.Current;
         var space = session.Spaces.First(candidate => candidate.Id == question.SpaceId);
         var (workspaceId, windowId, spaceId, selection) = (question.WorkspaceId, question.WindowId, question.SpaceId, question.Selection);
-        ListDropTarget[] lists = [.. space.Sidebar.Lists.Select(list => new ListDropTarget(list.Section, list.FolderId, Refusal(authority,
-            new DropIntoList(workspaceId, windowId, spaceId, selection, list.Section, list.FolderId, BeforeTabId: null, BeforeFolderId: null),
-            now, pages)))];
-        SpaceDropTarget[] spaces = [.. Window.Showable(session).Where(other => other.Id != spaceId).Select(other => new SpaceDropTarget(other.Id,
-            Refusal(authority, new DropOnSpace(workspaceId, windowId, spaceId, selection, other.Id, Follows: false), now, pages)))];
+        ListDropTarget[] lists = [.. space.Sidebar.Lists.Select(list => new ListDropTarget(list.Section, list.FolderId))];
+        Guid[] spaces = [.. Window.Showable(session).Where(other => other.Id != spaceId).Select(other => other.Id)];
         Guid? shown;
         lock (gate) shown = window.Tab(spaceId);
         var split = shown is { } target

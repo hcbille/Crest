@@ -53,11 +53,9 @@ extension BrowserStore {
         in spaceID: SpaceID,
         selecting: Bool
     ) -> TabID? {
-        guard !deletingSpaceIDs.contains(spaceID),
-            let space = session.space(id: spaceID)
-        else { return nil }
+        guard !isDeleting(spaceID), spaceModel(spaceID) != nil else { return nil }
         return openSessionTab(
-            .page(url), in: spaceID, insertingAfter: selectedTabID(in: space.id), shouldSelect: selecting)
+            .page(url), in: spaceID, insertingAfter: selectedTabID(in: spaceID), shouldSelect: selecting)
     }
 
     @discardableResult
@@ -66,7 +64,7 @@ extension BrowserStore {
         matching assignment: BrowserSpaceRuntimeAssignment,
         selecting: Bool = true
     ) -> TabID? {
-        guard space(matching: assignment) != nil else { return nil }
+        guard spaceModel(matching: assignment) != nil else { return nil }
         return openNewTab(
             url: url,
             in: assignment.spaceID,
@@ -149,6 +147,11 @@ extension BrowserStore {
 // MARK: - Metadata
 
 extension BrowserStore {
+    /// The open tabs of `space`, which clearing puts away.
+    private static func currentTabIDs(of space: SpaceModel) -> Set<TabID> {
+        Set(space.tabs.models.filter { $0.placement == .current }.map(\.id))
+    }
+
     @discardableResult
     func closeTab(_ id: TabID) -> Bool {
         guard let space = shownSpace, space.tabs.model(id)?.placement == .current else { return false }
@@ -156,7 +159,7 @@ extension BrowserStore {
     }
 
     func deleteTab(_ id: TabID, in spaceID: SpaceID) {
-        guard let space = session.space(id: spaceID) else { return }
+        guard let space = spaceModel(spaceID) else { return }
         _ = deleteTab(id, matching: BrowserSpaceRuntimeAssignment(space: space))
     }
 
@@ -165,9 +168,7 @@ extension BrowserStore {
         _ id: TabID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.tabs.contains(where: { $0.id == id })
-        else { return false }
+        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
         return closeTab(id, in: assignment.spaceID)
     }
 
@@ -175,12 +176,11 @@ extension BrowserStore {
     func clearCurrentTabs(
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment) else { return false }
-        let ids = Set(space.currentTabs.map(\.id))
-        let tabs = ids.map { BrowserTabRuntimeAssignment(tabID: $0, spaceID: space.id, profileID: space.profile.id) }
+        guard let space = spaceModel(matching: assignment) else { return false }
+        let ids = Self.currentTabIDs(of: space)
+        let tabs = ids.map { BrowserTabRuntimeAssignment(tabID: $0, spaceID: space.id, profileID: space.profileID) }
         return performPageDismissal(of: tabs) { [weak self] in
-            guard let self, let current = self.space(matching: assignment),
-                Set(current.currentTabs.map(\.id)) == ids,
+            guard let self, let current = self.spaceModel(matching: assignment), Self.currentTabIDs(of: current) == ids,
                 self.clearSessionTabs(in: assignment.spaceID)
             else { return false }
             return true
@@ -217,16 +217,14 @@ extension BrowserStore {
         for id: TabID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.tabs.contains(where: { $0.id == id })
-        else { return false }
+        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
         return setTabCustomTitle(title, for: id, in: assignment.spaceID)
     }
 
+    /// Gives the tab `emoji` as its icon, which the core refuses when its
+    /// first character does not present as an emoji.
     func setTabEmojiIcon(_ emoji: String, for id: TabID, in spaceID: SpaceID) {
-        guard let normalized = BrowserIconSymbol.normalizedEmoji(emoji),
-            setSessionTabIcon(.emoji, emoji: normalized, tabID: id, in: spaceID)
-        else { return }
+        setSessionTabIcon(.emoji, emoji: emoji, tabID: id, in: spaceID)
     }
 
     @discardableResult
@@ -235,12 +233,8 @@ extension BrowserStore {
         for id: TabID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.tabs.contains(where: { $0.id == id }),
-            let normalized = BrowserIconSymbol.normalizedEmoji(emoji),
-            setSessionTabIcon(.emoji, emoji: normalized, tabID: id, in: assignment.spaceID)
-        else { return false }
-        return true
+        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
+        return setSessionTabIcon(.emoji, emoji: emoji, tabID: id, in: assignment.spaceID)
     }
 
     func setTabFavicon(
@@ -263,13 +257,9 @@ extension BrowserStore {
         for id: TabID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.tabs.contains(where: { $0.id == id }),
-            setSessionTabIcon(
-                .pulled, faviconData: faviconData,
-                iconAccent: iconAccent, tabID: id, in: assignment.spaceID)
-        else { return false }
-        return true
+        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
+        return setSessionTabIcon(
+            .pulled, faviconData: faviconData, iconAccent: iconAccent, tabID: id, in: assignment.spaceID)
     }
 
     func clearTabIcon(for id: TabID, in spaceID: SpaceID) {
@@ -281,11 +271,8 @@ extension BrowserStore {
         for id: TabID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.tabs.contains(where: { $0.id == id }),
-            setSessionTabIcon(.automatic, tabID: id, in: assignment.spaceID)
-        else { return false }
-        return true
+        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
+        return setSessionTabIcon(.automatic, tabID: id, in: assignment.spaceID)
     }
 
     @discardableResult
@@ -302,7 +289,7 @@ extension BrowserStore {
         in spaceID: SpaceID
     ) -> URL? {
         guard returnSessionTabToSavedAddress(tabID: id, in: spaceID) else { return nil }
-        return session.space(id: spaceID)?.tabs.first(where: { $0.id == id })?.url
+        return spaceModel(spaceID)?.tabs.model(id)?.address
     }
 
     /// Archives the tab this window shows, where the core allows it.
@@ -358,9 +345,7 @@ extension BrowserStore {
         for id: TabID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.tabs.contains(where: { $0.id == id })
-        else { return false }
+        guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return false }
         return setTabKeepsPageLoaded(
             keepsPageLoaded,
             for: id,

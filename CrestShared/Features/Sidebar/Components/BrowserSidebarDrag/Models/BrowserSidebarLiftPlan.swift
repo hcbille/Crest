@@ -1,22 +1,37 @@
 import Foundation
 
 /// What one lift carries from its start to its drop: what it lifts, as the
-/// core reads a sidebar selection, and where the core would let it land,
-/// asked once as the lift begins. A drop can still be refused when it lands,
-/// since the session can change while the lift is held; its commit decides.
+/// core reads a sidebar selection, and where the core would let it land. The
+/// lists, Spaces and cards it may reach are asked once as the lift begins;
+/// whether a drop lands in a list or on a Space is asked the first time the
+/// lift reaches it, so a lift pays only for the targets it visits. A drop can
+/// still be refused when it lands, since the session can change while the lift
+/// is held; its commit decides.
 struct BrowserSidebarLiftPlan: Equatable, Sendable {
     // MARK: - Variables
 
     let selection: TabSelection
-    /// Every list, Space, split and open tab the lift may drop on, with the
-    /// rule that refuses each, or nil when the core could not answer.
+    /// Every list, Space and open tab the lift may reach, and whether it may
+    /// join the cards on show, or nil when the core could not answer.
     let targets: DropTargetList?
+    /// The core's answer for each list or Space the lift reached, or nil for a
+    /// plan that never asks, which lets every listed drop land.
+    private let refusals: BrowserSidebarDropRefusals?
+
+    // MARK: - Initializers
+
+    init(selection: TabSelection, targets: DropTargetList?, refusals: BrowserSidebarDropRefusals? = nil) {
+        self.selection = selection
+        self.targets = targets
+        self.refusals = refusals
+    }
 
     // MARK: - Actions - Targets
 
     /// What the core says of dropping the lift on `target`: whether it may
     /// land there, the rule that refuses it, or that the core offers no such
     /// target for this lift at all.
+    @MainActor
     func verdict(on target: BrowserSidebarReorderTarget) -> BrowserSidebarDropVerdict {
         guard let targets else { return .unavailable }
         if let refusal = targets.refusal { return .refused(refusal) }
@@ -29,17 +44,84 @@ struct BrowserSidebarLiftPlan: Equatable, Sendable {
             case .folders(let parentID):
                 list = targets.lists.first { $0.folderID == parentID && (parentID != nil || $0.section == .saved) }
             }
-            return BrowserSidebarDropVerdict(list.map { $0.refusal })
+            return verdict(onList: list)
         case .intoFolder(let folderID):
-            return BrowserSidebarDropVerdict(targets.lists.first { $0.folderID == folderID }.map { $0.refusal })
+            return verdict(onList: targets.lists.first { $0.folderID == folderID })
         case .space(let assignment):
-            return BrowserSidebarDropVerdict(
-                targets.spaces.first { $0.spaceID == assignment.spaceID }.map { $0.refusal })
+            guard targets.spaceIDs.contains(assignment.spaceID) else { return .unavailable }
+            guard let refusals else { return .allowed }
+            return BrowserSidebarDropVerdict(.some(refusals.refusal(onSpace: assignment.spaceID, selection: selection)))
         case .splitInsert:
             return BrowserSidebarDropVerdict(targets.split.map { $0.refusal })
         case .createCurrentFolder(let tabID):
             return targets.folderAroundTabIDs.contains(tabID) ? .allowed : .unavailable
         }
+    }
+
+    @MainActor
+    private func verdict(onList list: ListDropTarget?) -> BrowserSidebarDropVerdict {
+        guard let list else { return .unavailable }
+        guard let refusals else { return .allowed }
+        return BrowserSidebarDropVerdict(.some(refusals.refusal(onList: list, selection: selection)))
+    }
+
+    // MARK: - Actions - Equality
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.selection == rhs.selection && lhs.targets == rhs.targets
+    }
+}
+
+/// The core's answers for the drops one lift reached: each list or Space is
+/// asked once, the first time the lift is over it, and kept for the lift.
+@MainActor
+final class BrowserSidebarDropRefusals {
+    // MARK: - Types
+
+    private enum Target: Hashable {
+        case list(TabPlacement, FolderID?)
+        case space(SpaceID)
+    }
+
+    // MARK: - Variables
+
+    private weak var browser: BrowserStore?
+    private let spaceID: SpaceID
+    private var answers: [Target: Rejection?] = [:]
+
+    // MARK: - Initializers
+
+    /// Answers for a lift in the sidebar of `browser`'s window, over `spaceID`.
+    init(browser: BrowserStore, spaceID: SpaceID) {
+        self.browser = browser
+        self.spaceID = spaceID
+    }
+
+    // MARK: - Actions - Asking
+
+    func refusal(onList list: ListDropTarget, selection: TabSelection) -> Rejection? {
+        answer(.list(list.section, list.folderID)) { browser in
+            DropIntoList(
+                workspaceID: browser.family.workspaceID, windowID: browser.windowID, spaceID: spaceID,
+                selection: selection, section: list.section, folderID: list.folderID, beforeTabID: nil,
+                beforeFolderID: nil)
+        }
+    }
+
+    func refusal(onSpace destinationID: SpaceID, selection: TabSelection) -> Rejection? {
+        answer(.space(destinationID)) { browser in
+            DropOnSpace(
+                workspaceID: browser.family.workspaceID, windowID: browser.windowID, spaceID: spaceID,
+                selection: selection, destinationSpaceID: destinationID, follows: false)
+        }
+    }
+
+    private func answer(_ target: Target, drop: (BrowserStore) -> some Intent) -> Rejection? {
+        if let known = answers[target] { return known }
+        guard let browser else { return nil }
+        let refusal = browser.family.refusal(of: drop(browser), from: browser)
+        answers[target] = refusal
+        return refusal
     }
 }
 
@@ -79,7 +161,7 @@ extension BrowserSidebarLiftPlan {
         case .currentTab(let tabID):
             return targets.folderAroundTabIDs.contains(tabID)
         case .space(let assignment):
-            return targets.spaces.contains { $0.spaceID == assignment.spaceID }
+            return targets.spaceIDs.contains(assignment.spaceID)
         case .splitContent:
             return targets.split.map { $0.refusal == nil } ?? false
         }

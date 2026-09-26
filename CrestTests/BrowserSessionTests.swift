@@ -375,14 +375,14 @@ final class BrowserSessionTests: XCTestCase {
         for index in 0..<limit {
             guard try XCTUnwrap(store.selectedSpace).pinnedTabs.count < limit else { break }
             store.openNewTab(url: try XCTUnwrap(URL(string: "https://example.com/pin-\(index)")))
-            store.pinSelectedTab()
+            store.togglePin(try XCTUnwrap(store.selectedTab?.id))
         }
         XCTAssertEqual(try XCTUnwrap(store.selectedSpace).pinnedTabs.count, limit)
 
         let overflowID = try XCTUnwrap(
             store.openNewTab(url: try XCTUnwrap(URL(string: "https://example.com/thirteenth-pin")))
         )
-        store.pinSelectedTab()
+        store.togglePin(overflowID)
 
         let space = try XCTUnwrap(store.selectedSpace)
         XCTAssertEqual(space.pinnedTabs.count, limit)

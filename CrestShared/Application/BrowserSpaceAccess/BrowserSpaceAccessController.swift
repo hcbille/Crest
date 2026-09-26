@@ -94,11 +94,11 @@ final class BrowserSpaceAccessController {
         matching assignment: BrowserSpaceRuntimeAssignment,
         in browser: BrowserStore
     ) async -> Bool {
-        guard let space = browser.space(matching: assignment) else { return false }
+        guard let space = browser.spaceModel(matching: assignment) else { return false }
         if !policy.requiresAuthentication {
             guard await unlock(space) else { return false }
         }
-        guard browser.space(matching: assignment) != nil else { return false }
+        guard browser.spaceModel(matching: assignment) != nil else { return false }
         browser.updateSpaceAccessPolicy(policy, in: assignment.spaceID)
         if policy.requiresAuthentication {
             lock(assignment.spaceID)
@@ -189,6 +189,6 @@ final class BrowserSpaceAccessController {
 
     /// The workspace of an attached store that shows the Space profile.
     private func workspace(showing assignment: BrowserSpaceRuntimeAssignment) -> UUID? {
-        stores.compactMap(\.value).first { $0.space(matching: assignment) != nil }?.family.workspaceID
+        stores.compactMap(\.value).first { $0.spaceModel(matching: assignment) != nil }?.family.workspaceID
     }
 }

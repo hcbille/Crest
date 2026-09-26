@@ -265,31 +265,6 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
         XCTAssertNil(repaired.splitGroup(containing: lone.id))
     }
 
-    func testMovingAGroupRelocatesItsMembersAsAnOrderedBlock() throws {
-        let group = SplitGroupID()
-        let saved = makeTab("Saved", placement: .saved)
-        let head = makeTab("Head", group: group)
-        let tail = makeTab("Tail", group: group)
-        let trailing = makeTab("Trailing")
-        let store = makeStore(tabs: [saved, head, tail, trailing], selectedTabID: head.id)
-        let assignment = BrowserSpaceRuntimeAssignment(space: try XCTUnwrap(store.selectedSpace))
-
-        XCTAssertTrue(store.moveSplitGroup(group, matching: assignment, to: .saved))
-
-        let repaired = try XCTUnwrap(store.selectedSpace)
-        XCTAssertEqual(
-            repaired.tabs.map(\.id),
-            [saved.id, head.id, tail.id, trailing.id]
-        )
-        XCTAssertEqual(
-            repaired.splitGroupMembers(of: group).map(\.id),
-            [head.id, tail.id]
-        )
-        XCTAssertTrue(
-            repaired.splitGroupMembers(of: group).allSatisfy { $0.placement == .saved }
-        )
-    }
-
     func testTheStoreRefusesToJoinATabFromAnotherSpace() throws {
         let target = makeTab("Target")
         let selected = makeSpace(name: "Selected", tabs: [target])

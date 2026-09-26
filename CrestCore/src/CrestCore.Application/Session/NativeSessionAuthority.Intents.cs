@@ -125,6 +125,7 @@ public sealed partial class NativeSessionAuthority {
             ClearCurrentTabs clearing => ClearingCurrentTabs(basis, clearing, now),
             DuplicateTab copy => DuplicatingTab(basis, copy, now, ids, pages),
             MoveTab move => MovingTab(basis, move, now),
+            TogglePin toggle => TogglingPin(basis, toggle, now),
             CloseTabs closing => ClosingTabs(basis, closing, now),
             DeleteTabs deletion => DeletingTabs(basis, deletion, now),
             DuplicateTabs copies => DuplicatingTabs(basis, copies, now, ids, pages),

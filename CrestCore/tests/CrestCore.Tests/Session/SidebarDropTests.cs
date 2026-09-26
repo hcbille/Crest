@@ -7,9 +7,16 @@ namespace CrestCore.Tests;
 /// Where a lift in a window's sidebar may drop, what each drop commits, and
 /// the queries a window asks about a selection and "Split With Next Tab".
 public sealed partial class BrowserContractsTests {
-    /// The rule that refuses dropping into the list of `section` or `folder`.
-    private static Rejection? ListRefusal(DropTargetList targets, TabPlacement section, Guid? folder) =>
-        targets.Lists.Single(list => list.Section == section && list.FolderId == folder).Refusal;
+    /// The rule that refuses dropping `selection` at the end of the list of
+    /// `section` or `folder`, as a lift reaching that list asks it.
+    private static Rejection? ListRefusal(TestDevice device, Guid window, Guid space, TabSelection selection, TabPlacement section,
+        Guid? folder) =>
+        device.Query(new CanSend(new DropIntoList(device.Workspace, window, space, selection, section, folder, BeforeTabId: null,
+            BeforeFolderId: null))).Refusal;
+
+    /// The rule that refuses dropping `selection` on the Space `destination`.
+    private static Rejection? SpaceRefusal(TestDevice device, Guid window, Guid space, TabSelection selection, Guid destination) =>
+        device.Query(new CanSend(new DropOnSpace(device.Workspace, window, space, selection, destination, Follows: false))).Refusal;
 
     /// One tab lifted alone drops everywhere dragging one tab could: among the
     /// pinned tabs, on another Space, on the cards a window shows and around an
@@ -24,9 +31,9 @@ public sealed partial class BrowserContractsTests {
 
         Assert.Null(targets.Refusal);
         Assert.Equal(3 + 3, targets.Lists.Count);
-        Assert.All(targets.Lists, list => Assert.Null(list.Refusal));
-        Assert.Equal([f.Second, f.Third], targets.Spaces.Select(space => space.SpaceId));
-        Assert.All(targets.Spaces, space => Assert.Null(space.Refusal));
+        Assert.All(targets.Lists, list => Assert.Null(ListRefusal(device, window, f.Space, Picking(f.A), list.Section, list.FolderId)));
+        Assert.Equal([f.Second, f.Third], targets.SpaceIds);
+        Assert.All(targets.SpaceIds, space => Assert.Null(SpaceRefusal(device, window, f.Space, Picking(f.A), space)));
         Assert.Equal(new SplitDropTarget(f.C1, Refusal: null), targets.Split);
         Assert.Equal([f.C1, f.C2, f.C5], targets.FolderAroundTabIds);
 
@@ -49,29 +56,33 @@ public sealed partial class BrowserContractsTests {
         var window = device.Open(f.Space, (f.Space, f.C5));
         DropTargetList Targets(TabSelection selection) => device.Query(new DropTargets(device.Workspace, window, f.Space, selection));
 
-        var open = Targets(Picking(f.C1, f.C2));
-        Assert.IsType<PinsOneTabAtATime>(ListRefusal(open, TabPlacement.Pinned, null));
-        Assert.All(open.Lists.Where(list => list.Section != TabPlacement.Pinned), list => Assert.Null(list.Refusal));
-        Assert.All(open.Spaces, space => Assert.Null(space.Refusal));
+        var two = Picking(f.C1, f.C2);
+        var open = Targets(two);
+        Assert.IsType<PinsOneTabAtATime>(ListRefusal(device, window, f.Space, two, TabPlacement.Pinned, null));
+        Assert.All(open.Lists.Where(list => list.Section != TabPlacement.Pinned),
+            list => Assert.Null(ListRefusal(device, window, f.Space, two, list.Section, list.FolderId)));
+        Assert.All(open.SpaceIds, space => Assert.Null(SpaceRefusal(device, window, f.Space, two, space)));
         Assert.Null(open.Split!.Refusal);
         Assert.Equal([f.C5], open.FolderAroundTabIds);
 
-        var pinned = Targets(Picking(f.P1, f.P2));
-        Assert.Null(ListRefusal(pinned, TabPlacement.Pinned, null));
-        Assert.Null(ListRefusal(pinned, TabPlacement.Saved, null));
-        Assert.All(pinned.Spaces, space => Assert.IsType<PinnedTabsStayPut>(space.Refusal));
+        var pins = Picking(f.P1, f.P2);
+        var pinned = Targets(pins);
+        Assert.Null(ListRefusal(device, window, f.Space, pins, TabPlacement.Pinned, null));
+        Assert.Null(ListRefusal(device, window, f.Space, pins, TabPlacement.Saved, null));
+        Assert.All(pinned.SpaceIds, space => Assert.IsType<PinnedTabsStayPut>(SpaceRefusal(device, window, f.Space, pins, space)));
         Assert.IsType<PinnedTabsStayPut>(pinned.Split!.Refusal);
 
         var mixed = Targets(Picking(f.P1, f.C1));
         Assert.IsType<PinnedTabsDragAlone>(mixed.Refusal);
         Assert.Empty(mixed.Lists);
 
-        var folder = Targets(new([], [f.Open], [f.C3]));
-        Assert.IsType<PinsOneTabAtATime>(ListRefusal(folder, TabPlacement.Pinned, null));
-        Assert.Equal(new FolderCycle(f.Open), ListRefusal(folder, TabPlacement.Current, f.Open));
-        Assert.Null(ListRefusal(folder, TabPlacement.Current, f.Shut));
-        Assert.Null(ListRefusal(folder, TabPlacement.Saved, f.Kept));
-        Assert.All(folder.Spaces, space => Assert.IsType<SelectionHoldsFolders>(space.Refusal));
+        TabSelection lifted = new([], [f.Open], [f.C3]);
+        var folder = Targets(lifted);
+        Assert.IsType<PinsOneTabAtATime>(ListRefusal(device, window, f.Space, lifted, TabPlacement.Pinned, null));
+        Assert.Equal(new FolderCycle(f.Open), ListRefusal(device, window, f.Space, lifted, TabPlacement.Current, f.Open));
+        Assert.Null(ListRefusal(device, window, f.Space, lifted, TabPlacement.Current, f.Shut));
+        Assert.Null(ListRefusal(device, window, f.Space, lifted, TabPlacement.Saved, f.Kept));
+        Assert.All(folder.SpaceIds, space => Assert.IsType<SelectionHoldsFolders>(SpaceRefusal(device, window, f.Space, lifted, space)));
         Assert.IsType<SelectionHoldsFolders>(folder.Split!.Refusal);
         Assert.Empty(folder.FolderAroundTabIds);
 
@@ -88,8 +99,8 @@ public sealed partial class BrowserContractsTests {
         var window = device.Open(f.Space, (f.Space, f.C1));
 
         Assert.Equal(new PinnedTabsFull(TabPlacement.PinnedCapacity),
-            ListRefusal(device.Query(new DropTargets(device.Workspace, window, f.Space, Picking(f.C1))), TabPlacement.Pinned, null));
-        Assert.Null(ListRefusal(device.Query(new DropTargets(device.Workspace, window, f.Space, Picking(f.P1))), TabPlacement.Pinned, null));
+            ListRefusal(device, window, f.Space, Picking(f.C1), TabPlacement.Pinned, null));
+        Assert.Null(ListRefusal(device, window, f.Space, Picking(f.P1), TabPlacement.Pinned, null));
     }
 
     /// A whole split dropped on a collapsed folder's row goes to the end of its
@@ -101,7 +112,7 @@ public sealed partial class BrowserContractsTests {
         var window = device.Open(f.Space, (f.Space, f.A));
         var split = Picking(f.A, f.B);
 
-        Assert.Null(ListRefusal(device.Query(new DropTargets(device.Workspace, window, f.Space, split)), TabPlacement.Current, f.Shut));
+        Assert.Null(ListRefusal(device, window, f.Space, split, TabPlacement.Current, f.Shut));
         device.Send(new DropIntoList(device.Workspace, window, f.Space, split, TabPlacement.Current, f.Shut, BeforeTabId: null,
             BeforeFolderId: null));
 

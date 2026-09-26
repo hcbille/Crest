@@ -59,7 +59,9 @@ struct BrowserSidebarReorderContext {
             DropTargets(
                 workspaceID: browser.family.workspaceID, windowID: browser.windowID, spaceID: assignment.spaceID,
                 selection: selection))
-        return BrowserSidebarLiftPlan(selection: selection, targets: targets)
+        return BrowserSidebarLiftPlan(
+            selection: selection, targets: targets,
+            refusals: BrowserSidebarDropRefusals(browser: browser, spaceID: assignment.spaceID))
     }
 
     // MARK: - Actions - Dropping

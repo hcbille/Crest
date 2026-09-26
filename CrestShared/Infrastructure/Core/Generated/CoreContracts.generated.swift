@@ -164,6 +164,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidSitePermissionDetail(InvalidSitePermissionDetail)
     case invalidSpaceOrder(InvalidSpaceOrder)
     case invalidSplitColumnShares(InvalidSplitColumnShares)
+    case invalidSplitIcon(InvalidSplitIcon)
     case invalidSyncRecords(InvalidSyncRecords)
     case invalidTabIcon(InvalidTabIcon)
     case languageTooLong(LanguageTooLong)
@@ -172,6 +173,7 @@ enum Rejection: Equatable, Error, Sendable {
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
     case noSavedAddress(NoSavedAddress)
+    case noSplitStep(NoSplitStep)
     case noStoredSession(NoStoredSession)
     case notPrivateWorkspace(NotPrivateWorkspace)
     case pageNotLoadable(PageNotLoadable)
@@ -1297,7 +1299,7 @@ struct DropOnSpace: Intent, SessionIntent, SidebarDrop, Equatable, Sendable {
 struct DropTargetList: Equatable, Sendable {
     let refusal: Rejection?
     let lists: [ListDropTarget]
-    let spaces: [SpaceDropTarget]
+    let spaceIDs: [UUID]
     let split: SplitDropTarget?
     let folderAroundTabIDs: [UUID]
 }
@@ -1851,6 +1853,10 @@ struct InvalidSpaceOrder: Equatable, Sendable {
 struct InvalidSplitColumnShares: Equatable, Sendable {
 }
 
+struct InvalidSplitIcon: Equatable, Sendable {
+    let groupID: UUID
+}
+
 struct InvalidSyncRecords: Equatable, Sendable {
     let flaw: SyncRecordFlaw
     let subject: UUID?
@@ -2040,7 +2046,6 @@ struct LinkRoutingPreferences: Equatable, Sendable {
 struct ListDropTarget: Equatable, Sendable {
     let section: TabPlacement
     let folderID: UUID?
-    let refusal: Rejection?
 }
 
 struct LoadPage: Equatable, Sendable {
@@ -2244,6 +2249,11 @@ struct NoIncludedSpaces: Equatable, Sendable {
 
 struct NoSavedAddress: Equatable, Sendable {
     let tabID: UUID
+}
+
+struct NoSplitStep: Equatable, Sendable {
+    let tabID: UUID
+    let offset: Int
 }
 
 struct NoStoredSession: Equatable, Sendable {
@@ -3239,7 +3249,7 @@ struct SetSplitIcon: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let groupID: UUID
-    let symbol: String?
+    let emoji: String?
 }
 
 struct SetTranslationRule: Intent, SessionIntent, Equatable, Sendable {
@@ -3538,11 +3548,6 @@ struct SpaceDeletionState: Equatable, Sendable, Identifiable {
     let id: UUID
     let spaceID: UUID
     let profileID: UUID
-}
-
-struct SpaceDropTarget: Equatable, Sendable {
-    let spaceID: UUID
-    let refusal: Rejection?
 }
 
 struct SpaceLimitReached: Equatable, Sendable {
@@ -3944,6 +3949,12 @@ struct TintSplit: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let groupID: UUID
     let tint: BrandColor?
+}
+
+struct TogglePin: Intent, SessionIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let spaceID: UUID
+    let tabID: UUID
 }
 
 struct TransientAlreadyCompleted: Equatable, Sendable {

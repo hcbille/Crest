@@ -35,9 +35,7 @@ struct MobileBrowserCommandController {
 
     @discardableResult
     func toggleSelectedTabPinned() -> TabID? {
-        guard let tab = browser.shownTab else { return nil }
-        let destination: TabPlacement = tab.placement == .pinned ? .current : .pinned
-        guard browser.moveTab(tab.id, to: destination) else { return nil }
+        guard let tab = browser.shownTab, browser.togglePin(tab.id) else { return nil }
         synchronizePages()
         return tab.id
     }

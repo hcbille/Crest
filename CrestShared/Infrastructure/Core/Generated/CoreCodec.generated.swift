@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x94, 0x0a, 0x11, 0x6a, 0x88, 0xe0, 0xf7, 0x07, 0xf4, 0xf2, 0x6d, 0xbd, 0x31, 0x7a, 0x04, 0x62, 0x8c, 0xee, 0x3d, 0xec, 0x22, 0x46, 0xd2, 0xdf, 0xad, 0xd1, 0x44, 0x3c, 0xe2, 0x22, 0x7d, 0xaa
+        0x06, 0x75, 0x05, 0x2d, 0xff, 0x49, 0x16, 0x32, 0x18, 0xc5, 0xa1, 0x2b, 0xb1, 0xf7, 0x7b, 0x92, 0xb5, 0xd1, 0x17, 0xa1, 0xf3, 0x4b, 0x76, 0xbf, 0x57, 0x89, 0xaa, 0x83, 0xea, 0x3d, 0x03, 0xd5
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -157,8 +157,9 @@ enum CoreCodec {
         case 137: return try StepSplitMember(from: &reader)
         case 138: return try SweepExpiredRecords(from: &reader)
         case 139: return try TintSplit(from: &reader)
-        case 140: return try UnassignShortcut(from: &reader)
-        case 141: return try UpdateSearchEngine(from: &reader)
+        case 140: return try TogglePin(from: &reader)
+        case 141: return try UnassignShortcut(from: &reader)
+        case 142: return try UpdateSearchEngine(from: &reader)
         default: throw WireError.malformed("Unknown Intent tag \(tag)")
         }
     }
@@ -536,70 +537,72 @@ extension Rejection {
         case 44: self = .invalidSitePermissionDetail(try InvalidSitePermissionDetail(from: &reader))
         case 45: self = .invalidSpaceOrder(try InvalidSpaceOrder(from: &reader))
         case 46: self = .invalidSplitColumnShares(try InvalidSplitColumnShares(from: &reader))
-        case 47: self = .invalidSyncRecords(try InvalidSyncRecords(from: &reader))
-        case 48: self = .invalidTabIcon(try InvalidTabIcon(from: &reader))
-        case 49: self = .languageTooLong(try LanguageTooLong(from: &reader))
-        case 50: self = .lastStartPage(try LastStartPage(from: &reader))
-        case 51: self = .noArchivedTabs(try NoArchivedTabs(from: &reader))
-        case 52: self = .noCurrentTabs(try NoCurrentTabs(from: &reader))
-        case 53: self = .noIncludedSpaces(try NoIncludedSpaces(from: &reader))
-        case 54: self = .noSavedAddress(try NoSavedAddress(from: &reader))
-        case 55: self = .noStoredSession(try NoStoredSession(from: &reader))
-        case 56: self = .notPrivateWorkspace(try NotPrivateWorkspace(from: &reader))
-        case 57: self = .pageNotLoadable(try PageNotLoadable(from: &reader))
-        case 58: self = .pageProfileMismatch(try PageProfileMismatch(from: &reader))
-        case 59: self = .persistentWorkspaceRequired(try PersistentWorkspaceRequired(from: &reader))
-        case 60: self = .pinnedTabsDragAlone(try PinnedTabsDragAlone(from: &reader))
-        case 61: self = .pinnedTabsFull(try PinnedTabsFull(from: &reader))
-        case 62: self = .pinnedTabsStayPut(try PinnedTabsStayPut(from: &reader))
-        case 63: self = .pinsOneTabAtATime(try PinsOneTabAtATime(from: &reader))
-        case 64: self = .privateWorkspaceBoundary(try PrivateWorkspaceBoundary(from: &reader))
-        case 65: self = .profileInUse(try ProfileInUse(from: &reader))
-        case 66: self = .promptAnswerMismatch(try PromptAnswerMismatch(from: &reader))
-        case 67: self = .recoveryCheckpointUnusable(try RecoveryCheckpointUnusable(from: &reader))
-        case 68: self = .saveFailed(try SaveFailed(from: &reader))
-        case 69: self = .searchEngineLimitReached(try SearchEngineLimitReached(from: &reader))
-        case 70: self = .selectionChanged(try SelectionChanged(from: &reader))
-        case 71: self = .selectionHoldsFolders(try SelectionHoldsFolders(from: &reader))
-        case 72: self = .shortcutInUse(try ShortcutInUse(from: &reader))
-        case 73: self = .sitePermissionLimitReached(try SitePermissionLimitReached(from: &reader))
-        case 74: self = .spaceAlreadyExists(try SpaceAlreadyExists(from: &reader))
-        case 75: self = .spaceBeingDeleted(try SpaceBeingDeleted(from: &reader))
-        case 76: self = .spaceLimitReached(try SpaceLimitReached(from: &reader))
-        case 77: self = .spaceLocked(try SpaceLocked(from: &reader))
-        case 78: self = .spaceProfileChanged(try SpaceProfileChanged(from: &reader))
-        case 79: self = .splitBoundary(try SplitBoundary(from: &reader))
-        case 80: self = .splitLimitReached(try SplitLimitReached(from: &reader))
-        case 81: self = .splitNeedsTwoTabs(try SplitNeedsTwoTabs(from: &reader))
-        case 82: self = .staleCredentialComparison(try StaleCredentialComparison(from: &reader))
-        case 83: self = .staleUnlockRequest(try StaleUnlockRequest(from: &reader))
-        case 84: self = .startPageNotCopied(try StartPageNotCopied(from: &reader))
-        case 85: self = .storageFromNewerApp(try StorageFromNewerApp(from: &reader))
-        case 86: self = .storageRestoreInterrupted(try StorageRestoreInterrupted(from: &reader))
-        case 87: self = .storageUnreadable(try StorageUnreadable(from: &reader))
-        case 88: self = .storedSessionClosed(try StoredSessionClosed(from: &reader))
-        case 89: self = .syncStagingRefused(try SyncStagingRefused(from: &reader))
-        case 90: self = .tabAlreadyExists(try TabAlreadyExists(from: &reader))
-        case 91: self = .tabAlreadyHasPage(try TabAlreadyHasPage(from: &reader))
-        case 92: self = .tabLimitReached(try TabLimitReached(from: &reader))
-        case 93: self = .transientAlreadyCompleted(try TransientAlreadyCompleted(from: &reader))
-        case 94: self = .translationRuleLimitReached(try TranslationRuleLimitReached(from: &reader))
-        case 95: self = .unknownArchivedTab(try UnknownArchivedTab(from: &reader))
-        case 96: self = .unknownFolder(try UnknownFolder(from: &reader))
-        case 97: self = .unknownPage(try UnknownPage(from: &reader))
-        case 98: self = .unknownPrompt(try UnknownPrompt(from: &reader))
-        case 99: self = .unknownSearchEngine(try UnknownSearchEngine(from: &reader))
-        case 100: self = .unknownSpace(try UnknownSpace(from: &reader))
-        case 101: self = .unknownSplitGroup(try UnknownSplitGroup(from: &reader))
-        case 102: self = .unknownTab(try UnknownTab(from: &reader))
-        case 103: self = .unknownWorkspace(try UnknownWorkspace(from: &reader))
-        case 104: self = .unrelatedWorkspaces(try UnrelatedWorkspaces(from: &reader))
-        case 105: self = .unsavedWorkspace(try UnsavedWorkspace(from: &reader))
-        case 106: self = .unsupportedAddress(try UnsupportedAddress(from: &reader))
-        case 107: self = .webPagesOnly(try WebPagesOnly(from: &reader))
-        case 108: self = .windowNotOpen(try WindowNotOpen(from: &reader))
-        case 109: self = .workspaceBusy(try WorkspaceBusy(from: &reader))
-        case 110: self = .wrongDeletionOperation(try WrongDeletionOperation(from: &reader))
+        case 47: self = .invalidSplitIcon(try InvalidSplitIcon(from: &reader))
+        case 48: self = .invalidSyncRecords(try InvalidSyncRecords(from: &reader))
+        case 49: self = .invalidTabIcon(try InvalidTabIcon(from: &reader))
+        case 50: self = .languageTooLong(try LanguageTooLong(from: &reader))
+        case 51: self = .lastStartPage(try LastStartPage(from: &reader))
+        case 52: self = .noArchivedTabs(try NoArchivedTabs(from: &reader))
+        case 53: self = .noCurrentTabs(try NoCurrentTabs(from: &reader))
+        case 54: self = .noIncludedSpaces(try NoIncludedSpaces(from: &reader))
+        case 55: self = .noSavedAddress(try NoSavedAddress(from: &reader))
+        case 56: self = .noSplitStep(try NoSplitStep(from: &reader))
+        case 57: self = .noStoredSession(try NoStoredSession(from: &reader))
+        case 58: self = .notPrivateWorkspace(try NotPrivateWorkspace(from: &reader))
+        case 59: self = .pageNotLoadable(try PageNotLoadable(from: &reader))
+        case 60: self = .pageProfileMismatch(try PageProfileMismatch(from: &reader))
+        case 61: self = .persistentWorkspaceRequired(try PersistentWorkspaceRequired(from: &reader))
+        case 62: self = .pinnedTabsDragAlone(try PinnedTabsDragAlone(from: &reader))
+        case 63: self = .pinnedTabsFull(try PinnedTabsFull(from: &reader))
+        case 64: self = .pinnedTabsStayPut(try PinnedTabsStayPut(from: &reader))
+        case 65: self = .pinsOneTabAtATime(try PinsOneTabAtATime(from: &reader))
+        case 66: self = .privateWorkspaceBoundary(try PrivateWorkspaceBoundary(from: &reader))
+        case 67: self = .profileInUse(try ProfileInUse(from: &reader))
+        case 68: self = .promptAnswerMismatch(try PromptAnswerMismatch(from: &reader))
+        case 69: self = .recoveryCheckpointUnusable(try RecoveryCheckpointUnusable(from: &reader))
+        case 70: self = .saveFailed(try SaveFailed(from: &reader))
+        case 71: self = .searchEngineLimitReached(try SearchEngineLimitReached(from: &reader))
+        case 72: self = .selectionChanged(try SelectionChanged(from: &reader))
+        case 73: self = .selectionHoldsFolders(try SelectionHoldsFolders(from: &reader))
+        case 74: self = .shortcutInUse(try ShortcutInUse(from: &reader))
+        case 75: self = .sitePermissionLimitReached(try SitePermissionLimitReached(from: &reader))
+        case 76: self = .spaceAlreadyExists(try SpaceAlreadyExists(from: &reader))
+        case 77: self = .spaceBeingDeleted(try SpaceBeingDeleted(from: &reader))
+        case 78: self = .spaceLimitReached(try SpaceLimitReached(from: &reader))
+        case 79: self = .spaceLocked(try SpaceLocked(from: &reader))
+        case 80: self = .spaceProfileChanged(try SpaceProfileChanged(from: &reader))
+        case 81: self = .splitBoundary(try SplitBoundary(from: &reader))
+        case 82: self = .splitLimitReached(try SplitLimitReached(from: &reader))
+        case 83: self = .splitNeedsTwoTabs(try SplitNeedsTwoTabs(from: &reader))
+        case 84: self = .staleCredentialComparison(try StaleCredentialComparison(from: &reader))
+        case 85: self = .staleUnlockRequest(try StaleUnlockRequest(from: &reader))
+        case 86: self = .startPageNotCopied(try StartPageNotCopied(from: &reader))
+        case 87: self = .storageFromNewerApp(try StorageFromNewerApp(from: &reader))
+        case 88: self = .storageRestoreInterrupted(try StorageRestoreInterrupted(from: &reader))
+        case 89: self = .storageUnreadable(try StorageUnreadable(from: &reader))
+        case 90: self = .storedSessionClosed(try StoredSessionClosed(from: &reader))
+        case 91: self = .syncStagingRefused(try SyncStagingRefused(from: &reader))
+        case 92: self = .tabAlreadyExists(try TabAlreadyExists(from: &reader))
+        case 93: self = .tabAlreadyHasPage(try TabAlreadyHasPage(from: &reader))
+        case 94: self = .tabLimitReached(try TabLimitReached(from: &reader))
+        case 95: self = .transientAlreadyCompleted(try TransientAlreadyCompleted(from: &reader))
+        case 96: self = .translationRuleLimitReached(try TranslationRuleLimitReached(from: &reader))
+        case 97: self = .unknownArchivedTab(try UnknownArchivedTab(from: &reader))
+        case 98: self = .unknownFolder(try UnknownFolder(from: &reader))
+        case 99: self = .unknownPage(try UnknownPage(from: &reader))
+        case 100: self = .unknownPrompt(try UnknownPrompt(from: &reader))
+        case 101: self = .unknownSearchEngine(try UnknownSearchEngine(from: &reader))
+        case 102: self = .unknownSpace(try UnknownSpace(from: &reader))
+        case 103: self = .unknownSplitGroup(try UnknownSplitGroup(from: &reader))
+        case 104: self = .unknownTab(try UnknownTab(from: &reader))
+        case 105: self = .unknownWorkspace(try UnknownWorkspace(from: &reader))
+        case 106: self = .unrelatedWorkspaces(try UnrelatedWorkspaces(from: &reader))
+        case 107: self = .unsavedWorkspace(try UnsavedWorkspace(from: &reader))
+        case 108: self = .unsupportedAddress(try UnsupportedAddress(from: &reader))
+        case 109: self = .webPagesOnly(try WebPagesOnly(from: &reader))
+        case 110: self = .windowNotOpen(try WindowNotOpen(from: &reader))
+        case 111: self = .workspaceBusy(try WorkspaceBusy(from: &reader))
+        case 112: self = .wrongDeletionOperation(try WrongDeletionOperation(from: &reader))
         default: throw WireError.malformed("Unknown Rejection tag \(tag)")
         }
     }
@@ -747,197 +750,203 @@ extension Rejection {
         case .invalidSplitColumnShares(let value):
             writer.writeTag(46)
             value.encode(into: &writer)
-        case .invalidSyncRecords(let value):
+        case .invalidSplitIcon(let value):
             writer.writeTag(47)
             value.encode(into: &writer)
-        case .invalidTabIcon(let value):
+        case .invalidSyncRecords(let value):
             writer.writeTag(48)
             value.encode(into: &writer)
-        case .languageTooLong(let value):
+        case .invalidTabIcon(let value):
             writer.writeTag(49)
             value.encode(into: &writer)
-        case .lastStartPage(let value):
+        case .languageTooLong(let value):
             writer.writeTag(50)
             value.encode(into: &writer)
-        case .noArchivedTabs(let value):
+        case .lastStartPage(let value):
             writer.writeTag(51)
             value.encode(into: &writer)
-        case .noCurrentTabs(let value):
+        case .noArchivedTabs(let value):
             writer.writeTag(52)
             value.encode(into: &writer)
-        case .noIncludedSpaces(let value):
+        case .noCurrentTabs(let value):
             writer.writeTag(53)
             value.encode(into: &writer)
-        case .noSavedAddress(let value):
+        case .noIncludedSpaces(let value):
             writer.writeTag(54)
             value.encode(into: &writer)
-        case .noStoredSession(let value):
+        case .noSavedAddress(let value):
             writer.writeTag(55)
             value.encode(into: &writer)
-        case .notPrivateWorkspace(let value):
+        case .noSplitStep(let value):
             writer.writeTag(56)
             value.encode(into: &writer)
-        case .pageNotLoadable(let value):
+        case .noStoredSession(let value):
             writer.writeTag(57)
             value.encode(into: &writer)
-        case .pageProfileMismatch(let value):
+        case .notPrivateWorkspace(let value):
             writer.writeTag(58)
             value.encode(into: &writer)
-        case .persistentWorkspaceRequired(let value):
+        case .pageNotLoadable(let value):
             writer.writeTag(59)
             value.encode(into: &writer)
-        case .pinnedTabsDragAlone(let value):
+        case .pageProfileMismatch(let value):
             writer.writeTag(60)
             value.encode(into: &writer)
-        case .pinnedTabsFull(let value):
+        case .persistentWorkspaceRequired(let value):
             writer.writeTag(61)
             value.encode(into: &writer)
-        case .pinnedTabsStayPut(let value):
+        case .pinnedTabsDragAlone(let value):
             writer.writeTag(62)
             value.encode(into: &writer)
-        case .pinsOneTabAtATime(let value):
+        case .pinnedTabsFull(let value):
             writer.writeTag(63)
             value.encode(into: &writer)
-        case .privateWorkspaceBoundary(let value):
+        case .pinnedTabsStayPut(let value):
             writer.writeTag(64)
             value.encode(into: &writer)
-        case .profileInUse(let value):
+        case .pinsOneTabAtATime(let value):
             writer.writeTag(65)
             value.encode(into: &writer)
-        case .promptAnswerMismatch(let value):
+        case .privateWorkspaceBoundary(let value):
             writer.writeTag(66)
             value.encode(into: &writer)
-        case .recoveryCheckpointUnusable(let value):
+        case .profileInUse(let value):
             writer.writeTag(67)
             value.encode(into: &writer)
-        case .saveFailed(let value):
+        case .promptAnswerMismatch(let value):
             writer.writeTag(68)
             value.encode(into: &writer)
-        case .searchEngineLimitReached(let value):
+        case .recoveryCheckpointUnusable(let value):
             writer.writeTag(69)
             value.encode(into: &writer)
-        case .selectionChanged(let value):
+        case .saveFailed(let value):
             writer.writeTag(70)
             value.encode(into: &writer)
-        case .selectionHoldsFolders(let value):
+        case .searchEngineLimitReached(let value):
             writer.writeTag(71)
             value.encode(into: &writer)
-        case .shortcutInUse(let value):
+        case .selectionChanged(let value):
             writer.writeTag(72)
             value.encode(into: &writer)
-        case .sitePermissionLimitReached(let value):
+        case .selectionHoldsFolders(let value):
             writer.writeTag(73)
             value.encode(into: &writer)
-        case .spaceAlreadyExists(let value):
+        case .shortcutInUse(let value):
             writer.writeTag(74)
             value.encode(into: &writer)
-        case .spaceBeingDeleted(let value):
+        case .sitePermissionLimitReached(let value):
             writer.writeTag(75)
             value.encode(into: &writer)
-        case .spaceLimitReached(let value):
+        case .spaceAlreadyExists(let value):
             writer.writeTag(76)
             value.encode(into: &writer)
-        case .spaceLocked(let value):
+        case .spaceBeingDeleted(let value):
             writer.writeTag(77)
             value.encode(into: &writer)
-        case .spaceProfileChanged(let value):
+        case .spaceLimitReached(let value):
             writer.writeTag(78)
             value.encode(into: &writer)
-        case .splitBoundary(let value):
+        case .spaceLocked(let value):
             writer.writeTag(79)
             value.encode(into: &writer)
-        case .splitLimitReached(let value):
+        case .spaceProfileChanged(let value):
             writer.writeTag(80)
             value.encode(into: &writer)
-        case .splitNeedsTwoTabs(let value):
+        case .splitBoundary(let value):
             writer.writeTag(81)
             value.encode(into: &writer)
-        case .staleCredentialComparison(let value):
+        case .splitLimitReached(let value):
             writer.writeTag(82)
             value.encode(into: &writer)
-        case .staleUnlockRequest(let value):
+        case .splitNeedsTwoTabs(let value):
             writer.writeTag(83)
             value.encode(into: &writer)
-        case .startPageNotCopied(let value):
+        case .staleCredentialComparison(let value):
             writer.writeTag(84)
             value.encode(into: &writer)
-        case .storageFromNewerApp(let value):
+        case .staleUnlockRequest(let value):
             writer.writeTag(85)
             value.encode(into: &writer)
-        case .storageRestoreInterrupted(let value):
+        case .startPageNotCopied(let value):
             writer.writeTag(86)
             value.encode(into: &writer)
-        case .storageUnreadable(let value):
+        case .storageFromNewerApp(let value):
             writer.writeTag(87)
             value.encode(into: &writer)
-        case .storedSessionClosed(let value):
+        case .storageRestoreInterrupted(let value):
             writer.writeTag(88)
             value.encode(into: &writer)
-        case .syncStagingRefused(let value):
+        case .storageUnreadable(let value):
             writer.writeTag(89)
             value.encode(into: &writer)
-        case .tabAlreadyExists(let value):
+        case .storedSessionClosed(let value):
             writer.writeTag(90)
             value.encode(into: &writer)
-        case .tabAlreadyHasPage(let value):
+        case .syncStagingRefused(let value):
             writer.writeTag(91)
             value.encode(into: &writer)
-        case .tabLimitReached(let value):
+        case .tabAlreadyExists(let value):
             writer.writeTag(92)
             value.encode(into: &writer)
-        case .transientAlreadyCompleted(let value):
+        case .tabAlreadyHasPage(let value):
             writer.writeTag(93)
             value.encode(into: &writer)
-        case .translationRuleLimitReached(let value):
+        case .tabLimitReached(let value):
             writer.writeTag(94)
             value.encode(into: &writer)
-        case .unknownArchivedTab(let value):
+        case .transientAlreadyCompleted(let value):
             writer.writeTag(95)
             value.encode(into: &writer)
-        case .unknownFolder(let value):
+        case .translationRuleLimitReached(let value):
             writer.writeTag(96)
             value.encode(into: &writer)
-        case .unknownPage(let value):
+        case .unknownArchivedTab(let value):
             writer.writeTag(97)
             value.encode(into: &writer)
-        case .unknownPrompt(let value):
+        case .unknownFolder(let value):
             writer.writeTag(98)
             value.encode(into: &writer)
-        case .unknownSearchEngine(let value):
+        case .unknownPage(let value):
             writer.writeTag(99)
             value.encode(into: &writer)
-        case .unknownSpace(let value):
+        case .unknownPrompt(let value):
             writer.writeTag(100)
             value.encode(into: &writer)
-        case .unknownSplitGroup(let value):
+        case .unknownSearchEngine(let value):
             writer.writeTag(101)
             value.encode(into: &writer)
-        case .unknownTab(let value):
+        case .unknownSpace(let value):
             writer.writeTag(102)
             value.encode(into: &writer)
-        case .unknownWorkspace(let value):
+        case .unknownSplitGroup(let value):
             writer.writeTag(103)
             value.encode(into: &writer)
-        case .unrelatedWorkspaces(let value):
+        case .unknownTab(let value):
             writer.writeTag(104)
             value.encode(into: &writer)
-        case .unsavedWorkspace(let value):
+        case .unknownWorkspace(let value):
             writer.writeTag(105)
             value.encode(into: &writer)
-        case .unsupportedAddress(let value):
+        case .unrelatedWorkspaces(let value):
             writer.writeTag(106)
             value.encode(into: &writer)
-        case .webPagesOnly(let value):
+        case .unsavedWorkspace(let value):
             writer.writeTag(107)
             value.encode(into: &writer)
-        case .windowNotOpen(let value):
+        case .unsupportedAddress(let value):
             writer.writeTag(108)
             value.encode(into: &writer)
-        case .workspaceBusy(let value):
+        case .webPagesOnly(let value):
             writer.writeTag(109)
             value.encode(into: &writer)
-        case .wrongDeletionOperation(let value):
+        case .windowNotOpen(let value):
             writer.writeTag(110)
+            value.encode(into: &writer)
+        case .workspaceBusy(let value):
+            writer.writeTag(111)
+            value.encode(into: &writer)
+        case .wrongDeletionOperation(let value):
+            writer.writeTag(112)
             value.encode(into: &writer)
         }
     }
@@ -4551,12 +4560,12 @@ extension DropTargetList {
             let listsElement = try ListDropTarget(from: &reader)
             lists.append(listsElement)
         }
-        let spacesCount = try reader.readCount()
-        var spaces: [SpaceDropTarget] = []
-        spaces.reserveCapacity(spacesCount)
-        for _ in 0..<spacesCount {
-            let spacesElement = try SpaceDropTarget(from: &reader)
-            spaces.append(spacesElement)
+        let spaceIDsCount = try reader.readCount()
+        var spaceIDs: [UUID] = []
+        spaceIDs.reserveCapacity(spaceIDsCount)
+        for _ in 0..<spaceIDsCount {
+            let spaceIDsElement = try reader.readUUID()
+            spaceIDs.append(spaceIDsElement)
         }
         let split: SplitDropTarget?
         if try reader.readPresence() {
@@ -4572,7 +4581,7 @@ extension DropTargetList {
             let folderAroundTabIDsElement = try reader.readUUID()
             folderAroundTabIDs.append(folderAroundTabIDsElement)
         }
-        self.init(refusal: refusal, lists: lists, spaces: spaces, split: split, folderAroundTabIDs: folderAroundTabIDs)
+        self.init(refusal: refusal, lists: lists, spaceIDs: spaceIDs, split: split, folderAroundTabIDs: folderAroundTabIDs)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -4586,9 +4595,9 @@ extension DropTargetList {
         for element0 in lists {
             element0.encode(into: &writer)
         }
-        writer.writeCount(spaces.count)
-        for element0 in spaces {
-            element0.encode(into: &writer)
+        writer.writeCount(spaceIDs.count)
+        for element0 in spaceIDs {
+            writer.writeUUID(element0)
         }
         if let present0 = split {
             writer.writePresence(true)
@@ -6684,6 +6693,17 @@ extension InvalidSplitColumnShares {
     }
 }
 
+extension InvalidSplitIcon {
+    init(from reader: inout WireReader) throws(WireError) {
+        let groupID = try reader.readUUID()
+        self.init(groupID: groupID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(groupID)
+    }
+}
+
 extension InvalidSyncRecords {
     init(from reader: inout WireReader) throws(WireError) {
         let flaw = try SyncRecordFlaw(from: &reader)
@@ -7388,14 +7408,7 @@ extension ListDropTarget {
         } else {
             folderID = nil
         }
-        let refusal: Rejection?
-        if try reader.readPresence() {
-            let refusalValue = try Rejection(from: &reader)
-            refusal = refusalValue
-        } else {
-            refusal = nil
-        }
-        self.init(section: section, folderID: folderID, refusal: refusal)
+        self.init(section: section, folderID: folderID)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -7403,12 +7416,6 @@ extension ListDropTarget {
         if let present0 = folderID {
             writer.writePresence(true)
             writer.writeUUID(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = refusal {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
         } else {
             writer.writePresence(false)
         }
@@ -8249,6 +8256,19 @@ extension NoSavedAddress {
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(tabID)
+    }
+}
+
+extension NoSplitStep {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tabID = try reader.readUUID()
+        let offset = try reader.readInt()
+        self.init(tabID: tabID, offset: offset)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(tabID)
+        writer.writeInt(offset)
     }
 }
 
@@ -11841,21 +11861,21 @@ extension SetSplitIcon {
         let workspaceID = try reader.readUUID()
         let spaceID = try reader.readUUID()
         let groupID = try reader.readUUID()
-        let symbol: String?
+        let emoji: String?
         if try reader.readPresence() {
-            let symbolValue = try reader.readString()
-            symbol = symbolValue
+            let emojiValue = try reader.readString()
+            emoji = emojiValue
         } else {
-            symbol = nil
+            emoji = nil
         }
-        self.init(workspaceID: workspaceID, spaceID: spaceID, groupID: groupID, symbol: symbol)
+        self.init(workspaceID: workspaceID, spaceID: spaceID, groupID: groupID, emoji: emoji)
     }
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(workspaceID)
         writer.writeUUID(spaceID)
         writer.writeUUID(groupID)
-        if let present0 = symbol {
+        if let present0 = emoji {
             writer.writePresence(true)
             writer.writeString(present0)
         } else {
@@ -12882,30 +12902,6 @@ extension SpaceDeletionState {
         writer.writeUUID(id)
         writer.writeUUID(spaceID)
         writer.writeUUID(profileID)
-    }
-}
-
-extension SpaceDropTarget {
-    init(from reader: inout WireReader) throws(WireError) {
-        let spaceID = try reader.readUUID()
-        let refusal: Rejection?
-        if try reader.readPresence() {
-            let refusalValue = try Rejection(from: &reader)
-            refusal = refusalValue
-        } else {
-            refusal = nil
-        }
-        self.init(spaceID: spaceID, refusal: refusal)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(spaceID)
-        if let present0 = refusal {
-            writer.writePresence(true)
-            present0.encode(into: &writer)
-        } else {
-            writer.writePresence(false)
-        }
     }
 }
 
@@ -14512,6 +14508,26 @@ extension TintSplit {
     }
 }
 
+extension TogglePin {
+    init(from reader: inout WireReader) throws(WireError) {
+        let workspaceID = try reader.readUUID()
+        let spaceID = try reader.readUUID()
+        let tabID = try reader.readUUID()
+        self.init(workspaceID: workspaceID, spaceID: spaceID, tabID: tabID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(workspaceID)
+        writer.writeUUID(spaceID)
+        writer.writeUUID(tabID)
+    }
+
+    func encodeIntent(into writer: inout WireWriter) {
+        writer.writeTag(140)
+        encode(into: &writer)
+    }
+}
+
 extension TransientAlreadyCompleted {
     init(from reader: inout WireReader) throws(WireError) {
         let pageID = try reader.readUUID()
@@ -14644,7 +14660,7 @@ extension UnassignShortcut {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(140)
+        writer.writeTag(141)
         encode(into: &writer)
     }
 }
@@ -14807,7 +14823,7 @@ extension UpdateSearchEngine {
     }
 
     func encodeIntent(into writer: inout WireWriter) {
-        writer.writeTag(141)
+        writer.writeTag(142)
         encode(into: &writer)
     }
 }

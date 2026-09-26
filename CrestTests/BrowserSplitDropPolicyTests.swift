@@ -454,7 +454,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
         BrowserSidebarLiftPlan(
             selection: TabSelection(tabIDs: [], folderIDs: [], memberTabIDs: []),
             targets: DropTargetList(
-                refusal: nil, lists: [ListDropTarget(section: .current, folderID: nil, refusal: nil)], spaces: [],
+                refusal: nil, lists: [ListDropTarget(section: .current, folderID: nil)], spaceIDs: [],
                 split: SplitDropTarget(tabID: TabID(), refusal: splitRefusal), folderAroundTabIDs: []))
     }
 

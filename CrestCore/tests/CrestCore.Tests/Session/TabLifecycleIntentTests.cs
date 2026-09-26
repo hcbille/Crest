@@ -221,7 +221,7 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void AMoveRefusesASplitWhereNoSplitGoesAndAFolderOutsideItsSection() {
+    public void AMoveTakesATabOutOfItsSplitWhereNoSplitGoesAndRefusesAFolderOutsideItsSection() {
         var (session, space, member, partner, _) = SplitSession();
         var folders = session["spaces"]![0]!["folders"]!.AsArray();
         var saved = Guid.Parse(folders[0]!["id"]!["rawValue"]!.GetValue<string>());
@@ -231,16 +231,15 @@ public sealed partial class BrowserContractsTests {
             new(device.Workspace, space, member, placement, folder, null, leaves);
         var before = core.Current;
 
-        Assert.Equal(member, Assert.IsType<CannotPinSplit>(Assert.Throws<Rejected>(() => device.Send(Moving(TabPlacement.Pinned)))
-            .Rejection).TabId);
         Assert.IsType<InvalidFolderPlacement>(Assert.Throws<Rejected>(() => device.Send(Moving(TabPlacement.Current, saved))).Rejection);
         var missing = Guid.NewGuid();
         Assert.Equal(missing, Assert.IsType<UnknownFolder>(Assert.Throws<Rejected>(() =>
             device.Send(Moving(TabPlacement.Saved, missing))).Rejection).FolderId);
         Assert.Same(before, core.Current);
 
-        // Leaving its split, the tab pins, and its partner is a split no more.
-        device.Send(Moving(TabPlacement.Pinned, leaves: true));
+        // Pinned tabs keep no splits: the tab pins out of its split, and its
+        // partner is a split no more.
+        device.Send(Moving(TabPlacement.Pinned));
         var tabs = core.Current.Spaces[0].Tabs;
         Assert.Equal((TabPlacement.Pinned, (Guid?)null), (tabs[0].Placement, tabs[0].SplitGroupId));
         Assert.Equal(member, tabs[0].Id);

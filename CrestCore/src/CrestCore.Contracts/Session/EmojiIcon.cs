@@ -42,6 +42,9 @@ public readonly record struct EmojiIcon {
     /// The emoji: one character.
     public string Emoji { get; }
 
+    /// How a symbol slot spells the emoji.
+    public string Symbol => TabIconMode.EmojiPrefix + Emoji;
+
     #endregion
 
     #region Constructors
@@ -60,6 +63,11 @@ public readonly record struct EmojiIcon {
         string character = StringInfo.GetNextTextElement(rest);
         return character.EnumerateRunes().Any(rune => PresentsAsEmoji(rune.Value)) ? new EmojiIcon(character) : null;
     }
+
+    /// The emoji a person chose, given as the emoji itself or already spelled
+    /// as a symbol, or null when its first character does not present as one.
+    public static EmojiIcon? Chosen(string? text) =>
+        text is null ? null : Parse(text.StartsWith(TabIconMode.EmojiPrefix, StringComparison.Ordinal) ? text : TabIconMode.EmojiPrefix + text);
 
     private static bool PresentsAsEmoji(int scalar) =>
         scalar is VariationSelector or Keycap || Presentation.Any(range => scalar >= range.First && scalar <= range.Last);

@@ -93,6 +93,7 @@ public sealed partial class BrowserContractsTests {
 
         Assert.Same(TabIconMode.Emoji, Assert.IsType<InvalidTabIcon>(Assert.Throws<Rejected>(() =>
             device.Send(Choosing(TabIconMode.Emoji, " "))).Rejection).Mode);
+        Assert.IsType<InvalidTabIcon>(Assert.Throws<Rejected>(() => device.Send(Choosing(TabIconMode.Emoji, "abc"))).Rejection);
 
         // A pulled favicon keeps the page's address and color and wears the
         // image its chooser holds, again when it is pulled again.
@@ -104,8 +105,9 @@ public sealed partial class BrowserContractsTests {
                 (Tab().IconMode, Tab().Symbol, Tab().FaviconUrl, Tab().IconAccent));
         }
 
-        // Any other choice drops the image the tab wore.
-        var chosen = device.Send(Choosing(TabIconMode.Emoji, "📚"));
+        // Any other choice drops the image the tab wore. An emoji keeps the
+        // one character that presents as an emoji, modifiers and all.
+        var chosen = device.Send(Choosing(TabIconMode.Emoji, " 📚 and more"));
         Assert.Contains(new TabFaviconAssigned(device.Workspace, fixture.Tab, Adopts: false, null), chosen);
         Assert.Equal((TabIconMode.Emoji, "crest.emoji:📚", (string?)null, (TabIconAccent?)null),
             (Tab().StoredIconMode, Tab().Symbol, Tab().FaviconUrl, Tab().IconAccent));

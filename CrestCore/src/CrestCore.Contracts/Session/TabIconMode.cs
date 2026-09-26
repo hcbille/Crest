@@ -21,8 +21,7 @@ public sealed class TabIconMode {
         symbol: _ => WebSymbol);
     public static readonly TabIconMode Pulled = new(name: "pulled", inferencePrefix: null, requiresFavicon: true, symbol: _ => WebSymbol);
     public static readonly TabIconMode Emoji = new(name: "emoji", inferencePrefix: EmojiPrefix, showsFavicon: false,
-        symbol: emoji => emoji?.Trim() is { Length: > 0 } chosen ? chosen.StartsWith(EmojiPrefix, StringComparison.Ordinal)
-            ? chosen : EmojiPrefix + chosen : null);
+        symbol: emoji => EmojiIcon.Chosen(emoji)?.Symbol);
 
     public static IReadOnlyList<TabIconMode> All { get; } = [Automatic, Pulled, Emoji];
 
