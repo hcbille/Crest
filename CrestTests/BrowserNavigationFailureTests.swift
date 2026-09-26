@@ -125,21 +125,18 @@ final class BrowserPageNavigationFailureTests: XCTestCase {
         let requestedURL = try XCTUnwrap(URL(string: "https://short.example.test/start"))
         let redirectedURL = try XCTUnwrap(URL(string: "https://destination.example.test/final"))
         let navigation = try makeNavigation()
-        page.load(requestedURL)
-        page.webView(page.webView, didStartProvisionalNavigation: navigation)
+        // WebKit reports this navigation through a web view that answers the
+        // address it loads. The page's own web view loads nothing, so no real
+        // navigation of it can start after this one and replace it.
+        let reportingWebView = ReportingWebViewStub(frame: .zero, configuration: WKWebViewConfiguration())
+        reportingWebView.reportedURL = requestedURL
+        page.webView(reportingWebView, didStartProvisionalNavigation: navigation)
 
         try await waitUntil { page.live.pendingNavigationURL == requestedURL }
         XCTAssertEqual(page.live.displayURL, requestedURL)
 
-        let redirectingWebView = RedirectingWebViewStub(
-            frame: .zero,
-            configuration: WKWebViewConfiguration()
-        )
-        redirectingWebView.redirectedURL = redirectedURL
-        page.webView(
-            redirectingWebView,
-            didReceiveServerRedirectForProvisionalNavigation: navigation
-        )
+        reportingWebView.reportedURL = redirectedURL
+        page.webView(reportingWebView, didReceiveServerRedirectForProvisionalNavigation: navigation)
 
         try await waitUntil { page.live.pendingNavigationURL == redirectedURL }
         XCTAssertEqual(page.live.displayURL, redirectedURL)
@@ -221,10 +218,12 @@ final class BrowserPageNavigationFailureTests: XCTestCase {
     }
 }
 
-private final class RedirectingWebViewStub: WKWebView {
-    var redirectedURL: URL?
+/// A web view that answers the address its navigation reached, as WebKit's
+/// does while a provisional navigation starts and follows a redirect.
+private final class ReportingWebViewStub: WKWebView {
+    var reportedURL: URL?
 
-    override var url: URL? { redirectedURL }
+    override var url: URL? { reportedURL }
 }
 
 /// WebKit never lets an app build a real `WKNavigationAction`, so the external

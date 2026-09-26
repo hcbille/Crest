@@ -2741,6 +2741,10 @@
     "2026-09-26-webkit-crashes-through-core": {
       "category": "improved",
       "message": "A WebKit page whose content crashes now recovers the same way as Chromium: at once if you're looking at it, or when you next open it"
+    },
+    "2026-09-26-redirect-test-no-real-load": {
+      "category": "internal",
+      "message": "The WebKit redirect test reports its navigation without a real load that could overtake it"
     }
   }
 }
