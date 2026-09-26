@@ -1012,8 +1012,10 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
             hasCommittedNavigationAwaitingCompletion = false
             httpAuthenticationSession.authenticationFailed()
         case .webContentProcessTerminated:
+            // The core decides whether the page comes back and shows the
+            // failure when it does not; the page drops what belonged to the
+            // document that is gone.
             hasCommittedNavigationAwaitingCompletion = false
-            webContentFailureMessage = "process_terminated"
             credentialState.webContentProcessDidTerminate()
             mediaSessionCoordinator?.webContentProcessDidTerminate()
         case .themeColorChanged(let value):

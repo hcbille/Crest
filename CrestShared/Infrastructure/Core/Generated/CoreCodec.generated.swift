@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xda, 0x1b, 0xc8, 0x07, 0x7c, 0xff, 0xb4, 0xea, 0xb5, 0x3f, 0x60, 0xca, 0xa1, 0x90, 0xc2, 0x51, 0xb5, 0x2f, 0x27, 0x6b, 0x56, 0x1c, 0x2a, 0x18, 0xbf, 0xc9, 0x2e, 0xc7, 0x09, 0x61, 0x5a, 0x29
+        0x92, 0xb5, 0x38, 0xfe, 0x26, 0x2c, 0x8b, 0xef, 0xe4, 0xb8, 0x8f, 0xdd, 0x70, 0x83, 0xe7, 0xe4, 0x45, 0xce, 0x00, 0x79, 0x39, 0x38, 0x74, 0x8d, 0x9b, 0x0b, 0x83, 0xd6, 0x09, 0x58, 0xbe, 0x8a
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0xc0, 0x24, 0x2f, 0x1d, 0xb5, 0x86, 0x8b, 0x26, 0x24, 0x27, 0x7e, 0xc9, 0xeb, 0xc1, 0x1e, 0x8c, 0x45, 0x48, 0xab, 0x18, 0x40, 0x7f, 0xf6, 0x24, 0xc1, 0x3f, 0x43, 0x5e, 0xce, 0x17, 0x97, 0x49
+        0xab, 0x9a, 0xd8, 0xfc, 0xc6, 0x24, 0x79, 0x78, 0xca, 0xc2, 0x68, 0xc9, 0xd3, 0xd9, 0xa2, 0x23, 0x80, 0x00, 0xbc, 0xc5, 0xda, 0xc5, 0xfe, 0xa6, 0xe5, 0x2e, 0x29, 0x98, 0xe1, 0x61, 0x25, 0x75
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -210,10 +210,11 @@ enum CoreCodec {
         case 2: return try NavigationFinished(from: &reader)
         case 3: return try NavigationStarted(from: &reader)
         case 4: return try PageClosed(from: &reader)
-        case 5: return try PageCreated(from: &reader)
-        case 6: return try PageCreationFailed(from: &reader)
-        case 7: return try PageIconChanged(from: &reader)
-        case 8: return try PageStateChanged(from: &reader)
+        case 5: return try PageCrashed(from: &reader)
+        case 6: return try PageCreated(from: &reader)
+        case 7: return try PageCreationFailed(from: &reader)
+        case 8: return try PageIconChanged(from: &reader)
+        case 9: return try PageStateChanged(from: &reader)
         default: throw WireError.malformed("Unknown EngineEvent tag \(tag)")
         }
     }
@@ -889,6 +890,7 @@ extension EngineCommand {
         case 0: self = .closePage(try ClosePage(from: &reader))
         case 1: self = .createPage(try CreatePage(from: &reader))
         case 2: self = .loadPage(try LoadPage(from: &reader))
+        case 3: self = .recoverPage(try RecoverPage(from: &reader))
         default: throw WireError.malformed("Unknown EngineCommand tag \(tag)")
         }
     }
@@ -903,6 +905,9 @@ extension EngineCommand {
             value.encode(into: &writer)
         case .loadPage(let value):
             writer.writeTag(2)
+            value.encode(into: &writer)
+        case .recoverPage(let value):
+            writer.writeTag(3)
             value.encode(into: &writer)
         }
     }
@@ -8418,6 +8423,26 @@ extension PageClosed {
     }
 }
 
+extension PageCrashed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        let domain = try reader.readString()
+        let code = try reader.readInt64()
+        self.init(pageID: pageID, domain: domain, code: code)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
+        writer.writeString(domain)
+        writer.writeInt64(code)
+    }
+
+    func encodeEngineEvent(into writer: inout WireWriter) {
+        writer.writeTag(5)
+        encode(into: &writer)
+    }
+}
+
 extension PageCreated {
     init(from reader: inout WireReader) throws(WireError) {
         let pageID = try reader.readUUID()
@@ -8429,7 +8454,7 @@ extension PageCreated {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(5)
+        writer.writeTag(6)
         encode(into: &writer)
     }
 }
@@ -8445,7 +8470,7 @@ extension PageCreationFailed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(6)
+        writer.writeTag(7)
         encode(into: &writer)
     }
 }
@@ -8633,7 +8658,7 @@ extension PageIconChanged {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(7)
+        writer.writeTag(8)
         encode(into: &writer)
     }
 }
@@ -9076,7 +9101,7 @@ extension PageStateChanged {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(8)
+        writer.writeTag(9)
         encode(into: &writer)
     }
 }
@@ -9860,6 +9885,17 @@ extension RecordsToUpload {
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> UploadBatch {
         let answer = try UploadBatch(from: &reader)
         return answer
+    }
+}
+
+extension RecoverPage {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        self.init(pageID: pageID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
     }
 }
 

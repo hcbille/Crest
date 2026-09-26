@@ -292,6 +292,20 @@ internal sealed partial class Device {
             return workspaces.TryGetValue(workspaceId, out var authority) ? authority : throw new Rejected(new UnknownWorkspace(workspaceId));
     }
 
+    /// Whether a window over the workspace shows `tabId` of `spaceId` on
+    /// screen: the Space is the one it shows, and it shows the tab or another
+    /// member of the tab's split.
+    internal bool Shows(Guid workspaceId, Guid spaceId, Guid tabId) {
+        lock (gate) {
+            if (workspaces.GetValueOrDefault(workspaceId)?.Current.Spaces.FirstOrDefault(space => space.Id == spaceId) is not { } space)
+                return false;
+            var split = space.Tabs.FirstOrDefault(tab => tab.Id == tabId)?.SplitGroupId;
+            return open.Values.Any(window => window.WorkspaceId == workspaceId && window.ShownSpaceId == spaceId
+                && window.Tab(spaceId) is { } shown
+                && (shown == tabId || split is not null && space.Tabs.Any(tab => tab.Id == shown && tab.SplitGroupId == split)));
+        }
+    }
+
     /// The attached workspace, or null for one that is gone.
     internal NativeSessionAuthority? Attached(Guid workspaceId) {
         lock (gate) return workspaces.GetValueOrDefault(workspaceId);

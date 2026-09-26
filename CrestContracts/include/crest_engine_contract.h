@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0xc0, 0x24, 0x2f, 0x1d, 0xb5, 0x86, 0x8b, 0x26, 0x24, 0x27, 0x7e, 0xc9, 0xeb, 0xc1, 0x1e, 0x8c, 0x45, 0x48, 0xab, 0x18, 0x40, 0x7f, 0xf6, 0x24, 0xc1, 0x3f, 0x43, 0x5e, 0xce, 0x17, 0x97, 0x49};
+    0xab, 0x9a, 0xd8, 0xfc, 0xc6, 0x24, 0x79, 0x78, 0xca, 0xc2, 0x68, 0xc9, 0xd3, 0xd9, 0xa2, 0x23, 0x80, 0x00, 0xbc, 0xc5, 0xda, 0xc5, 0xfe, 0xa6, 0xe5, 0x2e, 0x29, 0x98, 0xe1, 0x61, 0x25, 0x75};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -1808,6 +1808,24 @@ inline bool Read(WireReader& reader, PageClosed& value) {
   return Read(reader, value.page_id);
 }
 
+struct PageCrashed {
+  Guid page_id = {};
+  std::string domain;
+  int64_t code = 0;
+
+  friend bool operator==(const PageCrashed&, const PageCrashed&) = default;
+};
+inline void Write(WireWriter& writer, const PageCrashed& value) {
+  Write(writer, value.page_id);
+  Write(writer, value.domain);
+  Write(writer, value.code);
+}
+inline bool Read(WireReader& reader, PageCrashed& value) {
+  return Read(reader, value.page_id)
+      && Read(reader, value.domain)
+      && Read(reader, value.code);
+}
+
 struct PageCreated {
   Guid page_id = {};
 
@@ -2330,6 +2348,18 @@ inline bool Read(WireReader& reader, ProfileReleased& value) {
   return Read(reader, value.profile_id);
 }
 
+struct RecoverPage {
+  Guid page_id = {};
+
+  friend bool operator==(const RecoverPage&, const RecoverPage&) = default;
+};
+inline void Write(WireWriter& writer, const RecoverPage& value) {
+  Write(writer, value.page_id);
+}
+inline bool Read(WireReader& reader, RecoverPage& value) {
+  return Read(reader, value.page_id);
+}
+
 struct RefreshPageIcon {
   Guid page_id = {};
 
@@ -2585,7 +2615,7 @@ inline bool Read(WireReader& reader, ZoomPage& value) {
       && Read(reader, value.factor);
 }
 
-using EngineCommand = std::variant<ClosePage, CreatePage, LoadPage>;
+using EngineCommand = std::variant<ClosePage, CreatePage, LoadPage, RecoverPage>;
 inline void Write(WireWriter& writer, const EngineCommand& value) {
   writer.WriteVarint(value.index());
   std::visit([&writer](const auto& member) { Write(writer, member); }, value);
@@ -2610,13 +2640,19 @@ inline bool Read(WireReader& reader, EngineCommand& value) {
       value = std::move(member);
       return true;
     }
+    case 3: {
+      RecoverPage member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
     default:
       reader.Fail();
       return false;
   }
 }
 
-using EngineEvent = std::variant<NavigationCommitted, NavigationFailed, NavigationFinished, NavigationStarted, PageClosed, PageCreated, PageCreationFailed, PageIconChanged, PageStateChanged>;
+using EngineEvent = std::variant<NavigationCommitted, NavigationFailed, NavigationFinished, NavigationStarted, PageClosed, PageCrashed, PageCreated, PageCreationFailed, PageIconChanged, PageStateChanged>;
 inline void Write(WireWriter& writer, const EngineEvent& value) {
   writer.WriteVarint(value.index());
   std::visit([&writer](const auto& member) { Write(writer, member); }, value);
@@ -2654,24 +2690,30 @@ inline bool Read(WireReader& reader, EngineEvent& value) {
       return true;
     }
     case 5: {
-      PageCreated member;
+      PageCrashed member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 6: {
-      PageCreationFailed member;
+      PageCreated member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 7: {
-      PageIconChanged member;
+      PageCreationFailed member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 8: {
+      PageIconChanged member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
+    case 9: {
       PageStateChanged member;
       if (!Read(reader, member)) return false;
       value = std::move(member);

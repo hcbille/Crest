@@ -36,6 +36,10 @@ final class WebKitEngineBinding: EngineBinding {
             (engines.page(loading.pageID) ?? engines.request(loading.pageID)?.page)?.appLoad?(url)
         case .closePage(let closing):
             engines.report(PageClosed(pageID: closing.pageID), from: self)
+        case .recoverPage:
+            // WebKit recovers its own pages until its binding reports crashes
+            // to the core (WP C (j1)), so the core never asks it to.
+            break
         }
     }
 }

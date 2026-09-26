@@ -14,12 +14,12 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0xda, 0x1b, 0xc8, 0x07, 0x7c, 0xff, 0xb4, 0xea, 0xb5, 0x3f, 0x60, 0xca, 0xa1, 0x90, 0xc2, 0x51, 0xb5, 0x2f, 0x27, 0x6b, 0x56, 0x1c, 0x2a, 0x18, 0xbf, 0xc9, 0x2e, 0xc7, 0x09, 0x61, 0x5a, 0x29
+        0x92, 0xb5, 0x38, 0xfe, 0x26, 0x2c, 0x8b, 0xef, 0xe4, 0xb8, 0x8f, 0xdd, 0x70, 0x83, 0xe7, 0xe4, 0x45, 0xce, 0x00, 0x79, 0x39, 0x38, 0x74, 0x8d, 0x9b, 0x0b, 0x83, 0xd6, 0x09, 0x58, 0xbe, 0x8a
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
     public static ReadOnlySpan<byte> EngineFingerprint => [
-        0xc0, 0x24, 0x2f, 0x1d, 0xb5, 0x86, 0x8b, 0x26, 0x24, 0x27, 0x7e, 0xc9, 0xeb, 0xc1, 0x1e, 0x8c, 0x45, 0x48, 0xab, 0x18, 0x40, 0x7f, 0xf6, 0x24, 0xc1, 0x3f, 0x43, 0x5e, 0xce, 0x17, 0x97, 0x49
+        0xab, 0x9a, 0xd8, 0xfc, 0xc6, 0x24, 0x79, 0x78, 0xca, 0xc2, 0x68, 0xc9, 0xd3, 0xd9, 0xa2, 0x23, 0x80, 0x00, 0xbc, 0xc5, 0xda, 0xc5, 0xfe, 0xa6, 0xe5, 0x2e, 0x29, 0x98, 0xe1, 0x61, 0x25, 0x75
     ];
 
     public static Intent ReadIntent(WireReader reader) {
@@ -1668,6 +1668,7 @@ public static class ContractCodec {
             case 0: return ReadClosePage(reader);
             case 1: return ReadCreatePage(reader);
             case 2: return ReadLoadPage(reader);
+            case 3: return ReadRecoverPage(reader);
             default: throw new WireFormatException($"Unknown EngineCommand tag {tag}.");
         }
     }
@@ -1688,6 +1689,10 @@ public static class ContractCodec {
                 writer.WriteTag(2);
                 WriteLoadPage(writer, member);
                 break;
+            case RecoverPage member:
+                writer.WriteTag(3);
+                WriteRecoverPage(writer, member);
+                break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract EngineCommand.");
         }
     }
@@ -1700,10 +1705,11 @@ public static class ContractCodec {
             case 2: return ReadNavigationFinished(reader);
             case 3: return ReadNavigationStarted(reader);
             case 4: return ReadPageClosed(reader);
-            case 5: return ReadPageCreated(reader);
-            case 6: return ReadPageCreationFailed(reader);
-            case 7: return ReadPageIconChanged(reader);
-            case 8: return ReadPageStateChanged(reader);
+            case 5: return ReadPageCrashed(reader);
+            case 6: return ReadPageCreated(reader);
+            case 7: return ReadPageCreationFailed(reader);
+            case 8: return ReadPageIconChanged(reader);
+            case 9: return ReadPageStateChanged(reader);
             default: throw new WireFormatException($"Unknown EngineEvent tag {tag}.");
         }
     }
@@ -1732,20 +1738,24 @@ public static class ContractCodec {
                 writer.WriteTag(4);
                 WritePageClosed(writer, member);
                 break;
-            case PageCreated member:
+            case PageCrashed member:
                 writer.WriteTag(5);
+                WritePageCrashed(writer, member);
+                break;
+            case PageCreated member:
+                writer.WriteTag(6);
                 WritePageCreated(writer, member);
                 break;
             case PageCreationFailed member:
-                writer.WriteTag(6);
+                writer.WriteTag(7);
                 WritePageCreationFailed(writer, member);
                 break;
             case PageIconChanged member:
-                writer.WriteTag(7);
+                writer.WriteTag(8);
                 WritePageIconChanged(writer, member);
                 break;
             case PageStateChanged member:
-                writer.WriteTag(8);
+                writer.WriteTag(9);
                 WritePageStateChanged(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract EngineEvent.");
@@ -6422,6 +6432,22 @@ public static class ContractCodec {
         writer.WriteGuid(value.PageId);
     }
 
+    public static PageCrashed ReadPageCrashed(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new PageCrashed(
+            reader.ReadGuid(),
+            reader.ReadString(),
+            reader.ReadInt64());
+    }
+
+    public static void WritePageCrashed(WireWriter writer, PageCrashed value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.PageId);
+        writer.WriteString(value.Domain);
+        writer.WriteInt64(value.Code);
+    }
+
     public static PageCreated ReadPageCreated(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return new PageCreated(
@@ -7119,6 +7145,18 @@ public static class ContractCodec {
         foreach (var itemRecords in value.Records) {
             WriteSyncRecordReference(writer, itemRecords);
         }
+    }
+
+    public static RecoverPage ReadRecoverPage(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new RecoverPage(
+            reader.ReadGuid());
+    }
+
+    public static void WriteRecoverPage(WireWriter writer, RecoverPage value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.PageId);
     }
 
     public static RecoveryCheckpointUnusable ReadRecoveryCheckpointUnusable(WireReader reader) {

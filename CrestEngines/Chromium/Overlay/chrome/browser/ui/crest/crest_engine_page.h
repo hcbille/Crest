@@ -140,6 +140,8 @@ class EnginePage final : public content::WebContentsObserver,
   // page took it; what finishes later is presented.
   bool GoToOffset(int offset);
   bool Reload(bool bypasses_cache);
+  // Brings the page back after its renderer stopped, as the core decided.
+  bool Recover();
   bool StopLoading();
   bool Zoom(double factor);
   bool Find(const std::string& query, bool backwards, bool case_sensitive);

@@ -54,6 +54,14 @@ internal sealed class Page {
     /// The document's navigation is recorded, or ended with nothing to record.
     private bool isRecorded;
 
+    /// How many times in a row the page's renderer stopped since a document
+    /// last finished loading or the person asked for one.
+    private int crashes;
+
+    /// The page's renderer stopped while nobody could see it, and the core
+    /// brings it back once a window shows it.
+    public bool RecoversWhenShown { get; private set; }
+
     #endregion
 
     #region Constructors
@@ -97,7 +105,10 @@ internal sealed class Page {
     /// document begins one only when it reaches another page: a fragment is
     /// part of the page it names, and the document keeps its icon.
     public void Commit(string url, bool sameDocument) {
-        if (!sameDocument) failure = null;
+        if (!sameDocument) {
+            failure = null;
+            RecoversWhenShown = false;
+        }
         if (sameDocument && documentUrl is { } shown && new WebAddress(shown).IsSamePage(new WebAddress(url))) return;
         documentUrl = url;
         isRecorded = false;
@@ -107,6 +118,7 @@ internal sealed class Page {
     /// A navigation finished at `url`. Answers whether it is the first finish
     /// of its document, which the core records; a later one records nothing.
     public bool Finish(string url) {
+        crashes = 0;
         if (isRecorded) return false;
         documentUrl = url;
         isRecorded = true;
@@ -123,8 +135,11 @@ internal sealed class Page {
     }
 
     /// The page is asked to load `url`, and shows it heading there at once.
+    /// A load the person asks for starts crash recovery over.
     public void Load(string url) {
         failure = null;
+        crashes = 0;
+        RecoversWhenShown = false;
         shown = shown with { PendingUrl = url };
     }
 
@@ -141,6 +156,29 @@ internal sealed class Page {
         Icon = icon;
         return TabId is not null && isRecorded;
     }
+
+    #endregion
+
+    #region Actions - Crashes
+
+    /// The page's renderer stopped, for the engine's reason `domain` and
+    /// `code`. Answers whether the engine brings the page back now: a page a
+    /// window shows reloads at once while the recovery budget lasts. A page
+    /// nobody sees shows the failure and reloads once it is shown; past the
+    /// budget, the failure stays until the person asks for the page again.
+    public bool Crash(bool isShown, string domain, long code) {
+        crashes++;
+        var reloads = PageProcessRecoveryPolicy.Decide(crashes) == ProcessRecoveryAction.Reload;
+        RecoversWhenShown = reloads && !isShown;
+        if (reloads && isShown) return true;
+        failure = new PageFailure(NavigationError.WebContentProcessStopped, shown.Url, ReplacedDocument: true, domain, code);
+        shown = shown with { PendingUrl = null, IsLoading = false };
+        return false;
+    }
+
+    /// A window shows the page that stopped while nobody saw it, and its engine
+    /// brings it back. The failure stays until the document commits.
+    public void Recover() => RecoversWhenShown = false;
 
     #endregion
 }

@@ -224,7 +224,7 @@ final class Engines {
     func run(_ command: EngineCommand, on kind: EngineKind) {
         switch command {
         case .createPage(let creation): hosts[creation.pageID] = kind
-        case .loadPage: break
+        case .loadPage, .recoverPage: break
         case .closePage(let closing): forget(closing.pageID)
         }
         bindings[kind]?.run(command)

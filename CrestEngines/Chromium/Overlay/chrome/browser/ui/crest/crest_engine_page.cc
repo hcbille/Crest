@@ -469,10 +469,14 @@ void EnginePage::DidChangeThemeColor() {
   StateChanged();
 }
 
+// The core decides whether the page comes back; the platform's page services
+// hear it too, so they drop what belonged to the document that is gone.
 void EnginePage::PrimaryMainFrameRenderProcessGone(base::TerminationStatus status) {
   awaits_finish_ = false;
   loading_navigation_.reset();
   Interrupted();
+  Report(engine::PageCrashed{
+      .page_id = id_, .domain = "ChromiumTerminationStatus", .code = static_cast<int64_t>(status)});
   Present(engine::PageRendererGone{.page_id = id_});
 }
 
@@ -904,6 +908,23 @@ bool EnginePage::Reload(bool bypasses_cache) {
   }
   web_contents()->GetController().Reload(
       bypasses_cache ? content::ReloadType::BYPASSING_CACHE : content::ReloadType::NORMAL, true);
+  return true;
+}
+
+// The core's crash recovery asked for the page back. A document a form posted
+// is loaded again by its address, so the form is never posted twice without
+// the person asking.
+bool EnginePage::Recover() {
+  if (!web_contents()) {
+    return false;
+  }
+  auto& controller = web_contents()->GetController();
+  content::NavigationEntry* entry = controller.GetLastCommittedEntry();
+  if (entry && entry->GetHasPostData()) {
+    Load(PresentedURL(entry->GetURL()));
+    return true;
+  }
+  controller.Reload(content::ReloadType::NORMAL, /*check_for_repost=*/false);
   return true;
 }
 

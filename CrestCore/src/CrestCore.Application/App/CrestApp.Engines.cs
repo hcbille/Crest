@@ -56,13 +56,14 @@ public sealed partial class CrestApp {
     /// Applies what an engine saw happen to one of its pages. A report is
     /// never refused; one about a page the core no longer knows changes
     /// nothing. What it changed arrives through the next drain, and commands
-    /// it caused are delivered after it, never on its stack when it arrives
-    /// inside a delivery.
+    /// it caused, such as bringing back a page whose renderer stopped, are
+    /// delivered after it, never on its stack when it arrives inside a
+    /// delivery.
     public void Report(Engine engine, EngineEvent report) {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(report);
         var changes = new ChangeFeed();
-        lock (gate) pages.Report(engine, report, changes);
+        lock (gate) pages.Report(engine, report, changes, Issue);
         foreach (var change in changes.Published) Announce(change);
         WakeIfOwed();
         WakeForRequestedTurn();

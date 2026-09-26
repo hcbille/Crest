@@ -100,6 +100,7 @@ void CodecRoundTrips() {
       engine::NavigationFinished{.page_id = page, .url = "https://example.com/a", .title = "Caf\xc3\xa9"},
       engine::NavigationStarted{.page_id = page, .url = "https://example.com/b"},
       engine::PageClosed{.page_id = page},
+      engine::PageCrashed{.page_id = page, .domain = "ChromiumTerminationStatus", .code = 3},
       engine::PageCreated{.page_id = page},
       engine::PageCreationFailed{.page_id = page},
       engine::PageIconChanged{.page_id = page, .url = "https://example.com/", .accent = engine::TabIconAccent{0.25, 0.5, 1}},

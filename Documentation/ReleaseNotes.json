@@ -2645,6 +2645,10 @@
     "2026-09-26-window-commands-in-core": {
       "category": "improved",
       "message": "Menu and keyboard commands turn on and off by what each window shows, the same way on Mac and iPad, and a link opened from another app lands in the Start Page you have open"
+    },
+    "2026-09-26-chromium-crashed-pages-recover": {
+      "category": "fixed",
+      "message": "Chromium pages that crash now reload on their own instead of staying broken"
     }
   }
 }

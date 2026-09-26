@@ -175,10 +175,14 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// once per document in the Space the page lives in, and an icon reported
     /// for a recorded document goes to the page's tab; either waits while a
     /// transaction holds the workspace's session.
-    public void Report(Engine engine, EngineEvent report, ChangeFeed changes) {
+    ///
+    /// A page whose renderer stopped comes back by the core's crash recovery,
+    /// which hands the engine command it causes to `issue`.
+    public void Report(Engine engine, EngineEvent report, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(changes);
+        ArgumentNullException.ThrowIfNull(issue);
         var pageId = report switch {
             PageCreated created => created.PageId,
             PageCreationFailed failed => failed.PageId,
@@ -189,6 +193,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             NavigationFailed failed => failed.PageId,
             PageIconChanged icon => icon.PageId,
             PageStateChanged state => state.PageId,
+            PageCrashed crashed => crashed.PageId,
             _ => throw new ArgumentOutOfRangeException(nameof(report), report.GetType().Name, "Pages do not handle this report.")
         };
         if (!open.TryGetValue(pageId, out var page) || !ReferenceEquals(page.Engine, engine)) return;
@@ -212,8 +217,29 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
                 break;
             case PageIconChanged: break;
             case PageStateChanged reported: Update(page, changes, () => page.Show(reported.Snapshot)); break;
+            case PageCrashed crashed when page.Phase == PagePhase.Live:
+                var recovers = false;
+                Update(page, changes, () => recovers = page.Crash(IsShown(page), crashed.Domain, crashed.Code));
+                if (recovers) issue(page.Engine, new RecoverPage(page.Id));
+                break;
+            case PageCrashed: break;
         }
     }
+
+    /// Brings back each page whose renderer stopped while nobody saw it and
+    /// that a window now shows.
+    public void RecoverShown(Action<Engine, EngineCommand> issue) {
+        ArgumentNullException.ThrowIfNull(issue);
+        foreach (var page in open.Values.Where(page => page.RecoversWhenShown && page.Phase == PagePhase.Live && IsShown(page))) {
+            page.Recover();
+            issue(page.Engine, new RecoverPage(page.Id));
+        }
+    }
+
+    /// Whether a window shows the page: a Quick Window's or Peek's page always,
+    /// a tab's page when a window over its workspace shows the tab or a split
+    /// it belongs to.
+    private bool IsShown(Page page) => page.TabId is not { } tabId || device.Shows(page.WorkspaceId, page.SpaceId, tabId);
 
     /// Applies `update` to the page, and publishes the page when that changed
     /// what readers see of it.

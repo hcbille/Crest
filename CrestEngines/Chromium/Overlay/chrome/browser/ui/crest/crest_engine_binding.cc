@@ -154,6 +154,10 @@ void EngineBinding::Perform(engine::EngineCommand command) {
     Load(GuidText(loading->page_id), loading->url);
   } else if (const auto* closing = std::get_if<engine::ClosePage>(&command)) {
     Close(*closing);
+  } else if (const auto* recovery = std::get_if<engine::RecoverPage>(&command)) {
+    if (EnginePage* page = Find(GuidText(recovery->page_id))) {
+      page->Recover();
+    }
   }
 }
 

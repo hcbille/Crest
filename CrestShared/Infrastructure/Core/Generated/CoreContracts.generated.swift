@@ -251,6 +251,7 @@ enum EngineCommand: Equatable, Sendable {
     case closePage(ClosePage)
     case createPage(CreatePage)
     case loadPage(LoadPage)
+    case recoverPage(RecoverPage)
 }
 
 /// What an engine binding tells the platform directly about one of its pages.
@@ -2281,6 +2282,12 @@ struct PageClosed: EngineEvent, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct PageCrashed: EngineEvent, Equatable, Sendable {
+    let pageID: UUID
+    let domain: String
+    let code: Int64
+}
+
 struct PageCreated: EngineEvent, Equatable, Sendable {
     let pageID: UUID
 }
@@ -2702,6 +2709,10 @@ struct RecordsToUpload: Query, Equatable, Sendable {
     typealias Answer = UploadBatch
 
     let records: [SyncRecordReference]
+}
+
+struct RecoverPage: Equatable, Sendable {
+    let pageID: UUID
 }
 
 struct RecoveryCheckpointUnusable: Equatable, Sendable {
