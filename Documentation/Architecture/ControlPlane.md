@@ -177,8 +177,12 @@ in a locked Space, in one being deleted or for a tab that already has one. A
 tab's page opens on the engine chosen for the site the tab shows
 (`ChooseSiteEngine`) when that engine is registered, and otherwise on the
 default engine. The device store keeps the persistent session's choices, and
-a private Space's choices stay in memory. Until a page can move between
-engines, a choice decides only where new pages open. The core
+a private Space's choices stay in memory. `RehostPage` moves a page to another
+engine: the core closes it on its engine, creates it on the other in the same
+profile and window, and loads the address it showed once that engine created
+it. A page heading to a site chosen for another engine, by a load the person
+asks for or a navigation its document starts, moves there the same way. The
+core
 asks the page's engine to create, load and close the engine's page, and the
 binding reports what the engine did, including a `PageSnapshot` of what the page
 shows, which the core keeps as the page's `PageLiveState`. Chromium's binding is

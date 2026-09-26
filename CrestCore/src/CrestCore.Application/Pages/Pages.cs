@@ -9,7 +9,8 @@ namespace CrestCore.Application;
 /// opens or goes; the core decides whether it may, and on which engine, and
 /// asks the engine to create, load and close it. A tab's page opens on the
 /// engine chosen for the site the tab shows, when that engine is registered,
-/// and on the default engine otherwise.
+/// and on the default engine otherwise. A page moves to another engine when
+/// the person asks, or when it heads to a site chosen for another engine.
 ///
 /// A window hosts one page for a tab. The Mac's windows over one workspace
 /// share one runtime store, so a second window shows the page the first opened
@@ -61,6 +62,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         switch (intent) {
             case OpenPage opening: Open(opening, changes, issue); break;
             case MovePage moving: Move(moving, changes); break;
+            case RehostPage rehosting: Rehost(rehosting, changes, issue); break;
             case ReleasePage releasing: Release(releasing, changes, issue); break;
             case Navigate navigation: Load(navigation, changes, issue); break;
             case LeavePageFailure leaving: LeaveFailure(leaving, changes); break;
@@ -115,25 +117,49 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     /// Resolves what the person asked for by the address rules of the page's
     /// Space and engine, shows the page heading there at once, and asks its
-    /// engine to load it.
+    /// engine to load it. A load to a site chosen for another registered
+    /// engine moves the page there, which loads it instead.
     private void Load(Navigate intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         var page = Known(intent.PageId);
         if (!page.Phase.HoldsEnginePage) throw new Rejected(new PageNotLoadable(page.Id));
         var space = Hosting(device.Workspace(page.WorkspaceId), page.SpaceId);
         var url = AddressResolution.Loading(intent.Input, space.Settings.BrowsingPreferences,
             page.Engine.Supports(EngineCapability.InternalPages));
-        // TRANSITIONAL until WP D3 can move a page to another engine: a load
-        // to a site chosen for another engine stays on the page's own.
+        if (Chosen(space, url) is { } chosen && !ReferenceEquals(chosen, page.Engine)) {
+            Rehost(page, chosen, url, changes, issue);
+            return;
+        }
         Update(page, changes, () => page.Load(url));
         issue(page.Engine, new LoadPage(page.Id, url));
+    }
+
+    /// Moves the page to the engine the person asked for, which loads the
+    /// address it shows.
+    private void Rehost(RehostPage intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+        var page = Known(intent.PageId);
+        Hosting(device.Workspace(page.WorkspaceId), page.SpaceId);
+        var engine = engines.Registered(intent.Engine) ?? throw new Rejected(new UnregisteredEngine(intent.Engine));
+        if (!ReferenceEquals(engine, page.Engine)) Rehost(page, engine, page.Live.Address, changes, issue);
+    }
+
+    /// Closes the page on its engine, keeping nothing, and creates it on
+    /// `engine`, which loads `address` once it has created it.
+    private void Rehost(Page page, Engine engine, string? address, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+        if (page.Phase.HoldsEnginePage) issue(page.Engine, new ClosePage(page.Id, KeepsState: false));
+        Update(page, changes, () => page.Rehost(engine, address));
+        issue(engine, new CreatePage(page.Id, page.ProfileId, device.Workspace(page.WorkspaceId).IsPrivateBrowsing, page.WindowId,
+            RestoreState: null));
     }
 
     /// The registered engine chosen for the site `tab` shows, or null when
     /// none is, or for a page without a tab, which opens before it has an
     /// address.
-    private Engine? Chosen(SpaceState space, TabState? tab) =>
-        tab?.Url is { } url && new WebAddress(url).Origin is { } origin && device.ChosenEngine(space.Id, origin) is { } kind
-            ? engines.Registered(kind) : null;
+    private Engine? Chosen(SpaceState space, TabState? tab) => tab?.Url is { } url ? Chosen(space, url) : null;
+
+    /// The registered engine chosen in `space` for the site `url` belongs to,
+    /// or null when none is.
+    private Engine? Chosen(SpaceState space, string url) =>
+        new WebAddress(url).Origin is { } origin && device.ChosenEngine(space.Id, origin) is { } kind ? engines.Registered(kind) : null;
 
     private void LeaveFailure(LeavePageFailure intent, ChangeFeed changes) {
         var page = Known(intent.PageId);
@@ -231,12 +257,21 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         };
         if (!open.TryGetValue(pageId, out var page) || !ReferenceEquals(page.Engine, engine)) return;
         switch (report) {
-            case PageCreated: Enter(page, PagePhase.Live, changes); break;
+            case PageCreated:
+                Enter(page, PagePhase.Live, changes);
+                if (page.TakeRehostedAddress() is { } address) issue(page.Engine, new LoadPage(page.Id, address));
+                break;
             case PageCreationFailed: Enter(page, PagePhase.Failed, changes); break;
             case PageClosed: Enter(page, PagePhase.Closed, changes); break;
-            // Nothing is recorded until the navigation finishes. TRANSITIONAL
-            // until WP D3 can move a page to another engine: a navigation to a
-            // site chosen for another engine stays on the page's own.
+            // A navigation to another document of a site chosen for another
+            // registered engine moves the page there, which loads it instead.
+            // Otherwise nothing is recorded until the navigation finishes.
+            case NavigationStarted { SameDocument: false } started
+                when device.Attached(page.WorkspaceId) is { } workspace && !workspace.IsDeleting(page.SpaceId)
+                    && workspace.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId) is { } space
+                    && !workspace.IsLocked(space) && Chosen(space, started.Url) is { } chosen && !ReferenceEquals(chosen, page.Engine):
+                Rehost(page, chosen, started.Url, changes, issue);
+                break;
             case NavigationStarted: break;
             case NavigationCommitted committed:
                 Update(page, changes, () => page.Commit(committed.Url, committed.SameDocument));

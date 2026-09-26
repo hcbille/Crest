@@ -6,12 +6,13 @@ namespace CrestCore.Application;
 /// One page this device hosts: its owner, the window that hosts it, the engine
 /// that hosts it, where it stands there and its live state. Its engine page
 /// lives in the profile of the Space it opened in, so the page only ever moves
-/// between Spaces of that profile.
+/// between Spaces of that profile. It may move to another engine, which
+/// creates it anew in that profile.
 internal sealed class Page {
     #region Variables
 
     public Guid Id { get; }
-    public Engine Engine { get; }
+    public Engine Engine { get; private set; }
     public Guid ProfileId { get; }
 
     public Guid WorkspaceId { get; private set; }
@@ -78,6 +79,10 @@ internal sealed class Page {
     /// brings it back once a window shows it.
     public bool RecoversWhenShown => stoppedUnseen is not null;
 
+    /// The address a page that moved to another engine loads once that
+    /// engine has created it.
+    private string? rehostedAddress;
+
     #endregion
 
     #region Constructors
@@ -112,6 +117,30 @@ internal sealed class Page {
         SpaceId = spaceId;
         TabId = tabId;
         WindowId = windowId;
+    }
+
+    /// The page moves to `engine`, which opens it anew and loads `address`
+    /// once it has created it. Nothing the old engine showed or reported
+    /// stays, and the page shows itself heading to `address` at once.
+    public void Rehost(Engine engine, string? address) {
+        Engine = engine;
+        Phase = PagePhase.Opening;
+        rehostedAddress = address;
+        shown = PageSnapshot.Blank with { PendingUrl = address };
+        failure = null;
+        documentUrl = null;
+        isRecorded = false;
+        Icon = null;
+        crashes = 0;
+        stoppedUnseen = null;
+    }
+
+    /// The address the page loads now that its new engine created it, taken
+    /// once; null for a page that did not move.
+    public string? TakeRehostedAddress() {
+        var address = rehostedAddress;
+        rehostedAddress = null;
+        return address;
     }
 
     #endregion

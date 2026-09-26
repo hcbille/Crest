@@ -85,6 +85,8 @@ public sealed partial class CrestApp {
                 dataDeletions.Report(engine, report, changes);
             } else {
                 pages.Report(engine, report, changes, Issue);
+                // A report that moved a page to another engine changes what the engines offer.
+                PublishEngines(changes.Publish);
                 prompts.Prune(changes);
                 closePreparations.Prune(changes, Issue);
             }

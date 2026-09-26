@@ -132,13 +132,14 @@ internal sealed class Prompts(Device device, Pages pages) {
 
     #region Actions - Pages
 
-    /// Settles each prompt whose page is gone or no longer holds its engine
-    /// page. The engine closes that page and what it asked with it, so it
-    /// hears nothing.
+    /// Settles each prompt whose page is gone, no longer holds its engine
+    /// page, or moved to another engine. The engine that asked closes that
+    /// page and what it asked with it, so it hears nothing.
     public void Prune(ChangeFeed changes) {
         ArgumentNullException.ThrowIfNull(changes);
         foreach (var (id, prompt) in waiting.ToArray())
-            if (prompt.PageId is not null && Asking(prompt.PageId) is null) Settle(id, changes);
+            if (prompt.PageId is not null && (Asking(prompt.PageId) is not { } page || !ReferenceEquals(page.Engine, prompt.Engine)))
+                Settle(id, changes);
     }
 
     #endregion

@@ -3835,6 +3835,11 @@ struct RefreshStoreListing: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct RehostPage: Intent, PageIntent, Equatable, Sendable {
+    let pageID: UUID
+    let engine: EngineKind
+}
+
 struct RejectOfferedPage: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 

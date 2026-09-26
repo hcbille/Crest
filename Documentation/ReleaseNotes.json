@@ -2877,6 +2877,10 @@
     "2026-09-26-pages-move-engines-in-place": {
       "category": "internal",
       "message": "A page can move to another engine while keeping its tab, window and card"
+    },
+    "2026-09-26-rehost-pages-through-core": {
+      "category": "internal",
+      "message": "Pages can move to another engine through the core, keeping their tab and window"
     }
   }
 }
