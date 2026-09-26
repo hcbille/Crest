@@ -94,5 +94,38 @@ internal sealed partial class Device {
             : new(null, false, false);
     }
 
+    /// What following a link from a page does: a page for a tab reads the
+    /// tab's place and saved address, a Peek brings the tabs it opens to the
+    /// front, and the rest follows this device's link preferences.
+    public LinkNavigationAnswer Answer(LinkNavigation question, Pages pages) {
+        ArgumentNullException.ThrowIfNull(question);
+        ArgumentNullException.ThrowIfNull(pages);
+        LinkPreferences preferences;
+        lock (gate) preferences = links;
+        var gesture = question.Gesture;
+        var (peek, newTab) = preferences.PeekModifier.Intent(gesture.Modifiers, gesture.MiddleClick);
+        var page = pages.Hosted(question.PageId);
+        var tab = page is { TabId: { } tabId }
+            ? Attached(page.WorkspaceId)?.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId)?.Tabs
+                .FirstOrDefault(candidate => candidate.Id == tabId)
+            : null;
+        bool focuses = preferences.FocusesNewTabs || page is { TabId: null, Transient.OpensNewTabsInFront: true };
+        return new(LinkNavigationPolicy.Decide(question.Url, gesture.UserActivated, gesture.TopLevel, peek, newTab,
+            gesture.Modifiers.HasFlag(ShortcutModifiers.Shift), focuses, hasContext: tab is not null, tab?.Placement,
+            tab?.SavedAddress, preferences.OpensPeekAutomatically));
+    }
+
+    /// Whether a window a page opened comes to the front, as the gesture and
+    /// this device's link preferences decide.
+    public OpenedWindowSelected Answer(OpenedWindowSelection question) {
+        ArgumentNullException.ThrowIfNull(question);
+        LinkPreferences preferences;
+        lock (gate) preferences = links;
+        var gesture = question.Gesture;
+        var (_, newTab) = preferences.PeekModifier.Intent(gesture.Modifiers, gesture.MiddleClick);
+        return new(LinkNavigationPolicy.SelectsOpenedWindow(newTab, gesture.Modifiers.HasFlag(ShortcutModifiers.Shift),
+            preferences.FocusesNewTabs));
+    }
+
     #endregion
 }

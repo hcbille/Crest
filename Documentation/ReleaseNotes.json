@@ -2681,6 +2681,14 @@
     "2026-09-26-link-preferences-in-core": {
       "category": "internal",
       "message": "The core keeps this device's link preferences, applies every change to them and routes links from other apps"
+    },
+    "2026-09-26-quick-window-lifetime-applies-now": {
+      "category": "fixed",
+      "message": "Changing how long an inactive Quick Window stays open now applies to Quick Windows that are already open"
+    },
+    "2026-09-26-link-clicks-decided-in-core": {
+      "category": "internal",
+      "message": "The core decides what a clicked link does, whether a window a page opens comes to the front and how Quick Windows keep their pages"
     }
   }
 }

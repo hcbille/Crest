@@ -9,10 +9,10 @@ extension BrowserStore {
     /// pressure took back is; the core keeps what it showed last.
     @discardableResult
     func archiveTransientPage(_ pageID: UUID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
-        guard space(matching: assignment) != nil else { return false }
-        return family.perform(
-            ArchiveTransientPage(workspaceID: family.workspaceID, pageID: pageID, spaceID: assignment.spaceID),
-            from: self) != nil
+        let archive = ArchiveTransientPage(workspaceID: family.workspaceID, pageID: pageID, spaceID: assignment.spaceID)
+        // The core archives a page once, and never one kept as a tab.
+        guard space(matching: assignment) != nil, family.canSend(archive, from: self) else { return false }
+        return family.perform(archive, from: self) != nil
     }
 
     func clearHistory() {

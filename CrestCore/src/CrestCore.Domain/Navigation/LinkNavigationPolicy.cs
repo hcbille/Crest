@@ -21,6 +21,12 @@ public static class LinkNavigationPolicy {
         return LinkNavigationDecision.Navigate;
     }
 
+    /// Whether a window a page opened comes to the front: an ordinary
+    /// new-window request does, and one made with the new-tab gesture follows
+    /// the person's choice, which Shift reverses.
+    public static bool SelectsOpenedWindow(bool newTabGesture, bool shiftModified, bool focusesNewTabs) =>
+        !newTabGesture || focusesNewTabs != shiftModified;
+
     private static bool TryWebUrl(string? value, out Uri? url) =>
         Uri.TryCreate(value, UriKind.Absolute, out url)
         && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps) && url.Host.Length > 0;

@@ -13,8 +13,6 @@ internal enum PolicyOperation {
     Limits,
     MediaArbitrate,
     MediaSessionEvent,
-    NavigationLink,
-    NavigationModifiedLink,
     NotificationsOrigin,
     NotificationsPermissionRequest,
     OnboardingCompletion,
@@ -26,9 +24,6 @@ internal enum PolicyOperation {
     SetupReconcile,
     SetupSpace,
     SetupTab,
-    // Quick Windows.
-    QuickWindowDismissal,
-    QuickWindowRetarget,
 }
 
 internal static class PolicyOperationCodes {
@@ -46,8 +41,6 @@ internal static class PolicyOperationCodes {
         "limits" => PolicyOperation.Limits,
         "media.arbitrate" => PolicyOperation.MediaArbitrate,
         "media.session_event" => PolicyOperation.MediaSessionEvent,
-        "navigation.link" => PolicyOperation.NavigationLink,
-        "navigation.modified_link" => PolicyOperation.NavigationModifiedLink,
         "notifications.origin" => PolicyOperation.NotificationsOrigin,
         "notifications.permission_request" => PolicyOperation.NotificationsPermissionRequest,
         "onboarding.completion" => PolicyOperation.OnboardingCompletion,
@@ -59,9 +52,6 @@ internal static class PolicyOperationCodes {
         "setup.reconcile" => PolicyOperation.SetupReconcile,
         "setup.space" => PolicyOperation.SetupSpace,
         "setup.tab" => PolicyOperation.SetupTab,
-        // Quick Windows.
-        "quick_window.dismissal" => PolicyOperation.QuickWindowDismissal,
-        "quick_window.retarget" => PolicyOperation.QuickWindowRetarget,
         _ => PolicyOperation.Unknown
     };
 

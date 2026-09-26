@@ -325,11 +325,7 @@ final class MobileBrowserPageStore:
             existing.setCredentialAccessEnabled(
                 space.credentialPreferences.isEnabled
             )
-            existing.updateNavigationContext(
-                tab: tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.opensPeekAutomatically
-            )
+            existing.updateNavigationContext(tab: tab)
             activate(existing, presenting: presented, at: time)
             return true
         }
@@ -398,11 +394,7 @@ final class MobileBrowserPageStore:
             existing.setCredentialAccessEnabled(
                 space.credentialPreferences.isEnabled
             )
-            existing.updateNavigationContext(
-                tab: tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.opensPeekAutomatically
-            )
+            existing.updateNavigationContext(tab: tab)
             stampPreparedPageIfNeeded(tabID, at: time)
             return existing
         }
@@ -516,11 +508,7 @@ final class MobileBrowserPageStore:
         }
         releasePages(for: reconciliation.invalidTabIDs, keepingStateOf: reconciliation.tabIDsToArchive)
         for context in reconciliation.navigationContexts {
-            context.page.updateNavigationContext(
-                tab: context.tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.opensPeekAutomatically
-            )
+            context.page.updateNavigationContext(tab: context.tab)
         }
         tabState.prune(keeping: reconciliation.retainedTabIDsByProfileID)
         reconcileCredentialAccess(in: session)
@@ -562,11 +550,7 @@ final class MobileBrowserPageStore:
         )
         for (tabID, page) in pagesByTabID {
             guard let tab = tabsByID[tabID] else { continue }
-            page.updateNavigationContext(
-                tab: tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.opensPeekAutomatically
-            )
+            page.updateNavigationContext(tab: tab)
         }
     }
 
@@ -669,7 +653,7 @@ final class MobileBrowserPageStore:
         }
         peekPageLeases.removeValue(forKey: request.id)?.lease.release()
         let lease = makeTransientPageLease(
-            url: request.url, in: space, opensModifiedLinksInForeground: true,
+            url: request.url, in: space, presentation: .peek,
             engineNavigation: request.engineNavigation,
             onDownloadOnlyNavigation: onDownloadOnlyNavigation)
         if let lease { peekPageLeases[request.id] = (request, lease) }
@@ -685,7 +669,7 @@ final class MobileBrowserPageStore:
     func makeTransientPageLease(
         url: URL,
         in space: BrowserSpace,
-        opensModifiedLinksInForeground: Bool = false,
+        presentation: TransientPresentation = .quickWindow,
         engineNavigation: BrowserEngineNavigation? = nil,
         onUserActivity: @escaping () -> Void = {},
         onDownloadOnlyNavigation: (() -> Void)? = nil
@@ -697,7 +681,9 @@ final class MobileBrowserPageStore:
         )
         // The core decides whether the Space may host a page, for the first
         // page and for every page memory pressure makes the lease rebuild.
-        guard let initialPage = makeTransientPage(tab: transientTab, in: space) else { return nil }
+        guard let initialPage = makeTransientPage(tab: transientTab, in: space, presenting: presentation) else {
+            return nil
+        }
         // Only the first page replays the staged request; a rebuilt page
         // after memory pressure reloads its last URL like any other.
         if let engineNavigation,
@@ -706,11 +692,8 @@ final class MobileBrowserPageStore:
             initialPage.release(keepingState: false)
             return nil
         }
-        initialPage.opensModifiedLinksInForeground = opensModifiedLinksInForeground
         let rebuild: () -> MobileBrowserPage? = { [weak self] in
-            guard let self, let page = makeTransientPage(tab: transientTab, in: space) else { return nil }
-            page.opensModifiedLinksInForeground = opensModifiedLinksInForeground
-            return page
+            self?.makeTransientPage(tab: transientTab, in: space, presenting: presentation)
         }
         let lease = MobileBrowserTransientPageLease(
             page: initialPage,
@@ -726,14 +709,16 @@ final class MobileBrowserPageStore:
         return lease
     }
 
-    /// Opens a transient request's page through the core; `tab` is the
-    /// request's own stand-in, which no Space holds. Nil when the core refuses it.
+    /// Opens a transient request's page through the core, presenting as
+    /// `presentation`; `tab` is the request's own stand-in, which no Space
+    /// holds. Nil when the core refuses it.
     private func makeTransientPage(
         tab: BrowserTab,
-        in space: BrowserSpace
+        in space: BrowserSpace,
+        presenting presentation: TransientPresentation
     ) -> MobileBrowserPage? {
         opened(
-            browser.openPage(in: space.id, for: nil) { [self] corePage in
+            browser.openPage(in: space.id, for: nil, presenting: presentation) { [self] corePage in
                 MobileBrowserPage(
                     corePage: corePage,
                     tab: tab,
@@ -790,7 +775,6 @@ final class MobileBrowserPageStore:
             _ = browser.adoptPage(page.corePage, in: space.id, as: nil)
             return false
         }
-        page.opensModifiedLinksInForeground = false
         transientLeases.removeValue(forKey: lease.id)
         page.adopt(tabID: tabID, tab: tab)
         pagesByTabID[tabID] = page

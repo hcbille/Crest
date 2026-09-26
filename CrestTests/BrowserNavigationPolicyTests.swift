@@ -5,25 +5,6 @@ import XCTest
 @testable import Crest
 
 final class BrowserNavigationPolicyTests: XCTestCase {
-    func testModifiedLinkFocusChoiceAndShiftInversion() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/research"))
-        for focusesNewTabs in [false, true] {
-            for shift in [false, true] {
-                XCTAssertEqual(
-                    BrowserModifiedLinkDisposition.classify(
-                        destinationURL: url,
-                        isUserActivatedLink: true,
-                        isCommandModified: true,
-                        isShiftModified: shift,
-                        isMiddleClick: false,
-                        focusesNewTabs: focusesNewTabs
-                    ),
-                    focusesNewTabs != shift ? .foregroundTab(url) : .backgroundTab(url)
-                )
-            }
-        }
-    }
-
     func testInlineDirectVideoUsesBrowserOwnedPlaybackDocument() throws {
         let url = try XCTUnwrap(
             URL(string: "https://media.example/watch?id=direct&quality=source")
@@ -212,80 +193,11 @@ final class BrowserNavigationPolicyTests: XCTestCase {
         XCTAssertEqual(intent, .download)
     }
 
-    func testCommandAndMiddleClickedWebLinksUseNativeTabDisposition() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/reference"))
-
+    func testOnlyTheMiddleButtonReadsAsAMiddleClick() {
         XCTAssertTrue(BrowserMouseButtonPolicy.isMiddleButton(number: 1 << 2))
         XCTAssertFalse(BrowserMouseButtonPolicy.isMiddleButton(number: 0))
         XCTAssertFalse(BrowserMouseButtonPolicy.isMiddleButton(number: 1))
         XCTAssertFalse(BrowserMouseButtonPolicy.isMiddleButton(number: 2))
-
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: url,
-                isUserActivatedLink: true,
-                isCommandModified: true,
-                isShiftModified: false,
-                isMiddleClick: false
-            ),
-            .backgroundTab(url)
-        )
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: url,
-                isUserActivatedLink: true,
-                isCommandModified: true,
-                isShiftModified: true,
-                isMiddleClick: false
-            ),
-            .foregroundTab(url)
-        )
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: url,
-                isUserActivatedLink: true,
-                isCommandModified: false,
-                isShiftModified: false,
-                isMiddleClick: true
-            ),
-            .backgroundTab(url)
-        )
-    }
-
-    func testModifiedLinkDispositionRejectsOrdinaryNonLinkAndNonWebNavigation() throws {
-        let webURL = try XCTUnwrap(URL(string: "https://example.com/reference"))
-        let mailURL = try XCTUnwrap(URL(string: "mailto:person@example.com"))
-
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: webURL,
-                isUserActivatedLink: true,
-                isCommandModified: false,
-                isShiftModified: false,
-                isMiddleClick: false
-            ),
-            .navigate
-        )
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: webURL,
-                isUserActivatedLink: false,
-                isCommandModified: true,
-                isShiftModified: false,
-                isMiddleClick: false
-            ),
-            .navigate
-        )
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: mailURL,
-                isUserActivatedLink: true,
-                isCommandModified: true,
-                isShiftModified: false,
-                isMiddleClick: false
-            ),
-            .navigate
-        )
     }
 
     func testExplicitLinksAndFormsDoNotBecomeScriptedPopups() {

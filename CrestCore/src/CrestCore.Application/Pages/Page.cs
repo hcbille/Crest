@@ -24,6 +24,9 @@ internal sealed class Page {
     /// others shows this page without owning it.
     public Guid WindowId { get; private set; }
 
+    /// How the page presents while it has no tab, as it opened.
+    public TransientPresentation? Transient { get; }
+
     public PagePhase Phase { get; private set; } = PagePhase.Opening;
 
     public PageState State => new(Id, WorkspaceId, SpaceId, TabId, Engine.Kind, Phase, Live);
@@ -70,7 +73,8 @@ internal sealed class Page {
 
     #region Constructors
 
-    public Page(Guid id, Engine engine, Guid profileId, Guid workspaceId, Guid spaceId, Guid? tabId, Guid windowId) {
+    public Page(Guid id, Engine engine, Guid profileId, Guid workspaceId, Guid spaceId, Guid? tabId, Guid windowId,
+        TransientPresentation? transient) {
         Id = id;
         Engine = engine;
         ProfileId = profileId;
@@ -78,6 +82,7 @@ internal sealed class Page {
         SpaceId = spaceId;
         TabId = tabId;
         WindowId = windowId;
+        Transient = transient;
     }
 
     #endregion

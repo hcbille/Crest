@@ -92,6 +92,27 @@ final class CorePage {
         }
     }
 
+    /// What following `url` from the page does, as the core decides from the
+    /// page's tab, how a page with no tab presents, `gesture` and this
+    /// device's link preferences. A core that cannot answer lets a person's
+    /// own top-level click open a new tab, so a pinned or saved tab never
+    /// leaves the page it keeps, and leaves every other navigation to the
+    /// engine.
+    func linkNavigation(to url: URL?, gesture: LinkGesture) -> LinkNavigationDecision {
+        let question = LinkNavigation(pageID: id, url: url?.absoluteString, gesture: gesture)
+        guard let answer = try? core?.query(question) else {
+            return gesture.userActivated && gesture.topLevel ? .foregroundTab : .navigate
+        }
+        return answer.decision
+    }
+
+    /// Whether a window the page opened with `gesture`, which its engine
+    /// accepted, comes to the front. A core that cannot answer brings it
+    /// forward, as an ordinary new-window request does.
+    func selectsOpenedWindow(gesture: LinkGesture) -> Bool {
+        (try? core?.query(OpenedWindowSelection(gesture: gesture)))?.selects ?? true
+    }
+
     /// Leaves the page's failed navigation for the document behind it.
     func leaveFailure() {
         guard !isReleased, live.failure != nil else { return }

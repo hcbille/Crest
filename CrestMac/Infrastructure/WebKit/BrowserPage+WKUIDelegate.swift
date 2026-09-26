@@ -94,9 +94,7 @@ extension BrowserPage: WKUIDelegate {
                     configuration: configuration,
                     requestedURL: requestedURL,
                     opener: self,
-                    selecting: navigationAction.selectsOpenedLink(
-                        using: BrowserLinkPreferenceStore.shared.preferences
-                    )
+                    selecting: corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
                 )
             }
         )

@@ -264,14 +264,16 @@ static void engine_boundary(void) {
     crest_buffer_free(&buffer);
 
     /* OpenPage: the page, the workspace, the Space (all 0x44), no tab, the
-     * window. The dispatch returns once the binding ran CreatePage: the page,
-     * the Space's profile (all 0x55), whether it is private and the window. */
-    uint8_t page[66] = { CREST_INTENT_OPEN_PAGE };
+     * window, and no transient presentation. The dispatch returns once the
+     * binding ran CreatePage: the page, the Space's profile (all 0x55),
+     * whether it is private and the window. */
+    uint8_t page[67] = { CREST_INTENT_OPEN_PAGE };
     memset(page + 1, 0x61, 16);
     memcpy(page + 17, workspace, 16);
     memset(page + 33, 0x44, 16);
     page[49] = 0;
     memset(page + 50, 0x42, 16);
+    page[66] = 0;
     assert(crest_app_dispatch(app, page, sizeof(page), &buffer) == CREST_OK);
     assert(buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_PAGE_OPENED);
     crest_buffer_free(&buffer);

@@ -84,8 +84,8 @@ struct MobileBrowserRootSurface<Compact: View, Regular: View, Palette: View>:
                 }
             }
         }
-        .onChange(of: browser.session, initial: true) {
-            transientBrowsing.reconcilePeeks(in: browser.session)
+        .onChange(of: transientBrowsing.orphanedPeeks(in: browser), initial: true) {
+            transientBrowsing.reconcilePeeks(in: browser)
         }
         .onChange(of: transientBrowsing.peekRequests, initial: true) {
             pages.retainPeekPages(for: transientBrowsing.peekRequests)

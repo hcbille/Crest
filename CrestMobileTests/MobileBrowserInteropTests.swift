@@ -314,31 +314,6 @@ final class MobileBrowserInteropTests: XCTestCase {
         )
     }
 
-    func testMobileCommandClickedWebLinksUseNativeBackgroundAndForegroundTabDisposition() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/reference"))
-
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: url,
-                isUserActivatedLink: true,
-                isCommandModified: true,
-                isShiftModified: false,
-                isMiddleClick: false
-            ),
-            .backgroundTab(url)
-        )
-        XCTAssertEqual(
-            BrowserModifiedLinkDisposition.classify(
-                destinationURL: url,
-                isUserActivatedLink: true,
-                isCommandModified: true,
-                isShiftModified: true,
-                isMiddleClick: false
-            ),
-            .foregroundTab(url)
-        )
-    }
-
     func testMobileDownloadTransferMovesFromPrivateStagingToTheVisibleRecord() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -403,30 +378,9 @@ final class MobileBrowserInteropTests: XCTestCase {
         )
     }
 
-    func testNativeWindowFocusUsesTheSharedChoiceForCommandMiddleClickAndShift() {
-        let store = BrowserLinkPreferenceStore()
-        for focus in [false, true] {
-            store.setBehavior(.focusesNewTabs, isOn: focus)
-            let preferences = store.preferences
-            for shift in [false, true] {
-                for middle in [false, true] {
-                    var flags: UIKeyModifierFlags = middle ? [] : .command
-                    if shift { flags.insert(.shift) }
-                    let action = StubPopupNavigationAction(
-                        url: nil, navigationType: .other, modifierFlags: flags,
-                        buttonNumber: middle ? UIEvent.ButtonMask(rawValue: 1 << 2) : []
-                    )
-                    XCTAssertEqual(action.selectsOpenedLink(using: preferences), focus != shift)
-                }
-            }
-        }
-    }
-
     func testBackgroundNativeWindowUpdatesItsOwnTabAndBecomesPressureEligibleAfterLoading() async throws {
-        let saved = BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs
-        defer { BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: saved) }
-        BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: false)
         let context = try makePopupContext()
+        BrowserLinkPreferenceStore(core: context.store.core).setBehavior(.focusesNewTabs, isOn: false)
         let sourceID = context.store.selectedTab?.id
         let url = try XCTUnwrap(URL(string: "https://example.com/research"))
         let popup = try XCTUnwrap(

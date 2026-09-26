@@ -16,8 +16,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
 
     // MARK: - Variables
 
-    var opensModifiedLinksInForeground = false
-
     /// The core's page, which `release(keepingState:)` ends.
     @ObservationIgnored let corePage: CorePage
     /// The engine's per-page adapter. Everything the page asks of its engine
@@ -401,10 +399,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
         userActivityHandler = nil
     }
 
-    func updateNavigationContext(
-        tab: BrowserTab,
-        automaticallyOpensPeek: Bool = true
-    ) {
+    func updateNavigationContext(tab: BrowserTab) {
         let previousTitle = navigationContext?.title
         let shouldRefreshAutomaticIcon =
             tab.iconMode.followsPage
@@ -421,8 +416,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
         navigationContext = BrowserPageNavigationContext(
             tab: tab,
             spaceID: spaceID,
-            profileID: profileID,
-            automaticallyOpensPeek: automaticallyOpensPeek
+            profileID: profileID
         )
         linkDrag?.contextDidChange()
         if previousTitle != navigationContext?.title {

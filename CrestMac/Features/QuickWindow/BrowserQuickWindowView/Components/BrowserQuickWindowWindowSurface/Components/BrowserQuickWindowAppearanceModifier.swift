@@ -13,7 +13,7 @@ struct BrowserQuickWindowAppearanceModifier: ViewModifier {
         content
             .background {
                 BrowserQuickWindowBackdrop(
-                    space: model.space,
+                    space: model.spaceModel,
                     opacity: windowBaseLayerOpacity,
                     reduceMotion: reduceMotion
                 )

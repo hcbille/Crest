@@ -27,7 +27,7 @@ struct BrowserRootPeekLayer: View {
             .environment(
                 \.browserWebFocusRestorationGate,
                 BrowserWebFocusRestorationGate(
-                    browserChromeOwnsFocus: !request.isSelected(in: model.browser.presented)
+                    browserChromeOwnsFocus: !request.isSelected(in: model.browser)
                         || !model.isWindowFocused || model.isAddressEditing || model.chrome.isCommandPalettePresented,
                     pageChromeOwnsFocus: false)
             )

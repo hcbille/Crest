@@ -9,9 +9,10 @@ using Xunit;
 namespace CrestCore.Tests;
 
 /// Link preferences are device state: the device store keeps them beside the
-/// session, carried once from the document an installed release kept, and a
-/// link another app hands a window never opens a locked Space, whatever
-/// preference names it.
+/// session, carried once from the document an installed release kept. A link
+/// another app hands a window never opens a locked Space, whatever preference
+/// names it, and a link followed from a page goes where its tab, its Peek and
+/// the preferences send it.
 public sealed partial class BrowserContractsTests {
     private static LinkPreferences Links(IReadOnlyList<Change> changes) =>
         Assert.Single(changes.OfType<LinkPreferencesChanged>()).Preferences;
@@ -104,5 +105,46 @@ public sealed partial class BrowserContractsTests {
         app.Send(new LockSpace(locked));
         app.Send(new SetSpaceAccess(workspace, open, SpaceAccessPolicy.DeviceOwnerAuthentication));
         Assert.Equal(new ExternalLinkPlacement(null, false, false), Route("https://example.com/a"));
+    }
+
+    [Fact]
+    public void ALinkFollowedFromAPageGoesWhereItsTabItsPeekAndThePreferencesSendIt() {
+        var (document, space, tab) = SavedSession();
+        var (app, _, _, workspace, window) = PageHost(document["session"]!);
+        using var disposal = app;
+        Guid saved = Guid.NewGuid(), peek = Guid.NewGuid(), quick = Guid.NewGuid();
+        app.Send(new OpenPage(saved, workspace, space, tab, window));
+        app.Send(new OpenPage(peek, workspace, space, null, window, TransientPresentation.Peek));
+        app.Send(new OpenPage(quick, workspace, space, null, window, TransientPresentation.QuickWindow));
+        LinkNavigationDecision Follow(Guid page, string url, ShortcutModifiers held = ShortcutModifiers.None) =>
+            app.Query(new LinkNavigation(page, url, new LinkGesture(UserActivated: true, TopLevel: true, held, MiddleClick: false)))
+                .Decision;
+
+        // A saved tab keeps its site: a link to another opens in Peek, until the person turns that off.
+        Assert.Equal(LinkNavigationDecision.PeekSavedSite, Follow(saved, "https://webkit.org/"));
+        Assert.Equal(LinkNavigationDecision.Navigate, Follow(saved, "https://example.com/other"));
+        app.Send(new SetLinkBehavior(LinkBehavior.OpensPeekAutomatically, false));
+        Assert.Equal(LinkNavigationDecision.Navigate, Follow(saved, "https://webkit.org/"));
+
+        // The chosen key opens Peek and the other a new tab, which a Peek brings to the front.
+        Assert.Equal(LinkNavigationDecision.PeekModifier, Follow(saved, "https://webkit.org/", ShortcutModifiers.Option));
+        app.Send(new ChoosePeekModifier(LinkPeekModifier.Command));
+        Assert.Equal(LinkNavigationDecision.BackgroundTab, Follow(saved, "https://webkit.org/", ShortcutModifiers.Option));
+        Assert.Equal(LinkNavigationDecision.ForegroundTab, Follow(peek, "https://webkit.org/", ShortcutModifiers.Option));
+        Assert.Equal(LinkNavigationDecision.BackgroundTab, Follow(quick, "https://webkit.org/", ShortcutModifiers.Option));
+        // A page with no tab never opens a Peek of its own.
+        Assert.Equal(LinkNavigationDecision.Navigate, Follow(peek, "https://webkit.org/", ShortcutModifiers.Command));
+
+        // A window a page opens comes to the front unless the new-tab gesture asks otherwise.
+        bool Selects(ShortcutModifiers held, bool middle = false) =>
+            app.Query(new OpenedWindowSelection(new LinkGesture(UserActivated: false, TopLevel: true, held, middle))).Selects;
+        Assert.True(Selects(ShortcutModifiers.None));
+        Assert.False(Selects(ShortcutModifiers.Option));
+        Assert.False(Selects(ShortcutModifiers.None, middle: true));
+        Assert.True(Selects(ShortcutModifiers.Option | ShortcutModifiers.Shift));
+        Assert.True(Selects(ShortcutModifiers.Command));
+        app.Send(new SetLinkBehavior(LinkBehavior.FocusesNewTabs, true));
+        Assert.True(Selects(ShortcutModifiers.Option));
+        Assert.False(Selects(ShortcutModifiers.Option | ShortcutModifiers.Shift));
     }
 }

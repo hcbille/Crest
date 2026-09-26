@@ -117,28 +117,14 @@ extension MobileBrowserPage: WKNavigationDelegate {
             decisionHandler(.cancel)
             return
         }
-        let isCommandModified = navigationAction.modifierFlags.contains(.command)
-        let isOptionModified = navigationAction.modifierFlags.contains(.alternate)
-        let isShiftModified = navigationAction.modifierFlags.contains(.shift)
-        let isMiddleClick = navigationAction.buttonNumber.rawValue == 1 << 2
-        let isUserActivatedLink = navigationAction.navigationType == .linkActivated
-        let isTopLevelNavigation = navigationAction.targetFrame?.isMainFrame ?? true
+        let gesture = navigationAction.linkGesture
         let sourcePresentation =
-            isUserActivatedLink && isTopLevelNavigation
+            gesture.userActivated && gesture.topLevel
             ? linkActivationSourceStore.consume(
                 destinationURL: navigationAction.request.url
             )
             : nil
-        let decision = LinkNavigationDecision.classifyModifiedLink(
-            destinationURL: navigationAction.request.url, context: navigationContext,
-            isUserActivatedLink: navigationAction.navigationType == .linkActivated,
-            isTopLevelNavigation: navigationAction.targetFrame?.isMainFrame ?? true,
-            isCommandModified: isCommandModified, isOptionModified: isOptionModified,
-            isMiddleClick: isMiddleClick,
-            peekModifier: BrowserLinkPreferenceStore.shared.preferences.peekModifier,
-            isShiftModified: isShiftModified,
-            focusesNewTabs: opensModifiedLinksInForeground
-                || BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs)
+        let decision = corePage.linkNavigation(to: navigationAction.request.url, gesture: gesture)
         // A modified click keeps its initiator's referrer through a staged
         // request; a saved-site Peek starts afresh, as it does on Chromium.
         let engineNavigation =

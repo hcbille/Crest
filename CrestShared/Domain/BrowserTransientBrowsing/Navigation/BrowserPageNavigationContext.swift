@@ -8,7 +8,6 @@ struct BrowserPageNavigationContext: Equatable, Sendable {
     let savedURL: URL?
     let iconMode: TabIconMode
     let spaceAssignment: BrowserSpaceRuntimeAssignment
-    let automaticallyOpensPeek: Bool
     let keepsPageLoaded: Bool
 
     var spaceID: SpaceID { spaceAssignment.spaceID }
@@ -18,8 +17,7 @@ struct BrowserPageNavigationContext: Equatable, Sendable {
     init(
         tab: BrowserTab,
         spaceID: SpaceID,
-        profileID: UUID,
-        automaticallyOpensPeek: Bool = true
+        profileID: UUID
     ) {
         tabID = tab.id
         title = tab.displayTitle
@@ -31,7 +29,6 @@ struct BrowserPageNavigationContext: Equatable, Sendable {
             spaceID: spaceID,
             profileID: profileID
         )
-        self.automaticallyOpensPeek = automaticallyOpensPeek
         keepsPageLoaded = tab.keepsPageLoaded
     }
 

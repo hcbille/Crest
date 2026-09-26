@@ -87,8 +87,14 @@ final class BrowserTransientBrowsingCoordinator {
         return true
     }
 
-    func reconcilePeeks(in session: BrowserSession) {
-        peeks.removeAll { !$0.request.hasSource(in: session) }
+    /// The Peeks whose source tab left its Space, as `browser` reads it.
+    func orphanedPeeks(in browser: BrowserStore) -> [UUID] {
+        peeks.filter { !$0.request.hasSource(in: browser) }.map(\.request.id)
+    }
+
+    /// Dismisses every Peek whose source tab left its Space.
+    func reconcilePeeks(in browser: BrowserStore) {
+        peeks.removeAll { !$0.request.hasSource(in: browser) }
     }
 
     func presentQuickWindow(_ request: BrowserQuickWindowRequest) {

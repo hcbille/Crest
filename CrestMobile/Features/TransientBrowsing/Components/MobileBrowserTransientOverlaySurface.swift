@@ -8,8 +8,8 @@ struct MobileBrowserTransientOverlaySurface: View {
     var body: some View {
         BrowserTransientOverlayContent(
             requestID: model.request.id,
-            space: model.space,
-            spaces: model.availableSpaces,
+            space: model.spaceModel,
+            spaces: model.availableSpaceModels,
             spaceAccess: spaceAccess,
             // The overlay is the whole screen here, so a Space disappearing
             // under it leaves nothing to explain the loss against.

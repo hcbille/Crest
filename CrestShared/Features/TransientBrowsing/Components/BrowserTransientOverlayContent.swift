@@ -9,8 +9,8 @@ import SwiftUI
 /// unlocked content.
 struct BrowserTransientOverlayContent<UnlockedContent: View>: View {
     let requestID: UUID
-    let space: BrowserSpace?
-    let spaces: [BrowserSpace]
+    let space: SpaceModel?
+    let spaces: [SpaceModel]
     let spaceAccess: BrowserSpaceAccessController
     let unavailableSpacePresentation: BrowserTransientUnavailableSpacePresentation
     let selectSpace: (BrowserSpaceRuntimeAssignment) -> Void
@@ -19,8 +19,8 @@ struct BrowserTransientOverlayContent<UnlockedContent: View>: View {
 
     init(
         requestID: UUID,
-        space: BrowserSpace?,
-        spaces: [BrowserSpace],
+        space: SpaceModel?,
+        spaces: [SpaceModel],
         spaceAccess: BrowserSpaceAccessController,
         unavailableSpacePresentation: BrowserTransientUnavailableSpacePresentation,
         selectSpace: @escaping (BrowserSpaceRuntimeAssignment) -> Void,

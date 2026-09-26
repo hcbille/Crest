@@ -34,7 +34,7 @@ struct MobileBrowserTransientUnlockedContent: View {
         .onChange(of: model.motionState) { _, state in
             if let state { retainedMotionState = state }
         }
-        .task(id: model.activityRevision) {
+        .task(id: model.archiveTimer) {
             await model.autoArchiveAfterInactivity()
         }
         .onChange(of: scenePhase) { _, phase in

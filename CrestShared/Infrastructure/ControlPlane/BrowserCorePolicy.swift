@@ -43,28 +43,6 @@ enum BrowserCorePolicy {
         }
     }
 
-    private struct LinkNavigationRequest: Encodable {
-        @BrowserCoreNullable var url: String?
-        let userActivatedLink: Bool
-        let topLevel: Bool
-        var commandModified: Bool?
-        var optionModified: Bool?
-        var middleClick: Bool?
-        var peekModifier: LinkPeekModifier?
-        var peekModified: Bool?
-        var newTabModified: Bool?
-        let shiftModified: Bool
-        let focusesNewTabs: Bool
-        let hasContext: Bool
-        @BrowserCoreNullable var placement: TabPlacement?
-        @BrowserCoreNullable var savedUrl: String?
-        let automaticallyOpensPeek: Bool
-    }
-
-    private struct LinkNavigationAnswer: Decodable {
-        let decision: LinkNavigationDecision
-    }
-
     private struct ReleaseLimitRequest: Encodable {
         let level: MemoryPressureLevel
         let platform: DevicePlatform
@@ -118,57 +96,6 @@ enum BrowserCorePolicy {
     // MARK: - Variables
 
     private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "CorePolicy")
-
-    // MARK: - Actions - Navigation
-
-    /// The link decision when the core cannot answer. A person's own top-level
-    /// click opens a new tab in the same Space, so a pinned or saved tab never
-    /// leaves the page it keeps and nothing opens as a Peek or crosses a
-    /// profile; a script or subframe navigation keeps the engine's own
-    /// in-place behavior, which Crest never intercepts.
-    private static func unansweredLinkNavigation(isUserActivatedLink: Bool, isTopLevelNavigation: Bool)
-        -> LinkNavigationDecision
-    {
-        isUserActivatedLink && isTopLevelNavigation ? .foregroundTab : .navigate
-    }
-
-    static func modifiedLinkNavigation(
-        destinationURL: URL?, context: BrowserPageNavigationContext?,
-        isUserActivatedLink: Bool, isTopLevelNavigation: Bool, isCommandModified: Bool,
-        isOptionModified: Bool, isMiddleClick: Bool, peekModifier: LinkPeekModifier,
-        isShiftModified: Bool, focusesNewTabs: Bool
-    ) -> LinkNavigationDecision {
-        let request = LinkNavigationRequest(
-            url: destinationURL?.absoluteString, userActivatedLink: isUserActivatedLink,
-            topLevel: isTopLevelNavigation, commandModified: isCommandModified, optionModified: isOptionModified,
-            middleClick: isMiddleClick, peekModifier: peekModifier, shiftModified: isShiftModified,
-            focusesNewTabs: focusesNewTabs, hasContext: context != nil, placement: context?.placement,
-            savedUrl: context?.savedURL?.absoluteString,
-            automaticallyOpensPeek: context?.automaticallyOpensPeek ?? false)
-        guard let answer = evaluate(.navigationModifiedLink, request, answer: LinkNavigationAnswer.self) else {
-            return unansweredLinkNavigation(
-                isUserActivatedLink: isUserActivatedLink, isTopLevelNavigation: isTopLevelNavigation)
-        }
-        return answer.decision
-    }
-
-    static func linkNavigation(
-        destinationURL: URL?, context: BrowserPageNavigationContext?,
-        isUserActivatedLink: Bool, isTopLevelNavigation: Bool, isPeekModified: Bool,
-        isNewTabModified: Bool, isShiftModified: Bool, focusesNewTabs: Bool
-    ) -> LinkNavigationDecision {
-        let request = LinkNavigationRequest(
-            url: destinationURL?.absoluteString, userActivatedLink: isUserActivatedLink,
-            topLevel: isTopLevelNavigation, peekModified: isPeekModified, newTabModified: isNewTabModified,
-            shiftModified: isShiftModified, focusesNewTabs: focusesNewTabs, hasContext: context != nil,
-            placement: context?.placement, savedUrl: context?.savedURL?.absoluteString,
-            automaticallyOpensPeek: context?.automaticallyOpensPeek ?? false)
-        guard let answer = evaluate(.navigationLink, request, answer: LinkNavigationAnswer.self) else {
-            return unansweredLinkNavigation(
-                isUserActivatedLink: isUserActivatedLink, isTopLevelNavigation: isTopLevelNavigation)
-        }
-        return answer.decision
-    }
 
     // MARK: - Actions - Residency
 

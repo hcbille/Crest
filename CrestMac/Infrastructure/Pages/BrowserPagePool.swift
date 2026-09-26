@@ -333,9 +333,7 @@ final class BrowserPagePool:
         runtime.presentationWindowID = nil
         runtimeStore.install(runtime, for: tab.id, from: self)
         for page in runtime.allPages {
-            page.updateNavigationContext(
-                tab: tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared.preferences.opensPeekAutomatically)
+            page.updateNavigationContext(tab: tab)
         }
         residencyRevision &+= 1
         return true
@@ -763,11 +761,7 @@ final class BrowserPagePool:
         }
         releasePages(for: reconciliation.invalidTabIDs, keepingStateOf: reconciliation.tabIDsToArchive)
         for context in reconciliation.navigationContexts {
-            context.page.updateNavigationContext(
-                tab: context.tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.opensPeekAutomatically
-            )
+            context.page.updateNavigationContext(tab: context.tab)
         }
         tabState.prune(keeping: reconciliation.retainedTabIDsByProfileID)
         reconcileCredentialAccess(in: session)
@@ -840,11 +834,7 @@ final class BrowserPagePool:
         for (tabID, runtime) in tabRuntimes {
             let page = runtime.page
             guard let tab = tabsByID[tabID] else { continue }
-            page.updateNavigationContext(
-                tab: tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.opensPeekAutomatically
-            )
+            page.updateNavigationContext(tab: tab)
         }
     }
 
@@ -969,7 +959,7 @@ final class BrowserPagePool:
         }
         peekPageLeases.removeValue(forKey: request.id)?.lease.release()
         let lease = makeTransientPageLease(
-            url: request.url, in: space, opensModifiedLinksInForeground: true,
+            url: request.url, in: space, presentation: .peek,
             engineNavigation: request.engineNavigation,
             onDownloadOnlyNavigation: onDownloadOnlyNavigation)
         if let lease { peekPageLeases[request.id] = (request, lease) }
@@ -985,7 +975,7 @@ final class BrowserPagePool:
     func makeTransientPageLease(
         url: URL,
         in space: BrowserSpace,
-        opensModifiedLinksInForeground: Bool = false,
+        presentation: TransientPresentation = .quickWindow,
         engineNavigation: BrowserEngineNavigation? = nil,
         onUserActivity: @escaping () -> Void = {},
         onDownloadOnlyNavigation: (() -> Void)? = nil
@@ -994,7 +984,7 @@ final class BrowserPagePool:
         // The core decides whether the Space may host a page, for the first
         // page and for every page memory pressure makes the lease rebuild.
         let makeTransientPage = { [weak self] () -> BrowserPage? in
-            guard let self, let page = makePage(space: space) else { return nil }
+            guard let self, let page = makePage(space: space, presentation: presentation) else { return nil }
             if let navigation = pendingNavigation {
                 pendingNavigation = nil
                 guard page.pageEngine.stageNavigation(navigation, expecting: url) else {
@@ -1002,7 +992,6 @@ final class BrowserPagePool:
                     return nil
                 }
             }
-            page.opensModifiedLinksInForeground = opensModifiedLinksInForeground
             return page
         }
         guard let initialPage = makeTransientPage() else { return nil }
@@ -1045,17 +1034,12 @@ final class BrowserPagePool:
             _ = browser.adoptPage(page.corePage, in: space.id, as: nil)
             return false
         }
-        page.opensModifiedLinksInForeground = false
         transientLeases.removeValue(forKey: lease.id)
         retainResidentPage(page, for: tabID)
         residencyRevision &+= 1
         activate(tabID, at: .now)
         if let tab = space.tabs.first(where: { $0.id == tabID }) {
-            page.updateNavigationContext(
-                tab: tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.opensPeekAutomatically
-            )
+            page.updateNavigationContext(tab: tab)
         }
         return true
     }
@@ -1116,7 +1100,7 @@ final class BrowserPagePool:
             return false
         }
         page.markOpenedAsPopup()
-        page.updateNavigationContext(tab: registration.tab, automaticallyOpensPeek: false)
+        page.updateNavigationContext(tab: registration.tab)
         guard page.engineAdapter.adoptEngineCreatedPage(adoption.token) else {
             page.release(keepingState: false)
             popupTabHost.closeTab(registration.tab.id, registration.space.id)
@@ -1164,11 +1148,7 @@ final class BrowserPagePool:
             return nil
         }
         page.markOpenedAsPopup()
-        page.updateNavigationContext(
-            tab: registration.tab,
-            automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                .preferences.opensPeekAutomatically
-        )
+        page.updateNavigationContext(tab: registration.tab)
         retainResidentPage(page, for: registration.tab.id)
         residencyRevision &+= 1
         if selecting {
@@ -1499,11 +1479,7 @@ final class BrowserPagePool:
                 page.setCredentialAccessEnabled(
                     space.credentialPreferences.isEnabled
                 )
-                page.updateNavigationContext(
-                    tab: tab,
-                    automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                        .preferences.opensPeekAutomatically
-                )
+                page.updateNavigationContext(tab: tab)
                 return page
             }
             // The tab moved to another Space, so the state archived under its old
@@ -1517,24 +1493,21 @@ final class BrowserPagePool:
             inactiveSinceByTabID[tab.id] = nil
         }
         guard let page = makePage(space: space, tabID: tab.id) else { return nil }
-        page.updateNavigationContext(
-            tab: tab,
-            automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                .preferences.opensPeekAutomatically
-        )
+        page.updateNavigationContext(tab: tab)
         retainResidentPage(page, for: tab.id)
         residencyRevision &+= 1
         return page
     }
 
     /// Opens a page through the core for `tabID` in `space`, or for a
-    /// transient request when `tabID` is nil, on the engine the core chooses,
-    /// and hosts it. `webKit` builds the page when WebKit hosts it, and this
+    /// transient request presenting as `presentation` when `tabID` is nil, on
+    /// the engine the core chooses, and hosts it. `webKit` builds the page when WebKit hosts it, and this
     /// pool's own WebKit configuration builds it otherwise. Nil when the core
     /// refuses the page.
     private func makePage(
         space: BrowserSpace,
         tabID: TabID? = nil,
+        presentation: TransientPresentation? = nil,
         webKit: (@MainActor () -> any BrowserPageEngineAdapter)? = nil
     ) -> BrowserPage? {
         let interval = Self.lifecycleSignposter.beginInterval("Create Browser Page")
@@ -1544,7 +1517,7 @@ final class BrowserPagePool:
 
         guard
             let opened = browser.openPage(
-                in: space.id, for: tabID,
+                in: space.id, for: tabID, presenting: presentation,
                 webKit: { [weak self] _ in webKit?() ?? self?.makeWebKitPageEngine(for: space) })
         else { return nil }
         guard let engine = opened.built as? any BrowserPageEngineAdapter else {

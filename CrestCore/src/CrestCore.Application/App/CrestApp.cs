@@ -196,6 +196,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 SystemPasswordOffer offer => credentials.Answer(offer),
                 BalancedProtectionRules rules => contentBlocking.Answer(rules),
                 RouteExternalLink route => device.Answer(route),
+                LinkNavigation navigation => device.Answer(navigation, pages),
+                OpenedWindowSelection selection => device.Answer(selection),
                 CanTearOff tearOff => device.Answer(tearOff),
                 SiteDecision decision => device.Answer(decision),
                 CaptureDecision capture => device.Answer(capture),

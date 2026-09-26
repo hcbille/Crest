@@ -63,61 +63,6 @@ public sealed class NativePolicyTests {
         Assert.Equal("~notapath", AddressResolution.Resolve("~notapath", Kagi())!.SearchQuery);
     }
     [Fact]
-    public void LinkPolicyWireContractAcceptsNullableContextAndRejectsExtraInstructions() {
-        var request = new JsonObject {
-            ["version"] = 1,
-            ["operation"] = "navigation.link",
-            ["url"] = "https://example.com/",
-            ["userActivatedLink"] = true,
-            ["topLevel"] = true,
-            ["peekModified"] = false,
-            ["newTabModified"] = true,
-            ["shiftModified"] = true,
-            ["focusesNewTabs"] = false,
-            ["hasContext"] = false,
-            ["placement"] = null,
-            ["savedUrl"] = null,
-            ["automaticallyOpensPeek"] = false
-        };
-        var response = JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-        Assert.Equal("foregroundTab", response["decision"]!.GetValue<string>());
-        request["engineCommand"] = "navigate";
-        Assert.Throws<ProtocolException>(() => NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())));
-    }
-    [Fact]
-    public void ModifiedLinkWireKeepsPreferenceAndOwnershipExplicit() {
-        var request = new JsonObject {
-            ["version"] = 1,
-            ["operation"] = "navigation.modified_link",
-            ["url"] = "https://example.com/",
-            ["userActivatedLink"] = true,
-            ["topLevel"] = true,
-            ["commandModified"] = true,
-            ["optionModified"] = false,
-            ["middleClick"] = false,
-            ["peekModifier"] = "command",
-            ["shiftModified"] = false,
-            ["focusesNewTabs"] = false,
-            ["hasContext"] = true,
-            ["placement"] = "open",
-            ["savedUrl"] = null,
-            ["automaticallyOpensPeek"] = false
-        };
-        string Decision() => JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!["decision"]!.GetValue<string>();
-        Assert.Equal("peekModifier", Decision());
-        request["hasContext"] = false;
-        Assert.Equal("navigate", Decision());
-        request["peekModifier"] = "option";
-        Assert.Equal("backgroundTab", Decision());
-        request["shiftModified"] = true;
-        Assert.Equal("foregroundTab", Decision());
-        request["peekModifier"] = "control";
-        Assert.Throws<ProtocolException>(() => Decision());
-        request["peekModifier"] = "option";
-        request["peekModified"] = true;
-        Assert.Throws<ProtocolException>(() => Decision());
-    }
-    [Fact]
     public void CustomSearchTemplatesRejectCredentialAndLocalTargetsAndHaveStableSelectionFallback() {
         foreach (var template in new[] {
             "http://example.org/?q=%s", "https://example.org/?q=%s&token=secret", "https://localhost/?q=%s",

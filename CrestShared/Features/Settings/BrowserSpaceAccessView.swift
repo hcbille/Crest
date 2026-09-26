@@ -22,20 +22,6 @@ struct BrowserSpaceAccessView: View {
         self.presentation = presentation
     }
 
-    /// A lock over Spaces of the session copy. TRANSITIONAL until the Quick
-    /// Window and Peek read their Space from the read model.
-    init(
-        space: BrowserSpace, spaces: [BrowserSpace], accessController: BrowserSpaceAccessController,
-        selectSpace: @escaping (BrowserSpaceRuntimeAssignment) -> Void,
-        presentation: BrowserSpaceAccessPresentation = .standalone
-    ) {
-        self.space = BrowserSpaceIdentity(space: space)
-        self.spaces = spaces.map(BrowserSpaceIdentity.init(space:))
-        self.accessController = accessController
-        self.selectSpace = selectSpace
-        self.presentation = presentation
-    }
-
     var body: some View {
         ScrollView {
             accessContent

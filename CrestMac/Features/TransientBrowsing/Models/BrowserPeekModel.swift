@@ -43,6 +43,19 @@ final class BrowserPeekModel {
         browser.space(matching: request.assignment)
     }
 
+    /// The Space the Peek browses, as the read model holds it.
+    var spaceModel: SpaceModel? {
+        browser.spaceModel(matching: request.assignment)
+    }
+
+    /// The Spaces the Peek may move to or unlock: none being deleted, and
+    /// none locked but its own.
+    var availableSpaceModels: [SpaceModel] {
+        browser.spaceModels.filter {
+            !browser.isDeleting($0.id) && ($0.id == request.assignment.spaceID || !spaceAccess.isLocked($0))
+        }
+    }
+
     var page: BrowserPage? {
         pageLease?.page
     }
@@ -206,7 +219,7 @@ final class BrowserPeekModel {
         }
     }
 
-    var isSelected: Bool { request.isSelected(in: browser.presented) }
+    var isSelected: Bool { request.isSelected(in: browser) }
 
     private var isCurrentRequest: Bool {
         coordinator.isPresentingPeek(request)
@@ -221,7 +234,7 @@ final class BrowserPeekModel {
     ) -> BrowserTransientLeaseDisposition {
         BrowserTransientSessionPolicy.disposition(
             isPresentingRequest: isCurrentRequest,
-            space: request.hasSource(in: browser.session) ? browser.space(matching: assignment) : nil,
+            space: request.hasSource(in: browser) ? browser.space(matching: assignment) : nil,
             isLocked: spaceAccess.isLocked
         )
     }

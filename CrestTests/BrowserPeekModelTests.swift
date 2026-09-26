@@ -57,7 +57,7 @@ final class BrowserPeekModelTests: XCTestCase {
         XCTAssertTrue(context.model.pageLease === firstLease)
 
         context.browser.deleteTab(context.request.sourceTabID, in: context.source.id)
-        context.coordinator.reconcilePeeks(in: context.browser.session)
+        context.coordinator.reconcilePeeks(in: context.browser)
         context.pages.retainPeekPages(for: context.coordinator.peekRequests)
         XCTAssertEqual(context.coordinator.peekRequests, [secondRequest])
         XCTAssertNil(firstLease.page)

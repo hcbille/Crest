@@ -96,12 +96,6 @@ extension BrowserPage: WKNavigationDelegate {
             decisionHandler(.cancel)
             return
         }
-        let isCommandModified = navigationAction.modifierFlags.contains(.command)
-        let isOptionModified = navigationAction.modifierFlags.contains(.option)
-        let isShiftModified = navigationAction.modifierFlags.contains(.shift)
-        let isMiddleClick = BrowserMouseButtonPolicy.isMiddleButton(
-            number: navigationAction.buttonNumber
-        )
         let sourcePresentation =
             navigationAction.navigationType == .linkActivated
             ? peekSourcePresentation(
@@ -109,16 +103,7 @@ extension BrowserPage: WKNavigationDelegate {
                 in: webView
             )
             : nil
-        let decision = LinkNavigationDecision.classifyModifiedLink(
-            destinationURL: navigationAction.request.url, context: navigationContext,
-            isUserActivatedLink: navigationAction.navigationType == .linkActivated,
-            isTopLevelNavigation: navigationAction.targetFrame?.isMainFrame ?? true,
-            isCommandModified: isCommandModified, isOptionModified: isOptionModified,
-            isMiddleClick: isMiddleClick,
-            peekModifier: BrowserLinkPreferenceStore.shared.preferences.peekModifier,
-            isShiftModified: isShiftModified,
-            focusesNewTabs: opensModifiedLinksInForeground
-                || BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs)
+        let decision = corePage.linkNavigation(to: navigationAction.request.url, gesture: navigationAction.linkGesture)
         // A modified click keeps its initiator's referrer through a staged
         // request; a saved-site Peek starts afresh, as it does on Chromium.
         let engineNavigation =

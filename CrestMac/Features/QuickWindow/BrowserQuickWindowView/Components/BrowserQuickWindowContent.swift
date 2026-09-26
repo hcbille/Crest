@@ -8,12 +8,12 @@ struct BrowserQuickWindowContent: View {
 
     var body: some View {
         Group {
-            if let space = model.space,
+            if let space = model.spaceModel,
                 spaceAccess.isLocked(space)
             {
                 BrowserSpaceAccessView(
                     space: space,
-                    spaces: model.availableSpaces,
+                    spaces: model.availableSpaceModels,
                     accessController: spaceAccess,
                     selectSpace: selectLockedSpace
                 )

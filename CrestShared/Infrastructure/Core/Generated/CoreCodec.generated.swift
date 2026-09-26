@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xca, 0xae, 0x36, 0x3a, 0x9c, 0xd1, 0x93, 0xfb, 0xc1, 0xa9, 0xc1, 0xae, 0xb8, 0x1d, 0xc6, 0xca, 0x93, 0xaf, 0x42, 0x0b, 0xee, 0xa1, 0x02, 0x8a, 0x86, 0x88, 0x7b, 0xde, 0x89, 0x09, 0x6b, 0x6c
+        0x8f, 0x63, 0xf9, 0x9a, 0x12, 0xa3, 0x96, 0x22, 0x37, 0x74, 0x3f, 0x40, 0xc9, 0x9f, 0x09, 0x8d, 0x62, 0x9e, 0x3d, 0xd8, 0xab, 0xf1, 0xff, 0x0a, 0xe6, 0x62, 0xab, 0xae, 0xa5, 0x70, 0x12, 0x6a
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -199,26 +199,28 @@ enum CoreCodec {
         case 19: return try LanguagesMatching(from: &reader)
         case 20: return try LaunchIsolation(from: &reader)
         case 21: return try LaunchPlan(from: &reader)
-        case 22: return try MostRecentCredential(from: &reader)
-        case 23: return try NormalizeBranding(from: &reader)
-        case 24: return try NumberedSelections(from: &reader)
-        case 25: return try PaletteSuggestions(from: &reader)
-        case 26: return try PasskeyAccess(from: &reader)
-        case 27: return try PendingSave(from: &reader)
-        case 28: return try PendingUploads(from: &reader)
-        case 29: return try PresentPage(from: &reader)
-        case 30: return try RecordsToUpload(from: &reader)
-        case 31: return try ResolveAddress(from: &reader)
-        case 32: return try RouteExternalLink(from: &reader)
-        case 33: return try SamePage(from: &reader)
-        case 34: return try SelectionPreview(from: &reader)
-        case 35: return try SelectionSearch(from: &reader)
-        case 36: return try SiteDecision(from: &reader)
-        case 37: return try SplitJoinCandidate(from: &reader)
-        case 38: return try StrongPassword(from: &reader)
-        case 39: return try SystemPasswordOffer(from: &reader)
-        case 40: return try SystemPasswordWriteThrough(from: &reader)
-        case 41: return try TranslationChoice(from: &reader)
+        case 22: return try LinkNavigation(from: &reader)
+        case 23: return try MostRecentCredential(from: &reader)
+        case 24: return try NormalizeBranding(from: &reader)
+        case 25: return try NumberedSelections(from: &reader)
+        case 26: return try OpenedWindowSelection(from: &reader)
+        case 27: return try PaletteSuggestions(from: &reader)
+        case 28: return try PasskeyAccess(from: &reader)
+        case 29: return try PendingSave(from: &reader)
+        case 30: return try PendingUploads(from: &reader)
+        case 31: return try PresentPage(from: &reader)
+        case 32: return try RecordsToUpload(from: &reader)
+        case 33: return try ResolveAddress(from: &reader)
+        case 34: return try RouteExternalLink(from: &reader)
+        case 35: return try SamePage(from: &reader)
+        case 36: return try SelectionPreview(from: &reader)
+        case 37: return try SelectionSearch(from: &reader)
+        case 38: return try SiteDecision(from: &reader)
+        case 39: return try SplitJoinCandidate(from: &reader)
+        case 40: return try StrongPassword(from: &reader)
+        case 41: return try SystemPasswordOffer(from: &reader)
+        case 42: return try SystemPasswordWriteThrough(from: &reader)
+        case 43: return try TranslationChoice(from: &reader)
         default: throw WireError.malformed("Unknown Query tag \(tag)")
         }
     }
@@ -7454,6 +7456,23 @@ extension LegacySession {
     }
 }
 
+extension LinkGesture {
+    init(from reader: inout WireReader) throws(WireError) {
+        let userActivated = try reader.readBool()
+        let topLevel = try reader.readBool()
+        let modifiers = try ShortcutModifiers(from: &reader)
+        let middleClick = try reader.readBool()
+        self.init(userActivated: userActivated, topLevel: topLevel, modifiers: modifiers, middleClick: middleClick)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeBool(userActivated)
+        writer.writeBool(topLevel)
+        modifiers.encode(into: &writer)
+        writer.writeBool(middleClick)
+    }
+}
+
 extension LinkHovered {
     init(from reader: inout WireReader) throws(WireError) {
         let pageID = try reader.readUUID()
@@ -7475,6 +7494,53 @@ extension LinkHovered {
         } else {
             writer.writePresence(false)
         }
+    }
+}
+
+extension LinkNavigation {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        let url: String?
+        if try reader.readPresence() {
+            let urlValue = try reader.readString()
+            url = urlValue
+        } else {
+            url = nil
+        }
+        let gesture = try LinkGesture(from: &reader)
+        self.init(pageID: pageID, url: url, gesture: gesture)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
+        if let present0 = url {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        gesture.encode(into: &writer)
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(22)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> LinkNavigationAnswer {
+        let answer = try LinkNavigationAnswer(from: &reader)
+        return answer
+    }
+}
+
+extension LinkNavigationAnswer {
+    init(from reader: inout WireReader) throws(WireError) {
+        let decision = try LinkNavigationDecision(from: &reader)
+        self.init(decision: decision)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        decision.encode(into: &writer)
     }
 }
 
@@ -7815,7 +7881,7 @@ extension MostRecentCredential {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(23)
         encode(into: &writer)
     }
 
@@ -8513,7 +8579,7 @@ extension NormalizeBranding {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(23)
+        writer.writeTag(24)
         encode(into: &writer)
     }
 
@@ -8604,7 +8670,7 @@ extension NumberedSelections {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(24)
+        writer.writeTag(25)
         encode(into: &writer)
     }
 
@@ -8713,7 +8779,14 @@ extension OpenPage {
             tabID = nil
         }
         let windowID = try reader.readUUID()
-        self.init(pageID: pageID, workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, windowID: windowID)
+        let transient: TransientPresentation?
+        if try reader.readPresence() {
+            let transientValue = try TransientPresentation(from: &reader)
+            transient = transientValue
+        } else {
+            transient = nil
+        }
+        self.init(pageID: pageID, workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, windowID: windowID, transient: transient)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -8727,6 +8800,12 @@ extension OpenPage {
             writer.writePresence(false)
         }
         writer.writeUUID(windowID)
+        if let present0 = transient {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
     }
 
     func encodeIntent(into writer: inout WireWriter) {
@@ -8888,6 +8967,38 @@ extension OpenWorkspace {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(93)
         encode(into: &writer)
+    }
+}
+
+extension OpenedWindowSelected {
+    init(from reader: inout WireReader) throws(WireError) {
+        let selects = try reader.readBool()
+        self.init(selects: selects)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeBool(selects)
+    }
+}
+
+extension OpenedWindowSelection {
+    init(from reader: inout WireReader) throws(WireError) {
+        let gesture = try LinkGesture(from: &reader)
+        self.init(gesture: gesture)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        gesture.encode(into: &writer)
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(26)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> OpenedWindowSelected {
+        let answer = try OpenedWindowSelected(from: &reader)
+        return answer
     }
 }
 
@@ -9960,7 +10071,7 @@ extension PaletteSuggestions {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(25)
+        writer.writeTag(27)
         encode(into: &writer)
     }
 
@@ -9985,7 +10096,7 @@ extension PasskeyAccess {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(26)
+        writer.writeTag(28)
         encode(into: &writer)
     }
 
@@ -10015,7 +10126,7 @@ extension PendingSave {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(27)
+        writer.writeTag(29)
         encode(into: &writer)
     }
 
@@ -10076,7 +10187,7 @@ extension PendingUploads {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(28)
+        writer.writeTag(30)
         encode(into: &writer)
     }
 
@@ -10367,7 +10478,7 @@ extension PresentPage {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(29)
+        writer.writeTag(31)
         encode(into: &writer)
     }
 
@@ -10571,7 +10682,7 @@ extension RecordsToUpload {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(30)
+        writer.writeTag(32)
         encode(into: &writer)
     }
 
@@ -11179,7 +11290,7 @@ extension ResolveAddress {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(31)
+        writer.writeTag(33)
         encode(into: &writer)
     }
 
@@ -11320,7 +11431,7 @@ extension RouteExternalLink {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(32)
+        writer.writeTag(34)
         encode(into: &writer)
     }
 
@@ -11343,7 +11454,7 @@ extension SamePage {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(33)
+        writer.writeTag(35)
         encode(into: &writer)
     }
 
@@ -11663,7 +11774,7 @@ extension SelectionPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(34)
+        writer.writeTag(36)
         encode(into: &writer)
     }
 
@@ -11688,7 +11799,7 @@ extension SelectionSearch {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(35)
+        writer.writeTag(37)
         encode(into: &writer)
     }
 
@@ -12790,7 +12901,7 @@ extension SiteDecision {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(36)
+        writer.writeTag(38)
         encode(into: &writer)
     }
 
@@ -13667,7 +13778,7 @@ extension SplitJoinCandidate {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(37)
+        writer.writeTag(39)
         encode(into: &writer)
     }
 
@@ -13951,7 +14062,7 @@ extension StrongPassword {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(38)
+        writer.writeTag(40)
         encode(into: &writer)
     }
 
@@ -14181,7 +14292,7 @@ extension SystemPasswordOffer {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(39)
+        writer.writeTag(41)
         encode(into: &writer)
     }
 
@@ -14219,7 +14330,7 @@ extension SystemPasswordWriteThrough {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(40)
+        writer.writeTag(42)
         encode(into: &writer)
     }
 
@@ -14842,7 +14953,7 @@ extension TranslationChoice {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(41)
+        writer.writeTag(43)
         encode(into: &writer)
     }
 
@@ -16823,6 +16934,20 @@ extension TabSurface {
         let tag = try reader.readEnum()
         guard Self.all.indices.contains(tag) else {
             throw WireError.malformed("Unknown TabSurface \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
+extension TransientPresentation {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown TransientPresentation \(tag)")
         }
         self = Self.all[tag]
     }

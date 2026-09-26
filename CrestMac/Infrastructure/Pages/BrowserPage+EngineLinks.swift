@@ -52,19 +52,18 @@ extension BrowserPage {
     /// the engine navigate. The engine cancels first and runs the action once
     /// it has left its navigation stack.
     func protectedLinkAction(to destination: URL) -> (() -> Void)? {
+        let click = LinkGesture(userActivated: true, topLevel: true, modifiers: [], middleClick: false)
         guard let context = navigationContext,
             let sourceWindow = nativeView.window,
-            let request = BrowserPeekPolicy.request(
-                destinationURL: destination, context: context,
-                isUserActivatedLink: true, isTopLevelNavigation: true, isAlternateModified: false)
+            let request = corePage.linkNavigation(to: destination, gesture: click)
+                .peekRequest(destinationURL: destination, context: context)
         else { return nil }
         // A moved or reassigned source must not open Peek.
         return { [weak self, weak sourceWindow] in
             guard let self, let sourceWindow, self.nativeView.window === sourceWindow,
                 let current = self.navigationContext,
                 current.tabID == context.tabID, current.assignment == context.assignment,
-                current.placement == context.placement, current.savedURL == context.savedURL,
-                current.automaticallyOpensPeek
+                current.placement == context.placement, current.savedURL == context.savedURL
             else { return }
             self.openPeek(request)
         }
@@ -79,14 +78,14 @@ extension BrowserPage {
         navigationToken token: String,
         discard: @escaping @MainActor () -> Void
     ) -> (LinkNavigationDecision, (() -> Void)?) {
-        let preferences = BrowserLinkPreferenceStore.shared.preferences
-        let decision = LinkNavigationDecision.classifyModifiedLink(
-            destinationURL: destination, context: navigationContext,
-            isUserActivatedLink: true, isTopLevelNavigation: true,
-            isCommandModified: modifiers.contains(.command), isOptionModified: modifiers.contains(.option),
-            isMiddleClick: modifiers.contains(.middleClick), peekModifier: preferences.peekModifier,
-            isShiftModified: modifiers.contains(.shift),
-            focusesNewTabs: opensModifiedLinksInForeground || preferences.focusesNewTabs)
+        var held: ShortcutModifiers = []
+        if modifiers.contains(.command) { held.insert(.command) }
+        if modifiers.contains(.option) { held.insert(.option) }
+        if modifiers.contains(.shift) { held.insert(.shift) }
+        let decision = corePage.linkNavigation(
+            to: destination,
+            gesture: LinkGesture(
+                userActivated: true, topLevel: true, modifiers: held, middleClick: modifiers.contains(.middleClick)))
         guard decision == .peekModifier else { return (decision, nil) }
         guard let context = navigationContext, let sourceWindow = nativeView.window,
             let request = decision.peekRequest(

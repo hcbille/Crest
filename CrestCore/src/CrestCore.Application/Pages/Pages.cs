@@ -60,7 +60,8 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         var space = Hosting(workspace, intent.SpaceId);
         RequireUnowned(intent.WorkspaceId, intent.WindowId, intent.TabId, moving: null);
         var engine = engines.Default ?? throw new Rejected(new EngineNotRegistered());
-        var page = new Page(intent.PageId, engine, space.ProfileId, intent.WorkspaceId, space.Id, intent.TabId, intent.WindowId);
+        var page = new Page(intent.PageId, engine, space.ProfileId, intent.WorkspaceId, space.Id, intent.TabId, intent.WindowId,
+            intent.Transient);
         open[page.Id] = page;
         changes.Publish(new PageOpened(page.State));
         issue(engine, new CreatePage(page.Id, page.ProfileId, workspace.IsPrivateBrowsing, page.WindowId));

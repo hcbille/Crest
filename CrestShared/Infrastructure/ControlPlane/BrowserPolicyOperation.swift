@@ -14,8 +14,6 @@ enum BrowserPolicyOperation: String, Codable, Sendable {
     case limits
     case mediaArbitrate = "media.arbitrate"
     case mediaSessionEvent = "media.session_event"
-    case navigationLink = "navigation.link"
-    case navigationModifiedLink = "navigation.modified_link"
     case notificationsOrigin = "notifications.origin"
     case notificationsPermissionRequest = "notifications.permission_request"
     case onboardingCompletion = "onboarding.completion"
@@ -27,6 +25,4 @@ enum BrowserPolicyOperation: String, Codable, Sendable {
     case setupReconcile = "setup.reconcile"
     case setupSpace = "setup.space"
     case setupTab = "setup.tab"
-    case quickWindowDismissal = "quick_window.dismissal"
-    case quickWindowRetarget = "quick_window.retarget"
 }

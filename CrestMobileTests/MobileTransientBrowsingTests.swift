@@ -126,31 +126,6 @@ final class MobileTransientBrowsingTests: XCTestCase {
         XCTAssertFalse(destinationPage.webView.configuration.websiteDataStore.isPersistent)
     }
 
-    func testPhoneAndTabletSharePeekPolicyAndQuickWindowRouting() throws {
-        let tab = BrowserTab(
-            title: "Saved",
-            url: try XCTUnwrap(URL(string: "https://example.com/root")),
-            placement: .saved
-        )
-        let spaceID = SpaceID()
-        let profileID = UUID()
-        let request = BrowserPeekPolicy.request(
-            destinationURL: try XCTUnwrap(URL(string: "https://webkit.org")),
-            context: BrowserPageNavigationContext(
-                tab: tab,
-                spaceID: spaceID,
-                profileID: profileID
-            ),
-            isUserActivatedLink: true,
-            isTopLevelNavigation: true,
-            isAlternateModified: false
-        )
-
-        XCTAssertEqual(request?.spaceID, spaceID)
-        XCTAssertEqual(request?.assignment.profileID, profileID)
-        XCTAssertEqual(request?.trigger, .protectedSavedSite)
-    }
-
     func testRecentLinkActivationOriginIsBoundedMatchingAndOneShot() throws {
         let destination = try XCTUnwrap(URL(string: "https://webkit.org/article"))
         let differentDestination = try XCTUnwrap(URL(string: "https://example.net/other"))

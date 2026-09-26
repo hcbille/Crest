@@ -13,7 +13,6 @@ import WebKit
 @Observable
 @MainActor
 final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPagePermissionProviding {
-    var opensModifiedLinksInForeground = false
     /// The core's page, which `release(keepingState:)` ends.
     @ObservationIgnored let corePage: CorePage
     private(set) var tabID: TabID
@@ -204,9 +203,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         navigationContext = BrowserPageNavigationContext(
             tab: tab,
             spaceID: space.id,
-            profileID: space.profile.id,
-            automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                .preferences.opensPeekAutomatically
+            profileID: space.profile.id
         )
         navigationDecider = BrowserNavigationDecider()
         // Built before the popup coordinator so a popup whose destination belongs
@@ -483,10 +480,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         updateNavigationContext(tab: tab)
     }
 
-    func updateNavigationContext(
-        tab: BrowserTab,
-        automaticallyOpensPeek: Bool = true
-    ) {
+    func updateNavigationContext(tab: BrowserTab) {
         let previousTitle = navigationContext?.title
         let shouldRefreshAutomaticIcon =
             tab.iconMode.followsPage
@@ -503,8 +497,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         navigationContext = BrowserPageNavigationContext(
             tab: tab,
             spaceID: spaceID,
-            profileID: profileID,
-            automaticallyOpensPeek: automaticallyOpensPeek
+            profileID: profileID
         )
         if previousTitle != navigationContext?.title {
             mediaSessionCoordinator?.ownerTitleDidChange()

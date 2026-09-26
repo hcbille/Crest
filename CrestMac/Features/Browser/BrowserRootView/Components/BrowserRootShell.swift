@@ -202,8 +202,8 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
         }
         .ignoresSafeArea(.container, edges: .top)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .onChange(of: model.browser.session, initial: true) {
-            transientBrowsing.reconcilePeeks(in: model.browser.session)
+        .onChange(of: transientBrowsing.orphanedPeeks(in: model.browser), initial: true) {
+            transientBrowsing.reconcilePeeks(in: model.browser)
         }
         .onChange(of: transientBrowsing.peekRequests, initial: true) {
             model.pages.retainPeekPages(for: transientBrowsing.peekRequests)

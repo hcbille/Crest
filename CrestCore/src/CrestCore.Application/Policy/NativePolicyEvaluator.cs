@@ -28,10 +28,8 @@ public static partial class NativePolicyEvaluator {
             ?? EvaluateSitePermissions(operation, request)
             ?? EvaluateOrigins(operation, request)
             ?? EvaluateAuthentication(operation, request)
-            ?? EvaluateQuickWindow(operation, request)
             ?? EvaluateSetup(operation, request)
             ?? EvaluateMedia(operation, request)
-            ?? EvaluateNavigation(operation, request)
             ?? EvaluateTabs(operation, request)
             ?? EvaluateLimits(operation, request)
             ?? throw new ProtocolException(ProtocolErrorCodes.UnknownPolicy);

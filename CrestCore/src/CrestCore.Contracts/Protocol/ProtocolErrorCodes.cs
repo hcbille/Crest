@@ -9,7 +9,6 @@ public static class ProtocolErrorCodes {
     public const string InvalidCounter = "invalid_counter";
     public const string InvalidEntryPoint = "invalid_entry_point";
     public const string InvalidInput = "invalid_input";
-    public const string InvalidPeekModifier = "invalid_peek_modifier";
     public const string InvalidPermissionDecision = "invalid_permission_decision";
     public const string InvalidPlacement = "invalid_placement";
     public const string InvalidPlatform = "invalid_platform";

@@ -2055,9 +2055,28 @@ struct LegacySession: Equatable, Sendable {
     let journal: Data?
 }
 
+struct LinkGesture: Equatable, Sendable {
+    let userActivated: Bool
+    let topLevel: Bool
+    let modifiers: ShortcutModifiers
+    let middleClick: Bool
+}
+
 struct LinkHovered: Equatable, Sendable {
     let pageID: UUID
     let url: String?
+}
+
+struct LinkNavigation: Query, Equatable, Sendable {
+    typealias Answer = LinkNavigationAnswer
+
+    let pageID: UUID
+    let url: String?
+    let gesture: LinkGesture
+}
+
+struct LinkNavigationAnswer: Equatable, Sendable {
+    let decision: LinkNavigationDecision
 }
 
 struct LinkPatternTooLong: Equatable, Sendable {
@@ -2381,6 +2400,7 @@ struct OpenPage: Intent, PageIntent, Equatable, Sendable {
     let spaceID: UUID
     let tabID: UUID?
     let windowID: UUID
+    let transient: TransientPresentation?
 }
 
 struct OpenStandalonePage: PageRequest, Equatable, Sendable {
@@ -2416,6 +2436,16 @@ struct OpenWindow: Intent, WindowIntent, Equatable, Sendable {
 struct OpenWorkspace: Intent, WorkspaceIntent, Equatable, Sendable {
     let kind: WorkspaceKind
     let seed: Data?
+}
+
+struct OpenedWindowSelected: Equatable, Sendable {
+    let selects: Bool
+}
+
+struct OpenedWindowSelection: Query, Equatable, Sendable {
+    typealias Answer = OpenedWindowSelected
+
+    let gesture: LinkGesture
 }
 
 struct OverwriteCloud: Intent, CloudSyncIntent, Equatable, Sendable {
@@ -10390,6 +10420,36 @@ struct TabSurface: Hashable, Sendable {
     }
 
     static func == (lhs: TabSurface, rhs: TabSurface) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `TransientPresentation`. A member's wire tag is its index in `all`.
+struct TransientPresentation: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let opensNewTabsInFront: Bool
+
+    private init(tag: Int, name: String, opensNewTabsInFront: Bool) {
+        self.tag = tag
+        self.name = name
+        self.opensNewTabsInFront = opensNewTabsInFront
+    }
+
+    static let peek = TransientPresentation(tag: 0, name: "peek", opensNewTabsInFront: true)
+    static let quickWindow = TransientPresentation(tag: 1, name: "quickWindow", opensNewTabsInFront: false)
+
+    static let all: [TransientPresentation] = [peek, quickWindow]
+
+    static func named(_ name: String?) -> TransientPresentation? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: TransientPresentation, rhs: TransientPresentation) -> Bool {
         lhs.tag == rhs.tag
     }
 

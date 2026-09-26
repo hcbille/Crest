@@ -305,10 +305,8 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testFocusNewTabsPreferenceSelectsACommandModifiedNewWindowTab() throws {
-        let originalPreference = BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs
-        defer { BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: originalPreference) }
-        BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: true)
         let context = try makeModifiedLinkContext()
+        BrowserLinkPreferenceStore(core: context.store.core).setBehavior(.focusesNewTabs, isOn: true)
         let destinationURL = try XCTUnwrap(
             URL(string: "https://background.crest.test/focused-command-click")
         )
@@ -1726,10 +1724,8 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testModifiedScriptedWindowKeepsTheSourceSelectedAndAdoptsOriginalConfiguration() throws {
-        let saved = BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs
-        defer { BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: saved) }
-        BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: false)
         let context = try makePopupContext()
+        BrowserLinkPreferenceStore(core: context.store.core).setBehavior(.focusesNewTabs, isOn: false)
         let sourceID = context.store.selectedTab?.id
         let configuration = context.opener.webView.configuration
         let popup = try XCTUnwrap(
