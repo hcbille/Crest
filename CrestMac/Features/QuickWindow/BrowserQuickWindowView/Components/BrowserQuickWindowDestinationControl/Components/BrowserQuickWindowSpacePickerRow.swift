@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserQuickWindowSpacePickerRow: View {
-    let space: BrowserSpace
+    let space: BrowserSpaceIdentity
     let isSelected: Bool
     let select: () -> Void
 
@@ -44,9 +44,9 @@ struct BrowserQuickWindowSpacePickerRow: View {
     #Preview("Destination selection") {
         VStack(spacing: 8) {
             BrowserQuickWindowSpacePickerRow(
-                space: BrowserSpaceBrandingPreviewFixture.simpleSpace, isSelected: true, select: {})
+                space: BrowserSpaceBrandingPreviewFixture.simpleSpace.identity, isSelected: true, select: {})
             BrowserQuickWindowSpacePickerRow(
-                space: BrowserSpaceBrandingPreviewFixture.crestSpace, isSelected: false, select: {})
+                space: BrowserSpaceBrandingPreviewFixture.crestSpace.identity, isSelected: false, select: {})
         }.padding().frame(width: 320)
     }
 #endif

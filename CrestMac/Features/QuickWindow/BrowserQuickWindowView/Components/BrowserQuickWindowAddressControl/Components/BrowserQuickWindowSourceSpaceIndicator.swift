@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserQuickWindowSourceSpaceIndicator: View {
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
 
     var body: some View {
         HStack(spacing: 7) {
@@ -33,6 +33,7 @@ struct BrowserQuickWindowSourceSpaceIndicator: View {
 
 #if DEBUG
     #Preview("Component") {
-        BrowserQuickWindowSourceSpaceIndicator(space: BrowserSpaceBrandingPreviewFixture.simpleSpace).padding()
+        BrowserQuickWindowSourceSpaceIndicator(space: BrowserSpaceBrandingPreviewFixture.simpleSpace.identity)
+            .padding()
     }
 #endif

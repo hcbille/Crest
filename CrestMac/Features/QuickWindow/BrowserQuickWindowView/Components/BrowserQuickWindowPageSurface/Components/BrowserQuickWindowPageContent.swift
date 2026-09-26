@@ -20,7 +20,7 @@ struct BrowserQuickWindowPageContent: View {
                     restore: model.restorePage
                 )
             } else {
-                BrowserQuickWindowLookupStartView(space: model.space)
+                BrowserQuickWindowLookupStartView(space: model.spaceModel?.identity)
             }
         }
     }

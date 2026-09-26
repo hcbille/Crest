@@ -2789,6 +2789,10 @@
     "2026-09-26-system-consent-all-permissions": {
       "category": "fixed",
       "message": "Allowing camera, microphone, location or notifications for a site is only remembered once macOS or iOS also allows it, in both engines"
+    },
+    "2026-09-26-transient-pages-read-model": {
+      "category": "internal",
+      "message": "Quick Windows and Peeks read the Space they browse and the Spaces they offer from the core's published state"
     }
   }
 }

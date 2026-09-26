@@ -543,13 +543,12 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         let open = makePolicySpace(name: "Work")
         let deleting = makePolicySpace(name: "Going")
         let access = makeAccessController()
+        let browser = BrowserStore(session: BrowserSession(spaces: [lockedSource, lockedOther, open, deleting]))
+        XCTAssertTrue(browser.family.beginDeletingSpace(deleting.id))
+        defer { browser.family.finishDeletingSpace(deleting.id) }
 
         let offered = BrowserTransientSessionPolicy.availableSpaces(
-            in: [lockedSource, lockedOther, open, deleting],
-            deletingSpaceIDs: [deleting.id],
-            requestSpaceID: lockedSource.id,
-            isLocked: access.isLocked
-        )
+            in: browser, requestSpaceID: lockedSource.id, isLocked: access.isLocked)
 
         XCTAssertEqual(offered.map(\.id), [lockedSource.id, open.id])
     }

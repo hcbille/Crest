@@ -5,7 +5,7 @@ struct BrowserQuickWindowToolbar: View {
     @Binding var addressText: String
     @Binding var isAddressEditing: Bool
     let addressFocusRequest: Int
-    let promote: (BrowserSpace) -> Void
+    let promote: (BrowserSpaceRuntimeAssignment) -> Void
 
     var body: some View {
         HStack(spacing: BrowserQuickWindowLayout.toolbarSpacing) {

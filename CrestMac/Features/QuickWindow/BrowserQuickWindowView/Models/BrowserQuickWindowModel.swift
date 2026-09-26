@@ -60,10 +60,6 @@ final class BrowserQuickWindowModel {
         )
     }
 
-    var space: BrowserSpace? {
-        browser.space(matching: selectedAssignment)
-    }
-
     /// The Space the Quick Window browses, as the read model holds it.
     var spaceModel: SpaceModel? {
         browser.spaceModel(matching: selectedAssignment)
@@ -72,9 +68,15 @@ final class BrowserQuickWindowModel {
     /// The Spaces the Quick Window may move to or unlock: none being deleted, and
     /// none locked but its own.
     var availableSpaceModels: [SpaceModel] {
-        browser.spaceModels.filter {
-            !browser.isDeleting($0.id) && ($0.id == selectedAssignment.spaceID || !spaceAccess.isLocked($0))
-        }
+        BrowserTransientSessionPolicy.availableSpaces(
+            in: browser, requestSpaceID: selectedAssignment.spaceID, isLocked: spaceAccess.isLocked)
+    }
+
+    /// The Space the page pool opens the Quick Window's page in, as the
+    /// session copy holds it. TRANSITIONAL until Lane 2's page pool takes the
+    /// read model's Space.
+    private var leaseSpace: BrowserSpace? {
+        browser.space(matching: selectedAssignment)
     }
 
     var page: BrowserPage? {
@@ -86,7 +88,7 @@ final class BrowserQuickWindowModel {
         // A Binding captured by the action lifecycle can read its older value
         // during SwiftUI rendering. Compare the scene's current value directly.
         guard presentedRequest.hasSamePresentationIdentity(as: request),
-            let space, !spaceAccess.isLocked(space)
+            let space = spaceModel, !spaceAccess.isLocked(space)
         else { return fallback }
         return BrowserWindowTitle.resolve(
             page: page,
@@ -96,19 +98,12 @@ final class BrowserQuickWindowModel {
         )
     }
 
-    var availableSpaces: [BrowserSpace] {
-        browser.session.spaces.filter {
-            !browser.deletingSpaceIDs.contains($0.id)
-                && ($0.id == selectedAssignment.spaceID || !spaceAccess.isLocked($0))
-        }
-    }
-
     func preparePage(isActive: Bool) {
         guard isCurrentRequest else {
             releasePageRetainingSnapshot()
             return
         }
-        guard let space,
+        guard let space = spaceModel,
             let url = page?.live.documentURL
                 ?? releasedPageSnapshot?.url
                 ?? presentedRequest.initialURL
@@ -133,10 +128,10 @@ final class BrowserQuickWindowModel {
             return
         }
         pageLease?.release()
-        guard let pages else { return }
+        guard let pages, let leaseSpace else { return }
         pageLease = pages.makeTransientPageLease(
             url: url,
-            in: space,
+            in: leaseSpace,
             onUserActivity: recordUserActivity
         )
         if pageLease != nil {
@@ -147,7 +142,7 @@ final class BrowserQuickWindowModel {
 
     func open(_ url: URL, isActive: Bool) {
         guard isCurrentRequest,
-            let space,
+            let space = spaceModel,
             BrowserSpaceRuntimeAssignment(space: space)
                 == selectedAssignment,
             !spaceAccess.isLocked(space)
@@ -163,10 +158,10 @@ final class BrowserQuickWindowModel {
             page.corePage.navigate(to: url.absoluteString)
             return
         }
-        guard let pages else { return }
+        guard let pages, let leaseSpace else { return }
         pageLease = pages.makeTransientPageLease(
             url: url,
-            in: space,
+            in: leaseSpace,
             onUserActivity: recordUserActivity
         )
         if pageLease != nil {
@@ -175,11 +170,12 @@ final class BrowserQuickWindowModel {
         pageLease?.setActive(isActive)
     }
 
-    func selectSpace(_ candidate: BrowserSpace) {
-        let assignment = BrowserSpaceRuntimeAssignment(space: candidate)
+    /// Moves the Quick Window to the Space `assignment` names, while that
+    /// Space keeps its profile and is unlocked.
+    func selectSpace(_ assignment: BrowserSpaceRuntimeAssignment) {
         guard isCurrentRequest,
-            let liveCandidate = browser.space(matching: assignment),
-            !spaceAccess.isLocked(liveCandidate),
+            let candidate = browser.spaceModel(matching: assignment),
+            !spaceAccess.isLocked(candidate),
             assignment != selectedAssignment
         else { return }
         activityClock.recordActivity(restartsTimerImmediately: true)
@@ -196,15 +192,14 @@ final class BrowserQuickWindowModel {
         selectedAssignment = assignment
         // Moving a page, not an empty lookup, remembers the Space for its site.
         if let currentURL {
-            preferences.rememberSpace(candidate.id, for: currentURL)
+            preferences.rememberSpace(assignment.spaceID, for: currentURL)
         }
     }
 
     @discardableResult
-    func promote(to destination: BrowserSpace) -> Bool {
+    func promote(to assignment: BrowserSpaceRuntimeAssignment) -> Bool {
         activityClock.recordActivity(restartsTimerImmediately: true)
         guard isCurrentRequest, !wasPromoted, let pages else { return false }
-        let assignment = BrowserSpaceRuntimeAssignment(space: destination)
         let url = currentSnapshot?.url ?? presentedRequest.initialURL
         let movesSpace = assignment != presentedRequest.assignment
         // A page memory pressure took back comes back to be kept.
@@ -271,7 +266,7 @@ final class BrowserQuickWindowModel {
             return
         }
         guard let pageLease else { return }
-        guard let space = browser.space(matching: pageLease.assignment) else {
+        guard let space = browser.spaceModel(matching: pageLease.assignment) else {
             releaseUnavailableLease()
             return
         }
@@ -287,7 +282,7 @@ final class BrowserQuickWindowModel {
             releasePageRetainingSnapshot()
             return
         }
-        guard let space,
+        guard let space = spaceModel,
             !spaceAccess.isLocked(space)
         else {
             releaseForUnavailableSpace()
@@ -320,7 +315,7 @@ final class BrowserQuickWindowModel {
 
     private func releaseUnavailableLease() {
         guard let pageLease,
-            browser.space(matching: pageLease.assignment) == nil
+            browser.spaceModel(matching: pageLease.assignment) == nil
         else {
             return
         }

@@ -39,10 +39,6 @@ final class BrowserPeekModel {
         self.coordinator = coordinator
     }
 
-    var space: BrowserSpace? {
-        browser.space(matching: request.assignment)
-    }
-
     /// The Space the Peek browses, as the read model holds it.
     var spaceModel: SpaceModel? {
         browser.spaceModel(matching: request.assignment)
@@ -51,9 +47,8 @@ final class BrowserPeekModel {
     /// The Spaces the Peek may move to or unlock: none being deleted, and
     /// none locked but its own.
     var availableSpaceModels: [SpaceModel] {
-        browser.spaceModels.filter {
-            !browser.isDeleting($0.id) && ($0.id == request.assignment.spaceID || !spaceAccess.isLocked($0))
-        }
+        BrowserTransientSessionPolicy.availableSpaces(
+            in: browser, requestSpaceID: request.spaceID, isLocked: spaceAccess.isLocked)
     }
 
     var page: BrowserPage? {
@@ -72,15 +67,6 @@ final class BrowserPeekModel {
         guard motionState?.returnsToSource == true else { return }
         releaseLease()
         coordinator.cancelStagedPeek(id: request.id)
-    }
-
-    var availableSpaces: [BrowserSpace] {
-        BrowserTransientSessionPolicy.availableSpaces(
-            in: browser.session.spaces,
-            deletingSpaceIDs: browser.deletingSpaceIDs,
-            requestSpaceID: request.spaceID,
-            isLocked: spaceAccess.isLocked
-        )
     }
 
     @discardableResult
@@ -183,7 +169,7 @@ final class BrowserPeekModel {
     }
 
     func selectLockedSpace(_ assignment: BrowserSpaceRuntimeAssignment) {
-        guard let candidate = browser.space(matching: assignment),
+        guard let candidate = browser.spaceModel(matching: assignment),
             !spaceAccess.isLocked(candidate),
             coordinator.dismissPeek(request)
         else { return }
@@ -229,6 +215,10 @@ final class BrowserPeekModel {
         disposition(ofSpaceMatching: request.assignment)
     }
 
+    /// Whether the page may be kept in the Space `assignment` names, and the
+    /// Space the page pool opens it in. The pool still takes the session
+    /// copy's Space; TRANSITIONAL until Lane 2's page hosts take the read
+    /// model's.
     private func disposition(
         ofSpaceMatching assignment: BrowserSpaceRuntimeAssignment
     ) -> BrowserTransientLeaseDisposition {

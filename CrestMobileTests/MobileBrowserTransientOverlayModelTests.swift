@@ -32,7 +32,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         context.browser.replaceProfileForTesting(of: context.source.id)
         let replacement = try XCTUnwrap(context.browser.session.space(id: context.source.id))
 
-        context.model.setSourceAvailable(context.model.space != nil)
+        context.model.setSourceAvailable(context.model.spaceModel != nil)
         XCTAssertNil(lease.page)
         XCTAssertNil(context.model.pageLease)
         XCTAssertNil(context.coordinator.peekRequest)
@@ -247,7 +247,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         XCTAssertTrue(context.browser.family.beginDeletingSpace(context.source.id))
         defer { context.browser.family.finishDeletingSpace(context.source.id) }
 
-        context.model.setSourceAvailable(context.model.space != nil)
+        context.model.setSourceAvailable(context.model.spaceModel != nil)
 
         XCTAssertNil(lease.page)
         XCTAssertNil(context.model.pageLease)
@@ -553,7 +553,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         XCTAssertTrue(context.browser.family.beginDeletingSpace(context.source.id))
         defer { context.browser.family.finishDeletingSpace(context.source.id) }
 
-        context.model.setSourceAvailable(context.model.space != nil)
+        context.model.setSourceAvailable(context.model.spaceModel != nil)
         context.model.handleDisappearance()
 
         XCTAssertNil(context.coordinator.quickWindowRequest)

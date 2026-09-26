@@ -10,7 +10,7 @@ struct BrowserQuickWindowAddressControl: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            BrowserQuickWindowSourceSpaceIndicator(space: model.space)
+            BrowserQuickWindowSourceSpaceIndicator(space: model.spaceModel?.identity)
             Divider().frame(height: 16)
             BrowserQuickWindowAddressSecurityIcon(
                 isSecure: model.page?.live.security.isSecure == true
@@ -47,7 +47,7 @@ struct BrowserQuickWindowAddressControl: View {
     }
 
     private func openAddress() {
-        guard let space = model.space,
+        guard let space = model.spaceModel,
             let resolved = try? model.browser.core.query(
                 ResolveAddress(workspaceID: model.browser.family.workspaceID, spaceID: space.id, input: addressText)),
             let url = resolved.url.flatMap(URL.init(string:))

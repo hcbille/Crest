@@ -1,6 +1,9 @@
 import Foundation
 
-/// Describes whether a transient request may retain a live page.
+/// Describes whether a transient request may retain a live page. A usable
+/// request carries the Space the page hosts open its page in, as the session
+/// copy holds it; TRANSITIONAL until Lane 2's page hosts take the read
+/// model's.
 enum BrowserTransientLeaseDisposition: Equatable, Sendable {
     case notPresented
     case sourceMissing
@@ -22,17 +25,16 @@ enum BrowserTransientSessionPolicy {
         return .usable(space)
     }
 
-    /// Excludes deleting and locked destinations, retaining the named source Space.
+    /// The Spaces of `browser`'s workspace a transient page may move to or
+    /// unlock: none being deleted, and none locked but the request's own.
     @MainActor
     static func availableSpaces(
-        in spaces: [BrowserSpace],
-        deletingSpaceIDs: Set<SpaceID>,
+        in browser: BrowserStore,
         requestSpaceID: SpaceID,
-        isLocked: @MainActor (BrowserSpace) -> Bool
-    ) -> [BrowserSpace] {
-        spaces.filter {
-            !deletingSpaceIDs.contains($0.id)
-                && ($0.id == requestSpaceID || !isLocked($0))
+        isLocked: @MainActor (SpaceModel) -> Bool
+    ) -> [SpaceModel] {
+        BrowserSidebarAccessPolicy.availableSpaces(in: browser).filter {
+            $0.id == requestSpaceID || !isLocked($0)
         }
     }
 

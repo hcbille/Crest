@@ -36,7 +36,7 @@ struct BrowserQuickWindowWindowSurface: View {
     }
 
     private var selectedSpaceIsLocked: Bool {
-        guard let space = model.space else { return false }
+        guard let space = model.spaceModel else { return false }
         return spaceAccess.isLocked(space)
     }
 }

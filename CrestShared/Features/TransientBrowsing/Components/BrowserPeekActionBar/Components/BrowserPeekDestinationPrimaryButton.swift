@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserPeekDestinationPrimaryButton: View {
-    let selectedSpace: BrowserSpace?
+    let selectedSpace: BrowserSpaceIdentity?
     let openInSelectedSpace: () -> Void
 
     var body: some View {
@@ -9,7 +9,7 @@ struct BrowserPeekDestinationPrimaryButton: View {
             HStack(spacing: BrowserPeekChromePolicy.destinationContentSpacing) {
                 if let selectedSpace {
                     BrowserSpaceIdentityIcon(
-                        space: selectedSpace,
+                        identity: selectedSpace,
                         size: BrowserPeekChromePolicy.destinationIconSize
                     )
                 } else {
@@ -34,7 +34,7 @@ struct BrowserPeekDestinationPrimaryButton: View {
 #if DEBUG
     #Preview("Component") {
         BrowserPeekDestinationPrimaryButton(
-            selectedSpace: BrowserSpaceBrandingPreviewFixture.simpleSpace, openInSelectedSpace: {}
+            selectedSpace: BrowserSpaceBrandingPreviewFixture.simpleSpace.identity, openInSelectedSpace: {}
         ).padding()
     }
 #endif

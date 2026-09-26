@@ -9,7 +9,7 @@ import SwiftUI
 struct BrowserTransientCardStack<WebContent: View>: View {
     let state: BrowserTransientPresentationState
     let pageStatus: BrowserTransientPageStatus
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     let selectedSpaceID: SpaceID
     let vocabulary: BrowserTransientOverlayVocabulary
     let availableSize: CGSize

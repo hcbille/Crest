@@ -139,7 +139,7 @@ final class BrowserPeekModelTests: XCTestCase {
         let lease = try XCTUnwrap(context.model.pageLease)
         context.browser.replaceProfileForTesting(of: context.source.id)
 
-        context.model.setSourceAvailable(context.model.space != nil)
+        context.model.setSourceAvailable(context.model.spaceModel != nil)
         XCTAssertNil(lease.page)
         XCTAssertNil(context.model.pageLease)
         XCTAssertNil(context.coordinator.peekRequest)
@@ -314,7 +314,7 @@ final class BrowserPeekModelTests: XCTestCase {
         XCTAssertTrue(context.browser.family.beginDeletingSpace(context.source.id))
         defer { context.browser.family.finishDeletingSpace(context.source.id) }
 
-        context.model.setSourceAvailable(context.model.space != nil)
+        context.model.setSourceAvailable(context.model.spaceModel != nil)
 
         XCTAssertNil(lease.page)
         XCTAssertNil(context.model.pageLease)

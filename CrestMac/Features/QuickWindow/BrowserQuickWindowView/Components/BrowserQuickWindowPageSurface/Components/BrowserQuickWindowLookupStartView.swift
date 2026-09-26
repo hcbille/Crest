@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserQuickWindowLookupStartView: View {
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
 
     var body: some View {
         Color.clear
@@ -14,7 +14,7 @@ struct BrowserQuickWindowLookupStartView: View {
 
 #if DEBUG
     #Preview("Component") {
-        BrowserQuickWindowLookupStartView(space: BrowserSpaceBrandingPreviewFixture.simpleSpace).frame(
+        BrowserQuickWindowLookupStartView(space: BrowserSpaceBrandingPreviewFixture.simpleSpace.identity).frame(
             width: 540, height: 360)
     }
 #endif

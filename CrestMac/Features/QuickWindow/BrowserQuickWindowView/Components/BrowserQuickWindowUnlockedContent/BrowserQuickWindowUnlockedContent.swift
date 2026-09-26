@@ -56,7 +56,7 @@ struct BrowserQuickWindowUnlockedContent: View {
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            "Quick Window using \(model.space?.name ?? "Space")"
+            "Quick Window using \(model.spaceModel?.settings.name ?? "Space")"
         )
     }
 
@@ -68,8 +68,8 @@ struct BrowserQuickWindowUnlockedContent: View {
         addressFocusRequest &+= 1
     }
 
-    private func promote(_ space: BrowserSpace) {
-        guard model.promote(to: space) else { return }
+    private func promote(_ assignment: BrowserSpaceRuntimeAssignment) {
+        guard model.promote(to: assignment) else { return }
         openBrowserWindow()
         dismiss()
     }

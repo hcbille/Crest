@@ -21,7 +21,7 @@ struct MobileBrowserTransientUnlockedContent: View {
         BrowserTransientSurface(
             state: presentationState,
             pageStatus: pageStatus,
-            spaces: model.availableSpaces,
+            spaces: model.availableSpaceModels.map(\.identity),
             selectedSpaceID: model.request.spaceID,
             vocabulary: model.request.overlayVocabulary,
             actions: actions

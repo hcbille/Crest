@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserQuickWindowDestinationControl: View {
     let model: BrowserQuickWindowModel
-    let promote: (BrowserSpace) -> Void
+    let promote: (BrowserSpaceRuntimeAssignment) -> Void
 
     @State private var isPickerPresented = false
 
@@ -11,7 +11,7 @@ struct BrowserQuickWindowDestinationControl: View {
             Button(action: promoteCurrentSpace) {
                 Text(
                     BrowserQuickWindowChromePolicy.destinationTitle(
-                        spaceName: model.space?.name ?? "Space"
+                        spaceName: model.spaceModel?.settings.name ?? "Space"
                     )
                 )
                 .lineLimit(1)
@@ -24,7 +24,7 @@ struct BrowserQuickWindowDestinationControl: View {
             .keyboardShortcut("o", modifiers: .command)
             .accessibilityIdentifier("quick-window-open-destination")
             BrowserQuickWindowDestinationPickerButton(
-                spaces: model.availableSpaces,
+                spaces: model.availableSpaceModels.map(\.identity),
                 selectedSpaceID: model.selectedAssignment.spaceID,
                 isPresented: $isPickerPresented,
                 promote: promote
@@ -46,11 +46,11 @@ struct BrowserQuickWindowDestinationControl: View {
             .strokeBorder(CrestColor.subtleBorder, lineWidth: 0.5)
         }
         .fixedSize()
-        .help("Open in \(model.space?.name ?? "Space") (⌘O)")
+        .help("Open in \(model.spaceModel?.settings.name ?? "Space") (⌘O)")
     }
 
     private func promoteCurrentSpace() {
-        guard let space = model.space else { return }
-        promote(space)
+        guard let space = model.spaceModel else { return }
+        promote(BrowserSpaceRuntimeAssignment(space: space))
     }
 }

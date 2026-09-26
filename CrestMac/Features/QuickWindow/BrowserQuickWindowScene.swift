@@ -120,7 +120,7 @@ struct BrowserQuickWindowScene: View {
             let context = contextResolver?.context(
                 targetWindowID: targetWindowID
             ),
-            context.browser.space(matching: assignment) != nil
+            context.browser.spaceModel(matching: assignment) != nil
         else {
             return
         }

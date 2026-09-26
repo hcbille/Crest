@@ -11,7 +11,7 @@ struct BrowserQuickWindowContextResolver {
             let context = context(
                 targetWindowID: request.targetWindowID
             ),
-            context.browser.space(matching: request.assignment) != nil
+            context.browser.spaceModel(matching: request.assignment) != nil
         else {
             return nil
         }

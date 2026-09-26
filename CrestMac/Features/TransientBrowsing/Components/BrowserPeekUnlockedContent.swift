@@ -28,7 +28,7 @@ struct BrowserPeekUnlockedContent: View {
         BrowserTransientSurface(
             state: presentationState,
             pageStatus: pageStatus,
-            spaces: model.availableSpaces,
+            spaces: model.availableSpaceModels.map(\.identity),
             selectedSpaceID: model.request.spaceID,
             vocabulary: BrowserPeekVocabulary.overlay,
             actions: actions

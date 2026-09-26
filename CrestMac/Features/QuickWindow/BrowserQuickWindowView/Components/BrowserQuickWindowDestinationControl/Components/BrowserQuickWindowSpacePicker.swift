@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct BrowserQuickWindowSpacePicker: View {
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     let selectedSpaceID: SpaceID
-    let selectSpace: (BrowserSpace) -> Void
+    let selectSpace: (BrowserSpaceIdentity) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {

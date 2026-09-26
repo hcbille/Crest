@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct BrowserQuickWindowDestinationPickerButton: View {
-    let spaces: [BrowserSpace]
+    let spaces: [BrowserSpaceIdentity]
     let selectedSpaceID: SpaceID
     @Binding var isPresented: Bool
-    let promote: (BrowserSpace) -> Void
+    let promote: (BrowserSpaceRuntimeAssignment) -> Void
 
     var body: some View {
         Button {
@@ -30,7 +30,7 @@ struct BrowserQuickWindowDestinationPickerButton: View {
                 selectedSpaceID: selectedSpaceID
             ) { candidate in
                 isPresented = false
-                promote(candidate)
+                promote(candidate.assignment)
             }
         }
     }
@@ -39,9 +39,9 @@ struct BrowserQuickWindowDestinationPickerButton: View {
 #if DEBUG
     #Preview("Destination picker") {
         @Previewable @State var presented = false
+        let spaces = BrowserSession.preview.spaces.map(\.identity)
         BrowserQuickWindowDestinationPickerButton(
-            spaces: BrowserSession.preview.spaces, selectedSpaceID: BrowserSession.preview.spaces[0].id,
-            isPresented: $presented, promote: { _ in }
+            spaces: spaces, selectedSpaceID: spaces[0].id, isPresented: $presented, promote: { _ in }
         ).padding()
     }
 #endif

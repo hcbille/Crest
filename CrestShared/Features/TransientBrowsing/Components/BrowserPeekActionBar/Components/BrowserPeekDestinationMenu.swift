@@ -1,20 +1,18 @@
 import SwiftUI
 
 struct BrowserPeekDestinationMenu: View {
-    let spaces: [BrowserSpace]
-    let selectedSpace: BrowserSpace?
+    let spaces: [BrowserSpaceIdentity]
+    let selectedSpace: BrowserSpaceIdentity?
     let openInSpace: (BrowserSpaceRuntimeAssignment) -> Void
 
     var body: some View {
         Menu {
             ForEach(spaces) { candidate in
                 Button {
-                    openInSpace(
-                        BrowserSpaceRuntimeAssignment(space: candidate)
-                    )
+                    openInSpace(candidate.assignment)
                 } label: {
                     BrowserSpaceIdentityLabel(
-                        space: candidate,
+                        identity: candidate,
                         title: BrowserPeekChromePolicy.menuTitle(
                             spaceName: candidate.name
                         )
@@ -42,9 +40,7 @@ struct BrowserPeekDestinationMenu: View {
 
 #if DEBUG
     #Preview("Component") {
-        BrowserPeekDestinationMenu(
-            spaces: BrowserSession.preview.spaces, selectedSpace: BrowserSession.preview.spaces[0],
-            openInSpace: { _ in }
-        ).padding()
+        let spaces = BrowserSession.preview.spaces.map(\.identity)
+        BrowserPeekDestinationMenu(spaces: spaces, selectedSpace: spaces[0], openInSpace: { _ in }).padding()
     }
 #endif

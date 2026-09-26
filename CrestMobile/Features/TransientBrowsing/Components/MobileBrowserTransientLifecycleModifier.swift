@@ -16,7 +16,7 @@ struct MobileBrowserTransientLifecycleModifier: ViewModifier {
     }
 
     private var sourceIsLocked: Bool {
-        guard let space = model.space else { return false }
+        guard let space = model.spaceModel else { return false }
         return spaceAccess.isLocked(space)
     }
 

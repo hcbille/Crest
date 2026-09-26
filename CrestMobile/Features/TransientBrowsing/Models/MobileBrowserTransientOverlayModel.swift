@@ -58,10 +58,6 @@ final class MobileBrowserTransientOverlayModel {
         )
     }
 
-    var space: BrowserSpace? {
-        browser.space(matching: request.spaceAssignment)
-    }
-
     /// The Space the overlay browses, as the read model holds it.
     var spaceModel: SpaceModel? {
         browser.spaceModel(matching: request.spaceAssignment)
@@ -70,9 +66,8 @@ final class MobileBrowserTransientOverlayModel {
     /// The Spaces the overlay may move to or unlock: none being deleted, and
     /// none locked but its own.
     var availableSpaceModels: [SpaceModel] {
-        browser.spaceModels.filter {
-            !browser.isDeleting($0.id) && ($0.id == request.spaceAssignment.spaceID || !spaceAccess.isLocked($0))
-        }
+        BrowserTransientSessionPolicy.availableSpaces(
+            in: browser, requestSpaceID: request.spaceID, isLocked: spaceAccess.isLocked)
     }
 
     var page: MobileBrowserPage? {
@@ -90,17 +85,8 @@ final class MobileBrowserTransientOverlayModel {
     }
 
     var hasSource: Bool {
-        guard case .peek(let peek) = request else { return space != nil }
+        guard case .peek(let peek) = request else { return spaceModel != nil }
         return peek.hasSource(in: browser)
-    }
-
-    var availableSpaces: [BrowserSpace] {
-        BrowserTransientSessionPolicy.availableSpaces(
-            in: browser.session.spaces,
-            deletingSpaceIDs: browser.deletingSpaceIDs,
-            requestSpaceID: request.spaceID,
-            isLocked: spaceAccess.isLocked
-        )
     }
 
     /// The inactivity wait a Quick Window restarts when its activity or its
@@ -267,7 +253,7 @@ final class MobileBrowserTransientOverlayModel {
         case .quickWindow:
             changeQuickWindowSpace(to: assignment)
         case .peek(let peekRequest):
-            guard let candidate = browser.space(matching: assignment),
+            guard let candidate = browser.spaceModel(matching: assignment),
                 !spaceAccess.isLocked(candidate),
                 coordinator.dismissPeek(peekRequest)
             else { return }
@@ -348,7 +334,7 @@ final class MobileBrowserTransientOverlayModel {
         guard isCurrentRequest,
             case .quickWindow(let quickWindowRequest) = request,
             destinationAssignment.spaceID != quickWindowRequest.spaceID,
-            let destination = browser.space(matching: destinationAssignment),
+            let destination = browser.spaceModel(matching: destinationAssignment),
             !spaceAccess.isLocked(destination)
         else { return }
         let pageURL = currentSnapshot?.url ?? quickWindowRequest.initialURL
@@ -381,6 +367,10 @@ final class MobileBrowserTransientOverlayModel {
         disposition(ofSpaceMatching: request.spaceAssignment)
     }
 
+    /// Whether the page may be kept in the Space `assignment` names, and the
+    /// Space the page store opens it in. The store still takes the session
+    /// copy's Space; TRANSITIONAL until Lane 2's page hosts take the read
+    /// model's.
     private func disposition(
         ofSpaceMatching assignment: BrowserSpaceRuntimeAssignment
     ) -> BrowserTransientLeaseDisposition {
