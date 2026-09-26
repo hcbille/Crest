@@ -107,7 +107,7 @@ struct MobileBrowserSidebarPreviewFixture {
             id: uuid(id),
             title: title,
             url: URL(filePath: path),
-            symbol: BrowserTab.symbol(forEmoji: emoji),
+            symbol: BrowserIconSymbol.symbol(forEmoji: emoji),
             placement: placement,
             folderID: folderID,
             lastActivatedAt: epoch,

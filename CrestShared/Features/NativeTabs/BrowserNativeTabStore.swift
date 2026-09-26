@@ -29,6 +29,8 @@ final class BrowserNativeTabStore {
         return runtimes[assignment.tabID]?.assignment == assignment
     }
 
+    /// TRANSITIONAL until the page hosts leave the copy with WP C j2: loads
+    /// the native content a tab of the session copy shows.
     func load(tab: BrowserTab, space: BrowserSpace, at time: Date = .now) {
         guard let content = tab.nativeContent else { return }
         load(
@@ -100,6 +102,29 @@ final class BrowserNativeTabStore {
         for id in runtimes.keys.filter({ !validTabIDs.contains($0) }) { remove(id) }
     }
 
+    /// Drops the native content of every tab `spaces` no longer holds with
+    /// the same Space, profile and content.
+    func reconcile(spaces: [SpaceModel]) {
+        let live = Dictionary(
+            uniqueKeysWithValues: spaces.flatMap { space in
+                space.tabs.models.map { tab in
+                    (
+                        tab.id,
+                        (
+                            BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID),
+                            tab.nativeTabContent
+                        )
+                    )
+                }
+            })
+        let removed = runtimes.compactMap { id, runtime in
+            live[id]?.0 == runtime.assignment && live[id]?.1 == runtime.content ? nil : id
+        }
+        for id in removed { remove(id) }
+    }
+
+    /// TRANSITIONAL until the page hosts leave the copy with WP C j2: as
+    /// `reconcile(spaces:)`, for the session copy.
     func reconcile(session: BrowserSession) {
         let live = Dictionary(
             uniqueKeysWithValues: session.spaces.flatMap { space in

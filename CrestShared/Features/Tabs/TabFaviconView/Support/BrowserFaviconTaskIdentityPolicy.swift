@@ -55,26 +55,4 @@ enum BrowserFaviconTaskIdentityPolicy {
             fallbackProfileID: payload == nil ? profileID : nil
         )
     }
-
-    static func identity(
-        for tab: BrowserTab,
-        profileID: UUID?,
-        maximumPixelSize: Int,
-        isUnlocked: Bool = true
-    ) -> BrowserFaviconTaskIdentity {
-        identity(
-            for: BrowserTabFaviconSubject(tab: tab), profileID: profileID, maximumPixelSize: maximumPixelSize,
-            isUnlocked: isUnlocked)
-    }
-
-    static func renderRequest(
-        for tab: BrowserTab,
-        profileID: UUID?,
-        maximumPixelSize: Int,
-        isUnlocked: Bool = true
-    ) -> BrowserFaviconRenderRequest {
-        renderRequest(
-            for: BrowserTabFaviconSubject(tab: tab), profileID: profileID, maximumPixelSize: maximumPixelSize,
-            isUnlocked: isUnlocked)
-    }
 }

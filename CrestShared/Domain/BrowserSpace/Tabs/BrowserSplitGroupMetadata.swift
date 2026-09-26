@@ -27,7 +27,7 @@ struct BrowserSplitGroupMetadata: Equatable, Identifiable, Sendable {
         tintModifiedAt: Date? = nil
     ) {
         self.id = id
-        self.customTitle = BrowserTab.resolvedCustomTitle(customTitle)
+        self.customTitle = BrowserShownTitle.resolve(customTitle)
         self.titleModifiedAt = titleModifiedAt.map(Self.normalizedTimestamp)
         self.customIconSymbol = Self.resolvedIcon(customIconSymbol)
         self.iconModifiedAt = iconModifiedAt.map(Self.normalizedTimestamp)
@@ -36,7 +36,7 @@ struct BrowserSplitGroupMetadata: Equatable, Identifiable, Sendable {
     }
 
     mutating func setTitle(_ title: String?, at date: Date) {
-        customTitle = BrowserTab.resolvedCustomTitle(title)
+        customTitle = BrowserShownTitle.resolve(title)
         titleModifiedAt = Self.normalizedTimestamp(date)
     }
 

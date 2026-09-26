@@ -2929,6 +2929,10 @@
     "staged-lift-expiry-manual-clock": {
       "category": "internal",
       "message": "Sidebar reorder expiry tests run on a clock the test moves"
+    },
+    "tab-rules-off-session-copy": {
+      "category": "internal",
+      "message": "Tab title and icon rules and native tabs read from the read model"
     }
   }
 }

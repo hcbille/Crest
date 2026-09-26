@@ -46,19 +46,4 @@ struct BrowserTabFaviconSubject: Equatable {
         isStartPage = tab.surface == .startPage
         self.image = tab.iconMode.showsFavicon ? image : nil
     }
-
-    /// TRANSITIONAL until S6.6d/S6.6e move the other tab surfaces onto the
-    /// read model: a tab of the session copy, or a draft that never reached
-    /// the core.
-    init(tab: BrowserTab) {
-        tabID = tab.id
-        pageURL = tab.url
-        iconMode = tab.iconMode
-        symbol = tab.symbol
-        nativeContent = tab.nativeContent
-        isStartPage = tab.isStartPage
-        image = tab.displayFaviconData.flatMap { data in
-            tab.displayFaviconPayloadIdentity.map { FaviconAssets.Image(data: data, identity: $0) }
-        }
-    }
 }

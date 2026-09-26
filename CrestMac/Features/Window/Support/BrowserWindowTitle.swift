@@ -7,7 +7,7 @@ enum BrowserWindowTitle {
     /// The title of a window showing `tab`, drawing on its live page when it has one.
     static func resolve(tab: TabStateModel, page: BrowserPage?) -> String {
         if tab.surface == .startPage { return String(localized: "Start Page") }
-        if let title = BrowserTab.resolvedCustomTitle(tab.customTitle) { return title }
+        if let title = BrowserShownTitle.resolve(tab.customTitle) { return title }
         return resolve(page: page, storedTitle: tab.title, url: tab.address)
     }
 
@@ -27,7 +27,7 @@ enum BrowserWindowTitle {
     }
 
     private static func resolve(title: String?, url: URL?, fallback: String) -> String {
-        if let title = BrowserTab.resolvedCustomTitle(title) { return title }
+        if let title = BrowserShownTitle.resolve(title) { return title }
         guard let url, let host = url.host(), !host.isEmpty else { return fallback }
         return BrowserAddressPresentation(url.absoluteString).domain
     }

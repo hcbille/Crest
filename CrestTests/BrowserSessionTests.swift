@@ -481,7 +481,7 @@ final class BrowserSessionTests: XCTestCase {
         let tab = BrowserTab(
             title: "Workbench",
             url: URL(string: "https://example.com/workbench"),
-            symbol: BrowserTab.symbol(forEmoji: emoji),
+            symbol: BrowserIconSymbol.symbol(forEmoji: emoji),
             iconMode: .emoji,
             placement: .current
         )

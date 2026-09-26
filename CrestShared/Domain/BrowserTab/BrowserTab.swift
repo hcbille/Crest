@@ -1,8 +1,10 @@
 import Foundation
 
 struct BrowserTab: Codable, Identifiable, Sendable {
-    static let startPageTitle = "Start Page"
-    static let startPageSymbol = "flag.fill"
+    /// TRANSITIONAL until the copy goes: the Start Page's title and symbol
+    /// live on `TabState.Seed`.
+    static let startPageTitle = TabState.Seed.startPageTitle
+    static let startPageSymbol = TabState.Seed.startPageSymbol
 
     let id: TabID
     var title: String
@@ -105,7 +107,7 @@ struct BrowserTab: Codable, Identifiable, Sendable {
         self.splitGroupID = splitGroupID
         self.lastActivatedAt = lastActivatedAt
         self.positionModifiedAt = positionModifiedAt.map(Self.normalizedTimestamp)
-        self.customTitle = Self.resolvedCustomTitle(customTitle)
+        self.customTitle = BrowserShownTitle.resolve(customTitle)
         self.titleModifiedAt = titleModifiedAt.map(Self.normalizedTimestamp)
         self.keepsPageLoaded = keepsPageLoaded
         self.iconMode = iconMode ?? .automatic
@@ -177,10 +179,6 @@ struct BrowserTab: Codable, Identifiable, Sendable {
         BrowserIconSymbol.emoji(from: symbol)
     }
 
-    static func symbol(forEmoji emoji: String) -> String {
-        BrowserIconSymbol.symbol(forEmoji: emoji)
-    }
-
     mutating func markPositionModified(at date: Date) {
         positionModifiedAt = Self.normalizedTimestamp(date)
     }
@@ -203,13 +201,10 @@ struct BrowserTab: Codable, Identifiable, Sendable {
         return abs(normalized.timeIntervalSince(date)) < 0.000_001 ? normalized : date
     }
 
-    /// Trims a proposed rename and folds a blank one back to "no rename", so a
-    /// committed empty field is how someone clears the name they chose.
+    /// TRANSITIONAL until the page hosts leave the copy with WP C j2: the
+    /// rule lives on `BrowserShownTitle`.
     static func resolvedCustomTitle(_ title: String?) -> String? {
-        guard let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !trimmed.isEmpty
-        else { return nil }
-        return trimmed
+        BrowserShownTitle.resolve(title)
     }
 
     var displayFaviconData: Data? {
@@ -352,37 +347,5 @@ extension BrowserTab: Equatable {
             && lhs.lastActivatedAt == rhs.lastActivatedAt && lhs.positionModifiedAt == rhs.positionModifiedAt
             && lhs.customTitle == rhs.customTitle
             && lhs.titleModifiedAt == rhs.titleModifiedAt && lhs.keepsPageLoaded == rhs.keepsPageLoaded
-    }
-}
-
-/// The storage boundary shared by every browser entity that can wear an emoji.
-///
-/// An emoji is stored in the same `symbol` slot as an SF Symbol, with a prefix
-/// that makes the two vocabularies unambiguous. Normalization selects one
-/// Swift `Character`, not one Unicode scalar, so flags, skin tones, keycaps,
-/// and zero-width-joiner sequences survive as the complete grapheme a person
-/// picked.
-enum BrowserIconSymbol {
-    static func symbol(forEmoji input: String) -> String {
-        guard let emoji = normalizedEmoji(input) else { return input }
-        return TabIconMode.emojiPrefix + emoji
-    }
-
-    static func emoji(from symbol: String) -> String? {
-        guard symbol.hasPrefix(TabIconMode.emojiPrefix) else { return nil }
-        return normalizedEmoji(String(symbol.dropFirst(TabIconMode.emojiPrefix.count)))
-    }
-
-    static func normalizedEmoji(_ input: String) -> String? {
-        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let character = trimmed.first else { return nil }
-        let candidate = String(character)
-        let scalars = candidate.unicodeScalars
-        let isEmoji = scalars.contains { scalar in
-            scalar.properties.isEmojiPresentation
-                || scalar.value == 0xFE0F
-                || scalar.value == 0x20E3
-        }
-        return isEmoji ? candidate : nil
     }
 }

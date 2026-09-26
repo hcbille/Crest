@@ -1,6 +1,12 @@
 import Foundation
 
 extension TabState.Seed {
+    // MARK: - Static Variables
+
+    /// The title and symbol a Start Page tab wears.
+    static let startPageTitle = "Start Page"
+    static let startPageSymbol = "flag.fill"
+
     // MARK: - Initializers
 
     /// A tab to seed a Space with, showing `url`, or `nativeContent` in place
@@ -41,7 +47,7 @@ extension TabState.Seed {
         -> TabState.Seed
     {
         TabState.Seed(
-            id: id, title: BrowserTab.startPageTitle, url: nil, symbol: BrowserTab.startPageSymbol,
+            id: id, title: startPageTitle, url: nil, symbol: startPageSymbol,
             placement: placement,
             lastActivatedAt: lastActivatedAt)
     }

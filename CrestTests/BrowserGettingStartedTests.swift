@@ -47,27 +47,33 @@ final class BrowserGettingStartedTests: XCTestCase {
     func testNativeStateIsScopedToWindowAssignmentAndDescriptor() throws {
         let browser = BrowserStore.preview()
         let id = try XCTUnwrap(browser.openGettingStarted())
-        let space = try XCTUnwrap(browser.selectedSpace)
-        var tab = try XCTUnwrap(browser.selectedTab)
-        let assignment = BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: space.profile.id)
+        let space = try XCTUnwrap(browser.shownSpace)
+        let tab = try XCTUnwrap(browser.shownTab)
+        let assignment = BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: space.profileID)
         let first = BrowserNativeTabStore()
         let second = BrowserNativeTabStore()
         first.load(tab: tab, space: space)
         second.load(tab: tab, space: space)
         let runtime = try XCTUnwrap(first.runtime(matching: assignment, content: .gettingStarted))
         XCTAssertFalse(second.runtime(matching: assignment, content: .gettingStarted) === runtime)
-        let stale = BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: BrowsingProfile().id)
+        let stale = BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: UUID())
         XCTAssertFalse(first.remove(tabID: id, matching: stale))
-        tab = BrowserTab(id: id, title: "Settings", url: nil, nativeContent: .settings, placement: .saved)
-        first.load(tab: tab, space: space)
+        // The same tab showing Settings in the same Space.
+        var seed = space.value.seed
+        let settings = TabState.Seed(
+            id: id, title: "Settings", url: nil, nativeContent: .settings, placement: .saved)
+        seed.tabs = [settings]
+        let settingsSpace = SpaceModel.detached(seed)
+        let settingsTab = try XCTUnwrap(settingsSpace.tabs.model(id))
+        first.load(tab: settingsTab, space: settingsSpace)
         XCTAssertNil(first.runtime(matching: assignment, content: .gettingStarted))
         XCTAssertNotNil(first.runtime(matching: assignment, content: .settings))
-        let replacement = BrowserSpace(
-            id: space.id, profile: BrowsingProfile(), name: space.name, symbol: space.symbol,
-            accent: space.accent, folders: [], tabs: [tab])
-        first.reconcile(session: BrowserSession(spaces: [replacement]))
+        // The same Space and tab under another profile.
+        seed.profileID = UUID()
+        let replacement = SpaceModel.detached(seed)
+        first.reconcile(spaces: [replacement])
         XCTAssertTrue(first.tabIDs.isEmpty)
-        first.load(tab: tab, space: replacement)
+        first.load(tab: try XCTUnwrap(replacement.tabs.model(id)), space: replacement)
         first.reconcile(validTabIDs: [])
         XCTAssertTrue(first.tabIDs.isEmpty)
     }
