@@ -6,9 +6,12 @@ import WebKit
 
 @MainActor
 enum MobileBrowserDialogPresenter {
+    // A `dismissal` closes the alert once its question no longer waits.
+
     static func presentAlert(
         message: String,
         request: URLRequest,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable () -> Void
     ) {
         let alert = UIAlertController(
@@ -17,12 +20,13 @@ enum MobileBrowserDialogPresenter {
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in completion() })
-        present(alert, fallback: completion)
+        present(alert, dismissal: dismissal, fallback: completion)
     }
 
     static func presentConfirmation(
         message: String,
         request: URLRequest,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
         let alert = UIAlertController(
@@ -32,13 +36,14 @@ enum MobileBrowserDialogPresenter {
         )
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in completion(false) })
         alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in completion(true) })
-        present(alert) { completion(false) }
+        present(alert, dismissal: dismissal) { completion(false) }
     }
 
     static func presentPrompt(
         message: String,
         defaultText: String?,
         request: URLRequest,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable (String?) -> Void
     ) {
         let alert = UIAlertController(
@@ -52,7 +57,7 @@ enum MobileBrowserDialogPresenter {
             UIAlertAction(title: "OK", style: .default) { [weak alert] _ in
                 completion(alert?.textFields?.first?.text)
             })
-        present(alert) { completion(nil) }
+        present(alert, dismissal: dismissal) { completion(nil) }
     }
 
     /// Keeps the originating web request alive while the person repairs the
@@ -272,11 +277,15 @@ enum MobileBrowserDialogPresenter {
 
     private static func present(
         _ alert: UIAlertController,
+        dismissal: BrowserPromptDismissal? = nil,
         fallback: @escaping @MainActor @Sendable () -> Void
     ) {
         guard let presenter = topViewController() else {
             fallback()
             return
+        }
+        dismissal?.attach { [weak alert] in
+            alert?.presentingViewController?.dismiss(animated: true)
         }
         presenter.present(alert, animated: true)
     }

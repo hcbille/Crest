@@ -87,7 +87,9 @@ final class Engines {
     @ObservationIgnored private var pageIcons: [UUID: Data] = [:]
     /// Those who hear what the core recorded from pages' reports.
     @ObservationIgnored private var recordObservers: [RecordObserver] = []
-    @ObservationIgnored private unowned let core: CrestCore
+    /// The core the bindings register with, which a binding follows for what
+    /// it asks the person about its pages.
+    @ObservationIgnored unowned let core: CrestCore
 
     // MARK: - Initializers
 

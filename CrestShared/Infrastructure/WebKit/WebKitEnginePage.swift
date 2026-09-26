@@ -20,6 +20,12 @@ final class WebKitEnginePage {
     /// Installing the same script message handler twice on it throws, and
     /// removing one would strip it from the opener.
     let ownsUserContentController: Bool
+    /// The platform's page hosting this one, which shows the person the
+    /// core's questions about it.
+    weak var presenter: (any BrowserPromptPresenting)?
+    /// The binding that built the page, which raises its questions with the
+    /// core.
+    weak var binding: WebKitEngineBinding?
 
     // MARK: - Initializers
 
@@ -29,5 +35,15 @@ final class WebKitEnginePage {
         engine = BrowserWebKitPageEngine(webView: webView)
         self.contentRuleLists = contentRuleLists
         self.ownsUserContentController = ownsUserContentController
+    }
+
+    // MARK: - Actions - Prompts
+
+    /// Asks the core the script dialog the page's document opened. `answer`
+    /// runs once: with the person's answer, or declined when nobody can give
+    /// one.
+    func ask(_ question: ScriptDialogQuestion, answer: @escaping @MainActor (Bool, String?) -> Void) {
+        guard let binding else { return answer(false, nil) }
+        binding.raise(question, for: id, answer: answer)
     }
 }

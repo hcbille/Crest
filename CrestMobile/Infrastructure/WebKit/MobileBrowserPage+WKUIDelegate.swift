@@ -144,11 +144,7 @@ extension MobileBrowserPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable () -> Void
     ) {
-        MobileBrowserDialogPresenter.presentAlert(
-            message: message,
-            request: frame.request,
-            completion: completionHandler
-        )
+        askScriptDialog(.alert, message: message, defaultText: nil, frame: frame) { _, _ in completionHandler() }
     }
 
     func webView(
@@ -157,11 +153,9 @@ extension MobileBrowserPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
-        MobileBrowserDialogPresenter.presentConfirmation(
-            message: message,
-            request: frame.request,
-            completion: completionHandler
-        )
+        askScriptDialog(.confirm, message: message, defaultText: nil, frame: frame) { accepted, _ in
+            completionHandler(accepted)
+        }
     }
 
     func webView(
@@ -171,12 +165,22 @@ extension MobileBrowserPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (String?) -> Void
     ) {
-        MobileBrowserDialogPresenter.presentPrompt(
-            message: prompt,
-            defaultText: defaultText,
-            request: frame.request,
-            completion: completionHandler
-        )
+        askScriptDialog(.prompt, message: prompt, defaultText: defaultText, frame: frame) { accepted, text in
+            completionHandler(accepted ? text ?? "" : nil)
+        }
+    }
+
+    /// Asks the core the script dialog `frame`'s document opened, which this
+    /// page shows once the core asks the person.
+    private func askScriptDialog(
+        _ kind: JavaScriptDialogKind, message: String, defaultText: String?, frame: WKFrameInfo,
+        answer: @escaping @MainActor (Bool, String?) -> Void
+    ) {
+        enginePage.ask(
+            ScriptDialogQuestion(
+                kind: kind, message: message, defaultText: defaultText ?? "",
+                sourceURL: frame.request.url?.absoluteString ?? ""),
+            answer: answer)
     }
 
     // Leave runOpenPanelWith unimplemented on iOS. WebKit's native upload flow

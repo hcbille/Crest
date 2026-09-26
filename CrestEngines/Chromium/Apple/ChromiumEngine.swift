@@ -88,21 +88,25 @@
 
         /// Shows a question the core asks on the page that asked it, and closes
         /// it once the core settles it. One no page of this engine can show any
-        /// more is declined.
+        /// more is declined; one about a page another engine hosts is that
+        /// engine's to show.
         private func ask(_ change: Change) {
             switch change {
             case .scriptDialogAsked(let asked):
                 guard let page = hosted[asked.pageID]?.page else {
+                    guard !isAnotherEnginesPage(asked.pageID) else { return }
                     return answer(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
                 }
                 page.ask(asked, dismissal: dismissal(for: asked.promptID))
             case .authenticationAsked(let asked):
                 guard let page = hosted[asked.pageID]?.page else {
+                    guard !isAnotherEnginesPage(asked.pageID) else { return }
                     return answer(AnswerAuthentication(promptID: asked.promptID, credential: nil))
                 }
                 page.ask(asked, dismissal: dismissal(for: asked.promptID))
             case .permissionAsked(let asked):
                 guard let page = hosted[asked.pageID]?.page else {
+                    guard !isAnotherEnginesPage(asked.pageID) else { return }
                     return answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
                 }
                 page.ask(asked, dismissal: dismissal(for: asked.promptID))
@@ -125,6 +129,12 @@
             default:
                 break
             }
+        }
+
+        /// Whether the core hosts `pageID` on another engine.
+        private func isAnotherEnginesPage(_ pageID: UUID) -> Bool {
+            guard let engine = core?.state.pages[pageID]?.engine else { return false }
+            return engine != .chromium
         }
 
         /// Where a download's file goes: the Space's download folder, or where

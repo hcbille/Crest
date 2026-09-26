@@ -2753,6 +2753,10 @@
     "2026-09-26-cloud-transport-state-in-core": {
       "category": "internal",
       "message": "iCloud sync keeps its progress on this device in Crest's own store, carried over once from the file earlier versions used"
+    },
+    "2026-09-26-webkit-dialogs-through-core": {
+      "category": "internal",
+      "message": "WebKit pages' alert, confirm and prompt dialogs and the leave-page question go through the core, like Chromium's"
     }
   }
 }

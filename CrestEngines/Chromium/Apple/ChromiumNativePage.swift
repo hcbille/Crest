@@ -39,10 +39,9 @@
             (AuthenticationQuestion, BrowserPromptDismissal, @escaping (String?, String?) -> Void) -> Void = {
                 _, _, reply in reply(nil, nil)
             }
-        var javaScriptDialogHandler:
-            (
-                JavaScriptDialogKind, String, String, URL?, BrowserPromptDismissal, @escaping (Bool, String?) -> Void
-            ) -> Void = { _, _, _, _, _, reply in reply(false, nil) }
+        /// The platform's page hosting this one, which shows the person the
+        /// core's questions about it.
+        weak var promptPresenter: (any BrowserPromptPresenting)?
         var protectedLinkHandler: (URL) -> (() -> Void)? = { _ in nil }
         var modifiedLinkHandler: (URL, Int, String) -> (LinkNavigationDecision, (() -> Void)?) = { _, _, _ in
             (.navigate, nil)
@@ -587,12 +586,11 @@
 
         /// A script dialog the core asks the person, answered once they answer it.
         func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {
-            let question = asked.question
-            javaScriptDialogHandler(
-                question.kind, question.message, question.defaultText, URL(string: question.sourceURL), dismissal
-            ) { [weak engine] accepted, input in
-                engine?.answer(AnswerScriptDialog(promptID: asked.promptID, accepted: accepted, text: input))
+            guard let promptPresenter else {
+                engine?.answer(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
+                return
             }
+            promptPresenter.ask(asked, dismissal: dismissal)
         }
 
         /// A server's request for a user name and password. The credential goes

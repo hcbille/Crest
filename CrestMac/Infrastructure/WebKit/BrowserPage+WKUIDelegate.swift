@@ -51,7 +51,7 @@ extension BrowserPage: WKUIDelegate {
     ) {
         let engine = webKitEngine
         engine?.beforeUnloadPanelWillAppear()
-        dialogPresenter.presentBeforeUnload(request: frame.request) { leaving in
+        askScriptDialog(.beforeUnload, message: message, defaultText: nil, frame: frame) { leaving, _ in
             completionHandler(leaving)
             engine?.beforeUnloadPanelDidFinish(leaving: leaving)
         }
@@ -116,11 +116,7 @@ extension BrowserPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable () -> Void
     ) {
-        dialogPresenter.presentAlert(
-            message: message,
-            request: frame.request,
-            completion: completionHandler
-        )
+        askScriptDialog(.alert, message: message, defaultText: nil, frame: frame) { _, _ in completionHandler() }
     }
 
     func webView(
@@ -129,11 +125,9 @@ extension BrowserPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
-        dialogPresenter.presentConfirm(
-            message: message,
-            request: frame.request,
-            completion: completionHandler
-        )
+        askScriptDialog(.confirm, message: message, defaultText: nil, frame: frame) { accepted, _ in
+            completionHandler(accepted)
+        }
     }
 
     func webView(
@@ -143,12 +137,24 @@ extension BrowserPage: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping @MainActor @Sendable (String?) -> Void
     ) {
-        dialogPresenter.presentPrompt(
-            message: prompt,
-            defaultText: defaultText,
-            request: frame.request,
-            completion: completionHandler
-        )
+        askScriptDialog(.prompt, message: prompt, defaultText: defaultText, frame: frame) { accepted, text in
+            completionHandler(accepted ? text ?? "" : nil)
+        }
+    }
+
+    /// Asks the core the script dialog `frame`'s document opened, which this
+    /// page shows once the core asks the person. A page WebKit's binding did
+    /// not build has no one to ask, and declines.
+    private func askScriptDialog(
+        _ kind: JavaScriptDialogKind, message: String, defaultText: String?, frame: WKFrameInfo,
+        answer: @escaping @MainActor (Bool, String?) -> Void
+    ) {
+        guard let enginePage = webKitAdapter?.enginePage else { return answer(false, nil) }
+        enginePage.ask(
+            ScriptDialogQuestion(
+                kind: kind, message: message, defaultText: defaultText ?? "",
+                sourceURL: frame.request.url?.absoluteString ?? ""),
+            answer: answer)
     }
 
     func webView(

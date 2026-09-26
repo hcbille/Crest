@@ -122,6 +122,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
 
     func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
         self.page = page
+        enginePage.presenter = page
         reporter = EnginePageReporter(page: page.corePage) { [weak self] pendingURL in
             self?.snapshot(pendingURL: pendingURL)
                 ?? PageSnapshot(

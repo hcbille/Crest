@@ -63,34 +63,7 @@
                 page?.performContextMenuAction(
                     identifier: identifier, linkURL: url, selectionText: selection) ?? false
             }
-            native.javaScriptDialogHandler = { [weak page] kind, message, defaultText, sourceURL, dismissal, reply in
-                guard let page else {
-                    reply(false, nil)
-                    return
-                }
-                let request = URLRequest(
-                    url: sourceURL ?? page.pageEngine.currentURL ?? URL(fileURLWithPath: "/"))
-                switch kind {
-                case .alert:
-                    page.dialogPresenter.presentAlert(message: message, request: request, dismissal: dismissal) {
-                        reply(true, nil)
-                    }
-                case .confirm:
-                    page.dialogPresenter.presentConfirm(message: message, request: request, dismissal: dismissal) {
-                        reply($0, nil)
-                    }
-                case .prompt:
-                    page.dialogPresenter.presentPrompt(
-                        message: message, defaultText: defaultText, request: request, dismissal: dismissal
-                    ) { answer in
-                        reply(answer != nil, answer)
-                    }
-                case .beforeUnload:
-                    page.dialogPresenter.presentBeforeUnload(request: request, dismissal: dismissal) {
-                        reply($0, nil)
-                    }
-                }
-            }
+            native.promptPresenter = page
             native.httpAuthenticationHandler = { [weak page] values, dismissal, reply in
                 guard let page, let challenge = BrowserAuthenticationChallenge(chromium: values) else {
                     reply(nil, nil)

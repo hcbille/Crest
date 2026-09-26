@@ -270,6 +270,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         }
 
         super.init()
+        enginePage.presenter = self
         if normalizedDefaultPageZoom != BrowserPageZoomPolicy.defaultLevel {
             webView.pageZoom = normalizedDefaultPageZoom
         }

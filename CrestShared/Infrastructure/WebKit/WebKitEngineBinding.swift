@@ -6,7 +6,9 @@ import WebKit
 /// with the platform's own settings, and the platform's web view, which the
 /// page's owner then hosts. It loads an address through the owner's own load,
 /// which prepares the page for it. The owner tears the web view down when it
-/// releases the page, so closing only tells the core the page is gone.
+/// releases the page, so closing only tells the core the page is gone. The
+/// questions a page's document asks go to the core, which the page's host
+/// shows the person, and come back as the core settles them.
 /// TRANSITIONAL until WP C (j1): a page the core unloads hands it no restore
 /// state; its owner archives WebKit's state from the live web view instead.
 @MainActor
@@ -17,17 +19,43 @@ final class WebKitEngineBinding: EngineBinding {
         weak var value: WebKitEnginePage?
     }
 
+    /// A question one of this binding's pages raised with the core, until the
+    /// core settles it.
+    private enum PendingPrompt {
+        case scriptDialog(pageID: UUID, answer: @MainActor (Bool, String?) -> Void)
+
+        var pageID: UUID {
+            switch self {
+            case .scriptDialog(let pageID, _): pageID
+            }
+        }
+
+        /// Answers WebKit as nobody accepting anything.
+        @MainActor func decline() {
+            switch self {
+            case .scriptDialog(_, let answer): answer(false, nil)
+            }
+        }
+    }
+
     // MARK: - Variables
 
     let integration = BrowserEngineRegistration.webKit
     private weak var engines: Engines?
     /// The pages this binding built, while their owners keep them.
     private var pages: [UUID: WeakPage] = [:]
+    /// The questions this binding's pages raised, by prompt, until the core
+    /// settles them.
+    private var prompts: [UUID: PendingPrompt] = [:]
+    /// How to close what each page's host shows for a question, until the
+    /// question no longer waits.
+    private var dismissals: [UUID: BrowserPromptDismissal] = [:]
 
     // MARK: - Actions - Binding
 
     func attach(to engines: Engines) {
         self.engines = engines
+        engines.core.followPrompts(self) { [weak self] change in self?.ask(change) }
     }
 
     func run(_ command: EngineCommand) {
@@ -39,6 +67,7 @@ final class WebKitEngineBinding: EngineBinding {
                 return
             }
             let page = build(creation, from: request.webKit)
+            page.binding = self
             pages = pages.filter { $0.value.value != nil }
             pages[creation.pageID] = WeakPage(value: page)
             request.built = page
@@ -48,6 +77,8 @@ final class WebKitEngineBinding: EngineBinding {
             (engines.page(loading.pageID) ?? engines.request(loading.pageID)?.page)?.appLoad?(url)
         case .closePage(let closing):
             pages[closing.pageID] = nil
+            // WebKit requires an answer to every question it asked.
+            declinePrompts(of: closing.pageID)
             engines.report(PageClosed(pageID: closing.pageID, restoreState: nil), from: self)
         case .checkBeforeUnload(let check):
             prepareToClose(check.pageID)
@@ -55,11 +86,14 @@ final class WebKitEngineBinding: EngineBinding {
             // WebKit starts a new web content process for the page's current
             // history entry.
             pages[recovery.pageID]?.value?.webView.reload()
-        case .settleScriptDialog, .settleAuthentication, .settlePermission, .settleExtensionInstall,
-            .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload, .approveEngineDownload:
-            // WebKit answers its own prompts and runs its own downloads until
-            // its binding reports them to the core (WP C (j1)), so the core
-            // never asks it to.
+        case .settleScriptDialog(let settlement):
+            guard case .scriptDialog(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
+            answer(settlement.accepted, settlement.text)
+        case .settleAuthentication, .settlePermission, .settleExtensionInstall, .settleDownloadDestination,
+            .cancelEngineDownload, .removeEngineDownload, .approveEngineDownload:
+            // WebKit answers its own sign-ins and permission requests and runs
+            // its own downloads until its binding reports them to the core
+            // (WP C (j1)), so the core never asks it to.
             break
         }
     }
@@ -82,6 +116,52 @@ final class WebKitEngineBinding: EngineBinding {
             webView: BrowserPlatformWebKit.makeWebView(configuration: configuration),
             contentRuleLists: inputs.contentRuleLists,
             ownsUserContentController: !inputs.sharesUserContentController)
+    }
+
+    // MARK: - Actions - Prompts
+
+    /// Raises with the core a script dialog the document of page `pageID`
+    /// opened. The core settles it with the person's answer, or declines it
+    /// when nobody can give one.
+    func raise(_ question: ScriptDialogQuestion, for pageID: UUID, answer: @escaping @MainActor (Bool, String?) -> Void) {
+        guard let engines else { return answer(false, nil) }
+        let promptID = UUID()
+        prompts[promptID] = .scriptDialog(pageID: pageID, answer: answer)
+        engines.report(ScriptDialogOpened(promptID: promptID, pageID: pageID, question: question), from: self)
+    }
+
+    /// Shows a question the core asks about one of this binding's pages on
+    /// the page's host, and closes it once the core settles it. One no host
+    /// can show is declined.
+    private func ask(_ change: Change) {
+        switch change {
+        case .scriptDialogAsked(let asked):
+            guard prompts[asked.promptID] != nil else { return }
+            guard let presenter = pages[asked.pageID]?.value?.presenter else {
+                _ = try? engines?.core.send(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
+                return
+            }
+            presenter.ask(asked, dismissal: dismissal(for: asked.promptID))
+        case .promptSettled(let settled):
+            dismissals.removeValue(forKey: settled.promptID)?.dismiss()
+        default:
+            break
+        }
+    }
+
+    /// A new dismissal for a question a page's host shows.
+    private func dismissal(for promptID: UUID) -> BrowserPromptDismissal {
+        let dismissal = BrowserPromptDismissal()
+        dismissals[promptID] = dismissal
+        return dismissal
+    }
+
+    /// Declines what page `pageID` still asks, which closes with it.
+    private func declinePrompts(of pageID: UUID) {
+        for (promptID, prompt) in prompts where prompt.pageID == pageID {
+            prompts[promptID] = nil
+            prompt.decline()
+        }
     }
 
     /// Asks the page's beforeunload handlers whether it may close, where

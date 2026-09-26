@@ -122,6 +122,12 @@ final class CorePage {
         (try? core?.query(OpenedWindowSelection(gesture: gesture)))?.selects ?? true
     }
 
+    /// Sends the person's answer to a question the core asked about the page.
+    /// An answer to a question that no longer waits changes nothing.
+    func answer(_ intent: some PromptIntent) {
+        _ = try? core?.send(intent)
+    }
+
     /// Leaves the page's failed navigation for the document behind it.
     func leaveFailure() {
         guard !isReleased, live.failure != nil else { return }
