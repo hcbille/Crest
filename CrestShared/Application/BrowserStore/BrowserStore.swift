@@ -26,21 +26,14 @@ final class BrowserStore {
     /// What this window showed when it last followed the core, which it keeps
     /// showing once the core no longer has it open.
     @ObservationIgnored private var lastWindow: WindowState
+    /// The Space `lastWindow` showed, under its profile and access policy then.
+    @ObservationIgnored private var lastSelectionScope: BrowserSelectionScope
     @ObservationIgnored private var isClosed = false
 
     /// What the core says this window shows.
     var window: WindowState { core.state.windows[windowID]?.value ?? lastWindow }
 
-    var deletingSpaceIDs: Set<SpaceID> { family.deletingSpaceIDs }
     var selectedSpaceID: SpaceID { window.shownSpace }
-    var selectedSpace: BrowserSpace? {
-        guard !deletingSpaceIDs.contains(selectedSpaceID) else { return nil }
-        return family.currentSession.space(id: selectedSpaceID)
-    }
-    var selectedTab: BrowserTab? {
-        guard let space = selectedSpace, let tabID = window.shownTabID(in: space.id) else { return nil }
-        return space.tabs.first { $0.id == tabID }
-    }
 
     /// The tab this window shows in a Space, if any.
     func selectedTabID(in spaceID: SpaceID) -> TabID? {
@@ -59,7 +52,7 @@ final class BrowserStore {
     /// Shows a Space in this window, on the tab it last showed there or the
     /// Space's fallback.
     func selectPresentedSpace(_ id: SpaceID) {
-        guard !deletingSpaceIDs.contains(id), session.space(id: id) != nil else { return }
+        guard !isDeleting(id), spaceModel(id) != nil else { return }
         guard sendWindowIntent(ShowSpace(windowID: windowID, spaceID: id)) else { return }
         tabMultiSelection.clear()
         sessionRevision &+= 1
@@ -82,9 +75,9 @@ final class BrowserStore {
     /// shows them, wrapping, and answers it; nil when the core showed no other.
     @discardableResult
     func selectAdjacentTab(_ direction: AdjacentDirection) -> TabID? {
-        let shown = selectedTab?.id
+        let shown = shownTab?.id
         guard sendWindowIntent(ShowAdjacentTab(windowID: windowID, direction: direction)),
-            let next = selectedTab?.id, next != shown
+            let next = shownTab?.id, next != shown
         else { return nil }
         sessionRevision &+= 1
         return next
@@ -111,7 +104,7 @@ final class BrowserStore {
     /// current-tab cleanup reads. Answers false when the core would not show it.
     @discardableResult
     func activateSessionTab(_ id: TabID, in spaceID: SpaceID) -> Bool {
-        guard !deletingSpaceIDs.contains(spaceID), session.space(id: spaceID)?.contains(id) == true,
+        guard !isDeleting(spaceID), spaceModel(spaceID)?.tabs.contains(id) == true,
             sendWindowIntent(ShowTab(windowID: windowID, spaceID: spaceID, tabID: id))
         else { return false }
         sessionRevision &+= 1
@@ -139,7 +132,7 @@ final class BrowserStore {
     @discardableResult
     private func sendWindowIntent(_ intent: some Intent) -> Bool {
         do { try core.send(intent) } catch { return false }
-        lastWindow = window
+        rememberShown()
         return true
     }
 
@@ -185,6 +178,7 @@ final class BrowserStore {
         lastWindow = WindowState(
             id: opening.id, workspaceID: UUID(), shownSpaceID: UUID(), shownTabs: [], splitColumnShares: [], cards: [],
             unavailableCommands: [])
+        lastSelectionScope = BrowserSelectionScope(spaceID: lastWindow.shownSpace, space: nil)
         let workspace = family.register(self)
         do {
             try core.send(
@@ -199,7 +193,7 @@ final class BrowserStore {
         } catch {
             preconditionFailure("The core refused to open a window over its own workspace: \(error)")
         }
-        lastWindow = window
+        rememberShown()
     }
 
     /// Closes this window in the core's device. What it showed stays readable
@@ -277,24 +271,31 @@ extension BrowserStore {
     /// The family accepted a change. The core's device has already moved or
     /// repaired this window; a window that now shows another Space, or its
     /// Space under another profile or policy, drops its multi-selection.
-    func receiveFamilySessionChange(from previous: BrowserSession, to shared: BrowserSession) {
-        let previousSpaceID = lastWindow.shownSpace
-        let previousSpace = previous.space(id: previousSpaceID)
-        let selectedSpace = shared.space(id: selectedSpaceID)
-        if previousSpaceID != selectedSpaceID
-            || previousSpace?.profile.id != selectedSpace?.profile.id
-            || previousSpace?.accessPolicy != selectedSpace?.accessPolicy
-        {
+    func receiveFamilySessionChange() {
+        let scope = selectionScope
+        if scope != lastSelectionScope {
             tabMultiSelection.clear()
         }
         if let activation = pendingMovedTabActivation,
             selectedSpaceID != activation.spaceID
                 || selectedTabID(in: activation.spaceID) != activation.tabID
-                || selectedSpace?.profile.id != activation.profileID
+                || scope.profileID != activation.profileID
         {
             pendingMovedTabActivation = nil
         }
-        lastWindow = window
+        rememberShown()
         sessionRevision &+= 1
+    }
+
+    /// The Space this window shows, under its profile and access policy now.
+    private var selectionScope: BrowserSelectionScope {
+        BrowserSelectionScope(spaceID: selectedSpaceID, space: spaceModel(selectedSpaceID))
+    }
+
+    /// Keeps what the window shows now, which it keeps showing once the core
+    /// no longer has it open, and the scope its multi-selection is made under.
+    private func rememberShown() {
+        lastWindow = window
+        lastSelectionScope = selectionScope
     }
 }

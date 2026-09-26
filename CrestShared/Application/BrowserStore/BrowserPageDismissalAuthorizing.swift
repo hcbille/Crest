@@ -18,11 +18,14 @@ extension BrowserStore {
         operation: @escaping @MainActor () -> Bool
     ) -> Bool {
         let checked: @MainActor () -> Bool = { [weak self] in
-            guard let self, assignments.allSatisfy({ assignment in
-                self.space(matching: BrowserSpaceRuntimeAssignment(
-                    spaceID: assignment.spaceID, profileID: assignment.profileID
-                ))?.tabs.contains(where: { $0.id == assignment.tabID }) == true
-            }) else { return false }
+            guard let self,
+                assignments.allSatisfy({ assignment in
+                    self.spaceModel(
+                        matching: BrowserSpaceRuntimeAssignment(
+                            spaceID: assignment.spaceID, profileID: assignment.profileID)
+                    )?.tabs.contains(assignment.tabID) == true
+                })
+            else { return false }
             return operation()
         }
         guard let authorizer = family.pageDismissalAuthorizer else { return checked() }

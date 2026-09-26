@@ -12,9 +12,9 @@ struct BrowserMacDownloadFeedbackLayer: View {
             let root = proxy.frame(in: .global)
             let context = BrowserMacDownloadFeedbackContext(
                 windowIdentifier: windowIdentifier,
-                profileID: model.browser.selectedSpace?.profile.id,
-                spaceID: model.browser.selectedSpace?.id,
-                tabID: model.browser.selectedTab?.id,
+                profileID: model.browser.shownSpace?.profileID,
+                spaceID: model.browser.shownSpace?.id,
+                tabID: model.browser.shownTab?.id,
                 bounds: root,
                 destination: model.sidebarPresentation.showsSidebar
                     ? model.chrome.utilityPresentation.triggerFrameInGlobal : nil,

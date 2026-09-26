@@ -244,7 +244,7 @@ extension BrowserStore {
         _ isExpanded: Bool,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard space(matching: assignment) != nil else { return false }
+        guard spaceModel(matching: assignment) != nil else { return false }
         return setSavedTabsExpanded(isExpanded, in: assignment.spaceID)
     }
 
@@ -270,7 +270,7 @@ extension BrowserStore {
     /// Whether a folder may be created inside `parentID`. The core answers
     /// with its folder count and depth limits.
     func canAddFolder(inside parentID: FolderID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
-        guard space(matching: assignment) != nil else { return false }
+        guard spaceModel(matching: assignment) != nil else { return false }
         return family.canSend(
             CreateFolder(
                 workspaceID: family.workspaceID, spaceID: assignment.spaceID, folderID: UUID(),
@@ -286,7 +286,7 @@ extension BrowserStore {
         parentID: FolderID? = nil,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> FolderID? {
-        guard space(matching: assignment) != nil else { return nil }
+        guard spaceModel(matching: assignment) != nil else { return nil }
         return addFolder(
             title: title,
             color: color,
@@ -307,8 +307,7 @@ extension BrowserStore {
         matching assignment: BrowserSpaceRuntimeAssignment,
         title: String
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.folders.contains(where: { $0.id == folderID })
+        guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }
         return renameFolder(folderID, in: assignment.spaceID, title: title)
     }
@@ -332,8 +331,7 @@ extension BrowserStore {
         matching assignment: BrowserSpaceRuntimeAssignment,
         color: BrowserSpaceBrandColor
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.folders.contains(where: { $0.id == folderID })
+        guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }
         return setFolderColor(
             folderID,
@@ -361,8 +359,7 @@ extension BrowserStore {
         matching assignment: BrowserSpaceRuntimeAssignment,
         symbol: String
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.folders.contains(where: { $0.id == folderID })
+        guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }
         return setFolderSymbol(
             folderID,
@@ -393,8 +390,7 @@ extension BrowserStore {
         matching assignment: BrowserSpaceRuntimeAssignment,
         isCollapsed: Bool
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.folders.contains(where: { $0.id == folderID })
+        guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }
         return setFolderCollapsed(
             folderID,
@@ -410,7 +406,7 @@ extension BrowserStore {
         in spaceID: SpaceID,
         into parentID: FolderID?
     ) -> Bool {
-        guard !deletingSpaceIDs.contains(spaceID) else { return false }
+        guard !isDeleting(spaceID) else { return false }
         return family.canSend(
             MoveFolder(
                 workspaceID: family.workspaceID, spaceID: spaceID, folderID: folderID, placement: nil,
@@ -423,8 +419,7 @@ extension BrowserStore {
         matching assignment: BrowserSpaceRuntimeAssignment,
         into parentID: FolderID?
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.folders.contains(where: { $0.id == folderID })
+        guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }
         return canMoveFolder(
             folderID,
@@ -458,9 +453,9 @@ extension BrowserStore {
         into parentID: FolderID?,
         before siblingID: FolderID? = nil
     ) -> Bool {
-        guard let space = space(matching: assignment),
+        guard let space = spaceModel(matching: assignment),
             siblingID == nil
-                || space.folders.contains(where: {
+                || space.folders.models.contains(where: {
                     $0.id == siblingID && $0.parentID == parentID
                 }),
             canMoveFolder(
@@ -508,8 +503,7 @@ extension BrowserStore {
         _ folderID: FolderID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
-            space.folders.contains(where: { $0.id == folderID })
+        guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }
         return deleteFolder(folderID, in: assignment.spaceID)
     }

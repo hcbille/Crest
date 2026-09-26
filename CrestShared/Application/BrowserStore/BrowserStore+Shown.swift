@@ -5,10 +5,12 @@ import Foundation
 extension BrowserStore {
     // MARK: - Variables
 
-    /// The Space this window shows, or nil while it is being deleted or once
-    /// the core no longer holds it.
+    /// The Space this window shows, or showed last once the core closed the
+    /// window; nil while it is being deleted or once the core no longer holds
+    /// it.
     var shownSpace: SpaceModel? {
-        guard let spaceID = windowModel?.shownSpaceID, !isDeleting(spaceID) else { return nil }
+        let spaceID = windowModel?.shownSpaceID ?? selectedSpaceID
+        guard !isDeleting(spaceID) else { return nil }
         return spaceModel(spaceID)
     }
 
@@ -56,6 +58,11 @@ extension BrowserStore {
             space.profileID == assignment.profileID
         else { return nil }
         return space
+    }
+
+    /// The Spaces this device is deleting, here or in the core.
+    var deletingSpaceIDs: Set<UUID> {
+        family.locallyDeletingSpaceIDs.union(workspaceModel?.spaceDeletions.map(\.spaceID) ?? [])
     }
 
     /// Whether this device is deleting the Space, here or in the core.

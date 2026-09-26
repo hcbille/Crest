@@ -104,7 +104,7 @@ private final class BrowserMobileApplication {
             sources: [mediaSessions],
             preferences: sidebarWidgetPreferences
         )
-        if launchEnvironment.presentsShowcaseSession, let profileID = browser.selectedSpace?.profile.id {
+        if launchEnvironment.presentsShowcaseSession, let profileID = browser.shownSpace?.profileID {
             core.addShowcaseDownloads(profileID: profileID)
         }
         let downloads = MobileBrowserDownloads(

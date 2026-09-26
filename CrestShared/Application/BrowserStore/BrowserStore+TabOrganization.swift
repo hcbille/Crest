@@ -127,18 +127,13 @@ extension BrowserStore {
     }
 
     func canMoveTab(_ id: TabID, from sourceSpaceID: SpaceID, into destinationSpaceID: SpaceID) -> Bool {
-        guard !deletingSpaceIDs.contains(sourceSpaceID),
-            !deletingSpaceIDs.contains(destinationSpaceID)
-        else {
-            return false
-        }
-        guard let source = session.space(id: sourceSpaceID), let destination = session.space(id: destinationSpaceID),
-            source.contains(id), sourceSpaceID != destinationSpaceID
+        guard !isDeleting(sourceSpaceID), !isDeleting(destinationSpaceID), sourceSpaceID != destinationSpaceID,
+            spaceModel(sourceSpaceID)?.tabs.contains(id) == true, spaceModel(destinationSpaceID) != nil
         else { return false }
         return family.canSend(
             MoveTabToSpace(
-                workspaceID: family.workspaceID, windowID: windowID, spaceID: source.id,
-                tabID: id, destinationSpaceID: destination.id, placement: nil, folderID: nil,
+                workspaceID: family.workspaceID, windowID: windowID, spaceID: sourceSpaceID,
+                tabID: id, destinationSpaceID: destinationSpaceID, placement: nil, folderID: nil,
                 beforeTabID: nil, follows: false),
             from: self)
     }
@@ -164,25 +159,14 @@ extension BrowserStore {
         from sourceSpaceID: SpaceID,
         into destinationSpaceID: SpaceID
     ) -> Bool {
-        guard !deletingSpaceIDs.contains(sourceSpaceID),
-            !deletingSpaceIDs.contains(destinationSpaceID),
-            let sourceSpace = session.space(id: sourceSpaceID),
-            sourceSpace.contains(id),
-            moveTabBetweenSpaces(
-                id,
-                from: sourceSpaceID,
-                into: destinationSpaceID
-            )
-        else {
-            return false
-        }
-        guard let destinationSpace = session.space(id: destinationSpaceID) else {
-            return false
-        }
-        interactionObserver?.browserDidMoveTab(
-            from: BrowserTabRuntimeAssignment(tabID: id, spaceID: sourceSpace.id, profileID: sourceSpace.profile.id),
-            to: BrowserSpaceRuntimeAssignment(space: destinationSpace)
-        )
+        guard !isDeleting(sourceSpaceID), !isDeleting(destinationSpaceID),
+            let sourceSpace = spaceModel(sourceSpaceID), sourceSpace.tabs.contains(id)
+        else { return false }
+        let source = BrowserTabRuntimeAssignment(tabID: id, spaceID: sourceSpaceID, profileID: sourceSpace.profileID)
+        guard moveTabBetweenSpaces(id, from: sourceSpaceID, into: destinationSpaceID),
+            let destinationSpace = spaceModel(destinationSpaceID)
+        else { return false }
+        interactionObserver?.browserDidMoveTab(from: source, to: BrowserSpaceRuntimeAssignment(space: destinationSpace))
         return true
     }
 
@@ -203,14 +187,13 @@ extension BrowserStore {
         folderID: FolderID? = nil,
         before destinationTabID: TabID? = nil
     ) -> Bool {
-        guard let source = session.space(id: sourceSpaceID) else { return false }
-        guard let destination = session.space(id: destinationSpaceID) else { return false }
+        guard spaceModel(sourceSpaceID) != nil, let destination = spaceModel(destinationSpaceID) else { return false }
         let follows = linkPreferences.preferences.followsMovedTabs
         do {
             try family.commit(
                 MoveTabToSpace(
-                    workspaceID: family.workspaceID, windowID: windowID, spaceID: source.id,
-                    tabID: id, destinationSpaceID: destination.id, placement: placement,
+                    workspaceID: family.workspaceID, windowID: windowID, spaceID: sourceSpaceID,
+                    tabID: id, destinationSpaceID: destinationSpaceID, placement: placement,
                     folderID: folderID, beforeTabID: destinationTabID, follows: follows),
                 from: self)
         } catch {
@@ -219,7 +202,7 @@ extension BrowserStore {
         }
         if follows {
             pendingMovedTabActivation = BrowserTabRuntimeAssignment(
-                tabID: id, spaceID: destination.id, profileID: destination.profile.id)
+                tabID: id, spaceID: destinationSpaceID, profileID: destination.profileID)
         }
         return true
     }
@@ -544,23 +527,10 @@ extension BrowserStore {
 // MARK: - Selection
 
 extension BrowserStore {
-    func space(
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> BrowserSpace? {
-        guard !deletingSpaceIDs.contains(assignment.spaceID),
-            let space = session.space(id: assignment.spaceID),
-            assignment.matches(space)
-        else { return nil }
-        return space
-    }
-
     /// Shows another Space in this window. What a window shows is the core
     /// device's, and never part of the session.
     func selectSpace(_ id: SpaceID) {
-        guard id != selectedSpaceID,
-            !deletingSpaceIDs.contains(id),
-            session.space(id: id) != nil
-        else { return }
+        guard id != selectedSpaceID, !isDeleting(id), spaceModel(id) != nil else { return }
         selectPresentedSpace(id)
     }
 

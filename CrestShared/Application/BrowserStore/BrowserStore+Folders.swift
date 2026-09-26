@@ -4,7 +4,7 @@ extension BrowserStore {
 
     @discardableResult
     func createTabFolder(_ tabs: [TabID], in spaceID: SpaceID, detachesSplitMembers: Bool = false) -> FolderID? {
-        guard !deletingSpaceIDs.contains(spaceID),
+        guard !isDeleting(spaceID),
             let id = createSessionTabFolder(tabs, in: spaceID, detachesSplitMembers: detachesSplitMembers)
         else { return nil }
         return id
@@ -16,7 +16,7 @@ extension BrowserStore {
         into folderID: FolderID?, location: BrowserFolderLocation, before anchor: TabID? = nil,
         beforeFolderID: FolderID? = nil, detachesSplitMembers: Bool = false
     ) -> Bool {
-        guard space(matching: assignment) != nil,
+        guard spaceModel(matching: assignment) != nil,
             fileSessionTabs(
                 tabs, in: assignment.spaceID, into: folderID, location: location, before: anchor,
                 beforeFolderID: beforeFolderID, detachesSplitMembers: detachesSplitMembers)
@@ -30,7 +30,7 @@ extension BrowserStore {
         to location: BrowserFolderLocation, into parentID: FolderID? = nil,
         before siblingID: FolderID? = nil, beforeTabID: TabID? = nil
     ) -> Bool {
-        guard space(matching: assignment) != nil,
+        guard spaceModel(matching: assignment) != nil,
             moveSessionFolder(
                 id, in: assignment.spaceID, into: parentID, before: siblingID,
                 location: location, beforeTabID: beforeTabID)

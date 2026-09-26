@@ -10,8 +10,8 @@ extension BrowserStore {
         let spaceAssignment = BrowserSpaceRuntimeAssignment(
             spaceID: assignment.spaceID, profileID: assignment.profileID
         )
-        guard let space = space(matching: spaceAssignment),
-            let tab = space.tabs.first(where: { $0.id == assignment.tabID }),
+        guard let space = spaceModel(matching: spaceAssignment),
+            let tab = space.tabs.model(assignment.tabID),
             tab.placement.isDurable
         else { return false }
         // The core returns the window to the tab it showed before, skipping the

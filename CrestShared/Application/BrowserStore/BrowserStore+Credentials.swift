@@ -18,7 +18,7 @@ extension BrowserStore: BrowserCredentialSuggestionLoading {
 
 extension BrowserStore {
     func credentialSuggestions(for url: URL) async throws -> [CredentialDescriptor] {
-        guard let spaceID = selectedSpace?.id else {
+        guard let spaceID = shownSpace?.id else {
             throw CredentialVaultError.missingSpace
         }
         return try await credentialSuggestions(for: url, in: spaceID)
@@ -47,7 +47,7 @@ extension BrowserStore {
     }
 
     func credential(id: CredentialID) async throws -> BrowserCredential? {
-        guard let spaceID = selectedSpace?.id else {
+        guard let spaceID = shownSpace?.id else {
             throw CredentialVaultError.missingSpace
         }
         return try await credential(id: id, in: spaceID)
@@ -274,7 +274,7 @@ extension BrowserStore {
         isSynchronizable: Bool? = nil,
         now: Date = Date()
     ) async throws -> CredentialDescriptor {
-        guard let spaceID = selectedSpace?.id else {
+        guard let spaceID = shownSpace?.id else {
             throw CredentialVaultError.missingSpace
         }
         return try await saveCredential(
@@ -413,7 +413,7 @@ extension BrowserStore {
     }
 
     func deleteCredential(id: CredentialID) async throws {
-        guard let spaceID = selectedSpace?.id else {
+        guard let spaceID = shownSpace?.id else {
             throw CredentialVaultError.missingSpace
         }
         try await deleteCredential(id: id, in: spaceID)

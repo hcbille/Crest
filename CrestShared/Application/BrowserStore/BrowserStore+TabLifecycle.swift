@@ -78,8 +78,10 @@ extension BrowserStore {
     /// consulting session state itself. `window.open()` without a destination
     /// arrives as a nil or empty URL and becomes an `about:blank` tab, because a tab
     /// without a URL is a start page rather than a web page.
+    /// TRANSITIONAL until Lane 2's page hosts adopt popups from the read
+    /// model: the registration carries the session copy's tab and Space.
     func openPopupTab(url: URL?, in spaceID: SpaceID, selecting: Bool = true) -> BrowserPopupTabRegistration? {
-        guard !deletingSpaceIDs.contains(spaceID),
+        guard !isDeleting(spaceID),
             let space = session.space(id: spaceID),
             let destinationURL = url.flatMap({ $0.absoluteString.isEmpty ? nil : $0 }) ?? URL(string: "about:blank")
         else { return nil }
@@ -112,13 +114,12 @@ extension BrowserStore {
     /// which retires the page first, so this path leaves it alone.
     @discardableResult
     func closeTab(_ id: TabID, in spaceID: SpaceID) -> Bool {
-        guard let space = session.space(id: spaceID),
-            space.tabs.contains(where: { $0.id == id && !$0.placement.isDurable })
+        guard let space = spaceModel(spaceID), let tab = space.tabs.model(id), !tab.placement.isDurable
         else { return false }
-        let assignment = BrowserTabRuntimeAssignment(tabID: id, spaceID: spaceID, profileID: space.profile.id)
+        let assignment = BrowserTabRuntimeAssignment(tabID: id, spaceID: spaceID, profileID: space.profileID)
         // The core asks the tab's page whether it may go before it closes the tab.
         return performPageDismissal(of: [assignment]) { [weak self] in
-            guard let self, self.session.space(id: spaceID) != nil else { return false }
+            guard let self, self.spaceModel(spaceID) != nil else { return false }
             return self.closeSessionTab(id, in: spaceID)
         }
     }

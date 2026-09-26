@@ -9,7 +9,7 @@ extension BrowserStore {
     func makeTemporaryWindowStore(
         in assignment: BrowserSpaceRuntimeAssignment, id: BrowserWindowID = BrowserWindowID()
     ) -> BrowserStore? {
-        guard space(matching: assignment) != nil else { return nil }
+        guard spaceModel(matching: assignment) != nil else { return nil }
         let settingsBrowser = profileSettingsBrowser.makeWindowStore(
             BrowserWindowOpening(showingSpaceID: assignment.spaceID, restoresTabs: false))
         let workspaceFamily: BrowserStoreFamily
@@ -42,8 +42,8 @@ extension BrowserStore {
         to destination: BrowserStore,
         in destinationAssignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard sourceAssignment == destinationAssignment, space(matching: sourceAssignment) != nil,
-            destination.space(matching: destinationAssignment) != nil
+        guard sourceAssignment == destinationAssignment, spaceModel(matching: sourceAssignment) != nil,
+            destination.spaceModel(matching: destinationAssignment) != nil
         else { return false }
         return family.canSend(movingTab(id, in: sourceAssignment, to: destination), from: self)
     }
@@ -58,8 +58,8 @@ extension BrowserStore {
         to destination: BrowserStore,
         in destinationAssignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard sourceAssignment == destinationAssignment, space(matching: sourceAssignment) != nil,
-            destination.space(matching: destinationAssignment) != nil
+        guard sourceAssignment == destinationAssignment, spaceModel(matching: sourceAssignment) != nil,
+            destination.spaceModel(matching: destinationAssignment) != nil
         else { return false }
         do {
             try BrowserStoreFamily.moveTab(

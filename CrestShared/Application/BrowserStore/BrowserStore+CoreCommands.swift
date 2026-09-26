@@ -14,7 +14,7 @@ extension BrowserStore {
             parentID: nil, title: nil, color: BrowserSpaceBrandColor.folderDefault.core, symbol: "folder",
             tabIDs: tabIDs, leavesSplits: detachesSplitMembers)
         guard family.send(creation, from: self) else { return nil }
-        return session.space(id: spaceID)?.folders.contains(where: { $0.id == id }) == true ? id : nil
+        return spaceModel(spaceID)?.folders.contains(id) == true ? id : nil
     }
 
     /// Chooses how a tab's icon is filled, and answers whether the core

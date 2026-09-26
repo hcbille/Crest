@@ -20,7 +20,7 @@
         /// what windows show. A nil `url` keeps the tab's address. The core must
         /// host pages, as `CrestCore.hostingPages()` does.
         func seedSelectedTabNavigation(to url: URL?, titled title: String) {
-            guard let tab = selectedTab, let address = url ?? tab.url,
+            guard let tab = shownTab, let address = url ?? tab.address,
                 let page = openReportingPage(for: tab.id)
             else { preconditionFailure("A test navigated a tab it cannot show on a core that hosts pages.") }
             finishNavigation(of: page, to: address, titled: title)

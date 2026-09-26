@@ -41,19 +41,19 @@ final class BrowserMacWindowCoordinator {
 
     @discardableResult
     func activateExistingWindow(for source: BrowserStore) -> Bool {
-        guard let space = source.selectedSpace, !spaceAccess.isLocked(space) else { return false }
+        guard let space = source.shownSpace, !spaceAccess.isLocked(space) else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         let candidates = windows.values.filter {
             !$0.isTemporary && $0.window != nil && $0.browser.family === source.family
-                && $0.browser.space(matching: assignment) != nil
+                && $0.browser.spaceModel(matching: assignment) != nil
         }
         let destination =
             candidates.first { $0.browser === source }
-            ?? candidates.first { $0.browser.selectedSpace?.id == space.id }
+            ?? candidates.first { $0.browser.shownSpace?.id == space.id }
             ?? candidates.first
         guard let destination, let window = destination.window else { return false }
         destination.browser.selectSpace(space.id)
-        if let tab = source.selectedTab {
+        if let tab = source.shownTab {
             destination.browser.selectTab(tab.id)
         }
         destination.pages.select()
@@ -71,7 +71,7 @@ final class BrowserMacWindowCoordinator {
 
     func didMeasureRow(_ row: BrowserSidebarReorderRow, in id: BrowserWindowID) {
         guard let model = windows[id], let placement = model.tearOffPlacement, placement.isPending,
-            model.browser.space(matching: row.space)?.tabs.contains(where: { .tab($0.id) == row.id }) == true
+            let tabID = row.id.tabID, model.browser.spaceModel(matching: row.space)?.tabs.contains(tabID) == true
         else { return }
         placement.place(at: row)
     }
@@ -256,13 +256,16 @@ final class BrowserMacWindowCoordinator {
     /// the tab, and the drag carries that tab alone. A Space this window is
     /// deleting never lets a tab go.
     private func canTearOff(_ item: BrowserTabDragItem, from model: BrowserMacWindowModel) -> Bool {
-        guard model.browser.space(matching: item.spaceAssignment) != nil else { return false }
+        guard model.browser.spaceModel(matching: item.spaceAssignment) != nil else { return false }
         let question = CanTearOff(
             windowID: model.browser.windowID, spaceID: item.spaceID, profileID: item.profileID,
             tabID: item.tabID, draggedTabs: item.selection?.ids)
         return (try? model.browser.core.query(question))?.allowed == true
     }
 
+    /// Moves the tab and its live page to `destination`'s window. The page
+    /// pools still take the session copy's tab and Space; TRANSITIONAL until
+    /// Lane 2's page hosts read the read model.
     private func transfer(
         _ item: BrowserTabDragItem, from source: BrowserMacWindowModel, to destination: BrowserMacWindowModel
     ) -> Bool {

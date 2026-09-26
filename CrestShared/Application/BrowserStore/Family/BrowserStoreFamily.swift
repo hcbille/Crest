@@ -19,9 +19,6 @@ final class BrowserStoreFamily {
     let temporarySourceAssignment: BrowserSpaceRuntimeAssignment?
     let temporarySettingsBrowser: BrowserStore?
     private var activeSpaceDeletions: Set<SpaceID> = []
-    var deletingSpaceIDs: Set<SpaceID> {
-        activeSpaceDeletions.union(authoritativeSession.spaceDeletions?.map(\.spaceID) ?? [])
-    }
     /// The Spaces this device began deleting before the core records it.
     var locallyDeletingSpaceIDs: Set<SpaceID> { activeSpaceDeletions }
     @ObservationIgnored private weak var spaceDataDeleter: (any BrowserSpaceDataDeleting)?
@@ -149,7 +146,7 @@ final class BrowserStoreFamily {
             return authoritativeSession
         }
         var current = authoritativeSession
-        guard core.isOpen, source.space(matching: assignment) != nil else {
+        guard core.isOpen, source.spaceModel(matching: assignment) != nil else {
             current.spaces = []
             return current
         }
@@ -319,7 +316,7 @@ final class BrowserStoreFamily {
         followedSession = authoritativeSession
         stores.removeAll { $0.value == nil }
         for store in stores.compactMap(\.value) {
-            store.receiveFamilySessionChange(from: previous, to: authoritativeSession)
+            store.receiveFamilySessionChange()
         }
         borrowedFamilies.removeAll { $0.value == nil }
         for child in borrowedFamilies.compactMap(\.value) { child.follow() }

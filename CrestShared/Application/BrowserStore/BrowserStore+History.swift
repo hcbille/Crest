@@ -11,12 +11,12 @@ extension BrowserStore {
     func archiveTransientPage(_ pageID: UUID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
         let archive = ArchiveTransientPage(workspaceID: family.workspaceID, pageID: pageID, spaceID: assignment.spaceID)
         // The core archives a page once, and never one kept as a tab.
-        guard space(matching: assignment) != nil, family.canSend(archive, from: self) else { return false }
+        guard spaceModel(matching: assignment) != nil, family.canSend(archive, from: self) else { return false }
         return family.perform(archive, from: self) != nil
     }
 
     func clearHistory() {
-        guard selectedSpace != nil else { return }
+        guard shownSpace != nil else { return }
         clearHistory(in: selectedSpaceID)
     }
 
@@ -28,7 +28,7 @@ extension BrowserStore {
     func clearHistory(
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard space(matching: assignment) != nil else { return false }
+        guard spaceModel(matching: assignment) != nil else { return false }
         return sendRecords(ClearHistory(workspaceID: family.workspaceID, spaceID: assignment.spaceID))
     }
 
@@ -70,12 +70,12 @@ extension BrowserStore {
     }
 
     func cleanupCurrentTabs(in spaceID: SpaceID) {
-        guard session.space(id: spaceID) != nil else { return }
+        guard spaceModel(spaceID) != nil else { return }
         sendRecords(CleanUpCurrentTabs(workspaceID: family.workspaceID, spaceID: spaceID))
     }
 
     func restoreArchivedTab(_ id: TabID) {
-        guard selectedSpace != nil else { return }
+        guard shownSpace != nil else { return }
         sendRecords(
             RestoreArchivedTab(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: selectedSpaceID,
@@ -87,9 +87,9 @@ extension BrowserStore {
         _ id: TabID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard let space = space(matching: assignment),
+        guard let space = spaceModel(matching: assignment),
             selectedSpaceID == assignment.spaceID,
-            space.archivedTabs.contains(where: { $0.id == id })
+            space.archive.contains(tabID: id)
         else { return false }
         return sendRecords(
             RestoreArchivedTab(
@@ -127,7 +127,7 @@ extension BrowserStore {
         for url: URL,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard space(matching: assignment) != nil else { return false }
+        guard spaceModel(matching: assignment) != nil else { return false }
         return sendRecords(
             RemoveHistoryAddress(
                 workspaceID: family.workspaceID, spaceID: assignment.spaceID, address: url.absoluteString))
@@ -139,7 +139,7 @@ extension BrowserStore {
         until endDate: Date,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
-        guard space(matching: assignment) != nil else { return false }
+        guard spaceModel(matching: assignment) != nil else { return false }
         return sendRecords(
             RemoveHistoryRange(
                 workspaceID: family.workspaceID, spaceID: assignment.spaceID, start: startDate, end: endDate))
