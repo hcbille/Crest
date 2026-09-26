@@ -2721,6 +2721,10 @@
     "2026-09-26-close-quit-through-core": {
       "category": "improved",
       "message": "Closing tabs and windows or quitting asks pages that want to confirm leaving, and quitting with downloads in progress asks first, in both engines"
+    },
+    "2026-09-26-page-pool-bookkeeping-cleanup": {
+      "category": "internal",
+      "message": "The page pool drops bookkeeping the core's residency made unused, and the core keeps a page another window shows loaded"
     }
   }
 }

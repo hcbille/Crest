@@ -73,6 +73,22 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void PressureKeepsAPageAnotherWindowShows() {
+        var (app, engine, _, clock, workspace, window, space, _) = ResidentHost();
+        using var disposal = app;
+        var (shared, _) = ShowNewTab(app, engine, clock, workspace, window, space, "https://shared.example/");
+        var (_, hidden) = ShowNewTab(app, engine, clock, workspace, window, space, "https://hidden.example/");
+        ShowNewTab(app, engine, clock, workspace, window, space, "https://shown.example/");
+        var second = Guid.NewGuid();
+        app.Send(new OpenWindow(second, workspace, Saved: false, null, null, [], RestoresTabs: true));
+        app.Send(new ShowTab(second, space, shared));
+
+        // The page off its own window's screen longest stays, because another
+        // window shows its tab; the next one goes.
+        Assert.Equal([hidden], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Warning))));
+    }
+
+    [Fact]
     public void AnUnloadedTabRestoresItsPageOnceAtTheSameAddressAndAClosedTabFreesWhatItKept() {
         var (app, engine, binding, clock, workspace, window, space, _) = ResidentHost();
         using var disposal = app;

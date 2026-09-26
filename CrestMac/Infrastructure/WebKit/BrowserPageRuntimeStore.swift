@@ -14,7 +14,6 @@ final class BrowserPageRuntimeStore {
     @ObservationIgnored var spacesReleasingData: Set<SpaceID> = []
     @ObservationIgnored var spacesDeletingData: Set<SpaceID> = []
     @ObservationIgnored var runtimes: [TabID: BrowserTabRuntime] = [:]
-    @ObservationIgnored var inactiveSinceByTabID: [TabID: Date] = [:]
     @ObservationIgnored private var pools: [BrowserWindowID: WeakPool] = [:]
     @ObservationIgnored private var presentations: [BrowserWindowID: [TabID]] = [:]
     @ObservationIgnored private var focusOrder: [BrowserWindowID: Int] = [:]
@@ -51,7 +50,6 @@ final class BrowserPageRuntimeStore {
             {
                 claim(tabID, for: pool)
             }
-            inactiveSinceByTabID[tabID] = nil
         }
         for (tabID, runtime) in runtimes
         where runtime.presentationWindowID == pool.windowID && !pool.presentedTabIDs.contains(tabID) {
@@ -79,7 +77,6 @@ final class BrowserPageRuntimeStore {
             runtime.page.focusRestoration.captureBeforeDeparture()
             runtime.page.focusRestoration.requestRestoration()
         }
-        inactiveSinceByTabID[tabID] = nil
         runtime.presentationWindowID = pool.windowID
         runtime.routingWindowID = pool.windowID
         pool.bindRuntimeRouting(runtime, tabID: tabID)
@@ -105,25 +102,14 @@ final class BrowserPageRuntimeStore {
     func install(_ runtime: BrowserTabRuntime, for tabID: TabID, from pool: BrowserPagePool) {
         runtimes[tabID] = runtime
         runtime.store = self
-        runtime.tabID = tabID
         runtime.routingWindowID = pool.windowID
         pool.bindRuntimeRouting(runtime, tabID: tabID)
-        runtime.observeCurrentPage()
         updatePresentation(of: pool)
     }
 
     func removePresentation(of tabID: TabID) {
         for pool in registeredPools {
             pool.removeTransferredPresentation(tabID)
-        }
-    }
-
-    /// The first navigation of the page `runtime` holds settled, so an idle
-    /// page off screen starts counting its idle time.
-    func pageSettled(_ runtime: BrowserTabRuntime) {
-        guard let tabID = runtime.tabID, runtimes[tabID] === runtime else { return }
-        if !presentedTabIDs.contains(tabID), inactiveSinceByTabID[tabID] == nil {
-            inactiveSinceByTabID[tabID] = .now
         }
     }
 
@@ -137,7 +123,6 @@ final class BrowserPageRuntimeStore {
             claim(tabID, for: next)
         } else {
             runtime.presentationWindowID = nil
-            inactiveSinceByTabID[tabID] = inactiveSinceByTabID[tabID] ?? .now
             revision &+= 1
         }
     }

@@ -83,10 +83,6 @@ final class BrowserPagePool:
         get { runtimeStore.runtimes }
         set { runtimeStore.runtimes = newValue }
     }
-    private var inactiveSinceByTabID: [TabID: Date] {
-        get { runtimeStore.inactiveSinceByTabID }
-        set { runtimeStore.inactiveSinceByTabID = newValue }
-    }
     /// Per-profile engine state every window pool of this store family shares.
     @ObservationIgnored let profileDataStores: BrowserPageProfileDataStores
     @ObservationIgnored private let contentRuleListProvider: any BrowserContentRuleListProviding
@@ -130,9 +126,6 @@ final class BrowserPagePool:
     /// Where unloaded tabs leave their WebKit session state. Its archive is nil
     /// for a private pool, even if an archive is handed in.
     @ObservationIgnored private let tabState: BrowserTabStateCoordinator
-    /// The pages opened behind the one on screen whose first navigation has
-    /// not settled yet.
-    @ObservationIgnored private var unsettledBackgroundTabs: Set<TabID> = []
 
     init(
         browser: BrowserStore,
@@ -265,7 +258,6 @@ final class BrowserPagePool:
     func removeTransferredPresentation(_ tabID: TabID) {
         presentedTabIDs.removeAll { $0 == tabID }
         if activeTabID == tabID { activeTabID = nil }
-        forgetBackgroundPageObservation(for: tabID)
     }
 
     /// The caller commits the matching model move in the same main-actor turn.
@@ -297,7 +289,6 @@ final class BrowserPagePool:
         // The page keeps its engine page and moves to this window's workspace.
         guard browser.adoptPage(runtime.page.corePage, in: space.id, as: tab.id) else { return false }
         source.tabRuntimes.removeValue(forKey: tab.id)
-        source.inactiveSinceByTabID[tab.id] = nil
         source.tabState.discardState(matching: assignment)
         source.runtimeStore.removePresentation(of: tab.id)
         source.residencyRevision &+= 1
@@ -539,11 +530,11 @@ final class BrowserPagePool:
         }
 
         guard let space else {
-            deactivatePagePresentation(at: time)
+            deactivatePagePresentation()
             return []
         }
         guard let tab else {
-            leavePagePresentation(at: time)
+            leavePagePresentation()
             return []
         }
         // Every member of the selected tab's split group is a live card, so
@@ -559,7 +550,7 @@ final class BrowserPagePool:
         let memberPages = members.filter { $0.nativeContent == nil }.compactMap { member in
             page(for: member, space: space).map { (tab: member, page: $0) }
         }
-        activate(tab.id, presenting: members.map(\.id), at: time)
+        activate(tab.id, presenting: members.map(\.id))
         return memberPages
     }
 
@@ -582,49 +573,9 @@ final class BrowserPagePool:
         else {
             return
         }
-        observeBackgroundPage(page, for: registration.tab.id)
         page.load(request)
         if selecting { select(session: registration.session) }
         reconcileCredentialAccess(in: registration.session.session)
-    }
-
-    /// Watches a page opened behind the one on screen until its first
-    /// navigation settles, so residency can count its idle time. A shared
-    /// runtime store watches its own pages.
-    private func observeBackgroundPage(_ page: BrowserPage, for tabID: TabID) {
-        guard !publishesPageMetadataCentrally else { return }
-        unsettledBackgroundTabs.insert(tabID)
-        trackBackgroundPageChanges(page, for: tabID)
-    }
-
-    private func trackBackgroundPageChanges(_ page: BrowserPage, for tabID: TabID) {
-        withObservationTracking {
-            _ = page.hasSettledNavigation
-        } onChange: { [weak self, weak page] in
-            Task { @MainActor in
-                guard let self, let page else { return }
-                self.backgroundPageDidChange(page, for: tabID)
-            }
-        }
-    }
-
-    private func backgroundPageDidChange(_ page: BrowserPage, for tabID: TabID) {
-        guard tabRuntimes[tabID]?.page === page, unsettledBackgroundTabs.contains(tabID) else {
-            forgetBackgroundPageObservation(for: tabID)
-            return
-        }
-        guard page.hasSettledNavigation else {
-            trackBackgroundPageChanges(page, for: tabID)
-            return
-        }
-        forgetBackgroundPageObservation(for: tabID)
-        if !presentedTabIDs.contains(tabID), inactiveSinceByTabID[tabID] == nil {
-            inactiveSinceByTabID[tabID] = .now
-        }
-    }
-
-    private func forgetBackgroundPageObservation(for tabID: TabID) {
-        unsettledBackgroundTabs.remove(tabID)
     }
 
     /// The cards `tab` brings on screen, with the caller's own tab value in
@@ -662,8 +613,8 @@ final class BrowserPagePool:
     /// An unlocked empty Space or start page is an ordinary departure. Keep
     /// the same PiP lifecycle as switching between loaded tabs; security
     /// teardown uses deactivatePagePresentation instead.
-    func leavePagePresentation(at time: Date = .now) {
-        activate(nil, presenting: [], at: time)
+    func leavePagePresentation() {
+        activate(nil, presenting: [])
     }
 
     /// Removes every rendered page from presentation without evicting their
@@ -673,19 +624,13 @@ final class BrowserPagePool:
     /// All of it goes at once, not just the focused card: a Space locking with
     /// a split open has to take every card away, and half a split left on
     /// screen would be the privacy failure the gate exists to prevent.
-    func deactivatePagePresentation(at time: Date = .now) {
+    func deactivatePagePresentation() {
         for runtime in tabRuntimes.values where runtime.presentationWindowID == windowID {
             runtime.page.pictureInPicture?.invalidate()
         }
         guard activeTabID != nil || !presentedTabIDs.isEmpty else { return }
         for tabID in presentedTabIDs where tabRuntimes[tabID]?.presentationWindowID == windowID {
             tabRuntimes[tabID]?.page.focusRestoration.invalidate()
-        }
-        for tabID in presentedTabIDs {
-            inactiveSinceByTabID[tabID] = time
-        }
-        if let activeTabID, !presentedTabIDs.contains(activeTabID) {
-            inactiveSinceByTabID[activeTabID] = time
         }
         activeTabID = nil
         presentedTabIDs = []
@@ -1006,7 +951,7 @@ final class BrowserPagePool:
         transientLeases.removeValue(forKey: lease.id)
         retainResidentPage(page, for: tabID)
         residencyRevision &+= 1
-        activate(tabID, at: .now)
+        activate(tabID)
         if let tab = space.tabs.first(where: { $0.id == tabID }) {
             page.updateNavigationContext(tab: tab)
         }
@@ -1077,11 +1022,7 @@ final class BrowserPagePool:
         }
         retainResidentPage(page, for: registration.tab.id)
         residencyRevision &+= 1
-        if adoption.foreground {
-            activate(registration.tab.id, at: .now)
-        } else {
-            observeBackgroundPage(page, for: registration.tab.id)
-        }
+        if adoption.foreground { activate(registration.tab.id) }
         return true
     }
 
@@ -1120,11 +1061,7 @@ final class BrowserPagePool:
         page.updateNavigationContext(tab: registration.tab)
         retainResidentPage(page, for: registration.tab.id)
         residencyRevision &+= 1
-        if selecting {
-            activate(registration.tab.id, at: .now)
-        } else {
-            observeBackgroundPage(page, for: registration.tab.id)
-        }
+        if selecting { activate(registration.tab.id) }
         return page
     }
 
@@ -1147,12 +1084,6 @@ final class BrowserPagePool:
         {
             transientLeases.removeValue(forKey: entry.key)
             return
-        }
-        if let tabID = tabID(for: page), tabRuntimes[tabID]?.page === page,
-            !presentedTabIDs.contains(tabID),
-            inactiveSinceByTabID[tabID] == nil
-        {
-            inactiveSinceByTabID[tabID] = .now
         }
         closeWebContentInitiatedPage(page)
     }
@@ -1221,9 +1152,7 @@ final class BrowserPagePool:
         // was left.
         if preservingTabState { archiveTabState(for: tabID) }
         guard let runtime = tabRuntimes.removeValue(forKey: tabID) else { return }
-        forgetBackgroundPageObservation(for: tabID)
         runtime.release(keepingState: preservingTabState)
-        inactiveSinceByTabID[tabID] = nil
         runtimeStore.removePresentation(of: tabID)
         residencyRevision &+= 1
     }
@@ -1432,9 +1361,7 @@ final class BrowserPagePool:
         }
         tabRuntimes.removeValue(forKey: tabID)
         runtimeStore.removePresentation(of: tabID)
-        forgetBackgroundPageObservation(for: tabID)
         runtime.unloaded()
-        inactiveSinceByTabID[tabID] = nil
         residencyRevision &+= 1
     }
 
@@ -1459,8 +1386,6 @@ final class BrowserPagePool:
                 tabID: tab.id
             )
             tabRuntimes.removeValue(forKey: tab.id)?.release(keepingState: false)
-            forgetBackgroundPageObservation(for: tab.id)
-            inactiveSinceByTabID[tab.id] = nil
         }
         guard let page = makePage(space: space, tabID: tab.id) else { return nil }
         page.updateNavigationContext(tab: tab)
@@ -1539,7 +1464,6 @@ final class BrowserPagePool:
     private func retainResidentPage(_ page: BrowserPage, for tabID: TabID) {
         if let runtime = tabRuntimes[tabID] {
             runtime.page = page
-            runtime.observeCurrentPage()
         } else {
             runtimeStore.install(BrowserTabRuntime(page: page), for: tabID, from: self)
         }
@@ -1600,40 +1524,20 @@ final class BrowserPagePool:
     /// `select`, one frame ahead of the store-driven reselection that settles
     /// the presented set properly. Adding the tab here rather than replacing
     /// the set is what keeps that frame from rendering a card with no page.
-    private func activate(_ tabID: TabID, at time: Date) {
+    private func activate(_ tabID: TabID) {
         var presented = presentedTabIDs
         if !presented.contains(tabID) {
             presented.append(tabID)
         }
-        activate(tabID, presenting: presented, at: time)
+        activate(tabID, presenting: presented)
     }
 
     /// Puts `presentedTabIDs` on screen in order with `tabID` focused.
-    ///
-    /// Idle time is a property of being off screen rather than of being
-    /// unfocused: every presented card is cleared, and only a tab the new set
-    /// leaves behind starts counting as inactive.
-    private func activate(
-        _ tabID: TabID?,
-        presenting presentedTabIDs: [TabID],
-        at time: Date
-    ) {
+    private func activate(_ tabID: TabID?, presenting presentedTabIDs: [TabID]) {
         prepareFocusTransition(to: tabID.flatMap { tabRuntimes[$0]?.page })
-        let departed = Set(self.presentedTabIDs).subtracting(presentedTabIDs)
         requestAutomaticPictureInPicture(forDeparturesBefore: presentedTabIDs)
         for arrivingTabID in presentedTabIDs where !self.presentedTabIDs.contains(arrivingTabID) {
             tabRuntimes[arrivingTabID]?.page.pictureInPicture?.returnToTab()
-        }
-        for departedTabID in departed where tabRuntimes[departedTabID]?.page != nil {
-            inactiveSinceByTabID[departedTabID] = time
-        }
-        if let activeTabID, !presentedTabIDs.contains(activeTabID),
-            tabRuntimes[activeTabID]?.page != nil
-        {
-            inactiveSinceByTabID[activeTabID] = time
-        }
-        for presentedTabID in presentedTabIDs {
-            inactiveSinceByTabID[presentedTabID] = nil
         }
         activeTabID = tabID
         self.presentedTabIDs = presentedTabIDs
@@ -1695,13 +1599,11 @@ final class BrowserPagePool:
             let runtime = tabRuntimes.removeValue(forKey: tabID)
             runtimeStore.removePresentation(of: tabID)
             guard let runtime else { continue }
-            forgetBackgroundPageObservation(for: tabID)
             probes.append(contentsOf: runtime.allPages.map { BrowserSpaceDataReleaseProbe($0) })
             runtime.release(keepingState: kept.contains(tabID))
             releasedAnyPage = true
         }
         if releasedAnyPage { residencyRevision &+= 1 }
-        inactiveSinceByTabID = inactiveSinceByTabID.filter { !tabIDs.contains($0.key) }
         if let activeTabID, tabIDs.contains(activeTabID) {
             self.activeTabID = nil
         }
@@ -1716,10 +1618,8 @@ final class BrowserPagePool:
             archiveTabState(for: tabID)
         }
         guard let runtime = tabRuntimes.removeValue(forKey: tabID) else { return }
-        forgetBackgroundPageObservation(for: tabID)
         runtime.release(keepingState: preservingTabState)
         residencyRevision &+= 1
-        inactiveSinceByTabID[tabID] = nil
     }
 
     private func releaseTransientPages(for level: MemoryPressureLevel) {
