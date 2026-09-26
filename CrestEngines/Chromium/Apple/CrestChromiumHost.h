@@ -83,25 +83,10 @@ NS_SWIFT_UI_ACTOR
 @property(nonatomic, readonly, nullable) NSString *actionExtensionID;
 @end
 
-// An extension package Chromium verified, which the person approves or
-// declines before it installs.
-@protocol CrestExtensionReview <NSObject>
-@property(nonatomic, readonly) NSString *extensionID;
-@property(nonatomic, readonly) NSString *name;
-@property(nonatomic, readonly) NSString *version;
-@property(nonatomic, readonly) NSString *summary;
-@property(nonatomic, readonly) NSArray<NSString *> *permissions;
-@property(nonatomic, readonly, nullable) NSImage *icon;
-// Whether the person can withhold the extension's site access, and whether
-// approving it withholds that access.
-@property(nonatomic, readonly) BOOL canWithholdSiteAccess;
-@property(nonatomic, readonly) BOOL withholdsSiteAccess;
-@end
-
 // Chromium's Mac shell: what only AppKit does for the engine. It hosts each
 // page's view and the views an extension or the inspector puts beside it,
-// shows extension popups and the install review, runs system sign-in and
-// answers the close and quit preflight. Everything else a page asks goes to
+// shows extension popups, runs system sign-in and answers the close and quit
+// preflight. Everything else a page asks goes to
 // the engine binding as a PageRequest. In-process and main-thread only;
 // objects and blocks never enter .NET.
 @protocol CrestMacShell <NSObject>
@@ -156,8 +141,6 @@ NS_SWIFT_UI_ACTOR
 // nil when no enabled extension bound it.
 - (nullable id<CrestExtensionShortcut>)dispatchExtensionShortcut:(NSEvent *)event
     page:(NSUUID *)pageID NS_SWIFT_NAME(dispatchExtensionShortcut(_:page:));
-- (void)setExtensionReview:(void (^)(id<CrestExtensionReview> review, NSWindow *window,
-                                     void (^reply)(BOOL accept, BOOL withhold)))review;
 - (NSString *)engineVersion;
 - (BOOL)installExtension:(NSString *)extensionID package:(NSString *)path profile:(NSUUID *)profileID
                   window:(NSUUID *)windowID completion:(void (^)(BOOL installed, NSString *message))completion;

@@ -165,20 +165,6 @@
 @implementation CrestExtensionShortcutResult
 @end
 
-// An install review, for the platform to show.
-@interface CrestPendingExtensionReview : NSObject <CrestExtensionReview>
-@property(nonatomic) NSString* extensionID;
-@property(nonatomic) NSString* name;
-@property(nonatomic) NSString* version;
-@property(nonatomic) NSString* summary;
-@property(nonatomic) NSArray<NSString*>* permissions;
-@property(nonatomic, nullable) NSImage* icon;
-@property(nonatomic) BOOL canWithholdSiteAccess;
-@property(nonatomic) BOOL withholdsSiteAccess;
-@end
-@implementation CrestPendingExtensionReview
-@end
-
 @interface CrestLinkMenuAction : NSObject
 @property(copy) void (^run)(void);
 - (void)invoke:(id)sender;
@@ -523,7 +509,6 @@ struct HostState {
   const base::Time started_at = base::Time::Now();
   // Crest's own UI, which the framework attaches when it starts.
   id<CrestMacUI> ui = nil;
-  void (^extension_review)(id<CrestExtensionReview>, NSWindow*, void (^)(BOOL, BOOL));
   Browser* bootstrap = nullptr;
   bool started = false;
   bool disposing = false;
@@ -1359,9 +1344,6 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
   CHECK(NSThread.isMainThread);
   State().ui = ui;
 }
-- (void)setExtensionReview:(void (^)(id<CrestExtensionReview>, NSWindow*, void (^)(BOOL, BOOL)))review {
-  State().extension_review = [review copy];
-}
 - (BOOL)installExtension:(NSString*)extensionID package:(NSString*)path profile:(NSUUID*)profileID
                   window:(NSUUID*)windowID completion:(void (^)(BOOL, NSString*))completion {
   CHECK(NSThread.isMainThread);
@@ -1783,34 +1765,38 @@ void ShowExtensionPrompt(
     std::unique_ptr<extensions::InstallPromptData> prompt;
   };
   auto pending = std::make_shared<PendingPrompt>(std::move(params), std::move(callback), std::move(prompt));
-  if (State().extension_review && pending->prompt->extension() &&
+  // An install a Crest window started is a question for the core, which the
+  // window's own review answers.
+  const auto window_id = window.identifier ? crest::ParseGuid(base::SysNSStringToUTF8(window.identifier)) : std::nullopt;
+  if (window_id && pending->prompt->extension() &&
       pending->prompt->type() == extensions::InstallPromptData::INSTALL_PROMPT) {
     auto* extension = pending->prompt->extension();
-    NSMutableArray* permissions = [NSMutableArray array];
+    crest::engine::ExtensionInstallQuestion question{
+        .extension_id = extension->id(),
+        .name = extension->name(),
+        .version = extension->version().GetString(),
+        .can_withhold_site_access = extensions::util::CanWithholdPermissionsFromExtension(*extension),
+        .withholds_site_access = pending->prompt->ShouldWithheldPermissionsOnDialogAccept()};
+    if (const std::string* summary = extension->manifest()->FindStringPath("description")) question.summary = *summary;
     const auto permission_details = pending->prompt->GetPermissions();
     for (size_t i = 0; i < pending->prompt->GetPermissionCount(); ++i) {
-      [permissions addObject:base::SysUTF16ToNSString(pending->prompt->GetPermission(i))];
+      question.permissions.push_back(base::UTF16ToUTF8(pending->prompt->GetPermission(i)));
       if (i < permission_details.details.size() && !permission_details.details[i].empty())
-        [permissions addObject:base::SysUTF16ToNSString(permission_details.details[i])];
+        question.permissions.push_back(base::UTF16ToUTF8(permission_details.details[i]));
     }
-    CrestPendingExtensionReview* review = [[CrestPendingExtensionReview alloc] init];
-    review.extensionID = base::SysUTF8ToNSString(extension->id());
-    review.name = base::SysUTF8ToNSString(extension->name());
-    review.version = base::SysUTF8ToNSString(extension->version().GetString());
-    const std::string* summary = extension->manifest()->FindStringPath("description");
-    review.summary = base::SysUTF8ToNSString(summary ? *summary : std::string());
-    review.permissions = permissions;
-    review.icon = pending->prompt->icon().IsEmpty() ? nil : pending->prompt->icon().ToNSImage();
-    review.canWithholdSiteAccess = extensions::util::CanWithholdPermissionsFromExtension(*extension);
-    review.withholdsSiteAccess = pending->prompt->ShouldWithheldPermissionsOnDialogAccept();
-    State().extension_review(review, window, ^(BOOL accepted, BOOL withhold) {
-      if (!pending->callback) return;
-      Result result = Result::USER_CANCELED;
-      if (pending->params->WasParentDestroyed()) result = Result::ABORTED;
-      else if (accepted) { result = withhold ? Result::ACCEPTED_WITH_WITHHELD_PERMISSIONS : Result::ACCEPTED; pending->prompt->OnDialogAccepted(); }
-      else pending->prompt->OnDialogCanceled();
-      std::move(pending->callback).Run(Payload(result));
-    });
+    if (!pending->prompt->icon().IsEmpty()) {
+      if (auto png = pending->prompt->icon().As1xPNGBytes(); png && png->size())
+        question.icon = crest::engine::Bytes(png->data(), png->data() + png->size());
+    }
+    crest::EngineBinding::Get().Prompts().AskToInstall(*window_id, std::move(question),
+        base::BindOnce([](std::shared_ptr<PendingPrompt> pending, bool accepted, bool withhold) {
+          if (!pending->callback) return;
+          Result result = Result::USER_CANCELED;
+          if (pending->params->WasParentDestroyed()) result = Result::ABORTED;
+          else if (accepted) { result = withhold ? Result::ACCEPTED_WITH_WITHHELD_PERMISSIONS : Result::ACCEPTED; pending->prompt->OnDialogAccepted(); }
+          else pending->prompt->OnDialogCanceled();
+          std::move(pending->callback).Run(Payload(result));
+        }, pending));
     return;
   }
   NSAlert* alert = [[NSAlert alloc] init];

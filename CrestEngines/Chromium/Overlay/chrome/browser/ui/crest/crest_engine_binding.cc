@@ -158,6 +158,14 @@ void EngineBinding::Perform(engine::EngineCommand command) {
     if (EnginePage* page = Find(GuidText(recovery->page_id))) {
       page->Recover();
     }
+  } else if (const auto* dialog = std::get_if<engine::SettleScriptDialog>(&command)) {
+    Prompts().Settle(*dialog);
+  } else if (const auto* authentication = std::get_if<engine::SettleAuthentication>(&command)) {
+    Prompts().Settle(*authentication);
+  } else if (const auto* permission = std::get_if<engine::SettlePermission>(&command)) {
+    Prompts().Settle(*permission);
+  } else if (const auto* install = std::get_if<engine::SettleExtensionInstall>(&command)) {
+    Prompts().Settle(*install);
   }
 }
 
@@ -372,7 +380,7 @@ EngineExtensions& EngineBinding::Extensions() {
 
 EnginePrompts& EngineBinding::Prompts() {
   if (!prompts_) {
-    prompts_ = std::make_unique<EnginePrompts>(base::BindRepeating(&EngineBinding::Present, base::Unretained(this)));
+    prompts_ = std::make_unique<EnginePrompts>(base::BindRepeating(&EngineBinding::Report, base::Unretained(this)));
   }
   return *prompts_;
 }
@@ -692,18 +700,6 @@ bool EngineBinding::Handle(const engine::ClearSiteData& request) {
 bool EngineBinding::Handle(const engine::SetSitePermission& request) {
   EnginePage* page = Find(GuidText(request.page_id));
   return page && page->SetSitePermission(request.permission, request.allowed);
-}
-
-bool EngineBinding::Handle(const engine::AnswerJavaScriptDialog& request) {
-  return prompts_ && prompts_->Answer(request);
-}
-
-bool EngineBinding::Handle(const engine::AnswerAuthentication& request) {
-  return prompts_ && prompts_->Answer(request);
-}
-
-bool EngineBinding::Handle(const engine::AnswerPermission& request) {
-  return prompts_ && prompts_->Answer(request);
 }
 
 // A Space's profile loads before anything opens in it, so its extensions

@@ -24,6 +24,9 @@
         private(set) var pages: NativeEnginePages!
         /// Shows the engine's downloads. Weak: the composition owns it.
         weak var downloads: ChromiumDownloadAdapter?
+        /// The core that asks this engine's questions of the person and hears
+        /// the answers. Weak: the composition owns it.
+        private weak var core: CrestCore?
         /// Each page this hosts, while its owner keeps it.
         private var hosted: [UUID: WeakNativePage] = [:]
         /// What waits for the binding's profiles: each preparation and deletion by
@@ -57,6 +60,51 @@
             let native = ChromiumNativePage(standaloneIn: profileID, engine: self)
             hold(native)
             return native
+        }
+
+        // MARK: - Actions - Prompts
+
+        /// Hears the questions `core` asks the person, which this engine's
+        /// pages show.
+        func follow(_ core: CrestCore) {
+            self.core = core
+            core.followPrompts(self) { [weak self] change in self?.ask(change) }
+        }
+
+        /// Sends the person's answer to a question the core asked.
+        func answer(_ intent: some PromptIntent) {
+            _ = try? core?.send(intent)
+        }
+
+        /// Shows a question the core asks on the page that asked it. One no
+        /// page of this engine can show any more is declined.
+        private func ask(_ change: Change) {
+            switch change {
+            case .scriptDialogAsked(let asked):
+                guard let page = hosted[asked.pageID]?.page else {
+                    return answer(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
+                }
+                page.ask(asked)
+            case .authenticationAsked(let asked):
+                guard let page = hosted[asked.pageID]?.page else {
+                    return answer(AnswerAuthentication(promptID: asked.promptID, credential: nil))
+                }
+                page.ask(asked)
+            case .permissionAsked(let asked):
+                guard let page = hosted[asked.pageID]?.page else {
+                    return answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
+                }
+                page.ask(asked)
+            case .extensionInstallAsked(let asked):
+                CrestChromiumRoot.extensions.review(asked) { [weak self] accepted, withholds in
+                    self?.answer(
+                        AnswerExtensionInstall(promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
+                }
+            default:
+                // A prompt that no longer waits is left to its presenter, whose
+                // late answer the core refuses.
+                break
+            }
         }
 
         // MARK: - Actions - Profiles
@@ -141,9 +189,6 @@
             case .findFinished(let value): value.pageID
             case .infoBarRemoved(let value): value.pageID
             case .infoBarShown(let value): value.pageID
-            case .authenticationRequested(let value): value.pageID
-            case .javaScriptDialogRequested(let value): value.pageID
-            case .permissionRequested(let value): value.pageID
             case .siteDataCleared(let value): value.pageID
             case .sidePanelRequested(let value): value.pageID
             case .inspectorClosed(let value): value.pageID

@@ -29,6 +29,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly Device device;
     /// The pages this device hosts, and the engines that host them.
     private readonly Pages pages;
+    /// The questions the pages and engines ask the person.
+    private readonly Prompts prompts;
     /// Which Spaces this process may show.
     private readonly SpaceAccess access;
     /// The time session intents are stamped with.
@@ -61,12 +63,14 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         if (configuration.StorageDirectory is not { } directory) {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, grants, Announce, RequestTurn, CloseBorrower);
             pages = new(device, engines, clock, ids);
+            prompts = new(device, pages);
             access = new(device, grants);
             return;
         }
         storage = SessionStorage.Open(directory, Announce, out var loaded);
         device = new(configuration.Platform, storage, storage.Device, grants, Announce, RequestTurn, CloseBorrower);
         pages = new(device, engines, clock, ids);
+        prompts = new(device, pages);
         access = new(device, grants);
         try {
             if (loaded.Session is { } stored) Establish(stored, loaded.Journal, loaded.LegacySelection);
@@ -124,9 +128,14 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 case SpaceAccessIntent grant:
                     access.Handle(grant, changes);
                     break;
+                case PromptIntent prompt:
+                    prompts.Handle(prompt, changes, Issue, clock.Now, ids);
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "No area handles this intent.");
             }
+            // What a page that went had asked no longer waits.
+            prompts.Prune(changes);
             published = [.. TakePending(), .. changes.Published];
         }
         Deliver();

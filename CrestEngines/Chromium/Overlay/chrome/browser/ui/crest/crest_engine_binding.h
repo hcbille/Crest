@@ -213,9 +213,6 @@ class EngineBinding {
   engine::CertificateChain Handle(const engine::PageCertificates& request);
   bool Handle(const engine::ClearSiteData& request);
   bool Handle(const engine::SetSitePermission& request);
-  bool Handle(const engine::AnswerJavaScriptDialog& request);
-  bool Handle(const engine::AnswerAuthentication& request);
-  bool Handle(const engine::AnswerPermission& request);
   bool Handle(const engine::PrepareProfile& request);
   bool Handle(const engine::DeleteProfile& request);
   bool Handle(const engine::AdoptOfferedPage& request);

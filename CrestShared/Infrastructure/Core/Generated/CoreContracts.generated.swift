@@ -41,6 +41,9 @@ protocol ImportWorkspace: Intent {}
 /// The members of `Intent` that derive from the core's `PageIntent`.
 protocol PageIntent: Intent {}
 
+/// The members of `Intent` that derive from the core's `PromptIntent`.
+protocol PromptIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `SessionIntent`.
 protocol SessionIntent: Intent {}
 
@@ -66,15 +69,20 @@ protocol WorkspaceIntent: Intent {}
 enum Change: Equatable, Sendable {
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
+    case authenticationAsked(AuthenticationAsked)
     case downloadUpdated(DownloadUpdated)
     case downloadsRemoved(DownloadsRemoved)
+    case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
     case navigationRecorded(NavigationRecorded)
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
     case pageRemoved(PageRemoved)
+    case permissionAsked(PermissionAsked)
+    case promptSettled(PromptSettled)
     case saved(Saved)
+    case scriptDialogAsked(ScriptDialogAsked)
     case sessionAdopted(SessionAdopted)
     case shortcutsChanged(ShortcutsChanged)
     case sidebarChanged(SidebarChanged)
@@ -167,6 +175,7 @@ enum Rejection: Equatable, Error, Sendable {
     case pinsOneTabAtATime(PinsOneTabAtATime)
     case privateWorkspaceBoundary(PrivateWorkspaceBoundary)
     case profileInUse(ProfileInUse)
+    case promptAnswerMismatch(PromptAnswerMismatch)
     case recoveryCheckpointUnusable(RecoveryCheckpointUnusable)
     case saveFailed(SaveFailed)
     case searchEngineLimitReached(SearchEngineLimitReached)
@@ -198,6 +207,7 @@ enum Rejection: Equatable, Error, Sendable {
     case unknownArchivedTab(UnknownArchivedTab)
     case unknownFolder(UnknownFolder)
     case unknownPage(UnknownPage)
+    case unknownPrompt(UnknownPrompt)
     case unknownSearchEngine(UnknownSearchEngine)
     case unknownSpace(UnknownSpace)
     case unknownSplitGroup(UnknownSplitGroup)
@@ -252,11 +262,14 @@ enum EngineCommand: Equatable, Sendable {
     case createPage(CreatePage)
     case loadPage(LoadPage)
     case recoverPage(RecoverPage)
+    case settleAuthentication(SettleAuthentication)
+    case settleExtensionInstall(SettleExtensionInstall)
+    case settlePermission(SettlePermission)
+    case settleScriptDialog(SettleScriptDialog)
 }
 
 /// What an engine binding tells the platform directly about one of its pages.
 enum EnginePresentation: Equatable, Sendable {
-    case authenticationRequested(AuthenticationRequested)
     case contentFullscreenChanged(ContentFullscreenChanged)
     case contentMessagePosted(ContentMessagePosted)
     case contentScriptEvaluated(ContentScriptEvaluated)
@@ -268,7 +281,6 @@ enum EnginePresentation: Equatable, Sendable {
     case infoBarShown(InfoBarShown)
     case inspectorClosed(InspectorClosed)
     case inspectorLayoutChanged(InspectorLayoutChanged)
-    case javaScriptDialogRequested(JavaScriptDialogRequested)
     case linkHovered(LinkHovered)
     case mediaSessionChanged(MediaSessionChanged)
     case pageCaptured(PageCaptured)
@@ -285,7 +297,6 @@ enum EnginePresentation: Equatable, Sendable {
     case pageViewClosed(PageViewClosed)
     case pageViewReady(PageViewReady)
     case pageViewUnavailable(PageViewUnavailable)
-    case permissionRequested(PermissionRequested)
     case popupBlocked(PopupBlocked)
     case profileDeleted(ProfileDeleted)
     case profilePrepared(ProfilePrepared)
@@ -303,15 +314,20 @@ extension CoreState {
         switch change {
         case .appPreferencesChanged(let change): apply(change)
         case .archiveChanged(let change): apply(change)
+        case .authenticationAsked(let change): apply(change)
         case .downloadUpdated(let change): apply(change)
         case .downloadsRemoved(let change): apply(change)
+        case .extensionInstallAsked(let change): apply(change)
         case .foldersChanged(let change): apply(change)
         case .historyChanged(let change): apply(change)
         case .navigationRecorded(let change): apply(change)
         case .pageChanged(let change): apply(change)
         case .pageOpened(let change): apply(change)
         case .pageRemoved(let change): apply(change)
+        case .permissionAsked(let change): apply(change)
+        case .promptSettled(let change): apply(change)
         case .saved(let change): apply(change)
+        case .scriptDialogAsked(let change): apply(change)
         case .sessionAdopted(let change): apply(change)
         case .shortcutsChanged(let change): apply(change)
         case .sidebarChanged(let change): apply(change)
@@ -420,11 +436,8 @@ struct AnalyzedSpaceReview: Equatable, Sendable {
     let matchedTabIDs: [UUID]
 }
 
-struct AnswerAuthentication: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let pageID: UUID
-    let challengeID: UUID
+struct AnswerAuthentication: Intent, PromptIntent, Equatable, Sendable {
+    let promptID: UUID
     let credential: AuthenticationCredential?
 }
 
@@ -435,6 +448,12 @@ struct AnswerEngineDownloadDestination: PageRequest, Equatable, Sendable {
     let path: String?
 }
 
+struct AnswerExtensionInstall: Intent, PromptIntent, Equatable, Sendable {
+    let promptID: UUID
+    let accepted: Bool
+    let withholdsSiteAccess: Bool
+}
+
 struct AnswerInfoBar: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -443,21 +462,16 @@ struct AnswerInfoBar: PageRequest, Equatable, Sendable {
     let answer: InfoBarAnswer
 }
 
-struct AnswerJavaScriptDialog: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let pageID: UUID
-    let dialogID: UUID
-    let accepted: Bool
-    let input: String?
+struct AnswerPermission: Intent, PromptIntent, Equatable, Sendable {
+    let promptID: UUID
+    let grants: Bool
+    let remembers: Bool
 }
 
-struct AnswerPermission: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let pageID: UUID
-    let requestID: UUID
-    let answer: PermissionAnswer
+struct AnswerScriptDialog: Intent, PromptIntent, Equatable, Sendable {
+    let promptID: UUID
+    let accepted: Bool
+    let text: String?
 }
 
 struct AppConfiguration: Equatable, Sendable {
@@ -528,7 +542,19 @@ struct AssignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
     let keys: KeyCombination
 }
 
+struct AuthenticationAsked: Equatable, Sendable {
+    let promptID: UUID
+    let pageID: UUID
+    let question: AuthenticationQuestion
+}
+
 struct AuthenticationBusy: Equatable, Sendable {
+}
+
+struct AuthenticationChallenged: EngineEvent, Equatable, Sendable {
+    let promptID: UUID
+    let pageID: UUID
+    let question: AuthenticationQuestion
 }
 
 struct AuthenticationCredential: Equatable, Sendable {
@@ -536,9 +562,7 @@ struct AuthenticationCredential: Equatable, Sendable {
     let password: String
 }
 
-struct AuthenticationRequested: Equatable, Sendable {
-    let pageID: UUID
-    let challengeID: UUID
+struct AuthenticationQuestion: Equatable, Sendable {
     let url: String
     let host: String
     let port: Int
@@ -1356,6 +1380,29 @@ struct ExtensionActionList: Equatable, Sendable {
     let actions: [ExtensionAction]
 }
 
+struct ExtensionInstallAsked: Equatable, Sendable {
+    let promptID: UUID
+    let windowID: UUID
+    let question: ExtensionInstallQuestion
+}
+
+struct ExtensionInstallQuestion: Equatable, Sendable {
+    let extensionID: String
+    let name: String
+    let version: String
+    let summary: String
+    let permissions: [String]
+    let icon: Data?
+    let canWithholdSiteAccess: Bool
+    let withholdsSiteAccess: Bool
+}
+
+struct ExtensionInstallRequested: EngineEvent, Equatable, Sendable {
+    let promptID: UUID
+    let windowID: UUID
+    let question: ExtensionInstallQuestion
+}
+
 struct ExtensionsChanged: Equatable, Sendable {
     let profileID: UUID
 }
@@ -1756,15 +1803,6 @@ struct InvalidSyncRecords: Equatable, Sendable {
 
 struct InvalidTabIcon: Equatable, Sendable {
     let mode: TabIconMode
-}
-
-struct JavaScriptDialogRequested: Equatable, Sendable {
-    let pageID: UUID
-    let dialogID: UUID
-    let kind: JavaScriptDialogKind
-    let message: String
-    let defaultText: String
-    let sourceURL: String
 }
 
 struct JoinSplit: Intent, SessionIntent, Equatable, Sendable {
@@ -2579,12 +2617,22 @@ struct PerformMediaAction: PageRequest, Equatable, Sendable {
     let action: MediaSessionAction
 }
 
-struct PermissionRequested: Equatable, Sendable {
+struct PermissionAsked: Equatable, Sendable {
+    let promptID: UUID
     let pageID: UUID
-    let requestID: UUID
+    let question: PermissionQuestion
+}
+
+struct PermissionQuestion: Equatable, Sendable {
     let permission: SitePermission
-    let origin: String
-    let topLevelOrigin: String
+    let origin: SiteOrigin
+    let topLevelOrigin: SiteOrigin
+}
+
+struct PermissionRequested: EngineEvent, Equatable, Sendable {
+    let promptID: UUID
+    let pageID: UUID
+    let question: PermissionQuestion
 }
 
 struct PersistentWorkspaceRequired: Equatable, Sendable {
@@ -2681,6 +2729,18 @@ struct PromoteTransientPage: Intent, SessionIntent, Equatable, Sendable {
     let pageID: UUID
     let spaceID: UUID
     let placement: TabPlacement
+}
+
+struct PromptAnswerMismatch: Equatable, Sendable {
+    let promptID: UUID
+}
+
+struct PromptSettled: Equatable, Sendable {
+    let promptID: UUID
+}
+
+struct PromptWithdrawn: EngineEvent, Equatable, Sendable {
+    let promptID: UUID
 }
 
 struct QuickWindowSite: Query, Equatable, Sendable {
@@ -2915,6 +2975,25 @@ struct SavedAddressReturn: Equatable, Sendable {
     let changesPage: Bool
 }
 
+struct ScriptDialogAsked: Equatable, Sendable {
+    let promptID: UUID
+    let pageID: UUID
+    let question: ScriptDialogQuestion
+}
+
+struct ScriptDialogOpened: EngineEvent, Equatable, Sendable {
+    let promptID: UUID
+    let pageID: UUID
+    let question: ScriptDialogQuestion
+}
+
+struct ScriptDialogQuestion: Equatable, Sendable {
+    let kind: JavaScriptDialogKind
+    let message: String
+    let defaultText: String
+    let sourceURL: String
+}
+
 struct SearchEngineLimitReached: Equatable, Sendable {
     let limit: Int
 
@@ -3091,6 +3170,29 @@ struct SetTranslationRule: Intent, SessionIntent, Equatable, Sendable {
     let sourceLanguage: String
     let targetLanguage: String
     let isEnabled: Bool
+}
+
+struct SettleAuthentication: Equatable, Sendable {
+    let promptID: UUID
+    let credential: AuthenticationCredential?
+}
+
+struct SettleExtensionInstall: Equatable, Sendable {
+    let promptID: UUID
+    let accepted: Bool
+    let withholdsSiteAccess: Bool
+}
+
+struct SettlePermission: Equatable, Sendable {
+    let promptID: UUID
+    let grants: Bool
+    let remembers: Bool
+}
+
+struct SettleScriptDialog: Equatable, Sendable {
+    let promptID: UUID
+    let accepted: Bool
+    let text: String?
 }
 
 struct SetupSpace: Equatable, Sendable {
@@ -3811,6 +3913,10 @@ struct UnknownPage: Equatable, Sendable {
     let pageID: UUID
 }
 
+struct UnknownPrompt: Equatable, Sendable {
+    let promptID: UUID
+}
+
 struct UnknownSearchEngine: Equatable, Sendable {
     let engineID: UUID?
 }
@@ -4241,13 +4347,6 @@ enum PasskeyDeviceConfiguration: Int, CaseIterable, Sendable {
     case configured = 0
     case notConfigured = 1
     case unknown = 2
-}
-
-enum PermissionAnswer: Int, CaseIterable, Sendable {
-    case allow = 0
-    case allowOnce = 1
-    case block = 2
-    case dismiss = 3
 }
 
 enum SavedTabClosePolicy: Int, CaseIterable, Sendable {

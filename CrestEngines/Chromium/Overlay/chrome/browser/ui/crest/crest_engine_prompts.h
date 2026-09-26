@@ -26,21 +26,21 @@ class AuthChallengeInfo;
 
 namespace crest {
 
-// What an engine page asks the person, presented for the platform to show and
-// answered by the platform's request. TRANSITIONAL until page dialogs and
-// permission prompts move to the core (WP C (e), (f)).
+// What an engine page, or the engine itself, asks the person. Each question is
+// reported to the core, which answers a site's permission request from its
+// Space's choices or asks the person, and settles it with a command.
 class EnginePrompts final : public content::JavaScriptDialogManager {
  public:
-  using Present = base::RepeatingCallback<void(engine::EnginePresentation)>;
+  using Report = base::RepeatingCallback<void(engine::EngineEvent)>;
   using AuthenticationReply = std::function<void(bool, const std::u16string&, const std::u16string&)>;
+  using InstallReply = base::OnceCallback<void(bool accepted, bool withholds_site_access)>;
 
-  explicit EnginePrompts(Present present);
+  explicit EnginePrompts(Report report);
   EnginePrompts(const EnginePrompts&) = delete;
   EnginePrompts& operator=(const EnginePrompts&) = delete;
   ~EnginePrompts() override;
 
-  // A script dialog in `contents`, which the page `page` shows.
-  bool Answer(const engine::AnswerJavaScriptDialog& answer);
+  bool Settle(const engine::SettleScriptDialog& settlement);
 
   // An HTTP challenge for `page`'s load, the `previous_failures`th for the
   // same server and realm.
@@ -48,12 +48,17 @@ class EnginePrompts final : public content::JavaScriptDialogManager {
                     const net::AuthChallengeInfo& challenge,
                     int previous_failures,
                     AuthenticationReply reply);
-  bool Answer(const engine::AnswerAuthentication& answer);
+  bool Settle(const engine::SettleAuthentication& settlement);
 
   // A permission request Crest's record covers, or nullptr for any other.
   std::unique_ptr<permissions::PermissionPrompt> Prompt(const engine::Guid& page,
                                                          permissions::PermissionPrompt::Delegate* delegate);
-  bool Answer(const engine::AnswerPermission& answer);
+  bool Settle(const engine::SettlePermission& settlement);
+
+  // Whether to install the extension an install the window `window` started
+  // verified; `reply` hears the answer, or a decline when nobody can give one.
+  void AskToInstall(const engine::Guid& window, engine::ExtensionInstallQuestion question, InstallReply reply);
+  bool Settle(const engine::SettleExtensionInstall& settlement);
 
   // The page closed: what it asked goes unanswered.
   void Forget(const engine::Guid& page);
@@ -77,6 +82,7 @@ class EnginePrompts final : public content::JavaScriptDialogManager {
 
  private:
   class PermissionPrompt;
+  friend class PermissionPrompt;
   struct Dialog {
     engine::Guid page;
     engine::Guid id;
@@ -93,12 +99,22 @@ class EnginePrompts final : public content::JavaScriptDialogManager {
             const std::u16string& message,
             const std::u16string& default_text,
             DialogClosedCallback callback);
-  void Close(content::WebContents* contents, const engine::Guid& id, bool accepted, const std::u16string& input);
+  // Closes the dialog `id` in `contents`. One the core did not settle is
+  // withdrawn: the engine closed it, or a new one replaced it.
+  void Close(content::WebContents* contents,
+             const engine::Guid& id,
+             bool accepted,
+             const std::u16string& input,
+             bool settled);
+  // A permission prompt the engine let go of before the core answered it.
+  void Withdrawn(const engine::Guid& id);
 
-  const Present present_;
+  const Report report_;
   std::map<content::WebContents*, Dialog> dialogs_;
   std::map<engine::Guid, Challenge> challenges_;
   std::map<engine::Guid, base::WeakPtr<PermissionPrompt>> permissions_;
+  std::map<engine::Guid, InstallReply> installs_;
+  base::WeakPtrFactory<EnginePrompts> weak_factory_{this};
 };
 
 // A fresh identity for something the binding asks the platform.

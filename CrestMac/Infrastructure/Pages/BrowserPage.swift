@@ -1069,23 +1069,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
         engineAdapter.sitePermissionDidChange(permission, on: self)
     }
 
-    /// An engine's request for a permission Crest records: a saved decision
-    /// answers at once, otherwise Crest's prompt asks and a lasting answer is
-    /// saved for the Space.
-    func resolveEngineSitePermission(
-        _ permission: SitePermission,
-        origin: SiteOrigin,
-        topLevelOrigin: SiteOrigin
-    ) async -> BrowserEnginePermissionResponse {
-        let decision = permissionCenter.decision(for: permission, origin: origin, in: spaceID)
-        guard decision.verdict == .ask else { return decision.grants ? .allow : .block }
-        let response = await sitePermissionRequests.response(
-            to: permission, origin: origin, topLevelOrigin: topLevelOrigin, spaceName: spaceName)
-        guard let savedDecision = response.savedDecision else { return response.grants ? .allowOnce : .dismiss }
-        permissionCenter.setDecision(savedDecision, for: permission, origin: origin, in: spaceID)
-        return savedDecision.grants ? .allow : .block
-    }
-
     // MARK: - Actions - History availability
 
     /// Brings the engine's supplemental history up to date and tells the core

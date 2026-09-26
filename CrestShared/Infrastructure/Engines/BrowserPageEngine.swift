@@ -112,18 +112,6 @@ extension BrowserPageEngine {
     #endif
 }
 
-/// Crest's answer to a site permission request an engine raised itself.
-enum BrowserEnginePermissionResponse: Sendable {
-    /// Allowed, and remembered for the site.
-    case allow
-    /// Allowed for this request only.
-    case allowOnce
-    /// Blocked, and remembered for the site.
-    case block
-    /// Not answered; the site may ask again.
-    case dismiss
-}
-
 struct BrowserEngineNavigation: Equatable, Sendable {
     let implementation: BrowserEngineImplementation
     let token: String

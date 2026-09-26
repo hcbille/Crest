@@ -33,7 +33,7 @@
         var linkHandler: (String, URL, String) -> Bool = { _, _, _ in false }
         var contextMenuActions: (URL?, String?) -> [[String: String]] = { _, _ in [] }
         var contextMenuAction: (String, URL?, String?) -> Bool = { _, _, _ in false }
-        var httpAuthenticationHandler: (AuthenticationRequested, @escaping (String?, String?) -> Void) -> Void =
+        var httpAuthenticationHandler: (AuthenticationQuestion, @escaping (String?, String?) -> Void) -> Void =
             {
                 _, reply in reply(nil, nil)
             }
@@ -347,7 +347,9 @@
 
         /// Answers the engine's site permission requests from Crest's record and
         /// prompt.
-        var permissionHandler: ((SitePermission, SiteOrigin, SiteOrigin) async -> BrowserEnginePermissionResponse)?
+        /// Asks the person about a site's permission request that its Space's
+        /// choices do not answer.
+        var permissionHandler: ((SitePermission, SiteOrigin, SiteOrigin) async -> BrowserSitePermissionPromptResponse)?
 
         /// The engine clears the site its page is showing.
         func clearSiteData(for url: URL) async -> Bool {
@@ -571,9 +573,6 @@
             case .inspectorClosed: developerPanelDidClose()
             case .siteDataCleared(let cleared):
                 clearances.removeValue(forKey: cleared.clearanceID)?.resume(returning: cleared.cleared)
-            case .javaScriptDialogRequested(let dialog): present(dialog)
-            case .authenticationRequested(let challenge): present(challenge)
-            case .permissionRequested(let request): present(request)
             case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileDeleted, .profileReleased,
                 .pageOffered, .engineDownloadChanged, .engineDownloadDestinationRequested:
                 break
@@ -583,45 +582,40 @@
             }
         }
 
-        /// A script dialog, answered once the person answers it; a dialog no one
-        /// shows is answered as dismissed.
-        private func present(_ dialog: JavaScriptDialogRequested) {
-            javaScriptDialogHandler(dialog.kind, dialog.message, dialog.defaultText, URL(string: dialog.sourceURL)) {
-                [weak self] accepted, input in
-                guard let self, let pages = self.pages else { return }
-                pages.request(
-                    AnswerJavaScriptDialog(
-                        pageID: self.pageID, dialogID: dialog.dialogID, accepted: accepted, input: input))
+        /// A script dialog the core asks the person, answered once they answer it.
+        func ask(_ asked: ScriptDialogAsked) {
+            let question = asked.question
+            javaScriptDialogHandler(question.kind, question.message, question.defaultText, URL(string: question.sourceURL)) {
+                [weak engine] accepted, input in
+                engine?.answer(AnswerScriptDialog(promptID: asked.promptID, accepted: accepted, text: input))
             }
         }
 
-        private func present(_ challenge: AuthenticationRequested) {
-            httpAuthenticationHandler(challenge) { [weak self] username, password in
-                guard let self, let pages = self.pages else { return }
+        /// A server's request for a user name and password. The credential goes
+        /// to the core, which hands it to the engine and keeps no copy.
+        func ask(_ asked: AuthenticationAsked) {
+            httpAuthenticationHandler(asked.question) { [weak engine] username, password in
                 let credential = username.flatMap { username in
                     password.map { AuthenticationCredential(username: username, password: $0) }
                 }
-                pages.request(
-                    AnswerAuthentication(
-                        pageID: self.pageID, challengeID: challenge.challengeID, credential: credential))
+                engine?.answer(AnswerAuthentication(promptID: asked.promptID, credential: credential))
             }
         }
 
-        /// Crest's record and prompt answer the site's request.
-        private func present(_ request: PermissionRequested) {
-            let answer: @MainActor (BrowserEnginePermissionResponse) -> Void = { [weak self] response in
-                guard let self, let pages = self.pages else { return }
-                pages.request(
-                    AnswerPermission(pageID: self.pageID, requestID: request.requestID, answer: response.answer))
-            }
-            guard let handler = permissionHandler,
-                let origin = URL(string: request.origin).flatMap(SiteOrigin.init(url:))
-            else {
-                answer(.dismiss)
+        /// A site's permission request its Space's choices do not answer. The
+        /// core records an answer the person asks it to remember.
+        func ask(_ asked: PermissionAsked) {
+            let question = asked.question
+            guard let handler = permissionHandler else {
+                engine?.answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
                 return
             }
-            let topLevel = URL(string: request.topLevelOrigin).flatMap(SiteOrigin.init(url:)) ?? origin
-            Task { @MainActor in answer(await handler(request.permission, origin, topLevel)) }
+            Task { @MainActor [weak engine] in
+                let response = await handler(question.permission, question.origin, question.topLevelOrigin)
+                engine?.answer(
+                    AnswerPermission(
+                        promptID: asked.promptID, grants: response.grants, remembers: response.savedDecision != nil))
+            }
         }
 
         /// The engine created the page: the page's handlers and scripts go in,
@@ -964,15 +958,4 @@
         }
     }
 
-    extension BrowserEnginePermissionResponse {
-        /// The answer the binding applies to a permission request.
-        fileprivate var answer: PermissionAnswer {
-            switch self {
-            case .allow: .allow
-            case .allowOnce: .allowOnce
-            case .block: .block
-            case .dismiss: .dismiss
-            }
-        }
-    }
 #endif

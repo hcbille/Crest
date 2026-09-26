@@ -264,6 +264,9 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     #region Actions - Rules
 
+    /// The page `pageId` names while the core hosts it, or null.
+    public Page? Hosted(Guid pageId) => open.GetValueOrDefault(pageId);
+
     private Page Known(Guid pageId) => open.TryGetValue(pageId, out var page) ? page : throw new Rejected(new UnknownPage(pageId));
 
     /// The Quick Window or Peek page `pageId` names, as it is or as it was

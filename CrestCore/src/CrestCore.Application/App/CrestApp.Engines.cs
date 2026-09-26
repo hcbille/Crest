@@ -63,7 +63,14 @@ public sealed partial class CrestApp {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(report);
         var changes = new ChangeFeed();
-        lock (gate) pages.Report(engine, report, changes, Issue);
+        lock (gate) {
+            if (Prompts.Concerns(report)) {
+                prompts.Report(engine, report, changes, Issue);
+            } else {
+                pages.Report(engine, report, changes, Issue);
+                prompts.Prune(changes);
+            }
+        }
         foreach (var change in changes.Published) Announce(change);
         WakeIfOwed();
         WakeForRequestedTurn();

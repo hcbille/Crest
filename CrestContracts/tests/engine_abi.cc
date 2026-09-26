@@ -89,7 +89,25 @@ std::vector<uint8_t> Intent(uint32_t tag, const Fields&... fields) {
 // nothing.
 void CodecRoundTrips() {
   const engine::Guid page = Filled(0x61);
+  const engine::SiteOrigin maps{.scheme = "https", .host = "maps.example", .port = 443};
   const std::vector<engine::EngineEvent> events = {
+      engine::AuthenticationChallenged{.prompt_id = Filled(0x71),
+                                       .page_id = page,
+                                       .question = {.url = "https://intranet.example/",
+                                                    .host = "intranet.example",
+                                                    .port = 443,
+                                                    .realm = "Staff",
+                                                    .scheme = engine::AuthenticationScheme::kDigest,
+                                                    .previous_failures = 1}},
+      engine::ExtensionInstallRequested{.prompt_id = Filled(0x72),
+                                        .window_id = Filled(0x73),
+                                        .question = {.extension_id = "abcdefghijklmnopabcdefghijklmnop",
+                                                     .name = "Reader",
+                                                     .version = "1.0",
+                                                     .summary = "Reads.",
+                                                     .permissions = {"Read your history"},
+                                                     .icon = engine::Bytes{0x89, 0x50},
+                                                     .can_withhold_site_access = true}},
       engine::NavigationCommitted{.page_id = page, .url = "https://example.com/a", .same_document = true},
       engine::NavigationFailed{.page_id = page,
                                .failure = {.error = engine::NavigationError::kCannotFindServer,
@@ -113,6 +131,16 @@ void CodecRoundTrips() {
                                             .security = engine::PageSecurity::kMixedContent,
                                             .media = engine::PageMediaActivity::kPlaying |
                                                      engine::PageMediaActivity::kPictureInPicture}},
+      engine::PermissionRequested{.prompt_id = Filled(0x74),
+                                  .page_id = page,
+                                  .question = {.permission = engine::SitePermission::kLocation,
+                                               .origin = maps,
+                                               .top_level_origin = maps}},
+      engine::PromptWithdrawn{.prompt_id = Filled(0x74)},
+      engine::ScriptDialogOpened{.prompt_id = Filled(0x75),
+                                 .page_id = page,
+                                 .question = {.kind = engine::JavaScriptDialogKind::kBeforeUnload,
+                                              .source_url = "https://example.com/"}},
   };
   for (size_t tag = 0; tag < events.size(); ++tag) {
     assert(events[tag].index() == tag);
@@ -123,12 +151,12 @@ void CodecRoundTrips() {
     bytes.push_back(0);
     assert(!engine::Decode<engine::EngineEvent>(bytes.data(), bytes.size()));
   }
-  std::vector<uint8_t> finished = engine::Encode(events[2]);
+  std::vector<uint8_t> finished = engine::Encode(events[CREST_ENGINE_EVENT_NAVIGATION_FINISHED]);
   finished[finished.size() - 2] = 0xff;  // The title's é, no longer UTF-8.
   assert(!engine::Decode<engine::EngineEvent>(finished.data(), finished.size()));
   const uint8_t overlong[] = {0x80, 0x00};
   assert(!engine::Decode<engine::EngineEvent>(overlong, sizeof(overlong)));
-  const uint8_t unknown[] = {CREST_ENGINE_EVENT_PAGE_STATE_CHANGED + 1};
+  const uint8_t unknown[] = {CREST_ENGINE_EVENT_SCRIPT_DIALOG_OPENED + 1};
   assert(!engine::Decode<engine::EngineEvent>(unknown, sizeof(unknown)));
 }
 

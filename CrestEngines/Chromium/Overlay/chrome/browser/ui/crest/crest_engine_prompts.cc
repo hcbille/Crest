@@ -20,6 +20,7 @@
 #include "net/base/auth.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace crest {
 
@@ -83,6 +84,12 @@ class SiteDataClearance final : public content::BrowsingDataRemover::Observer {
   base::OnceCallback<void(bool)> done_;
 };
 
+// The origin a permission belongs to, as Crest's choices name it.
+engine::SiteOrigin SiteOriginOf(const GURL& url) {
+  const url::Origin origin = url::Origin::Create(url);
+  return engine::SiteOrigin{.scheme = origin.scheme(), .host = origin.host(), .port = origin.port()};
+}
+
 }  // namespace
 
 engine::Guid RandomGuid() {
@@ -109,31 +116,38 @@ void ClearSiteData(Profile* profile, const GURL& url, base::OnceCallback<void(bo
       content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB, std::move(filter), clearance);
 }
 
-// A request Crest's permission record covers, asked through the page so the
-// decision is recorded per Space and listed in Privacy.
+// A request Crest's permission record covers, asked through the core so the
+// decision is recorded per Space and listed in Privacy. The engine lets go of
+// a prompt it no longer needs, such as when the page navigates; one the core
+// had not answered is withdrawn.
 class EnginePrompts::PermissionPrompt final : public permissions::PermissionPrompt {
  public:
-  explicit PermissionPrompt(Delegate* delegate) : delegate_(delegate->GetWeakPtr()) {}
+  PermissionPrompt(Delegate* delegate, const engine::Guid& id, base::WeakPtr<EnginePrompts> prompts)
+      : delegate_(delegate->GetWeakPtr()), id_(id), prompts_(std::move(prompts)) {}
+
+  ~PermissionPrompt() override {
+    if (!answered_ && prompts_) {
+      prompts_->Withdrawn(id_);
+    }
+  }
 
   base::WeakPtr<PermissionPrompt> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
 
-  void Answer(engine::PermissionAnswer answer) {
+  // A grant or block the site's later requests follow, or one for this
+  // request alone.
+  void Answer(bool grants, bool remembers) {
+    answered_ = true;
     if (!delegate_) {
       return;
     }
-    switch (answer) {
-      case engine::PermissionAnswer::kAllow:
-        delegate_->Accept(std::monostate());
-        break;
-      case engine::PermissionAnswer::kAllowOnce:
-        delegate_->AcceptThisTime(std::monostate());
-        break;
-      case engine::PermissionAnswer::kBlock:
-        delegate_->Deny(std::monostate());
-        break;
-      case engine::PermissionAnswer::kDismiss:
-        delegate_->Dismiss(std::monostate());
-        break;
+    if (grants && remembers) {
+      delegate_->Accept(std::monostate());
+    } else if (grants) {
+      delegate_->AcceptThisTime(std::monostate());
+    } else if (remembers) {
+      delegate_->Deny(std::monostate());
+    } else {
+      delegate_->Dismiss(std::monostate());
     }
   }
 
@@ -153,12 +167,22 @@ class EnginePrompts::PermissionPrompt final : public permissions::PermissionProm
 
  private:
   base::WeakPtr<Delegate> delegate_;
+  const engine::Guid id_;
+  const base::WeakPtr<EnginePrompts> prompts_;
+  bool answered_ = false;
   base::WeakPtrFactory<PermissionPrompt> weak_factory_{this};
 };
 
-EnginePrompts::EnginePrompts(Present present) : present_(std::move(present)) {}
+EnginePrompts::EnginePrompts(Report report) : report_(std::move(report)) {}
 
-EnginePrompts::~EnginePrompts() = default;
+// Installs still waiting are declined, so the installer never waits on a
+// binding that is gone.
+EnginePrompts::~EnginePrompts() {
+  auto installs = std::move(installs_);
+  for (auto& [id, reply] : installs) {
+    std::move(reply).Run(false, false);
+  }
+}
 
 // Script dialogs.
 
@@ -190,13 +214,13 @@ bool EnginePrompts::HandleJavaScriptDialog(content::WebContents* contents,
   if (found == dialogs_.end()) {
     return false;
   }
-  Close(contents, found->second.id, accept, prompt_override ? *prompt_override : std::u16string());
+  Close(contents, found->second.id, accept, prompt_override ? *prompt_override : std::u16string(), /*settled=*/false);
   return true;
 }
 
 void EnginePrompts::CancelDialogs(content::WebContents* contents, bool reset_state) {
   if (auto found = dialogs_.find(contents); found != dialogs_.end()) {
-    Close(contents, found->second.id, false, u"");
+    Close(contents, found->second.id, false, u"", /*settled=*/false);
   }
 }
 
@@ -216,31 +240,36 @@ void EnginePrompts::Open(content::WebContents* contents,
   const engine::Guid id = RandomGuid();
   dialogs_[contents] = Dialog{.page = page->id(), .id = id, .callback = std::move(callback)};
   const GURL source = frame ? frame->GetLastCommittedURL() : contents->GetLastCommittedURL();
-  present_.Run(engine::JavaScriptDialogRequested{.page_id = page->id(),
-                                                 .dialog_id = id,
-                                                 .kind = kind,
-                                                 .message = base::UTF16ToUTF8(message),
-                                                 .default_text = base::UTF16ToUTF8(default_text),
-                                                 .source_url = PresentedURL(source)});
+  report_.Run(engine::ScriptDialogOpened{.prompt_id = id,
+                                         .page_id = page->id(),
+                                         .question = {.kind = kind,
+                                                      .message = base::UTF16ToUTF8(message),
+                                                      .default_text = base::UTF16ToUTF8(default_text),
+                                                      .source_url = PresentedURL(source)}});
 }
 
 void EnginePrompts::Close(content::WebContents* contents,
                           const engine::Guid& id,
                           bool accepted,
-                          const std::u16string& input) {
+                          const std::u16string& input,
+                          bool settled) {
   auto found = dialogs_.find(contents);
   if (found == dialogs_.end() || found->second.id != id) {
     return;
   }
   auto callback = std::move(found->second.callback);
   dialogs_.erase(found);
+  if (!settled) {
+    report_.Run(engine::PromptWithdrawn{.prompt_id = id});
+  }
   std::move(callback).Run(accepted, input);
 }
 
-bool EnginePrompts::Answer(const engine::AnswerJavaScriptDialog& answer) {
+bool EnginePrompts::Settle(const engine::SettleScriptDialog& settlement) {
   for (auto& [contents, dialog] : dialogs_) {
-    if (dialog.id == answer.dialog_id && dialog.page == answer.page_id) {
-      Close(contents, answer.dialog_id, answer.accepted, base::UTF8ToUTF16(answer.input.value_or("")));
+    if (dialog.id == settlement.prompt_id) {
+      Close(contents, settlement.prompt_id, settlement.accepted, base::UTF8ToUTF16(settlement.text.value_or("")),
+            /*settled=*/true);
       return true;
     }
   }
@@ -256,28 +285,28 @@ void EnginePrompts::Authenticate(const engine::Guid& page,
   const engine::Guid id = RandomGuid();
   challenges_[id] = Challenge{.page = page, .reply = std::move(reply)};
   const GURL url = challenge.challenger.GetURL();
-  present_.Run(engine::AuthenticationRequested{
+  report_.Run(engine::AuthenticationChallenged{
+      .prompt_id = id,
       .page_id = page,
-      .challenge_id = id,
-      .url = url.spec(),
-      .host = challenge.challenger.host(),
-      .port = challenge.challenger.port(),
-      .realm = challenge.realm.empty() ? std::nullopt : std::optional<std::string>(challenge.realm),
-      .scheme = challenge.scheme == "digest" ? engine::AuthenticationScheme::kDigest
-                                             : engine::AuthenticationScheme::kBasic,
-      .is_proxy = challenge.is_proxy,
-      .previous_failures = previous_failures});
+      .question = {.url = url.spec(),
+                   .host = challenge.challenger.host(),
+                   .port = challenge.challenger.port(),
+                   .realm = challenge.realm.empty() ? std::nullopt : std::optional<std::string>(challenge.realm),
+                   .scheme = challenge.scheme == "digest" ? engine::AuthenticationScheme::kDigest
+                                                          : engine::AuthenticationScheme::kBasic,
+                   .is_proxy = challenge.is_proxy,
+                   .previous_failures = previous_failures}});
 }
 
-bool EnginePrompts::Answer(const engine::AnswerAuthentication& answer) {
-  auto found = challenges_.find(answer.challenge_id);
-  if (found == challenges_.end() || found->second.page != answer.page_id) {
+bool EnginePrompts::Settle(const engine::SettleAuthentication& settlement) {
+  auto found = challenges_.find(settlement.prompt_id);
+  if (found == challenges_.end()) {
     return false;
   }
   auto reply = std::move(found->second.reply);
   challenges_.erase(found);
-  if (answer.credential) {
-    reply(true, base::UTF8ToUTF16(answer.credential->username), base::UTF8ToUTF16(answer.credential->password));
+  if (settlement.credential) {
+    reply(true, base::UTF8ToUTF16(settlement.credential->username), base::UTF8ToUTF16(settlement.credential->password));
   } else {
     reply(false, u"", u"");
   }
@@ -293,20 +322,21 @@ std::unique_ptr<permissions::PermissionPrompt> EnginePrompts::Prompt(
   if (!permission) {
     return nullptr;
   }
-  auto prompt = std::make_unique<PermissionPrompt>(delegate);
   const engine::Guid id = RandomGuid();
+  auto prompt = std::make_unique<PermissionPrompt>(delegate, id, weak_factory_.GetWeakPtr());
   std::erase_if(permissions_, [](const auto& entry) { return !entry.second; });
   permissions_[id] = prompt->GetWeakPtr();
-  present_.Run(engine::PermissionRequested{.page_id = page,
-                                           .request_id = id,
-                                           .permission = *permission,
-                                           .origin = delegate->GetRequestingOrigin().spec(),
-                                           .top_level_origin = delegate->GetEmbeddingOrigin().spec()});
+  report_.Run(engine::PermissionRequested{
+      .prompt_id = id,
+      .page_id = page,
+      .question = {.permission = *permission,
+                   .origin = SiteOriginOf(delegate->GetRequestingOrigin()),
+                   .top_level_origin = SiteOriginOf(delegate->GetEmbeddingOrigin())}});
   return prompt;
 }
 
-bool EnginePrompts::Answer(const engine::AnswerPermission& answer) {
-  auto found = permissions_.find(answer.request_id);
+bool EnginePrompts::Settle(const engine::SettlePermission& settlement) {
+  auto found = permissions_.find(settlement.prompt_id);
   if (found == permissions_.end()) {
     return false;
   }
@@ -315,7 +345,34 @@ bool EnginePrompts::Answer(const engine::AnswerPermission& answer) {
   if (!prompt) {
     return false;
   }
-  prompt->Answer(answer.answer);
+  prompt->Answer(settlement.grants, settlement.remembers);
+  return true;
+}
+
+void EnginePrompts::Withdrawn(const engine::Guid& id) {
+  if (permissions_.erase(id)) {
+    report_.Run(engine::PromptWithdrawn{.prompt_id = id});
+  }
+}
+
+// Extension installs.
+
+void EnginePrompts::AskToInstall(const engine::Guid& window,
+                                 engine::ExtensionInstallQuestion question,
+                                 InstallReply reply) {
+  const engine::Guid id = RandomGuid();
+  installs_[id] = std::move(reply);
+  report_.Run(engine::ExtensionInstallRequested{.prompt_id = id, .window_id = window, .question = std::move(question)});
+}
+
+bool EnginePrompts::Settle(const engine::SettleExtensionInstall& settlement) {
+  auto found = installs_.find(settlement.prompt_id);
+  if (found == installs_.end()) {
+    return false;
+  }
+  auto reply = std::move(found->second);
+  installs_.erase(found);
+  std::move(reply).Run(settlement.accepted, settlement.withholds_site_access);
   return true;
 }
 

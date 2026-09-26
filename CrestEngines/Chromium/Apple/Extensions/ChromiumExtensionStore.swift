@@ -29,12 +29,12 @@ final class ChromiumExtensionStore {
         }
         /// The package an install review describes. TRANSITIONAL until the
         /// review travels as a presentation (WP C (e)).
-        init(review: any CrestExtensionReview) {
+        init(review: ExtensionInstallQuestion) {
             id = review.extensionID
             name = review.name.isEmpty ? review.extensionID : review.name
             version = review.version
             detail = review.summary
-            icon = review.icon
+            icon = review.icon.flatMap(NSImage.init(data:))
             enabled = true
             permissions = review.permissions
             webStore = true
@@ -336,8 +336,13 @@ final class ChromiumExtensionStore {
         }
         Task { await job.start() }
     }
-    func review(_ review: any CrestExtensionReview, window: NSWindow, reply: @escaping (Bool, Bool) -> Void) {
-        guard let job = installation, job.window === window, review.extensionID == job.id else {
+    /// The engine asks whether to install the package the install operation of
+    /// the window `asked` names verified.
+    func review(_ asked: ExtensionInstallAsked, reply: @escaping (Bool, Bool) -> Void) {
+        let review = asked.question
+        guard let job = installation, job.window?.identifier?.rawValue == asked.windowID.uuidString,
+            review.extensionID == job.id
+        else {
             // No user-owned install operation may inherit an unrelated consent.
             reply(false, false)
             return
@@ -459,7 +464,7 @@ final class ChromiumExtensionInstallation {
         }
         guard result.0 else { throw NSError(domain: "CrestExtension", code: 1, userInfo: [NSLocalizedDescriptionKey: result.1.isEmpty ? "Installation canceled." : result.1]) }
     }
-    func review(_ review: any CrestExtensionReview, reply: @escaping (Bool, Bool) -> Void) {
+    func review(_ review: ExtensionInstallQuestion, reply: @escaping (Bool, Bool) -> Void) {
         guard !canceled, store.authorized(space), let targetSpace, store.authorized(targetSpace) else { reply(false, false); return }
         let candidate = ChromiumExtensionStore.Installed(review: review)
         if let approvedIdentity {

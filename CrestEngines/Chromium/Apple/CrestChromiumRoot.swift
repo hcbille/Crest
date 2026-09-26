@@ -201,9 +201,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             }
             return nil
         }
-        host.setExtensionReview { review, window, reply in
-            MainActor.assumeIsolated { Self.extensions.review(review, window: window, reply: reply) }
-        }
+        chromium.follow(application.browser.core)
         chromium.downloads = downloads
     }
 

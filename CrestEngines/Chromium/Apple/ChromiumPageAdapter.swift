@@ -46,8 +46,9 @@
             self.page = page
             native.profileID = page.profileID
             native.permissionHandler = { [weak page] permission, origin, topLevelOrigin in
-                await page?.resolveEngineSitePermission(permission, origin: origin, topLevelOrigin: topLevelOrigin)
-                    ?? .dismiss
+                guard let page else { return .denyOnce }
+                return await page.sitePermissionRequests.response(
+                    to: permission, origin: origin, topLevelOrigin: topLevelOrigin, spaceName: page.spaceName)
             }
             native.observer = { [weak page] event in page?.receive(event) }
             native.linkHandler = { [weak page] name, destination, label in
@@ -140,7 +141,7 @@
     }
 
     extension BrowserAuthenticationChallenge {
-        fileprivate init?(chromium challenge: AuthenticationRequested) {
+        fileprivate init?(chromium challenge: AuthenticationQuestion) {
             guard let url = URL(string: challenge.url),
                 let origin = CredentialOrigin(
                     securityProtocol: url.scheme ?? "", host: challenge.host, port: challenge.port)

@@ -2649,6 +2649,10 @@
     "2026-09-26-chromium-crashed-pages-recover": {
       "category": "fixed",
       "message": "Chromium pages that crash now reload on their own instead of staying broken"
+    },
+    "2026-09-26-page-prompts-through-core": {
+      "category": "internal",
+      "message": "Page dialogs, sign-in and permission requests go through the core, which answers remembered site choices without asking"
     }
   }
 }
