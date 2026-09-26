@@ -7,7 +7,9 @@ namespace CrestCore.Application;
 /// window that hosts it, the engine that hosts it and the live state its
 /// engine reports. Never saved or synced. The platform decides when a page
 /// opens or goes; the core decides whether it may, and on which engine, and
-/// asks the engine to create, load and close it.
+/// asks the engine to create, load and close it. A tab's page opens on the
+/// engine chosen for the site the tab shows, when that engine is registered,
+/// and on the default engine otherwise.
 ///
 /// A window hosts one page for a tab. The Mac's windows over one workspace
 /// share one runtime store, so a second window shows the page the first opened
@@ -30,7 +32,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// What each tab's last page kept when it closed keeping its state, which
     /// the tab's next page restores. Memory only, never saved or synced; a tab
     /// that closes, is archived or loses its Space loses it.
-    private readonly Dictionary<(Guid WorkspaceId, Guid TabId), (Guid SpaceId, PageRestoreState State)> restoreStates = [];
+    private readonly Dictionary<(Guid WorkspaceId, Guid TabId), (Guid SpaceId, EngineKind Engine, PageRestoreState State)> restoreStates = [];
     /// The pages asked to close keeping their state, until their engine says
     /// they are gone.
     private readonly Dictionary<Guid, (Engine Engine, Guid WorkspaceId, Guid SpaceId, Guid TabId)> keeping = [];
@@ -70,11 +72,12 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         device.Opened(intent.WindowId);
         var space = Hosting(workspace, intent.SpaceId);
         RequireUnowned(intent.WorkspaceId, intent.WindowId, intent.TabId, moving: null);
-        var engine = engines.Default ?? throw new Rejected(new EngineNotRegistered());
+        var tab = space.Tabs.FirstOrDefault(held => held.Id == intent.TabId);
+        var engine = Chosen(space, tab) ?? engines.Default ?? throw new Rejected(new EngineNotRegistered());
         var page = new Page(intent.PageId, engine, space.ProfileId, intent.WorkspaceId, space.Id, intent.TabId, intent.WindowId,
             intent.Transient);
         open[page.Id] = page;
-        var restore = intent.TabId is { } tabId ? Restorable(intent.WorkspaceId, space, tabId) : null;
+        var restore = intent.TabId is { } tabId ? Restorable(intent.WorkspaceId, space, tabId, engine.Kind) : null;
         if (restore is not null) page.Restoring(restore.Url);
         changes.Publish(new PageOpened(page.State));
         issue(engine, new CreatePage(page.Id, page.ProfileId, workspace.IsPrivateBrowsing, page.WindowId, restore));
@@ -116,9 +119,18 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         var space = Hosting(device.Workspace(page.WorkspaceId), page.SpaceId);
         var url = AddressResolution.Loading(intent.Input, space.Settings.BrowsingPreferences,
             page.Engine.Supports(EngineCapability.InternalPages));
+        // TRANSITIONAL until WP D3 can move a page to another engine: a load
+        // to a site chosen for another engine stays on the page's own.
         Update(page, changes, () => page.Load(url));
         issue(page.Engine, new LoadPage(page.Id, url));
     }
+
+    /// The registered engine chosen for the site `tab` shows, or null when
+    /// none is, or for a page without a tab, which opens before it has an
+    /// address.
+    private Engine? Chosen(SpaceState space, TabState? tab) =>
+        tab?.Url is { } url && new WebAddress(url).Origin is { } origin && device.ChosenEngine(space.Id, origin) is { } kind
+            ? engines.Registered(kind) : null;
 
     private void LeaveFailure(LeavePageFailure intent, ChangeFeed changes) {
         var page = Known(intent.PageId);
@@ -200,7 +212,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         ArgumentNullException.ThrowIfNull(issue);
         if (report is PageClosed closedKeeping && keeping.Remove(closedKeeping.PageId, out var kept) && ReferenceEquals(kept.Engine, engine)
             && closedKeeping.RestoreState is { } restoreState)
-            Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, restoreState);
+            Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, engine.Kind, restoreState);
         var pageId = report switch {
             PageCreated created => created.PageId,
             PageCreationFailed failed => failed.PageId,
@@ -219,7 +231,9 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             case PageCreated: Enter(page, PagePhase.Live, changes); break;
             case PageCreationFailed: Enter(page, PagePhase.Failed, changes); break;
             case PageClosed: Enter(page, PagePhase.Closed, changes); break;
-            // Nothing is recorded until the navigation finishes.
+            // Nothing is recorded until the navigation finishes. TRANSITIONAL
+            // until WP D3 can move a page to another engine: a navigation to a
+            // site chosen for another engine stays on the page's own.
             case NavigationStarted: break;
             case NavigationCommitted committed:
                 Update(page, changes, () => page.Commit(committed.Url, committed.SameDocument));
@@ -338,19 +352,20 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     }
 
     /// What the tab kept for its next page, taken once, when the tab still
-    /// shows the address it kept. What it kept for another address is dropped.
-    private PageRestoreState? Restorable(Guid workspaceId, SpaceState space, Guid tabId) {
+    /// shows the address it kept and the page opens on the engine that kept
+    /// it. What it kept for another address or engine is dropped.
+    private PageRestoreState? Restorable(Guid workspaceId, SpaceState space, Guid tabId, EngineKind engine) {
         var key = (workspaceId, tabId);
         if (!restoreStates.TryGetValue(key, out var kept)) return null;
         Forget(key);
         var tab = space.Tabs.FirstOrDefault(tab => tab.Id == tabId);
-        return kept.SpaceId == space.Id && tab?.Url is { } url && new WebAddress(url).IsSamePage(new WebAddress(kept.State.Url))
-            ? kept.State : null;
+        return kept.SpaceId == space.Id && kept.Engine == engine && tab?.Url is { } url
+            && new WebAddress(url).IsSamePage(new WebAddress(kept.State.Url)) ? kept.State : null;
     }
 
-    private void Keep((Guid WorkspaceId, Guid TabId) key, Guid spaceId, PageRestoreState state) {
+    private void Keep((Guid WorkspaceId, Guid TabId) key, Guid spaceId, EngineKind engine, PageRestoreState state) {
         Forget(key);
-        restoreStates[key] = (spaceId, state);
+        restoreStates[key] = (spaceId, engine, state);
         restoreOrder.Add(key);
         while (restoreOrder.Count > MaximumRestoreStates) Forget(restoreOrder[0]);
     }

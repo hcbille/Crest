@@ -135,6 +135,10 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 case SitePermissionIntent permission:
                     device.Handle(permission, changes, clock.Now, ids);
                     break;
+                case ChooseSiteEngine choice:
+                    if (engines.Registered(choice.Engine) is null) throw new Rejected(new UnregisteredEngine(choice.Engine));
+                    device.Choose(choice);
+                    break;
                 case ShortcutIntent shortcut:
                     device.Handle(shortcut, engines.OfferedCommands(), changes);
                     break;

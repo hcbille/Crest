@@ -80,6 +80,7 @@ internal sealed partial class Device {
         foreach (var record in records.Windows) saved[record.Id] = record;
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
         keptPermissions.Restore(records.SitePermissions);
+        keptEngines.Restore(records.SiteEngines);
         shortcuts = records.Shortcuts;
         links = records.Links;
         keptSetupDraft = platform.KeepsSetupDraft ? records.SetupDraft : null;
@@ -286,7 +287,7 @@ internal sealed partial class Device {
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     private DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. keptPermissions.PersistentRecords],
-        shortcuts, links, keptSetupDraft, setupCompleted, new HashSet<DeviceAdoption>(adopted));
+        [.. keptEngines.Choices], shortcuts, links, keptSetupDraft, setupCompleted, new HashSet<DeviceAdoption>(adopted));
 
     #endregion
 

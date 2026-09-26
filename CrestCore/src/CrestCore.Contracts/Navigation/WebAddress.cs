@@ -11,6 +11,11 @@ public readonly record struct WebAddress(string Spelling) {
     public string? Normalized => Uri.TryCreate(Spelling, UriKind.Absolute, out var value)
         && (value.Scheme == Uri.UriSchemeHttp || value.Scheme == Uri.UriSchemeHttps) ? Spelling.Split('#', 2)[0] : null;
 
+    /// The web origin a page at this address belongs to, with its host in
+    /// ASCII, or null for an address that is not http or https.
+    public SiteOrigin? Origin => Uri.TryCreate(Spelling, UriKind.Absolute, out var value) && WebScheme.Named(value.Scheme) is not null
+        && value.IdnHost.Length > 0 ? new SiteOrigin(value.Scheme, value.IdnHost, value.Port) : null;
+
     #endregion
 
     #region Actions - Comparison

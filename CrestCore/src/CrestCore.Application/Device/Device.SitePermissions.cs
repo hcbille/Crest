@@ -60,7 +60,7 @@ internal sealed partial class Device {
     }
 
     private void Decide(DecideSitePermission intent, ChangeFeed changes, DateTimeOffset now, IIdSource ids) {
-        var (keeps, locked) = PermissionScope(intent.SpaceId);
+        var (keeps, locked) = ChoiceScope(intent.SpaceId);
         if (locked) throw new Rejected(new SpaceLocked(intent.SpaceId));
         lock (gate) {
             var outcome = (keeps ? keptPermissions : passingPermissions).Set(intent.SpaceId, intent.Origin, intent.Permission, intent.Detail,
@@ -93,7 +93,7 @@ internal sealed partial class Device {
 
     public SitePermissionAnswer Answer(SiteDecision question) {
         ArgumentNullException.ThrowIfNull(question);
-        var (keeps, locked) = PermissionScope(question.SpaceId);
+        var (keeps, locked) = ChoiceScope(question.SpaceId);
         lock (gate)
             return new((keeps ? keptPermissions : passingPermissions).Decision(question.SpaceId, question.Origin, question.Permission,
                 question.Detail, locked));
@@ -101,7 +101,7 @@ internal sealed partial class Device {
 
     public SitePermissionAnswer Answer(CaptureDecision question) {
         ArgumentNullException.ThrowIfNull(question);
-        var (keeps, locked) = PermissionScope(question.SpaceId);
+        var (keeps, locked) = ChoiceScope(question.SpaceId);
         lock (gate)
             return new((keeps ? keptPermissions : passingPermissions).MediaDecision(question.SpaceId, question.Origin, question.Media,
                 locked));
@@ -109,13 +109,13 @@ internal sealed partial class Device {
 
     #endregion
 
-    #region Actions - Site permission scope
+    #region Actions - Choice scope
 
-    /// Whether the device store keeps `spaceId`'s choices, and whether this
-    /// process holds no grant to show the Space. The persistent session is
+    /// Whether the device store keeps `spaceId`'s site permission and engine
+    /// choices, and whether this process holds no grant to show the Space. The persistent session is
     /// asked first, since a borrowed workspace holds its Space too. Called
     /// without the device lock, since it reads the sessions.
-    private (bool Keeps, bool Locked) PermissionScope(Guid spaceId) {
+    private (bool Keeps, bool Locked) ChoiceScope(Guid spaceId) {
         Guid? persistent;
         KeyValuePair<Guid, NativeSessionAuthority>[] attached;
         lock (gate) {

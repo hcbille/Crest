@@ -136,6 +136,8 @@ internal sealed class SqliteConnection : IDisposable {
         Execute("CREATE TABLE IF NOT EXISTS device_site_permission (id TEXT PRIMARY KEY, space TEXT NOT NULL, scheme TEXT NOT NULL, "
             + "host TEXT NOT NULL, port INTEGER NOT NULL, permission TEXT NOT NULL, detail TEXT, decision TEXT NOT NULL, "
             + "modified_at REAL NOT NULL, position INTEGER NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_site_engine (scheme TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, "
+            + "engine TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY (scheme, host, port))");
         Execute("CREATE TABLE IF NOT EXISTS device_shortcut (command TEXT PRIMARY KEY, key TEXT, special INTEGER NOT NULL, "
             + "modifiers INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_link (id INTEGER PRIMARY KEY CHECK (id = 0), destination TEXT NOT NULL, "
@@ -154,8 +156,8 @@ internal sealed class SqliteConnection : IDisposable {
 
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
-    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadShortcuts(), ReadLinks(), ReadSetupDraft(),
-        ReadSetupCompleted(), ReadAdoptions());
+    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadSiteEngines(), ReadShortcuts(), ReadLinks(),
+        ReadSetupDraft(), ReadSetupCompleted(), ReadAdoptions());
 
     private List<SavedWindow> ReadWindows() {
         var windows = new Dictionary<Guid, (Guid ShownSpace, long Used)>();
@@ -193,6 +195,19 @@ internal sealed class SqliteConnection : IDisposable {
                     Sqlite.sqlite3_column_double(statement, 8)));
             });
         return records;
+    }
+
+    /// The site engine choices, least recent first. A row naming an engine
+    /// this build does not know is left out.
+    private List<SiteEngineChoice> ReadSiteEngines() {
+        var choices = new List<SiteEngineChoice>();
+        Rows("SELECT scheme, host, port, engine FROM device_site_engine ORDER BY position", statement => {
+            if (EngineKind.Named(Sqlite.ColumnText(statement, 3)) is not { } engine) return;
+            var origin = new SiteOrigin(Sqlite.ColumnText(statement, 0), Sqlite.ColumnText(statement, 1),
+                Sqlite.sqlite3_column_int(statement, 2));
+            if (origin.IsValid) choices.Add(new(null, origin, engine));
+        });
+        return choices;
     }
 
     /// Each command's choice: no key is a command left without one.
@@ -270,6 +285,7 @@ internal sealed class SqliteConnection : IDisposable {
     public void WriteDevice(DeviceRecords records, DeviceRecords? written) {
         if (written is null || !records.Windows.SequenceEqual(written.Windows)) WriteWindows(records.Windows);
         if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
+        if (written is null || !records.SiteEngines.SequenceEqual(written.SiteEngines)) WriteSiteEngines(records.SiteEngines);
         if (written is null || !records.Shortcuts.SameAs(written.Shortcuts)) WriteShortcuts(records.Shortcuts);
         if (written is null || !records.Links.Equals(written.Links)) WriteLinks(records.Links);
         if (written is null || !KeptSetupDraft.Same(records.SetupDraft, written.SetupDraft)) WriteSetupDraft(records.SetupDraft);
@@ -325,6 +341,22 @@ internal sealed class SqliteConnection : IDisposable {
                     Checked(Sqlite.sqlite3_bind_double(statement, 9, record.ModifiedAt));
                     Checked(Sqlite.sqlite3_bind_int64(statement, 10, index));
                 });
+        }
+    }
+
+    /// The site engine choices, least recent first, each engine by `Name`.
+    private void WriteSiteEngines(IReadOnlyList<SiteEngineChoice> choices) {
+        Execute("DELETE FROM device_site_engine");
+        for (int position = 0; position < choices.Count; position++) {
+            var choice = choices[position];
+            int index = position;
+            Insert("INSERT INTO device_site_engine(scheme, host, port, engine, position) VALUES(?,?,?,?,?)", statement => {
+                Bind(statement, 1, choice.Origin.Scheme);
+                Bind(statement, 2, choice.Origin.Host);
+                Checked(Sqlite.sqlite3_bind_int64(statement, 3, choice.Origin.Port));
+                Bind(statement, 4, choice.Engine.Name);
+                Checked(Sqlite.sqlite3_bind_int64(statement, 5, index));
+            });
         }
     }
 

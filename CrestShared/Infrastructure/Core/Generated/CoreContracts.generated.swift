@@ -277,6 +277,7 @@ enum Rejection: Equatable, Error, Sendable {
     case unknownSplitGroup(UnknownSplitGroup)
     case unknownTab(UnknownTab)
     case unknownWorkspace(UnknownWorkspace)
+    case unregisteredEngine(UnregisteredEngine)
     case unrelatedWorkspaces(UnrelatedWorkspaces)
     case unsavedWorkspace(UnsavedWorkspace)
     case unsupportedAddress(UnsupportedAddress)
@@ -1005,6 +1006,12 @@ struct ChoosePeekModifier: Intent, LinkIntent, Equatable, Sendable {
 
 struct ChooseQuickWindowArchivePolicy: Intent, LinkIntent, Equatable, Sendable {
     let policy: QuickWindowArchivePolicy
+}
+
+struct ChooseSiteEngine: Intent, Equatable, Sendable {
+    let spaceID: UUID
+    let origin: SiteOrigin
+    let engine: EngineKind
 }
 
 struct ChooseTabIcon: Intent, SessionIntent, Equatable, Sendable {
@@ -5293,6 +5300,10 @@ struct UnknownTab: Equatable, Sendable {
 
 struct UnknownWorkspace: Equatable, Sendable {
     let workspaceID: UUID
+}
+
+struct UnregisteredEngine: Equatable, Sendable {
+    let kind: EngineKind
 }
 
 struct UnrelatedWorkspaces: Equatable, Sendable {

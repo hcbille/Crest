@@ -2849,6 +2849,10 @@
     "2026-09-26-engine-capabilities-follow-page-engine": {
       "category": "internal",
       "message": "Menus, the launcher and settings offer a feature when an engine Crest runs supports it, and the page's own engine decides whether it is available"
+    },
+    "2026-09-26-site-engine-choices": {
+      "category": "internal",
+      "message": "Crest can remember which engine each site's pages open on, per device, and keeps private windows' choices in memory only"
     }
   }
 }

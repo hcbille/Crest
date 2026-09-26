@@ -24,6 +24,9 @@ internal sealed class Engines {
         return [.. ShortcutCommand.All.Where(command => command.IsOffered(offered.Contains))];
     }
 
+    /// The registered engine of `kind`, or null while none is.
+    public Engine? Registered(EngineKind kind) => registered.GetValueOrDefault(kind);
+
     #endregion
 
     #region Actions - Registration

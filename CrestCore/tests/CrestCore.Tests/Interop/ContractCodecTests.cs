@@ -505,7 +505,8 @@ public sealed unsafe class ContractCodecTests {
         var acknowledge = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, new AcknowledgeDownloads(Guid.NewGuid())));
         Assert.Equal(CoreStatus.Ok, app.Dispatch(acknowledge).Status);
         Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch([]).Status);
-        Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch([200, 1]).Status);
+        // A tag no intent has, however many intents the contract gains.
+        Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch([0xff, 0x7f]).Status);
         Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch(acknowledge[..^1]).Status);
         Assert.Equal(CoreStatus.InvalidMessage, app.Dispatch([.. acknowledge, 0]).Status);
         Assert.Equal(CoreStatus.InvalidMessage, app.Ask([0x7f]).Status);

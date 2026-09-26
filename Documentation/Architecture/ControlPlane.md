@@ -172,7 +172,12 @@ feature. The native page port exposes this declaration without crossing the ABI
 for each interaction. The core owns page identity: a pool or page store opens
 each page through the core (`OpenPage`) from its window, hands a page to another
 owner (`MovePage`) and releases it (`ReleasePage`), and the core refuses a page
-in a locked Space, in one being deleted or for a tab that already has one. It
+in a locked Space, in one being deleted or for a tab that already has one. A
+tab's page opens on the engine chosen for the site the tab shows
+(`ChooseSiteEngine`) when that engine is registered, and otherwise on the
+default engine. The device store keeps the persistent session's choices, and
+a private Space's choices stay in memory. Until a page can move between
+engines, a choice decides only where new pages open. The core
 asks the page's engine to create, load and close the engine's page, and the
 binding reports what the engine did, including a `PageSnapshot` of what the page
 shows, which the core keeps as the page's `PageLiveState`. Chromium's binding is
