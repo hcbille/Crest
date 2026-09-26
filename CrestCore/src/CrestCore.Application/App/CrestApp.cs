@@ -24,7 +24,6 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly Downloads downloads = new();
     private readonly Credentials credentials = new();
     private readonly ContentBlocking contentBlocking = new();
-    private readonly Links links = new();
     /// This device's windows and what each shows.
     private readonly Device device;
     /// The pages this device hosts, and the engines that host them.
@@ -126,6 +125,9 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 case ShortcutIntent shortcut:
                     device.Handle(shortcut, engines.OfferedCommands(), changes);
                     break;
+                case LinkIntent link:
+                    device.Handle(link, changes);
+                    break;
                 case PageIntent page:
                     pages.Handle(page, changes, Issue);
                     break;
@@ -133,6 +135,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                     device.Workspace(session.WorkspaceId).Handle(session, clock.Now, ids, pages);
                     if (session is PromoteTransientPage promoted) pages.Completed(promoted.PageId);
                     else if (session is ArchiveTransientPage archived) pages.Completed(archived.PageId);
+                    // A deleted Space leaves nothing in this device's link preferences.
+                    else if (session is FinishDeletingSpace deleted) device.ForgetLinks(deleted.SpaceId, changes);
                     break;
                 case SpaceAccessIntent grant:
                     access.Handle(grant, changes);
@@ -191,8 +195,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 SystemPasswordWriteThrough writeThrough => credentials.Answer(writeThrough),
                 SystemPasswordOffer offer => credentials.Answer(offer),
                 BalancedProtectionRules rules => contentBlocking.Answer(rules),
-                ExternalLinkRoute route => links.Answer(route),
-                QuickWindowSite site => links.Answer(site),
+                RouteExternalLink route => device.Answer(route),
                 CanTearOff tearOff => device.Answer(tearOff),
                 SiteDecision decision => device.Answer(decision),
                 CaptureDecision capture => device.Answer(capture),

@@ -61,18 +61,20 @@ private final class BrowserMobileApplication {
         #endif
         let launchEnvironment = BrowserLaunchEnvironment.current
         let forceOnboarding = launchEnvironment.forcesOnboardingWelcome
-        let shouldReset = launchEnvironment.resetsSession
         let usesIsolatedLaunch = launchEnvironment.requiresIsolation
         BrowserAutomaticQuoteSubstitutionPreference.registerDefault()
         presentsInstalledApplicationUI =
             launchEnvironment.presentsInstalledApplicationUI
-        if shouldReset && !usesIsolatedLaunch {
-            BrowserLinkPreferenceStore.shared.reset()
-        }
         // One core per process, keeping the session file and shared by every
         // window of both browsing modes.
         let core = try BrowserStore.launchCore(for: launchEnvironment)
         core.engines.register(WebKitEngineBinding(), isDefault: true)
+        // The core's device store keeps what an older release kept in its
+        // defaults, carried once; the link preferences come first, since every
+        // window's store reads them.
+        let legacyDevice = BrowserLegacyDeviceDefaults.read(for: launchEnvironment)
+        BrowserLinkPreferenceStore.share(
+            BrowserLinkPreferenceStore(core: core, legacyPreferences: legacyDevice.linkPreferences))
         let browser = try BrowserStore.production(core: core, launchEnvironment: launchEnvironment)
         BrowserAppPreferenceStore.shared.bind(
             to: browser, legacy: BrowserLegacyAppPreferences.read(for: launchEnvironment))
@@ -88,7 +90,6 @@ private final class BrowserMobileApplication {
         browser.attachSpaceAccess(spaceAccess)
         // The core keeps every Space's site permission choices and decides
         // which ones the device store keeps: never a private Space's.
-        let legacyDevice = BrowserLegacyDeviceDefaults.read(for: launchEnvironment)
         let permissionCenter = BrowserSitePermissionCenter(core: core)
         permissionCenter.adoptLegacyRecords(legacyDevice.sitePermissions)
         // An isolated launch keeps its engine session state behind the same

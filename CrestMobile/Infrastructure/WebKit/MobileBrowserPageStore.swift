@@ -328,7 +328,7 @@ final class MobileBrowserPageStore:
             existing.updateNavigationContext(
                 tab: tab,
                 automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.automaticallyOpensPeek
+                    .preferences.opensPeekAutomatically
             )
             activate(existing, presenting: presented, at: time)
             return true
@@ -401,7 +401,7 @@ final class MobileBrowserPageStore:
             existing.updateNavigationContext(
                 tab: tab,
                 automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.automaticallyOpensPeek
+                    .preferences.opensPeekAutomatically
             )
             stampPreparedPageIfNeeded(tabID, at: time)
             return existing
@@ -519,7 +519,7 @@ final class MobileBrowserPageStore:
             context.page.updateNavigationContext(
                 tab: context.tab,
                 automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.automaticallyOpensPeek
+                    .preferences.opensPeekAutomatically
             )
         }
         tabState.prune(keeping: reconciliation.retainedTabIDsByProfileID)
@@ -565,7 +565,7 @@ final class MobileBrowserPageStore:
             page.updateNavigationContext(
                 tab: tab,
                 automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.automaticallyOpensPeek
+                    .preferences.opensPeekAutomatically
             )
         }
     }

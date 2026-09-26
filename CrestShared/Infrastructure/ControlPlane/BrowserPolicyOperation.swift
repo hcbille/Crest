@@ -27,11 +27,6 @@ enum BrowserPolicyOperation: String, Codable, Sendable {
     case setupReconcile = "setup.reconcile"
     case setupSpace = "setup.space"
     case setupTab = "setup.tab"
-    case linksRouteCreate = "links.route_create"
-    case linksRouteMove = "links.route_move"
-    case linksRouteRemove = "links.route_remove"
-    case linksRouteUpdate = "links.route_update"
-    case linksSpaceRemoved = "links.space_removed"
     case quickWindowDismissal = "quick_window.dismissal"
     case quickWindowRetarget = "quick_window.retarget"
 }

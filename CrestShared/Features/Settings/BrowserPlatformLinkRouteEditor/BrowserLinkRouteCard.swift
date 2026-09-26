@@ -3,7 +3,7 @@ import SwiftUI
 /// A route reads as a condition followed by its destination. The pattern always
 /// gets a usable editing width; narrow containers stack the destination below it.
 struct BrowserLinkRouteCard: View {
-    let route: BrowserLinkRoute
+    let route: LinkRoute
     let spaces: [BrowserSpace]
     let canMoveUp: Bool
     let canMoveDown: Bool

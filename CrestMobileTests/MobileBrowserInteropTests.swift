@@ -404,11 +404,12 @@ final class MobileBrowserInteropTests: XCTestCase {
     }
 
     func testNativeWindowFocusUsesTheSharedChoiceForCommandMiddleClickAndShift() {
+        let store = BrowserLinkPreferenceStore()
         for focus in [false, true] {
+            store.setBehavior(.focusesNewTabs, isOn: focus)
+            let preferences = store.preferences
             for shift in [false, true] {
                 for middle in [false, true] {
-                    var preferences = BrowserLinkPreferences.default
-                    preferences.focusesNewTabsOpenedFromLinks = focus
                     var flags: UIKeyModifierFlags = middle ? [] : .command
                     if shift { flags.insert(.shift) }
                     let action = StubPopupNavigationAction(
@@ -422,9 +423,9 @@ final class MobileBrowserInteropTests: XCTestCase {
     }
 
     func testBackgroundNativeWindowUpdatesItsOwnTabAndBecomesPressureEligibleAfterLoading() async throws {
-        let saved = BrowserLinkPreferenceStore.shared.preferences
-        defer { BrowserLinkPreferenceStore.shared.update { $0 = saved } }
-        BrowserLinkPreferenceStore.shared.focusesNewTabsOpenedFromLinks = false
+        let saved = BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs
+        defer { BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: saved) }
+        BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: false)
         let context = try makePopupContext()
         let sourceID = context.store.selectedTab?.id
         let url = try XCTUnwrap(URL(string: "https://example.com/research"))

@@ -29,7 +29,6 @@ final class MobileBrowserWindowSceneModel {
     let spaceAccess: BrowserSpaceAccessController
     let startupBehavior: BrowserStartupBehavior
 
-    @ObservationIgnored private let linkPreferenceStore: BrowserLinkPreferenceStore
     @ObservationIgnored private let privateDownloads: MobileBrowserDownloads?
     /// Whether the window closed, taking its private workspace with it.
     @ObservationIgnored private var isClosed = false
@@ -54,8 +53,7 @@ final class MobileBrowserWindowSceneModel {
         usesEphemeralWebsiteDataStores: Bool = false,
         mediaSessionStore: BrowserMediaSessionStore? = nil,
         downloads: MobileBrowserDownloads? = nil,
-        privateDownloads: MobileBrowserDownloads? = nil,
-        linkPreferenceStore: BrowserLinkPreferenceStore = .shared
+        privateDownloads: MobileBrowserDownloads? = nil
     ) {
         // A scene restores the Space it showed and starts without a tab.
         let browser = rootBrowser.makeWindowStore(BrowserWindowOpening(id: id, saved: true, restoresTabs: false))
@@ -122,7 +120,6 @@ final class MobileBrowserWindowSceneModel {
         self.pageStoreRegistry = pageStoreRegistry
         self.spaceAccess = spaceAccess
         self.startupBehavior = startupBehavior
-        self.linkPreferenceStore = linkPreferenceStore
     }
 
     // MARK: - Actions - Window
@@ -207,47 +204,26 @@ final class MobileBrowserWindowSceneModel {
         return .standard
     }
 
+    /// Opens a link another app handed this window where the core routes it,
+    /// which is never a locked Space.
     @discardableResult
     func routeExternalURL(_ url: URL) async -> Bool {
-        guard
-            let decision = linkPreferenceStore.routingDecision(
-                for: url,
-                in: browser.presented,
-                unavailableSpaceIDs: browser.deletingSpaceIDs,
-                asking: browser.core
-            ),
-            let route = MobileBrowserWindowSceneRoute.resolve(
-                url: url,
-                decision: decision,
-                session: browser.session
-            ),
-            let space = browser.session.space(id: route.spaceID),
+        guard BrowserCorePolicy.acceptsExternalURL(url),
+            let placement = try? browser.core.query(
+                RouteExternalLink(windowID: browser.windowID, url: url.absoluteString)),
+            let spaceID = placement.spaceID,
+            let space = browser.spaceModel(spaceID),
             await spaceAccess.unlock(space)
         else { return false }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         guard browser.space(matching: assignment) != nil else { return false }
-
-        switch route {
-        case .quickWindow(let url, let spaceID):
-            guard spaceID == assignment.spaceID else { return false }
-            transientBrowsing.presentQuickWindow(
-                BrowserQuickWindowRequest(
-                    url: url,
-                    spaceAssignment: assignment
-                )
-            )
-        case .space(let url, let spaceID):
-            guard spaceID == assignment.spaceID,
-                browser.openNewTab(
-                    url: url,
-                    matching: assignment
-                ) != nil
-            else {
-                return false
-            }
-            pages.selectAndNavigate(to: url.absoluteString)
-            navigation.selectTab()
+        if placement.opensQuickWindow {
+            transientBrowsing.presentQuickWindow(BrowserQuickWindowRequest(url: url, spaceAssignment: assignment))
+            return true
         }
+        guard browser.openNewTab(url: url, matching: assignment) != nil else { return false }
+        pages.selectAndNavigate(to: url.absoluteString)
+        navigation.selectTab()
         return true
     }
 

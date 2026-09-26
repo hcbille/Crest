@@ -13,6 +13,7 @@ struct BrowserLegacyDeviceDefaults: Equatable, Sendable {
 
     static let sitePermissionsKey = "crest.site-permissions.v1"
     static let shortcutsKey = "crest.keyboard-shortcuts.v1"
+    static let linkPreferencesKey = "crest.link-preferences.v1"
 
     // MARK: - Variables
 
@@ -20,6 +21,8 @@ struct BrowserLegacyDeviceDefaults: Equatable, Sendable {
     var sitePermissions: Data?
     /// The saved shortcut choices, or nil when none were saved.
     var shortcuts: Data?
+    /// The saved link preferences, or nil when none were saved.
+    var linkPreferences: Data?
 
     // MARK: - Actions - Reading
 
@@ -35,6 +38,7 @@ struct BrowserLegacyDeviceDefaults: Equatable, Sendable {
             : standard
         return BrowserLegacyDeviceDefaults(
             sitePermissions: defaults?.data(forKey: sitePermissionsKey),
-            shortcuts: defaults?.data(forKey: shortcutsKey))
+            shortcuts: defaults?.data(forKey: shortcutsKey),
+            linkPreferences: defaults?.data(forKey: linkPreferencesKey))
     }
 }

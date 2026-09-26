@@ -3,7 +3,7 @@ import WebKit
 extension WKNavigationAction {
     /// Called only after WebKit has accepted a new-window request. It never
     /// supplies user activation or changes the popup permission decision.
-    func selectsOpenedLink(using preferences: BrowserLinkPreferences) -> Bool {
+    func selectsOpenedLink(using preferences: LinkPreferences) -> Bool {
         #if os(macOS)
             let option = modifierFlags.contains(.option)
             let middle = BrowserMouseButtonPolicy.isMiddleButton(number: buttonNumber)
@@ -15,9 +15,9 @@ extension WKNavigationAction {
         if modifierFlags.contains(.command) { held.insert(.command) }
         if option { held.insert(.option) }
         return BrowserLinkOpeningPolicy.selectsNewTab(
-            isNewTabGesture: preferences.peekClickModifier.opensNewTab(holding: held) || middle,
+            isNewTabGesture: preferences.peekModifier.opensNewTab(holding: held) || middle,
             isShiftModified: modifierFlags.contains(.shift),
-            focusesNewTabs: preferences.focusesNewTabsOpenedFromLinks
+            focusesNewTabs: preferences.focusesNewTabs
         )
     }
 }

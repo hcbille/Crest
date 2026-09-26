@@ -63,7 +63,7 @@ final class BrowserLinkDragController {
                 self.mouseDown(event)
                 let flags = event.modifierFlags
                 self.mouseDownAllowsNativeDrag = !flags.contains(.command) && !flags.contains(.control)
-                    && BrowserLinkPreferenceStore.shared.dragsLinksToPeek != flags.contains(.option)
+                    && BrowserLinkPreferenceStore.shared.preferences.dragsLinksToPeek != flags.contains(.option)
             }
             return event
         }
@@ -260,7 +260,7 @@ final class BrowserLinkDragController {
         webView?.callAsyncJavaScript(
             "globalThis.__crestLinkDrag?.configure(enabled, available);",
             arguments: [
-                "enabled": BrowserLinkPreferenceStore.shared.dragsLinksToPeek,
+                "enabled": BrowserLinkPreferenceStore.shared.preferences.dragsLinksToPeek,
                 "available": context() != nil && !isNavigating,
             ],
             in: frame, in: BrowserLinkDragContentBridge.world, completionHandler: nil
@@ -269,7 +269,7 @@ final class BrowserLinkDragController {
 
     private func observePreference() {
         withObservationTracking {
-            _ = BrowserLinkPreferenceStore.shared.dragsLinksToPeek
+            _ = BrowserLinkPreferenceStore.shared.preferences.dragsLinksToPeek
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }

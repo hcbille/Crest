@@ -206,7 +206,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
             spaceID: space.id,
             profileID: space.profile.id,
             automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                .preferences.automaticallyOpensPeek
+                .preferences.opensPeekAutomatically
         )
         navigationDecider = BrowserNavigationDecider()
         // Built before the popup coordinator so a popup whose destination belongs

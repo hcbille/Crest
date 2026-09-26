@@ -590,68 +590,6 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         XCTAssertEqual(tab.savedSiteURL, destination)
     }
 
-    func testQuickWindowRemembersSpaceByNormalizedSite() throws {
-        let suiteName = "BrowserTransientBrowsingTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let store = BrowserLinkPreferenceStore(defaults: defaults, persistenceKey: "links")
-        let session = BrowserSession.preview
-        let personal = try XCTUnwrap(session.spaces.last)
-        let first = try XCTUnwrap(URL(string: "https://www.example.com/first"))
-        let second = try XCTUnwrap(URL(string: "https://example.com/second"))
-
-        let core = CrestCore()
-        store.rememberQuickWindowSpace(personal.id, for: first, asking: core)
-
-        XCTAssertEqual(
-            store.routingDecision(
-                for: second,
-                in: BrowserStore(session: session).presented,
-                asking: core
-            ),
-            .quickWindow(spaceID: personal.id)
-        )
-    }
-
-    func testIsolatedLaunchCanResetPersistedLinkRoutes() throws {
-        let suiteName = "BrowserTransientBrowsingTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let store = BrowserLinkPreferenceStore(
-            defaults: defaults,
-            persistenceKey: "links"
-        )
-        let destination = try XCTUnwrap(BrowserSession.preview.spaces.first?.id)
-        store.addRoute(destinationSpaceID: destination)
-        XCTAssertEqual(store.preferences.routes.count, 1)
-
-        store.reset()
-
-        XCTAssertEqual(store.preferences, .default)
-        XCTAssertNil(defaults.data(forKey: "links"))
-    }
-
-    func testPeekClickModifierPersistsAndDefaultsToOption() throws {
-        let suiteName = "BrowserTransientBrowsingTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let persistenceKey = "links"
-        var store: BrowserLinkPreferenceStore? = BrowserLinkPreferenceStore(
-            defaults: defaults,
-            persistenceKey: persistenceKey
-        )
-
-        XCTAssertEqual(store?.preferences.peekClickModifier, .option)
-        store?.update { $0.peekClickModifier = .command }
-        store = nil
-
-        let restored = BrowserLinkPreferenceStore(
-            defaults: defaults,
-            persistenceKey: persistenceKey
-        )
-        XCTAssertEqual(restored.preferences.peekClickModifier, .command)
-    }
-
     func testDismissedQuickWindowArchivesAndRecordsHistoryInExactSpace() throws {
         let browser = BrowserStore(session: .preview, core: .hostingPages())
         let personal = try XCTUnwrap(browser.session.spaces.last)

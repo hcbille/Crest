@@ -13,8 +13,8 @@ final class BrowserStoreTests: XCTestCase {
                 let destination = try XCTUnwrap(session.spaces.last)
                 let previous = try XCTUnwrap(source.pinnedTabs.last)
                 let moved = try XCTUnwrap(source.savedTabs.first)
-                let preferences = BrowserLinkPreferenceStore(persistence: InMemoryBrowserLinkPreferencesPersistence())
-                preferences.followsTabsMovedToAnotherSpace = false
+                let preferences = BrowserLinkPreferenceStore()
+                preferences.setBehavior(.followsMovedTabs, isOn: false)
                 let store = BrowserStore(
                     session: session, linkPreferences: preferences)
                 store.selectSpace(destination.id)
@@ -52,9 +52,9 @@ final class BrowserStoreTests: XCTestCase {
             session.spaces[1].tabs = []
             let sourceID = session.spaces[0].id
             let destinationID = session.spaces[1].id
-            let preferences = BrowserLinkPreferenceStore(persistence: InMemoryBrowserLinkPreferencesPersistence())
-            XCTAssertTrue(preferences.followsTabsMovedToAnotherSpace)
-            preferences.followsTabsMovedToAnotherSpace = follows
+            let preferences = BrowserLinkPreferenceStore()
+            XCTAssertTrue(preferences.preferences.followsMovedTabs)
+            preferences.setBehavior(.followsMovedTabs, isOn: follows)
             let store = BrowserStore(
                 session: session, linkPreferences: preferences)
 

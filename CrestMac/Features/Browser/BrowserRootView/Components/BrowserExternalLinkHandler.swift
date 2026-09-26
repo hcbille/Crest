@@ -34,21 +34,16 @@ struct BrowserExternalLinkHandler: ViewModifier {
             actions.openLocalDocuments([url], in: assignment)
             return
         }
-        guard BrowserCorePolicy.acceptsExternalURL(url) else { return }
-        // A locked routed Space never raises a prompt for a link that arrived
-        // from another process; the core lands it in a Quick Window instead.
-        guard
-            let decision = BrowserLinkPreferenceStore.shared.routingDecision(
-                for: url,
-                in: browser.presented,
-                unavailableSpaceIDs: browser.deletingSpaceIDs,
-                lockedSpaceIDs: Set(browser.spaceModels.filter(spaceAccess.isLocked).map(\.id)),
-                asking: browser.core
-            ),
-            let assignment = await accessibleAssignment(for: decision.spaceID)
+        // The core routes the link and never to a locked Space: one a rule
+        // names opens in a Quick Window on an unlocked Space instead, so a
+        // link from another process never raises a prompt.
+        guard BrowserCorePolicy.acceptsExternalURL(url),
+            let placement = try? browser.core.query(
+                RouteExternalLink(windowID: browser.windowID, url: url.absoluteString)),
+            let spaceID = placement.spaceID,
+            let assignment = await accessibleAssignment(for: spaceID)
         else { return }
-        switch decision {
-        case .quickWindow:
+        if placement.opensQuickWindow {
             openWindow(
                 id: BrowserSceneID.quickWindow.rawValue,
                 value: BrowserQuickWindowRequest(
@@ -57,17 +52,12 @@ struct BrowserExternalLinkHandler: ViewModifier {
                     targetWindowID: targetWindowID
                 )
             )
-        case .space:
-            guard
-                browser.openNewTab(
-                    url: url,
-                    matching: assignment
-                ) != nil
-            else { return }
-            pages.select()
-            pages.navigate(to: url.absoluteString)
-            chrome.dismissCommandPalette()
+            return
         }
+        guard browser.openNewTab(url: url, matching: assignment) != nil else { return }
+        pages.select()
+        pages.navigate(to: url.absoluteString)
+        chrome.dismissCommandPalette()
     }
 
     /// One implementation of local-document opening, shared with the File menu's

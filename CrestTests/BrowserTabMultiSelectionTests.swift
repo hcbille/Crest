@@ -50,8 +50,8 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
                 session.spaces.append(BrowserSession.makeBlankSpace(number: 2))
                 let source = session.spaces[0]
                 let destination = session.spaces[1]
-                let preferences = BrowserLinkPreferenceStore(persistence: InMemoryBrowserLinkPreferencesPersistence())
-                preferences.followsTabsMovedToAnotherSpace = follows
+                let preferences = BrowserLinkPreferenceStore()
+                preferences.setBehavior(.followsMovedTabs, isOn: follows)
                 let browser = BrowserStore(
                     session: session,
                     showing: source.id, tabs: [source.id: source.tabs[0].id, destination.id: destination.tabs[0].id],
@@ -411,8 +411,8 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
     private func makeBatchStore(
         _ session: BrowserSession, showing tabs: [SpaceID: TabID] = [:], fallbackTabID: TabID? = nil
     ) -> BrowserStore {
-        let preferences = BrowserLinkPreferenceStore(persistence: InMemoryBrowserLinkPreferencesPersistence())
-        preferences.followsTabsMovedToAnotherSpace = false
+        let preferences = BrowserLinkPreferenceStore()
+        preferences.setBehavior(.followsMovedTabs, isOn: false)
         let spaceID = session.spaces[0].id
         let shown = tabs.isEmpty ? session.spaces[0].tabs.first.map { [spaceID: $0.id] } ?? [:] : tabs
         var opening = shown

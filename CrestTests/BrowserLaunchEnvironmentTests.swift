@@ -43,17 +43,20 @@ final class BrowserLaunchEnvironmentTests: XCTestCase {
         }
         installed.set(Data("installed".utf8), forKey: BrowserLegacyDeviceDefaults.sitePermissionsKey)
         installed.set(Data("installed".utf8), forKey: BrowserLegacyDeviceDefaults.shortcutsKey)
+        installed.set(Data("installed".utf8), forKey: BrowserLegacyDeviceDefaults.linkPreferencesKey)
         isolated.set(Data("isolated".utf8), forKey: BrowserLegacyDeviceDefaults.shortcutsKey)
 
         let product = BrowserLegacyDeviceDefaults.read(
             for: BrowserLaunchEnvironment(values: [:], isXCTestRuntime: false), standard: installed)
         XCTAssertEqual(product.sitePermissions, Data("installed".utf8))
         XCTAssertEqual(product.shortcuts, Data("installed".utf8))
+        XCTAssertEqual(product.linkPreferences, Data("installed".utf8))
         let namedLaunch = BrowserLaunchEnvironment(
             values: ["CREST_ISOLATED_SESSION": "1", "CREST_ISOLATED_PERSISTENCE_ID": isolationID],
             isXCTestRuntime: false)
         let named = BrowserLegacyDeviceDefaults.read(for: namedLaunch, standard: installed)
         XCTAssertNil(named.sitePermissions)
+        XCTAssertNil(named.linkPreferences)
         XCTAssertEqual(named.shortcuts, Data("isolated".utf8))
         let memoryOnlyLaunch = BrowserLaunchEnvironment(
             values: ["CREST_ISOLATED_SESSION": "1"], isXCTestRuntime: false)

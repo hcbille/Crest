@@ -100,6 +100,13 @@ final class CoreState {
         set { publish(newValue, into: \.shortcutsAreCustomizedStorage, as: \.shortcutsAreCustomized) }
     }
     @ObservationIgnored private var shortcutsAreCustomizedStorage = false
+    /// This device's link preferences, as the core last published them. Nil
+    /// only until the link preference store adopts them, at launch.
+    var linkPreferences: LinkPreferences? {
+        get { observed(\.linkPreferencesStorage, as: \.linkPreferences) }
+        set { publish(newValue, into: \.linkPreferencesStorage, as: \.linkPreferences) }
+    }
+    @ObservationIgnored private var linkPreferencesStorage: LinkPreferences?
     /// This process's access to each Space profile that holds a grant or is
     /// waiting on the device owner, as the core last published it. A profile
     /// missing here holds no grant.

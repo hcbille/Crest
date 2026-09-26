@@ -5,21 +5,17 @@ struct BrowserGeneralSettingsPane: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
 
-    @Bindable private var linkPreferences: BrowserLinkPreferenceStore
     @Environment(\.browserSidebarWidgetRuntime) private var sidebarWidgets
     @State private var defaultBrowser = BrowserDefaultBrowserController()
     @State private var isCheckingDefaultBrowser = true
     @Bindable private var appPreferences = BrowserAppPreferenceStore.shared
 
-    init(
-        browser: BrowserStore,
-        spaceAccess: BrowserSpaceAccessController,
-        linkPreferences: BrowserLinkPreferenceStore = .shared
-    ) {
+    init(browser: BrowserStore, spaceAccess: BrowserSpaceAccessController) {
         self.browser = browser
         self.spaceAccess = spaceAccess
-        _linkPreferences = Bindable(wrappedValue: linkPreferences)
     }
+
+    private var linkPreferences: BrowserLinkPreferenceStore { browser.linkPreferences }
 
     var body: some View {
         BrowserSettingsPane(.general) {
@@ -55,8 +51,11 @@ struct BrowserGeneralSettingsPane: View {
             #if os(macOS)
                 BrowserSplitFocusSettingsSection()
                 Section("Link dragging", systemImage: "cursorarrow.motionlines") {
-                    Toggle("Drag links to Peek", isOn: $linkPreferences.dragsLinksToPeek)
-                        .accessibilityIdentifier("drag-links-to-peek-toggle")
+                    Toggle(
+                        "Drag links to Peek",
+                        isOn: linkPreferences.binding(.dragsLinksToPeek, reading: \.dragsLinksToPeek)
+                    )
+                    .accessibilityIdentifier("drag-links-to-peek-toggle")
                     CrestFormFootnote(
                         "Drag a link to pull out Peek. Hold Option to drag the link normally. Turn off to reverse these gestures."
                     )
@@ -227,13 +226,13 @@ struct BrowserNewTabSettingsSection: View {
     static let controlIdentifier =
         "focus-new-tabs-opened-from-links-toggle"
 
-    @Bindable var preferences: BrowserLinkPreferenceStore
+    let preferences: BrowserLinkPreferenceStore
 
     var body: some View {
         Section("Tabs", systemImage: "square.stack") {
             Toggle(
                 "Focus new tabs opened from links",
-                isOn: $preferences.focusesNewTabsOpenedFromLinks
+                isOn: preferences.binding(.focusesNewTabs, reading: \.focusesNewTabs)
             )
             .accessibilityIdentifier(Self.controlIdentifier)
 
@@ -243,7 +242,7 @@ struct BrowserNewTabSettingsSection: View {
 
             Toggle(
                 "Follow tabs moved to another Space",
-                isOn: $preferences.followsTabsMovedToAnotherSpace
+                isOn: preferences.binding(.followsMovedTabs, reading: \.followsMovedTabs)
             )
             .accessibilityIdentifier("follow-tabs-moved-to-another-space-toggle")
 

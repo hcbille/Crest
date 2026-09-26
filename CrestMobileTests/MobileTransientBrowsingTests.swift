@@ -149,8 +149,6 @@ final class MobileTransientBrowsingTests: XCTestCase {
         XCTAssertEqual(request?.spaceID, spaceID)
         XCTAssertEqual(request?.assignment.profileID, profileID)
         XCTAssertEqual(request?.trigger, .protectedSavedSite)
-        XCTAssertEqual(BrowserLinkPreferences.default.externalLinkDestination, .quickWindow)
-        XCTAssertEqual(BrowserLinkPreferences.default.quickWindowArchivePolicy, .after6Hours)
     }
 
     func testRecentLinkActivationOriginIsBoundedMatchingAndOneShot() throws {

@@ -48,7 +48,6 @@ extension BrowserStore {
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: id,
                 operationID: operationID),
             from: self)
-        BrowserLinkPreferenceStore.shared.removeReferences(to: id)
     }
 
     func resumePendingSpaceDeletions(dataDeleter: any BrowserSpaceDataDeleting) async {

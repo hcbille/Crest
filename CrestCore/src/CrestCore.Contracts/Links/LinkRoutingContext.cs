@@ -1,7 +1,7 @@
 namespace CrestCore.Contracts;
 
-/// The Spaces a link can reach: session order, the selected Space, and the
-/// Spaces the caller cannot open right now, such as ones being deleted.
+/// The Spaces a link can reach: session order, the Space the window shows,
+/// and the Spaces that cannot take a link now, such as ones being deleted.
 public sealed record LinkRoutingContext(IReadOnlyList<Guid> Spaces, Guid SelectedSpaceId, IReadOnlyList<Guid> UnavailableSpaceIds) {
     #region Actions - Availability
 

@@ -335,7 +335,7 @@ final class BrowserPagePool:
         for page in runtime.allPages {
             page.updateNavigationContext(
                 tab: tab,
-                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared.preferences.automaticallyOpensPeek)
+                automaticallyOpensPeek: BrowserLinkPreferenceStore.shared.preferences.opensPeekAutomatically)
         }
         residencyRevision &+= 1
         return true
@@ -766,7 +766,7 @@ final class BrowserPagePool:
             context.page.updateNavigationContext(
                 tab: context.tab,
                 automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.automaticallyOpensPeek
+                    .preferences.opensPeekAutomatically
             )
         }
         tabState.prune(keeping: reconciliation.retainedTabIDsByProfileID)
@@ -843,7 +843,7 @@ final class BrowserPagePool:
             page.updateNavigationContext(
                 tab: tab,
                 automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.automaticallyOpensPeek
+                    .preferences.opensPeekAutomatically
             )
         }
     }
@@ -1054,7 +1054,7 @@ final class BrowserPagePool:
             page.updateNavigationContext(
                 tab: tab,
                 automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                    .preferences.automaticallyOpensPeek
+                    .preferences.opensPeekAutomatically
             )
         }
         return true
@@ -1167,7 +1167,7 @@ final class BrowserPagePool:
         page.updateNavigationContext(
             tab: registration.tab,
             automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                .preferences.automaticallyOpensPeek
+                .preferences.opensPeekAutomatically
         )
         retainResidentPage(page, for: registration.tab.id)
         residencyRevision &+= 1
@@ -1502,7 +1502,7 @@ final class BrowserPagePool:
                 page.updateNavigationContext(
                     tab: tab,
                     automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                        .preferences.automaticallyOpensPeek
+                        .preferences.opensPeekAutomatically
                 )
                 return page
             }
@@ -1520,7 +1520,7 @@ final class BrowserPagePool:
         page.updateNavigationContext(
             tab: tab,
             automaticallyOpensPeek: BrowserLinkPreferenceStore.shared
-                .preferences.automaticallyOpensPeek
+                .preferences.opensPeekAutomatically
         )
         retainResidentPage(page, for: tab.id)
         residencyRevision &+= 1

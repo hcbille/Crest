@@ -51,7 +51,6 @@ final class BrowserMacApplication {
         setenv("CREST_ISOLATED_PERSISTENCE_ID", reviewPersistenceID, 0)
         #endif
         let launchEnvironment = BrowserLaunchEnvironment.current
-        let shouldReset = launchEnvironment.resetsSession
         let usesIsolatedLaunch = launchEnvironment.requiresIsolation
         let usesEphemeralProfileStorage =
             launchEnvironment.usesEphemeralProfileStorage
@@ -67,15 +66,18 @@ final class BrowserMacApplication {
         if !usesIsolatedLaunch {
             BrowserOnboardingLegacyDraftCleanup.clear()
         }
-        if shouldReset && !usesIsolatedLaunch {
-            BrowserLinkPreferenceStore.shared.reset()
-        }
         // One core per process. It keeps the session file, every window of
         // both browsing modes shares it, and standard and private windows each
         // share one download center over it.
         let core = try BrowserStore.launchCore(for: launchEnvironment)
         core.engines.register(WebKitEngineBinding(), isDefault: defaultEngine == nil)
         if let defaultEngine { core.engines.register(defaultEngine, isDefault: true) }
+        // The core's device store keeps what an older release kept in its
+        // defaults, carried once; the link preferences come first, since every
+        // window's store reads them.
+        let legacyDevice = BrowserLegacyDeviceDefaults.read(for: launchEnvironment)
+        BrowserLinkPreferenceStore.share(
+            BrowserLinkPreferenceStore(core: core, legacyPreferences: legacyDevice.linkPreferences))
         let browser = try BrowserStore.production(core: core, launchEnvironment: launchEnvironment)
         BrowserAppPreferenceStore.shared.bind(
             to: browser, legacy: BrowserLegacyAppPreferences.read(for: launchEnvironment))
@@ -98,7 +100,6 @@ final class BrowserMacApplication {
             BrowserSpaceSettingsPresentationState()
         // The core keeps every Space's site permission choices and decides
         // which ones the device store keeps: never a private Space's.
-        let legacyDevice = BrowserLegacyDeviceDefaults.read(for: launchEnvironment)
         let permissionCenter = BrowserSitePermissionCenter(core: core)
         permissionCenter.adoptLegacyRecords(legacyDevice.sitePermissions)
         let hostedNotificationCenter = BrowserHostedWebNotificationSystemCenter()

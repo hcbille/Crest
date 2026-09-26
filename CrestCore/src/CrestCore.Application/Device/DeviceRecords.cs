@@ -1,15 +1,17 @@
+using CrestCore.Contracts;
 using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
 /// What the device store holds: every saved window's record, the persistent
 /// session's site permission choices in storage order, the person's shortcut
-/// choices, and what it has adopted from an installed release.
+/// choices and link preferences, and what it has adopted from an installed
+/// release.
 internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOnlyList<SitePermissionRecord> SitePermissions,
-    ShortcutOverrides Shortcuts, IReadOnlySet<DeviceAdoption> Adopted) {
+    ShortcutOverrides Shortcuts, LinkPreferences Links, IReadOnlySet<DeviceAdoption> Adopted) {
     #region Static Variables
 
-    public static readonly DeviceRecords Empty = new([], [], ShortcutOverrides.None, new HashSet<DeviceAdoption>());
+    public static readonly DeviceRecords Empty = new([], [], ShortcutOverrides.None, LinkPreferencePolicy.Default, new HashSet<DeviceAdoption>());
 
     #endregion
 
@@ -26,6 +28,7 @@ internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOn
         && Windows.SequenceEqual(other.Windows)
         && SitePermissions.SequenceEqual(other.SitePermissions)
         && Shortcuts.SameAs(other.Shortcuts)
+        && Links.Equals(other.Links)
         && Adopted.SetEquals(other.Adopted);
 
     public override int GetHashCode() => HashCode.Combine(Windows.Count, SitePermissions.Count, Adopted.Count);

@@ -78,13 +78,4 @@ public static class BrowserRuleCodes {
     public const string InvalidSiteOrigin = "invalid_site_origin";
 
     #endregion
-
-    #region Variables - Link routes
-
-    public const string DuplicateLinkRoute = "duplicate_link_route";
-    public const string InvalidLinkRouteEdit = "invalid_link_route_edit";
-    public const string LinkPatternTooLong = "link_pattern_too_long";
-    public const string LinkRouteLimit = "link_route_limit";
-
-    #endregion
 }

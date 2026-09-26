@@ -2673,6 +2673,14 @@
     "2026-09-26-lift-checks-drops-lazily": {
       "category": "improved",
       "message": "Picking up tabs, folders or a selection to drag in the sidebar starts faster in Spaces with many tabs and folders"
+    },
+    "2026-09-26-external-links-skip-locked-spaces": {
+      "category": "fixed",
+      "message": "A link opened from another app no longer asks to unlock a locked Space from a Quick Window or on iPhone and iPad; it opens in a Quick Window on an unlocked Space instead"
+    },
+    "2026-09-26-link-preferences-in-core": {
+      "category": "internal",
+      "message": "The core keeps this device's link preferences, applies every change to them and routes links from other apps"
     }
   }
 }

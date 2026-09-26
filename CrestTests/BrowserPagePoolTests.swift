@@ -305,16 +305,9 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testFocusNewTabsPreferenceSelectsACommandModifiedNewWindowTab() throws {
-        let originalPreference = BrowserLinkPreferenceStore.shared.preferences
-            .focusesNewTabsOpenedFromLinks
-        defer {
-            BrowserLinkPreferenceStore.shared.update {
-                $0.focusesNewTabsOpenedFromLinks = originalPreference
-            }
-        }
-        BrowserLinkPreferenceStore.shared.update {
-            $0.focusesNewTabsOpenedFromLinks = true
-        }
+        let originalPreference = BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs
+        defer { BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: originalPreference) }
+        BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: true)
         let context = try makeModifiedLinkContext()
         let destinationURL = try XCTUnwrap(
             URL(string: "https://background.crest.test/focused-command-click")
@@ -758,8 +751,8 @@ final class BrowserPagePoolTests: XCTestCase {
             title: "Destination", url: URL(string: "about:blank#destination"), placement: .current)
         let source = makeSpace(tabs: [previous, tab], selectedTabID: previous.id)
         let destination = makeSpace(tabs: [destinationTab], selectedTabID: destinationTab.id)
-        let preferences = BrowserLinkPreferenceStore(persistence: InMemoryBrowserLinkPreferencesPersistence())
-        preferences.followsTabsMovedToAnotherSpace = false
+        let preferences = BrowserLinkPreferenceStore()
+        preferences.setBehavior(.followsMovedTabs, isOn: false)
         let browser = BrowserStore(
             session: BrowserSession(spaces: [source, destination]), showing: source.id, tabs: fixtureSelections,
             linkPreferences: preferences, core: .hostingPages())
@@ -814,7 +807,7 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertTrue(chrome.isCommandPalettePresented)
         chrome.dismissCommandPalette()
         XCTAssertTrue(pool.activePage === movedPage)
-        preferences.followsTabsMovedToAnotherSpace = true
+        preferences.setBehavior(.followsMovedTabs, isOn: true)
         XCTAssertTrue(browser.moveTab(tab.id, from: destination.id, into: source.id))
         pool.reconcile(session: browser.session)
         model.synchronizeAfterSpaceChange()
@@ -1733,9 +1726,9 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testModifiedScriptedWindowKeepsTheSourceSelectedAndAdoptsOriginalConfiguration() throws {
-        let saved = BrowserLinkPreferenceStore.shared.preferences
-        defer { BrowserLinkPreferenceStore.shared.update { $0 = saved } }
-        BrowserLinkPreferenceStore.shared.focusesNewTabsOpenedFromLinks = false
+        let saved = BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs
+        defer { BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: saved) }
+        BrowserLinkPreferenceStore.shared.setBehavior(.focusesNewTabs, isOn: false)
         let context = try makePopupContext()
         let sourceID = context.store.selectedTab?.id
         let configuration = context.opener.webView.configuration

@@ -1,123 +1,108 @@
 import Foundation
-import Observation
+import os
 
-@Observable
+/// The platform's side of this device's link preferences.
+///
+/// The core owns them: the device store keeps them, the core applies every
+/// edit and its rules, forgets a deleted Space in them, and routes a link
+/// another app hands a window. This store reads them from the read model and
+/// sends the person's changes as intents.
 @MainActor
 final class BrowserLinkPreferenceStore {
-    private(set) var preferences: BrowserLinkPreferences
+    // MARK: - Static Variables
 
-    @ObservationIgnored private let persistence: any BrowserLinkPreferencesPersisting
+    private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "Links")
 
-    init(persistence: any BrowserLinkPreferencesPersisting) {
-        self.persistence = persistence
-        preferences = persistence.load() ?? .default
+    /// TRANSITIONAL until pages ask the core how a clicked link opens: the
+    /// store the launch shares with pages that read a preference directly. It
+    /// runs over a memory-only core of its own until the launch shares the
+    /// store over its core.
+    private(set) static var shared = BrowserLinkPreferenceStore()
+
+    // MARK: - Variables
+
+    private let core: CrestCore
+
+    /// The preferences as the core last published them.
+    var preferences: LinkPreferences {
+        guard let preferences = core.state.linkPreferences else {
+            preconditionFailure("The core publishes the link preferences when the store adopts them.")
+        }
+        return preferences
     }
 
-    var focusesNewTabsOpenedFromLinks: Bool {
-        get { preferences.focusesNewTabsOpenedFromLinks }
-        set { update { $0.focusesNewTabsOpenedFromLinks = newValue } }
-    }
+    // MARK: - Initializers
 
-    var followsTabsMovedToAnotherSpace: Bool {
-        get { preferences.followsTabsMovedToAnotherSpace }
-        set { update { $0.followsTabsMovedToAnotherSpace = newValue } }
-    }
-
-    var dragsLinksToPeek: Bool {
-        get { preferences.dragsLinksToPeek }
-        set { update { $0.dragsLinksToPeek = newValue } }
-    }
-
-    func update(_ update: (inout BrowserLinkPreferences) -> Void) {
-        var revised = preferences
-        update(&revised)
-        guard revised != preferences else { return }
-        preferences = revised
-        persistence.save(revised)
-    }
-
-    func reset() {
-        preferences = .default
-        persistence.remove()
-    }
-
-    /// Where an external link opens, or nil when it may open nowhere. The core
-    /// owns the routing rule, including the locked-Space substitution: a link
-    /// routed to a Space in `lockedSpaceIDs` never raises a prompt for another
-    /// process, and opens in a Quick Window on an unlocked Space instead. A
-    /// core that refuses the preferences opens the link nowhere rather than
-    /// somewhere the rules did not choose.
-    func routingDecision(
-        for url: URL,
-        in session: BrowserPresentedSession,
-        unavailableSpaceIDs: Set<SpaceID> = [],
-        lockedSpaceIDs: Set<SpaceID> = [],
-        asking core: CrestCore
-    ) -> BrowserLinkRoutingDecision? {
-        let remembered = site(for: url, asking: core).flatMap { preferences.rememberedQuickWindowSpacesBySite[$0] }
-        let routing = LinkRoutingPreferences(
-            routes: preferences.routes.map(\.coreRoute),
-            destination: preferences.externalLinkDestination,
-            chosenSpaceID: preferences.externalLinkSpaceID,
-            remembersSpaceBySite: preferences.remembersQuickWindowSpaceBySite, rememberedSpaceID: remembered)
-        let context = LinkRoutingContext(
-            spaces: session.spaces.map(\.id), selectedSpaceID: session.selectedSpaceID,
-            unavailableSpaceIDs: Array(unavailableSpaceIDs))
-        let route = ExternalLinkRoute(
-            url: url.absoluteString, preferences: routing, context: context,
-            lockedSpaceIDs: Array(lockedSpaceIDs))
-        guard let placement = try? core.query(route), let spaceID = placement.spaceID
-        else { return nil }
-        return placement.opensQuickWindow ? .quickWindow(spaceID: spaceID) : .space(spaceID)
-    }
-
-    func rememberQuickWindowSpace(_ spaceID: SpaceID, for url: URL, asking core: CrestCore) {
-        guard let site = site(for: url, asking: core) else { return }
-        update { $0.rememberedQuickWindowSpacesBySite[site] = spaceID }
-    }
-
-    /// The key a Quick Window remembers its Space under, or nil when the
-    /// preference is off, the address has no host, or the core refuses it.
-    private func site(for url: URL, asking core: CrestCore) -> String? {
-        let site = QuickWindowSite(
-            url: url.absoluteString, remembersSpaceBySite: preferences.remembersQuickWindowSpaceBySite)
-        return (try? core.query(site))?.site
-    }
-
-    // Route edits are core decisions applied to the stored preferences. An
-    // edit the core refuses or cannot answer leaves them unchanged.
-
-    func addRoute(destinationSpaceID: SpaceID) {
-        guard let route = BrowserCorePolicy.createdLinkRoute(
-            existing: preferences.routes, destinationSpaceID: destinationSpaceID)
-        else { return }
-        update { $0.routes.append(route) }
-    }
-
-    func updateRoute(_ id: UUID, field: BrowserLinkRouteFieldUpdate) {
-        guard let route = preferences.routes.first(where: { $0.id == id }),
-            let updated = BrowserCorePolicy.updatedLinkRoute(route, field: field)
-        else { return }
-        update { preferences in
-            guard let index = preferences.routes.firstIndex(where: { $0.id == id }) else { return }
-            preferences.routes[index] = updated
+    /// A store over `core`. It carries the preferences an installed release
+    /// kept under `crest.link-preferences.v1`, `legacyPreferences`, into the
+    /// core's device store once; the core publishes them either way.
+    init(core: CrestCore, legacyPreferences: Data? = nil) {
+        self.core = core
+        do {
+            try core.send(AdoptLinkPreferences(preferences: legacyPreferences))
+        } catch {
+            preconditionFailure("The core refused to adopt the link preferences: \(error). Rebuild the core.")
         }
     }
 
+    /// A store over a memory-only core of its own, as previews and tests
+    /// use, which keeps nothing.
+    convenience init() {
+        self.init(core: CrestCore())
+    }
+
+    // MARK: - Actions - Sharing
+
+    /// Shares `store` with the pages that read a preference directly.
+    static func share(_ store: BrowserLinkPreferenceStore) {
+        shared = store
+    }
+
+    // MARK: - Actions - Changes
+
+    func setBehavior(_ behavior: LinkBehavior, isOn: Bool) {
+        send(SetLinkBehavior(behavior: behavior, isOn: isOn))
+    }
+
+    /// Where a link from another app opens when no route takes it; `spaceID`
+    /// names the Space a destination that asks for one opens, and nil keeps
+    /// the one chosen before.
+    func chooseExternalDestination(_ destination: ExternalLinkDestination, spaceID: SpaceID? = nil) {
+        send(ChooseExternalLinkDestination(destination: destination, spaceID: spaceID))
+    }
+
+    func choosePeekModifier(_ modifier: LinkPeekModifier) {
+        send(ChoosePeekModifier(modifier: modifier))
+    }
+
+    func chooseArchivePolicy(_ policy: QuickWindowArchivePolicy) {
+        send(ChooseQuickWindowArchivePolicy(policy: policy))
+    }
+
+    func addRoute(destinationSpaceID: SpaceID) {
+        send(AddLinkRoute(routeID: UUID(), destinationSpaceID: destinationSpaceID))
+    }
+
+    func updateRoute(_ id: UUID, field: BrowserLinkRouteFieldUpdate) {
+        send(field.edit(of: id))
+    }
+
     func removeRoute(_ id: UUID) {
-        guard let routes = BrowserCorePolicy.removingLinkRoute(id, from: preferences.routes) else { return }
-        update { $0.routes = routes }
+        send(RemoveLinkRoute(routeID: id))
     }
 
     func moveRoute(_ id: UUID, by offset: Int) {
-        guard let routes = BrowserCorePolicy.movingLinkRoute(id, by: offset, in: preferences.routes) else { return }
-        update { $0.routes = routes }
+        send(MoveLinkRoute(routeID: id, offset: offset))
     }
 
-    /// The Space-deletion cascade: routes, the chosen Space and remembered
-    /// Quick Window Spaces that point at a deleted Space.
-    func removeReferences(to spaceID: SpaceID) {
-        guard let revised = BrowserCorePolicy.linkPreferences(preferences, removingSpace: spaceID) else { return }
-        update { $0 = revised }
+    /// Sends an edit; one the core refuses leaves the preferences as they were.
+    private func send(_ intent: some LinkIntent) {
+        do {
+            try core.send(intent)
+        } catch {
+            Self.logger.error(
+                "The core refused \(String(describing: type(of: intent)), privacy: .public): \(String(describing: error), privacy: .public)"
+            )
+        }
     }
 }

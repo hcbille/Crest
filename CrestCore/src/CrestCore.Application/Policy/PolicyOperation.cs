@@ -26,12 +26,7 @@ internal enum PolicyOperation {
     SetupReconcile,
     SetupSpace,
     SetupTab,
-    // Links, Quick Windows, presentation, branding and workspace routing.
-    LinksRouteCreate,
-    LinksRouteMove,
-    LinksRouteRemove,
-    LinksRouteUpdate,
-    LinksSpaceRemoved,
+    // Quick Windows.
     QuickWindowDismissal,
     QuickWindowRetarget,
 }
@@ -64,12 +59,7 @@ internal static class PolicyOperationCodes {
         "setup.reconcile" => PolicyOperation.SetupReconcile,
         "setup.space" => PolicyOperation.SetupSpace,
         "setup.tab" => PolicyOperation.SetupTab,
-        // Links, Quick Windows, presentation, branding and workspace routing.
-        "links.route_create" => PolicyOperation.LinksRouteCreate,
-        "links.route_move" => PolicyOperation.LinksRouteMove,
-        "links.route_remove" => PolicyOperation.LinksRouteRemove,
-        "links.route_update" => PolicyOperation.LinksRouteUpdate,
-        "links.space_removed" => PolicyOperation.LinksSpaceRemoved,
+        // Quick Windows.
         "quick_window.dismissal" => PolicyOperation.QuickWindowDismissal,
         "quick_window.retarget" => PolicyOperation.QuickWindowRetarget,
         _ => PolicyOperation.Unknown

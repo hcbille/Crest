@@ -28,7 +28,6 @@ public static partial class NativePolicyEvaluator {
             ?? EvaluateSitePermissions(operation, request)
             ?? EvaluateOrigins(operation, request)
             ?? EvaluateAuthentication(operation, request)
-            ?? EvaluateLinks(operation, request)
             ?? EvaluateQuickWindow(operation, request)
             ?? EvaluateSetup(operation, request)
             ?? EvaluateMedia(operation, request)

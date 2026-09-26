@@ -107,16 +107,13 @@ struct BrowserQuickWindowScene: View {
                 targetWindowID: targetWindowID
             )
         else { return }
+        // The core never routes to a locked Space, so the unlock below only
+        // confirms the Space is still open to this process.
         guard
-            let decision = BrowserLinkPreferenceStore.shared.routingDecision(
-                for: url,
-                in: initialContext.browser.presented,
-                unavailableSpaceIDs: initialContext.browser.deletingSpaceIDs,
-                asking: initialContext.browser.core
-            ),
-            let space = initialContext.browser.session.space(
-                id: decision.spaceID
-            )
+            let placement = try? initialContext.browser.core.query(
+                RouteExternalLink(windowID: initialContext.browser.windowID, url: url.absoluteString)),
+            let spaceID = placement.spaceID,
+            let space = initialContext.browser.spaceModel(spaceID)
         else { return }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         guard await spaceAccess.unlock(space),
@@ -128,25 +125,19 @@ struct BrowserQuickWindowScene: View {
             return
         }
 
-        switch decision {
-        case .quickWindow:
+        if placement.opensQuickWindow {
             request = BrowserQuickWindowRequest(
                 url: url,
                 spaceAssignment: assignment,
                 targetWindowID: targetWindowID
             )
-        case .space:
-            guard
-                context.browser.openNewTab(
-                    url: url,
-                    matching: assignment
-                ) != nil
-            else { return }
-            context.pages.select()
-            context.pages.navigate(to: url.absoluteString)
-            openBrowserWindow()
-            dismissWindow()
+            return
         }
+        guard context.browser.openNewTab(url: url, matching: assignment) != nil else { return }
+        context.pages.select()
+        context.pages.navigate(to: url.absoluteString)
+        openBrowserWindow()
+        dismissWindow()
     }
 
     private func openBrowserWindow() {

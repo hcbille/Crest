@@ -1,10 +1,10 @@
 extension BrowserTransientBrowsingPreferences {
-    /// The app's preferences, with the site rule answered by `core`.
+    /// The app's preferences, as `core` holds this device's link preferences.
     static func production(core: CrestCore) -> BrowserTransientBrowsingPreferences {
         BrowserTransientBrowsingPreferences(
-            archiveLifetime: BrowserLinkPreferenceStore.shared.preferences.quickWindowArchivePolicy.lifetime,
+            archiveLifetime: core.state.linkPreferences?.archivePolicy.lifetime,
             rememberSpace: { spaceID, url in
-                BrowserLinkPreferenceStore.shared.rememberQuickWindowSpace(spaceID, for: url, asking: core)
+                _ = try? core.send(RememberQuickWindowSpace(url: url.absoluteString, spaceID: spaceID))
             }
         )
     }

@@ -78,6 +78,7 @@ internal sealed partial class Device {
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
         keptPermissions.Restore(records.SitePermissions);
         shortcuts = records.Shortcuts;
+        links = records.Links;
         adopted.UnionWith(records.Adopted);
     }
 
@@ -279,7 +280,7 @@ internal sealed partial class Device {
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     private DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. keptPermissions.PersistentRecords],
-        shortcuts, new HashSet<DeviceAdoption>(adopted));
+        shortcuts, links, new HashSet<DeviceAdoption>(adopted));
 
     #endregion
 }

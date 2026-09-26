@@ -135,10 +135,10 @@ extension MobileBrowserPage: WKNavigationDelegate {
             isTopLevelNavigation: navigationAction.targetFrame?.isMainFrame ?? true,
             isCommandModified: isCommandModified, isOptionModified: isOptionModified,
             isMiddleClick: isMiddleClick,
-            peekModifier: BrowserLinkPreferenceStore.shared.preferences.peekClickModifier,
+            peekModifier: BrowserLinkPreferenceStore.shared.preferences.peekModifier,
             isShiftModified: isShiftModified,
             focusesNewTabs: opensModifiedLinksInForeground
-                || BrowserLinkPreferenceStore.shared.preferences.focusesNewTabsOpenedFromLinks)
+                || BrowserLinkPreferenceStore.shared.preferences.focusesNewTabs)
         // A modified click keeps its initiator's referrer through a staged
         // request; a saved-site Peek starts afresh, as it does on Chromium.
         let engineNavigation =

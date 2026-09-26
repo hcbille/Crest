@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserLinkRoutingSection: View {
-    let routes: [BrowserLinkRoute]
+    let routes: [LinkRoute]
     let spaces: [BrowserSpace]
     let selectedSpaceID: SpaceID
     let updateRoute: (UUID, BrowserLinkRouteFieldUpdate) -> Void

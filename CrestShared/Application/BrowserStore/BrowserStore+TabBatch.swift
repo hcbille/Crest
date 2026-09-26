@@ -68,7 +68,7 @@ extension BrowserStore {
     /// Moves the selected tabs to another Space, which the window follows
     /// them to when the person's link preferences say so.
     func moving(_ request: BrowserCapturedSelection, to destination: BrowserSpaceRuntimeAssignment) -> BrowserTabBatch {
-        let follows = linkPreferences.followsTabsMovedToAnotherSpace
+        let follows = linkPreferences.preferences.followsMovedTabs
         return BrowserTabBatch(
             MoveTabsToSpace(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: request.spaceID,

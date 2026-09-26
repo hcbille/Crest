@@ -18,7 +18,7 @@ enum BrowserSettingsPrivacyPolicy {
     }
 
     static func lockedRouteDestinationSpaces(
-        for routes: [BrowserLinkRoute],
+        for routes: [LinkRoute],
         in spaces: [BrowserSpace],
         accessController: BrowserSpaceAccessController
     ) -> [BrowserSpace] {

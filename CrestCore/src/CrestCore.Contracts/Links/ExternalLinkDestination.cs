@@ -12,17 +12,16 @@ public sealed class ExternalLinkDestination {
     /// A Quick Window on the Space remembered for the link's site, when the
     /// preferences remember one and it can open.
     public static readonly ExternalLinkDestination QuickWindow = new(name: "quickWindow", title: "Quick Window",
-        opensQuickWindow: true, space: (preferences, context) =>
-            preferences.RemembersSpaceBySite && preferences.RememberedSpaceId is { } remembered && context.IsAvailable(remembered)
-                ? remembered : context.Fallback());
+        opensQuickWindow: true, space: (preferences, remembered, context) =>
+            preferences.RemembersSpaceBySite && remembered is { } site && context.IsAvailable(site) ? site : context.Fallback());
 
     public static readonly ExternalLinkDestination MostRecentSpace = new(name: "mostRecentSpace", title: "Most Recent Space",
-        opensQuickWindow: false, space: (_, context) => context.Fallback());
+        opensQuickWindow: false, space: (_, _, context) => context.Fallback());
 
     /// The Space the person chose, when it can open.
     public static readonly ExternalLinkDestination ChosenSpace = new(name: "chosenSpace", title: "Chosen Space",
-        opensQuickWindow: false, asksForSpace: true, space: (preferences, context) =>
-            preferences.ChosenSpaceId is { } chosen && context.IsAvailable(chosen) ? chosen : context.Fallback());
+        opensQuickWindow: false, asksForSpace: true, space: (preferences, _, context) =>
+            preferences.DestinationSpaceId is { } chosen && context.IsAvailable(chosen) ? chosen : context.Fallback());
 
     public static IReadOnlyList<ExternalLinkDestination> All { get; } = [QuickWindow, MostRecentSpace, ChosenSpace];
 
@@ -37,14 +36,14 @@ public sealed class ExternalLinkDestination {
     /// The link settings ask which Space the destination opens.
     public bool AsksForSpace { get; }
 
-    private readonly Func<LinkRoutingPreferences, LinkRoutingContext, Guid> space;
+    private readonly Func<LinkPreferences, Guid?, LinkRoutingContext, Guid> space;
 
     #endregion
 
     #region Constructors
 
     private ExternalLinkDestination(string name, string title, bool opensQuickWindow,
-        Func<LinkRoutingPreferences, LinkRoutingContext, Guid> space, bool asksForSpace = false) {
+        Func<LinkPreferences, Guid?, LinkRoutingContext, Guid> space, bool asksForSpace = false) {
         Name = name;
         Title = title;
         OpensQuickWindow = opensQuickWindow;
@@ -62,12 +61,14 @@ public sealed class ExternalLinkDestination {
 
     #region Actions - Routing
 
-    /// The Space a link with no matching route opens in. The selected Space,
-    /// or the first that can open, stands in for one that cannot.
-    public Guid Space(LinkRoutingPreferences preferences, LinkRoutingContext context) {
+    /// The Space a link with no matching route opens in, with `remembered`,
+    /// the Space the preferences remember for the link's site, if any. The
+    /// selected Space, or the first that can open, stands in for one that
+    /// cannot.
+    public Guid Space(LinkPreferences preferences, Guid? remembered, LinkRoutingContext context) {
         ArgumentNullException.ThrowIfNull(preferences);
         ArgumentNullException.ThrowIfNull(context);
-        return space(preferences, context);
+        return space(preferences, remembered, context);
     }
 
     #endregion

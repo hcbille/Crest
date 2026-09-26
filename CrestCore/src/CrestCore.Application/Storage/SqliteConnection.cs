@@ -138,11 +138,17 @@ internal sealed class SqliteConnection : IDisposable {
             + "modified_at REAL NOT NULL, position INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_shortcut (command TEXT PRIMARY KEY, key TEXT, special INTEGER NOT NULL, "
             + "modifiers INTEGER NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_link (id INTEGER PRIMARY KEY CHECK (id = 0), destination TEXT NOT NULL, "
+            + "destination_space TEXT, peek_modifier TEXT NOT NULL, archive_policy TEXT NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_link_behavior (name TEXT PRIMARY KEY, is_on INTEGER NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_link_route (id TEXT PRIMARY KEY, enabled INTEGER NOT NULL, match TEXT NOT NULL, "
+            + "pattern TEXT NOT NULL, space TEXT NOT NULL, position INTEGER NOT NULL)");
+        Execute("CREATE TABLE IF NOT EXISTS device_link_site (site TEXT PRIMARY KEY, space TEXT NOT NULL, position INTEGER NOT NULL)");
     }
 
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
-    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadShortcuts(), ReadAdoptions());
+    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadShortcuts(), ReadLinks(), ReadAdoptions());
 
     private List<SavedWindow> ReadWindows() {
         var windows = new Dictionary<Guid, (Guid ShownSpace, long Used)>();
@@ -200,6 +206,33 @@ internal sealed class SqliteConnection : IDisposable {
         return ShortcutOverrides.Restore(choices);
     }
 
+    /// The link preferences, each value that does not read keeping its
+    /// default: a device that never chose any holds no rows.
+    private LinkPreferences ReadLinks() {
+        var links = LinkPreferencePolicy.Default;
+        Rows("SELECT destination, destination_space, peek_modifier, archive_policy FROM device_link", statement => links = links with {
+            Destination = ExternalLinkDestination.Named(Sqlite.ColumnText(statement, 0)) ?? links.Destination,
+            DestinationSpaceId = Identity(statement, 1),
+            PeekModifier = LinkPeekModifier.Named(Sqlite.ColumnText(statement, 2)) ?? links.PeekModifier,
+            ArchivePolicy = QuickWindowArchivePolicy.Named(Sqlite.ColumnText(statement, 3)) ?? links.ArchivePolicy
+        });
+        Rows("SELECT name, is_on FROM device_link_behavior", statement => {
+            if (LinkBehavior.Named(Sqlite.ColumnText(statement, 0)) is { } behavior)
+                links = behavior.Setting(links, Sqlite.sqlite3_column_int(statement, 1) != 0);
+        });
+        var routes = new List<LinkRoute>();
+        Rows("SELECT id, enabled, match, pattern, space FROM device_link_route ORDER BY position", statement => {
+            if (Identity(statement, 0) is { } id && LinkRouteMatch.Named(Sqlite.ColumnText(statement, 2)) is { } match
+                && Identity(statement, 4) is { } space)
+                routes.Add(new(id, Sqlite.sqlite3_column_int(statement, 1) != 0, match, Sqlite.ColumnText(statement, 3), space));
+        });
+        var sites = new List<RememberedSite>();
+        Rows("SELECT site, space FROM device_link_site ORDER BY position", statement => {
+            if (Identity(statement, 1) is { } space) sites.Add(new(Sqlite.ColumnText(statement, 0), space));
+        });
+        return links with { Routes = routes, RememberedSites = sites };
+    }
+
     private HashSet<DeviceAdoption> ReadAdoptions() {
         var adoptions = new HashSet<DeviceAdoption>();
         foreach (var table in new[] { "device_marker", "device_adoption" })
@@ -216,6 +249,7 @@ internal sealed class SqliteConnection : IDisposable {
         if (written is null || !records.Windows.SequenceEqual(written.Windows)) WriteWindows(records.Windows);
         if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
         if (written is null || !records.Shortcuts.SameAs(written.Shortcuts)) WriteShortcuts(records.Shortcuts);
+        if (written is null || !records.Links.Equals(written.Links)) WriteLinks(records.Links);
         if (written is null || !records.Adopted.SetEquals(written.Adopted)) WriteAdoptions(records.Adopted);
     }
 
@@ -281,6 +315,46 @@ internal sealed class SqliteConnection : IDisposable {
                 Checked(Sqlite.sqlite3_bind_int64(statement, 3, chord?.IsSpecial == true ? 1 : 0));
                 Checked(Sqlite.sqlite3_bind_int64(statement, 4, chord?.Modifiers ?? 0));
             });
+    }
+
+    /// The link preferences: the fixed sets by `Name`, each on-or-off
+    /// preference under its behavior's `Name`, and the routes and remembered
+    /// sites in order.
+    private void WriteLinks(LinkPreferences links) {
+        foreach (var table in new[] { "device_link", "device_link_behavior", "device_link_route", "device_link_site" })
+            Execute($"DELETE FROM {table}");
+        Insert("INSERT INTO device_link(id, destination, destination_space, peek_modifier, archive_policy) VALUES(0,?,?,?,?)", statement => {
+            Bind(statement, 1, links.Destination.Name);
+            Bind(statement, 2, links.DestinationSpaceId is { } space ? Spelling(space) : null);
+            Bind(statement, 3, links.PeekModifier.Name);
+            Bind(statement, 4, links.ArchivePolicy.Name);
+        });
+        foreach (var behavior in LinkBehavior.All)
+            Insert("INSERT INTO device_link_behavior(name, is_on) VALUES(?,?)", statement => {
+                Bind(statement, 1, behavior.Name);
+                Checked(Sqlite.sqlite3_bind_int64(statement, 2, behavior.IsOn(links) ? 1 : 0));
+            });
+        for (int position = 0; position < links.Routes.Count; position++) {
+            var route = links.Routes[position];
+            int index = position;
+            Insert("INSERT INTO device_link_route(id, enabled, match, pattern, space, position) VALUES(?,?,?,?,?,?)", statement => {
+                Bind(statement, 1, Spelling(route.Id));
+                Checked(Sqlite.sqlite3_bind_int64(statement, 2, route.IsEnabled ? 1 : 0));
+                Bind(statement, 3, route.Match.Name);
+                Bind(statement, 4, route.Pattern);
+                Bind(statement, 5, Spelling(route.DestinationSpaceId));
+                Checked(Sqlite.sqlite3_bind_int64(statement, 6, index));
+            });
+        }
+        for (int position = 0; position < links.RememberedSites.Count; position++) {
+            var remembered = links.RememberedSites[position];
+            int index = position;
+            Insert("INSERT INTO device_link_site(site, space, position) VALUES(?,?,?)", statement => {
+                Bind(statement, 1, remembered.Site);
+                Bind(statement, 2, Spelling(remembered.SpaceId));
+                Checked(Sqlite.sqlite3_bind_int64(statement, 3, index));
+            });
+        }
     }
 
     /// Every adoption goes into `device_adoption`; the ones an older build

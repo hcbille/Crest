@@ -41,6 +41,9 @@ protocol DownloadIntent: Intent {}
 /// The members of `Intent` that derive from the core's `ImportWorkspace`.
 protocol ImportWorkspace: Intent {}
 
+/// The members of `Intent` that derive from the core's `LinkIntent`.
+protocol LinkIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `PageIntent`.
 protocol PageIntent: Intent {}
 
@@ -81,6 +84,7 @@ enum Change: Equatable, Sendable {
     case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
     case historyChanged(HistoryChanged)
+    case linkPreferencesChanged(LinkPreferencesChanged)
     case navigationRecorded(NavigationRecorded)
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
@@ -154,6 +158,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidFolderPlacement(InvalidFolderPlacement)
     case invalidFolderSymbol(InvalidFolderSymbol)
     case invalidImport(InvalidImport)
+    case invalidLinkRouteEdit(InvalidLinkRouteEdit)
     case invalidName(InvalidName)
     case invalidPasswordLength(InvalidPasswordLength)
     case invalidRetentionLifetime(InvalidRetentionLifetime)
@@ -169,6 +174,9 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidTabIcon(InvalidTabIcon)
     case languageTooLong(LanguageTooLong)
     case lastStartPage(LastStartPage)
+    case linkPatternTooLong(LinkPatternTooLong)
+    case linkRouteExists(LinkRouteExists)
+    case linkRoutesFull(LinkRoutesFull)
     case noArchivedTabs(NoArchivedTabs)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
@@ -216,6 +224,7 @@ enum Rejection: Equatable, Error, Sendable {
     case translationRuleLimitReached(TranslationRuleLimitReached)
     case unknownArchivedTab(UnknownArchivedTab)
     case unknownFolder(UnknownFolder)
+    case unknownLinkRoute(UnknownLinkRoute)
     case unknownPage(UnknownPage)
     case unknownPrompt(UnknownPrompt)
     case unknownSearchEngine(UnknownSearchEngine)
@@ -336,6 +345,7 @@ extension CoreState {
         case .extensionInstallAsked(let change): apply(change)
         case .foldersChanged(let change): apply(change)
         case .historyChanged(let change): apply(change)
+        case .linkPreferencesChanged(let change): apply(change)
         case .navigationRecorded(let change): apply(change)
         case .pageChanged(let change): apply(change)
         case .pageOpened(let change): apply(change)
@@ -397,6 +407,13 @@ struct AddContentScript: PageRequest, Equatable, Sendable {
     let mainFrameOnly: Bool
 }
 
+struct AddLinkRoute: Intent, LinkIntent, Equatable, Sendable {
+    static let maximumRoutes: Int = 64
+
+    let routeID: UUID
+    let destinationSpaceID: UUID
+}
+
 struct AddSearchEngine: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -413,6 +430,10 @@ struct AddressCompletion: Equatable, Sendable {
 struct AdoptLegacySession: Intent, Equatable, Sendable {
     let installed: LegacySession
     let seed: Data
+}
+
+struct AdoptLinkPreferences: Intent, LinkIntent, Equatable, Sendable {
+    let preferences: Data?
 }
 
 struct AdoptOfferedPage: PageRequest, Equatable, Sendable {
@@ -757,6 +778,19 @@ struct ChangeExtension: PageRequest, Equatable, Sendable {
 
 struct CheckBeforeUnload: Equatable, Sendable {
     let pageID: UUID
+}
+
+struct ChooseExternalLinkDestination: Intent, LinkIntent, Equatable, Sendable {
+    let destination: ExternalLinkDestination
+    let spaceID: UUID?
+}
+
+struct ChoosePeekModifier: Intent, LinkIntent, Equatable, Sendable {
+    let modifier: LinkPeekModifier
+}
+
+struct ChooseQuickWindowArchivePolicy: Intent, LinkIntent, Equatable, Sendable {
+    let policy: QuickWindowArchivePolicy
 }
 
 struct ChooseTabIcon: Intent, SessionIntent, Equatable, Sendable {
@@ -1345,6 +1379,16 @@ struct DuplicateTabs: Intent, SessionIntent, Equatable, Sendable {
     let selection: TabSelection
 }
 
+struct EditLinkRoute: Intent, LinkIntent, Equatable, Sendable {
+    static let maximumPatternLength: Int = 2048
+
+    let routeID: UUID
+    let isEnabled: Bool?
+    let match: LinkRouteMatch?
+    let pattern: String?
+    let destinationSpaceID: UUID?
+}
+
 struct EngineAlreadyRegistered: Equatable, Sendable {
     let kind: EngineKind
 }
@@ -1471,15 +1515,6 @@ struct ExternalLinkPlacement: Equatable, Sendable {
     let spaceID: UUID?
     let opensQuickWindow: Bool
     let substitutesForLockedSpace: Bool
-}
-
-struct ExternalLinkRoute: Query, Equatable, Sendable {
-    typealias Answer = ExternalLinkPlacement
-
-    let url: String
-    let preferences: LinkRoutingPreferences
-    let context: LinkRoutingContext
-    let lockedSpaceIDs: [UUID]
 }
 
 struct FailDownload: Intent, DownloadIntent, Equatable, Sendable {
@@ -1815,6 +1850,10 @@ struct InvalidImport: Equatable, Sendable {
     }
 }
 
+struct InvalidLinkRouteEdit: Equatable, Sendable {
+    let routeID: UUID
+}
+
 struct InvalidName: Equatable, Sendable {
     let limit: Int
 }
@@ -2021,6 +2060,28 @@ struct LinkHovered: Equatable, Sendable {
     let url: String?
 }
 
+struct LinkPatternTooLong: Equatable, Sendable {
+    let maximum: Int
+}
+
+struct LinkPreferences: Equatable, Sendable {
+    let destination: ExternalLinkDestination
+    let destinationSpaceID: UUID?
+    let focusesNewTabs: Bool
+    let followsMovedTabs: Bool
+    let opensPeekAutomatically: Bool
+    let peekModifier: LinkPeekModifier
+    let dragsLinksToPeek: Bool
+    let archivePolicy: QuickWindowArchivePolicy
+    let remembersSpaceBySite: Bool
+    let routes: [LinkRoute]
+    let rememberedSites: [RememberedSite]
+}
+
+struct LinkPreferencesChanged: Equatable, Sendable {
+    let preferences: LinkPreferences
+}
+
 struct LinkRoute: Equatable, Sendable, Identifiable {
     let id: UUID
     let isEnabled: Bool
@@ -2029,18 +2090,12 @@ struct LinkRoute: Equatable, Sendable, Identifiable {
     let destinationSpaceID: UUID
 }
 
-struct LinkRoutingContext: Equatable, Sendable {
-    let spaces: [UUID]
-    let selectedSpaceID: UUID
-    let unavailableSpaceIDs: [UUID]
+struct LinkRouteExists: Equatable, Sendable {
+    let routeID: UUID
 }
 
-struct LinkRoutingPreferences: Equatable, Sendable {
-    let routes: [LinkRoute]
-    let destination: ExternalLinkDestination
-    let chosenSpaceID: UUID?
-    let remembersSpaceBySite: Bool
-    let rememberedSpaceID: UUID?
+struct LinkRoutesFull: Equatable, Sendable {
+    let maximum: Int
 }
 
 struct ListDropTarget: Equatable, Sendable {
@@ -2098,6 +2153,11 @@ struct MoveFolder: Intent, SessionIntent, Equatable, Sendable {
     let parentID: UUID?
     let beforeFolderID: UUID?
     let beforeTabID: UUID?
+}
+
+struct MoveLinkRoute: Intent, LinkIntent, Equatable, Sendable {
+    let routeID: UUID
+    let offset: Int
 }
 
 struct MovePage: Intent, PageIntent, Equatable, Sendable {
@@ -2826,17 +2886,6 @@ struct PromptWithdrawn: EngineEvent, Equatable, Sendable {
     let promptID: UUID
 }
 
-struct QuickWindowSite: Query, Equatable, Sendable {
-    typealias Answer = QuickWindowSiteKey
-
-    let url: String
-    let remembersSpaceBySite: Bool
-}
-
-struct QuickWindowSiteKey: Equatable, Sendable {
-    let site: String?
-}
-
 struct QuitWithDownloadsAsked: Equatable, Sendable {
     let promptID: UUID
     let requestID: UUID
@@ -2898,6 +2947,16 @@ struct ReloadPage: PageRequest, Equatable, Sendable {
     let bypassesCache: Bool
 }
 
+struct RememberQuickWindowSpace: Intent, LinkIntent, Equatable, Sendable {
+    let url: String
+    let spaceID: UUID
+}
+
+struct RememberedSite: Equatable, Sendable {
+    let site: String
+    let spaceID: UUID
+}
+
 struct RemoveDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
 }
@@ -2918,6 +2977,10 @@ struct RemoveHistoryRange: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let start: Date
     let end: Date
+}
+
+struct RemoveLinkRoute: Intent, LinkIntent, Equatable, Sendable {
+    let routeID: UUID
 }
 
 struct RemoveProfileDownloads: Intent, DownloadIntent, Equatable, Sendable {
@@ -3031,6 +3094,13 @@ struct ReturnToSavedAddress: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let tabID: UUID
+}
+
+struct RouteExternalLink: Query, Equatable, Sendable {
+    typealias Answer = ExternalLinkPlacement
+
+    let windowID: UUID
+    let url: String
 }
 
 struct SamePage: Query, Equatable, Sendable {
@@ -3215,6 +3285,11 @@ struct SetFolderSymbol: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
     let folderID: UUID
     let symbol: String
+}
+
+struct SetLinkBehavior: Intent, LinkIntent, Equatable, Sendable {
+    let behavior: LinkBehavior
+    let isOn: Bool
 }
 
 struct SetSitePermission: PageRequest, Equatable, Sendable {
@@ -4000,6 +4075,10 @@ struct UnknownArchivedTab: Equatable, Sendable {
 
 struct UnknownFolder: Equatable, Sendable {
     let folderID: UUID
+}
+
+struct UnknownLinkRoute: Equatable, Sendable {
+    let routeID: UUID
 }
 
 struct UnknownPage: Equatable, Sendable {
@@ -5914,6 +5993,44 @@ struct HostedNotificationRequestAction: Hashable, Sendable {
     }
 
     static func == (lhs: HostedNotificationRequestAction, rhs: HostedNotificationRequestAction) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `LinkBehavior`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `isOn`, `setting`.
+struct LinkBehavior: Hashable, Sendable {
+    let tag: Int
+    let name: String
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        self.name = name
+    }
+
+    static let focusesNewTabs = LinkBehavior(tag: 0, name: "focusesNewTabs")
+    static let followsMovedTabs = LinkBehavior(tag: 1, name: "followsMovedTabs")
+    static let opensPeekAutomatically = LinkBehavior(tag: 2, name: "opensPeekAutomatically")
+    static let dragsLinksToPeek = LinkBehavior(tag: 3, name: "dragsLinksToPeek")
+    static let remembersSpaceBySite = LinkBehavior(tag: 4, name: "remembersSpaceBySite")
+
+    static let all: [LinkBehavior] = [
+        focusesNewTabs,
+        followsMovedTabs,
+        opensPeekAutomatically,
+        dragsLinksToPeek,
+        remembersSpaceBySite
+    ]
+
+    static func named(_ name: String?) -> LinkBehavior? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: LinkBehavior, rhs: LinkBehavior) -> Bool {
         lhs.tag == rhs.tag
     }
 

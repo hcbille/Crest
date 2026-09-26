@@ -302,27 +302,6 @@ static void engine_boundary(void) {
     assert(crest_engine_report(app, engine, created, sizeof(created)) == CREST_INVALID_HANDLE);
     assert(crest_app_destroy(app) == CREST_OK);
 }
-/* The Quick Window site key is a typed query; borrowed-workspace command
- * routing is a core policy answer. */
-static void links_boundary(void) {
-    const uint8_t fingerprint[CREST_CONTRACTS_FINGERPRINT_LENGTH] = CREST_CONTRACTS_FINGERPRINT;
-    uint64_t app = 0;
-    const uint8_t memory_only[] = { 0, 0 };
-    crest_buffer_t buffer = { NULL, 0 };
-    assert(crest_app_create(fingerprint, sizeof(fingerprint), memory_only, sizeof(memory_only), &app, &buffer) == CREST_OK);
-    /* QuickWindowSite: its tag, the address as a length-prefixed UTF-8 string,
-     * then whether Quick Windows remember Spaces by site. */
-    const char *url = "https://www.Docs.example.org/crest", *key = "docs.example.org";
-    uint8_t site[64] = { CREST_QUERY_QUICK_WINDOW_SITE, (uint8_t)strlen(url) };
-    memcpy(site + 2, url, strlen(url));
-    site[2 + strlen(url)] = 1;
-    assert(crest_app_query(app, site, 3 + strlen(url), &buffer) == CREST_OK);
-    /* A present key: the presence byte, then the string. */
-    assert(buffer.length == 2 + strlen(key) && buffer.bytes[0] == 1 && buffer.bytes[1] == strlen(key)
-        && memcmp(buffer.bytes + 2, key, strlen(key)) == 0);
-    crest_buffer_free(&buffer);
-    assert(crest_app_destroy(app) == CREST_OK);
-}
 static volatile int storage_wakes = 0;
 static void count_wake(void* context) {
     assert(context == &storage_wakes);
@@ -505,7 +484,6 @@ static void storage_boundary(void) {
 int main(void) {
     assert(crest_core_abi_version() == CREST_ABI_VERSION);
     policy_boundary();
-    links_boundary();
     app_boundary();
     session_boundary();
     engine_boundary();

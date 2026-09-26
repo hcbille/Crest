@@ -500,34 +500,30 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// Where a link from another app lands: the window that receives it, the
     /// Space its routing names, and whether it opens as a Quick Window.
     private func externalDestination(for url: URL) async
-        -> (model: BrowserMacWindowModel, assignment: BrowserSpaceRuntimeAssignment, decision: BrowserLinkRoutingDecision)? {
+        -> (model: BrowserMacWindowModel, assignment: BrowserSpaceRuntimeAssignment, placement: ExternalLinkPlacement)? {
         guard let model = externalTargetModel() else { return nil }
         let browser = model.browser
         // A link that arrived from another process never raises the biometric
         // prompt for a locked Space; the core opens it in a Quick Window on an
         // unlocked one.
-        guard let decision = BrowserLinkPreferenceStore.shared.routingDecision(
-            for: url, in: browser.presented, unavailableSpaceIDs: browser.deletingSpaceIDs,
-            lockedSpaceIDs: Set(browser.session.spaces.filter(application.spaceAccess.isLocked).map(\.id)),
-            asking: browser.core),
-            let space = browser.session.space(id: decision.spaceID)
+        guard let placement = try? browser.core.query(
+            RouteExternalLink(windowID: browser.windowID, url: url.absoluteString)),
+            let spaceID = placement.spaceID, let space = browser.spaceModel(spaceID)
         else { return nil }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         guard await application.spaceAccess.unlock(space), browser.space(matching: assignment) != nil else { return nil }
-        return (model, assignment, decision)
+        return (model, assignment, placement)
     }
 
     private func openExternalURL(_ url: URL) async {
-        guard let (model, assignment, effective) = await externalDestination(for: url) else { return }
-        let browser = model.browser
-        switch effective {
-        case .quickWindow:
+        guard let (model, assignment, placement) = await externalDestination(for: url) else { return }
+        if placement.opensQuickWindow {
             openQuickWindow(BrowserQuickWindowRequest(url: url, spaceAssignment: assignment, targetWindowID: model.id))
-        case .space:
-            guard commands.openExternalLink(url, in: assignment, window: model.id) else { return }
-            windows[model.id]?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            return
         }
+        guard commands.openExternalLink(url, in: assignment, window: model.id) else { return }
+        windows[model.id]?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     // MARK: - System sign-in

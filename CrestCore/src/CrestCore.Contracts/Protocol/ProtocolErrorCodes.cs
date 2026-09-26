@@ -33,11 +33,4 @@ public static class ProtocolErrorCodes {
     public const string InvalidPopupEvent = "invalid_popup_event";
 
     #endregion
-
-    #region Variables - Links, Quick Windows and presentation
-
-    public const string InvalidLinkRouteMatch = "invalid_link_route_match";
-    public const string LinkRouteBatchLimit = "link_route_batch_limit";
-
-    #endregion
 }

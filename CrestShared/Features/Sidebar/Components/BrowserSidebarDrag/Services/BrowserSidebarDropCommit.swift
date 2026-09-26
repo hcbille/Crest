@@ -92,7 +92,7 @@ struct BrowserSidebarDropCommit {
             guard let destinationSpace = browser.spaceModel(destination.spaceID),
                 destinationSpace.profileID == destination.profileID
             else { return nil }
-            let follows = browser.linkPreferences.followsTabsMovedToAnotherSpace
+            let follows = browser.linkPreferences.preferences.followsMovedTabs
             return (
                 DropOnSpace(
                     workspaceID: workspaceID, windowID: windowID, spaceID: spaceID, selection: selection,

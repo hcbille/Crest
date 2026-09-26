@@ -4,7 +4,7 @@ struct BrowserLinkSettingsContent: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
 
-    @Bindable var links: BrowserLinkPreferenceStore
+    let links: BrowserLinkPreferenceStore
 
     var body: some View {
         BrowserExternalLinkDestinationSection(
@@ -75,54 +75,47 @@ struct BrowserLinkSettingsContent: View {
 
     private var externalDestinationBinding: Binding<ExternalLinkDestination> {
         Binding {
-            links.preferences.externalLinkDestination
+            links.preferences.destination
         } set: { value in
-            links.update { $0.externalLinkDestination = value }
+            links.chooseExternalDestination(value)
         }
     }
 
     private var archivePolicyBinding: Binding<QuickWindowArchivePolicy> {
         Binding {
-            links.preferences.quickWindowArchivePolicy
+            links.preferences.archivePolicy
         } set: { value in
-            links.update { $0.quickWindowArchivePolicy = value }
+            links.chooseArchivePolicy(value)
         }
     }
 
     private var externalSpaceBinding: Binding<SpaceID?> {
         Binding {
             BrowserLinkSettingsSpacePolicy.resolvedExternalSpaceID(
-                preferredSpaceID: links.preferences.externalLinkSpaceID,
+                preferredSpaceID: links.preferences.destinationSpaceID,
                 spaces: browser.session.spaces,
                 selectedSpaceID: browser.selectedSpaceID,
                 unavailableSpaceIDs: browser.deletingSpaceIDs
             )
         } set: { value in
-            links.update { $0.externalLinkSpaceID = value }
+            guard let value else { return }
+            links.chooseExternalDestination(links.preferences.destination, spaceID: value)
         }
     }
 
     private var rememberSpaceBinding: Binding<Bool> {
-        Binding {
-            links.preferences.remembersQuickWindowSpaceBySite
-        } set: { value in
-            links.update { $0.remembersQuickWindowSpaceBySite = value }
-        }
+        links.binding(.remembersSpaceBySite, reading: \.remembersSpaceBySite)
     }
 
     private var automaticPeekBinding: Binding<Bool> {
-        Binding {
-            links.preferences.automaticallyOpensPeek
-        } set: { value in
-            links.update { $0.automaticallyOpensPeek = value }
-        }
+        links.binding(.opensPeekAutomatically, reading: \.opensPeekAutomatically)
     }
 
     private var peekClickModifierBinding: Binding<LinkPeekModifier> {
         Binding {
-            links.preferences.peekClickModifier
+            links.preferences.peekModifier
         } set: { value in
-            links.update { $0.peekClickModifier = value }
+            links.choosePeekModifier(value)
         }
     }
 

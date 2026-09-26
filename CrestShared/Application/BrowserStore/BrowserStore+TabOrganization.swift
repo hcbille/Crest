@@ -205,7 +205,7 @@ extension BrowserStore {
     ) -> Bool {
         guard let source = session.space(id: sourceSpaceID) else { return false }
         guard let destination = session.space(id: destinationSpaceID) else { return false }
-        let follows = linkPreferences.followsTabsMovedToAnotherSpace
+        let follows = linkPreferences.preferences.followsMovedTabs
         do {
             try family.commit(
                 MoveTabToSpace(

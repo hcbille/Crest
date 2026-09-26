@@ -7,12 +7,14 @@ namespace CrestCore.Domain;
 public static class LinkRoutingPolicy {
     #region Actions - Routing
 
-    /// Where a link from another process goes when some Spaces are locked. A
-    /// locked Space is never unlocked on such a link's behalf: the link opens
-    /// in a Quick Window on the selected Space when that one is unlocked and
-    /// available, else on the first that is. Null when no Space can take it.
-    public static LinkRoutingDecision? DecideExternal(string url, LinkRoutingPreferences preferences,
-        LinkRoutingContext context, IReadOnlyCollection<Guid> locked) {
+    /// Where a link from another process goes under this device's link
+    /// preferences when some Spaces are locked. A locked Space is never
+    /// unlocked on such a link's behalf, whether a route, the chosen Space or
+    /// a remembered site names it: the link opens in a Quick Window on the
+    /// selected Space when that one is unlocked and available, else on the
+    /// first that is. Null when no Space can take it.
+    public static LinkRoutingDecision? DecideExternal(string url, LinkPreferences preferences, LinkRoutingContext context,
+        IReadOnlyCollection<Guid> locked) {
         ArgumentNullException.ThrowIfNull(locked);
         var routed = Decide(url, preferences, context);
         if (!locked.Contains(routed.SpaceId)) return routed;
@@ -22,12 +24,17 @@ public static class LinkRoutingPolicy {
         return substitute is { } space ? new(true, space, SubstitutesForLockedSpace: true) : null;
     }
 
-    public static LinkRoutingDecision Decide(string url, LinkRoutingPreferences preferences, LinkRoutingContext context) {
+    /// The first enabled route that matches and whose Space can open, else
+    /// the external-link destination.
+    public static LinkRoutingDecision Decide(string url, LinkPreferences preferences, LinkRoutingContext context) {
+        ArgumentNullException.ThrowIfNull(preferences);
+        ArgumentNullException.ThrowIfNull(context);
         var route = preferences.Routes.FirstOrDefault(candidate => candidate.IsEnabled
             && context.IsAvailable(candidate.DestinationSpaceId) && Matches(candidate, url));
         if (route is not null) return new(false, route.DestinationSpaceId);
+        var remembered = Site(url) is { } site ? preferences.RememberedSites.FirstOrDefault(entry => entry.Site == site)?.SpaceId : null;
         var destination = preferences.Destination;
-        return new(destination.OpensQuickWindow, destination.Space(preferences, context));
+        return new(destination.OpensQuickWindow, destination.Space(preferences, remembered, context));
     }
 
     /// The key a Quick Window remembers its Space under: the lowercased host

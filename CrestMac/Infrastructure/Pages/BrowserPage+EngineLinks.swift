@@ -84,9 +84,9 @@ extension BrowserPage {
             destinationURL: destination, context: navigationContext,
             isUserActivatedLink: true, isTopLevelNavigation: true,
             isCommandModified: modifiers.contains(.command), isOptionModified: modifiers.contains(.option),
-            isMiddleClick: modifiers.contains(.middleClick), peekModifier: preferences.peekClickModifier,
+            isMiddleClick: modifiers.contains(.middleClick), peekModifier: preferences.peekModifier,
             isShiftModified: modifiers.contains(.shift),
-            focusesNewTabs: opensModifiedLinksInForeground || preferences.focusesNewTabsOpenedFromLinks)
+            focusesNewTabs: opensModifiedLinksInForeground || preferences.focusesNewTabs)
         guard decision == .peekModifier else { return (decision, nil) }
         guard let context = navigationContext, let sourceWindow = nativeView.window,
             let request = decision.peekRequest(
