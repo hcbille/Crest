@@ -160,6 +160,29 @@ final class CorePage {
         _ = try? core?.send(LeavePageFailure(pageID: id))
     }
 
+    // MARK: - Actions - Engines
+
+    /// The engines this device registered, as the core last published them,
+    /// or nil before one registered.
+    var engines: EngineRoster? { core?.state.engines }
+
+    /// Opens `origin`'s pages on `engine` from now on, as a choice made in
+    /// `spaceID`, and moves this page there, which loads what it showed.
+    /// False when a rule refuses either, such as a locked Space.
+    @discardableResult
+    func open(_ origin: SiteOrigin, in spaceID: SpaceID, on engine: EngineKind) -> Bool {
+        guard !isReleased, let core else { return false }
+        do {
+            try core.send(ChooseSiteEngine(spaceID: spaceID, origin: origin, engine: engine))
+            try core.send(RehostPage(pageID: id, engine: engine))
+            return true
+        } catch {
+            Self.logger.debug(
+                "The core kept page \(self.id, privacy: .public) on its engine: \(String(describing: error))")
+            return false
+        }
+    }
+
     // MARK: - Actions - Reports
 
     /// Reports what the page's engine saw it do, through that engine. `icon`

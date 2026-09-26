@@ -2881,6 +2881,10 @@
     "2026-09-26-rehost-pages-through-core": {
       "category": "internal",
       "message": "Pages can move to another engine through the core, keeping their tab and window"
+    },
+    "choose-site-engine": {
+      "category": "improved",
+      "message": "On Mac, Site Controls can open a site in WebKit or Chromium; the page moves there and the site keeps opening in that engine"
     }
   }
 }

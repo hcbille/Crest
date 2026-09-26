@@ -23,6 +23,7 @@ struct BrowserSiteSettingsContent: View {
             BrowserSiteDeveloperModeStatus(page: page)
 
             if let origin {
+                BrowserSiteEngineRow(page: page, origin: origin)
                 BrowserSiteOriginSettings(
                     page: page,
                     origin: origin,
