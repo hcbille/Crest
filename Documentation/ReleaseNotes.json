@@ -2773,6 +2773,10 @@
     "2026-09-26-webkit-location-notifications-through-core": {
       "category": "internal",
       "message": "WebKit pages' location and notification requests go through the core, and a page that stops waiting withdraws its question"
+    },
+    "2026-09-26-system-consent-before-saving": {
+      "category": "fixed",
+      "message": "Allowing location or notifications for a site is only remembered once macOS or iOS also allows it"
     }
   }
 }

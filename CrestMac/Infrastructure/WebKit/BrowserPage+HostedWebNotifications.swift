@@ -414,7 +414,10 @@ extension BrowserPage {
         }
     }
 
-    private func authorizedForSystemNotifications(
+    /// Whether the system lets Crest show notifications, offering to recover
+    /// a refusal and, when `requestIfNeeded`, asking the person when it has
+    /// not decided.
+    func authorizedForSystemNotifications(
         requestIfNeeded: Bool
     ) async -> Bool {
         guard let hostedNotificationCenter else { return false }

@@ -233,29 +233,34 @@ final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
         if decision.denies { return false }
         if decision.verdict == .ask {
             // The core asks the person and records what they ask it to
-            // remember; the system's consent still gates every position.
+            // remember, once the system consents to an Allow; the system's
+            // consent still gates every position.
             let grants = await askSite(origin, webView.url.flatMap(SiteOrigin.init(url:)) ?? origin)
             guard isCurrentRequest(request) && !Task.isCancelled, grants else { return false }
         }
 
         guard isCurrentRequest(request) && !Task.isCancelled else { return false }
-        let isSystemAuthorized: Bool
-        switch service.currentAuthorization() {
-        case .authorized:
-            isSystemAuthorized = true
-        case .denied:
-            await recoverSystemAuthorization()
-            guard isCurrentRequest(request) && !Task.isCancelled else { return false }
-            isSystemAuthorized = service.currentAuthorization() == .authorized
-        case .notDetermined:
-            isSystemAuthorized =
-                await service.requestAuthorization() == .authorized
-        }
-        guard isSystemAuthorized,
+        guard await systemAuthorizes(),
             isCurrentRequest(request) && !Task.isCancelled
         else { return false }
         guard !permissionCenter.decision(for: .location, origin: origin, in: spaceID).denies else { return false }
         return true
+    }
+
+    /// Whether the system lets Crest use the person's location, asking them
+    /// when it has not decided and offering to recover a refusal. The page
+    /// asks before it sends the person's Allow to the core, so an Allow the
+    /// system refuses is never saved.
+    func systemAuthorizes() async -> Bool {
+        switch service.currentAuthorization() {
+        case .authorized:
+            return true
+        case .denied:
+            await recoverSystemAuthorization()
+            return service.currentAuthorization() == .authorized
+        case .notDetermined:
+            return await service.requestAuthorization() == .authorized
+        }
     }
 
     private func sendPermission(

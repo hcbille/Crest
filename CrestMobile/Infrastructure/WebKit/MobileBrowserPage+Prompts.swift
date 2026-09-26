@@ -57,10 +57,18 @@ extension MobileBrowserPage: BrowserPromptPresenting {
         let promptID = asked.promptID
         let requests = sitePermissionRequests
         let spaceName = spaceName
-        Task { @MainActor in
-            let response = await requests.response(
+        Task { @MainActor [weak self] in
+            var response = await requests.response(
                 to: question.permission, origin: question.origin, topLevelOrigin: question.topLevelOrigin,
                 spaceName: spaceName, dismissal: dismissal)
+            // An Allow the system then refuses saves nothing, so the site
+            // cannot gain the person's location silently once the system
+            // allows it.
+            if response.grants, question.permission == .location,
+                let coordinator = self?.geolocationCoordinator, !(await coordinator.systemAuthorizes())
+            {
+                response = .denyOnce
+            }
             corePage.answer(
                 AnswerPermission(promptID: promptID, grants: response.grants, remembers: response.savedDecision != nil))
         }

@@ -156,6 +156,28 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
         }
     }
 
+    func testAnAllowTheSystemRefusesIsNotSaved() async throws {
+        let fixture = try makeFixture(systemAuthorization: .notDetermined)
+        defer { fixture.page.release(keepingState: false) }
+        let origin = try XCTUnwrap(SiteOrigin(url: fixture.url))
+        fixture.page.permissionCenter.setDecision(.ask, for: .location, origin: origin, in: fixture.page.spaceID)
+        fixture.page.sitePermissionRequests.setPresentationAvailable(true)
+        fixture.service.delaysAuthorization = true
+        try await loadRequests(in: fixture, startsAuthorized: false, watchOnly: true)
+        try await resolvePrompt(in: fixture, response: .grantPersistently)
+        try await waitUntil("the system's consent request") { fixture.service.authorizationContinuation != nil }
+        // The person's Allow waits on the system before the core hears it.
+        XCTAssertEqual(
+            fixture.page.permissionCenter.decision(for: .location, origin: origin, in: fixture.page.spaceID), .ask)
+        fixture.service.authorization = .denied
+        fixture.service.authorizationContinuation?.resume(returning: .denied)
+        fixture.service.authorizationContinuation = nil
+        try await expectCounts(in: fixture, successes: 0, denials: 1)
+        XCTAssertEqual(
+            fixture.page.permissionCenter.decision(for: .location, origin: origin, in: fixture.page.spaceID), .ask)
+        XCTAssertTrue(fixture.service.watchRequests.isEmpty)
+    }
+
     func testQueuedDeliveryRechecksSiteAndSystemAuthorization() async throws {
         for revokesSystem in [false, true] {
             let fixture = try makeFixture()

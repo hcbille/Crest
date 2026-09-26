@@ -59,12 +59,30 @@ extension BrowserPage: BrowserPromptPresenting {
         let promptID = asked.promptID
         let requests = sitePermissionRequests
         let spaceName = spaceName
-        Task { @MainActor in
-            let response = await requests.response(
+        Task { @MainActor [weak self] in
+            var response = await requests.response(
                 to: question.permission, origin: question.origin, topLevelOrigin: question.topLevelOrigin,
                 spaceName: spaceName, dismissal: dismissal)
+            // An Allow the system then refuses saves nothing, so the site
+            // cannot gain the capability silently once the system allows it.
+            if response.grants, await self?.systemConsents(to: question.permission) != true {
+                response = .denyOnce
+            }
             corePage.answer(
                 AnswerPermission(promptID: promptID, grants: response.grants, remembers: response.savedDecision != nil))
+        }
+    }
+
+    /// Whether the system lets the site have `permission` the person allowed,
+    /// asking them when it has not decided. WebKit's location and
+    /// notifications ask here; capture, and what another engine asks the
+    /// system for itself, pass.
+    private func systemConsents(to permission: SitePermission) async -> Bool {
+        guard let webKitAdapter else { return true }
+        switch permission {
+        case .location: return await webKitAdapter.geolocationCoordinator?.systemAuthorizes() ?? true
+        case .notifications: return await authorizedForSystemNotifications(requestIfNeeded: true)
+        default: return true
         }
     }
 }
