@@ -140,7 +140,7 @@
     }
 
     extension BrowserAuthenticationChallenge {
-        fileprivate init?(chromium challenge: ChromiumAuthenticationChallenge) {
+        fileprivate init?(chromium challenge: AuthenticationRequested) {
             guard let url = URL(string: challenge.url),
                 let origin = CredentialOrigin(
                     securityProtocol: url.scheme ?? "", host: challenge.host, port: challenge.port)
@@ -148,18 +148,22 @@
             let realm = challenge.realm.flatMap { $0.isEmpty ? nil : $0 }
             let method: BrowserAuthenticationMethod
             let scope: BrowserCredentialScope
-            switch challenge.method {
+            // The scheme as the challenge's descriptor names it.
+            let schemeName: String
+            switch challenge.scheme {
             case .basic:
                 method = .httpBasic
                 scope = .httpBasic(realm: realm)
+                schemeName = "basic"
             case .digest:
                 method = .httpDigest
                 scope = .httpDigest(realm: realm)
+                schemeName = "digest"
             }
-            let previousFailures = challenge.previousFailureCount ?? 0
+            let previousFailures = challenge.previousFailures
             self.init(
                 authenticationMethod: method,
-                isProxy: challenge.isProxy ?? false,
+                isProxy: challenge.isProxy,
                 previousFailureCount: previousFailures,
                 protectionSpace: BrowserHTTPAuthenticationProtectionSpace(origin: origin, credentialScope: scope),
                 descriptor: BrowserHTTPAuthenticationDescriptor(
@@ -167,7 +171,7 @@
                         host: challenge.host, port: challenge.port, scheme: url.scheme,
                         emptyHostLabel: ProductIdentity.name),
                     realm: realm,
-                    authenticationMethod: challenge.method.rawValue,
+                    authenticationMethod: schemeName,
                     isSecureTransport: origin.isSecure,
                     previousFailureCount: previousFailures),
                 proposedUsername: nil)

@@ -16,8 +16,15 @@
 #include "chrome/browser/ui/crest/crest_engine_infobars.h"
 #include "chrome/browser/ui/crest/crest_engine_inspector.h"
 #include "chrome/browser/ui/crest/crest_engine_media.h"
+#include "chrome/browser/ui/crest/crest_engine_prompts.h"
 #include "chrome/browser/ui/crest/crest_engine_store.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "components/blocked_content/popup_blocker_tab_helper.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "content/public/browser/ssl_status.h"
+#include "net/cert/x509_certificate.h"
+#include "net/cert/x509_util.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/find_in_page/find_types.h"
@@ -422,6 +429,7 @@ void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
     MovedWithinDocument(PresentedURL(committed));
   } else {
     awaits_finish_ = true;
+    authentication_attempts_.clear();
     if (media_) {
       media_->DocumentChanged();
     }
@@ -1127,6 +1135,90 @@ bool EnginePage::Inspected() const {
 
 engine::InspectorLayout EnginePage::LayoutInspector(double width, double height) const {
   return inspector_ ? inspector_->Layout(width, height) : engine::InspectorLayout{};
+}
+
+// The chain the engine verified for the visible entry, leaf first.
+engine::CertificateChain EnginePage::CertificateChain() const {
+  engine::CertificateChain chain;
+  auto* entry = web_contents() ? web_contents()->GetController().GetVisibleEntry() : nullptr;
+  if (!entry || !entry->GetSSL().certificate) {
+    return chain;
+  }
+  const auto& certificate = entry->GetSSL().certificate;
+  auto append = [&chain](const CRYPTO_BUFFER* buffer) {
+    const auto bytes = net::x509_util::CryptoBufferAsSpan(buffer);
+    chain.certificates.emplace_back(bytes.begin(), bytes.end());
+  };
+  append(certificate->cert_buffer());
+  for (const auto& intermediate : certificate->intermediate_buffers()) {
+    append(intermediate.get());
+  }
+  return chain;
+}
+
+bool EnginePage::ClearSiteData(const engine::Guid& clearance_id) {
+  if (!web_contents()) {
+    return false;
+  }
+  const GURL url = web_contents()->GetLastCommittedURL();
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+  crest::ClearSiteData(Profile::FromBrowserContext(web_contents()->GetBrowserContext()), url,
+                       base::BindOnce(
+                           [](base::WeakPtr<EnginePage> page, engine::Guid clearance, bool cleared) {
+                             if (page) {
+                               page->Present(engine::SiteDataCleared{
+                                   .page_id = page->id(), .clearance_id = clearance, .cleared = cleared});
+                             }
+                           },
+                           weak_factory_.GetWeakPtr(), clearance_id));
+  return true;
+}
+
+// The content settings the engine enforces for Crest's record: allowed,
+// blocked, or the site's own setting cleared so the engine's default applies.
+bool EnginePage::SetSitePermission(engine::SitePermission permission, std::optional<bool> allowed) {
+  if (!web_contents()) {
+    return false;
+  }
+  const GURL origin = web_contents()->GetLastCommittedURL().DeprecatedGetOriginAsURL();
+  if (!origin.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+  ContentSettingsType type;
+  switch (permission) {
+    case engine::SitePermission::kCamera:
+      type = ContentSettingsType::MEDIASTREAM_CAMERA;
+      break;
+    case engine::SitePermission::kMicrophone:
+      type = ContentSettingsType::MEDIASTREAM_MIC;
+      break;
+    case engine::SitePermission::kLocation:
+      type = ContentSettingsType::GEOLOCATION;
+      break;
+    case engine::SitePermission::kNotifications:
+      type = ContentSettingsType::NOTIFICATIONS;
+      break;
+    case engine::SitePermission::kPopups:
+      type = ContentSettingsType::POPUPS;
+      break;
+    case engine::SitePermission::kAutomaticDownloads:
+      type = ContentSettingsType::AUTOMATIC_DOWNLOADS;
+      break;
+    default:
+      return false;
+  }
+  const ContentSetting setting = !allowed ? CONTENT_SETTING_DEFAULT
+                                 : *allowed ? CONTENT_SETTING_ALLOW
+                                            : CONTENT_SETTING_BLOCK;
+  HostContentSettingsMapFactory::GetForProfile(Profile::FromBrowserContext(web_contents()->GetBrowserContext()))
+      ->SetContentSettingDefaultScope(origin, GURL(), type, setting);
+  return true;
+}
+
+int EnginePage::AuthenticationAttempt(const std::string& challenge) {
+  return authentication_attempts_[challenge]++;
 }
 
 bool EnginePage::FinishStoreRequest() {

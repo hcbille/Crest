@@ -253,6 +253,7 @@ enum EngineCommand: Equatable, Sendable {
 
 /// What an engine binding tells the platform directly about one of its pages.
 enum EnginePresentation: Equatable, Sendable {
+    case authenticationRequested(AuthenticationRequested)
     case contentFullscreenChanged(ContentFullscreenChanged)
     case contentMessagePosted(ContentMessagePosted)
     case contentScriptEvaluated(ContentScriptEvaluated)
@@ -262,6 +263,7 @@ enum EnginePresentation: Equatable, Sendable {
     case infoBarShown(InfoBarShown)
     case inspectorClosed(InspectorClosed)
     case inspectorLayoutChanged(InspectorLayoutChanged)
+    case javaScriptDialogRequested(JavaScriptDialogRequested)
     case linkHovered(LinkHovered)
     case mediaSessionChanged(MediaSessionChanged)
     case pageCaptured(PageCaptured)
@@ -277,8 +279,10 @@ enum EnginePresentation: Equatable, Sendable {
     case pageViewClosed(PageViewClosed)
     case pageViewReady(PageViewReady)
     case pageViewUnavailable(PageViewUnavailable)
+    case permissionRequested(PermissionRequested)
     case popupBlocked(PopupBlocked)
     case sidePanelRequested(SidePanelRequested)
+    case siteDataCleared(SiteDataCleared)
     case stagedLinkUnavailable(StagedLinkUnavailable)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
@@ -400,12 +404,37 @@ struct AnalyzedSpaceReview: Equatable, Sendable {
     let matchedTabIDs: [UUID]
 }
 
+struct AnswerAuthentication: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let challengeID: UUID
+    let credential: AuthenticationCredential?
+}
+
 struct AnswerInfoBar: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
     let pageID: UUID
     let infoBarID: Int
     let answer: InfoBarAnswer
+}
+
+struct AnswerJavaScriptDialog: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let dialogID: UUID
+    let accepted: Bool
+    let input: String?
+}
+
+struct AnswerPermission: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let requestID: UUID
+    let answer: PermissionAnswer
 }
 
 struct AppConfiguration: Equatable, Sendable {
@@ -469,6 +498,23 @@ struct AssignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
 }
 
 struct AuthenticationBusy: Equatable, Sendable {
+}
+
+struct AuthenticationCredential: Equatable, Sendable {
+    let username: String
+    let password: String
+}
+
+struct AuthenticationRequested: Equatable, Sendable {
+    let pageID: UUID
+    let challengeID: UUID
+    let url: String
+    let host: String
+    let port: Int
+    let realm: String?
+    let scheme: AuthenticationScheme
+    let isProxy: Bool
+    let previousFailures: Int
 }
 
 struct AwaitDownloadApproval: Intent, DownloadIntent, Equatable, Sendable {
@@ -605,6 +651,10 @@ struct CapturePage: PageRequest, Equatable, Sendable {
     let width: Double
 }
 
+struct CertificateChain: Equatable, Sendable {
+    let certificates: [Data]
+}
+
 struct ChangeExtension: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -636,6 +686,13 @@ struct ClearCurrentTabs: Intent, SessionIntent, Equatable, Sendable {
 struct ClearHistory: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID?
+}
+
+struct ClearSiteData: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let clearanceID: UUID
 }
 
 struct CloseInspector: PageRequest, Equatable, Sendable {
@@ -1627,6 +1684,15 @@ struct InvalidTabIcon: Equatable, Sendable {
     let mode: TabIconMode
 }
 
+struct JavaScriptDialogRequested: Equatable, Sendable {
+    let pageID: UUID
+    let dialogID: UUID
+    let kind: JavaScriptDialogKind
+    let message: String
+    let defaultText: String
+    let sourceURL: String
+}
+
 struct JoinSplit: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -2099,6 +2165,12 @@ struct PageCaptured: Equatable, Sendable {
     let png: Data?
 }
 
+struct PageCertificates: PageRequest, Equatable, Sendable {
+    typealias Answer = CertificateChain
+
+    let pageID: UUID
+}
+
 struct PageChanged: Equatable, Sendable {
     let page: PageState
 }
@@ -2382,6 +2454,14 @@ struct PerformMediaAction: PageRequest, Equatable, Sendable {
     let pageID: UUID
     let document: String
     let action: MediaSessionAction
+}
+
+struct PermissionRequested: Equatable, Sendable {
+    let pageID: UUID
+    let requestID: UUID
+    let permission: SitePermission
+    let origin: String
+    let topLevelOrigin: String
 }
 
 struct PersistentWorkspaceRequired: Equatable, Sendable {
@@ -2794,6 +2874,14 @@ struct SetFolderSymbol: Intent, SessionIntent, Equatable, Sendable {
     let symbol: String
 }
 
+struct SetSitePermission: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let permission: SitePermission
+    let allowed: Bool?
+}
+
 struct SetSpaceAccess: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -2922,6 +3010,12 @@ struct SidebarRow: Equatable, Sendable, Identifiable {
     let parentFolderID: UUID?
     let depth: Int
     let members: [UUID]
+}
+
+struct SiteDataCleared: Equatable, Sendable {
+    let pageID: UUID
+    let clearanceID: UUID
+    let cleared: Bool
 }
 
 struct SiteDecision: Query, Equatable, Sendable {
@@ -3643,6 +3737,11 @@ struct ZoomPage: PageRequest, Equatable, Sendable {
 
 // MARK: - Enums
 
+enum AuthenticationScheme: Int, CaseIterable, Sendable {
+    case basic = 0
+    case digest = 1
+}
+
 enum CredentialCaptureAction: Int, CaseIterable, Sendable {
     case ignore = 0
     case rememberUsername = 1
@@ -3879,6 +3978,13 @@ enum InspectorPanel: Int, CaseIterable, Sendable {
     case network = 2
 }
 
+enum JavaScriptDialogKind: Int, CaseIterable, Sendable {
+    case alert = 0
+    case confirm = 1
+    case prompt = 2
+    case beforeUnload = 3
+}
+
 enum MediaPlayback: Int, CaseIterable, Sendable {
     case none = 0
     case playing = 1
@@ -3915,6 +4021,13 @@ enum PasskeyDeviceConfiguration: Int, CaseIterable, Sendable {
     case configured = 0
     case notConfigured = 1
     case unknown = 2
+}
+
+enum PermissionAnswer: Int, CaseIterable, Sendable {
+    case allow = 0
+    case allowOnce = 1
+    case block = 2
+    case dismiss = 3
 }
 
 enum SavedTabClosePolicy: Int, CaseIterable, Sendable {

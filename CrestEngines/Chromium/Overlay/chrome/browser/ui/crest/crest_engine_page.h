@@ -2,6 +2,7 @@
 #define CHROME_BROWSER_UI_CREST_CREST_ENGINE_PAGE_H_
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -160,6 +161,11 @@ class EnginePage final : public content::WebContentsObserver,
   bool CloseInspector();
   bool Inspected() const;
   engine::InspectorLayout LayoutInspector(double width, double height) const;
+  engine::CertificateChain CertificateChain() const;
+  bool ClearSiteData(const engine::Guid& clearance_id);
+  bool SetSitePermission(engine::SitePermission permission, std::optional<bool> allowed);
+  // How often the same server and realm asked in this document before now.
+  int AuthenticationAttempt(const std::string& challenge);
   // The review a Chrome Web Store listing's request began finished.
   bool FinishStoreRequest();
   // The engine's extensions changed, which a store listing's button shows.
@@ -312,6 +318,8 @@ class EnginePage final : public content::WebContentsObserver,
   std::optional<std::optional<engine::BrandColor>> presented_theme_;
   // How many pop-ups the engine blocked in the document when last presented.
   size_t presented_blocked_popups_ = 0;
+  // How often each server and realm asked for a password in this document.
+  std::map<std::string, int> authentication_attempts_;
   base::TimeTicks last_interaction_;
   base::WeakPtrFactory<EnginePage> weak_factory_{this};
 };

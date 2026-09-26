@@ -33,13 +33,13 @@
         var linkHandler: (String, URL, String) -> Bool = { _, _, _ in false }
         var contextMenuActions: (URL?, String?) -> [[String: String]] = { _, _ in [] }
         var contextMenuAction: (String, URL?, String?) -> Bool = { _, _, _ in false }
-        var httpAuthenticationHandler: (ChromiumAuthenticationChallenge, @escaping (String?, String?) -> Void) -> Void =
+        var httpAuthenticationHandler: (AuthenticationRequested, @escaping (String?, String?) -> Void) -> Void =
             {
                 _, reply in reply(nil, nil)
             }
         var javaScriptDialogHandler:
             (
-                ChromiumJavaScriptDialogKind, String, String, URL?, @escaping (Bool, String?) -> Void
+                JavaScriptDialogKind, String, String, URL?, @escaping (Bool, String?) -> Void
             ) -> Void = { _, _, _, _, reply in reply(false, nil) }
         var protectedLinkHandler: (URL) -> (() -> Void)? = { _ in nil }
         var modifiedLinkHandler: (URL, Int, String) -> (LinkNavigationDecision, (() -> Void)?) = { _, _, _ in
@@ -57,6 +57,7 @@
         private var captures: [UUID: @MainActor (NSImage?) -> Void] = [:]
         private var exports: [UUID: CheckedContinuation<Data, any Error>] = [:]
         private var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
+        private var clearances: [UUID: CheckedContinuation<Bool, Never>] = [:]
 
         /// A page the core opened, which Chromium's binding creates.
         init(id: UUID, engine: ChromiumEngine) {
@@ -294,30 +295,11 @@
                         host: message.frame.host, port: Int(message.frame.port), handle: message.frame.id as NSString)))
         }
 
-        struct ContentSetting: Identifiable {
-            let id: String
-            let label: String
-            var value: Int
-            let supportsAsk: Bool
-        }
-        var permissions: [ContentSetting] {
-            (host?.permissions(forPage: id) ?? []).compactMap { item in
-                guard let id = item["id"] as? String, let label = item["label"] as? String,
-                    let value = item["value"] as? Int
-                else { return nil }
-                return ContentSetting(
-                    id: id, label: label, value: value, supportsAsk: item["supportsAsk"] as? Bool ?? false)
-            }
-        }
-        func setPermission(_ permission: String, value: Int) -> Bool {
-            host?.setPermission(permission, page: id, value: value) ?? false
-        }
-
         // Chromium's content-setting values: 1 allows; 0 clears the site's own
         // setting, which leaves the engine's default of blocking.
         func applyAutomaticPopups(_ allowed: Bool) -> Bool {
-            guard created, !disposed else { return true }
-            _ = setPermission("popups", value: allowed ? 1 : 0)
+            guard created, let pages else { return true }
+            pages.request(SetSitePermission(pageID: pageID, permission: .popups, allowed: allowed ? true : nil))
             return true
         }
 
@@ -336,9 +318,9 @@
         /// Rebuilt from the chain the engine verified, so the system certificate
         /// sheet can show it. The trust carries an SSL policy for the page's host.
         var serverTrust: SecTrust? {
-            guard created, !disposed, let host, let chain = host.certificateChain(forPage: id) as [NSData]?,
-                !chain.isEmpty
-            else { return nil }
+            guard created, let pages else { return nil }
+            let chain = pages.request(PageCertificates(pageID: pageID)).certificates
+            guard !chain.isEmpty else { return nil }
             let certificates = chain.compactMap { SecCertificateCreateWithData(nil, $0 as CFData) }
             guard certificates.count == chain.count else { return nil }
             var trust: SecTrust?
@@ -356,8 +338,8 @@
         /// names: 1 allows, 2 blocks and 0 clears the site's own setting.
         func applySitePermission(_ permission: SitePermission, allowed: Bool?) -> Bool {
             guard Self.enforcedPermissions.contains(permission) else { return false }
-            guard created, !disposed else { return true }
-            _ = setPermission(permission.name, value: allowed.map { $0 ? 1 : 2 } ?? 0)
+            guard created, let pages else { return true }
+            pages.request(SetSitePermission(pageID: pageID, permission: permission, allowed: allowed))
             return true
         }
 
@@ -369,9 +351,14 @@
 
         /// The engine clears the site its page is showing.
         func clearSiteData(for url: URL) async -> Bool {
-            guard created, !disposed, let host else { return false }
+            guard created, let pages else { return false }
+            let clearanceID = UUID()
             return await withCheckedContinuation { continuation in
-                host.clearSiteData(page: id) { cleared in continuation.resume(returning: cleared) }
+                guard pages.request(ClearSiteData(pageID: pageID, clearanceID: clearanceID)) else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                clearances[clearanceID] = continuation
             }
         }
 
@@ -512,6 +499,8 @@
             exports = [:]
             for (_, evaluation) in evaluations { evaluation.resume(returning: nil) }
             evaluations = [:]
+            for (_, clearance) in clearances { clearance.resume(returning: false) }
+            clearances = [:]
         }
 
         private func history(_ entries: [PageHistoryEntry]) -> [BrowserNavigationHistoryItem] {
@@ -580,11 +569,57 @@
                 observer(.progressChanged(1))
             case .inspectorLayoutChanged: refreshDevTools()
             case .inspectorClosed: developerPanelDidClose()
+            case .siteDataCleared(let cleared):
+                clearances.removeValue(forKey: cleared.clearanceID)?.resume(returning: cleared.cleared)
+            case .javaScriptDialogRequested(let dialog): present(dialog)
+            case .authenticationRequested(let challenge): present(challenge)
+            case .permissionRequested(let request): present(request)
             case .extensionsChanged, .sidePanelRequested: break
             case .findFinished(let finished): receive(finished)
             case .pageCaptured(let captured): receive(captured)
             case .pageExported(let exported): receive(exported)
             }
+        }
+
+        /// A script dialog, answered once the person answers it; a dialog no one
+        /// shows is answered as dismissed.
+        private func present(_ dialog: JavaScriptDialogRequested) {
+            javaScriptDialogHandler(dialog.kind, dialog.message, dialog.defaultText, URL(string: dialog.sourceURL)) {
+                [weak self] accepted, input in
+                guard let self, let pages = self.pages else { return }
+                pages.request(
+                    AnswerJavaScriptDialog(
+                        pageID: self.pageID, dialogID: dialog.dialogID, accepted: accepted, input: input))
+            }
+        }
+
+        private func present(_ challenge: AuthenticationRequested) {
+            httpAuthenticationHandler(challenge) { [weak self] username, password in
+                guard let self, let pages = self.pages else { return }
+                let credential = username.flatMap { username in
+                    password.map { AuthenticationCredential(username: username, password: $0) }
+                }
+                pages.request(
+                    AnswerAuthentication(
+                        pageID: self.pageID, challengeID: challenge.challengeID, credential: credential))
+            }
+        }
+
+        /// Crest's record and prompt answer the site's request.
+        private func present(_ request: PermissionRequested) {
+            let answer: @MainActor (BrowserEnginePermissionResponse) -> Void = { [weak self] response in
+                guard let self, let pages = self.pages else { return }
+                pages.request(
+                    AnswerPermission(pageID: self.pageID, requestID: request.requestID, answer: response.answer))
+            }
+            guard let handler = permissionHandler,
+                let origin = URL(string: request.origin).flatMap(SiteOrigin.init(url:))
+            else {
+                answer(.dismiss)
+                return
+            }
+            let topLevel = URL(string: request.topLevelOrigin).flatMap(SiteOrigin.init(url:)) ?? origin
+            Task { @MainActor in answer(await handler(request.permission, origin, topLevel)) }
         }
 
         /// The engine created the page: the page's handlers and scripts go in,
@@ -607,26 +642,9 @@
         }
 
         /// The handlers the Mac shell asks for what Chromium needs answered on
-        /// its own stack. TRANSITIONAL until dialogs, prompts and link questions
-        /// travel as presentations (WP C (e), (f), (l)).
+        /// its own stack. TRANSITIONAL until link questions travel as
+        /// presentations (WP C (l)).
         private func installHandlers() {
-            host?.setPermissionHandler(page: id) { [weak self] request, reply in
-                MainActor.assumeIsolated {
-                    guard let self, let handler = self.permissionHandler,
-                        let permission = (request["permission"] as? String).flatMap(
-                            SitePermission.named),
-                        let origin = (request["origin"] as? String).flatMap(URL.init(string:)).flatMap(
-                            SiteOrigin.init(url:))
-                    else {
-                        reply(BrowserEnginePermissionResponse.dismiss.hostCode)
-                        return
-                    }
-                    let topLevel =
-                        (request["topLevelOrigin"] as? String).flatMap(URL.init(string:))
-                        .flatMap(SiteOrigin.init(url:)) ?? origin
-                    Task { @MainActor in reply(await handler(permission, origin, topLevel).hostCode) }
-                }
-            }
             host?.setLinkHandler(page: id) { [weak self] action, address, label in
                 MainActor.assumeIsolated {
                     guard let self, !self.disposed, let url = URL(string: address) else { return false }
@@ -649,31 +667,6 @@
                         return self.contextMenuAction(identifier, url, selection.isEmpty ? nil : selection)
                     }
                 })
-            host?.setJavaScriptDialogHandler(page: id) { [weak self] kind, message, defaultText, address, reply in
-                MainActor.assumeIsolated {
-                    guard let self, !self.disposed else {
-                        reply(false, nil)
-                        return
-                    }
-                    guard let kind = ChromiumJavaScriptDialogKind(rawValue: kind) else {
-                        reply(false, nil)
-                        return
-                    }
-                    self.javaScriptDialogHandler(kind, message, defaultText, URL(string: address), reply)
-                }
-            }
-            host?.setHTTPAuthenticationHandler(page: id) { [weak self] challenge, reply in
-                MainActor.assumeIsolated {
-                    guard let self, !self.disposed,
-                        let challenge = ChromiumHostPayload.decode(
-                            ChromiumAuthenticationChallenge.self, from: challenge)
-                    else {
-                        reply(nil, nil)
-                        return
-                    }
-                    self.httpAuthenticationHandler(challenge, reply)
-                }
-            }
             host?.setProtectedLinkHandler(page: id) { [weak self] address in
                 var deferred: CrestDeferredNavigation?
                 MainActor.assumeIsolated {
@@ -970,13 +963,13 @@
     }
 
     extension BrowserEnginePermissionResponse {
-        /// The host's reply code for a permission request.
-        fileprivate var hostCode: Int {
+        /// The answer the binding applies to a permission request.
+        fileprivate var answer: PermissionAnswer {
             switch self {
-            case .allow: 1
-            case .allowOnce: 2
-            case .block: 3
-            case .dismiss: 4
+            case .allow: .allow
+            case .allowOnce: .allowOnce
+            case .block: .block
+            case .dismiss: .dismiss
             }
         }
     }

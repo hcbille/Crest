@@ -18,6 +18,7 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/ui/crest/crest_engine.h"
 #include "chrome/browser/ui/crest/crest_engine_contract.h"
+#include "components/permissions/permission_prompt.h"
 
 class GURL;
 class Profile;
@@ -30,6 +31,7 @@ namespace crest {
 
 class EngineExtensions;
 class EnginePage;
+class EnginePrompts;
 
 // Chromium's engine binding: the portable half of Crest's Chromium host, in
 // C++ and Chromium's own types with no Objective-C, so it serves every
@@ -123,6 +125,13 @@ class EngineBinding {
   void DockInspector(const std::string& page, content::WebContents* frontend);
   // Every profile's extensions.
   EngineExtensions& Extensions();
+  // What the binding's pages ask the person.
+  EnginePrompts& Prompts();
+  // The prompt for a permission request in the page that shows `contents`,
+  // or nullptr when no page shows it or Crest's record does not cover it.
+  std::unique_ptr<permissions::PermissionPrompt> PermissionPrompt(
+      content::WebContents* contents,
+      permissions::PermissionPrompt::Delegate* delegate);
   // The engine asks for an extension's side panel beside `page`.
   void RequestSidePanel(const std::string& page, const std::string& extension, engine::SidePanelRequest request);
 
@@ -190,6 +199,12 @@ class EngineBinding {
   engine::InstalledExtensionList Handle(const engine::InstalledExtensions& request);
   bool Handle(const engine::ChangeExtension& request);
   bool Handle(const engine::HasSidePanel& request);
+  engine::CertificateChain Handle(const engine::PageCertificates& request);
+  bool Handle(const engine::ClearSiteData& request);
+  bool Handle(const engine::SetSitePermission& request);
+  bool Handle(const engine::AnswerJavaScriptDialog& request);
+  bool Handle(const engine::AnswerAuthentication& request);
+  bool Handle(const engine::AnswerPermission& request);
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
@@ -216,6 +231,7 @@ class EngineBinding {
   // platform that comes to one late still hears it has no view.
   std::set<std::string> failed_;
   std::unique_ptr<EngineExtensions> extensions_;
+  std::unique_ptr<EnginePrompts> prompts_;
   std::deque<Outgoing> queue_;
   std::vector<std::string> due_;
   bool flush_posted_ = false;

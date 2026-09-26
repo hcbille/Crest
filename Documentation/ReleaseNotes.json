@@ -2609,6 +2609,10 @@
     "2026-09-25-palette-ranked-in-core": {
       "category": "improved",
       "message": "Typing in the command palette stays quick in Spaces with large histories, and address completion now suggests pages from your whole history"
+    },
+    "2026-09-25-chromium-binding-site-services": {
+      "category": "internal",
+      "message": "Chromium answers a page's site services and presents its prompts from its own C++ binding"
     }
   }
 }

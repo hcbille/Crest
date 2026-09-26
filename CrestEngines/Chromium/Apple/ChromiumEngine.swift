@@ -92,6 +92,10 @@
             case .findFinished(let value): value.pageID
             case .infoBarRemoved(let value): value.pageID
             case .infoBarShown(let value): value.pageID
+            case .authenticationRequested(let value): value.pageID
+            case .javaScriptDialogRequested(let value): value.pageID
+            case .permissionRequested(let value): value.pageID
+            case .siteDataCleared(let value): value.pageID
             case .sidePanelRequested(let value): value.pageID
             case .inspectorClosed(let value): value.pageID
             case .inspectorLayoutChanged(let value): value.pageID

@@ -495,20 +495,6 @@ class NativePermissionPrompt final : public permissions::PermissionPrompt {
   bool responded_ = false;
   base::WeakPtrFactory<NativePermissionPrompt> weak_factory_{this};
 };
-struct SitePermission {
-  const char* key;
-  const char* label;
-  ContentSettingsType type;
-  bool supports_ask;
-};
-const SitePermission kSitePermissions[] = {
-  {"camera", "Camera", ContentSettingsType::MEDIASTREAM_CAMERA, true},
-  {"microphone", "Microphone", ContentSettingsType::MEDIASTREAM_MIC, true},
-  {"location", "Location", ContentSettingsType::GEOLOCATION, true},
-  {"notifications", "Notifications", ContentSettingsType::NOTIFICATIONS, true},
-  {"popups", "Automatic Pop-ups", ContentSettingsType::POPUPS, false},
-  {"downloads", "Automatic Downloads", ContentSettingsType::AUTOMATIC_DOWNLOADS, true}
-};
 struct Page;
 struct BrowserOwner;
 struct NativeAdoption {
@@ -630,37 +616,6 @@ void StartAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
 
 // Chromium owns the wipe, profile registry and crash-recoverable disk cleanup.
 // Keep the profile alive until the wipe and deletion marker have both completed.
-// Removes one site's cookies, storage and cache from a profile, then replies.
-// The object owns itself until the remover reports back.
-class SiteDataClearance final : public content::BrowsingDataRemover::Observer {
- public:
-  static void Start(Profile* profile, const GURL& url, void (^completion)(BOOL)) {
-    std::string domain = net::registry_controlled_domains::GetDomainAndRegistry(
-        url, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
-    if (domain.empty()) domain = url.host();
-    if (domain.empty()) { completion(NO); return; }
-    auto filter = content::BrowsingDataFilterBuilder::Create(content::BrowsingDataFilterBuilder::Mode::kDelete);
-    filter->AddRegisterableDomain(domain);
-    auto* clearance = new SiteDataClearance(profile->GetBrowsingDataRemover(), completion);
-    clearance->remover_->RemoveWithFilterAndReply(
-        base::Time(), base::Time::Max(),
-        chrome_browsing_data_remover::DATA_TYPE_SITE_DATA | content::BrowsingDataRemover::DATA_TYPE_CACHE,
-        content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB, std::move(filter), clearance);
-  }
-  void OnBrowsingDataRemoverDone(uint64_t failures) override {
-    remover_->RemoveObserver(this);
-    completion_(failures == 0);
-    delete this;
-  }
-
- private:
-  SiteDataClearance(content::BrowsingDataRemover* remover, void (^completion)(BOOL))
-      : remover_(remover), completion_([completion copy]) {
-    remover_->AddObserver(this);
-  }
-  raw_ptr<content::BrowsingDataRemover> remover_;
-  void (^completion_)(BOOL);
-};
 
 class NativeProfileDeletion final : public content::BrowsingDataRemover::Observer,
                                     public ProfileAttributesStorageObserver {
@@ -754,8 +709,7 @@ void DisableEnginePasswordManager(content::WebContents* contents) {
 
 // The shell's side of a page: the Browser that holds its WebContents, the
 // views it hosts over it, and the handlers the platform installs.
-// TRANSITIONAL until dialogs, prompts and link questions travel as
-// presentations (WP C (e), (f), (l)).
+// TRANSITIONAL until link questions travel as presentations (WP C (l)).
 struct Page final : content::WebContentsObserver {
   Page(content::WebContents* contents, Browser* owner, std::string profile_id)
       : content::WebContentsObserver(contents), browser(owner), profile(std::move(profile_id)) {
@@ -777,13 +731,6 @@ struct Page final : content::WebContentsObserver {
   BOOL (^link_handler)(NSString*, NSString*, NSString*) = nil;
   NSArray<NSDictionary<NSString*, NSString*>*>* (^context_menu_provider)(NSString*, NSString*) = nil;
   BOOL (^context_menu_action)(NSString*, NSString*, NSString*) = nil;
-  void (^javascript_dialog_handler)(NSString*, NSString*, NSString*, NSString*, void (^)(BOOL, NSString*)) = nil;
-  void (^http_authentication_handler)(NSDictionary<NSString*, id>*, void (^)(NSString*, NSString*)) = nil;
-  std::map<std::string, int> http_authentication_attempts;
-  // Crest answers site permission requests from its own per-Space record and
-  // prompt. The reply is 1 to allow, 2 to allow this time, 3 to block and 4 to
-  // dismiss without deciding.
-  void (^permission_handler)(NSDictionary<NSString*, id>*, void (^)(NSInteger)) = nil;
   CrestDeferredNavigation (^protected_link_handler)(NSString*) = nil;
   void (^modified_link_handler)(NSString*, NSUInteger, NSString*, void (^)(NSString*, CrestDeferredNavigation)) = nil;
   bool closing = false;
@@ -796,9 +743,7 @@ struct Page final : content::WebContentsObserver {
     if (navigation->IsInPrimaryMainFrame() && !navigation->IsSameDocument()) ++navigation_generation;
   }
   void DidFinishNavigation(content::NavigationHandle* navigation) override {
-    if (!navigation->IsInPrimaryMainFrame() || !navigation->HasCommitted()) return;
-    ++navigation_revision;
-    if (!navigation->IsSameDocument()) http_authentication_attempts.clear();
+    if (navigation->IsInPrimaryMainFrame() && navigation->HasCommitted()) ++navigation_revision;
   }
   void BeforeUnloadDialogCancelled() override { closing = false; }
   void BeforeUnloadFired(bool proceed) override {
@@ -1436,16 +1381,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
     page->context_menu_action = [action copy];
   }
 }
-- (void)setJavaScriptDialogHandlerForPage:(NSString*)pageID
-    handler:(void (^)(NSString*, NSString*, NSString*, NSString*, void (^)(BOOL, NSString*)))handler {
-  CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID)) page->javascript_dialog_handler = [handler copy];
-}
-- (void)setHTTPAuthenticationHandlerForPage:(NSString*)pageID
-    handler:(void (^)(NSDictionary<NSString*, id>*, void (^)(NSString*, NSString*)))handler {
-  CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID)) page->http_authentication_handler = [handler copy];
-}
 - (void)setProtectedLinkHandlerForPage:(NSString*)pageID handler:(CrestDeferredNavigation (^)(NSString*))handler {
   CHECK(NSThread.isMainThread);
   if (Page* page = FindPage(pageID)) page->protected_link_handler = [handler copy];
@@ -1458,65 +1393,6 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
 - (void)discardPendingNavigation:(NSString*)token {
   CHECK(NSThread.isMainThread);
   State().pending_link_navigations.erase(base::SysNSStringToUTF8(token));
-}
-- (void)clearSiteDataForPage:(NSString*)pageID completion:(void (^)(BOOL))completion {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  if (!page || !page->web_contents() || State().disposing) { completion(NO); return; }
-  const GURL url = page->web_contents()->GetLastCommittedURL();
-  if (!url.SchemeIsHTTPOrHTTPS()) { completion(NO); return; }
-  SiteDataClearance::Start(Profile::FromBrowserContext(page->web_contents()->GetBrowserContext()), url, completion);
-}
-- (void)setPermissionHandlerForPage:(NSString*)pageID
-                           handler:(void (^)(NSDictionary<NSString*, id>*, void (^)(NSInteger)))handler {
-  CHECK(NSThread.isMainThread);
-  if (Page* page = FindPage(pageID)) page->permission_handler = [handler copy];
-}
-- (NSArray<NSData*>*)certificateChainForPage:(NSString*)pageID {
-  CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID);
-  if (!page || !page->web_contents()) return @[];
-  auto* entry = page->web_contents()->GetController().GetVisibleEntry();
-  if (!entry || !entry->GetSSL().certificate) return @[];
-  const auto& certificate = entry->GetSSL().certificate;
-  NSMutableArray<NSData*>* chain = [NSMutableArray array];
-  auto append = [&](const CRYPTO_BUFFER* buffer) {
-    auto bytes = net::x509_util::CryptoBufferAsSpan(buffer);
-    [chain addObject:[NSData dataWithBytes:bytes.data() length:bytes.size()]];
-  };
-  append(certificate->cert_buffer());
-  for (const auto& intermediate : certificate->intermediate_buffers()) append(intermediate.get());
-  return chain;
-}
-- (NSArray<NSDictionary<NSString*, id>*>*)permissionsForPage:(NSString*)pageID {
-  Page* page = FindPage(pageID);
-  if (!page || !page->web_contents()) return @[];
-  GURL origin = page->web_contents()->GetLastCommittedURL().DeprecatedGetOriginAsURL();
-  if (!origin.SchemeIsHTTPOrHTTPS()) return @[];
-  auto* settings = HostContentSettingsMapFactory::GetForProfile(page->browser->GetProfile());
-  NSMutableArray* result = [NSMutableArray array];
-  for (const auto& permission : kSitePermissions) {
-    ContentSetting value = settings->GetContentSetting(origin, origin, permission.type);
-    [result addObject:@{ @"id": base::SysUTF8ToNSString(permission.key), @"label": base::SysUTF8ToNSString(permission.label),
-        @"value": @(value), @"supportsAsk": @(permission.supports_ask) }];
-  }
-  return result;
-}
-- (BOOL)setPermission:(NSString*)permissionID page:(NSString*)pageID value:(NSInteger)value {
-  Page* page = FindPage(pageID);
-  if (!page || !page->web_contents()) return NO;
-  GURL origin = page->web_contents()->GetLastCommittedURL().DeprecatedGetOriginAsURL();
-  if (!origin.SchemeIsHTTPOrHTTPS()) return NO;
-  for (const auto& permission : kSitePermissions) {
-    if (base::SysNSStringToUTF8(permissionID) != permission.key) continue;
-    // CONTENT_SETTING_DEFAULT clears the site's own setting.
-    if (value != CONTENT_SETTING_DEFAULT && value != CONTENT_SETTING_ALLOW && value != CONTENT_SETTING_BLOCK &&
-        !(permission.supports_ask && value == CONTENT_SETTING_ASK)) return NO;
-    HostContentSettingsMapFactory::GetForProfile(page->browser->GetProfile())
-        ->SetContentSettingDefaultScope(origin, GURL(), permission.type, static_cast<ContentSetting>(value));
-    return YES;
-  }
-  return NO;
 }
 - (BOOL)runExtension:(NSString*)extensionID page:(NSString*)pageID
          anchorView:(NSView*)anchorView anchorRect:(NSRect)anchorRect {
@@ -1880,32 +1756,6 @@ void SnapPictureInPictureWindow(views::Widget* widget) {
   } completionHandler:nil];
 }
 
-bool PresentHTTPAuthentication(content::WebContents* contents, const net::AuthChallengeInfo& challenge,
-    std::function<void(bool, const std::u16string&, const std::u16string&)> reply) {
-  if (!IsEnabled() || !contents || challenge.is_proxy ||
-      (challenge.scheme != "basic" && challenge.scheme != "digest")) return false;
-  for (auto& [id, page] : State().pages) {
-    if (page->web_contents() != contents || page->closing || !page->http_authentication_handler) continue;
-    const std::string key = challenge.challenger.GetURL().spec() + "\n" +
-        challenge.scheme + "\n" + challenge.realm;
-    const int previous_failures = page->http_authentication_attempts[key]++;
-    page->http_authentication_handler(@{
-      @"url": base::SysUTF8ToNSString(challenge.challenger.GetURL().spec()),
-      @"host": base::SysUTF8ToNSString(challenge.challenger.host()),
-      @"port": @(challenge.challenger.port()),
-      @"realm": base::SysUTF8ToNSString(challenge.realm),
-      @"method": base::SysUTF8ToNSString(challenge.scheme),
-      @"isProxy": @(challenge.is_proxy),
-      @"previousFailureCount": @(previous_failures)
-    }, ^(NSString* username, NSString* password) {
-      reply(username != nil && password != nil,
-          base::SysNSStringToUTF16(username ?: @""), base::SysNSStringToUTF16(password ?: @""));
-    });
-    return true;
-  }
-  return false;
-}
-
 bool RouteModifiedLink(content::WebContents* source, content::OpenURLParams& params) {
   if (!IsEnabled() || !params.crest_link_modifiers) return false;
   if (!State().disposing && source && params.crest_link_modifiers <= 15 &&
@@ -2075,97 +1925,6 @@ bool BeginLinkDrag(content::WebContents* contents, const content::DropData& data
   return false;
 }
 
-namespace {
-class CrestJavaScriptDialogManager final : public content::JavaScriptDialogManager {
- public:
-  void RunJavaScriptDialog(content::WebContents* contents,
-                           content::RenderFrameHost* frame,
-                           content::JavaScriptDialogType type,
-                           const std::u16string& message,
-                           const std::u16string& default_text,
-                           DialogClosedCallback callback,
-                           bool* did_suppress_message) override {
-    *did_suppress_message = false;
-    NSString* kind = type == content::JAVASCRIPT_DIALOG_TYPE_ALERT ? @"alert" :
-        type == content::JAVASCRIPT_DIALOG_TYPE_CONFIRM ? @"confirm" : @"prompt";
-    Present(contents, frame, kind, message, default_text, std::move(callback));
-  }
-
-  void RunBeforeUnloadDialog(content::WebContents* contents,
-                             content::RenderFrameHost* frame,
-                             bool is_reload,
-                             DialogClosedCallback callback) override {
-    Present(contents, frame, @"beforeUnload", u"", u"", std::move(callback));
-  }
-
-  bool HandleJavaScriptDialog(content::WebContents* contents, bool accept,
-                              const std::u16string* prompt_override) override {
-    auto it = pending_.find(contents);
-    if (it == pending_.end()) return false;
-    Finish(contents, it->second.token, accept,
-           prompt_override ? *prompt_override : std::u16string());
-    return true;
-  }
-
-  void CancelDialogs(content::WebContents* contents, bool reset_state) override {
-    auto it = pending_.find(contents);
-    if (it != pending_.end()) Finish(contents, it->second.token, false, u"");
-  }
-
- private:
-  struct Pending {
-    uint64_t token;
-    DialogClosedCallback callback;
-    Pending(uint64_t token, DialogClosedCallback callback)
-        : token(token), callback(std::move(callback)) {}
-  };
-  uint64_t next_token_ = 0;
-  std::map<content::WebContents*, Pending> pending_;
-
-  void Finish(content::WebContents* contents, uint64_t token, bool accepted,
-              const std::u16string& input) {
-    auto it = pending_.find(contents);
-    if (it == pending_.end() || it->second.token != token) return;
-    auto callback = std::move(it->second.callback);
-    pending_.erase(it);
-    std::move(callback).Run(accepted, input);
-  }
-
-  void Present(content::WebContents* contents, content::RenderFrameHost* frame,
-               NSString* kind, const std::u16string& message,
-               const std::u16string& default_text, DialogClosedCallback callback) {
-    const auto weak = contents->GetWeakPtr();
-    CancelDialogs(contents, false);
-    if (!weak) { std::move(callback).Run(false, u""); return; }
-    Page* owner = nullptr;
-    for (auto& [id, page] : State().pages) {
-      if (page->web_contents() == contents && page->javascript_dialog_handler) {
-        owner = page.get();
-        break;
-      }
-    }
-    if (!owner) { std::move(callback).Run(false, u""); return; }
-    const uint64_t token = ++next_token_;
-    pending_.try_emplace(contents, token, std::move(callback));
-    const GURL source = frame ? frame->GetLastCommittedURL() : contents->GetLastCommittedURL();
-    owner->javascript_dialog_handler(kind, base::SysUTF16ToNSString(message),
-        base::SysUTF16ToNSString(default_text), base::SysUTF8ToNSString(source.spec()),
-        ^(BOOL accepted, NSString* input) {
-          if (weak) Finish(weak.get(), token, accepted,
-                           base::SysNSStringToUTF16(input ?: @""));
-        });
-  }
-};
-}  // namespace
-
-content::JavaScriptDialogManager* JavaScriptDialogManagerFor(content::WebContents* contents) {
-  if (!IsEnabled() || State().disposing || !contents) return nullptr;
-  static base::NoDestructor<CrestJavaScriptDialogManager> manager;
-  for (auto& [id, page] : State().pages)
-    if (page->web_contents() == contents && page->javascript_dialog_handler)
-      return manager.get();
-  return nullptr;
-}
 
 void AppendLinkMenuItem(NSMenu* menu, content::WebContents* contents, const GURL& url,
                         const std::u16string& selection) {
@@ -2382,78 +2141,13 @@ void ShowExtensionPrompt(
     std::move(pending->callback).Run(Payload(result));
   }];
 }
-namespace {
-// A request Crest's permission record covers, asked through the page's own
-// prompt so the decision is recorded per Space and listed in Privacy.
-class CrestPagePermissionPrompt final : public permissions::PermissionPrompt {
- public:
-  CrestPagePermissionPrompt(Page* page, Delegate* delegate, NSString* permission)
-      : delegate_(delegate->GetWeakPtr()) {
-    auto weak = weak_factory_.GetWeakPtr();
-    page->permission_handler(@{
-      @"permission": permission,
-      @"origin": base::SysUTF8ToNSString(delegate->GetRequestingOrigin().spec()),
-      @"topLevelOrigin": base::SysUTF8ToNSString(delegate->GetEmbeddingOrigin().spec()) },
-      ^(NSInteger reply) {
-        if (!weak || !weak->delegate_) return;
-        auto current = weak->delegate_;
-        switch (reply) {
-          case 1: current->Accept(std::monostate()); break;
-          case 2: current->AcceptThisTime(std::monostate()); break;
-          case 3: current->Deny(std::monostate()); break;
-          default: current->Dismiss(std::monostate()); break;
-        }
-      });
-  }
-  bool UpdateAnchor() override { return true; }
-  TabSwitchingBehavior GetTabSwitchingBehavior() override { return kKeepPromptAlive; }
-  permissions::PermissionPromptDisposition GetPromptDisposition() const override {
-    return permissions::PermissionPromptDisposition::ANCHORED_BUBBLE;
-  }
-  bool IsAskPrompt() const override { return true; }
-  std::optional<gfx::Rect> GetViewBoundsInScreen() const override { return std::nullopt; }
-  bool ShouldFinalizeRequestAfterDecided() const override { return true; }
-  std::vector<permissions::ElementAnchoredBubbleVariant> GetPromptVariants() const override { return {}; }
-  std::optional<permissions::feature_params::PermissionElementPromptPosition> GetPromptPosition() const override {
-    return std::nullopt;
-  }
-
- private:
-  base::WeakPtr<Delegate> delegate_;
-  base::WeakPtrFactory<CrestPagePermissionPrompt> weak_factory_{this};
-};
-
-// The Crest permission a batch of engine requests amounts to, or nil when any
-// of them is one Crest's record does not cover.
-NSString* CrestPermissionForRequests(permissions::PermissionPrompt::Delegate* delegate) {
-  bool camera = false, microphone = false;
-  NSString* single = nil;
-  for (const auto& request : delegate->Requests()) {
-    switch (request->request_type()) {
-      case permissions::RequestType::kCameraStream: camera = true; break;
-      case permissions::RequestType::kMicStream: microphone = true; break;
-      case permissions::RequestType::kGeolocation: single = single ? @"" : @"location"; break;
-      case permissions::RequestType::kNotifications: single = single ? @"" : @"notifications"; break;
-      default: return nil;
-    }
-  }
-  if (camera || microphone) {
-    if (single) return nil;
-    return camera && microphone ? @"cameraAndMicrophone" : camera ? @"camera" : @"microphone";
-  }
-  return single.length ? single : nil;
-}
-}  // namespace
 
 std::unique_ptr<permissions::PermissionPrompt> CreatePermissionPrompt(
     content::WebContents* contents, permissions::PermissionPrompt::Delegate* delegate) {
   if (delegate->ShouldDropCurrentRequestIfCannotShowQuietly()) return nullptr;
-  if (NSString* permission = CrestPermissionForRequests(delegate)) {
-    for (auto& [id, page] : State().pages) {
-      if (page->web_contents() == contents && page->permission_handler)
-        return std::make_unique<CrestPagePermissionPrompt>(page.get(), delegate, permission);
-    }
-  }
+  // A request Crest's permission record covers is asked through the page, so
+  // the decision is recorded per Space and listed in Privacy.
+  if (auto prompt = crest::EngineBinding::Get().PermissionPrompt(contents, delegate)) return prompt;
   BrowserWindowInterface* browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(contents);
   NSWindow* window = browser ? WindowForBrowser(browser->GetBrowserForMigrationOnly()) : nil;
   if (!window || window.attachedSheet) return nullptr;

@@ -33,14 +33,6 @@ typedef void (^CrestDeferredNavigation)(void);
     provider:(NSArray<NSDictionary<NSString *, NSString *> *> * (^)(NSString *url, NSString *selection))provider
     action:(BOOL (^)(NSString *identifier, NSString *url, NSString *selection))action
     NS_SWIFT_NAME(setContextMenuHandler(page:provider:action:));
-- (void)setJavaScriptDialogHandlerForPage:(NSString *)pageID
-    handler:(void (^)(NSString *kind, NSString *message, NSString *defaultText,
-        NSString *sourceURL, void (^reply)(BOOL accepted, NSString * _Nullable input)))handler
-    NS_SWIFT_NAME(setJavaScriptDialogHandler(page:handler:));
-- (void)setHTTPAuthenticationHandlerForPage:(NSString *)pageID
-    handler:(void (^)(NSDictionary<NSString *, id> *challenge,
-        void (^reply)(NSString * _Nullable username, NSString * _Nullable password)))handler
-    NS_SWIFT_NAME(setHTTPAuthenticationHandler(page:handler:));
 - (void)setProtectedLinkHandlerForPage:(NSString *)pageID
     handler:(CrestDeferredNavigation _Nullable (^)(NSString *url))handler
     NS_SWIFT_NAME(setProtectedLinkHandler(page:handler:));
@@ -49,20 +41,6 @@ typedef void (^CrestDeferredNavigation)(void);
         void (^reply)(NSString *decision, CrestDeferredNavigation _Nullable present)))handler
     NS_SWIFT_NAME(setModifiedLinkHandler(page:handler:));
 - (void)discardPendingNavigation:(NSString *)token;
-// The DER certificate chain of the page's visible entry, leaf first; empty
-// when the page was not loaded over a verified TLS connection.
-// Site permission requests the page's Crest record covers — camera,
-// microphone, location, notifications. The handler replies 1 allow, 2 allow
-// this time, 3 block, 4 dismiss; other requests keep the engine's own prompt.
-- (void)setPermissionHandlerForPage:(NSString *)pageID
-                            handler:(void (^)(NSDictionary<NSString *, id> *request, void (^reply)(NSInteger response)))handler
-    NS_SWIFT_NAME(setPermissionHandler(page:handler:));
-- (NSArray<NSData *> *)certificateChainForPage:(NSString *)pageID;
-// Removes the page's site cookies, storage and cache from its profile.
-- (void)clearSiteDataForPage:(NSString *)pageID completion:(void (^)(BOOL cleared))completion
-    NS_SWIFT_NAME(clearSiteData(page:completion:));
-- (NSArray<NSDictionary<NSString *, id> *> *)permissionsForPage:(NSString *)pageID;
-- (BOOL)setPermission:(NSString *)permissionID page:(NSString *)pageID value:(NSInteger)value;
 - (BOOL)runExtension:(NSString *)extensionID page:(NSString *)pageID
          anchorView:(NSView *)anchorView anchorRect:(NSRect)anchorRect;
 // Runs a pinned action with no page open. Only an action carrying its own

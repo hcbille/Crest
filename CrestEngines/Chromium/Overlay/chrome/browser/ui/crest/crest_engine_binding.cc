@@ -14,6 +14,8 @@
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
 #include "chrome/browser/ui/crest/crest_engine_extensions.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
+#include "chrome/browser/ui/crest/crest_engine_prompts.h"
+#include "net/base/auth.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
@@ -99,6 +101,7 @@ void EngineBinding::Dispose() {
   queue_.clear();
   due_.clear();
   extensions_.reset();
+  prompts_.reset();
   for (auto& [key, page] : pages_) {
     page->Stop();
   }
@@ -228,6 +231,9 @@ void EngineBinding::Close(const engine::ClosePage& closing) {
   }
   failed_.erase(key);
   std::erase(due_, key);
+  if (prompts_) {
+    prompts_->Forget(closing.page_id);
+  }
   if (shell_) {
     shell_->DestroyContents(key);
   }
@@ -314,6 +320,20 @@ EngineExtensions& EngineBinding::Extensions() {
         base::BindRepeating(&EngineBinding::RefreshStoreListings, base::Unretained(this)));
   }
   return *extensions_;
+}
+
+EnginePrompts& EngineBinding::Prompts() {
+  if (!prompts_) {
+    prompts_ = std::make_unique<EnginePrompts>(base::BindRepeating(&EngineBinding::Present, base::Unretained(this)));
+  }
+  return *prompts_;
+}
+
+std::unique_ptr<permissions::PermissionPrompt> EngineBinding::PermissionPrompt(
+    content::WebContents* contents,
+    permissions::PermissionPrompt::Delegate* delegate) {
+  EnginePage* page = PageFor(contents);
+  return page ? Prompts().Prompt(page->id(), delegate) : nullptr;
 }
 
 void EngineBinding::RequestSidePanel(const std::string& key,
@@ -611,6 +631,33 @@ bool EngineBinding::Handle(const engine::HasSidePanel& request) {
   return page && EngineExtensions::SidePanelExtension(page->web_contents(), request.extension_id);
 }
 
+engine::CertificateChain EngineBinding::Handle(const engine::PageCertificates& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page ? page->CertificateChain() : engine::CertificateChain{};
+}
+
+bool EngineBinding::Handle(const engine::ClearSiteData& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && !disposing_ && page->ClearSiteData(request.clearance_id);
+}
+
+bool EngineBinding::Handle(const engine::SetSitePermission& request) {
+  EnginePage* page = Find(GuidText(request.page_id));
+  return page && page->SetSitePermission(request.permission, request.allowed);
+}
+
+bool EngineBinding::Handle(const engine::AnswerJavaScriptDialog& request) {
+  return prompts_ && prompts_->Answer(request);
+}
+
+bool EngineBinding::Handle(const engine::AnswerAuthentication& request) {
+  return prompts_ && prompts_->Answer(request);
+}
+
+bool EngineBinding::Handle(const engine::AnswerPermission& request) {
+  return prompts_ && prompts_->Answer(request);
+}
+
 // Reports and presentations.
 
 void EngineBinding::Report(engine::EngineEvent event) {
@@ -724,6 +771,28 @@ bool CloseExtensionSidePanel(content::WebContents* contents, const std::string& 
     return false;
   }
   EngineBinding::Get().RequestSidePanel(page->key(), extension_id, engine::SidePanelRequest::kClose);
+  return true;
+}
+
+// Crest shows script dialogs for its pages with the same presenter WebKit's
+// pages use. Other engine pages keep the engine's dialog manager.
+content::JavaScriptDialogManager* JavaScriptDialogManagerFor(content::WebContents* contents) {
+  return EngineBinding::Get().PageFor(contents) ? &EngineBinding::Get().Prompts() : nullptr;
+}
+
+// Basic and Digest challenges go through Crest's per-Space credentials. False
+// leaves a WebContents Crest does not show, a proxy's challenge or another
+// scheme to the engine.
+bool PresentHTTPAuthentication(content::WebContents* contents,
+                               const net::AuthChallengeInfo& challenge,
+                               std::function<void(bool, const std::u16string&, const std::u16string&)> reply) {
+  EnginePage* page = EngineBinding::Get().PageFor(contents);
+  if (!page || challenge.is_proxy || (challenge.scheme != "basic" && challenge.scheme != "digest")) {
+    return false;
+  }
+  const int previous_failures = page->AuthenticationAttempt(challenge.challenger.GetURL().spec() + "\n" +
+                                                            challenge.scheme + "\n" + challenge.realm);
+  EngineBinding::Get().Prompts().Authenticate(page->id(), challenge, previous_failures, std::move(reply));
   return true;
 }
 
