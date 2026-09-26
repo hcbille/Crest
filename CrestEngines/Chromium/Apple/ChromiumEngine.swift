@@ -27,6 +27,8 @@
         /// The core that asks this engine's questions of the person and hears
         /// the answers. Weak: the composition owns it.
         private weak var core: CrestCore?
+        /// What closes each question a page shows, until the core settles it.
+        private var dismissals: [UUID: BrowserPromptDismissal] = [:]
         /// Each page this hosts, while its owner keeps it.
         private var hosted: [UUID: WeakNativePage] = [:]
         /// What waits for the binding's profiles: each preparation and deletion by
@@ -76,35 +78,43 @@
             _ = try? core?.send(intent)
         }
 
-        /// Shows a question the core asks on the page that asked it. One no
-        /// page of this engine can show any more is declined.
+        /// Shows a question the core asks on the page that asked it, and closes
+        /// it once the core settles it. One no page of this engine can show any
+        /// more is declined.
         private func ask(_ change: Change) {
             switch change {
             case .scriptDialogAsked(let asked):
                 guard let page = hosted[asked.pageID]?.page else {
                     return answer(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
                 }
-                page.ask(asked)
+                page.ask(asked, dismissal: dismissal(for: asked.promptID))
             case .authenticationAsked(let asked):
                 guard let page = hosted[asked.pageID]?.page else {
                     return answer(AnswerAuthentication(promptID: asked.promptID, credential: nil))
                 }
-                page.ask(asked)
+                page.ask(asked, dismissal: dismissal(for: asked.promptID))
             case .permissionAsked(let asked):
                 guard let page = hosted[asked.pageID]?.page else {
                     return answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
                 }
-                page.ask(asked)
+                page.ask(asked, dismissal: dismissal(for: asked.promptID))
             case .extensionInstallAsked(let asked):
                 CrestChromiumRoot.extensions.review(asked) { [weak self] accepted, withholds in
                     self?.answer(
                         AnswerExtensionInstall(promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
                 }
+            case .promptSettled(let settled):
+                dismissals.removeValue(forKey: settled.promptID)?.dismiss()
             default:
-                // A prompt that no longer waits is left to its presenter, whose
-                // late answer the core refuses.
                 break
             }
+        }
+
+        /// A new dismissal for a question a page shows.
+        private func dismissal(for promptID: UUID) -> BrowserPromptDismissal {
+            let dismissal = BrowserPromptDismissal()
+            dismissals[promptID] = dismissal
+            return dismissal
         }
 
         // MARK: - Actions - Profiles

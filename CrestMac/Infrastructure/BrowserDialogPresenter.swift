@@ -8,31 +8,37 @@ struct BrowserFileInputOptions {
 
 @MainActor
 final class BrowserDialogPresenter {
+    // A `dismissal` closes the sheet once its question no longer waits; the
+    // sheet then answers as declined.
+
     func presentAlert(
         message: String,
         request: URLRequest,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable () -> Void
     ) {
         let alert = makeAlert(message: message, request: request)
         alert.addButton(withTitle: "OK")
-        present(alert) { _ in completion() }
+        present(alert, dismissal: dismissal) { _ in completion() }
     }
 
     func presentConfirm(
         message: String,
         request: URLRequest,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
         let alert = makeAlert(message: message, request: request)
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Cancel")
-        present(alert) { completion($0 == .alertFirstButtonReturn) }
+        present(alert, dismissal: dismissal) { completion($0 == .alertFirstButtonReturn) }
     }
 
     /// Pages no longer choose the wording of a beforeunload prompt, so the
     /// message names the site rather than repeating page-supplied text.
     func presentBeforeUnload(
         request: URLRequest,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable (Bool) -> Void
     ) {
         let alert = NSAlert()
@@ -41,13 +47,14 @@ final class BrowserDialogPresenter {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Leave Page")
         alert.addButton(withTitle: "Stay on Page")
-        present(alert) { completion($0 == .alertFirstButtonReturn) }
+        present(alert, dismissal: dismissal) { completion($0 == .alertFirstButtonReturn) }
     }
 
     func presentPrompt(
         message: String,
         defaultText: String?,
         request: URLRequest,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable (String?) -> Void
     ) {
         let alert = makeAlert(message: message, request: request)
@@ -56,7 +63,7 @@ final class BrowserDialogPresenter {
         alert.accessoryView = input
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Cancel")
-        present(alert) { response in
+        present(alert, dismissal: dismissal) { response in
             completion(response == .alertFirstButtonReturn ? input.stringValue : nil)
         }
     }
@@ -107,7 +114,8 @@ final class BrowserDialogPresenter {
 
     func presentHTTPAuthentication(
         prompt: BrowserHTTPAuthenticationPrompt,
-        spaceName: String
+        spaceName: String,
+        dismissal: BrowserPromptDismissal? = nil
     ) async -> BrowserHTTPAuthenticationPromptResponse? {
         let descriptor = prompt.descriptor
         let alert = NSAlert()
@@ -149,7 +157,7 @@ final class BrowserDialogPresenter {
         alert.window.initialFirstResponder = username
 
         return await withCheckedContinuation { continuation in
-            present(alert) { response in
+            present(alert, dismissal: dismissal) { response in
                 guard response == .alertFirstButtonReturn else {
                     continuation.resume(returning: nil)
                     return
@@ -382,11 +390,20 @@ final class BrowserDialogPresenter {
 
     private func present(
         _ alert: NSAlert,
+        dismissal: BrowserPromptDismissal? = nil,
         completion: @escaping @MainActor @Sendable (NSApplication.ModalResponse) -> Void
     ) {
         guard let window = hostWindow else {
+            dismissal?.attach { [weak alert] in
+                guard let alert, alert.window.isVisible else { return }
+                NSApp.stopModal(withCode: .cancel)
+            }
             completion(alert.runModal())
             return
+        }
+        dismissal?.attach { [weak window, weak alert] in
+            guard let window, let alert, alert.window.sheetParent === window else { return }
+            window.endSheet(alert.window, returnCode: .cancel)
         }
         alert.beginSheetModal(for: window, completionHandler: completion)
     }

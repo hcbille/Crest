@@ -45,10 +45,11 @@
         func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
             self.page = page
             native.profileID = page.profileID
-            native.permissionHandler = { [weak page] permission, origin, topLevelOrigin in
+            native.permissionHandler = { [weak page] permission, origin, topLevelOrigin, dismissal in
                 guard let page else { return .denyOnce }
                 return await page.sitePermissionRequests.response(
-                    to: permission, origin: origin, topLevelOrigin: topLevelOrigin, spaceName: page.spaceName)
+                    to: permission, origin: origin, topLevelOrigin: topLevelOrigin, spaceName: page.spaceName,
+                    dismissal: dismissal)
             }
             native.observer = { [weak page] event in page?.receive(event) }
             native.linkHandler = { [weak page] name, destination, label in
@@ -62,7 +63,7 @@
                 page?.performContextMenuAction(
                     identifier: identifier, linkURL: url, selectionText: selection) ?? false
             }
-            native.javaScriptDialogHandler = { [weak page] kind, message, defaultText, sourceURL, reply in
+            native.javaScriptDialogHandler = { [weak page] kind, message, defaultText, sourceURL, dismissal, reply in
                 guard let page else {
                     reply(false, nil)
                     return
@@ -71,26 +72,26 @@
                     url: sourceURL ?? page.pageEngine.currentURL ?? URL(fileURLWithPath: "/"))
                 switch kind {
                 case .alert:
-                    page.dialogPresenter.presentAlert(message: message, request: request) {
+                    page.dialogPresenter.presentAlert(message: message, request: request, dismissal: dismissal) {
                         reply(true, nil)
                     }
                 case .confirm:
-                    page.dialogPresenter.presentConfirm(message: message, request: request) {
+                    page.dialogPresenter.presentConfirm(message: message, request: request, dismissal: dismissal) {
                         reply($0, nil)
                     }
                 case .prompt:
                     page.dialogPresenter.presentPrompt(
-                        message: message, defaultText: defaultText, request: request
+                        message: message, defaultText: defaultText, request: request, dismissal: dismissal
                     ) { answer in
                         reply(answer != nil, answer)
                     }
                 case .beforeUnload:
-                    page.dialogPresenter.presentBeforeUnload(request: request) {
+                    page.dialogPresenter.presentBeforeUnload(request: request, dismissal: dismissal) {
                         reply($0, nil)
                     }
                 }
             }
-            native.httpAuthenticationHandler = { [weak page] values, reply in
+            native.httpAuthenticationHandler = { [weak page] values, dismissal, reply in
                 guard let page, let challenge = BrowserAuthenticationChallenge(chromium: values) else {
                     reply(nil, nil)
                     return
@@ -98,7 +99,8 @@
                 Task { @MainActor in
                     let decision = await page.httpAuthenticationSession.response(to: challenge) {
                         [dialogPresenter = page.dialogPresenter, spaceName = page.spaceName] prompt in
-                        await dialogPresenter.presentHTTPAuthentication(prompt: prompt, spaceName: spaceName)
+                        await dialogPresenter.presentHTTPAuthentication(
+                            prompt: prompt, spaceName: spaceName, dismissal: dismissal)
                     }
                     switch decision {
                     case .useCredential(let username, let password): reply(username, password)

@@ -33,14 +33,16 @@
         var linkHandler: (String, URL, String) -> Bool = { _, _, _ in false }
         var contextMenuActions: (URL?, String?) -> [[String: String]] = { _, _ in [] }
         var contextMenuAction: (String, URL?, String?) -> Bool = { _, _, _ in false }
-        var httpAuthenticationHandler: (AuthenticationQuestion, @escaping (String?, String?) -> Void) -> Void =
-            {
-                _, reply in reply(nil, nil)
+        // The presenters of a page's questions. Each takes a dismissal that
+        // closes what it shows once the core settles the question.
+        var httpAuthenticationHandler:
+            (AuthenticationQuestion, BrowserPromptDismissal, @escaping (String?, String?) -> Void) -> Void = {
+                _, _, reply in reply(nil, nil)
             }
         var javaScriptDialogHandler:
             (
-                JavaScriptDialogKind, String, String, URL?, @escaping (Bool, String?) -> Void
-            ) -> Void = { _, _, _, _, reply in reply(false, nil) }
+                JavaScriptDialogKind, String, String, URL?, BrowserPromptDismissal, @escaping (Bool, String?) -> Void
+            ) -> Void = { _, _, _, _, _, reply in reply(false, nil) }
         var protectedLinkHandler: (URL) -> (() -> Void)? = { _ in nil }
         var modifiedLinkHandler: (URL, Int, String) -> (LinkNavigationDecision, (() -> Void)?) = { _, _, _ in
             (.navigate, nil)
@@ -349,7 +351,8 @@
         /// prompt.
         /// Asks the person about a site's permission request that its Space's
         /// choices do not answer.
-        var permissionHandler: ((SitePermission, SiteOrigin, SiteOrigin) async -> BrowserSitePermissionPromptResponse)?
+        var permissionHandler:
+            ((SitePermission, SiteOrigin, SiteOrigin, BrowserPromptDismissal) async -> BrowserSitePermissionPromptResponse)?
 
         /// The engine clears the site its page is showing.
         func clearSiteData(for url: URL) async -> Bool {
@@ -583,18 +586,19 @@
         }
 
         /// A script dialog the core asks the person, answered once they answer it.
-        func ask(_ asked: ScriptDialogAsked) {
+        func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {
             let question = asked.question
-            javaScriptDialogHandler(question.kind, question.message, question.defaultText, URL(string: question.sourceURL)) {
-                [weak engine] accepted, input in
+            javaScriptDialogHandler(
+                question.kind, question.message, question.defaultText, URL(string: question.sourceURL), dismissal
+            ) { [weak engine] accepted, input in
                 engine?.answer(AnswerScriptDialog(promptID: asked.promptID, accepted: accepted, text: input))
             }
         }
 
         /// A server's request for a user name and password. The credential goes
         /// to the core, which hands it to the engine and keeps no copy.
-        func ask(_ asked: AuthenticationAsked) {
-            httpAuthenticationHandler(asked.question) { [weak engine] username, password in
+        func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal) {
+            httpAuthenticationHandler(asked.question, dismissal) { [weak engine] username, password in
                 let credential = username.flatMap { username in
                     password.map { AuthenticationCredential(username: username, password: $0) }
                 }
@@ -604,14 +608,14 @@
 
         /// A site's permission request its Space's choices do not answer. The
         /// core records an answer the person asks it to remember.
-        func ask(_ asked: PermissionAsked) {
+        func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {
             let question = asked.question
             guard let handler = permissionHandler else {
                 engine?.answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
                 return
             }
             Task { @MainActor [weak engine] in
-                let response = await handler(question.permission, question.origin, question.topLevelOrigin)
+                let response = await handler(question.permission, question.origin, question.topLevelOrigin, dismissal)
                 engine?.answer(
                     AnswerPermission(
                         promptID: asked.promptID, grants: response.grants, remembers: response.savedDecision != nil))

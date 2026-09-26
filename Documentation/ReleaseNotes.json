@@ -2653,6 +2653,10 @@
     "2026-09-26-page-prompts-through-core": {
       "category": "internal",
       "message": "Page dialogs, sign-in and permission requests go through the core, which answers remembered site choices without asking"
+    },
+    "2026-09-26-prompt-sheets-close-when-settled": {
+      "category": "improved",
+      "message": "A page's dialog or permission request closes by itself when the page no longer needs an answer"
     }
   }
 }
