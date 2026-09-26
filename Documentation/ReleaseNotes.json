@@ -2893,6 +2893,10 @@
     "2026-09-26-chromium-reports-missing-drm": {
       "category": "internal",
       "message": "Chromium reports a missing Widevine or PlayReady to the core"
+    },
+    "2026-09-26-architecture-docs-current": {
+      "category": "internal",
+      "message": "The architecture documents describe the core, its contract and its engines as they are now"
     }
   }
 }

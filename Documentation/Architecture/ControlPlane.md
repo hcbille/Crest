@@ -1,1138 +1,664 @@
 # Portable browser control plane
 
-## Migration completion contract
+Crest's browser state and rules live in one portable core, `CrestCore`, written
+in C# and compiled with NativeAOT. Each Apple platform supplies its SwiftUI and
+AppKit or UIKit views, its engine bindings and its OS services. On macOS
+Chromium is the default engine and WebKit stays registered beside it; iPhone
+and iPad use WebKit. Both engines, both platforms and every composition share
+the same core, the same UI and the same sync records.
 
-Crest runs its original UI on one portable browser core, with Chromium as the
-default engine on macOS and WebKit on iPhone and iPad. WebKit stays a registered
-engine on macOS too, as the alternate desktop build. Existing browser
-organization, Space isolation, native interaction and customization carry over.
-Desktop and mobile converge through the same sync rules even when they render
-pages with different engines.
+This document describes the design as the code implements it.
+[CoreArchitecture.md](CoreArchitecture.md) states the target and wins where the
+two differ. [Engine abstraction status](EngineAbstractionCompletion.md) lists
+what each engine still lacks. [The contract](../../CrestContracts/README.md)
+describes the C ABI and the wire in detail.
 
-Every composition uses the same core-backed state: the WebKit `Crest` and
-`CrestMobile` targets, the review targets, and the Chromium frameworks. The
-Chromium host builds as `CrestChromiumUI` for review and as
-`CrestChromiumUIProduct` without `CREST_REVIEW_BUILD`. `package-chromium-host.py
---product` assembles the product into Crest's own desktop identity, and the
-experimental release workflow signs and notarizes it and publishes it as the
-default download on the experimental channel, with the WebKit build beside it
-as the alternate. `CREST_REVIEW_BUILD` forces isolated launch for the review
-targets. Each store family's session lives in `NativeSessionAuthority`, and
-browser behavior has one implementation. The remaining work is live sync
-convergence and device validation, listed in [Engine abstraction
-status](EngineAbstractionCompletion.md).
+Anything marked **TRANSITIONAL** below is a known intermediate state with a
+named package that removes it. When that package lands, update the paragraph
+and drop the marker.
 
-### Ownership after migration
+## Compositions
+
+| Target | UI | Engines | Launch |
+| --- | --- | --- | --- |
+| `CrestChromiumUIProduct`, packaged by `package-chromium-host.py --product` | `CrestShared` and `CrestMac` inside the Chromium host | Chromium (default), WebKit | Installed; the experimental channel's default download |
+| `Crest` | `CrestShared` and `CrestMac` | WebKit | Installed; the alternate desktop build |
+| `CrestMobile` | `CrestShared` and `CrestMobile` | WebKit | Installed |
+| `CrestChromiumUI`, `CrestNativeCore`, `CrestMobileNativeCore` | The same UI | As their product | Review: `CREST_REVIEW_BUILD` names an isolated launch |
+
+A review build keeps its own named isolation, session, credentials prefix and
+website data stores, so it never reads or writes the installed app's data. A
+test run the Mac review build hosts stays unnamed and keeps nothing, as in
+every other host.
+
+## Ownership
 
 | Owner | Responsibilities |
 | --- | --- |
-| .NET Domain and Application | Session and workspace rules; Spaces, profiles, tabs, folders, splits, history and archive; durable commands; sync projection, ordering, conflict and deletion policy; restore and migration rules; authorization decisions based on platform results |
-| Engine adapter | Native page creation, rendering, input, navigation, engine history, page observations, origin permissions, downloads, popups and extension execution where supported |
-| Apple platform services | CloudKit transport and account state, filesystem storage, Keychain and system authentication, OS permission dialogs, native download destinations, app lifecycle, signing and packaging |
-| Existing SwiftUI/AppKit UI | Current layout and interaction, viewed Space and tab selection, read projections, presentation state and commands; native card attachment and window presentation |
+| `CrestCore` | Every piece of browser state and every rule: workspaces, Spaces and their profiles, tabs, folders, splits, history, archive, windows and what each shows, pages and their live state, the questions pages ask, downloads, site permissions, credential policy, search and completion, import and export, setup, shortcuts, launch policy, behavior preferences, engine registrations and per-site engine choices, storage and sync |
+| Engine bindings | Creating, loading and closing pages; engine navigation history; find, zoom, capture, export, printing and DevTools; extensions; network, cookie and website data stores; reporting what happened to the core |
+| Apple OS services | CloudKit transport and account state, Keychain and system authentication, notification delivery, file panels, default-browser registration, software updates, the favicon image store |
+| SwiftUI and AppKit/UIKit | Views, layout, animation, hover, scroll position, window frames, sidebar width, appearance preferences, presenting the prompts the core asks for, embedding engine views |
 
-Native rendering, pointer input, scrolling and compositing stay in the engine.
-They do not make round trips through JSON or the .NET command processor. A core
-command owns the semantic transition; correlated adapter completions report
-native work without becoming a second writer of browser state. Native image
-assets and opaque engine data stay outside semantic records.
+Rendering, input, scrolling, compositing and focus stay in the engine and the
+views. They never make a round trip through the core. Image bytes and opaque
+engine data stay outside the core's records, except where a record names them
+by reference.
 
-### Work order and acceptance
+### Two paths
 
-| Step | Work | Completion evidence |
-| --- | --- | --- |
-| 1. Finish core ownership | Move remaining Space, branding, preference, workspace, transfer, import, cleanup and restore decisions from Swift proposals to semantic commands. Consolidate the remaining Swift mutations around the real UI. Keep existing checkpoint compatibility and fail atomically when a command cannot commit. | Mac and mobile native UI perform the same operations against the core. Multiple windows reconcile correctly; restart restores accepted state. Remaining Swift mutations are presentation or adapter work, with no parallel domain implementation. |
-| 2. Move sync semantics | Port the existing record model, projection, order tokens, merge, materialization and tombstone policy to the core. Retain native CloudKit transport and account handling. Preserve wire compatibility and local-only records. | Focused record tests cover concurrent edits, delayed batches, explicit deletion, retention, older clients and restart. Chromium Mac and WebKit mobile then converge through real CloudKit in an isolated sync namespace, verified from records as well as UI. |
-| 3. Finish engine and service integration | Use the same registered page/profile contracts in the real UI. Complete tab/window before-unload, Crest download ledger integration, favicons, restoration, profile deletion, transfers and recovery. Inventory current reader, translation, capture, print, media, authentication, notification and page-action callers; adapt each supported feature and remove dormant WebKit objects from the Chromium path. | Exercise each migrated user flow in the native app. Capability declarations match actual adapter behavior and govern UI availability. Close cancellation, private/locked Space boundaries and interrupted operations preserve state. Unsupported engine features have explicit product behavior. |
-| 4. Complete native extensions | Preserve the restored toolbar, Site Controls, permission review, multi-Space installation and native Settings. Complete applicable action context menus, commands, extension-created windows and side panels. Extension-created windows, side panels and keyboard shortcuts compile and link in the pinned Chromium build; their runtime behavior still needs product review. Keep Chromium responsible for verification, runtime permissions, updates and execution. Resolve iCloud Passwords through valid Crest signing and Apple's helper requirements. | uBlock Origin Lite filters real requests and retains profile settings. iCloud Passwords completes pairing and autofill with the properly entitled build and user participation where required. Installation, copying, removal and private access preserve Space ownership. |
-| 5. Finish Crest identity and lifecycle | Package the Crest default icon, alternate artwork and Dock tile plug-in. Restore saved icon preferences at Chromium startup. Replace app-facing Chromium menu/About identity with Crest while retaining required engine attribution. Wire external links, reopen, quit, saved windows, browser registration and the intended update path into the host. | Finder, running Dock and Dock after quit use Crest artwork. Default/custom choices survive relaunch and appearance changes. App/menu version and identity are correct. External links and lifecycle actions reach the native Crest UI. |
-| 6. Complete app composition and migration | Make the core the normal app composition on both platforms. Keep isolated review identities and explicit profile roots. Provide a safe import/upgrade path for existing Crest state, with recovery copies and no implicit WebKit-to-Chromium cookie or credential conversion. Document reproducible builds, required entitlements and engine distribution requirements. Remove obsolete experiment UI and duplicate migration paths once the real app covers their contracts. | Fresh install, existing-session upgrade, restart, offline editing, sync reconnect and private browsing work on Mac and mobile. The existing-session upgrade is covered by a test that carries a real installed defaults session, its per-Space history, its favicons and its sync journal into the checkpoint and proves the second launch does not repeat it; see "Upgrading an installed session". Physical-device and real-account runs against installed Spaces remain open. Original UI remains intact. Relevant retained tests and release builds pass; temporary build outputs are cleaned. Every remaining external dependency is named, and unfinished requirements remain open. |
+The UI reaches the core and the engines through two objects, and each call
+site shows which one it uses.
 
-The Chromium packager includes Crest's default and alternate icon resources and
-Dock tile plug-in. The native root restores the icon preference at startup. The
-preference lives in the app bundle's own defaults domain, or the domain its
-Info.plist names, so the Dock plug-in can read it outside the browser process. The outer bundle reports Crest's version while the
-engine framework retains its Chromium version. The Chromium host installs Crest's
-AppKit menus and About identity. Those menus
-and native keyboard events use the existing command actions and persisted shortcut
-assignments. Blank and Quick Windows mount their original native views; Quick
-Window dismissal releases its lease and promotion returns it to its source
-workspace. Unsupported page services remain disabled until their adapter is wired.
-External URL and document opens, Dock reopen and saved normal windows now reach
-the native UI: Chromium's `AppController` hands opens to Crest's own external-URL
-policy and Space or Quick Window routing, reopen activates an existing window or
-opens the initial one, and startup restores the normal windows that were open at
-quit. A product package registers Crest for HTTP, HTTPS and HTML documents and
-carries the app's Sparkle feed, so default-browser selection and update checks
-use the existing app paths. Review packages keep neither, and their
-default-browser affordance in Settings still reports the registration as
-unavailable rather than hiding itself.
+- **Through the core.** A state change is an intent sent with `core.send`,
+  and a question is a query asked with `core.query`. The UI reads state only
+  from the read model, `core.state`.
+- **Direct to the engine.** View work goes to the page's engine: embedding
+  the view, input, scrolling, zoom, find, reload, back and forward, DevTools,
+  printing, capture and export. What that work causes, such as a committed
+  navigation, reaches the core as an engine event.
 
-Validate coherent user flows as they are wired into the app. Retain focused tests
-for state, persistence, synchronization, ownership and authorization. Do not make
-another synthetic UI or repeat long engine benchmarks for unrelated changes.
-Recheck performance when changes affect engine flags, scheduling or page
-attachment. Commit complete sections with the repository's version and release
-note requirements.
+## The typed contract
 
-### Cross-engine sync contract
+Everything that crosses the boundary is a C# record or fixed set in
+`CrestCore.Contracts`:
 
-The existing CloudKit format is engine independent: Space and profile identifiers,
-Space appearance and browsing preferences, folders, HTTP/HTTPS tabs and their
-saved/pinned placement, split membership, history and archive. Existing user sync
-preferences still decide which optional record categories participate. CloudKit
-record identifiers, logical clocks, device identifiers, supported schema versions
-and encrypted payload encoding must survive the move to the core.
+- **Intents** change state (`OpenTab`, `ChooseSiteEngine`).
+- **Queries** answer without changing it (`PaletteSuggestions`, `SiteDecision`).
+  A query that needs no session, such as `LaunchIsolation` or `NormalizeBranding`,
+  is answered by `crest_core_answer` without an app.
+- **Changes** carry the state an intent or the core's own work produced
+  (`TabsChanged`, `EnginesChanged`), or name an event the UI reacts to
+  (`PageRehosted`).
+- **Rejections** name the rule that refused an intent (`SpaceLocked`,
+  `UnregisteredEngine`). A rejection a person reads carries its `[Localized]`
+  message.
+- **Engine commands, engine events, page requests and engine presentations**
+  form the engine contract (see "Engines").
 
-The same tab ID and URL can therefore become a Chromium page on Mac and a WebKit
-page on mobile. A profile UUID is the shared logical identity; its on-device
-Chromium directory or WebKit data store is an adapter detail. Engine selection
-and capabilities belong to the local platform. A device must not delete a shared
-record merely because it lacks a capability.
+`CrestCore.Generator` reads the records and writes the core's codec, the Swift
+models and codec, the C header with each type's tag and the schema
+fingerprint, and the C++ engine codec. No source spells a wire tag, and no
+model is written twice by hand. Run `Scripts/control-plane/generate-contracts.sh`
+after changing a contract; the lint script and the Apple core build fail while
+the generated files are stale.
 
-Cookies, sessions with websites, raw engine history stacks, caches, open native
-page handles, device permissions, extension packages and their granted access do
-not enter browser-record sync. Native Settings/Start pages, `chrome://`,
-`chrome-extension://`, files and other non-HTTP/HTTPS tabs stay local and survive
-incoming merges. Private and temporary workspace records do not upload. A locked
-Space's records may participate in existing sync policy without creating pages or
-bypassing the local authentication requirement.
+- A fixed set is a sealed class whose static instances carry their data, their
+  `[Localized]` titles and any rule that differs by member. Swift receives a
+  struct with the same members. A member's wire tag is its index in `All`, so
+  `All` only grows at the end. A set with runtime members, such as a Space's
+  custom search engines, is `[OpenSet]` and never crosses by tag.
+- A record whose constructor normalizes its fields, such as `SiteOrigin`, is
+  `[NormalizedOnConstruction]`; Swift gets only a labeled wire initializer and
+  a normalizing platform initializer.
+- A message's byte limit is data on its type (`[MessageLimit]`), which the
+  dispatcher checks before it reads the message.
+- A record that holds a password is `[HoldsSecrets]`: its text names no
+  secret, and a containment test proves no change, intent, stored session,
+  device record or sync journal reaches it. An answer buffer is cleared when
+  it is freed.
 
-Chromium extension installation and copying currently operate within local Space
-profiles. The old `extensionSettings` sync preference remains decode-compatible
-but contributes no extension records. Mobile must not install Chromium extensions
-or revive WebKit extension emulation. Any later extension-list sync needs an
-explicit portable intent model and local permission review; it is not implicit in
-this browser-record migration.
+### Resolved values and seeds
 
-`NativeSyncSessionTransition` prepares local staging, record merging,
-materialization, repair and retention as one core operation. The session authority
-then reserves the validated replacement and writes the matching session,
-per-Space history and journal in one SQLite transaction before it publishes.
-Failed storage cancels the reservation; accepted storage publishes the reserved
-revision before native windows reconcile. A restart reads the committed pair.
-Preserve ordering between local edits, incoming batches, durable checkpoints,
-pending uploads and acknowledgements, including crash recovery. Keep explicit
-deletion distinct from absence, retention and superseded records, and preserve
-unknown fields supported by the compatibility contract.
+A `[Resolved]` property is a value the core computes from a record's fields
+and publishes with it, such as a tab's icon mode or a Space's sidebar outline,
+so no UI works out the rule again. Resolved values travel only from the core
+to the platform. Where a message the platform sends holds a record with
+resolved values, the generator emits a fields-only seed, `X.Seed`, and the
+message takes the seed: `OpenWorkspace` takes a `SessionState.Seed`, for
+instance. The core resolves the rest when it reads it. A published record
+gives its seed back as `.seed`. No stored or synced format holds a resolved
+value, because the stored and synced formats have hand-written codecs.
 
-The experimental Chromium launch creates an isolated CloudKit controller and
-does not start production sync. Removing that protection is not a sync migration.
-Live cross-device validation opts into a separate review record zone through
-explicit launch configuration and provisioned app identities. Keep sample sessions and test
-tombstones out of the installed app's journal and cloud records. Simulator builds
-and an idle sync indicator cannot substitute for two-client record convergence.
+### The C ABI
 
-### Completion gate
+The ABI is synchronous and handle-based. `crest_app.h` is the typed
+application API (`crest_app_create`, `dispatch`, `query`, `drain`,
+`set_wake`, `end_turn`, `restore`, `settle_sync`), `crest_engine.h` the engine
+contract (`crest_engine_register`, `report`, `unregister`), and
+`crest_core.h` the version and the standalone answers. `crest_app_create`
+takes the schema fingerprint and refuses any other, so a stale prebuilt core
+fails at launch instead of misreading data.
 
-Do not close the migration after a successful Chromium launch or extension demo.
-It is complete when the real desktop and mobile compositions share core behavior,
-cross-engine sync has live convergence evidence, retained user features have their
-engine/platform adapters, Crest identity and customization work, and existing
-sessions upgrade without loss. Keep external signing, provisioning or device
-access requirements visible; do not mark those requirements complete on the
-strength of unit tests or an unrelated successful build.
+TRANSITIONAL until the JSON policy boundary is deleted:
+`crest_core_evaluate_policy` still answers two JSON policy operations,
+`residency.release_limit` and `residency.release_plan`, which no platform
+calls since iPhone and iPad report memory pressure to the core.
+`BrowserCoreErrorCode` keeps one code for the manual-setup tab policy.
+Nothing else crosses as JSON.
 
-## Native engine boundary
+## The read model
 
-The existing desktop and mobile page facades use `BrowserPageEngine` for native
-view ownership, loads, Back/Forward history, reload, stop, zoom, Find, viewport
-capture and media residency observations.
-`BrowserWebKitPageEngine` owns WebKit's supplemental same-document navigation
-history on both Apple platforms. `ChromiumNativePage` implements that same port
-using the Chromium host. History entries remain read projections; traversal and
-cache-bypassing reloads run in the engine's navigation controller.
+The core publishes typed changes and never resends unchanged state. It derives
+them by comparing each accepted state with the one before, so no change can be
+forgotten. Changes are keyed by workspace, because the persistent session,
+private browsing, borrowed workspaces and Quick Windows are open at once.
 
-Native page operations do not require a .NET round trip. The UI calls a shared
-native port, and the selected engine implements it. .NET remains responsible for
-shared session state and policy. The process host presents windows through
-`BrowserMacWindowPresenting`; batch page confirmation uses the optional
-`BrowserPageClosePreparing` service injected by the composition. Chromium's
-before-unload confirmation leaves pages alive until the session accepts the
-close. Canceling it preserves the tab, archive and renderer. Engine-specific
-calls belong inside the adapter or its process composition, not shared commands
-or views.
+An intent answers with the changes still pending from earlier, then its own,
+so an older change never lands after a newer one and the caller reads the new
+state straight away. Changes the core starts itself (a finished save, a sync
+merge, an engine event) arrive through a payload-free wake callback that the
+UI answers by draining the pending batch, at most once per main-queue turn.
 
-Each desktop composition constructs exactly one native engine. Chromium pages
-have no WebKit view; WebKit document controllers are optional and are only
-created for a WebKit page. Chromium snapshots come from its compositor, and
-idle-tab decisions use Chromium playback, capture and picture-in-picture state.
-Missing media observations keep the page resident until its engine can answer.
+`CoreState` is the Swift read model. Only the changes `CrestCore` receives
+update it, each through its applier in a `CoreState+Area.swift` file. It is
+observable per entity: each workspace, Space, tab, folder, window and page is
+an object that notifies only when one of its values really changes, so a tab's
+new title redraws that tab's row and nothing else. Every value is stored
+before it is announced (`BrowserStoreFirstObservable`), so a view rendering
+during an announcement reads the new value. A generator check refuses views
+that read a whole read-model list's `.values`.
 
-The process composition registers its engine bindings with the app's core
-through `crest_engine.h`: WebKit always, and Chromium as the default in the
-Chromium product. Registration carries the capabilities the engine supports, is
-local to the process, and is excluded from persistence and sync, so a restored
-session accepts the destination device's engine without changing shared browser
-records. The core publishes the registered engines to the read model with
-what the device offers: what the default engine supports, and what each
-engine a page is open on supports. A feature is offered on that rule and
-enabled by the engine of the page it acts on. Every engine must support the required page, navigation and profile
-contracts; unverified, unavailable and unknown capabilities do not authorize a
-feature. The native page port exposes this declaration without crossing the ABI
-for each interaction. The core owns page identity: a pool or page store opens
-each page through the core (`OpenPage`) from its window, hands a page to another
-owner (`MovePage`) and releases it (`ReleasePage`), and the core refuses a page
-in a locked Space, in one being deleted or for a tab that already has one. A
-tab's page opens on the engine chosen for the site the tab shows
-(`ChooseSiteEngine`) when that engine is registered, and otherwise on the
-default engine. The device store keeps the persistent session's choices, and
-a private Space's choices stay in memory. `RehostPage` moves a page to another
-engine: the core closes it on its engine, creates it on the other in the same
-profile and window, and loads the address it showed once that engine created
-it. A page heading to a site chosen for another engine, by a load the person
-asks for or a navigation its document starts, moves there the same way. When
-Chromium reports `ProtectedMediaUnavailable`, the core moves the page once to
-an engine with the `protected-media` capability and records that engine for
-the site, unless the site already has a choice. The Mac window then shows a
-notice with "Move back". The core
-asks the page's engine to create, load and close the engine's page, and the
-binding reports what the engine did, including a `PageSnapshot` of what the page
-shows, which the core keeps as the page's `PageLiveState`. Chromium's binding is
-the engine's own C++ (`crest_engine_binding.cc`): the engine hands the Chromium
-composition its function table when the UI framework starts, the composition
-registers it, and from then on the core's commands reach the binding directly
-and the binding reports to the core itself, with nothing in Swift between them.
-`CreatePage` names the page's window, so Chromium creates the page in that
-window's Browser as soon as the core asks; Swift only hosts the page's view.
-The page's view work (history, reload, find, zoom, capture, export and
-printing, whether it is on screen) goes straight to the binding as a
-`PageRequest` through the table the engine hands the composition beside its
-binding table, and what finishes later, such as a find's count or an export,
-comes back as an `EnginePresentation`. The binding also presents what the
-platform shows of the page and the core does not keep: whether its view is
-ready, its navigations as they start, commit and fail, its loading, history
-and theme, the link under the pointer, blocked pop-ups, fullscreen, the
-engine's bars, its media session, Crest's content-bridge messages, Chrome Web
-Store requests and the docked inspector's layout. A page's `WatchPage` request
-replays them for a view that arrives after the engine made the page. A
-profile's extensions are the binding's too: the toolbar's and Settings' lists
-(icons as PNG bytes), the changes the person makes, whether an extension has a
-side panel for a page, and `ExtensionsChanged` and `SidePanelRequested` when the
-engine changes them or asks for a panel. The Mac shell keeps only the views it
-hosts: the page, its docked inspector, side panels and extension popups.
-Typed addresses, the
-command palette, Open Location and every first load go through `Navigate`, which
-the core resolves by the Space's address and search rules before it issues
-`LoadPage`. Document export, printing, full-page capture and inspector commands
-now use native engine services. Save panels and print sheets remain native UI.
-The command route and developer capture controls consult the registered services;
-Chromium exports PDFs, full-page PNG captures and MHTML archives through a fixed,
-page-scoped in-process DevTools client. It exposes no debugging socket or arbitrary
-protocol commands to the UI. Navigation, renderer loss and page closure cancel a
-pending export; requests time out after 45 seconds. Full-page captures use the
-same 6,000-by-24,000 CSS-pixel bounds as WebKit, and export data is limited to 64 MiB.
-Archives use the engine's actual format: `.mhtml` for Chromium and `.webarchive`
-for WebKit. Chromium printing renders a PDF and presents the native PDFKit print
-sheet, whose paper settings scale the rendered pages. Reader and whole-page Apple
-translation stay unavailable in Chromium and their menu items are absent rather
-than dimmed; Chromium's page context menu translates a selection through Apple's
-on-device translation instead. Developer commands open, switch and close DevTools on the
-requested panel, except Network, which DevTools only exposes to Chromium's own
-frontend. A docked inspector is mounted inside the page card it inspects, on the
-dock side and at the size its own frontend asks for, so opening it adds no
-window; undocking is a request for a window and Chromium opens one. Closing the
-inspector by any route (its own close button, an undocked window close, the
-page closing) clears the card's panel selection. Local documents open on both engines. File ▸ Open File… offers the
-document kinds the registered engine reads, including its own archive format, and
-the address route resolves `file://` URLs, absolute paths and home-relative paths
-to the same URL. The core owns that resolution for every composition; the Swift
-fallback it replaced has been removed. Local-file tabs have no
-host, so the sync projection's scheme filter already keeps them on the device that
-opened them.
-Chromium's page context menu now offers Open Link in Split View through the same
-shared store command the WebKit menu route uses.
-Page creation and lifetime belong to the native composition and its engine
-ports.
+Views read the read model directly. `BrowserStore` is the per-window facade
+that sends intents and answers what a window shows; apart from the copy below,
+it holds no browser state of its own.
 
-Space unlocking uses one process-local `SpaceAccessAuthority` in the app,
-driven by the `BeginUnlockingSpace`, `FinishUnlockingSpace`, `LockSpace` and
-`LockAllSpaces` intents, each of which publishes `SpaceLockChanged` for the
-Space profiles it changed. The native access controller presents Apple's
-authentication prompt, answers with its result and reads each lock from the
-read model; it owns no set of unlocked profiles. Grants match both Space and
-profile identity. Only the current request may complete; relocking cancels it,
-and a late result cannot consume a newer request. Scene deactivation caused by
-the system prompt preserves that pending request. Explicit locking always
-revokes access. These grants never enter checkpoints or sync. The durable
-access policy is the `SetSpaceAccess` intent, and native page, credential and
-extension callers retain their existing access gates. The device attaches the
-grants to every session it shows, and a borrowed workspace inherits its
-source's.
-The session authority then rejects a prepared command against a Space whose
-stored policy requires authentication and holds no grant, with `space_locked`,
-before any preparation runs. Raising a Space's protection, its deletion intents,
-and retention or cleanup sweeps still apply while it is locked, because none of
-them returns its tabs, folders, history or archive; removing protection is the
-decision authentication guards, so it needs the grant like any other command.
-The same rule covers the native value-edit path: a proposed session delta or
-durable replacement that would change a locked Space's metadata, tabs, folders,
-history, archive or splits, or remove it, is rejected with
-`space_locked` before the revision is accepted, on the same allowlist. Sync
-staging, merging and materialization commit as journal-bound replacements rather
-than commands or value edits, so background convergence on a locked Space is
-unaffected. Because the access policy has no modification stamp of its own on
-the wire, materialization applies it monotonically toward protection: an
-incoming record may raise protection, but may only remove it where this device
-already holds the grant, and the local record wins on the next upload otherwise.
+TRANSITIONAL until P4.6 deletes it: each attached workspace still has
+a Swift session copy (`BrowserSession`, kept in `CoreState.sessionCopies`)
+that the session changes update. Engine glue, the page pools and a shrinking
+set of tests read it. No view reads it. `BrowserSession+CoreSeed.swift` maps
+the copy's values to seeds for the tests that still build one.
 
-## Existing UI migration
+## State the core keeps
 
-`CrestNativeCore` and `CrestMobileNativeCore` build the existing platform entry
-points, all original native views, and the current page infrastructure. Each has
-an isolated bundle and profile.
-Every composition routes domain operations through the packaged .NET library.
-Tab opening, touching, duplication, closing, deletion, placement, filing,
-renaming, residency preferences, folders, split groups, archive restoration and
-automatic tab cleanup execute through the core. Address intent is a policy
-operation, and history visits, history-range deletion and history and archive
-retention are the `history.*` and `records.*` session commands.
-Each store family has one `BrowserCoreSessionAuthority`, attached to the core's
-device when it is created. The .NET authority owns the committed session
-records, and Swift keeps a read copy for the existing UI that only the core's
-session changes update: attaching publishes `WorkspaceOpened` with the whole
-session, and each accepted state publishes what changed since the one before
-(`SpacesChanged`, `SpaceSettingsChanged`, `TabsChanged`, `FoldersChanged`,
-`SplitGroupsChanged`, `HistoryChanged`, `ArchiveChanged`, `WorkspaceChanged`,
-`AppPreferencesChanged`), derived by comparing the two states, keyed by
-workspace and idempotent. `TabCopied`, `TabsImported` and `TabFaviconAssigned`
-tell the copy which tab wears which native image. Intents carry arguments and
-the window that issued them, never a revision, and never resend unchanged
-history or favicon bytes. An intent is accepted, or reserved while it is saved,
-under the lock that computed its edit, so it never overwrites a change it did
-not see. Transfers between families commit both graphs before either native
-window reconciles its selection.
+| Object | Holds | Saved | Synced |
+| --- | --- | --- | --- |
+| Workspaces (`NativeSessionAuthority`) | The persistent session and every memory-only one: Spaces with their profiles, tabs, folders, splits, history, archive, app preferences | The persistent session | Yes, through the journal |
+| `Device` | Windows and what each shows, split column shares, per-site engine choices, site permission choices, shortcuts, link preferences, setup, adoptions | In the device store; memory-only Spaces' choices stay in memory | Never |
+| `Pages` | Each open page: its owner, window, engine, phase and live state | Never | Never |
+| `Prompts`, `ClosePreparations` | Questions waiting on the person; a close or quit in progress | Never | Never |
+| `Engines` | The registered bindings, their capabilities and what the device offers | Never | Never |
+| Downloads | The ledger of this run's downloads | Never | Never |
 
-The core owns `session.sqlite`. The host passes only the storage directory
-(`AppConfiguration`) when it creates the core, and the core validates, opens and
-loads the file, keeps a recovery copy, and repairs the session as its first save.
-Every accepted revision is saved behind on the core's storage worker, newest
-first, skipping parts whose bytes did not change, so editing continues while an
-older revision is written. Commits whose effects outside the core depend on the
-file save before they return: sync commits with their journal, Space deletion,
-imports, batches, cross-Space moves and workspace transfers. The core publishes
-`Saved(revision)` and `StorageFailed(reason)` through its wake-and-drain path,
-and the `PendingSave` query names the newest revision not yet on disk;
-quitting and backgrounding wait for `Saved`. An intent answers the changes
-still pending before its own, so an older change never lands after a newer
-one. Favicons stay in the native side
-store. Saved parts hold browsing data only; see "Windows belong to the device"
-below. Private, temporary and borrowed families stay in memory.
+### Sessions and commands
+
+Each store family's session lives in one `NativeSessionAuthority`, attached to
+the core's device as a workspace (`OpenWorkspace`, `BorrowSpace`). Every edit
+is a typed intent that names the window that issued it, because some rules
+read what that window shows. An intent is prepared against the state it saw
+and commits only while that state is still the accepted one; a rejected or
+stale preparation changes nothing. When it commits, the device moves the
+issuing window to what the intent chose and repairs every other window of the
+workspace.
+
+A Space and its profile are one to one in every accepted document. Borrowed
+workspaces (Blank Windows, detached tabs) bind their source Space and profile,
+keep their own local collections that are never saved or staged, and close
+when the source Space goes. A borrowed workspace never edits its Space's
+settings; the core refuses with `BorrowedProfileRequiresOwner`.
+
+The session model covers tab lifecycle and placement, folders, splits,
+multi-selection batches, cross-Space and cross-workspace moves, Quick Window
+and Peek promotion, history and archive with their retention, sidebar outlines
+and drop targets, imports, and Space creation, identity, appearance,
+preferences, access policy and deletion.
+
+### Locked Spaces
+
+`SpaceAccessAuthority` holds this process's grants, driven by
+`BeginUnlockingSpace`, `FinishUnlockingSpace`, `LockSpace` and `LockAllSpaces`,
+each of which publishes `SpaceLockChanged`. The native access controller
+presents Apple's authentication prompt, answers with its result and reads each
+lock from the read model. Grants match both Space and profile identity and
+never enter storage or sync.
+
+A session rejects a prepared intent that would read or change a locked Space
+with `SpaceLocked`, before any preparation runs. Raising protection, deletion,
+and retention sweeps still apply to a locked Space, since none of them
+returns its content. Sync is not gated, so background convergence continues,
+but a merge can raise protection and never remove it where this device holds
+no grant. Native page, credential and extension callers keep their own gates,
+so the core gate is defence in depth.
 
 ### Windows belong to the device
 
-Which Space a window shows and the tab it shows in each Space are the core
-device's window state, never part of the session. The session holds Spaces,
-tabs, order, folders, splits and `lastActivatedAt` timestamps. Every session a
-window may show is a workspace the core opened (`OpenWorkspace`, `BorrowSpace`),
-and `WorkspaceOpened` carries the identity it gave it. Closing a workspace
-(`CloseWorkspace`) closes its windows but keeps their saved records, so the next
-launch restores them. A window opens with `OpenWindow`, closes
-with `CloseWindow`, and changes what it shows with `ShowSpace`, `ShowTab`,
-`DismissShownTab` and `ResizeSplitColumns`; the core publishes `WindowChanged`
-and Swift renders each window from `CrestCore.state.windows`. Showing a tab
-records its `lastActivatedAt` as a change of its own and publishes the
-`TabsChanged` the family's copy follows. The device also keeps
-each window's recently shown tabs, which choose the tab a dismissed one gives
-way to. The `CanTearOff` query decides whether a dragged tab may leave its
-window, and `FallbackTab` answers the tab a draft Space would show first.
+Which Space a window shows and the tab it shows in each Space are the device's
+window state, never part of the session. A window opens with `OpenWindow`,
+closes with `CloseWindow`, and changes what it shows with `ShowSpace`,
+`ShowTab`, `DismissShownTab` and `ResizeSplitColumns`; the core publishes
+`WindowChanged` and Swift renders each window from `core.state.windows`.
+Showing a tab records its `lastActivatedAt` as a change of its own. Cleanup
+keeps every tab an open window shows and every tab a saved window's record
+shows. Windows over the persistent session are saved in the device store, the
+sixteen used last. Sidebar width and presentation stay the platform's.
 
-Commands name the window that issued them (`windowId`), because some rules
-read what it shows (a close falls back from the shown tab; a promotion inserts
-after it; a batch acts on the Space shown). When a command commits, the device
-moves the issuing window to what the command chose and repairs every other
-window of that workspace against what still exists. Cleanup keeps every tab an
-open window shows and every tab a saved window's record shows.
+### Storage
 
-Windows over the persistent session are saved in device tables beside the
-session in `session.sqlite`: the sixteen used last. They are never synced,
-and `user_version` does not change for them. Sidebar width
-and presentation stay the platform's (`BrowserWindowLayouts`). Older releases
-kept each window's record in `crest.windows.v1` and the viewed Space and tabs
-inside the session (`selectedSpaceID`, `selectedTabID`). Both still load:
-`AdoptWindowRecords` carries the records into the device store once, folding the
-session's legacy tabs into records written before windows remembered their
-Spaces; the stored-format codec ignores the legacy fields and never writes
-them, and a window without a record adopts them during the launch that loaded
-them. Sync never carried selection and still does not.
+The core owns `session.sqlite`. The host passes only a storage directory in
+`AppConfiguration`. The core validates, opens and loads the file, keeps a
+recovery copy, and repairs the session as its first save. The session's
+parts live in the `checkpoint(part, data)` table, and the device store in its
+own additive `device_*` tables beside it, which older builds ignore.
 
-### Commands and value edits
+Every accepted revision is saved behind on the core's storage worker, newest
+first, skipping parts whose bytes did not change, so editing continues while
+an older revision is written. Commits whose effects outside the core depend on
+the file save before they return: sync commits with their journal, Space
+deletion, imports, batches, cross-Space moves and workspace transfers. The core
+publishes `Saved(revision)` and `StorageFailed(reason)`; the `PendingSave`
+query names the newest revision not yet on disk, and quitting and backgrounding
+wait for it. Private, temporary and borrowed workspaces stay in memory.
 
-Live state ownership and checkpoint serialization belong to the core. Every
-native edit is a semantic command on the family's authority. The only value
-replacements left are incoming sync, which commits as a journal-bound
-replacement, and the Debug-only test session setter.
+An unreadable file opens native recovery UI before browser services or sync
+start. `crest_app_restore`, while no app has the directory open, validates the
+recovery checkpoint read-only, keeps the original database and sidecars in a
+separate recovery directory, and uses an interruption marker so a partial
+restore cannot become a first-install seed. A file saved by a newer storage
+version asks for an app update.
 
-The store's tab opening, touching, closing, deletion, current-tab clearing,
-renaming and residency actions send commands directly to that authority.
-Folder creation, appearance, renaming, collapse, deletion, moves and tab filing use the same path.
-Requests contain arguments and what the window shows rather than an encoded Space.
-The core prepares the edit against its owned records, the answer reports what
-the command made, and the commit publishes the session's changes to every
-window's copy.
-Abandoned preparations do not change state. Favicon bytes stay native, and
-existing history and archive records do not cross the command boundary.
+## Sync
 
-Single-tab duplication, same-Space moves, durable close, and split creation,
-reordering, relocation and dissolution also execute against the authority's owned
-records. Opening a link into a split is one atomic command, including any copies
-of pinned or saved members. The core copies split metadata and returns asset
-references; native adapters supply current page URL/title observations and prepare
-opaque navigation history for accepted copies. Multi-selection batches use the
-same owned authority. Their captured tab and folder
-membership is revalidated before filing, copying, splitting, archiving, deleting
-or transferring a selection. A batch reserves one session/journal commit; rejected
-commands and canceled native close prompts publish no subset. Swift retains
-selection presentation, current page observations and opaque copy history.
-Native close confirmation precedes batch Archive/Delete, and the command checks
-the selection again when confirmation returns. Batch deletion commits explicit
-tombstones with tab removal, while archiving retains its non-deletion cause.
+Sync stays Apple-only. CloudKit transport is an OS service; the core owns the
+records, merging, ordering, scheduling and the payload codec.
 
-History visits and removal, archive restoration, automatic cleanup, retention and
-split identity metadata now prepare against the authority's owned records. The
-native caller sends intent and what its window shows, then applies only changed history
-entries, removal references and tab or split projections. The core reads retention
-preferences itself. Archive removals use positions so older repeated identities do
-not cause an unexpired occurrence to be removed. Native favicon assets remain
-attached when tabs move into or out of the archive, and other windows retain their
-own selection during reconciliation.
+- `NativeSyncAuthority` is attached to the persistent workspace and owns the
+  accepted journal and its staging. Private and temporary workspaces cannot
+  attach it. The core stages every accepted revision itself, on a worker,
+  from the revision's immutable state. Each intent carries the reason its
+  removals are deleted for and how soon it stages. A burst of edits stages
+  once, and each removed record keeps the reason of the edit that removed it.
+- `NativeSyncJournal` updates immutable journal snapshots through `Stage`,
+  `Merge`, `Replace`, `Overwrite` and `Acknowledge`. The rules that differ by
+  kind of record belong to that kind's `SyncPayloadType`. A failed update
+  leaves the records, clock and pending uploads intact.
+- `SyncRecordBody` reads and writes each payload or tombstone in the journal's
+  form and in the CloudKit form, keeps the members this build does not know,
+  and computes the schema a record needs. Swift's `CloudRecordCodec` only maps
+  those bytes and the envelope onto a `CKRecord`.
+- Incoming records arrive as cloud sync intents (`MergeSyncRecords`,
+  `MergeCloudSnapshot`, `ReplaceWithCloudRecords`,
+  `ReplaceSeedWithCloudRecords`, `OverwriteCloud`). A merge computes on the
+  transport's thread against a snapshot, outside the core's lock, then takes
+  the lock only to commit with a revision check. The session and the journal
+  are written in one transaction before either publishes. A record the core
+  cannot read, or whose schema is newer, is skipped and counted in the
+  `SyncRecordsSkipped` receipt; a snapshot with any skipped record is refused
+  whole.
+- `CloudTransportStore` keeps the transport's cursor, per-record server fields
+  and flags in the device store, cleared with the reconciliation flag in one
+  transaction. `CloudSyncControl` is the sync controller's state machine: its
+  intents answer `CloudSyncAdvanced(status, steps)`, and the Swift controller
+  only takes the steps (CloudKit calls, the transport, timers).
+- The core publishes `Saved(revision)`, so the transport stores its server
+  token only after the merge it covers is on disk.
 
-Space creation, identity, appearance, preferences, default Space, saved-tab
-disclosure, reordering and removal also use the authority's commands. Profile
-identity is checked before editing; borrowed workspaces cannot change their source
-profiles. The core enforces new private Space defaults and prevents removal of
-the last Space. Native profile cleanup and authentication remain platform work.
-A Space and its profile are one to one in every accepted document: a restored
-session, value delta or import that would give two Spaces the same profile is
-rejected as `duplicate_space_profile`, and checkpoint repair gives the colliding
-Space a fresh profile instead of sharing another Space's browsing data.
+### Cross-engine sync contract
 
-Blank Windows and detached-tab windows open a borrowed workspace with
-`BorrowSpace`. The core binds the source Space and profile identity, inherits
-its engine and private-browsing registration, and creates empty local browsing
-collections. Each edit the owner accepts brings the borrowed Space's settings
-up to date in the same answer, keeping its local tabs, folders, history,
-archive and split groups; that state is never saved or staged. A native
-snapshot cannot create a borrower or replace its canonical policy. When the
-Space is deleted or starts deleting, takes another profile, or its owner
-closes, the core closes the borrower (`WorkspaceClosed`), and the window over
-it closes. Whoever closes a temporary window closes its workspace with
-`CloseWorkspace`.
+The CloudKit format is engine independent: Space and profile identifiers,
+Space appearance and browsing preferences, folders, HTTP and HTTPS tabs with
+their saved and pinned placement, split membership, history and archive. The
+same tab can be a Chromium page on the Mac and a WebKit page on an iPhone. A
+profile UUID is the shared identity; its Chromium directory or WebKit data
+store is the binding's detail.
 
-Quick Window and Peek promotion on Mac and mobile use the same transient
-completion commands. The authority validates the source and destination profiles
-against its current records and uses native authentication results to authorize
-promotion. It creates the destination tab, hints the window to show it, preserves
-insertion after the shown split group, and permits live-page adoption only within the same
-Space/profile. The adapter performs the view transfer after commit; an unavailable
-transfer falls back to loading the new tab. Empty Quick Windows only hint the
-destination Space. Archive-on-dismiss uses the same domain collection and keeps
-window selection unchanged, including when a retained snapshot was relocked.
-Process-local completion receipts prevent a late dismissal or repeated promotion
-from creating another record. Canceling a prepared storage reservation does not
-consume the request. These receipts are not synced or restored. Page lifecycle
-ownership is now split the same way on both engines: tab dismissal and
-renderer-recovery decisions are core policy operations, the core's `Pages`
-decides which pages memory pressure unloads, and the native adapters own page
-creation and disposal. iPhone and iPad still plan residency release through the
-core's policy operation until one WebKit binding serves both platforms.
+Cookies and website data, engine history stacks, caches, device permissions,
+per-site engine choices, extensions and their access never enter sync. Native
+Settings and Start Pages, `chrome://`, `chrome-extension://`, files and other
+non-web tabs stay on the device that opened them and survive incoming merges.
+Private and temporary workspaces never upload. A device must not delete a
+shared record because it lacks a capability. Explicit deletion stays distinct
+from absence and retention: only an explicit Space deletion from another device
+authorizes cleaning up the local profile.
 
-Portable archive import, reviewed import, and manual setup use one core workspace
-operation for both preview and commit. The core merges folders, enforces Space
-and pin limits, preserves existing profile identities, repairs imported identity
-collisions, applies draft ordering, and graduates a reviewed first-install seed.
-Native code supplies the reviewed intent and opaque appearance vocabulary;
-favicon bytes are reattached using positional references returned by the core.
-Accepted imports reserve publication while the session and sync journal are
-saved together, then reconcile all windows. Rejected and stale preparations
-cannot publish or reserve storage. The Chromium process host presents the original
-setup/import window through the native window port, including completion and
-dismissal; the SwiftUI app continues to use its existing scene.
+### Isolated CloudKit review
 
-Cross-Space tab moves and same-profile temporary-window transfers prepare from
-the core's owned records. The core decides placement and split cleanup, and
-answers each window's follow-up selection (the source window's fallback, the
-destination window's moved tab). A workspace transfer reserves both states
-until the persistent owner's session and sync journal are saved; cancellation
-leaves both graphs unchanged. Private browsing and stale profile identities
-cannot cross that boundary, and matching IDs cannot transfer between unrelated
-profile owners. The native coordinator moves the existing page
-through the engine adapter after the state commit, without navigating it again.
-Compact transfer projections exclude history, archive and native image bytes.
+A provisioned review app can opt into real transport with
+`CREST_ISOLATED_SESSION=1`, its own `CREST_ISOLATED_PERSISTENCE_ID`, and
+`CREST_ISOLATED_CLOUD_SYNC_ID`. The cloud ID is a shared lowercase ASCII slug
+of at most 48 characters. Devices with the same cloud ID use the
+`CrestReview-<id>` zone; each keeps its own local profile. Tests, previews,
+unnamed profiles and malformed cloud IDs cannot opt in. The transport scopes
+fetches, writes, references and deletion handling to that zone, and its cursor
+and server metadata stay separate from production. Fresh review profiles use
+the disposable first-install seed, so an existing cloud session replaces their
+sample Spaces before publication.
 
-The core resolves conflicts and allocates stable fractional order tokens, and
-validates each record's identity where it arrives. `NativeSyncJournal` owns
-immutable journal snapshots and updates them through typed methods: `Stage`,
-`Merge`, `Replace`, `Overwrite` and `Acknowledge` cover local staging, deletion
-evidence, incoming merges, cloud replacement, logical clocks and upload
-acknowledgements. The rules that differ by kind of record belong to that kind's
-`SyncPayloadType`. The core writes each snapshot in the existing format, and a
-failed update leaves the original records, clock and pending uploads intact.
+Device builds of `CrestMobileNativeCore` request CloudKit without the
+production browser entitlement. For macOS provisioning, build
+`CrestNativeCore` with
+`CREST_NATIVE_CORE_ENTITLEMENTS=CrestNative/Apple/Composition/MacCloudReview.entitlements`.
+Chromium packaging accepts the resulting profile through
+`--provisioning-profile`, validates the identity and CloudKit grant, embeds the
+profile and keeps Chromium's runtime entitlements. The review package uses the
+Development CloudKit environment.
 
-The core also owns the CloudKit payload codec. `SyncRecordBody` reads and writes
-a record's payload or tombstone in the journal's form and in the CloudKit form
-(sorted keys, dates as seconds since 1970), with the defaults and validation the
-Apple clients apply. It keeps the members this build does not know, and computes
-the schema a record needs. Swift's `CloudRecordCodec` only maps those bytes and
-the envelope fields onto a `CKRecord` and back.
+## Engines
 
-`NativeSyncProjection` maps compact native checkpoints to the existing shared
-record format. Staging projects directly inside the immutable journal transition,
-so projection failures cannot advance its clock. `NativeSyncMaterializer` applies
-reconciled incoming records, preserves device credentials and local-only pages,
-and distinguishes delayed parent folders from tombstoned folders. Domain folder
-resolution holds back incomplete subtrees and rejects cross-Space ancestry.
-A rule a projection or a materialization breaks is a `SyncRecordFlaw` naming the
-record or Space that breaks it. Native favicon image bytes stay outside the core
-and are reattached by the adapter.
+The engine contract is a set of contract records like intents and changes:
 
-`NativeSessionMaintenance` repairs checkpoint identities, folder structure,
-pin limits and split membership, and applies history/archive retention.
-The same domain split policy serves command edits and checkpoint repair. A repair
-returns native asset references separately from semantic records, preserving each
-tab's images when duplicate identities are replaced. Startup must accept repair
-before creating pages or saving the session; rejected sync preparation leaves the
-original session and journal untouched. A seed opens repaired in the same way,
-and a tab the repair gave a new identity follows as `TabCopied`. Replacing a
-disposable seed with real cloud Spaces clears the seed marker.
+- **Engine commands** the core issues to one binding: `CreatePage`,
+  `LoadPage`, `ClosePage`, `RecoverPage`, `CheckBeforeUnload`, the prompt
+  settlements and the download commands. The core delivers them in the order
+  it issued them, never while it holds a lock and never on the stack of the
+  report that caused them.
+- **Engine events** a binding reports: `PageCreated`, `PageCreationFailed`,
+  `PageClosed`, the navigation events, `PageStateChanged` with a
+  `PageSnapshot`, `PageIconChanged`, `PageCrashed`, the prompt events, the
+  download events, `BeforeUnloadAnswered` and `ProtectedMediaUnavailable`.
+  A report is never refused; one about a page the core no longer knows, or
+  one from an engine that no longer hosts the page, changes nothing.
+- **Page requests** the UI makes of a page's binding directly for view work,
+  answered at once, and **engine presentations** the binding sends back when
+  such work finishes later or when the view must show something the core does
+  not keep (link hover, fullscreen, the engine's bars, extension changes). The
+  core never sees these.
 
-Cloud records arrive as `CloudSyncIntent`s (`MergeSyncRecords`,
-`MergeCloudSnapshot`, `ReplaceWithCloudRecords`, `ReplaceSeedWithCloudRecords`,
-`OverwriteCloud`) through `crest_app_dispatch`. A record whose payload the core
-cannot read, or whose schema is newer than this build's, is skipped and counted
-in the intent's `SyncRecordsSkipped` receipt; a snapshot with any skipped record
-is refused whole. The core computes the matched session and journal after all
-merge rules succeed, reserves the session so no competing write lands while it
-saves both, and refuses a record it cannot take with `InvalidSyncRecords`. Legacy defaults are migrated once, through the
-`AdoptLegacySession` intent, and retained for rollback. Local saves, incoming sync
-and upload acknowledgments all write through the core's one connection, and a
-journal is always written in one transaction with the newest accepted session.
+The engine contract has its own fingerprint, covering only its wire, so an
+edit elsewhere in the contracts leaves a prebuilt engine valid. The generator
+writes it as portable C++20 (`crest_engine_contract.h`) that uses the standard
+library alone and never throws.
 
-### Upgrading an installed session
+### Registration, capabilities and offering
 
-The upgrade carries exactly two values: the installed release's
-`UserDefaults` session core plus its per-Space history keys, and its sync
-journal. Everything else keeps the identifier it already had and is read in
-place, because the products share one identity. `ProductIdentity` resolves the
-same `com.pauldavis.crest` defaults domain, the same
-`Application Support/Crest` directory, the same keychain service namespace and
-the same `iCloud.com.pauldavis.crest` container for the WebKit `Crest` target,
-`CrestMobile`, and the Chromium composition that
-`package-chromium-host.py --product` assembles from `CrestChromiumUIProduct`.
-That packaged product rewrites `CFBundleIdentifier` to `com.pauldavis.crest`
-and carries Crest's own CloudKit container key, and it omits
-`CREST_REVIEW_BUILD`, so it takes the installed rather than the isolated launch
-path and opens the same `ControlPlane/session.sqlite`, favicon store, tab-state
-archive and download staging directory. None of these products is
-App-Sandboxed; adding `com.apple.security.app-sandbox` to either side would
-move every one of those paths into a container and strand the installed data,
-so the product package must be signed with the Mac target's own entitlements.
+Each composition registers its bindings with its app's core: WebKit always,
+and Chromium as the default in the Chromium product. `EngineRegistration`
+carries the engine's kind, the `EngineCapability` members it supports and
+whether new pages open on it. Every engine must support the required
+capabilities (`pages`, `navigation`, `workspace-profiles`,
+`profile-deletion`), and one is the default. Registration is local to the
+process and never saved or synced.
 
-`BrowserStore.migratedStorage` performs the carry and is the seam the upgrade
-test drives with its own directory, defaults suite and favicon store. When the
-core's file holds no session, Swift reads the installed release's values raw
-(`BrowserLegacySessionDefaults`: the session core, every Space's history key,
-the journal from its suite, or the whole-graph blob of releases before the
-split) and sends them with the first-launch seed as `AdoptLegacySession`. The
-core decodes them, including the tab groups releases before folders stored,
-and writes the result before the intent returns; `SessionAdopted` hands back
-the tab images a whole-graph blob carried, for the favicon store. A file that
-already holds a session adopts nothing, so a later launch never replaces
-accepted data with the retained legacy copy. An installed session the core
-cannot decode is left where it is: the core leaves the cloud-recovery marker
-beside the file and installs the seed, so the seed is replaced by the Spaces
-CloudKit still holds instead of being published as their deletion.
+The core publishes the registered engines as `EnginesChanged(EngineRoster)`,
+with what the device offers: what the default engine supports, and what each
+engine a page is open on supports. It republishes them when an engine
+registers or goes, or when what is offered changes because a page opened on an
+engine no page used or an engine's last page went. Menus, the launcher, the
+settings and the shortcut settings offer what the device offers, and the page
+a command acts on enables it through its own engine. A capability an engine
+lacks has explicit product behavior, declared in `BrowserEngineRegistration`.
 
-WebKit cookies and website data, WebKit extension packages and their granted
-permissions, and WebKit tab interaction-state archives are engine-specific and
-are not converted. The branch deletes none of them, so returning to the WebKit
-app finds them intact; a Chromium tab without a usable archive falls back to
-loading its URL. Physical-device validation and a real-account sync run against
-installed Spaces are still outstanding. Startup stages restored local edits before cloud work,
-including edits saved before their coalesced sync projection completed.
+TRANSITIONAL until the Chromium menu reads the read model: the
+Chromium product's own menu (`CrestChromiumMenu`) still offers commands by its
+composition's engine through `ShortcutCommand.isOfferedByCurrentEngine`.
 
-`NativeSyncAuthority` is attached to the persistent session authority and owns the
-accepted journal and the session's staging. Private and temporary workspaces
-cannot attach it, and one sync owner cannot serve unrelated store families. The
-core stages every accepted revision itself, on a worker, from the revision's
-immutable state; each command carries the reason its removals are deleted for
-and how soon it stages. A coalesced edit waits briefly for a newer one, and a
-stage that a newer request replaces before it seals is dropped, so a burst of
-edits stages once. The newer request takes over the edits it replaces, and each
-record an edit removed is deleted for that edit's reason, found from the
-removals the session's change feed reports, rather than the newest edit's.
-Space deletion, imports, batches and moves between Spaces or workspaces stage
-inside their reservation, and the file takes the session and the journal in one
-transaction before either publishes. A disposable seed never stages, and the
-first attachment stages the session as a launch does. Incoming
-merges bind their journal transaction to the session replacement, so both core
-values publish under the same lock after SQLite commits. The transport hears
-`SyncJournalChanged` after each stage and reads the journal the core accepted.
+### Chromium's binding
 
-Sync compares UUID fields by identity and timestamps by their exact binary date
-value. Different JSON number spellings from native encoders do not create edits;
-logical clocks retain integer precision and ordinary strings remain case-sensitive.
-New tab title and position edits use the same millisecond precision and native
-date encoding as checkpoint repair. Receiving or restaging those edits must not
-advance a record's logical clock merely because it crossed the native boundary.
+Chromium's binding is portable C++ in the engine itself
+(`CrestEngines/Chromium/Overlay/chrome/browser/ui/crest/crest_engine_*`). The
+engine hands the Chromium composition its binding table and its page-request
+table when the UI framework starts; the composition registers the binding with
+the engine contract's fingerprint, and from then on the core's commands reach
+the binding directly and the binding reports to the core itself, with no Swift
+or Objective-C between them. `CreatePage` names the page's window, so Chromium
+creates the page in that window's `Browser` as soon as the core asks.
 
-Receiving an archive changes its local presentation to "synced" while retaining
-the accepted record's original cause on upload. Archive display order follows
-dates; it does not rewrite shared position tokens. Restaging after a cloud pull
-preserves existing archive revisions and allocates positions only for new records.
+Chromium's Mac shell (`crest_chrome_host.mm` behind the typed `CrestMacShell`
+and `CrestMacUI` protocols in `CrestChromiumHost.h`) does only what AppKit
+must: it hosts each page's view and the views an extension or the inspector
+puts beside it, shows extension popups, runs system sign-in, and answers the
+close and quit preflight. Objects and blocks never enter .NET.
 
-Native record projections preserve additive encrypted payload fields through
-CloudKit decoding, journal persistence and uploads. Core restaging carries those
-fields forward using the supported payload vocabulary. Known optional fields
-can still be cleared, and group/provider metadata follows member identity rather
-than array position. Deleted members and tombstoned payloads are not resurrected.
-New incompatible schemas still require a newer client.
+TRANSITIONAL until the engine-offered pages and link routing move into the
+binding: the shell still carries the app's own load and a link navigation
+staged for a page's first load, and the regular profile a private window
+borrows.
 
-Live cross-engine CloudKit validation must compare record identities and versions,
-including fresh-profile adoption and repeated merges. An unreadable transactional
-store opens native recovery UI before browser services or sync are constructed.
-Successful launches preserve a complete SQLite checkpoint when session and journal
-data are available. Restoring it (`crest_app_restore`, while no core has the
-directory open) validates every session part read-only, retains the original
-database and sidecars in a separate recovery directory, and uses an interruption
-marker so a partial restore cannot become a fresh-install seed. A session saved by
-a newer storage version requires an app update instead of offering rollback.
-The core gives a restored journal a new local device identity while preserving
-record versions and pending uploads. The matching CloudKit transport discards its
-newer cursor and requires a complete merge before sending changes; account-change
-confirmation remains enforced. Recovery checkpoints may predate recent local
-edits, and the confirmation explains that limitation.
-Native presentation codecs continue to normalize platform glyphs and branding values.
+### WebKit's binding
 
-The value-level `BrowserSession` edit surface and its `crest_core_edit_session`,
-`crest_session_commit` and `crest_session_commit_pair` exports are gone: every
-native edit is a command on the family's authority, including launch cleanup and
-retention. Commands exclude images, history and existing archive records. The
-native projection keeps those records and presentation metadata, applies the
-returned tab/folder values, and reconciles native pages through the existing
-pools. The core's `BrowserTabCollection` owns the tab, folder and split
-organization rules; profile access and page lifetime remain separate
-responsibilities.
+WebKit's binding (`WebKitEngineBinding`) is Swift, shared by macOS, iPhone and
+iPad. It builds each page the core asks WebKit to create, raises script
+dialogs, sign-ins and permission requests with the core, runs WebKit's
+downloads as the engine's own, and settles each question the core answers.
 
-`crest_core_evaluate_policy` is a bounded, synchronous pure-function boundary:
-it performs no I/O, engine operation, callback, or executor wait. It evaluates the
-same `CrestCore.Domain` policies the session authority applies.
-Record removal is not a policy call: the `SweepExpiredRecords`,
-`CleanUpCurrentTabs` and history session intents apply the retention and range
-rules to the owned records.
-Engine effects and the remaining command orchestration move behind the existing
-store/page interfaces in coherent sections. The original UI, layout, and
-interaction behavior remain the frontend.
-The prototype `CrestControlPlane` and `CrestControlPlaneMobile` apps and their
-Apple message transport have been removed. Product and review builds use the
-original Crest UI. `CrestNativeCore` and `CrestMobileNativeCore` are isolated
-compositions of that UI, not separate browser interfaces.
+`BrowserPageHost` keeps a workspace's pages on the Mac, iPhone and iPad: each
+tab's resident page, the Quick Window and Peek leases, and the state a tab's
+page leaves behind. Every Mac window over a workspace shares one host through
+its runtime store; each iPhone or iPad scene has its own. When the core moves
+a page to another engine, the page takes the new engine's adapter and view in
+place, so its tab, lease and window keep it. WebKit's binding builds a page
+the core moved to WebKit from the inputs the page's owner keeps, and hands it
+over before the core loads it.
 
-## Ownership and dependencies
+TRANSITIONAL:
 
-| Module | Responsibility |
-| --- | --- |
-| `CrestCore.Domain` | Workspace, Space, profile identity, tab organization, history, archive and sync rules |
-| `CrestCore.Application` | Accepted session ownership, semantic commands, storage reservations, sync projection and materialization |
-| `CrestCore.Contracts` | Typed contract records, strict JSON parsing and protocol validation |
-| `CrestCore.Native` | Exception-contained NativeAOT C exports and numeric handles |
-| `CrestShared/Infrastructure/ControlPlane` | Original UI adapters, accepted session projections and checkpoint handles |
-| `CrestShared/Infrastructure/Engines` | Registered native page, host-command and service contracts |
-| `CrestNative/Apple/Composition` | Entitlements for isolated CloudKit review builds |
-| `CrestEngines/Chromium/Apple` | Native SwiftUI composition and Objective-C engine port |
-| `CrestEngines/Chromium/Overlay` | Chromium BrowserWindow, profiles, TabStripModel adoption and native observations |
+- The page's owner still supplies `WebKitPageInputs`, the profile's website
+  data store and the Space's content rules, which the platform's content
+  blocking compiles. The binding does not own them yet.
+- `BrowserPagePool` (Mac) and `MobileBrowserPageStore` (iPhone and iPad) still
+  hold presentation and each platform's commands beside the shared host.
+- A WebKit page the core unloads hands it no restore state; its owner archives
+  WebKit's interaction state itself.
 
-Each store family owns one `NativeSessionAuthority`. Swift holds a copy the
-core's session changes keep current, and native assets; a command remembers
-the state it was prepared against and commits only while it is still the
-accepted one. The native caller reads the answer before committing it. Durable
-commands reserve publication while the Apple storage adapter writes the matching
-session and sync journal. Failed storage releases the reservation without
-publishing a partial edit. The core's device moves the window that issued a
-command and repairs the others; each window reads what it shows from the
-core's state.
+### Multiple engines
 
-The real WebKit composition uses `BrowserWebKitPageEngine` and the existing page
-pools. The Chromium composition implements those same native ports through
-`ChromiumNativePage`. The prototype `AppleWebKitAdapter`, `ChromiumAdapter`,
-`CorePageRuntime` and `CoreTransport` wrappers have no role in either composition
-and have been removed. Native rendering, request security and input remain with
-the selected engine.
+Each page belongs to one engine, and capabilities are read from the page's
+engine.
 
-## Retired protocol runtime
+- **Site choices.** `ChooseSiteEngine(space, origin, engine)` records which
+  engine a site's new pages open on. A choice made in a persistent-session
+  Space holds for every Space and the device store keeps it, the most recent
+  512; one made in a private or other memory-only Space holds for that Space
+  alone and stays in memory. A tab's page opens on the engine chosen for the
+  site the tab shows, when that engine is registered, and otherwise on the
+  default engine. A restore state kept by one engine is never handed to
+  another.
+- **Moving a page.** `RehostPage(page, engine)` closes the page on its engine,
+  keeping nothing, creates it on the other in the same profile and window, and
+  loads the address it showed once that engine created it. The page keeps its
+  identity, owner and window; its history and form state stay behind, and the
+  questions its old engine asked end. A load the person asks for, or a
+  navigation the document starts, toward a site chosen for another engine
+  moves the page there the same way. Every move publishes
+  `PageRehosted(page, space, origin, from, to, reason)`.
+- **Site Controls** shows which engine the site opens in when more than one is
+  registered, and choosing another moves the page and records the choice.
+- **Protected media.** Crest's Chromium carries no Widevine. When a page, or
+  a frame of its own site, asks for Widevine or PlayReady, Chromium reports
+  `ProtectedMediaUnavailable`. The core moves the page once to an engine with
+  the `protected-media` capability, which WebKit has through the platform's
+  FairPlay, and records that engine for the site, so later visits open there
+  directly. Nothing moves when no engine plays protected media, when the page
+  already moved for this reason, or when the site already has a choice. The
+  Mac window shows a notice with **Move Back**, which records the engine the
+  page left for the site and moves it back.
+- **Profiles and website data.** A Space is one profile on every engine. The
+  profile's Chromium directory and its WebKit website data store share the
+  profile's identifier; a named isolated launch derives its own WebKit store
+  identifiers, and private and ephemeral launches use non-persistent stores.
+  Deleting the Space erases both, and the locked-Space gate covers both.
+  Sign-in never moves between engines.
 
-The message-based `BrowserSessionKernel`, `BrowserKernel` and `CoreRuntime`, the
-`Envelope`/`CoreOptions` wire types, the `crest_core_create` through
-`crest_core_destroy` lifecycle exports and the kernel-only `BrowserWorkspace`
-and `BrowserWindow` aggregates have been removed. Their former rules now belong to:
+## Page lifecycle
 
-| Former kernel rule | Live owner |
-| --- | --- |
-| Session, window, Space, tab, folder and split editing | `NativeSessionAuthority` commands and `BrowserTabCollection` |
-| One Space's tab, folder and split edit | `NativeSessionEditor`, called by the session commands |
-| History, archive and retention sweeps | `NativeSessionMaintenance` and `NativeSessionAuthority.Records` |
-| Address, search and link decisions | `SearchProvider`, `SearchPreferences`, `AddressResolution`, `LinkNavigationPolicy` via `NativePolicyEvaluator` |
-| Space locking and device authentication | `SpaceAccessAuthority` behind the Space access intents |
-| Cross-workspace moves and borrowed workspaces | `NativeSessionAuthority.Moves` and `NativeSessionAuthority.Borrowing` |
-| Sync projection, ordering, conflict and deletion | `NativeSyncAuthority`, `NativeSyncJournal` and the cloud sync intents |
-| Correlated completion invariants | Prepare/reserve/commit revisions on the session and sync handles |
+The core owns page identity. A page's owner (a tab, or a Quick Window or Peek
+request) opens it through the core (`OpenPage`) from its window, hands it to
+another owner (`MovePage`) and releases it (`ReleasePage`). The core refuses a
+page in a locked Space, in one being deleted, or for a tab that already has
+one in that window. It asks the page's engine to create, load and close the
+engine's page. Typed addresses, the command palette, Open Location and every
+first load go through `Navigate`, which the core resolves by the Space's
+address and search rules before it issues `LoadPage`.
 
-Page creation, closure, residency operations and content blocking are native
-engine work driven by the store and page interfaces; they are no longer modeled
-as core messages. The decisions behind them are core policy operations: what
-dismissing a tab means and when a terminated renderer stops reloading. On the
-Mac, the app reports memory pressure to the core with `ReportMemoryPressure`,
-and `Pages` unloads the tab pages off screen longest, never one a window shows,
-one whose tab keeps its page loaded or one playing, capturing or in Picture in
-Picture. It holds each unloaded page's engine restore state in memory, never
-saved, and hands it back to the tab's next page while the tab still shows that
-address. iPhone and iPad keep the adapter's per-page media veto until one
-WebKit binding serves both platforms.
-Downloads follow the same split on both engines: the process's one `CrestCore`
-owns the download ledger behind `crest_app_*` (record phases, ordering,
-acknowledgement and retention expiry), the `DownloadProgress` and
-`DownloadRisk` queries answer progress and ETA and risk reasons, and the
-`downloads.automatic` policy operation answers the automatic-download
-throttle.
-`BrowserDownloadCenter` sends engine download events as typed intents, owns
-files, prompts and notices, and renders the records in `core.state`. Each
-browsing mode shares one center across its windows. The ledger is not
-persisted.
-Credentials follow the same split. Typed queries on `crest_app_*`
-(`CredentialCapture`, `CredentialFill`, `CredentialSaveCheck`,
-`MostRecentCredential`, `CredentialSaveMatch`, `CredentialSave`,
-`StrongPassword`, `PasskeyAccess`, `SystemPasswordWriteThrough` and
-`SystemPasswordOffer`) decide what a form observation means (fill offer, save candidate, save prompt, username hint), which
-fill a field accepts, whether a candidate is still valid, which saved record is
-the most recent for an account, and whether a save creates, updates or leaves a
-record unchanged, as well as passkey access and system-password write-through.
-They receive origins, dates, record identities and presence flags; passwords
-never cross the boundary. The platform compares a candidate with the matched
-record's stored secret and passes only the answer. The strong-password
-query returns a recipe, and the native layer draws the password from the
-system's secure random source. Keychain storage, secrets and prompts stay
-native; without a core answer nothing is captured, saved or filled.
-Password files are the one exception, where passwords do cross.
-`CredentialImportPreview` reads a Browser, Firefox, Safari or Bitwarden CSV
-file within its limits, and `PasswordImportPreview` takes another browser's
-passwords; both plan each account against the passwords the Space keeps,
-which the platform passes with the question. `CredentialExport` writes a
-Space's file and names it. The core keeps nothing of either: every record
-that holds a password is marked `HoldsSecrets`, names no secret in its text,
-and is reachable from no change, intent, stored session, device record or
-sync journal, which a containment test checks, and an answer's buffer is
-cleared when it is freed. The platform authenticates, reads the Keychain,
-shows the review and writes the choices.
+- **Navigation.** A binding reports each navigation as it starts, commits,
+  finishes or fails. The core records one visit per document when it finishes,
+  because both engines know the title only then. A page with a tab updates the
+  tab's address and title and adds the visit to its Space's history in one
+  revision; a Quick Window or Peek page adds only the visit. Nothing is
+  recorded for a failed load, in a locked Space or one being deleted. A move
+  within a document is a visit of its own when it reaches another page, and
+  records nothing when only the fragment changes.
+- **Live state.** A binding reports a page's `PageSnapshot` at most once per
+  turn and only when it changed. The core keeps it, with the latest failure,
+  as the page's `PageLiveState` and publishes `PageChanged` only when that
+  differs. Load progress, find highlights, the hovered link and fullscreen
+  come straight from the engine, because no rule reads them.
+- **Crashes.** A page whose renderer stopped in view reloads through
+  `RecoverPage` while its recovery budget lasts, and past it shows the
+  failure until the person asks for the page again. A renderer that stopped
+  while nobody saw it spends none of the budget and comes back when a window
+  shows the page.
+- **Prompts.** Script dialogs, sign-ins, permission requests and extension
+  installs are questions the binding raises with the core (`ScriptDialogOpened`,
+  `AuthenticationChallenged`, `PermissionRequested`,
+  `ExtensionInstallRequested`). The core answers a permission from the Space's
+  choices when it holds one, and otherwise publishes the question
+  (`PermissionAsked` and the others) for the page's host to show. The person's
+  answer comes back as an intent, and the core settles the engine. A question
+  whose page goes, stops holding its engine page or moves to another engine is
+  settled as declined. A credential passes to the engine and is never kept,
+  published or saved.
+- **Downloads.** Both engines run their downloads as the engine's own and
+  report them to the core, which keeps the ledger: record phases, order,
+  progress and ETA (`DownloadProgress`), risk (`DownloadRisk`), where each file
+  goes, approval of a file an engine warned about, and retention. A dangerous
+  file is asked about before it has a place. A file a site sends without the
+  person's gesture passes the site's automatic-download choice. The binding
+  keeps the file handling: staging and moving the file, quarantined, to the
+  place the core settled. The ledger is not persisted.
+- **Close preparation.** Closing pages or windows, and quitting, run a close
+  preparation (`PrepareToClosePages`, `PrepareToCloseWindows`,
+  `PrepareToQuit`): the core asks each page with a before-unload handler, one
+  at a time, through `CheckBeforeUnload`, and asks the person about downloads
+  in progress before a quit. It publishes `CloseReady` with whether the close
+  may proceed; it may not when a page that agreed has shown another document
+  since.
+- **Residency.** Every device reports memory pressure with
+  `ReportMemoryPressure`, after asking each WebKit page for its media, and the
+  core unloads the tab pages off screen longest, as many as the device's
+  platform gives back: never one a window shows, one showing no document yet,
+  one whose tab keeps its page loaded, or one playing, capturing or in Picture
+  in Picture. It holds each unloaded page's engine restore state in memory,
+  never saved, and hands it back to the tab's next page on the same engine
+  while the tab still shows that address.
+- **Erasure.** Deleting a Space saves a core-owned deletion intent first; the
+  Space becomes unavailable across its windows, and launch resumes a saved
+  intent until the engines confirm. Final removal and its sync tombstones share
+  one transaction. The platform asks the core with `DeleteProfileData` or
+  `DeleteSiteData`, and the core asks every registered engine, started or
+  not, ending with `DataDeleted` once each answered. A Space finishes deleting
+  only once this run erased its profile on every engine; one an engine could
+  not erase stays being deleted, and the next launch erases it again.
 
-Search follows the same split: `SearchProvider` is an open set whose static
-instances are the built-in engines with their titles, logos and templates; it
-validates custom templates, makes a Space's custom engines at runtime and builds
-every results and suggestion URL. Custom-engine saves and removals are Space
-commands that rewrite only the search fields of the stored preferences. Swift
-receives the generated `SearchProvider` and describes a stored custom engine
-with it; the editor's explanations stay in Swift. Automatic
-translation rules live in the core's app preferences; `translation.rule` and
-`translation.matches` answer them and the `SetTranslationRule` intent edits them.
+## What stays in Swift
 
-Site permissions follow the same split. The core's device owns every Space's
-saved and session choices, the narrow-then-site-wide lookup, the combined
-camera and microphone rule, listing order and which choices persist: the device
-store keeps the persistent session's choices beside the session, and every
-other Space's live in memory. `BrowserSitePermissionCenter` keeps its API for
-the engines and the Privacy pane, asks the core the `SiteDecision` and
-`CaptureDecision` queries, sends `DecideSitePermission`, `ResetSitePermission`
-and `ResetSpacePermissions`, reads each Space's choices from the read model,
-and tells observers what each `SitePermissionsChanged` covered. The launch
-adopts the document earlier releases kept under `crest.site-permissions.v1`
-once, and leaves it in place. Session choices are never kept, and permissions
-are not synced. A locked Space answers Ask and refuses a choice; resets still
-apply. Secure-origin rules for location and hosted notifications, the
-notification request action, automatic popups and the blocked-popup notice,
-external schemes and consent, web-link and local-document acceptance, and HTTP
-authentication handling, prompt labels and fixture trust are policy
-operations; an unanswered permission is Ask, an unanswered URL or document is
-refused and an unanswered scheme is blocked.
+By design: heraldry vocabulary and composition, favicon image bytes and
+palette extraction, sidebar widgets, Peek motion and presentation phases,
+tear-off placement geometry, drag geometry, default-browser prompt cadence,
+appearance preferences and the presentation of every prompt, notice and sheet.
+Informational feedback uses the top-of-window notice capsule, which may offer
+one action that undoes what it reports; a dialog appears only when the person
+must decide.
 
-External links follow the same split. The `ExternalLinkRoute` query decides where
-a link opened from outside Crest goes (the first enabled route to an open Space,
-then the Quick Window, most-recent or chosen Space preference), and the
-`QuickWindowSite` query names the site key a Quick Window remembers its Space
-under. Route creation, one-field
-edits, reordering and removal are `links.route_*` operations, and
-`links.space_removed` is the Space-deletion cascade: the deleted Space's routes,
-chosen-Space preference and remembered sites go with it. The preferences stay in
-their existing UserDefaults record, unchanged in format; the native store applies
-and persists what the core returns, and an edit the core refuses or cannot answer
-changes nothing. A link routed to a Space this process holds locked never raises
-a prompt: `ExternalLinkRoute` takes the locked Spaces and substitutes a Quick Window on
-the shown Space when it is unlocked, else the first unlocked one, answering no
-Space when none can open; routing that cannot answer opens nothing. Quick Window archive lifetime, archive-on-dismissal and retargeting
-(whether a move revises the request and remembers the site's Space) are
-`quick_window.*` operations for the Mac window and the mobile overlay.
+## Upgrading an installed session
 
-A borrowed workspace never edits its Spaces: Swift sends identity, appearance,
-default Space, access, browsing, search and credential preferences to the
-workspace it borrows from, and the core refuses every Space intent issued to a
-borrowed workspace with `BorrowedProfileRequiresOwner`. The page surface
-for a selected tab (`page.presentation`), the Balanced content-blocking rule
-list (the `BalancedProtectionRules` query) and branding range rules (`branding.normalize`,
-also applied by the `SetSpaceBranding` intent) are core policy; the crest's
-heraldic vocabulary and its composition parameters stay native.
+The upgrade carries exactly two values: the installed release's `UserDefaults`
+session core with its per-Space history keys, and its sync journal. Everything
+else keeps the identifier it had and is read in place, because the products
+share one identity. `ProductIdentity` resolves the same `com.pauldavis.crest`
+defaults domain, `Application Support/Crest` directory, keychain service
+namespace and `iCloud.com.pauldavis.crest` container for the WebKit `Crest`
+target, `CrestMobile` and the packaged Chromium product, which rewrites
+`CFBundleIdentifier` to `com.pauldavis.crest` and omits `CREST_REVIEW_BUILD`.
+None of these products is App-Sandboxed; adding the sandbox to either side
+would move every path into a container and strand the installed data, so the
+product package must be signed with the Mac target's own entitlements.
 
-Window state follows the same split. Per-window selection and split column
-shares stay device-local records in their existing format; policy operations
-decide how a window reconciles with the session (which tab each Space shows,
-which Space the window keeps, which column shares survive), whether captured
-shares describe columns, whether a dragged tab may tear off, and the tab a
-Space shows when its selection is gone. Folder depth, folder count and split
-eligibility answers for menus are core commands prepared and released without
-committing, and the `limits` operation reports every capacity the core
-enforces so native surfaces keep no copies. The core never receives tab contents for these, only identities and
-presence facts; without an answer a window keeps its state. Setup is the
-core device's: it holds the manual setup, admitting its edits against the
-Space and pinned limits, giving new Spaces their identity and following Spaces
-changed elsewhere; it holds the setup flow, with the step and where Back leads
-on each platform, the browsers chosen and their queue, and the review of each
-browser with its destinations, duplicates and pinned overflow; it keeps
-whether the device completed setup; and it decides what finishing setup does.
-The platform finds and reads browsers, imports their passwords and tells the
-flow how each went. The workspace import rejects a source whose split runs its
-repair would rewrite.
+When the core's file holds no session, Swift reads the installed release's
+values raw (`BrowserLegacySessionDefaults`) and sends them with the
+first-launch seed as `AdoptLegacySession`. The core decodes them, writes the
+result before the intent returns, and hands back the tab images a whole-graph
+blob carried for the favicon store. A file that already holds a session adopts
+nothing. An installed session the core cannot decode stays where it is; the
+core leaves the cloud-recovery marker and installs the seed, which the Spaces
+CloudKit still holds replace instead of being published as their deletion.
+Device state an older release kept (window records, site permissions, link
+preferences, shortcuts, setup completion) is adopted once into the device
+store under an append-only adoption marker, and the old values stay readable
+for older builds.
 
-Shortcuts, launch and media follow it too. The core's `ShortcutCommand` set
-holds every command's stored name, section, title, search terms, symbol and
-default keys on each platform, including ⌘1–⌘9 and ⌃1–⌃9 for numbered tab and
-Space selection, and the generator gives Swift the same members. Swift maps each
-command's kind to what the shell does in one place. `ShortcutBindingPolicy`
-resolves the persisted overrides, reports conflicts and revises the overrides
-when a binding applies; `BrowserShortcutStore` persists the overrides in their
-existing format and caches the resolved chords for dispatch, and a core that
-cannot answer reports a conflict rather than binding a chord twice. Search for
-the settings list stays in Swift.
-`LaunchPolicy` decides from the platform's parsed launch flags whether a launch
-is isolated, whether its web storage is ephemeral, whether installed-app UI
-shows, and what the first window opens; without an answer a launch stays
-isolated and opens the Start Page. Isolation is answered before any session
-exists; the first window's destination is the `LaunchPlan` query, which
-applies the saved startup preference the core owns. A tab opened from another is placed by the
-`OpenTab` intent's `AfterTabId`, after the whole split of its origin.
-`MediaSessionPolicy` arbitrates page media sessions identically for the WebKit
-bridge and Chromium's native session: stale and retired reports, sibling
-documents of a tab, the remembered-identity window, dismissal clearing, display
-order and the Now Playing owner. `BrowserMediaSessionStore` keeps endpoints,
-metadata, artwork and observation and applies the decisions; without an answer
-it keeps its current state and order.
-Behavior preferences are core state too. The persistent session carries one
-`appPreferences` record beside its Spaces: the startup behavior, page
-translation (offer, automatic, per-language rules), WebKit spell checking,
-automatic Picture in Picture, what closing a saved tab does, the saved-tab
-favicon return and Split View focus-follows-mouse. It persists with the
-session checkpoint and changes only through the `SetAppPreferences`,
-`SetTranslationRule` and `ImportAppPreferences` intents; value edits and sync
-replacement keep the owned record, private and borrowed workspaces refuse the
-intents, and the first launch without a record imports the values the old
-defaults keys held (the keys stay readable for older builds). The record is
-device-local by design: the CloudKit record model has no app-level record,
-three of these settings exist only on the Mac, and translation depends on the
-language packs installed on each device. `BrowserAppPreferenceStore` is the
-Swift projection that settings, translation, Picture in Picture, saved-tab and
-Split View code read; a refused or unanswered edit leaves the value as it was.
-WebKit reads its spelling default once per process, so launch reconciles that
-engine copy with the record. Shortcut choices are the core device's, changed
-through `AssignShortcut`, `ReassignShortcut`, `UnassignShortcut`,
-`ResetShortcut` and `ResetShortcuts` and read from `ShortcutsChanged`.
-Appearance preferences, link preferences, sync choices and per-Space download
-locations stay native.
-The C ABI is synchronous: `crest_session_*`, `crest_app_*` and
-`crest_core_evaluate_policy`, declared in
-`CrestContracts/include/crest_core.h` and `crest_app.h` and described in
-`CrestContracts/README.md`.
-`CrestContracts/tests/native_abi.c` exercises the policy, app and session
-entry points against the built library.
-
-Once the device attaches the access authority, `NativeSessionAuthority`
-rejects a prepared command that would read or mutate a locked Space. Cloud
-sync intents are not gated, so background convergence continues, but a merge
-cannot remove protection this device never unlocked. `SpaceLockGateTests`
-covers commands, sync, borrowing and profile sharing. The native controllers keep their own
-gates, so the core gate is defence in depth rather than the only check.
-
-The outstanding packages are itemized in [Engine abstraction
-status](EngineAbstractionCompletion.md). Capability declarations must describe
-the actual native adapter, not features available in stock Chrome.
-
-### Typed Swift boundary
-
-Swift names every core call with a typed operation. `BrowserSessionOperation`
-lists session commands and reads, with the spellings of the core's
-`SessionOperation.cs`, and `BrowserPolicyOperation` lists pure policy calls
-(`PolicyOperation.cs`). Sync has no JSON operations: the cloud transport sends
-typed intents and queries.
-
-Requests and answers are Codable models. `BrowserSessionArguments` holds each
-command's `arguments` member. `BrowserCoreNullable` encodes an absent value as
-an explicit `null` for members the core always reads, and
-`BrowserCoreOptional` reads a missing or mistyped answer member as `nil`.
-Swift's typed identifiers such as `TabID` and `SpaceID` encode as
-`{"rawValue":…}` records, so argument models carry plain `UUID`s instead.
-
-`BrowserCoreErrorCode` names the rule an answer's `error` member reports. It
-covers `BrowserRuleCodes.cs`. The set
-stays open: a code this build does not know still decodes and falls to the
-caller's generic failure. On the core side, each
-policy operation decodes its request into a typed record (`*PolicyRequests.cs`),
-and each area keeps its wire codes in one `*Codes.cs` file.
-
-A few spellings stay as they are for compatibility. Link routes carry
-lowercase UUID strings, while other paths use the native encoder's spelling.
+WebKit cookies and website data, and WebKit tab interaction-state archives,
+are engine-specific and are not converted. Nothing deletes them, so returning
+to the WebKit app finds them intact. A tab without a usable archive loads its
+URL.
 
 ## Build workflow
 
-Install .NET SDK 10.0.201 or a servicing patch, Xcode, and XcodeGen. Regenerate
-`Crest.xcodeproj` with `xcodegen generate` after changing `project.yml`.
+Install the .NET SDK 10.0.201 or a servicing patch, Xcode and XcodeGen.
+Regenerate `Crest.xcodeproj` with `xcodegen generate` after changing
+`project.yml`.
 
-The normal `Crest` and `CrestMobile` targets build and embed their core from source.
-`Scripts/control-plane/build-apple-core.py` selects the runtime for the destination,
-uses Release NativeAOT for both Debug and Release apps, and caches it under the
-current build's products directory. Source, SDK and platform changes invalidate
-the cache; concurrent target requests share a build lock. NativeAOT intermediates
-also stay in Derived Data. No managed runtime is required on the user's device.
-Explicit `CREST_CORE_LIBRARY_DIR` or `CREST_CORE_FRAMEWORK_DIR` overrides use a
-previously published library, so callers must keep it matched to the checked-out
-contracts. The existing review scripts use those overrides.
-
-CI installs the pinned SDK with Microsoft's [SDK install script](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-install-script)
-through `Scripts/control-plane/install-dotnet.sh`. Local Xcode builds find `dotnet`
-in PATH, `~/.dotnet`, or the standard macOS SDK location; `CREST_DOTNET` can select
-another installation. Network access is needed for the first SDK/package restore.
-
-Core ownership no longer implicitly enables isolation. `CREST_REVIEW_BUILD`
-forces isolation in the review apps; tests and previews use the existing launch
-policy. To review the normal Mac target without registering the installed app's
-identity, set `CREST_MAC_BUNDLE_IDENTIFIER` to a separate identifier and
-`CREST_MAC_ENTITLEMENTS` to its compatible entitlements, then launch with
-`CREST_ISOLATED_SESSION=1` and a unique `CREST_ISOLATED_PERSISTENCE_ID`.
-Physical-device validation of the upgrade is still outstanding.
-
-Build an isolated app into a new absolute path:
-
-```sh
-Scripts/control-plane/build-experiment.sh /absolute/new/path/CrestNativeCore.app
-```
-
-The script runs the managed and native ABI checks, builds the original macOS UI
-with the migrated policies, and
-removes its temporary Derived Data on exit. The resulting app contains the
-self-contained core library and does not require an installed .NET runtime.
-`Scripts/control-plane/build-ios-experiment.sh` builds the original iOS UI for Simulator
-app with the same output-path convention and temporary-data cleanup.
+The `Crest` and `CrestMobile` targets build and embed their core from source.
+`Scripts/control-plane/build-apple-core.py` selects the runtime for the
+destination, uses Release NativeAOT for Debug and Release apps, and caches it
+under the build's products directory. No managed runtime is required on the
+user's device. `CREST_CORE_LIBRARY_DIR` or `CREST_CORE_FRAMEWORK_DIR` overrides
+use a previously published library, which must match the checked-out
+contracts. CI installs the pinned SDK through
+`Scripts/control-plane/install-dotnet.sh`; local builds find `dotnet` in
+`PATH`, `~/.dotnet` or the standard macOS location, or through `CREST_DOTNET`.
 
 For core-only development, run `dotnet test tests/CrestCore.Tests` from
-`CrestCore`. After changing a record in `CrestCore.Contracts`, run
-`Scripts/control-plane/generate-contracts.sh`; the lint script and the Apple
-core build fail while the generated codecs and models are stale. See [the contract](../../CrestContracts/README.md) before adding a
-command or provider. Frequent page observations use incremental tab projections
-and stable observed row objects. Oversized structural snapshots stream in bounded
-chunks and become visible only after complete digest validation. Creation limits
-follow the existing import policy: 64 Spaces and 5,000 tabs per Space.
-Session inputs and checkpoint parts are limited to 64 MiB. Typed intents and
-queries are limited to 16 MiB, except the one that carries an installed session
-into the file (`AdoptLegacySession`), which may take one session part; the
-limit is data on the contract type, and the dispatcher checks it before reading
-the message. Large binary metadata must
-move to a separate blob provider before either budget grows. Nobody has
-validated full UI behavior at the import limits yet, or run the iOS build on a
-physical device.
+`CrestCore`, and `Scripts/control-plane/lint-dotnet.sh`. The C and C++ ABI
+checks, `CrestContracts/tests/native_abi.c` and `engine_abi.cc`, run against
+the published library. `Scripts/control-plane/build-experiment.sh
+/absolute/new/path/CrestNativeCore.app` runs the managed and native checks and
+builds an isolated macOS app; `build-ios-experiment.sh` builds the iOS UI for
+Simulator the same way.
 
-For iOS, publish `CrestCore.Native` for `ios-arm64` or `iossimulator-arm64` with
-`-p:PublishAotUsingRuntimePack=true`. Package the resulting dylib using
-`Scripts/control-plane/package-apple-core.py`, then build `CrestMobileNativeCore`
-with `CREST_CORE_FRAMEWORK_DIR` set to the containing directory. The framework's
-platform must match the Xcode destination. This app uses its own bundle identity
-and requests CloudKit only in provisioned device builds, without the production browser credential entitlement. Simulator execution does
-not replace physical-device validation.
+To review the normal Mac target without registering the installed app's
+identity, set `CREST_MAC_BUNDLE_IDENTIFIER` to a separate identifier and
+`CREST_MAC_ENTITLEMENTS` to compatible entitlements, then launch with
+`CREST_ISOLATED_SESSION=1` and a unique `CREST_ISOLATED_PERSISTENCE_ID`.
+
+For iOS, publish `CrestCore.Native` for `ios-arm64` or `iossimulator-arm64`
+with `-p:PublishAotUsingRuntimePack=true`, package the dylib with
+`Scripts/control-plane/package-apple-core.py`, then build
+`CrestMobileNativeCore` with `CREST_CORE_FRAMEWORK_DIR` set to its directory.
+
+Limits are data the core reports through the `EnforcedLimits` query
+(`CapacityLimits`): 64 Spaces and 5,000 tabs per Space, among others. Session
+inputs and storage parts are limited to 64 MiB, and typed messages to their
+`[MessageLimit]` or 16 MiB.
 
 ## Chromium host
 
-The host overlay uses Chromium's browser startup, Browser and TabStripModel.
-Its BrowserWindow implementation loads `CrestChromiumUI` after browser startup.
-The framework compiles the original `CrestShared` and `CrestMac` views and services,
-then mounts `BrowserMacApplication.browserWindowContent` in native windows. It has
-no `@main` and does not replace Chromium's application delegate. The temporary
-control-plane window it replaced has been removed.
+The host overlay uses Chromium's browser startup, `Browser` and
+`TabStripModel`. Its `BrowserWindow` implementation loads `CrestChromiumUI`
+after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
+`BrowserMacApplication.browserWindowContent` in native windows. It has no
+`@main` and does not replace Chromium's application delegate.
 
-The Chromium target uses the same .NET session authority and domain commands as
-the WebKit targets. `ChromiumNativePage` creates a WebContents for the existing
-`BrowserPage` and mounts its NSView inside the original page card. Navigation,
-Back, Forward, reload, stop, title, URL and loading observations cross the native
-host port. The existing pools still own page lifetimes and window presentation.
-Engine effects do not pass through the core: page operations use the shared
-native engine port, while portable session changes remain core-owned.
+- **Profiles.** Each Space uses a regular Chromium profile under the engine's
+  user-data directory; the product keeps it in
+  `~/Library/Application Support/Crest/Chromium`. A review package requires an
+  explicit `--user-data-dir`. A private window uses a separate in-memory
+  profile for each private Space, released with the window. Chromium's
+  password manager is off for every page, in Space and private profiles alike.
+- **Identity and lifecycle.** The packager includes Crest's icons and Dock
+  tile plug-in; the host installs Crest's AppKit menus, About identity and
+  shortcut preferences. External URL and document opens reach Crest's own
+  routing, Dock reopen activates or opens a window, and startup restores the
+  normal windows open at quit. The product registers Crest for HTTP, HTTPS
+  and HTML documents and carries the Sparkle feed.
+- **Links.** Chromium's navigation throttle consults the core's link rules for
+  user-activated top-level links in owned pages: saved-site protection, Peek
+  priority and modified-link tab selection. A Peek keeps its verified
+  referrer, initiator, headers and source SiteInstance inside the engine, and
+  the new page receives only a one-shot token.
+- **Internal pages.** Crest's session and address controls spell internal
+  addresses `crest://`; the binding translates them to `chrome://` for
+  navigation and back for observations. Internal navigation is gated by the
+  `internal-pages` capability.
+- **Extensions.** Chromium owns verification, runtime permissions, updates,
+  execution and pin state. Crest's toolbar, Site Controls, install review,
+  Space-scoped management and copying read the binding's model. Action popups
+  appear in a child window of the Crest window; side panels are cards in the
+  page row. A Chrome Web Store listing installs through Crest's review.
+- **Downloads, favicons and archives.** Chromium's downloads report to the
+  core's ledger; destinations resolve per Space. Opaque navigation archives
+  carry an engine and version tag, stay local to the profile, and never enter
+  the session or CloudKit; an incompatible archive falls back to the tab's
+  saved URL.
+- **Protected media.** Chromium reports a missing Widevine or PlayReady key
+  system from the requesting frame through the frame host to the page, which
+  reports `ProtectedMediaUnavailable` when the frame is the main frame or of
+  the same site.
+- **Services.** Exports, full-page captures and printing use a fixed,
+  page-scoped in-process DevTools client that exposes no debugging socket.
+  Archives use the engine's format: `.mhtml` for Chromium and `.webarchive`
+  for WebKit. A docked inspector is mounted inside the page card it inspects.
 
-Chromium's native page context menu also works without a Views widget around the
-page. It retains page and editing commands and adds Open Link in Peek for owned
-HTTP/HTTPS pages. Chrome profile, app, Incognito, split and new-window destinations
-are omitted until they have Crest-owned routing. Menu callbacks are bound to the source page and navigation
-revision. The drag-start delegate runs after Chromium's enterprise drag policy;
-ordinary URL drags can enter the existing AppKit link-pull controller. The
-controller applies the current modifier preference, tracks the originating
-window, and cancels on source changes, navigation, Escape or window deactivation.
-Image, file, webpage-custom-data and selected-text drags keep Chromium's path;
-Chromium's internal drag-tracking ID is permitted for ordinary link pulls. Pointer
-samples stay native; promoting the resulting Peek uses the core completion
-command.
-
-`LinkNavigationPolicy` owns saved-site protection, Peek priority and modified-link
-tab selection in the .NET domain. WebKit on Mac and mobile invokes that policy
-once per navigation decision through the bounded native policy ABI. Chromium's
-navigation throttle consults the same policy for user-activated top-level links
-in owned pages. Off-site links from saved and pinned tabs open the native Peek
-card; same-site links retain normal engine navigation. The saved-site boundary
-ignores `www.` while keeping other subdomains distinct. Scripts, form submissions,
-subframes, address-bar loads and redirects keep their engine paths. Deferred Peek
-presentation is invalidated by source navigation, closure or reassignment.
-Chromium carries the originating link event's Command, Option, Shift and middle
-button state through its navigation request. The same core policy maps the user's
-Peek modifier preference and selects foreground or background tabs. The adapter
-changes tab disposition on the existing request, preserving Chromium's normal
-navigation and popup adoption. A Peek request retains its verified referrer,
-initiator, headers and source SiteInstance inside the engine. The native page port
-passes only a one-shot token to a newly created page in the same profile and
-window. The token expires on source navigation, closure, consumption or timeout;
-it never enters persistence or sync. A stale token cannot fall back to a bare URL
-load. Explicit download links keep Chromium's download path, and an unhandled
-Option-click can use the originating frame's validated download operation.
-
-The native page adapter propagates card viewport changes to Chromium during
-attachment, navigation and resizing. Keyboard equivalents first reach the page;
-unhandled equivalents then use Crest's AppKit menu and current responder.
-
-Each Space uses a regular Chromium profile under the engine's user-data
-directory. The product keeps it in `~/Library/Application Support/Crest/Chromium`
-and uses Crest's installed session, sync and update state. A review package
-requires an explicit `--user-data-dir`, and its native session uses its own
-isolated defaults suite, separate from both production and the WebKit review
-app. Packaging includes the original UI resources and the Sparkle dependency;
-isolated startup disables updates and CloudKit by default. Chromium quit requests run native before-unload and download checks,
-then flush native persistence before disposing pages.
-
-The original private-window composition uses a separate in-memory Chromium
-profile for each private Space. Closing that window releases its pages and
-profile; reopening starts a fresh session. Popup adoption attaches the existing
-WebContents to a core tab, preserving opener relationships and document state.
-Unowned or stale popup offers are rejected.
-
-Find uses an engine-neutral configuration, while Chromium supplies page search,
-zoom and DevTools. A keyboard-triggered `_execute_action` popup anchors to the
-extension's pinned tile, or to the control that opens the window's extension
-list, rather than to wherever the pointer happens to be. Site Controls reads and changes Chromium's origin permissions;
-permission requests use native sheets attached to the owning Crest window.
-Extension actions use the active page's profile and Chromium's real action runner,
-popup host, service workers and permission enforcement. Private windows only
-expose extensions explicitly enabled for incognito use. Crest's original toolbar,
-Site Controls grid, and install Space picker consume an observable native model;
-Chromium owns action execution, installation, permissions, updates, and pin state.
-Native Extensions settings provide Space-scoped management and copying, with a
-link to Chromium's advanced manager. CRX verification precedes the native consent
-review, and additional Space installations reuse only the explicitly reviewed
-package and permission identity. A Chrome Web Store listing offers the same
-install from its own button: a host-scoped script in an isolated world relabels
-it for Crest, reports the installed state Chromium's registry holds for the
-page's Space, and passes a click to the native review. The extension it can ask
-for is the one the listing's address names, and private windows keep the store's
-own behavior.
-
-Extension action popups are hosted in a borderless child window of the Crest
-window, placed below the control that opened them and kept on screen at an
-edge. Chromium keeps the popup renderer and extension lifecycle. Internal browser addresses use
-`crest://` in Crest's session and address controls. The Chromium adapter translates
-them to `chrome://` for navigation and translates observations back, preserving
-paths, queries and fragments. Web URLs and `chrome-extension://` security origins
-are unchanged. Internal navigation remains gated by the engine capability.
-
-The native menu bar uses Crest's commands and shortcut preferences. Individual
-tab and window closure preflights Chromium pages before committing the shared
-session change. A canceled close preserves the pages and their unsaved state.
-Chromium download observations feed the existing native download ledger through
-`BrowserEngineDownloadControlling`. Per-Space destinations use the Apple platform
-resolver. Transfer progress stays local to the adapter, while retention settings
-remain core-owned. Restored records retain their original creation times and
-do not become new-download notifications. Clearing or expiring a record removes
-engine download history while preserving completed files. Destination selection never supplies an implicit safety
-override. Explicit warning decisions are checked against the current engine
-verdict; policy blocks and known malware cannot be approved through this bridge.
-
-Chromium publishes favicon changes into the existing native tab projection.
-Opaque navigation archives carry an engine and version tag, remain local to the
-profile, and never enter the portable session or CloudKit records. Chromium uses
-its sanitized session-entry serializer; WebKit keeps its own interaction state,
-including support for older untagged WebKit archives. An incompatible archive
-falls back to the tab's saved URL. Named review launches keep separate archives;
-private and ephemeral sessions do not persist them. Quit captures resident pages
-before flushing writes and disposing the engine.
-
-Space data cleanup uses `BrowserEngineProfileRemoving`, injected alongside the
-page adapter. Page pools release the Space's pages across native windows before
-calling that port. The WebKit implementation removes its identified website data
-store; the Chromium implementation revokes pending pages, popups, private profile
-borrowers and extension observations, then uses Chromium's profile deletion
-service. It waits for browsing-data removal and the durable engine deletion
-marker before returning success. Chromium can finish removing the profile
-directory on its next startup. Completed download files remain on disk.
-
-The native app saves a core-owned Space/profile/operation intent before native
-cleanup starts. That Space becomes unavailable across its windows; stale edits,
-profile replacement and deletion of the last available Space are rejected by the
-core. Cleanup retries are idempotent, and launch resumes saved intents through the
-selected engine and credential adapters. A failed adapter keeps the intent for
-another attempt. Private session reset discards its in-memory intents and creates
-fresh profile identities.
-
-Prepared semantic commands reserve publication while Apple storage writes. Final
-Space removal and its explicit sync tombstones share one SQLite transaction, then
-the core publishes both accepted values. A failed storage commit publishes
-neither. Pending cleanup remains local during sync merge or replacement and never
-republishes a remote tombstone as an active Space. An accepted explicit Space
-deletion from another device creates the same local intent for the existing
-profile. A sealed sync reservation persists the intent and accepted journal
-together before the registered engine adapter runs. Absence from a cloud
-snapshot, retention, and child-record deletions do not authorize profile cleanup.
-Adapter failures retain the intent for the next sync or launch; windows cannot
-reopen that profile while cleanup is pending.
-
-Whole-page translation and Reader are unavailable in Chromium by decision;
-selection translation works. iCloud Passwords pairing in the signed product has
-not been validated. Extension side panels are cards in the page row, opened from
-the extension action's context menu, from an icon click, and from
-`chrome.sidePanel.open()` and `close()`. The host dispatches extension keyboard
-shortcuts for key equivalents Crest's own commands did not claim, and the
-Extensions pane links to Chromium's shortcut page. Profile capabilities must
-describe this integration before a feature is advertised as supported.
-
-See [Chromium source preparation](../../CrestEngines/Chromium/README.md) for the
-pinned build workflow.
-
-## Isolated CloudKit review
-
-A provisioned review app can opt into real transport with `CREST_ISOLATED_SESSION=1`,
-its own `CREST_ISOLATED_PERSISTENCE_ID`, and `CREST_ISOLATED_CLOUD_SYNC_ID`.
-The cloud ID is a shared lowercase ASCII slug of at most 48 characters. Devices
-with the same cloud ID use `CrestReview-<id>`; each device keeps its own local
-profile ID. Tests, previews, unnamed profiles and malformed cloud IDs cannot opt
-in. The transport scopes fetches, writes, references and deletion handling to
-that zone. Its cursor and server metadata live separately from production,
-partitioned by local profile, container and zone.
-Fresh cloud review profiles use the disposable first-install seed, so an existing
-cloud session replaces their sample Spaces before publication. Restored profiles
-keep their existing identities; equal Space names alone never imply duplication.
-
-Device builds of `CrestMobileNativeCore` request CloudKit without the production
-browser entitlement. For macOS provisioning, build `CrestNativeCore` with
-`CREST_NATIVE_CORE_ENTITLEMENTS=CrestNative/Apple/Composition/MacCloudReview.entitlements`.
-Its `CREST_NATIVE_CORE_BUNDLE_IDENTIFIER` may be set to the Chromium experiment
-identity when obtaining that profile. Automatic development signing must grant
-the review identity access to Crest's container. Chromium packaging accepts the
-resulting profile through `--provisioning-profile`; it validates the identity and
-CloudKit grant, embeds the profile, and preserves Chromium's runtime entitlements.
-The review package uses the Development CloudKit environment. CloudKit access
-does not grant Apple's browser password-helper entitlement.
+Any change to the engine's inputs (the source lock, the host patch and its
+reviewed input hashes, the overlay, the host header, the engine contract
+headers and the prepare, apply, configure and build scripts) requires a new
+published engine. See [Chromium source preparation](../../CrestEngines/Chromium/README.md).
