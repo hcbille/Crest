@@ -181,8 +181,11 @@ a private Space's choices stay in memory. `RehostPage` moves a page to another
 engine: the core closes it on its engine, creates it on the other in the same
 profile and window, and loads the address it showed once that engine created
 it. A page heading to a site chosen for another engine, by a load the person
-asks for or a navigation its document starts, moves there the same way. The
-core
+asks for or a navigation its document starts, moves there the same way. When
+Chromium reports `ProtectedMediaUnavailable`, the core moves the page once to
+an engine with the `protected-media` capability and records that engine for
+the site, unless the site already has a choice. The Mac window then shows a
+notice with "Move back". The core
 asks the page's engine to create, load and close the engine's page, and the
 binding reports what the engine did, including a `PageSnapshot` of what the page
 shows, which the core keeps as the page's `PageLiveState`. Chromium's binding is

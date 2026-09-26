@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0x30, 0xa1, 0xc6, 0xf2, 0xc2, 0xed, 0x79, 0x92, 0xf7, 0x2a, 0x6f, 0x3d, 0xf6, 0x88, 0xdd, 0x19, 0x12, 0x53, 0x84, 0x1f, 0x4c, 0x55, 0x10, 0xff, 0xc5, 0x77, 0xea, 0x6d, 0xdd, 0xa5, 0x1a, 0xbe};
+    0x84, 0x10, 0xd1, 0x05, 0xd1, 0x9b, 0xb0, 0xd4, 0xcd, 0xe9, 0x67, 0xde, 0x72, 0xc7, 0x71, 0x2e, 0x15, 0xf8, 0xd5, 0x7f, 0xb3, 0x00, 0x23, 0x05, 0x70, 0x8a, 0x82, 0xf1, 0x8d, 0xb9, 0xad, 0x74};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -477,10 +477,11 @@ enum class EngineCapability : uint32_t {
   kFeatureFlags = 24,
   kBeforeUnload = 25,
   kInternalPages = 26,
+  kProtectedMedia = 27,
 };
 inline void Write(WireWriter& writer, EngineCapability value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
 inline bool Read(WireReader& reader, EngineCapability& value) {
-  value = static_cast<EngineCapability>(reader.ReadEnum(27));
+  value = static_cast<EngineCapability>(reader.ReadEnum(28));
   return reader.ok();
 }
 
@@ -491,6 +492,16 @@ enum class EngineKind : uint32_t {
 inline void Write(WireWriter& writer, EngineKind value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
 inline bool Read(WireReader& reader, EngineKind& value) {
   value = static_cast<EngineKind>(reader.ReadEnum(2));
+  return reader.ok();
+}
+
+enum class KeySystem : uint32_t {
+  kWidevine = 0,
+  kPlayReady = 1,
+};
+inline void Write(WireWriter& writer, KeySystem value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
+inline bool Read(WireReader& reader, KeySystem& value) {
+  value = static_cast<KeySystem>(reader.ReadEnum(2));
   return reader.ok();
 }
 
@@ -2450,6 +2461,21 @@ inline bool Read(WireReader& reader, PromptWithdrawn& value) {
   return Read(reader, value.prompt_id);
 }
 
+struct ProtectedMediaUnavailable {
+  Guid page_id = {};
+  KeySystem key_system = {};
+
+  friend bool operator==(const ProtectedMediaUnavailable&, const ProtectedMediaUnavailable&) = default;
+};
+inline void Write(WireWriter& writer, const ProtectedMediaUnavailable& value) {
+  Write(writer, value.page_id);
+  Write(writer, value.key_system);
+}
+inline bool Read(WireReader& reader, ProtectedMediaUnavailable& value) {
+  return Read(reader, value.page_id)
+      && Read(reader, value.key_system);
+}
+
 struct RecoverPage {
   Guid page_id = {};
 
@@ -2940,7 +2966,7 @@ inline bool Read(WireReader& reader, EngineCommand& value) {
   }
 }
 
-using EngineEvent = std::variant<AuthenticationChallenged, BeforeUnloadAnswered, DataErased, EngineDownloadChanged, EngineDownloadDestinationRequested, ExtensionInstallRequested, NavigationCommitted, NavigationFailed, NavigationFinished, NavigationStarted, PageClosed, PageCrashed, PageCreated, PageCreationFailed, PageIconChanged, PageStateChanged, PermissionRequested, PromptWithdrawn, ScriptDialogOpened>;
+using EngineEvent = std::variant<AuthenticationChallenged, BeforeUnloadAnswered, DataErased, EngineDownloadChanged, EngineDownloadDestinationRequested, ExtensionInstallRequested, NavigationCommitted, NavigationFailed, NavigationFinished, NavigationStarted, PageClosed, PageCrashed, PageCreated, PageCreationFailed, PageIconChanged, PageStateChanged, PermissionRequested, PromptWithdrawn, ProtectedMediaUnavailable, ScriptDialogOpened>;
 inline void Write(WireWriter& writer, const EngineEvent& value) {
   writer.WriteVarint(value.index());
   std::visit([&writer](const auto& member) { Write(writer, member); }, value);
@@ -3056,6 +3082,12 @@ inline bool Read(WireReader& reader, EngineEvent& value) {
       return true;
     }
     case 18: {
+      ProtectedMediaUnavailable member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
+    case 19: {
       ScriptDialogOpened member;
       if (!Read(reader, member)) return false;
       value = std::move(member);

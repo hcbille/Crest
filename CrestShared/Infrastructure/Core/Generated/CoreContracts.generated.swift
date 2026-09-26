@@ -108,6 +108,7 @@ enum Change: Equatable, Sendable {
     case navigationRecorded(NavigationRecorded)
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
+    case pageRehosted(PageRehosted)
     case pageRemoved(PageRemoved)
     case pageUnloaded(PageUnloaded)
     case permissionAsked(PermissionAsked)
@@ -427,6 +428,7 @@ extension CoreState {
         case .navigationRecorded(let change): apply(change)
         case .pageChanged(let change): apply(change)
         case .pageOpened(let change): apply(change)
+        case .pageRehosted(let change): apply(change)
         case .pageRemoved(let change): apply(change)
         case .pageUnloaded(let change): apply(change)
         case .permissionAsked(let change): apply(change)
@@ -1923,7 +1925,8 @@ struct EngineRoster: Equatable, Sendable {
             EngineCapability.inspector,
             EngineCapability.featureFlags,
             EngineCapability.beforeUnload,
-            EngineCapability.internalPages
+            EngineCapability.internalPages,
+            EngineCapability.protectedMedia
         ]
     )
 
@@ -3476,6 +3479,15 @@ struct PageProfileMismatch: Equatable, Sendable {
     let spaceID: UUID
 }
 
+struct PageRehosted: Equatable, Sendable {
+    let pageID: UUID
+    let spaceID: UUID
+    let origin: SiteOrigin?
+    let from: EngineKind
+    let to: EngineKind
+    let reason: RehostReason
+}
+
 struct PageRemoved: Equatable, Sendable {
     let pageID: UUID
 }
@@ -3772,6 +3784,11 @@ struct PromptSettled: Equatable, Sendable {
 
 struct PromptWithdrawn: EngineEvent, Equatable, Sendable {
     let promptID: UUID
+}
+
+struct ProtectedMediaUnavailable: EngineEvent, Equatable, Sendable {
+    let pageID: UUID
+    let keySystem: KeySystem
 }
 
 struct QuitWithDownloadsAsked: Equatable, Sendable {
@@ -7601,6 +7618,7 @@ struct EngineCapability: Hashable, Sendable {
     static let featureFlags = EngineCapability(tag: 24, name: "feature-flags", isRequired: false)
     static let beforeUnload = EngineCapability(tag: 25, name: "before-unload", isRequired: false)
     static let internalPages = EngineCapability(tag: 26, name: "internal-pages", isRequired: false)
+    static let protectedMedia = EngineCapability(tag: 27, name: "protected-media", isRequired: false)
 
     static let all: [EngineCapability] = [
         pages,
@@ -7629,7 +7647,8 @@ struct EngineCapability: Hashable, Sendable {
         inspector,
         featureFlags,
         beforeUnload,
-        internalPages
+        internalPages,
+        protectedMedia
     ]
 
     static func named(_ name: String?) -> EngineCapability? {
@@ -8064,6 +8083,34 @@ struct ImportSource: Hashable, Sendable {
     }
 
     static func == (lhs: ImportSource, rhs: ImportSource) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `KeySystem`. A member's wire tag is its index in `all`.
+struct KeySystem: Hashable, Sendable {
+    let tag: Int
+    let name: String
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        self.name = name
+    }
+
+    static let widevine = KeySystem(tag: 0, name: "widevine")
+    static let playReady = KeySystem(tag: 1, name: "playready")
+
+    static let all: [KeySystem] = [widevine, playReady]
+
+    static func named(_ name: String?) -> KeySystem? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: KeySystem, rhs: KeySystem) -> Bool {
         lhs.tag == rhs.tag
     }
 
@@ -9069,6 +9116,35 @@ struct QuickWindowArchivePolicy: Hashable, Sendable {
     }
 
     static func == (lhs: QuickWindowArchivePolicy, rhs: QuickWindowArchivePolicy) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `RehostReason`. A member's wire tag is its index in `all`.
+struct RehostReason: Hashable, Sendable {
+    let tag: Int
+    let name: String
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        self.name = name
+    }
+
+    static let personAsked = RehostReason(tag: 0, name: "personAsked")
+    static let siteChoice = RehostReason(tag: 1, name: "siteChoice")
+    static let protectedMedia = RehostReason(tag: 2, name: "protectedMedia")
+
+    static let all: [RehostReason] = [personAsked, siteChoice, protectedMedia]
+
+    static func named(_ name: String?) -> RehostReason? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: RehostReason, rhs: RehostReason) -> Bool {
         lhs.tag == rhs.tag
     }
 

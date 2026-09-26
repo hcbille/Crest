@@ -23,14 +23,24 @@ internal sealed partial class Device {
     /// registered.
     public void Choose(ChooseSiteEngine intent) {
         ArgumentNullException.ThrowIfNull(intent);
-        if (!intent.Origin.IsValid) throw new Rejected(new InvalidSiteOrigin(intent.Origin));
-        var (keeps, locked) = ChoiceScope(intent.SpaceId);
-        if (locked) throw new Rejected(new SpaceLocked(intent.SpaceId));
+        Choose(intent.SpaceId, intent.Origin, intent.Engine);
+    }
+
+    /// Opens `origin`'s new pages on `engine` from now on, as a choice made in
+    /// `spaceId`: for every Space when the device store keeps its choices, or
+    /// for that Space alone. Throws `Rejected` for an origin that is not valid
+    /// or a locked Space.
+    public void Choose(Guid spaceId, SiteOrigin origin, EngineKind engine) {
+        ArgumentNullException.ThrowIfNull(origin);
+        ArgumentNullException.ThrowIfNull(engine);
+        if (!origin.IsValid) throw new Rejected(new InvalidSiteOrigin(origin));
+        var (keeps, locked) = ChoiceScope(spaceId);
+        if (locked) throw new Rejected(new SpaceLocked(spaceId));
         lock (gate) {
             if (keeps) {
-                if (keptEngines.Choose(new(null, intent.Origin, intent.Engine))) storage?.EnqueueDevice(Records());
+                if (keptEngines.Choose(new(null, origin, engine))) storage?.EnqueueDevice(Records());
             } else {
-                passingEngines.Choose(new(intent.SpaceId, intent.Origin, intent.Engine));
+                passingEngines.Choose(new(spaceId, origin, engine));
             }
         }
     }

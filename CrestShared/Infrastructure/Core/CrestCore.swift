@@ -69,6 +69,9 @@ final class CrestCore {
     /// Who hears each tab page the core unloaded under memory pressure, once
     /// its batch is applied.
     @ObservationIgnored private var unloadFollowers: [Follower<PageUnloaded>] = []
+    /// Who hears each page the core moved to another engine, once its batch
+    /// is applied.
+    @ObservationIgnored private var rehostFollowers: [Follower<PageRehosted>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     /// What waits for each data deletion to end, by its request.
@@ -299,6 +302,7 @@ final class CrestCore {
         var promptChanges: [Change] = []
         var downloadChanges: [DownloadState] = []
         var unloadedPages: [PageUnloaded] = []
+        var rehostedPages: [PageRehosted] = []
         var closesReady: [CloseReady] = []
         var dataDeleted: [DataDeleted] = []
         var movedPages: [UUID] = []
@@ -320,6 +324,7 @@ final class CrestCore {
                 promptChanges.append(change)
             case .downloadUpdated(let updated): downloadChanges.append(updated.download)
             case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
+            case .pageRehosted(let rehosted): rehostedPages.append(rehosted)
             case .closeReady(let ready): closesReady.append(ready)
             case .dataDeleted(let deleted): dataDeleted.append(deleted)
             default: break
@@ -334,7 +339,9 @@ final class CrestCore {
         if !promptChanges.isEmpty { promptsChanged(promptChanges) }
         if !downloadChanges.isEmpty { downloadsChanged(downloadChanges) }
         if !unloadedPages.isEmpty { pagesUnloaded(unloadedPages) }
+        // The page's owner hosts it on its new engine before anyone hears it moved.
         if !movedPages.isEmpty { engines.pagesMoved(movedPages) }
+        if !rehostedPages.isEmpty { pagesRehosted(rehostedPages) }
         #if DEBUG
             batchApplied?(changes)
         #endif
@@ -383,6 +390,22 @@ final class CrestCore {
     func followUnloadedPages(_ owner: AnyObject, _ handler: @escaping @MainActor (PageUnloaded) -> Void) {
         unloadFollowers.removeAll { $0.owner == nil }
         unloadFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    /// Calls `handler` with each page the core moved to another engine, once
+    /// its batch is applied: the page on its new engine is already in
+    /// `state`. The registration lasts as long as `owner`.
+    func followRehostedPages(_ owner: AnyObject, _ handler: @escaping @MainActor (PageRehosted) -> Void) {
+        rehostFollowers.removeAll { $0.owner == nil }
+        rehostFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    private func pagesRehosted(_ pages: [PageRehosted]) {
+        rehostFollowers.removeAll { $0.owner == nil }
+        let followers = rehostFollowers
+        for page in pages {
+            for follower in followers { follower.handler(page) }
+        }
     }
 
     private func pagesUnloaded(_ pages: [PageUnloaded]) {

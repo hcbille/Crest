@@ -33,6 +33,9 @@ final class BrowserMacApplication {
     /// Answers the core's questions about every engine's downloads: where each
     /// file goes, and whether to keep one its engine warned about.
     let downloadPrompts: BrowserDownloadPrompts
+    /// Tells the person when a page moved to another engine to play protected
+    /// video, and moves it back if they ask.
+    let engineMoveNotices: BrowserEngineMoveNotices
     /// Follows the system's memory pressure for every window's pages; nil in
     /// an isolated launch, which leaves its pages alone.
     let memoryPressure: BrowserMemoryPressureMonitor?
@@ -298,6 +301,7 @@ final class BrowserMacApplication {
         self.privatePages = privatePages
         pagePoolRegistry = BrowserPagePoolRegistry(primary: pages, spaceAccess: spaceAccess)
         quitPreparation = BrowserQuitPreparation(core: core)
+        engineMoveNotices = BrowserEngineMoveNotices(core: core)
         let downloadDialogs = BrowserDialogPresenter()
         downloadPrompts = BrowserDownloadPrompts(core: core) { asked, dismissal in
             let spaceName = asked.spaceID.flatMap {

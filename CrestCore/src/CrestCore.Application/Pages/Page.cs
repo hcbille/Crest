@@ -55,6 +55,10 @@ internal sealed class Page {
     /// was recorded.
     private string? documentUrl;
 
+    /// The address of the page the document shows, or null before one
+    /// committed.
+    public string? DocumentAddress => documentUrl;
+
     /// The document's navigation is recorded, or ended with nothing to record.
     private bool isRecorded;
 
@@ -82,6 +86,9 @@ internal sealed class Page {
     /// The address a page that moved to another engine loads once that
     /// engine has created it.
     private string? rehostedAddress;
+
+    /// Why the page moved to another engine, each reason once.
+    private readonly HashSet<RehostReason> movedFor = [];
 
     #endregion
 
@@ -119,10 +126,12 @@ internal sealed class Page {
         WindowId = windowId;
     }
 
-    /// The page moves to `engine`, which opens it anew and loads `address`
-    /// once it has created it. Nothing the old engine showed or reported
-    /// stays, and the page shows itself heading to `address` at once.
-    public void Rehost(Engine engine, string? address) {
+    /// The page moves to `engine` for `reason`, and `engine` opens it anew and
+    /// loads `address` once it has created it. Nothing the old engine showed
+    /// or reported stays, and the page shows itself heading to `address` at
+    /// once.
+    public void Rehost(Engine engine, string? address, RehostReason reason) {
+        movedFor.Add(reason);
         Engine = engine;
         Phase = PagePhase.Opening;
         rehostedAddress = address;
@@ -134,6 +143,9 @@ internal sealed class Page {
         crashes = 0;
         stoppedUnseen = null;
     }
+
+    /// Whether the page ever moved to another engine for `reason`.
+    public bool MovedFor(RehostReason reason) => movedFor.Contains(reason);
 
     /// The address the page loads now that its new engine created it, taken
     /// once; null for a page that did not move.

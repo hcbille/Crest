@@ -172,15 +172,7 @@ final class CorePage {
     @discardableResult
     func open(_ origin: SiteOrigin, in spaceID: SpaceID, on engine: EngineKind) -> Bool {
         guard !isReleased, let core else { return false }
-        do {
-            try core.send(ChooseSiteEngine(spaceID: spaceID, origin: origin, engine: engine))
-            try core.send(RehostPage(pageID: id, engine: engine))
-            return true
-        } catch {
-            Self.logger.debug(
-                "The core kept page \(self.id, privacy: .public) on its engine: \(String(describing: error))")
-            return false
-        }
+        return core.open(origin, in: spaceID, on: engine, moving: id)
     }
 
     // MARK: - Actions - Reports

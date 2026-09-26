@@ -32,12 +32,15 @@ public sealed class EngineCapability {
     public static readonly EngineCapability FeatureFlags = new(name: "feature-flags");
     public static readonly EngineCapability BeforeUnload = new(name: "before-unload");
     public static readonly EngineCapability InternalPages = new(name: "internal-pages");
+    /// The engine plays protected media through the platform's own content
+    /// decryption, such as FairPlay on Apple platforms.
+    public static readonly EngineCapability ProtectedMedia = new(name: "protected-media");
 
     public static IReadOnlyList<EngineCapability> All { get; } = [
         Pages, Navigation, Find, Zoom, InteractionState, PageResidency, Popups, WorkspaceProfiles, WorkspaceTransfer,
         ProfileDeletion, ContentBlocking, Downloads, Permissions, Reader, Translation, SelectionTranslation, LocalFiles,
         Extensions, ViewportCapture, FullPageCapture, Pdf, WebArchive, Print, Inspector, FeatureFlags, BeforeUnload,
-        InternalPages
+        InternalPages, ProtectedMedia
     ];
 
     /// The capabilities an engine must support to register.

@@ -10,7 +10,9 @@ namespace CrestCore.Application;
 /// asks the engine to create, load and close it. A tab's page opens on the
 /// engine chosen for the site the tab shows, when that engine is registered,
 /// and on the default engine otherwise. A page moves to another engine when
-/// the person asks, or when it heads to a site chosen for another engine.
+/// the person asks, when it heads to a site chosen for another engine, or
+/// when it asks for protected media its engine cannot play and another plays
+/// it through the platform.
 ///
 /// A window hosts one page for a tab. The Mac's windows over one workspace
 /// share one runtime store, so a second window shows the page the first opened
@@ -126,7 +128,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         var url = AddressResolution.Loading(intent.Input, space.Settings.BrowsingPreferences,
             page.Engine.Supports(EngineCapability.InternalPages));
         if (Chosen(space, url) is { } chosen && !ReferenceEquals(chosen, page.Engine)) {
-            Rehost(page, chosen, url, changes, issue);
+            Rehost(page, chosen, url, RehostReason.SiteChoice, changes, issue);
             return;
         }
         Update(page, changes, () => page.Load(url));
@@ -139,16 +141,36 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         var page = Known(intent.PageId);
         Hosting(device.Workspace(page.WorkspaceId), page.SpaceId);
         var engine = engines.Registered(intent.Engine) ?? throw new Rejected(new UnregisteredEngine(intent.Engine));
-        if (!ReferenceEquals(engine, page.Engine)) Rehost(page, engine, page.Live.Address, changes, issue);
+        if (!ReferenceEquals(engine, page.Engine)) Rehost(page, engine, page.Live.Address, RehostReason.PersonAsked, changes, issue);
     }
 
     /// Closes the page on its engine, keeping nothing, and creates it on
-    /// `engine`, which loads `address` once it has created it.
-    private void Rehost(Page page, Engine engine, string? address, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        if (page.Phase.HoldsEnginePage) issue(page.Engine, new ClosePage(page.Id, KeepsState: false));
-        Update(page, changes, () => page.Rehost(engine, address));
+    /// `engine`, which loads `address` once it has created it, then publishes
+    /// the move and why it happened.
+    private void Rehost(Page page, Engine engine, string? address, RehostReason reason, ChangeFeed changes,
+        Action<Engine, EngineCommand> issue) {
+        var from = page.Engine;
+        if (page.Phase.HoldsEnginePage) issue(from, new ClosePage(page.Id, KeepsState: false));
+        Update(page, changes, () => page.Rehost(engine, address, reason));
         issue(engine, new CreatePage(page.Id, page.ProfileId, device.Workspace(page.WorkspaceId).IsPrivateBrowsing, page.WindowId,
             RestoreState: null));
+        changes.Publish(new PageRehosted(page.Id, page.SpaceId, address is null ? null : new WebAddress(address).Origin, from.Kind,
+            engine.Kind, reason));
+    }
+
+    /// Moves a page that asked for protected media its engine cannot play to
+    /// an engine that plays it through the platform, and opens the page's
+    /// site there from then on. Nothing moves when no other engine plays it,
+    /// when the page moved for this once already, so it never bounces between
+    /// engines, when its document is not a web page's, or when its site has an
+    /// engine chosen for it, as a person who moved it back chose.
+    private void PlayProtectedMedia(Page page, SpaceState space, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+        if (page.MovedFor(RehostReason.ProtectedMedia) || engines.PlayingProtectedMedia(page.Engine) is not { } fallback
+            || page.DocumentAddress is not { } address || new WebAddress(address).Origin is not { } origin
+            || device.ChosenEngine(space.Id, origin) is not null)
+            return;
+        device.Choose(space.Id, origin, fallback.Kind);
+        Rehost(page, fallback, address, RehostReason.ProtectedMedia, changes, issue);
     }
 
     /// The registered engine chosen for the site `tab` shows, or null when
@@ -250,6 +272,7 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             NavigationCommitted committed => committed.PageId,
             NavigationFinished finished => finished.PageId,
             NavigationFailed failed => failed.PageId,
+            ProtectedMediaUnavailable unavailable => unavailable.PageId,
             PageIconChanged icon => icon.PageId,
             PageStateChanged state => state.PageId,
             PageCrashed crashed => crashed.PageId,
@@ -267,12 +290,14 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
             // registered engine moves the page there, which loads it instead.
             // Otherwise nothing is recorded until the navigation finishes.
             case NavigationStarted { SameDocument: false } started
-                when device.Attached(page.WorkspaceId) is { } workspace && !workspace.IsDeleting(page.SpaceId)
-                    && workspace.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId) is { } space
-                    && !workspace.IsLocked(space) && Chosen(space, started.Url) is { } chosen && !ReferenceEquals(chosen, page.Engine):
-                Rehost(page, chosen, started.Url, changes, issue);
+                when Shown(page) is { } space && Chosen(space, started.Url) is { } chosen && !ReferenceEquals(chosen, page.Engine):
+                Rehost(page, chosen, started.Url, RehostReason.SiteChoice, changes, issue);
                 break;
             case NavigationStarted: break;
+            case ProtectedMediaUnavailable when page.Phase == PagePhase.Live && Shown(page) is { } space:
+                PlayProtectedMedia(page, space, changes, issue);
+                break;
+            case ProtectedMediaUnavailable: break;
             case NavigationCommitted committed:
                 Update(page, changes, () => page.Commit(committed.Url, committed.SameDocument));
                 break;
@@ -419,6 +444,13 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     /// The tab a page belongs to, as its Space holds it now.
     private TabState? Tab(Page page) => page.TabId is { } tabId ? Held(page.WorkspaceId, page.SpaceId, tabId) : null;
+
+    /// The Space a page lives in, while its workspace is attached, the Space
+    /// is not being deleted and this process may show it; null otherwise.
+    private SpaceState? Shown(Page page) =>
+        device.Attached(page.WorkspaceId) is { } workspace && !workspace.IsDeleting(page.SpaceId)
+            && workspace.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId) is { } space && !workspace.IsLocked(space)
+            ? space : null;
 
     /// A tab its Space still holds, in a Space that is not being deleted.
     private TabState? Held(Guid workspaceId, Guid spaceId, Guid tabId) =>

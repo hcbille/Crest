@@ -13,7 +13,8 @@ enum BrowserEngineRegistration {
         private static let webKitImplementation = BrowserEngineImplementation.webKitIOS
     #endif
 
-    /// Native WebKit page and profile ports. A staged Peek navigation replays
+    /// Native WebKit page and profile ports. Protected media plays through the
+    /// platform's FairPlay. A staged Peek navigation replays
     /// only a GET link's URL and referrer: WebKit has no public way to carry the
     /// initiating frame's origin, user activation or sandbox into another page.
     /// Find reports whether a match exists but not how many, because WebKit's
@@ -27,7 +28,7 @@ enum BrowserEngineRegistration {
             .pages, .navigation, .find, .zoom, .interactionState, .pageResidency,
             .popups, .workspaceProfiles, .workspaceTransfer, .profileDeletion,
             .contentBlocking, .downloads, .permissions, .reader, .translation,
-            .selectionTranslation, .localFiles,
+            .selectionTranslation, .localFiles, .protectedMedia,
         ] + desktopWebKit,
         unavailable: [.extensions],
         archiveFormat: .webKit)
@@ -42,6 +43,8 @@ enum BrowserEngineRegistration {
     ///   incomplete.
     /// - Translation is limited to the selection service; whole-page translation
     ///   is unavailable.
+    /// - Protected media is unavailable: the engine carries no Widevine, and a
+    ///   page that asks for it moves to WebKit.
     /// - Site permission decisions reach the engine as content settings for the
     ///   page's current site; the host has no command to stop live camera,
     ///   microphone or location use directly, so revocation relies on the engine
@@ -60,7 +63,7 @@ enum BrowserEngineRegistration {
             .fullPageCapture, .pdf, .webArchive, .print, .localFiles,
             .extensions, .selectionTranslation, .popups, .featureFlags,
         ],
-        unavailable: [.reader, .translation, .contentBlocking],
+        unavailable: [.reader, .translation, .contentBlocking, .protectedMedia],
         archiveFormat: .mhtml)
 
     private static var desktopWebKit: [EngineCapability] {

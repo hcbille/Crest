@@ -198,6 +198,7 @@ void CodecRoundTrips() {
                                                .origin = maps,
                                                .top_level_origin = maps}},
       engine::PromptWithdrawn{.prompt_id = Filled(0x74)},
+      engine::ProtectedMediaUnavailable{.page_id = page, .key_system = engine::KeySystem::kPlayReady},
       engine::ScriptDialogOpened{.prompt_id = Filled(0x75),
                                  .page_id = page,
                                  .question = {.kind = engine::JavaScriptDialogKind::kBeforeUnload,

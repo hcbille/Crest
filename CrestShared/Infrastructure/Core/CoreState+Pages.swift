@@ -26,4 +26,8 @@ extension CoreState {
     /// A recorded navigation changes no page: the session changes before it
     /// carry what it recorded, and `CrestCore` tells the engines' observers.
     func apply(_ change: NavigationRecorded) {}
+
+    /// The `PageChanged` before it carries the page on its new engine; its
+    /// followers hear of the move through `CrestCore.followRehostedPages`.
+    func apply(_ change: PageRehosted) {}
 }

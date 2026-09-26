@@ -3,10 +3,12 @@ import Foundation
 /// A transient message at the top of a browser window. It asks nothing of the
 /// person: anything that needs a decision is a dialog, and everything else
 /// that Crest reports — a copy, a zoom change, an action that could not run —
-/// is one of these.
+/// is one of these. It may offer one action that undoes what it reports, such
+/// as moving a page back to the engine it left.
 struct BrowserNotice: Equatable, Hashable {
     let message: String
     let systemImage: String
+    var action: BrowserNoticeAction?
 
     static let urlCopied = BrowserNotice(
         message: String(localized: "URL Copied"),
@@ -17,11 +19,30 @@ struct BrowserNotice: Equatable, Hashable {
         BrowserNotice(message: label, systemImage: "textformat.size")
     }
 
-    /// Long enough to read: short confirmations leave quickly, sentences stay.
+    /// Long enough to read: short confirmations leave quickly, sentences stay,
+    /// and one that offers an action stays longest, so the person can take it.
     var duration: Duration {
+        guard action == nil else { return BrowserRootMetrics.noticeLongestDuration }
         let reading = Duration.milliseconds(message.count * 60)
         return min(max(BrowserRootMetrics.noticeDuration, reading), BrowserRootMetrics.noticeLongestDuration)
     }
+}
+
+/// The one action a notice offers. Each is its own, so two notices with the
+/// same words stay two notices.
+struct BrowserNoticeAction: Equatable, Hashable {
+    private let id = UUID()
+    let title: String
+    let perform: @MainActor () -> Void
+
+    init(title: String, perform: @escaping @MainActor () -> Void) {
+        self.title = title
+        self.perform = perform
+    }
+
+    static func == (lhs: BrowserNoticeAction, rhs: BrowserNoticeAction) -> Bool { lhs.id == rhs.id }
+
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 /// Delivers notices to the window the person is looking at, for callers that

@@ -2885,6 +2885,10 @@
     "choose-site-engine": {
       "category": "improved",
       "message": "On Mac, Site Controls can open a site in WebKit or Chromium; the page moves there and the site keeps opening in that engine"
+    },
+    "protected-video-fallback": {
+      "category": "new",
+      "message": "When a page's protected video needs a player Crest's Chromium doesn't have, the page moves to WebKit to play it, with an option to move it back"
     }
   }
 }

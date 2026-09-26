@@ -267,9 +267,17 @@ void On(ProtectedMediaUnavailable e)
 }
 ```
 
+Chromium reports the event from the one place that knows the key system
+itself is missing rather than a configuration: `WebEncryptedMediaClientImpl`'s
+unsupported-key-system result. It passes through the frame's
+`KeySystemConfigSelector` delegate and the frame host, and reaches the page's
+`WebContentsObserver`. Only the main frame, or a frame of the same site, reports,
+so an advertisement's probe moves nothing. The notice with "Move back" is the
+top-of-window notice. Moving back records the engine the page left as the
+site's choice, and the fallback never runs for a site that has a choice.
+
 These still need proving: which streaming services play in a WebKit page
-inside Crest, whether some need Safari's user agent, and where Chromium's
-key-system request path gives the cleanest hook for the event.
+inside Crest, and whether some need Safari's user agent.
 
 ### Sign-in on a moved page
 
