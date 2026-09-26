@@ -16,23 +16,27 @@ public static class HistoryPolicy {
     /// a new entry takes `newId`. Null for an address history does not keep,
     /// which leaves it as it was.
     public static IReadOnlyList<HistoryEntryState>? Visit(IReadOnlyList<HistoryEntryState> history, string url, string? title,
-        DateTimeOffset now, Guid newId) {
+        DateTimeOffset now, Guid newId) => Visit(history, url, title, now, newId, MaximumEntries);
+
+    /// A visit to a history that keeps at most `limit` entries.
+    internal static IReadOnlyList<HistoryEntryState>? Visit(IReadOnlyList<HistoryEntryState> history, string url, string? title,
+        DateTimeOffset now, Guid newId, int limit) {
         ArgumentNullException.ThrowIfNull(history);
         if (new WebAddress(url).Normalized is not { } normalized) return null;
-        // Every recorded navigation reads the whole history, so each pass is a
-        // plain loop.
-        HistoryEntryState? previous = null;
-        foreach (var entry in history)
-            if (entry.Url == normalized) {
-                previous = entry;
-                break;
-            }
+        var previous = AddressIndex.Of(history).Entry(normalized);
+#if CREST_CROSS_CHECKS
+        if (previous != history.FirstOrDefault(entry => entry.Url == normalized))
+            throw new System.Diagnostics.UnreachableException("The address index names another entry than the history's newest for the address.");
+#endif
         var visit = Record(normalized, title, now, newId, previous);
-        var visited = new List<HistoryEntryState>(Math.Min(history.Count + 1, MaximumEntries)) { visit };
+        var visited = new List<HistoryEntryState>(Math.Min(history.Count + 1, limit)) { visit };
+        List<HistoryEntryState> dropped = [];
         foreach (var entry in history) {
-            if (visited.Count == MaximumEntries) break;
-            if (entry.Id != visit.Id) visited.Add(entry);
+            if (entry.Id == visit.Id) continue;
+            if (visited.Count == limit) dropped.Add(entry);
+            else visited.Add(entry);
         }
+        AddressIndex.Visited(history, visited, visit, previous, dropped);
         return visited;
     }
 

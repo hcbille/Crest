@@ -14913,6 +14913,9 @@
         }
       }
     },
+    "Search" : {
+
+    },
     "Search accounts or sites" : {
       "localizations" : {
         "ar" : {
@@ -15058,6 +15061,9 @@
 
     },
     "Search suggestions" : {
+
+    },
+    "Search Suggestions" : {
 
     },
     "Search symbols" : {

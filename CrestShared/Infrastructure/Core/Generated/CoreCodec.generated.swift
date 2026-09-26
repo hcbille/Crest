@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x45, 0xe1, 0xed, 0x1e, 0x7d, 0x73, 0x28, 0x8a, 0xad, 0x14, 0x42, 0xea, 0xd8, 0x04, 0x9f, 0x51, 0x55, 0xf0, 0xa9, 0x56, 0x98, 0xfd, 0x66, 0x4d, 0x40, 0x1c, 0x75, 0x4e, 0x8d, 0xc5, 0x8a, 0x58
+        0xcc, 0x3d, 0x99, 0xad, 0xb4, 0xce, 0x9e, 0x64, 0xab, 0x8e, 0xe4, 0x98, 0x9c, 0xf5, 0x7d, 0x6e, 0x4f, 0xba, 0xd3, 0x03, 0xee, 0x40, 0x27, 0xe9, 0x7e, 0xa7, 0x0d, 0x6d, 0x2c, 0x1d, 0x46, 0x08
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -167,23 +167,30 @@ enum CoreCodec {
         case 13: return try DropTargets(from: &reader)
         case 14: return try ExternalLinkRoute(from: &reader)
         case 15: return try FallbackTab(from: &reader)
-        case 16: return try ImportPreview(from: &reader)
-        case 17: return try ImportReviewAnalysis(from: &reader)
-        case 18: return try ImportReviewSuggestions(from: &reader)
-        case 19: return try LaunchPlan(from: &reader)
-        case 20: return try MostRecentCredential(from: &reader)
-        case 21: return try NumberedSelections(from: &reader)
-        case 22: return try PasskeyAccess(from: &reader)
-        case 23: return try PendingSave(from: &reader)
-        case 24: return try PendingUploads(from: &reader)
-        case 25: return try QuickWindowSite(from: &reader)
-        case 26: return try RecordsToUpload(from: &reader)
-        case 27: return try SelectionPreview(from: &reader)
-        case 28: return try SiteDecision(from: &reader)
-        case 29: return try SplitJoinCandidate(from: &reader)
-        case 30: return try StrongPassword(from: &reader)
-        case 31: return try SystemPasswordOffer(from: &reader)
-        case 32: return try SystemPasswordWriteThrough(from: &reader)
+        case 16: return try HistoryAddresses(from: &reader)
+        case 17: return try ImportPreview(from: &reader)
+        case 18: return try ImportReviewAnalysis(from: &reader)
+        case 19: return try ImportReviewSuggestions(from: &reader)
+        case 20: return try LanguagesMatching(from: &reader)
+        case 21: return try LaunchPlan(from: &reader)
+        case 22: return try MostRecentCredential(from: &reader)
+        case 23: return try NumberedSelections(from: &reader)
+        case 24: return try PaletteSuggestions(from: &reader)
+        case 25: return try PasskeyAccess(from: &reader)
+        case 26: return try PendingSave(from: &reader)
+        case 27: return try PendingUploads(from: &reader)
+        case 28: return try QuickWindowSite(from: &reader)
+        case 29: return try RecordsToUpload(from: &reader)
+        case 30: return try ResolveAddress(from: &reader)
+        case 31: return try SamePage(from: &reader)
+        case 32: return try SelectionPreview(from: &reader)
+        case 33: return try SelectionSearch(from: &reader)
+        case 34: return try SiteDecision(from: &reader)
+        case 35: return try SplitJoinCandidate(from: &reader)
+        case 36: return try StrongPassword(from: &reader)
+        case 37: return try SystemPasswordOffer(from: &reader)
+        case 38: return try SystemPasswordWriteThrough(from: &reader)
+        case 39: return try TranslationChoice(from: &reader)
         default: throw WireError.malformed("Unknown Query tag \(tag)")
         }
     }
@@ -1110,6 +1117,21 @@ extension AddSearchEngine {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(2)
         encode(into: &writer)
+    }
+}
+
+extension AddressCompletion {
+    init(from reader: inout WireReader) throws(WireError) {
+        let typed = try reader.readString()
+        let suffix = try reader.readString()
+        let accepted = try reader.readString()
+        self.init(typed: typed, suffix: suffix, accepted: accepted)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeString(typed)
+        writer.writeString(suffix)
+        writer.writeString(accepted)
     }
 }
 
@@ -4925,6 +4947,67 @@ extension HidePage {
     }
 }
 
+extension HistoryAddressList {
+    init(from reader: inout WireReader) throws(WireError) {
+        let normalizedCount = try reader.readCount()
+        var normalized: [String?] = []
+        normalized.reserveCapacity(normalizedCount)
+        for _ in 0..<normalizedCount {
+            let normalizedElement: String?
+            if try reader.readPresence() {
+                let normalizedElementValue = try reader.readString()
+                normalizedElement = normalizedElementValue
+            } else {
+                normalizedElement = nil
+            }
+            normalized.append(normalizedElement)
+        }
+        self.init(normalized: normalized)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeCount(normalized.count)
+        for element0 in normalized {
+            if let present1 = element0 {
+                writer.writePresence(true)
+                writer.writeString(present1)
+            } else {
+                writer.writePresence(false)
+            }
+        }
+    }
+}
+
+extension HistoryAddresses {
+    init(from reader: inout WireReader) throws(WireError) {
+        let addressesCount = try reader.readCount()
+        var addresses: [String] = []
+        addresses.reserveCapacity(addressesCount)
+        for _ in 0..<addressesCount {
+            let addressesElement = try reader.readString()
+            addresses.append(addressesElement)
+        }
+        self.init(addresses: addresses)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeCount(addresses.count)
+        for element0 in addresses {
+            writer.writeString(element0)
+        }
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(16)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> HistoryAddressList {
+        let answer = try HistoryAddressList(from: &reader)
+        return answer
+    }
+}
+
 extension HistoryChanged {
     init(from reader: inout WireReader) throws(WireError) {
         let workspaceID = try reader.readUUID()
@@ -5032,7 +5115,7 @@ extension ImportPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(16)
+        writer.writeTag(17)
         encode(into: &writer)
     }
 
@@ -5075,7 +5158,7 @@ extension ImportReviewAnalysis {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(17)
+        writer.writeTag(18)
         encode(into: &writer)
     }
 
@@ -5131,7 +5214,7 @@ extension ImportReviewSuggestions {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(18)
+        writer.writeTag(19)
         encode(into: &writer)
     }
 
@@ -5864,6 +5947,26 @@ extension KeyCombination {
     }
 }
 
+extension LanguageMatches {
+    init(from reader: inout WireReader) throws(WireError) {
+        let matchesCount = try reader.readCount()
+        var matches: [Bool] = []
+        matches.reserveCapacity(matchesCount)
+        for _ in 0..<matchesCount {
+            let matchesElement = try reader.readBool()
+            matches.append(matchesElement)
+        }
+        self.init(matches: matches)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeCount(matches.count)
+        for element0 in matches {
+            writer.writeBool(element0)
+        }
+    }
+}
+
 extension LanguageTooLong {
     init(from reader: inout WireReader) throws(WireError) {
         let limit = try reader.readInt()
@@ -5872,6 +5975,38 @@ extension LanguageTooLong {
 
     func encode(into writer: inout WireWriter) {
         writer.writeInt(limit)
+    }
+}
+
+extension LanguagesMatching {
+    init(from reader: inout WireReader) throws(WireError) {
+        let language = try reader.readString()
+        let candidatesCount = try reader.readCount()
+        var candidates: [String] = []
+        candidates.reserveCapacity(candidatesCount)
+        for _ in 0..<candidatesCount {
+            let candidatesElement = try reader.readString()
+            candidates.append(candidatesElement)
+        }
+        self.init(language: language, candidates: candidates)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeString(language)
+        writer.writeCount(candidates.count)
+        for element0 in candidates {
+            writer.writeString(element0)
+        }
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(20)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> LanguageMatches {
+        let answer = try LanguageMatches(from: &reader)
+        return answer
     }
 }
 
@@ -5955,7 +6090,7 @@ extension LaunchPlan {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(19)
+        writer.writeTag(21)
         encode(into: &writer)
     }
 
@@ -6577,7 +6712,7 @@ extension MostRecentCredential {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(20)
+        writer.writeTag(22)
         encode(into: &writer)
     }
 
@@ -7292,7 +7427,7 @@ extension NumberedSelections {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(21)
+        writer.writeTag(23)
         encode(into: &writer)
     }
 
@@ -8010,6 +8145,17 @@ extension PageLoadingChanged {
     }
 }
 
+extension PageMatch {
+    init(from reader: inout WireReader) throws(WireError) {
+        let isSamePage = try reader.readBool()
+        self.init(isSamePage: isSamePage)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeBool(isSamePage)
+    }
+}
+
 extension PageMedia {
     init(from reader: inout WireReader) throws(WireError) {
         let pageID = try reader.readUUID()
@@ -8292,6 +8438,229 @@ extension PageViewUnavailable {
     }
 }
 
+extension PaletteAnswer {
+    init(from reader: inout WireReader) throws(WireError) {
+        let groupsCount = try reader.readCount()
+        var groups: [PaletteGroup] = []
+        groups.reserveCapacity(groupsCount)
+        for _ in 0..<groupsCount {
+            let groupsElement = try PaletteGroup(from: &reader)
+            groups.append(groupsElement)
+        }
+        let completion: AddressCompletion?
+        if try reader.readPresence() {
+            let completionValue = try AddressCompletion(from: &reader)
+            completion = completionValue
+        } else {
+            completion = nil
+        }
+        let suggestionAddress: String?
+        if try reader.readPresence() {
+            let suggestionAddressValue = try reader.readString()
+            suggestionAddress = suggestionAddressValue
+        } else {
+            suggestionAddress = nil
+        }
+        self.init(groups: groups, completion: completion, suggestionAddress: suggestionAddress)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeCount(groups.count)
+        for element0 in groups {
+            element0.encode(into: &writer)
+        }
+        if let present0 = completion {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = suggestionAddress {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+    }
+}
+
+extension PaletteCommand {
+    init(from reader: inout WireReader) throws(WireError) {
+        let command = try ShortcutCommand(from: &reader)
+        let title = try reader.readString()
+        let sectionTitle = try reader.readString()
+        self.init(command: command, title: title, sectionTitle: sectionTitle)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        command.encode(into: &writer)
+        writer.writeString(title)
+        writer.writeString(sectionTitle)
+    }
+}
+
+extension PaletteGroup {
+    init(from reader: inout WireReader) throws(WireError) {
+        let section = try PaletteSection(from: &reader)
+        let rowsCount = try reader.readCount()
+        var rows: [PaletteRow] = []
+        rows.reserveCapacity(rowsCount)
+        for _ in 0..<rowsCount {
+            let rowsElement = try PaletteRow(from: &reader)
+            rows.append(rowsElement)
+        }
+        self.init(section: section, rows: rows)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        section.encode(into: &writer)
+        writer.writeCount(rows.count)
+        for element0 in rows {
+            element0.encode(into: &writer)
+        }
+    }
+}
+
+extension PaletteRow {
+    init(from reader: inout WireReader) throws(WireError) {
+        let kind = try PaletteRowKind(from: &reader)
+        let title = try reader.readString()
+        let subtitle = try reader.readString()
+        let symbol = try reader.readString()
+        let subjectID: UUID?
+        if try reader.readPresence() {
+            let subjectIDValue = try reader.readUUID()
+            subjectID = subjectIDValue
+        } else {
+            subjectID = nil
+        }
+        let tabID: UUID?
+        if try reader.readPresence() {
+            let tabIDValue = try reader.readUUID()
+            tabID = tabIDValue
+        } else {
+            tabID = nil
+        }
+        let address: String?
+        if try reader.readPresence() {
+            let addressValue = try reader.readString()
+            address = addressValue
+        } else {
+            address = nil
+        }
+        let command: ShortcutCommand?
+        if try reader.readPresence() {
+            let commandValue = try ShortcutCommand(from: &reader)
+            command = commandValue
+        } else {
+            command = nil
+        }
+        let engine: BuiltInSearchEngine?
+        if try reader.readPresence() {
+            let engineValue = try BuiltInSearchEngine(from: &reader)
+            engine = engineValue
+        } else {
+            engine = nil
+        }
+        let customEngineID: UUID?
+        if try reader.readPresence() {
+            let customEngineIDValue = try reader.readUUID()
+            customEngineID = customEngineIDValue
+        } else {
+            customEngineID = nil
+        }
+        self.init(kind: kind, title: title, subtitle: subtitle, symbol: symbol, subjectID: subjectID, tabID: tabID, address: address, command: command, engine: engine, customEngineID: customEngineID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        kind.encode(into: &writer)
+        writer.writeString(title)
+        writer.writeString(subtitle)
+        writer.writeString(symbol)
+        if let present0 = subjectID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = tabID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = address {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = command {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = engine {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = customEngineID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+    }
+}
+
+extension PaletteSuggestions {
+    init(from reader: inout WireReader) throws(WireError) {
+        let windowID = try reader.readUUID()
+        let text = try reader.readString()
+        let commandsCount = try reader.readCount()
+        var commands: [PaletteCommand] = []
+        commands.reserveCapacity(commandsCount)
+        for _ in 0..<commandsCount {
+            let commandsElement = try PaletteCommand(from: &reader)
+            commands.append(commandsElement)
+        }
+        let remoteCount = try reader.readCount()
+        var remote: [String] = []
+        remote.reserveCapacity(remoteCount)
+        for _ in 0..<remoteCount {
+            let remoteElement = try reader.readString()
+            remote.append(remoteElement)
+        }
+        self.init(windowID: windowID, text: text, commands: commands, remote: remote)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(windowID)
+        writer.writeString(text)
+        writer.writeCount(commands.count)
+        for element0 in commands {
+            element0.encode(into: &writer)
+        }
+        writer.writeCount(remote.count)
+        for element0 in remote {
+            writer.writeString(element0)
+        }
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(24)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> PaletteAnswer {
+        let answer = try PaletteAnswer(from: &reader)
+        return answer
+    }
+}
+
 extension PasskeyAccess {
     init(from reader: inout WireReader) throws(WireError) {
         let hasManagedCapability = try reader.readBool()
@@ -8307,7 +8676,7 @@ extension PasskeyAccess {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(25)
         encode(into: &writer)
     }
 
@@ -8337,7 +8706,7 @@ extension PendingSave {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(23)
+        writer.writeTag(26)
         encode(into: &writer)
     }
 
@@ -8398,7 +8767,7 @@ extension PendingUploads {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(24)
+        writer.writeTag(27)
         encode(into: &writer)
     }
 
@@ -8575,7 +8944,7 @@ extension QuickWindowSite {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(25)
+        writer.writeTag(28)
         encode(into: &writer)
     }
 
@@ -8665,7 +9034,7 @@ extension RecordsToUpload {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(26)
+        writer.writeTag(29)
         encode(into: &writer)
     }
 
@@ -9124,6 +9493,88 @@ extension ResizeSplitColumns {
     }
 }
 
+extension ResolveAddress {
+    init(from reader: inout WireReader) throws(WireError) {
+        let workspaceID: UUID?
+        if try reader.readPresence() {
+            let workspaceIDValue = try reader.readUUID()
+            workspaceID = workspaceIDValue
+        } else {
+            workspaceID = nil
+        }
+        let spaceID: UUID?
+        if try reader.readPresence() {
+            let spaceIDValue = try reader.readUUID()
+            spaceID = spaceIDValue
+        } else {
+            spaceID = nil
+        }
+        let input = try reader.readString()
+        self.init(workspaceID: workspaceID, spaceID: spaceID, input: input)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        if let present0 = workspaceID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = spaceID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeString(input)
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(30)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> ResolvedAddress {
+        let answer = try ResolvedAddress(from: &reader)
+        return answer
+    }
+}
+
+extension ResolvedAddress {
+    init(from reader: inout WireReader) throws(WireError) {
+        let url: String?
+        if try reader.readPresence() {
+            let urlValue = try reader.readString()
+            url = urlValue
+        } else {
+            url = nil
+        }
+        let searchQuery: String?
+        if try reader.readPresence() {
+            let searchQueryValue = try reader.readString()
+            searchQuery = searchQueryValue
+        } else {
+            searchQuery = nil
+        }
+        self.init(url: url, searchQuery: searchQuery)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        if let present0 = url {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = searchQuery {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+    }
+}
+
 extension RestartDownload {
     init(from reader: inout WireReader) throws(WireError) {
         let downloadID = try reader.readUUID()
@@ -9204,6 +9655,29 @@ extension ReturnToSavedAddress {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(102)
         encode(into: &writer)
+    }
+}
+
+extension SamePage {
+    init(from reader: inout WireReader) throws(WireError) {
+        let first = try reader.readString()
+        let second = try reader.readString()
+        self.init(first: first, second: second)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeString(first)
+        writer.writeString(second)
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(31)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> PageMatch {
+        let answer = try PageMatch(from: &reader)
+        return answer
     }
 }
 
@@ -9465,13 +9939,62 @@ extension SelectionPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(27)
+        writer.writeTag(32)
         encode(into: &writer)
     }
 
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> SelectedTabs {
         let answer = try SelectedTabs(from: &reader)
         return answer
+    }
+}
+
+extension SelectionSearch {
+    init(from reader: inout WireReader) throws(WireError) {
+        let workspaceID = try reader.readUUID()
+        let spaceID = try reader.readUUID()
+        let text = try reader.readString()
+        self.init(workspaceID: workspaceID, spaceID: spaceID, text: text)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(workspaceID)
+        writer.writeUUID(spaceID)
+        writer.writeString(text)
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(33)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> SelectionSearchAnswer {
+        let answer = try SelectionSearchAnswer(from: &reader)
+        return answer
+    }
+}
+
+extension SelectionSearchAnswer {
+    init(from reader: inout WireReader) throws(WireError) {
+        let url: String?
+        if try reader.readPresence() {
+            let urlValue = try reader.readString()
+            url = urlValue
+        } else {
+            url = nil
+        }
+        let engineTitle = try reader.readString()
+        self.init(url: url, engineTitle: engineTitle)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        if let present0 = url {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeString(engineTitle)
     }
 }
 
@@ -10295,7 +10818,7 @@ extension SiteDecision {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(28)
+        writer.writeTag(34)
         encode(into: &writer)
     }
 
@@ -11196,7 +11719,7 @@ extension SplitJoinCandidate {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(29)
+        writer.writeTag(35)
         encode(into: &writer)
     }
 
@@ -11469,7 +11992,7 @@ extension StrongPassword {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(30)
+        writer.writeTag(36)
         encode(into: &writer)
     }
 
@@ -11699,7 +12222,7 @@ extension SystemPasswordOffer {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(31)
+        writer.writeTag(37)
         encode(into: &writer)
     }
 
@@ -11737,7 +12260,7 @@ extension SystemPasswordWriteThrough {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(32)
+        writer.writeTag(38)
         encode(into: &writer)
     }
 
@@ -12313,6 +12836,73 @@ extension TransientPagePromoted {
         writer.writeUUID(pageID)
         writer.writeUUID(tabID)
         writer.writeBool(adoptsPage)
+    }
+}
+
+extension TranslationChoice {
+    init(from reader: inout WireReader) throws(WireError) {
+        let rulesCount = try reader.readCount()
+        var rules: [TranslationRule] = []
+        rules.reserveCapacity(rulesCount)
+        for _ in 0..<rulesCount {
+            let rulesElement = try TranslationRule(from: &reader)
+            rules.append(rulesElement)
+        }
+        let sourceLanguage = try reader.readString()
+        self.init(rules: rules, sourceLanguage: sourceLanguage)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeCount(rules.count)
+        for element0 in rules {
+            element0.encode(into: &writer)
+        }
+        writer.writeString(sourceLanguage)
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(39)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> TranslationDecision {
+        let answer = try TranslationDecision(from: &reader)
+        return answer
+    }
+}
+
+extension TranslationDecision {
+    init(from reader: inout WireReader) throws(WireError) {
+        let rule: TranslationRule?
+        if try reader.readPresence() {
+            let ruleValue = try TranslationRule(from: &reader)
+            rule = ruleValue
+        } else {
+            rule = nil
+        }
+        let target: String?
+        if try reader.readPresence() {
+            let targetValue = try reader.readString()
+            target = targetValue
+        } else {
+            target = nil
+        }
+        self.init(rule: rule, target: target)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        if let present0 = rule {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = target {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
     }
 }
 
@@ -13830,6 +14420,34 @@ extension PageSecurity {
         let tag = try reader.readEnum()
         guard Self.all.indices.contains(tag) else {
             throw WireError.malformed("Unknown PageSecurity \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
+extension PaletteRowKind {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown PaletteRowKind \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
+extension PaletteSection {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown PaletteSection \(tag)")
         }
         self = Self.all[tag]
     }

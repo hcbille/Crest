@@ -78,13 +78,13 @@ public sealed class ShortcutCommand {
     #region Variables
 
     public static readonly ShortcutCommand NewWindow = new(Kinds.NewWindow, name: "newWindow", ShortcutSection.Everyday,
-        title: "New Window", symbol: "macwindow.badge.plus", shortcuts: Everywhere(Character("n", Command)));
+        title: "New Window", symbol: "macwindow.badge.plus", shortcuts: Everywhere(Character("n", Command)), paletteRest: 1);
     public static readonly ShortcutCommand NewBlankWindow = new(Kinds.NewBlankWindow, name: "newBlankWindow",
         ShortcutSection.Everyday, title: "New Blank Window", symbol: "macwindow.badge.plus",
         shortcuts: [new(DevicePlatform.Desktop, Character("n", Command | Option), YieldsToOverrides: true)],
         searchTerms: "temporary disposable unsynced window");
     public static readonly ShortcutCommand NewTab = new(Kinds.NewTab, name: "newTab", ShortcutSection.Everyday,
-        title: "New Tab", symbol: "plus.square", shortcuts: Everywhere(Character("t", Command)));
+        title: "New Tab", symbol: "plus.square", shortcuts: Everywhere(Character("t", Command)), offersInPalette: false);
     // The Mac moves the Quick Window one modifier up to make room for the blank window.
     public static readonly ShortcutCommand NewQuickWindow = new(Kinds.NewQuickWindow, name: "newQuickWindow",
         ShortcutSection.Everyday, title: "New Quick Window", symbol: "macwindow.badge.plus",
@@ -103,7 +103,7 @@ public sealed class ShortcutCommand {
         title: "Close Window", symbol: "xmark.square", shortcuts: Everywhere(Character("w", Command | Shift)));
     public static readonly ShortcutCommand OpenLocation = new(Kinds.OpenLocation, name: "openLocation",
         ShortcutSection.Everyday, title: "Open Location", symbol: "magnifyingglass",
-        shortcuts: Everywhere(Character("l", Command)), searchTerms: "change current tab url address focus");
+        shortcuts: Everywhere(Character("l", Command)), searchTerms: "change current tab url address focus", offersInPalette: false);
     public static readonly ShortcutCommand Back = new(Kinds.Back, name: "back", ShortcutSection.Everyday, title: "Back",
         symbol: "chevron.left", shortcuts: Everywhere(Character("[", Command)));
     public static readonly ShortcutCommand Forward = new(Kinds.Forward, name: "forward", ShortcutSection.Everyday,
@@ -123,7 +123,7 @@ public sealed class ShortcutCommand {
         title: "Duplicate Tab", symbol: "plus.square.on.square");
     public static readonly ShortcutCommand ReopenClosedTab = new(Kinds.ReopenClosedTab, name: "reopenClosedTab",
         ShortcutSection.Tabs, title: "Reopen Last Closed Tab", symbol: "arrow.uturn.backward",
-        shortcuts: Everywhere(Character("t", Command | Shift)), menuTitle: "Reopen Closed Tab");
+        shortcuts: Everywhere(Character("t", Command | Shift)), menuTitle: "Reopen Closed Tab", paletteRest: 2);
     public static readonly ShortcutCommand ClearUnpinnedTabs = new(Kinds.ClearUnpinnedTabs, name: "clearUnpinnedTabs",
         ShortcutSection.Tabs, title: "Clear Unpinned Tabs", symbol: "sparkles",
         shortcuts: Everywhere(Character("k", Command | Shift)), searchTerms: "clean tidy archive unpinned tabs");
@@ -193,15 +193,15 @@ public sealed class ShortcutCommand {
         title: "Print Page", symbol: "printer", shortcuts: Everywhere(Character("p", Command)), menuTitle: "Print…");
     public static readonly ShortcutCommand ToggleSidebar = new(Kinds.ToggleSidebar, name: "toggleSidebar",
         ShortcutSection.View, title: "Show or Hide Sidebar", symbol: "sidebar.leading",
-        shortcuts: Everywhere(Character("s", Command)), menuTitle: "Toggle Sidebar");
+        shortcuts: Everywhere(Character("s", Command)), menuTitle: "Toggle Sidebar", paletteRest: 5);
     public static readonly ShortcutCommand ShowHistory = new(Kinds.ShowHistory, name: "showHistory", ShortcutSection.View,
         title: "Show History", symbol: "clock", shortcuts: Everywhere(Character("y", Command)),
-        searchTerms: "visited pages history");
+        searchTerms: "visited pages history", paletteRest: 3);
     public static readonly ShortcutCommand ShowArchive = new(Kinds.ShowArchive, name: "showArchive", ShortcutSection.View,
         title: "Show Archive", symbol: "archivebox", searchTerms: "closed tabs archive");
     public static readonly ShortcutCommand ShowDownloads = new(Kinds.ShowDownloads, name: "showDownloads",
         ShortcutSection.View, title: "Show Downloads", symbol: "arrow.down.circle",
-        shortcuts: Everywhere(Character("j", Command | Shift)), searchTerms: "download files transfers");
+        shortcuts: Everywhere(Character("j", Command | Shift)), searchTerms: "download files transfers", paletteRest: 4);
     // The stored name is the one this command shipped with.
     public static readonly ShortcutCommand ShowWebInspector = new(Kinds.ShowWebInspector, name: "webInspectorInstructions",
         ShortcutSection.View, title: "Show Web Inspector", symbol: "hammer", shortcuts: Everywhere(Character("i", Command | Option)),
@@ -300,13 +300,22 @@ public sealed class ShortcutCommand {
     /// The default keys on each platform that has one.
     public IReadOnlyList<ShortcutDefault> DefaultShortcuts { get; }
 
+    /// Where the command stands among the actions the palette offers before
+    /// anything is typed, counting from one, or null when it waits to be typed.
+    public int? PaletteRest { get; }
+
+    /// The palette offers the command. The commands that open the palette
+    /// itself leave it out.
+    public bool OffersInPalette { get; }
+
     #endregion
 
     #region Constructors
 
     private ShortcutCommand(Kinds kind, string name, ShortcutSection section, string title, string symbol,
         IReadOnlyList<ShortcutDefault>? shortcuts = null, string? searchTerms = null, string? menuTitle = null,
-        EngineCapability? requiredCapability = null, NumberedSelectionTarget? selects = null, int? number = null) {
+        EngineCapability? requiredCapability = null, NumberedSelectionTarget? selects = null, int? number = null, int? paletteRest = null,
+        bool offersInPalette = true) {
         Kind = kind;
         Name = name;
         Section = section;
@@ -318,6 +327,8 @@ public sealed class ShortcutCommand {
         Selects = selects;
         Number = number;
         DefaultShortcuts = shortcuts ?? [];
+        PaletteRest = paletteRest;
+        OffersInPalette = offersInPalette;
     }
 
     /// ⌘1–⌘9 select the Nth stop of the shown Space's sidebar.

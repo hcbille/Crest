@@ -11,8 +11,11 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
         var available = true
         var navigated: URL?
         var inserted: String?
+        let browser = BrowserStore(
+            session: BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let model = BrowserCommandPaletteModel(
-            space: space, selectedTabID: tab.id, initialQuery: "", commands: nil,
+            browser: browser, space: browser.spaceModel(space.id), selectedTabID: tab.id, initialQuery: "",
+            commands: nil,
             isSourceAvailable: { _ in available }, selectTab: { _, _ in false },
             openURL: { _, url in
                 navigated = url
@@ -35,7 +38,7 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
         XCTAssertNil(navigated)
     }
 
-    func testLiveLockSelectionSpaceAndProfileChangesHideAndRejectCompletion() {
+    func testLiveLockSelectionSpaceAndProfileChangesHideAndRejectCompletion() async {
         let tab = BrowserTab(title: "Example", url: URL(string: "https://example.com/path"), placement: .current)
         let original = makeSpace(tab)
         let other = makeSpace(
@@ -45,13 +48,15 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
             showing: original.id, tabs: [original.id: tab.id])
         let access = BrowserSpaceAccessController()
         let model = BrowserCommandPaletteModel(
-            space: original, selectedTabID: tab.id, initialQuery: "", commands: nil, isPrivateBrowsing: true,
+            browser: browser, space: browser.spaceModel(original.id), selectedTabID: tab.id, initialQuery: "",
+            commands: nil,
             isSourceAvailable: {
                 BrowserCommandPaletteActionPolicy.isSourceAvailable($0, in: browser, accessController: access)
             },
             selectTab: { _, _ in false }, openURL: { _, _ in false }, dismiss: {})
         model.applyCompletion = { _, _ in XCTFail("Stale proposal was accepted") }
         model.updateCompletionEditing(text: "exa", selection: NSRange(location: 3, length: 0), isComposing: false)
+        await model.waitForPendingResults()
         XCTAssertNotNil(model.urlCompletion)
         browser.selectPresentedSpace(other.id)
         XCTAssertNil(model.urlCompletion)
@@ -70,7 +75,7 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
         XCTAssertFalse(model.acceptURLCompletion())
     }
 
-    func testEmptySelectionCompletionCreatesDestinationOnlyAfterEnter() {
+    func testEmptySelectionCompletionCreatesDestinationOnlyAfterEnter() async {
         let tab = BrowserTab(title: "Example", url: URL(string: "https://example.com/path"), placement: .saved)
         let space = makeSpace(tab)
         let browser = BrowserStore(
@@ -81,7 +86,8 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
             source: BrowserSpaceRuntimeAssignment(space: space), browser: browser,
             accessController: BrowserSpaceAccessController(), didSelectTab: { explicitSelectionCount += 1 })
         let model = BrowserCommandPaletteModel(
-            space: space, selectedTabID: nil, initialQuery: "", commands: nil, isSourceAvailable: { _ in false },
+            browser: browser, space: browser.spaceModel(space.id), selectedTabID: nil, initialQuery: "", commands: nil,
+            isSourceAvailable: { _ in false },
             selectTab: { _, _ in false }, openURL: { _, _ in false }, dismiss: {}, emptySelectionActions: actions)
         model.applyCompletion = { [weak model] insertion, range in
             guard let model else { return }
@@ -90,6 +96,7 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
                 text: text, selection: NSRange(location: text.utf16.count, length: 0), isComposing: false)
         }
         model.updateCompletionEditing(text: "exa", selection: NSRange(location: 3, length: 0), isComposing: false)
+        await model.waitForPendingResults()
         XCTAssertNotNil(model.urlCompletion)
         XCTAssertTrue(model.acceptURLCompletion())
         XCTAssertNil(browser.selectedTab)

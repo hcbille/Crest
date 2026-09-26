@@ -1,11 +1,19 @@
 import Foundation
 import Observation
 
-/// Owns query-derived results and keyboard selection for the shared palette.
+/// The shared palette's rows and keyboard selection. The core ranks what the
+/// palette offers for each query, off the main thread; an answer that arrives
+/// after a newer keystroke is dropped, so the latest query always wins. The
+/// query text, the selection and the completion editing stay here.
 @MainActor
 @Observable
 final class BrowserCommandPaletteModel {
-    let space: BrowserSpace?
+    // MARK: - Variables
+
+    /// The window the palette speaks for, whose core answers it.
+    let browser: BrowserStore
+    /// The Space the palette speaks for, or nil when the window shows none.
+    let space: SpaceModel?
     let selectedTabID: TabID?
     let commands: BrowserCommandPaletteCommandRegistry?
 
@@ -13,23 +21,95 @@ final class BrowserCommandPaletteModel {
         didSet {
             guard query != oldValue else { return }
             selectedResultIndex = 0
-            completionProposal =
-                isCompletionSourceAvailable
-                ? completionCandidates.proposal(query: query) : nil
-            scheduleResultsRebuild()
+            requestAnswer()
         }
     }
 
-    @ObservationIgnored private lazy var completionCandidates = BrowserURLCompletion.Candidates(space: space)
-
-    private var completionProposal: BrowserURLCompletion?
+    private(set) var groups: [BrowserCommandPaletteGroup] = []
+    /// Every row, in the order the keyboard steps through them.
+    private(set) var items: [BrowserCommandPaletteItem] = []
+    private(set) var selectedResultIndex = 0
+    private(set) var keyboardSelectionRevision = 0
     private(set) var completionEditing = BrowserURLCompletionEditingState()
+    private var completionProposal: AddressCompletion?
     @ObservationIgnored var applyCompletion: ((String, NSRange) -> Void)?
 
-    var urlCompletion: BrowserURLCompletion? {
-        guard isCompletionSourceAvailable, completionEditing.canPropose(for: query) else { return nil }
+    var urlCompletion: AddressCompletion? {
+        guard isCompletionSourceAvailable, completionEditing.canPropose(for: query),
+            completionProposal?.typed == query
+        else { return nil }
         return completionProposal
     }
+
+    var isCompletionSourceAvailable: Bool {
+        if selectedTabID != nil { return availableSourceAssignment != nil }
+        guard let space, let actions = emptySelectionActions,
+            actions.source == BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID)
+        else { return false }
+        return actions.isAvailable
+    }
+
+    /// Counts keystrokes: each query asks under the next number, and only the
+    /// answer to the latest is shown.
+    @ObservationIgnored private var sequence = 0
+    /// The keystroke whose answer the rows show.
+    @ObservationIgnored private var shownSequence = 0
+    @ObservationIgnored private var answerTask: Task<Void, Never>?
+
+    private let suggestionDebounce: Duration
+    private let fetchSuggestions: @Sendable (URL) async throws -> [String]
+    private let isSourceAvailableAction: (BrowserTabRuntimeAssignment) -> Bool
+    private let selectTabAction: (BrowserTabRuntimeAssignment, BrowserTabRuntimeAssignment) -> Bool
+    private let openURLAction: (BrowserTabRuntimeAssignment, URL) -> Bool
+    private let dismissAction: () -> Void
+    private let emptySelectionActions: BrowserEmptySelectionPaletteActions?
+
+    private var availableSourceAssignment: BrowserTabRuntimeAssignment? {
+        guard let sourceAssignment, isSourceAvailableAction(sourceAssignment) else { return nil }
+        return sourceAssignment
+    }
+
+    private var sourceAssignment: BrowserTabRuntimeAssignment? {
+        guard let space, let selectedTabID else { return nil }
+        return BrowserTabRuntimeAssignment(tabID: selectedTabID, spaceID: space.id, profileID: space.profileID)
+    }
+
+    // MARK: - Initializers
+
+    init(
+        browser: BrowserStore,
+        space: SpaceModel?,
+        selectedTabID: TabID?,
+        initialQuery: String,
+        commands: BrowserCommandPaletteCommandRegistry?,
+        suggestionDebounce: Duration = .milliseconds(250),
+        fetchSuggestions: @escaping @Sendable (URL) async throws -> [String] = { address in
+            try await BrowserSearchSuggestionClient.shared.suggestions(from: address)
+        },
+        isSourceAvailable: @escaping (BrowserTabRuntimeAssignment) -> Bool,
+        selectTab: @escaping (BrowserTabRuntimeAssignment, BrowserTabRuntimeAssignment) -> Bool,
+        openURL: @escaping (BrowserTabRuntimeAssignment, URL) -> Bool,
+        dismiss: @escaping () -> Void,
+        emptySelectionActions: BrowserEmptySelectionPaletteActions? = nil
+    ) {
+        self.browser = browser
+        self.space = space
+        self.selectedTabID = selectedTabID
+        self.commands = commands
+        query = initialQuery
+        self.suggestionDebounce = suggestionDebounce
+        self.fetchSuggestions = fetchSuggestions
+        isSourceAvailableAction = isSourceAvailable
+        selectTabAction = selectTab
+        openURLAction = openURL
+        dismissAction = dismiss
+        self.emptySelectionActions = emptySelectionActions
+        // The palette opens with its rows: the resting answer is quick to
+        // rank, so it is asked for on the main thread.
+        if let answer = try? browser.core.query(question(for: initialQuery)) { show(answer, for: sequence) }
+    }
+
+    // MARK: - Actions - Completion
 
     func updateCompletionEditing(text: String, selection: NSRange, isComposing: Bool) {
         completionEditing.update(text: text, selection: selection, isComposing: isComposing)
@@ -48,153 +128,72 @@ final class BrowserCommandPaletteModel {
         guard let proposal = urlCompletion, let applyCompletion else { return false }
         completionEditing.reject()
         applyCompletion(proposal.insertionText, proposal.insertionRange)
-        // Enter immediately after Tab must see the accepted URL intent even if
-        // the asynchronous local-result rebuild has not been scheduled yet.
-        if query == proposal.acceptedQuery {
-            let prepared = BrowserCommandPaletteResultPreparation.prepare(for: input(query: query))
-            publishedQuery = prepared.query
-            results = prepared.results
-            resultGroups = prepared.groups
+        // Return right after Tab must find the accepted address as the primary
+        // action even before the off-main answer arrives.
+        if query == proposal.accepted, let answer = try? browser.core.query(question(for: query)) {
+            show(answer, for: sequence)
             selectedResultIndex = 0
         }
         completionEditing.reject()
         return true
     }
 
-    var isCompletionSourceAvailable: Bool {
-        if selectedTabID != nil { return availableSourceAssignment != nil }
-        guard let space, let actions = emptySelectionActions,
-            actions.source == BrowserSpaceRuntimeAssignment(space: space)
-        else { return false }
-        return actions.isAvailable
-    }
-
-    private(set) var selectedResultIndex = 0
-    private(set) var keyboardSelectionRevision = 0
-    private(set) var results: [BrowserCommandPaletteResult]
-    private(set) var resultGroups: [BrowserCommandPaletteResultGroup]
-
-    @ObservationIgnored private var rebuildTask: Task<Void, Never>?
-    @ObservationIgnored private var publishedQuery: String
-
-    private let isPrivateBrowsing: Bool
-    private let suggestionDebounce: Duration
-    private let fetchSuggestions: @Sendable (String, SearchProvider) async throws -> [String]
-
-    private let isSourceAvailableAction: (BrowserTabRuntimeAssignment) -> Bool
-    private let selectTabAction:
-        (
-            BrowserTabRuntimeAssignment,
-            BrowserTabRuntimeAssignment
-        ) -> Bool
-    private let openURLAction: (BrowserTabRuntimeAssignment, URL) -> Bool
-    private let dismissAction: () -> Void
-    private let emptySelectionActions: BrowserEmptySelectionPaletteActions?
-
-    init(
-        space: BrowserSpace?,
-        selectedTabID: TabID?,
-        initialQuery: String,
-        commands: BrowserCommandPaletteCommandRegistry?,
-        isPrivateBrowsing: Bool = false,
-        suggestionDebounce: Duration = .milliseconds(250),
-        fetchSuggestions:
-            @escaping @Sendable (
-                String,
-                SearchProvider
-            ) async throws -> [String] = { query, provider in
-                try await BrowserSearchSuggestionClient.shared.suggestions(
-                    for: query,
-                    provider: provider
-                )
-            },
-        isSourceAvailable: @escaping (BrowserTabRuntimeAssignment) -> Bool,
-        selectTab:
-            @escaping (
-                BrowserTabRuntimeAssignment,
-                BrowserTabRuntimeAssignment
-            ) -> Bool,
-        openURL: @escaping (BrowserTabRuntimeAssignment, URL) -> Bool,
-        dismiss: @escaping () -> Void,
-        emptySelectionActions: BrowserEmptySelectionPaletteActions? = nil
-    ) {
-        let input = BrowserCommandPaletteInput(
-            query: initialQuery,
-            space: space,
-            selectedTabID: selectedTabID,
-            commands: commands?.commands ?? [],
-            searchProvider: space?.browsingPreferences.searchProvider ?? .google
-        )
-        let prepared = BrowserCommandPaletteResultPreparation.prepare(for: input)
-
-        self.space = space
-        self.selectedTabID = selectedTabID
-        self.commands = commands
-        query = initialQuery
-        results = prepared.results
-        resultGroups = prepared.groups
-        publishedQuery = initialQuery
-        self.isPrivateBrowsing = isPrivateBrowsing
-        self.suggestionDebounce = suggestionDebounce
-        self.fetchSuggestions = fetchSuggestions
-        isSourceAvailableAction = isSourceAvailable
-        selectTabAction = selectTab
-        openURLAction = openURL
-        dismissAction = dismiss
-        self.emptySelectionActions = emptySelectionActions
-    }
+    // MARK: - Actions - Selection
 
     func moveSelection(by offset: Int) {
         rejectURLCompletion()
-        guard publishedQuery == query, !results.isEmpty else { return }
-        selectedResultIndex = (selectedResultIndex + offset + results.count) % results.count
+        guard shownSequence == sequence, !items.isEmpty else { return }
+        selectedResultIndex = (selectedResultIndex + offset + items.count) % items.count
         keyboardSelectionRevision &+= 1
     }
 
     func selectResult(at index: Int) {
         rejectURLCompletion()
-        guard publishedQuery == query, results.indices.contains(index) else { return }
+        guard shownSequence == sequence, items.indices.contains(index) else { return }
         selectedResultIndex = index
     }
 
     func activateSelectedResult() {
-        guard results.indices.contains(selectedResultIndex) else { return }
-        activate(results[selectedResultIndex])
+        guard items.indices.contains(selectedResultIndex) else { return }
+        activate(items[selectedResultIndex].row)
     }
 
-    func activate(_ result: BrowserCommandPaletteResult) {
-        guard publishedQuery == query else { return }
-
+    func activate(_ row: PaletteRow) {
+        guard shownSequence == sequence else { return }
         if selectedTabID == nil {
-            guard let actions = emptySelectionActions,
-                let space,
-                actions.source == BrowserSpaceRuntimeAssignment(space: space),
+            guard let actions = emptySelectionActions, let space,
+                actions.source == BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID),
                 actions.isAvailable
             else { return }
             let didActivate: Bool
-            switch result.target {
-            case .tab(let target): didActivate = actions.selectTab(target)
-            case .url(let url): didActivate = actions.openURL(url)
-            case .command(let command):
+            if let tabID = row.tabID {
+                didActivate = actions.selectTab(
+                    BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID))
+            } else if let url = row.address.flatMap(URL.init(string:)) {
+                didActivate = actions.openURL(url)
+            } else if let command = row.command {
                 commands?.perform(command)
                 didActivate = commands != nil
+            } else {
+                didActivate = false
             }
             if didActivate { dismiss() }
             return
         }
-
+        guard let sourceAssignment = availableSourceAssignment else { return }
         let didActivate: Bool
-        switch result.target {
-        case .tab(let target):
-            guard let sourceAssignment = availableSourceAssignment else { return }
-            didActivate = selectTabAction(sourceAssignment, target)
-        case .url(let url):
-            guard let sourceAssignment = availableSourceAssignment else { return }
+        if let tabID = row.tabID {
+            didActivate = selectTabAction(
+                sourceAssignment,
+                BrowserTabRuntimeAssignment(
+                    tabID: tabID, spaceID: sourceAssignment.spaceID, profileID: sourceAssignment.profileID))
+        } else if let url = row.address.flatMap(URL.init(string:)) {
             didActivate = openURLAction(sourceAssignment, url)
-        case .command(let command):
-            guard availableSourceAssignment != nil else { return }
+        } else if let command = row.command {
             commands?.perform(command)
             didActivate = commands != nil
+        } else {
+            didActivate = false
         }
         if didActivate { dismiss() }
     }
@@ -204,130 +203,91 @@ final class BrowserCommandPaletteModel {
     }
 
     func waitForPendingResults() async {
-        await rebuildTask?.value
+        await answerTask?.value
     }
 
-    func tab(for result: BrowserCommandPaletteResult) -> BrowserTab? {
-        switch result.target {
-        case .tab(let assignment):
-            guard let space, assignmentMatches(assignment, space: space) else {
-                return nil
-            }
-            return space.tabs.first { $0.id == assignment.tabID }
-        case .url, .command:
-            return nil
-        }
+    // MARK: - Actions - Presentation
+
+    /// The tab a row shows, for its icon.
+    func tab(for row: PaletteRow) -> TabStateModel? {
+        row.tabID.flatMap { space?.tabs.model($0) }
     }
 
-    func profileID(for result: BrowserCommandPaletteResult) -> UUID? {
-        switch result.target {
-        case .tab(let assignment):
-            assignment.profileID
-        case .url, .command:
-            nil
-        }
+    /// The search engine a row searches with, for its icon.
+    func searchProvider(for row: PaletteRow) -> SearchProvider? {
+        space?.settings.browsingPreferences.searchProvider(builtIn: row.engine, customID: row.customEngineID)
+            ?? row.engine.flatMap { SearchProvider.named($0.name) }
     }
 
-    private func scheduleResultsRebuild() {
-        rebuildTask?.cancel()
-        let requestedQuery = query
-        let input = input(query: requestedQuery)
+    // MARK: - Actions - Answers
 
-        rebuildTask = Task { [weak self] in
-            guard let self else { return }
-            let preparation = Task.detached(priority: .userInitiated) {
-                BrowserCommandPaletteResultPreparation.prepare(for: input)
-            }
-            let prepared = await withTaskCancellationHandler {
-                await preparation.value
-            } onCancel: {
-                preparation.cancel()
-            }
-            guard !Task.isCancelled else { return }
-            guard query == prepared.query else { return }
-            publishedQuery = prepared.query
-            results = prepared.results
-            resultGroups = prepared.groups
+    /// The question for `text`, with the commands this window offers and the
+    /// suggestions fetched for the same text.
+    private func question(for text: String, remote: [String] = []) -> PaletteSuggestions {
+        PaletteSuggestions(
+            windowID: browser.windowID, text: text, commands: commands?.paletteCommands ?? [], remote: remote)
+    }
 
-            guard shouldRequestSuggestions(for: requestedQuery) else { return }
+    /// Asks the core for the current query's answer off the main thread, then
+    /// for the search suggestions the answer allows, and shows each only while
+    /// no later keystroke has asked again.
+    private func requestAnswer() {
+        sequence &+= 1
+        let asked = sequence
+        let question = question(for: query)
+        let core = browser.core
+        answerTask?.cancel()
+        answerTask = Task { [weak self] in
+            guard let answer = await Self.answer(question, from: core), !Task.isCancelled, let self,
+                asked == sequence
+            else { return }
+            show(answer, for: asked)
+            guard let address = answer.suggestionAddress.flatMap(URL.init(string:)) else { return }
             do {
                 try await Task.sleep(for: suggestionDebounce)
+                let fetched = try await fetchSuggestions(address)
                 try Task.checkCancellation()
-                let provider = input.searchProvider
-                let suggestions = try await fetchSuggestions(requestedQuery, provider)
-                try Task.checkCancellation()
-                guard query == requestedQuery, publishedQuery == requestedQuery else { return }
-
-                let selectedID =
-                    results.indices.contains(selectedResultIndex)
-                    ? results[selectedResultIndex].id
-                    : nil
-                let merged = BrowserCommandPaletteResults.insertingRemoteSuggestions(
-                    suggestions,
-                    query: requestedQuery,
-                    provider: provider,
-                    into: prepared.results
-                )
-                results = merged
-                resultGroups = BrowserCommandPaletteResultGroupingPolicy.groups(
-                    results: merged,
-                    query: requestedQuery
-                )
-                if let selectedID,
-                    let index = merged.firstIndex(where: { $0.id == selectedID })
-                {
+                guard asked == sequence, !fetched.isEmpty,
+                    let merged = await Self.answer(
+                        PaletteSuggestions(
+                            windowID: question.windowID, text: question.text, commands: question.commands,
+                            remote: fetched),
+                        from: core),
+                    asked == sequence
+                else { return }
+                let selected = items.indices.contains(selectedResultIndex) ? items[selectedResultIndex].id : nil
+                show(merged, for: asked)
+                if let selected, let index = items.firstIndex(where: { $0.id == selected }) {
                     selectedResultIndex = index
                 }
             } catch {
-                // Local results were already published. Cancellation, network
-                // failure, and malformed responses intentionally degrade to them.
+                // The local rows are already shown. Cancellation, a failed
+                // fetch or an unreadable response leave them as they are.
             }
         }
     }
 
-    private func shouldRequestSuggestions(for query: String) -> Bool {
-        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty, query.count <= 256 else { return false }
-        guard !isPrivateBrowsing else { return false }
-        guard space?.browsingPreferences.searchSuggestionsEnabled == true else {
-            return false
-        }
-        return input(query: query).searchProvider.suggestionURL(for: query) != nil
+    private func show(_ answer: PaletteAnswer, for asked: Int) {
+        shownSequence = asked
+        groups = BrowserCommandPaletteGroup.groups(of: answer)
+        items = groups.flatMap(\.items)
+        completionProposal = answer.completion
+        if !items.indices.contains(selectedResultIndex) { selectedResultIndex = 0 }
     }
 
-    private var availableSourceAssignment: BrowserTabRuntimeAssignment? {
-        guard let sourceAssignment, isSourceAvailableAction(sourceAssignment)
-        else {
-            return nil
-        }
-        return sourceAssignment
+    /// The core's answer, ranked on a background thread.
+    private nonisolated static func answer(_ question: PaletteSuggestions, from core: CrestCore) async -> PaletteAnswer?
+    {
+        await Task.detached(priority: .userInitiated) { try? core.query(question) }.value
     }
+}
 
-    private func input(query: String) -> BrowserCommandPaletteInput {
-        BrowserCommandPaletteInput(
-            query: query,
-            space: space,
-            selectedTabID: selectedTabID,
-            commands: commands?.commands ?? [],
-            searchProvider: space?.browsingPreferences.searchProvider ?? .google
-        )
-    }
-
-    private var sourceAssignment: BrowserTabRuntimeAssignment? {
-        guard let space, let selectedTabID else { return nil }
-        return BrowserTabRuntimeAssignment(
-            tabID: selectedTabID,
-            spaceID: space.id,
-            profileID: space.profile.id
-        )
-    }
-
-    private func assignmentMatches(
-        _ assignment: BrowserTabRuntimeAssignment,
-        space: BrowserSpace
-    ) -> Bool {
-        assignment.spaceID == space.id
-            && assignment.profileID == space.profile.id
+extension BrowsingPreferences {
+    /// The engine `builtIn` or `customID` names among this Space's engines.
+    func searchProvider(builtIn: BuiltInSearchEngine?, customID: UUID?) -> SearchProvider? {
+        if let builtIn { return SearchProvider.named(builtIn.name) }
+        guard let customID, let custom = customSearchProviders.first(where: { $0.id == customID }) else { return nil }
+        return SearchProvider(custom: custom)
     }
 }
 
@@ -345,6 +305,8 @@ enum BrowserSearchSuggestionResponseParser {
     }
 }
 
+/// Fetches an engine's search suggestions from the address the core names,
+/// without cookies or caching.
 actor BrowserSearchSuggestionClient {
     static let shared = BrowserSearchSuggestionClient()
     static let maximumResponseByteCount = 64 * 1_024
@@ -366,14 +328,8 @@ actor BrowserSearchSuggestionClient {
         self.session = session ?? URLSession(configuration: Self.sessionConfiguration)
     }
 
-    func suggestions(
-        for query: String,
-        provider: SearchProvider
-    ) async throws -> [String] {
-        guard query.count <= 256, let url = provider.suggestionURL(for: query) else {
-            return []
-        }
-        var request = URLRequest(url: url)
+    func suggestions(from address: URL) async throws -> [String] {
+        var request = URLRequest(url: address)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (bytes, response) = try await session.bytes(for: request)

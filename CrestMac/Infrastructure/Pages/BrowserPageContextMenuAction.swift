@@ -87,7 +87,7 @@ extension BrowserPage {
         {
             actions.append(
                 BrowserPageContextMenuAction(
-                    kind: .search, title: String(localized: "Search with \(search.provider.title)"),
+                    kind: .search, title: String(localized: "Search with \(search.engineTitle)"),
                     symbolName: "magnifyingglass", linkURL: nil, selectionText: selectionText))
         }
         return actions

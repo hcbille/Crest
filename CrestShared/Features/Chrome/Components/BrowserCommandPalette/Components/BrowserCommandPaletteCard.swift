@@ -94,7 +94,7 @@ struct BrowserCommandPaletteCard: View {
                 queryIsFocused: queryIsFocused
             )
 
-            if !model.resultGroups.isEmpty {
+            if !model.groups.isEmpty {
                 Divider()
                 BrowserCommandPaletteResultList(
                     model: model,

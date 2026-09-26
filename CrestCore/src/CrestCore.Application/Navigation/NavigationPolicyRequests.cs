@@ -49,12 +49,5 @@ internal static class NavigationPolicyRequests {
         }
     }
 
-    public sealed record HistoryNormalize(string Url) {
-        public static HistoryNormalize Decode(JsonElement request) {
-            Members(request, "url");
-            return new(Protocol.Text(request, "url"));
-        }
-    }
-
     #endregion
 }

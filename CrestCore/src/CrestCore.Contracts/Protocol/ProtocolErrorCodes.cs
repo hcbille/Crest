@@ -18,7 +18,6 @@ public static class ProtocolErrorCodes {
     public const string InvalidStatus = "invalid_status";
     public const string InvalidString = "invalid_string";
     public const string InvalidUuid = "invalid_uuid";
-    public const string LanguageBatchLimit = "language_batch_limit";
     public const string PolicyInputLimit = "policy_input_limit";
     public const string RecordBatchLimit = "record_batch_limit";
     public const string ResidencyCandidateLimit = "residency_candidate_limit";

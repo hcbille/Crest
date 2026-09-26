@@ -39,7 +39,7 @@ struct BrowserCommandPaletteSearchField: View {
                 .foregroundStyle(.secondary)
                 .help("Accept URL completion (Tab or Right Arrow)")
                 .accessibilityLabel("Accept URL completion")
-                .accessibilityValue(completion.acceptedQuery)
+                .accessibilityValue(completion.accepted)
                 .accessibilityHint("Fills the address without opening it. Press Tab or Right Arrow to accept.")
                 .accessibilityIdentifier("command-palette-accept-completion")
             }

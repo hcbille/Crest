@@ -36,14 +36,12 @@ struct BrowserLinkDestinationHost {
         for text: String,
         from source: BrowserTabRuntimeAssignment
     ) -> BrowserSelectionSearchDestination? {
-        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty,
-            canOpenLink(from: source),
-            let provider = browser?.session.space(id: source.spaceID)?.browsingPreferences.searchProvider,
-            let url = provider.searchURL(for: query),
-            BrowserCorePolicy.acceptsExternalURL(url)
+        guard canOpenLink(from: source), let browser,
+            let search = try? browser.core.query(
+                SelectionSearch(workspaceID: browser.family.workspaceID, spaceID: source.spaceID, text: text)),
+            let url = search.url.flatMap(URL.init(string:))
         else { return nil }
-        return BrowserSelectionSearchDestination(url: url, provider: provider, source: source)
+        return BrowserSelectionSearchDestination(url: url, engineTitle: search.engineTitle, source: source)
     }
 
     @discardableResult
@@ -66,6 +64,7 @@ struct BrowserLinkDestinationHost {
 
 struct BrowserSelectionSearchDestination: Equatable, Sendable {
     let url: URL
-    let provider: SearchProvider
+    /// The name of the engine that runs the search.
+    let engineTitle: String
     let source: BrowserTabRuntimeAssignment
 }

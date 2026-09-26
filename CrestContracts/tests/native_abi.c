@@ -56,7 +56,7 @@ static void app_boundary(void) {
     assert(crest_app_destroy(app) == CREST_INVALID_HANDLE);
 }
 static void policy_boundary(void) {
-    const char *request = "{\"version\":1,\"operation\":\"address.intent\",\"input\":\"localhost:8767/profile\",\"searchProvider\":{\"id\":\"duckDuckGo\"}}";
+    const char *request = "{\"version\":1,\"operation\":\"limits\"}";
     size_t length = 0;
     assert(crest_core_evaluate_policy(NULL, 0, NULL, 0, &length) == CREST_INVALID_ARGUMENT);
     assert(crest_core_evaluate_policy((const uint8_t*)request, strlen(request), NULL, 0, &length) == CREST_BUFFER_TOO_SMALL);
@@ -67,18 +67,7 @@ static void policy_boundary(void) {
     assert(length == required && output[0] == 0xa5);
     assert(crest_core_evaluate_policy((const uint8_t*)request, strlen(request), output, 256, &length) == CREST_OK);
     assert(output[length] == 0xa5); output[length] = 0;
-    assert(strstr((const char*)output, "http://localhost:8767/profile"));
-    /* Search URLs are built by the core catalog, identical for every engine. */
-    const char *search = "{\"version\":1,\"operation\":\"search.url\",\"searchProvider\":{\"id\":\"google\"},"
-        "\"query\":\"a+b & c#d\",\"purpose\":\"search\"}";
-    assert(crest_core_evaluate_policy((const uint8_t*)search, strlen(search), output, 256, &length) == CREST_OK);
-    output[length] = 0;
-    assert(strstr((const char*)output, "https://www.google.com/search?q=a%2Bb%20%26%20c%23d"));
-    const char *translation = "{\"version\":1,\"operation\":\"translation.rule\",\"sourceID\":\"zh-TW\","
-        "\"rules\":{\"sources\":{\"zh-Hant\":{\"targetID\":\"en\",\"isEnabled\":true}}}}";
-    assert(crest_core_evaluate_policy((const uint8_t*)translation, strlen(translation), output, 256, &length) == CREST_OK);
-    output[length] = 0;
-    assert(strstr((const char*)output, "\"target\":\"en\""));
+    assert(strstr((const char*)output, "\"historyEntries\":5000"));
     const uint8_t invalid[] = { 0xff };
     assert(crest_core_evaluate_policy(invalid, sizeof(invalid), output, 256, &length) == CREST_INVALID_MESSAGE);
     assert(length == 0);

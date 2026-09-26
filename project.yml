@@ -242,7 +242,6 @@ targets:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: CrestTests/AddressResolverTests.swift
       - path: CrestTests/BrowserSessionTests.swift
       - path: CrestTests/BrowserSessionRecoveryTests.swift
       - path: CrestTests/BrowserDataRetentionTests.swift

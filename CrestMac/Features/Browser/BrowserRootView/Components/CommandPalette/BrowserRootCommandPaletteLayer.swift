@@ -15,11 +15,11 @@ struct BrowserRootCommandPaletteLayer: View {
             model.isCommandPaletteShown
         {
             BrowserCommandPalette(
-                space: model.browser.selectedSpace,
+                browser: model.browser,
+                space: paletteSpace,
                 selectedTabID: model.browser.selectedTab?.id,
                 initialQuery: mode.initialQuery,
                 commands: commandActions.paletteRegistry(shortcuts: shortcuts),
-                isPrivateBrowsing: model.browser.isPrivateBrowsing,
                 isSourceAvailable: model.isPaletteSourceAvailable,
                 selectTab: model.selectPaletteTab,
                 openURL: { source, url in
@@ -33,13 +33,18 @@ struct BrowserRootCommandPaletteLayer: View {
             .id(
                 BrowserCommandPalettePresentationIdentity(
                     mode: mode,
-                    space: model.browser.selectedSpace,
+                    space: paletteSpace,
                     source: model.selectedTabAssignment
                 )
             )
             .transition(.browserCommandPaletteOverlay)
             .zIndex(BrowserRootMetrics.commandPaletteZIndex)
         }
+    }
+
+    /// The Space the window shows, unless it is being deleted.
+    private var paletteSpace: SpaceModel? {
+        model.browser.selectedSpace.flatMap { model.browser.spaceModel($0.id) }
     }
 
     private var commandActions: BrowserCommandActions {

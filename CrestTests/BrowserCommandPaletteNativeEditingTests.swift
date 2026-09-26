@@ -51,21 +51,25 @@ final class BrowserCommandPaletteNativeEditingTests: XCTestCase {
             XCTAssertTrue(coordinator.suffixLabel.nextResponder === editor)
             editor.insertText("exa", replacementRange: NSRange(location: 0, length: editor.string.utf16.count))
             coordinator.editingChanged()
-            XCTAssertTrue(fixture.model.acceptURLCompletion())
-            XCTAssertEqual(editor.string, "example.com/path")
-
-            // The same coordinator can detach and rejoin normal editing.
-            coordinator.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification))
-            XCTAssertNil(coordinator.suffixLabel.nextResponder)
-            coordinator.controlTextDidBeginEditing(Notification(name: NSControl.textDidBeginEditingNotification))
-            XCTAssertTrue(coordinator.suffixLabel.superview === editor)
-            XCTAssertTrue(coordinator.suffixLabel.nextResponder === editor)
-            return (window: fixture.window, field: field, coordinator: coordinator, editor: editor)
+            return (
+                window: fixture.window, field: field, coordinator: coordinator, editor: editor, model: fixture.model
+            )
         }
         defer {
             BrowserPlatformCommandPaletteField.dismantleNSView(successor.field, coordinator: successor.coordinator)
             successor.window.close()
         }
+        // The core answers off the main thread; the completion arrives with it.
+        await successor.model.waitForPendingResults()
+        XCTAssertTrue(successor.model.acceptURLCompletion())
+        XCTAssertEqual(successor.editor.string, "example.com/path")
+
+        // The same coordinator can detach and rejoin normal editing.
+        successor.coordinator.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification))
+        XCTAssertNil(successor.coordinator.suffixLabel.nextResponder)
+        successor.coordinator.controlTextDidBeginEditing(Notification(name: NSControl.textDidBeginEditingNotification))
+        XCTAssertTrue(successor.coordinator.suffixLabel.superview === successor.editor)
+        XCTAssertTrue(successor.coordinator.suffixLabel.nextResponder === successor.editor)
         for _ in 0..<20 where oldLabel != nil {
             try await Task.sleep(for: .milliseconds(10))
         }
@@ -73,12 +77,13 @@ final class BrowserCommandPaletteNativeEditingTests: XCTestCase {
         XCTAssertTrue(successor.field.currentEditor() === successor.editor)
     }
 
-    func testNativeSelectionAndMarkedTextPreventAcceptanceWithoutConsumingArrows() throws {
+    func testNativeSelectionAndMarkedTextPreventAcceptanceWithoutConsumingArrows() async throws {
         let fixture = makeEditor()
         defer { fixture.window.close() }
         let editor = try XCTUnwrap(fixture.field.currentEditor() as? NSTextView)
         editor.insertText("exa", replacementRange: NSRange(location: 0, length: 0))
         fixture.coordinator.editingChanged()
+        await fixture.model.waitForPendingResults()
         XCTAssertFalse(
             fixture.coordinator.control(
                 fixture.field, textView: editor, doCommandBy: #selector(NSResponder.moveLeft(_:))))
@@ -107,12 +112,13 @@ final class BrowserCommandPaletteNativeEditingTests: XCTestCase {
         XCTAssertTrue(fixture.field.cell?.isScrollable ?? false)
     }
 
-    func testRightArrowAcceptsOnlyAtTheEndAndPreservesSelectionCommands() throws {
+    func testRightArrowAcceptsOnlyAtTheEndAndPreservesSelectionCommands() async throws {
         let fixture = makeEditor()
         defer { fixture.window.close() }
         let editor = try XCTUnwrap(fixture.field.currentEditor() as? NSTextView)
         editor.insertText("exa", replacementRange: NSRange(location: 0, length: 0))
         fixture.coordinator.editingChanged()
+        await fixture.model.waitForPendingResults()
         XCTAssertFalse(
             fixture.coordinator.control(
                 fixture.field, textView: editor, doCommandBy: #selector(NSResponder.moveRightAndModifySelection(_:))))
@@ -140,9 +146,12 @@ final class BrowserCommandPaletteNativeEditingTests: XCTestCase {
         let space = BrowserSpace(
             id: SpaceID(), profile: BrowsingProfile(), name: "Test", symbol: "globe", accent: .indigo, folders: [],
             tabs: [tab])
+        let browser = BrowserStore(
+            session: BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let model = BrowserCommandPaletteModel(
-            space: space, selectedTabID: tab.id, initialQuery: "", commands: nil, isSourceAvailable: { _ in true },
-            selectTab: { _, _ in false }, openURL: { _, _ in false }, dismiss: {})
+            browser: browser, space: browser.spaceModel(space.id), selectedTabID: tab.id, initialQuery: "",
+            commands: nil,
+            isSourceAvailable: { _ in true }, selectTab: { _, _ in false }, openURL: { _, _ in false }, dismiss: {})
         let view = BrowserPlatformCommandPaletteField(
             model: model, presentation: .overlay, identifier: "command-palette-field", focused: false)
         let coordinator = view.makeCoordinator()

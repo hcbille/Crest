@@ -61,67 +61,36 @@ enum BrowserCommandPalettePreviewFixture {
         perform: { _ in }
     )
 
-    static let intentResult = BrowserCommandPaletteResult(
-        section: nil,
-        id: "preview-intent",
-        title: "Search with Google",
-        subtitle: "swift",
-        symbol: "magnifyingglass",
-        searchProvider: .google,
-        trailing: "",
-        target: .url(url("https://www.google.com/search?q=swift"))
-    )
+    /// A window over the preview Space on a memory-only core.
+    static let browser = BrowserStore(session: BrowserSession(spaces: [currentSpace]), showing: currentSpace.id)
 
-    static let tabResult = BrowserCommandPaletteResult(
-        section: .tabs,
-        id: "preview-tab",
-        title: "Swift Evolution",
-        subtitle: "www.swift.org",
-        symbol: "globe",
-        trailing: "Switch to Tab",
-        target: .tab(
-            BrowserTabRuntimeAssignment(
-                tabID: uuid(finalByte: 0x12),
-                spaceID: currentSpace.id,
-                profileID: currentSpace.profile.id
-            )
-        )
-    )
+    static var space: SpaceModel? { browser.spaceModel(currentSpace.id) }
 
-    static let commandResult = BrowserCommandPaletteResults.actionResult(.showHistory)
+    static let intentRow = PaletteRow(
+        kind: .search, title: "Search with Google", subtitle: "swift", symbol: PaletteRowKind.search.symbol,
+        subjectID: nil, tabID: nil, address: "https://www.google.com/search?q=swift", command: nil, engine: .google,
+        customEngineID: nil)
 
-    static let historyResult = BrowserCommandPaletteResult(
-        section: .history,
-        id: "preview-history",
-        title: "Swift Forums",
-        subtitle: "forums.swift.org",
-        symbol: "clock",
-        trailing: "Open",
-        target: .url(url("https://forums.swift.org"))
-    )
+    static let tabRow = PaletteRow(
+        kind: .tab, title: "Swift Evolution", subtitle: "www.swift.org", symbol: PaletteRowKind.tab.symbol,
+        subjectID: nil,
+        tabID: uuid(finalByte: 0x12), address: nil, command: nil, engine: nil, customEngineID: nil)
 
-    static let intentItem = BrowserCommandPaletteIndexedResult(
-        index: 0,
-        result: intentResult
-    )
-    static let tabItem = BrowserCommandPaletteIndexedResult(
-        index: 1,
-        result: tabResult
-    )
-    static let commandItem = BrowserCommandPaletteIndexedResult(
-        index: 2,
-        result: commandResult
-    )
-    static let tabGroup = BrowserCommandPaletteResultGroup(
-        id: "preview-tabs",
-        header: BrowserCommandPaletteSection.openTabsTitle,
-        items: [tabItem]
-    )
+    static let commandRow = PaletteRow(
+        kind: .command, title: "Show History", subtitle: "View", symbol: ShortcutCommand.showHistory.symbol,
+        subjectID: nil,
+        tabID: nil, address: nil, command: .showHistory, engine: nil, customEngineID: nil)
+
+    static let intentItem = BrowserCommandPaletteItem(index: 0, row: intentRow)
+    static let tabItem = BrowserCommandPaletteItem(index: 1, row: tabRow)
+    static let commandItem = BrowserCommandPaletteItem(index: 2, row: commandRow)
+    static let tabGroup = BrowserCommandPaletteGroup(section: .openTabs, items: [tabItem])
     static let mixedItems = [intentItem, tabItem, commandItem]
 
     static func model(query: String) -> BrowserCommandPaletteModel {
         BrowserCommandPaletteModel(
-            space: currentSpace,
+            browser: browser,
+            space: space,
             selectedTabID: selectedTabID,
             initialQuery: query,
             commands: registry,

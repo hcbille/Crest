@@ -2,24 +2,25 @@ import SwiftUI
 
 struct BrowserCommandPaletteRowIcon: View {
     let model: BrowserCommandPaletteModel
-    let result: BrowserCommandPaletteResult
+    let row: PaletteRow
 
     var body: some View {
         Group {
-            if let tab = model.tab(for: result) {
-                TabFaviconView(
+            if let tab = model.tab(for: row) {
+                TabStateFaviconView(
                     tab: tab,
-                    profileID: model.profileID(for: result),
+                    favicons: model.browser.core.state.favicons,
+                    profileID: model.space?.profileID,
                     size: BrowserCommandPaletteMetrics.rowFaviconSize
                 )
-            } else if let provider = result.searchProvider {
+            } else if let provider = model.searchProvider(for: row) {
                 BrowserSearchProviderIcon(
                     provider: provider,
-                    profileID: model.space?.profile.id,
+                    profileID: model.space?.profileID,
                     size: BrowserCommandPaletteMetrics.rowFaviconSize
                 )
             } else {
-                Image(systemName: result.symbol)
+                Image(systemName: row.symbol)
                     .font(
                         .system(
                             size: BrowserCommandPaletteMetrics.rowSymbolPointSize,
@@ -44,9 +45,9 @@ struct BrowserCommandPaletteRowIcon: View {
     #Preview("Result icons") {
         let model = BrowserCommandPalettePreviewFixture.model(query: "swift")
         HStack(spacing: 20) {
-            BrowserCommandPaletteRowIcon(model: model, result: BrowserCommandPalettePreviewFixture.intentResult)
-            BrowserCommandPaletteRowIcon(model: model, result: BrowserCommandPalettePreviewFixture.tabResult)
-            BrowserCommandPaletteRowIcon(model: model, result: BrowserCommandPalettePreviewFixture.commandResult)
+            BrowserCommandPaletteRowIcon(model: model, row: BrowserCommandPalettePreviewFixture.intentRow)
+            BrowserCommandPaletteRowIcon(model: model, row: BrowserCommandPalettePreviewFixture.tabRow)
+            BrowserCommandPaletteRowIcon(model: model, row: BrowserCommandPalettePreviewFixture.commandRow)
         }.padding()
     }
 #endif

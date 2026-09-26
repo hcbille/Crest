@@ -2,7 +2,6 @@ namespace CrestCore.Application;
 
 internal enum PolicyOperation {
     Unknown,
-    AddressIntent,
     AuthenticationFixtureTrust,
     AuthenticationHandling,
     AuthenticationSourceLabel,
@@ -11,7 +10,6 @@ internal enum PolicyOperation {
     ExternalScheme,
     ExternalUrl,
     GeolocationOrigin,
-    HistoryNormalize,
     LaunchPlan,
     Limits,
     MediaArbitrate,
@@ -26,13 +24,9 @@ internal enum PolicyOperation {
     ResidencyProcessRecovery,
     ResidencyReleaseLimit,
     ResidencyReleasePlan,
-    SearchCustomProviders,
-    SearchUrl,
     SetupReconcile,
     SetupSpace,
     SetupTab,
-    TranslationMatches,
-    TranslationRule,
     // Links, Quick Windows, presentation, branding and workspace routing.
     BrandingNormalize,
     LinksRouteCreate,
@@ -49,7 +43,6 @@ internal static class PolicyOperationCodes {
     #region Actions - Decoding
 
     public static PolicyOperation Parse(string? value) => value switch {
-        "address.intent" => PolicyOperation.AddressIntent,
         "authentication.fixture_trust" => PolicyOperation.AuthenticationFixtureTrust,
         "authentication.handling" => PolicyOperation.AuthenticationHandling,
         "authentication.source_label" => PolicyOperation.AuthenticationSourceLabel,
@@ -58,7 +51,6 @@ internal static class PolicyOperationCodes {
         "external.scheme" => PolicyOperation.ExternalScheme,
         "external.url" => PolicyOperation.ExternalUrl,
         "geolocation.origin" => PolicyOperation.GeolocationOrigin,
-        "history.normalize" => PolicyOperation.HistoryNormalize,
         "launch.plan" => PolicyOperation.LaunchPlan,
         "limits" => PolicyOperation.Limits,
         "media.arbitrate" => PolicyOperation.MediaArbitrate,
@@ -73,13 +65,9 @@ internal static class PolicyOperationCodes {
         "residency.process_recovery" => PolicyOperation.ResidencyProcessRecovery,
         "residency.release_limit" => PolicyOperation.ResidencyReleaseLimit,
         "residency.release_plan" => PolicyOperation.ResidencyReleasePlan,
-        "search.custom_providers" => PolicyOperation.SearchCustomProviders,
-        "search.url" => PolicyOperation.SearchUrl,
         "setup.reconcile" => PolicyOperation.SetupReconcile,
         "setup.space" => PolicyOperation.SetupSpace,
         "setup.tab" => PolicyOperation.SetupTab,
-        "translation.matches" => PolicyOperation.TranslationMatches,
-        "translation.rule" => PolicyOperation.TranslationRule,
         // Links, Quick Windows, presentation, branding and workspace routing.
         "branding.normalize" => PolicyOperation.BrandingNormalize,
         "links.route_create" => PolicyOperation.LinksRouteCreate,

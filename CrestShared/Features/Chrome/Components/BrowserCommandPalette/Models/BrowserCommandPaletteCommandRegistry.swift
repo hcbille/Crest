@@ -15,6 +15,15 @@ struct BrowserCommandPaletteCommandRegistry {
         performer = perform
     }
 
+    /// The commands as the palette ranks them, with the titles this device
+    /// shows for them.
+    var paletteCommands: [PaletteCommand] {
+        commands.map {
+            PaletteCommand(
+                command: $0, title: $0.title(locale: .current), sectionTitle: $0.section.title(locale: .current))
+        }
+    }
+
     func shortcut(for command: ShortcutCommand) -> BrowserShortcut? {
         shortcutProvider(command)
     }

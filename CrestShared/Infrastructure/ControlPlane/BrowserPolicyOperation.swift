@@ -3,7 +3,6 @@ import Foundation
 /// One stateless core policy call. Raw values are the core's spellings in
 /// `PolicyOperation.cs`.
 enum BrowserPolicyOperation: String, Codable, Sendable {
-    case addressIntent = "address.intent"
     case authenticationFixtureTrust = "authentication.fixture_trust"
     case authenticationHandling = "authentication.handling"
     case authenticationSourceLabel = "authentication.source_label"
@@ -12,7 +11,6 @@ enum BrowserPolicyOperation: String, Codable, Sendable {
     case externalScheme = "external.scheme"
     case externalURL = "external.url"
     case geolocationOrigin = "geolocation.origin"
-    case historyNormalize = "history.normalize"
     case launchPlan = "launch.plan"
     case limits
     case mediaArbitrate = "media.arbitrate"
@@ -27,13 +25,9 @@ enum BrowserPolicyOperation: String, Codable, Sendable {
     case residencyProcessRecovery = "residency.process_recovery"
     case residencyReleaseLimit = "residency.release_limit"
     case residencyReleasePlan = "residency.release_plan"
-    case searchCustomProviders = "search.custom_providers"
-    case searchURL = "search.url"
     case setupReconcile = "setup.reconcile"
     case setupSpace = "setup.space"
     case setupTab = "setup.tab"
-    case translationMatches = "translation.matches"
-    case translationRule = "translation.rule"
     case brandingNormalize = "branding.normalize"
     case linksRouteCreate = "links.route_create"
     case linksRouteMove = "links.route_move"

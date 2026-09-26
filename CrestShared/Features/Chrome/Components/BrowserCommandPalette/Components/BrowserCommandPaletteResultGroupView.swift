@@ -2,16 +2,16 @@ import SwiftUI
 
 struct BrowserCommandPaletteResultGroupView: View {
     let model: BrowserCommandPaletteModel
-    let group: BrowserCommandPaletteResultGroup
+    let group: BrowserCommandPaletteGroup
 
     @ViewBuilder
     var body: some View {
-        if let header = group.header {
+        if let header = group.section.title {
             VStack(
                 alignment: .leading,
                 spacing: BrowserCommandPaletteMetrics.resultHeaderSpacing
             ) {
-                Text(LocalizedStringKey(header))
+                Text(header)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(

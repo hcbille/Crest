@@ -6,10 +6,10 @@ struct BrowserCommandPaletteResultList: View {
 
     private var resultAreaHeight: CGFloat {
         BrowserCommandPaletteLayout.resultAreaHeight(
-            sectionRowCounts: model.resultGroups
-                .filter { $0.header != nil }
+            sectionRowCounts: model.groups
+                .filter { $0.section.title != nil }
                 .map(\.items.count),
-            includesPrimaryAction: model.resultGroups.contains { $0.header == nil },
+            includesPrimaryAction: model.groups.contains { $0.section.title == nil },
             maximumHeight: maximumResultAreaHeight
         )
     }
@@ -21,7 +21,7 @@ struct BrowserCommandPaletteResultList: View {
                     alignment: .leading,
                     spacing: BrowserCommandPaletteMetrics.resultGroupSpacing
                 ) {
-                    ForEach(model.resultGroups) { group in
+                    ForEach(model.groups) { group in
                         BrowserCommandPaletteResultGroupView(
                             model: model,
                             group: group
@@ -35,16 +35,16 @@ struct BrowserCommandPaletteResultList: View {
             .onChange(of: model.keyboardSelectionRevision) { _, _ in
                 revealSelection(using: reader)
             }
-            .onChange(of: model.results) { _, _ in
+            .onChange(of: model.items) { _, _ in
                 revealSelection(using: reader)
             }
         }
     }
 
     private func revealSelection(using reader: ScrollViewProxy) {
-        guard model.results.indices.contains(model.selectedResultIndex) else { return }
+        guard model.items.indices.contains(model.selectedResultIndex) else { return }
         // A nil anchor moves only as far as needed to reveal the row. Hover
         // selection deliberately does not initiate scrolling under the pointer.
-        reader.scrollTo(model.results[model.selectedResultIndex].id)
+        reader.scrollTo(model.items[model.selectedResultIndex].id)
     }
 }

@@ -167,7 +167,7 @@ struct BrowserPlatformCommandPaletteField: UIViewRepresentable {
                 x: caret.maxX, y: caret.minY, width: max(0, bounds.maxX - caret.maxX), height: caret.height)
             suffixLabel.isHidden = false
             accessibilityHint = String(
-                localized: "URL completion: \(proposal.acceptedQuery). Press Tab or Right Arrow to accept.")
+                localized: "URL completion: \(proposal.accepted). Press Tab or Right Arrow to accept.")
         }
     }
 }

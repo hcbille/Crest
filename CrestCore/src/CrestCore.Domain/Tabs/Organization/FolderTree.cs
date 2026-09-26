@@ -102,6 +102,20 @@ public sealed class FolderTree(IReadOnlyList<FolderState> folders) {
         return depth;
     }
 
+    /// The titles from the outermost folder down to `id`, joined as a path, as
+    /// the palette names where a saved tab lives.
+    public string PathTitle(Guid id) {
+        var folder = Folder(id);
+        List<string> titles = [folder.Title];
+        HashSet<Guid> seen = [id];
+        while (folder.ParentId is { } parent && seen.Add(parent)) {
+            folder = Folder(parent);
+            titles.Add(folder.Title);
+        }
+        titles.Reverse();
+        return string.Join(" › ", titles);
+    }
+
     public Guid? TabAnchor(Guid id, IReadOnlyList<BrowserTab> tabs) {
         var subtree = Subtree(id);
         return tabs.FirstOrDefault(tab => tab.FolderId is { } folderId && subtree.Contains(folderId))?.Id

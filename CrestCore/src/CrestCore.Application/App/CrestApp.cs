@@ -17,7 +17,7 @@ namespace CrestCore.Application;
 /// engine bindings wait in a queue that is delivered once the lock is
 /// released, on the thread of the host's call that caused them, or of its next
 /// drain for those the transport caused.
-public sealed partial class CrestApp : IDisposable {
+public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     #region Variables
 
     private readonly Lock gate = new();
@@ -146,6 +146,7 @@ public sealed partial class CrestApp : IDisposable {
             _ => null
         };
         if (transport is not null) return (TAnswer)transport;
+        if (query is PaletteSuggestions palette) return (TAnswer)(object)Suggesting(palette);
         lock (gate) {
             object answer = query switch {
                 DownloadProgress progress => downloads.Answer(progress),
@@ -178,10 +179,21 @@ public sealed partial class CrestApp : IDisposable {
                 ImportPreview preview => device.Workspace(preview.Import.WorkspaceId).Preview(preview.Import, clock.Now),
                 ImportReviewSuggestions suggestions => device.Workspace(suggestions.WorkspaceId).Answer(suggestions),
                 ImportReviewAnalysis analysis => device.Workspace(analysis.WorkspaceId).Answer(analysis),
-                _ => throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "No area answers this query.")
+                ResolveAddress { WorkspaceId: { } workspace } address => device.Workspace(workspace).Answer(address, pages.OpensInternalPages),
+                SelectionSearch search => device.Workspace(search.WorkspaceId).Answer(search),
+                _ => StandaloneAnswers.Answer(query)
             };
             return (TAnswer)answer;
         }
+    }
+
+    /// What a window's palette offers. Only reading what the window shows
+    /// holds the lock; ranking reads immutable records outside it, so a
+    /// palette answering on another thread never holds up the window.
+    private PaletteAnswer Suggesting(PaletteSuggestions question) {
+        Palette palette;
+        lock (gate) palette = device.Palette(question.WindowId, pages.OpensInternalPages);
+        return palette.Answer(question.Text, question.Commands, question.Remote);
     }
 
     /// Whether the core would accept a session intent now: the rule that would

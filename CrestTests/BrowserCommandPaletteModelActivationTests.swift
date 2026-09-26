@@ -30,8 +30,11 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
         var capturedSource: BrowserTabRuntimeAssignment?
         var capturedTarget: BrowserTabRuntimeAssignment?
         var dismissalCount = 0
+        let browser = BrowserStore(
+            session: BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: sourceTab.id])
         let model = BrowserCommandPaletteModel(
-            space: space,
+            browser: browser,
+            space: browser.spaceModel(space.id),
             selectedTabID: sourceTab.id,
             initialQuery: "",
             commands: nil,
@@ -44,9 +47,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
             openURL: { _, _ in false },
             dismiss: { dismissalCount += 1 }
         )
-        let targetResult = try XCTUnwrap(
-            model.results.first { $0.faviconTabID == targetTab.id }
-        )
+        let targetResult = try XCTUnwrap(model.items.first { $0.row.tabID == targetTab.id }?.row)
 
         model.activate(targetResult)
         XCTAssertNil(capturedSource)
@@ -85,7 +86,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
 
         let queries = await recorder.queries
         XCTAssertTrue(queries.isEmpty)
-        XCTAssertFalse(model.results.contains { $0.section == .searchSuggestions })
+        XCTAssertFalse(model.groups.contains { $0.section == .searchSuggestions })
     }
 
     func testPrivateBrowsingNeverSendsAnOptedInQuery() async {
@@ -102,7 +103,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
 
         let queries = await recorder.queries
         XCTAssertTrue(queries.isEmpty)
-        XCTAssertFalse(model.results.contains { $0.section == .searchSuggestions })
+        XCTAssertFalse(model.groups.contains { $0.section == .searchSuggestions })
     }
 
     func testOptedInSuggestionsCancelAndIgnoreStaleResponsesWithoutReorderingSelection() async {
@@ -122,10 +123,10 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
         await model.waitForPendingResults()
 
         XCTAssertEqual(
-            model.results.filter { $0.section == .searchSuggestions }.map(\.title),
+            model.groups.first { $0.section == .searchSuggestions }?.items.map(\.row.title),
             ["latest suggestion"]
         )
-        XCTAssertFalse(model.results.contains { $0.title == "stale suggestion" })
+        XCTAssertFalse(model.items.contains { $0.row.title == "stale suggestion" })
         XCTAssertEqual(model.selectedResultIndex, 0)
     }
 
@@ -173,15 +174,19 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
         isPrivateBrowsing: Bool = false,
         recorder: SuggestionRecorder
     ) -> BrowserCommandPaletteModel {
-        BrowserCommandPaletteModel(
-            space: fixture.space,
+        let browser = BrowserStore(
+            session: BrowserSession(spaces: [fixture.space]), showing: fixture.space.id,
+            tabs: [fixture.space.id: fixture.sourceTab.id],
+            browsingMode: isPrivateBrowsing ? .privateBrowsing : .standard)
+        return BrowserCommandPaletteModel(
+            browser: browser,
+            space: browser.spaceModel(fixture.space.id),
             selectedTabID: fixture.sourceTab.id,
             initialQuery: "",
             commands: nil,
-            isPrivateBrowsing: isPrivateBrowsing,
             suggestionDebounce: .zero,
-            fetchSuggestions: { query, provider in
-                await recorder.suggestions(query: query, provider: provider)
+            fetchSuggestions: { address in
+                await recorder.suggestions(from: address)
             },
             isSourceAvailable: { _ in true },
             selectTab: { _, _ in false },
@@ -220,10 +225,11 @@ private actor SuggestionRecorder {
         self.delayByQuery = delayByQuery
     }
 
-    func suggestions(
-        query: String,
-        provider: SearchProvider
-    ) async -> [String] {
+    /// The suggestions for the query the engine's address carries.
+    func suggestions(from address: URL) async -> [String] {
+        let query =
+            URLComponents(url: address, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "q" }?.value
+            ?? ""
         queries.append(query)
         if let delay = delayByQuery[query] {
             try? await Task.sleep(for: delay)

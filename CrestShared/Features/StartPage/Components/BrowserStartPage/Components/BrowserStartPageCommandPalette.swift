@@ -33,9 +33,9 @@ struct BrowserStartPageCommandPalette: View {
 
     private var palette: some View {
         BrowserCommandPalette(
+            browser: page.browser,
             space: page.space,
             selectedTabID: page.selectedTabID,
-            isPrivateBrowsing: page.isPrivateBrowsing,
             isSourceAvailable: page.isSourceAvailable,
             selectTab: page.selectTab,
             openURL: page.openURL,
@@ -55,10 +55,6 @@ struct BrowserStartPageCommandPalette: View {
     private var sourceAssignment: BrowserTabRuntimeAssignment? {
         guard let space = page.space, let selectedTabID = page.selectedTabID
         else { return nil }
-        return BrowserTabRuntimeAssignment(
-            tabID: selectedTabID,
-            spaceID: space.id,
-            profileID: space.profile.id
-        )
+        return BrowserTabRuntimeAssignment(tabID: selectedTabID, spaceID: space.id, profileID: space.profileID)
     }
 }

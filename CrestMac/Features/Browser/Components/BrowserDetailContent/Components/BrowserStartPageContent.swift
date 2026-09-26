@@ -22,7 +22,8 @@ struct BrowserStartPageContent: View {
     var body: some View {
         if let space {
             BrowserStartPage(
-                space: space,
+                browser: browser,
+                space: browser.spaceModel(space.id),
                 isPrivateBrowsing: browser.isPrivateBrowsing,
                 selectedTabID: tab?.id,
                 isSourceAvailable: isSourceAvailable,

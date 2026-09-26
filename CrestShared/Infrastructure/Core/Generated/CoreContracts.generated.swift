@@ -358,6 +358,12 @@ struct AddSearchEngine: Intent, SessionIntent, Equatable, Sendable {
     let selects: Bool
 }
 
+struct AddressCompletion: Equatable, Sendable {
+    let typed: String
+    let suffix: String
+    let accepted: String
+}
+
 struct AdoptLegacySession: Intent, Equatable, Sendable {
     let installed: LegacySession
     let seed: Data
@@ -1376,6 +1382,16 @@ struct HidePage: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct HistoryAddressList: Equatable, Sendable {
+    let normalized: [String?]
+}
+
+struct HistoryAddresses: Query, Equatable, Sendable {
+    typealias Answer = HistoryAddressList
+
+    let addresses: [String]
+}
+
 struct HistoryChanged: Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -1641,8 +1657,19 @@ struct KeyCombination: Equatable, Sendable {
     let modifiers: ShortcutModifiers
 }
 
+struct LanguageMatches: Equatable, Sendable {
+    let matches: [Bool]
+}
+
 struct LanguageTooLong: Equatable, Sendable {
     let limit: Int
+}
+
+struct LanguagesMatching: Query, Equatable, Sendable {
+    typealias Answer = LanguageMatches
+
+    let language: String
+    let candidates: [String]
 }
 
 struct LastStartPage: Equatable, Sendable {
@@ -2177,6 +2204,10 @@ struct PageLoadingChanged: Equatable, Sendable {
     let isLoading: Bool
 }
 
+struct PageMatch: Equatable, Sendable {
+    let isSamePage: Bool
+}
+
 struct PageMedia: PageRequest, Equatable, Sendable {
     typealias Answer = PageMediaState
 
@@ -2274,6 +2305,45 @@ struct PageViewReady: Equatable, Sendable {
 
 struct PageViewUnavailable: Equatable, Sendable {
     let pageID: UUID
+}
+
+struct PaletteAnswer: Equatable, Sendable {
+    let groups: [PaletteGroup]
+    let completion: AddressCompletion?
+    let suggestionAddress: String?
+}
+
+struct PaletteCommand: Equatable, Sendable {
+    let command: ShortcutCommand
+    let title: String
+    let sectionTitle: String
+}
+
+struct PaletteGroup: Equatable, Sendable {
+    let section: PaletteSection
+    let rows: [PaletteRow]
+}
+
+struct PaletteRow: Equatable, Sendable {
+    let kind: PaletteRowKind
+    let title: String
+    let subtitle: String
+    let symbol: String
+    let subjectID: UUID?
+    let tabID: UUID?
+    let address: String?
+    let command: ShortcutCommand?
+    let engine: BuiltInSearchEngine?
+    let customEngineID: UUID?
+}
+
+struct PaletteSuggestions: Query, Equatable, Sendable {
+    typealias Answer = PaletteAnswer
+
+    let windowID: UUID
+    let text: String
+    let commands: [PaletteCommand]
+    let remote: [String]
 }
 
 struct PasskeyAccess: Query, Equatable, Sendable {
@@ -2521,6 +2591,19 @@ struct ResizeSplitColumns: Intent, WindowIntent, Equatable, Sendable {
     let shares: [Double]
 }
 
+struct ResolveAddress: Query, Equatable, Sendable {
+    typealias Answer = ResolvedAddress
+
+    let workspaceID: UUID?
+    let spaceID: UUID?
+    let input: String
+}
+
+struct ResolvedAddress: Equatable, Sendable {
+    let url: String?
+    let searchQuery: String?
+}
+
 struct RestartDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
 }
@@ -2544,6 +2627,13 @@ struct ReturnToSavedAddress: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let tabID: UUID
+}
+
+struct SamePage: Query, Equatable, Sendable {
+    typealias Answer = PageMatch
+
+    let first: String
+    let second: String
 }
 
 struct SaveFailed: Equatable, Sendable {
@@ -2621,6 +2711,19 @@ struct SelectionPreview: Query, Equatable, Sendable {
     let spaceID: UUID
     let tabIDs: [UUID]
     let folderIDs: [UUID]
+}
+
+struct SelectionSearch: Query, Equatable, Sendable {
+    typealias Answer = SelectionSearchAnswer
+
+    let workspaceID: UUID
+    let spaceID: UUID
+    let text: String
+}
+
+struct SelectionSearchAnswer: Equatable, Sendable {
+    let url: String?
+    let engineTitle: String
 }
 
 struct SendPermission: Equatable, Sendable {
@@ -3374,6 +3477,18 @@ struct TransientPagePromoted: Equatable, Sendable {
     let pageID: UUID
     let tabID: UUID
     let adoptsPage: Bool
+}
+
+struct TranslationChoice: Query, Equatable, Sendable {
+    typealias Answer = TranslationDecision
+
+    let rules: [TranslationRule]
+    let sourceLanguage: String
+}
+
+struct TranslationDecision: Equatable, Sendable {
+    let rule: TranslationRule?
+    let target: String?
 }
 
 struct TranslationRule: Equatable, Sendable {
@@ -5694,6 +5809,168 @@ struct PageSecurity: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `PaletteRowKind`. A member's wire tag is its index in `all`.
+struct PaletteRowKind: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let symbol: String
+    let action: LocalizedStringResource?
+    let isPrimary: Bool
+
+    private init(tag: Int, name: String, symbol: String, action: LocalizedStringResource?, isPrimary: Bool) {
+        self.tag = tag
+        self.name = name
+        self.symbol = symbol
+        self.action = action
+        self.isPrimary = isPrimary
+    }
+
+    static let openAddress = PaletteRowKind(tag: 0, name: "openAddress", symbol: "globe", action: nil, isPrimary: true)
+    static let search = PaletteRowKind(tag: 1, name: "search", symbol: "magnifyingglass", action: nil, isPrimary: true)
+    static let searchSuggestion = PaletteRowKind(
+        tag: 2,
+        name: "searchSuggestion",
+        symbol: "magnifyingglass",
+        action: LocalizedStringResource("Search"),
+        isPrimary: false
+    )
+    static let tab = PaletteRowKind(
+        tag: 3,
+        name: "tab",
+        symbol: "globe",
+        action: LocalizedStringResource("Switch to Tab"),
+        isPrimary: false
+    )
+    static let pinnedTab = PaletteRowKind(
+        tag: 4,
+        name: "pinnedTab",
+        symbol: "pin.fill",
+        action: LocalizedStringResource("Switch to Tab"),
+        isPrimary: false
+    )
+    static let savedTab = PaletteRowKind(
+        tag: 5,
+        name: "savedTab",
+        symbol: "bookmark",
+        action: LocalizedStringResource("Switch to Tab"),
+        isPrimary: false
+    )
+    static let folder = PaletteRowKind(
+        tag: 6,
+        name: "folder",
+        symbol: "folder",
+        action: LocalizedStringResource("Open First Tab"),
+        isPrimary: false
+    )
+    static let command = PaletteRowKind(tag: 7, name: "command", symbol: "command", action: nil, isPrimary: false)
+    static let history = PaletteRowKind(
+        tag: 8,
+        name: "history",
+        symbol: "clock",
+        action: LocalizedStringResource("Open"),
+        isPrimary: false
+    )
+
+    static let all: [PaletteRowKind] = [
+        openAddress,
+        search,
+        searchSuggestion,
+        tab,
+        pinnedTab,
+        savedTab,
+        folder,
+        command,
+        history
+    ]
+
+    static func named(_ name: String?) -> PaletteRowKind? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: PaletteRowKind, rhs: PaletteRowKind) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `PaletteSection`. A member's wire tag is its index in `all`.
+struct PaletteSection: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: LocalizedStringResource?
+    let limit: Int
+    let restingLimit: Int
+
+    private init(tag: Int, name: String, title: LocalizedStringResource?, limit: Int, restingLimit: Int) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+        self.limit = limit
+        self.restingLimit = restingLimit
+    }
+
+    static let intent = PaletteSection(tag: 0, name: "intent", title: nil, limit: 1, restingLimit: 0)
+    static let searchSuggestions = PaletteSection(
+        tag: 1,
+        name: "searchSuggestions",
+        title: LocalizedStringResource("Search Suggestions"),
+        limit: 3,
+        restingLimit: 0
+    )
+    static let openTabs = PaletteSection(
+        tag: 2,
+        name: "openTabs",
+        title: LocalizedStringResource("Open Tabs"),
+        limit: 0,
+        restingLimit: 5
+    )
+    static let tabs = PaletteSection(
+        tag: 3,
+        name: "tabs",
+        title: LocalizedStringResource("Tabs"),
+        limit: 8,
+        restingLimit: 0
+    )
+    static let actions = PaletteSection(
+        tag: 4,
+        name: "actions",
+        title: LocalizedStringResource("Actions"),
+        limit: 5,
+        restingLimit: 3
+    )
+    static let saved = PaletteSection(
+        tag: 5,
+        name: "saved",
+        title: LocalizedStringResource("Pinned & Saved"),
+        limit: 5,
+        restingLimit: 0
+    )
+    static let history = PaletteSection(
+        tag: 6,
+        name: "history",
+        title: LocalizedStringResource("History"),
+        limit: 6,
+        restingLimit: 0
+    )
+
+    static let all: [PaletteSection] = [intent, searchSuggestions, openTabs, tabs, actions, saved, history]
+
+    static func named(_ name: String?) -> PaletteSection? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: PaletteSection, rhs: PaletteSection) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `PasskeyAccessStatus`. A member's wire tag is its index in `all`.
 struct PasskeyAccessStatus: Hashable, Sendable {
     let tag: Int
@@ -6132,6 +6409,8 @@ struct ShortcutCommand: Hashable, Sendable {
     let selects: NumberedSelectionTarget?
     let number: Int?
     let defaultShortcuts: [ShortcutDefault]
+    let paletteRest: Int?
+    let offersInPalette: Bool
 
     private init(
         tag: Int,
@@ -6145,7 +6424,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: EngineCapability?,
         selects: NumberedSelectionTarget?,
         number: Int?,
-        defaultShortcuts: [ShortcutDefault]
+        defaultShortcuts: [ShortcutDefault],
+        paletteRest: Int?,
+        offersInPalette: Bool
     ) {
         self.tag = tag
         self.kind = kind
@@ -6159,6 +6440,8 @@ struct ShortcutCommand: Hashable, Sendable {
         self.selects = selects
         self.number = number
         self.defaultShortcuts = defaultShortcuts
+        self.paletteRest = paletteRest
+        self.offersInPalette = offersInPalette
     }
 
     static let newWindow = ShortcutCommand(
@@ -6184,7 +6467,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: 1,
+        offersInPalette: true
     )
     static let newBlankWindow = ShortcutCommand(
         tag: 1,
@@ -6204,7 +6489,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .option]),
                 yieldsToOverrides: true
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let newTab = ShortcutCommand(
         tag: 2,
@@ -6229,7 +6516,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: false
     )
     static let newQuickWindow = ShortcutCommand(
         tag: 3,
@@ -6254,7 +6543,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .option]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let newPrivateWindow = ShortcutCommand(
         tag: 4,
@@ -6279,7 +6570,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "n", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let closeTabOrWindow = ShortcutCommand(
         tag: 5,
@@ -6304,7 +6597,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let closeWindow = ShortcutCommand(
         tag: 6,
@@ -6329,7 +6624,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "w", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let openLocation = ShortcutCommand(
         tag: 7,
@@ -6354,7 +6651,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: false
     )
     static let back = ShortcutCommand(
         tag: 8,
@@ -6379,7 +6678,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "[", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let forward = ShortcutCommand(
         tag: 9,
@@ -6404,7 +6705,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "]", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let reloadPage = ShortcutCommand(
         tag: 10,
@@ -6429,7 +6732,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let stopLoading = ShortcutCommand(
         tag: 11,
@@ -6454,7 +6759,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: ".", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let reloadFromOrigin = ShortcutCommand(
         tag: 12,
@@ -6479,7 +6786,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "r", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let toggleSelectedTabPinned = ShortcutCommand(
         tag: 13,
@@ -6504,7 +6813,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "d", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let duplicateTab = ShortcutCommand(
         tag: 14,
@@ -6518,7 +6829,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let reopenClosedTab = ShortcutCommand(
         tag: 15,
@@ -6543,7 +6856,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "t", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: 2,
+        offersInPalette: true
     )
     static let clearUnpinnedTabs = ShortcutCommand(
         tag: 16,
@@ -6568,7 +6883,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "k", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let archiveTab = ShortcutCommand(
         tag: 17,
@@ -6593,7 +6910,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "e", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let previousTab = ShortcutCommand(
         tag: 18,
@@ -6618,7 +6937,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "upArrow", isSpecialKey: true, modifiers: [.command, .option]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let nextTab = ShortcutCommand(
         tag: 19,
@@ -6643,7 +6964,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "downArrow", isSpecialKey: true, modifiers: [.command, .option]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let mostRecentTab = ShortcutCommand(
         tag: 20,
@@ -6668,7 +6991,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab1 = ShortcutCommand(
         tag: 21,
@@ -6693,7 +7018,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab2 = ShortcutCommand(
         tag: 22,
@@ -6718,7 +7045,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab3 = ShortcutCommand(
         tag: 23,
@@ -6743,7 +7072,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab4 = ShortcutCommand(
         tag: 24,
@@ -6768,7 +7099,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab5 = ShortcutCommand(
         tag: 25,
@@ -6793,7 +7126,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab6 = ShortcutCommand(
         tag: 26,
@@ -6818,7 +7153,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab7 = ShortcutCommand(
         tag: 27,
@@ -6843,7 +7180,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab8 = ShortcutCommand(
         tag: 28,
@@ -6868,7 +7207,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectTab9 = ShortcutCommand(
         tag: 29,
@@ -6893,7 +7234,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let previousSpace = ShortcutCommand(
         tag: 30,
@@ -6918,7 +7261,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .option]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let nextSpace = ShortcutCommand(
         tag: 31,
@@ -6943,7 +7288,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .option]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace1 = ShortcutCommand(
         tag: 32,
@@ -6968,7 +7315,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "1", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace2 = ShortcutCommand(
         tag: 33,
@@ -6993,7 +7342,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace3 = ShortcutCommand(
         tag: 34,
@@ -7018,7 +7369,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "3", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace4 = ShortcutCommand(
         tag: 35,
@@ -7043,7 +7396,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "4", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace5 = ShortcutCommand(
         tag: 36,
@@ -7068,7 +7423,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "5", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace6 = ShortcutCommand(
         tag: 37,
@@ -7093,7 +7450,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "6", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace7 = ShortcutCommand(
         tag: 38,
@@ -7118,7 +7477,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "7", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace8 = ShortcutCommand(
         tag: 39,
@@ -7143,7 +7504,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "8", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let selectSpace9 = ShortcutCommand(
         tag: 40,
@@ -7168,7 +7531,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "9", isSpecialKey: false, modifiers: [.control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let toggleReaderMode = ShortcutCommand(
         tag: 41,
@@ -7182,7 +7547,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: EngineCapability.reader,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let toggleContentBlocking = ShortcutCommand(
         tag: 42,
@@ -7196,7 +7563,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: EngineCapability.contentBlocking,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let findInPage = ShortcutCommand(
         tag: 43,
@@ -7221,7 +7590,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "f", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let zoomIn = ShortcutCommand(
         tag: 44,
@@ -7246,7 +7617,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "+", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let zoomOut = ShortcutCommand(
         tag: 45,
@@ -7271,7 +7644,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "-", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let actualSize = ShortcutCommand(
         tag: 46,
@@ -7296,7 +7671,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "0", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let copyPageLink = ShortcutCommand(
         tag: 47,
@@ -7321,7 +7698,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let copyPageLinkAsMarkdown = ShortcutCommand(
         tag: 48,
@@ -7346,7 +7725,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "c", isSpecialKey: false, modifiers: [.command, .option, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let sharePage = ShortcutCommand(
         tag: 49,
@@ -7360,7 +7741,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let exportPDF = ShortcutCommand(
         tag: 50,
@@ -7374,7 +7757,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let saveWebArchive = ShortcutCommand(
         tag: 51,
@@ -7388,7 +7773,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let printPage = ShortcutCommand(
         tag: 52,
@@ -7413,7 +7800,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "p", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let toggleSidebar = ShortcutCommand(
         tag: 53,
@@ -7438,7 +7827,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "s", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: 5,
+        offersInPalette: true
     )
     static let showHistory = ShortcutCommand(
         tag: 54,
@@ -7463,7 +7854,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "y", isSpecialKey: false, modifiers: [.command]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: 3,
+        offersInPalette: true
     )
     static let showArchive = ShortcutCommand(
         tag: 55,
@@ -7477,7 +7870,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let showDownloads = ShortcutCommand(
         tag: 56,
@@ -7502,7 +7897,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "j", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: 4,
+        offersInPalette: true
     )
     static let showWebInspector = ShortcutCommand(
         tag: 57,
@@ -7527,7 +7924,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .option]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let splitWithNextTab = ShortcutCommand(
         tag: 58,
@@ -7541,7 +7940,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let focusNextSplitCard = ShortcutCommand(
         tag: 59,
@@ -7566,7 +7967,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let focusPreviousSplitCard = ShortcutCommand(
         tag: 60,
@@ -7591,7 +7994,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .control]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let removeTabFromSplit = ShortcutCommand(
         tag: 61,
@@ -7605,7 +8010,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let separateSplitTabs = ShortcutCommand(
         tag: 62,
@@ -7630,7 +8037,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "u", isSpecialKey: false, modifiers: [.command, .option]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let moveSplitCardLeft = ShortcutCommand(
         tag: 63,
@@ -7655,7 +8064,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "leftArrow", isSpecialKey: true, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let moveSplitCardRight = ShortcutCommand(
         tag: 64,
@@ -7680,7 +8091,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "rightArrow", isSpecialKey: true, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let toggleDeveloperToolbar = ShortcutCommand(
         tag: 65,
@@ -7705,7 +8118,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "i", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let toggleTranslationToolbar = ShortcutCommand(
         tag: 66,
@@ -7730,7 +8145,9 @@ struct ShortcutCommand: Hashable, Sendable {
                 keys: KeyCombination(key: "l", isSpecialKey: false, modifiers: [.command, .shift]),
                 yieldsToOverrides: false
             )
-        ]
+        ],
+        paletteRest: nil,
+        offersInPalette: true
     )
     static let openFile = ShortcutCommand(
         tag: 67,
@@ -7744,7 +8161,9 @@ struct ShortcutCommand: Hashable, Sendable {
         requiredCapability: nil,
         selects: nil,
         number: nil,
-        defaultShortcuts: []
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true
     )
 
     static let all: [ShortcutCommand] = [

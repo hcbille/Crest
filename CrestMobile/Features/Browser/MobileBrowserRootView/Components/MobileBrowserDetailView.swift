@@ -70,7 +70,8 @@ struct MobileBrowserDetailView: View {
                 case .noSelection, .startPage:
                     if browser.selectedSpace != nil {
                         BrowserStartPage(
-                            space: browser.selectedSpace,
+                            browser: browser,
+                            space: browser.selectedSpace.flatMap { browser.spaceModel($0.id) },
                             isPrivateBrowsing: browser.isPrivateBrowsing,
                             selectedTabID: browser.selectedSpace.flatMap { browser.selectedTabID(in: $0.id) },
                             isSourceAvailable: isPaletteSourceAvailable,

@@ -112,16 +112,10 @@ struct BrowserSpaceBrowsingPreferences: Codable, Equatable, Sendable {
         restoreSelection()
     }
 
-    /// Stored engines that no longer validate, including ones synced from
-    /// elsewhere, are dropped by the core's restore rule and never offered.
+    /// A selection that names no engine these preferences hold reads as
+    /// Google. The core publishes only engines its restore rule kept.
     private mutating func restoreSelection() {
-        if !customSearchProviders.isEmpty,
-            let restored = BrowserCorePolicy.restoredCustomSearchProviders(
-                customSearchProviders, selectedID: selectedSearchProviderID)
-        {
-            customSearchProviders = restored.providers
-            selectedSearchProviderID = restored.selectedID
-        } else if !availableSearchProviders.contains(where: { $0.name == selectedSearchProviderID }) {
+        if !availableSearchProviders.contains(where: { $0.name == selectedSearchProviderID }) {
             selectedSearchProviderID = SearchProvider.google.name
         }
     }

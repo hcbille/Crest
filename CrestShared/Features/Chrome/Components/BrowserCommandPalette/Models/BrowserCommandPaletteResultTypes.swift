@@ -1,110 +1,61 @@
 import Foundation
 
-struct BrowserCommandPaletteIndexedResult: Identifiable, Equatable, Sendable {
+/// One row the palette shows, at its place in keyboard order.
+struct BrowserCommandPaletteItem: Identifiable, Equatable, Sendable {
+    // MARK: - Variables
+
     let index: Int
-    let result: BrowserCommandPaletteResult
+    let row: PaletteRow
 
-    var id: String { result.id }
+    var id: BrowserCommandPaletteRowID { BrowserCommandPaletteRowID(row) }
 }
 
-struct BrowserCommandPaletteIntentResult: Sendable {
-    let result: BrowserCommandPaletteResult
-    let url: URL
-    let isNavigation: Bool
+/// The rows of one section of the palette, in the core's order.
+struct BrowserCommandPaletteGroup: Identifiable, Equatable, Sendable {
+    // MARK: - Variables
+
+    let section: PaletteSection
+    let items: [BrowserCommandPaletteItem]
+
+    var id: PaletteSection { section }
+
+    // MARK: - Actions - Grouping
+
+    /// The groups of `answer`, numbering their rows in the order the palette
+    /// steps through them.
+    static func groups(of answer: PaletteAnswer) -> [Self] {
+        var index = 0
+        return answer.groups.map { group in
+            BrowserCommandPaletteGroup(
+                section: group.section,
+                items: group.rows.map { row in
+                    defer { index += 1 }
+                    return BrowserCommandPaletteItem(index: index, row: row)
+                })
+        }
+    }
 }
 
-struct BrowserCommandPalettePreparedResults: Sendable {
-    let query: String
-    let results: [BrowserCommandPaletteResult]
-    let groups: [BrowserCommandPaletteResultGroup]
-}
+/// What a palette row stands for, so a row keeps its identity while the
+/// results around it change.
+struct BrowserCommandPaletteRowID: Hashable, Sendable {
+    // MARK: - Variables
 
-struct BrowserCommandPaletteResult: Identifiable, Equatable, Sendable {
-    let section: BrowserCommandPaletteSection?
-    let id: String
+    let kind: PaletteRowKind
+    let subject: UUID?
+    let tab: UUID?
+    let address: String?
+    let command: ShortcutCommand?
     let title: String
-    let subtitle: String
-    let symbol: String
-    let searchProvider: SearchProvider?
-    let trailing: String
-    let target: BrowserCommandPaletteTarget
 
-    init(
-        section: BrowserCommandPaletteSection?,
-        id: String,
-        title: String,
-        subtitle: String,
-        symbol: String,
-        searchProvider: SearchProvider? = nil,
-        trailing: String,
-        target: BrowserCommandPaletteTarget
-    ) {
-        self.section = section
-        self.id = id
-        self.title = title
-        self.subtitle = subtitle
-        self.symbol = symbol
-        self.searchProvider = searchProvider
-        self.trailing = trailing
-        self.target = target
+    // MARK: - Initializers
+
+    init(_ row: PaletteRow) {
+        kind = row.kind
+        subject = row.subjectID
+        tab = row.tabID
+        address = row.address
+        command = row.command
+        title = row.title
     }
-
-    var isIntent: Bool { section == nil }
-
-    var faviconTabID: TabID? {
-        switch target {
-        case .tab(let assignment): assignment.tabID
-        case .url, .command: nil
-        }
-    }
-}
-
-struct BrowserCommandPaletteResultGroup: Identifiable, Equatable, Sendable {
-    let id: String
-    let header: String?
-    let items: [BrowserCommandPaletteIndexedResult]
-}
-
-enum BrowserCommandPaletteResultLimits {
-    static let searchSuggestions = 3
-    static let restingTabs = 5
-    static let matchedTabs = 8
-    static let restingActions = 3
-    static let matchedActions = 5
-    static let saved = 5
-    static let history = 6
-    static let historyScan = 1_500
-    static let historyCandidates = 40
-    static let initialResultCapacity = 24
-    static let folderMatchPenalty = 50
-    static let maximumHistoryRecencyBonus = 120
-    static let historyRecencyDecayInterval = 8
-    static let maximumHistoryRepetitionBonus = 60
-    static let historyVisitBonus = 4
-}
-
-enum BrowserCommandPaletteSection: String, CaseIterable, Sendable {
-    case searchSuggestions
-    case tabs
-    case actions
-    case saved
-    case history
-
-    var title: String {
-        switch self {
-        case .searchSuggestions: "Search Suggestions"
-        case .tabs: "Tabs"
-        case .actions: "Actions"
-        case .saved: "Pinned & Saved"
-        case .history: "History"
-        }
-    }
-
-    static let openTabsTitle = "Open Tabs"
-}
-
-enum BrowserCommandPaletteTarget: Equatable, Hashable, Sendable {
-    case tab(BrowserTabRuntimeAssignment)
-    case url(URL)
-    case command(ShortcutCommand)
 }

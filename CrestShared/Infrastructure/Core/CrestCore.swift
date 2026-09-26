@@ -189,6 +189,34 @@ final class CrestCore {
         }
     }
 
+    /// Answers, without a core, a query that reads no state: `SamePage`,
+    /// `LanguagesMatching`, `TranslationChoice`, or `ResolveAddress` without a
+    /// workspace. Any other query is a build bug, since only a core answers it.
+    nonisolated static func answer<Question: Query>(_ query: Question) throws(Rejection) -> Question.Answer {
+        var writer = WireWriter()
+        query.encodeQuery(into: &writer)
+        var buffer = crest_buffer_t()
+        let status = CoreCodec.fingerprint.withUnsafeBufferPointer { fingerprint in
+            writer.bytes.withUnsafeBufferPointer {
+                crest_core_answer(fingerprint.baseAddress, fingerprint.count, $0.baseAddress, $0.count, &buffer)
+            }
+        }
+        defer { crest_buffer_free(&buffer) }
+        switch status {
+        case CREST_OK: break
+        case CREST_REJECTED: throw rejection(in: buffer)
+        default: buildBug(status, "answer \(Question.self) without a core")
+        }
+        var reader = WireReader(buffer.bytes.map { Array(UnsafeBufferPointer(start: $0, count: buffer.length)) } ?? [])
+        do {
+            let answer = try Question.decodeAnswer(from: &reader)
+            try reader.finish()
+            return answer
+        } catch {
+            preconditionFailure("The core's answer to \(Question.self) does not decode (\(error)). Rebuild the core.")
+        }
+    }
+
     // MARK: - Actions - Changes
 
     /// Applies the changes the core started itself since the last drain, then

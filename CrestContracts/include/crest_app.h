@@ -62,6 +62,13 @@ CREST_API crest_status_t CREST_CALL crest_app_destroy(uint64_t app);
 CREST_API crest_status_t CREST_CALL crest_app_dispatch(uint64_t app, const uint8_t* intent, size_t length, crest_buffer_t* out);
 /* OK: buffer = the answer. REJECTED: buffer = one rejection. */
 CREST_API crest_status_t CREST_CALL crest_app_query(uint64_t app, const uint8_t* query, size_t length, crest_buffer_t* out);
+/* Answers, without an app, a query that reads no state (SamePage,
+ * LanguagesMatching, TranslationChoice, ResolveAddress without a workspace),
+ * as crest_app_query would.
+ * VERSION_MISMATCH when the fingerprint is not this core's schema;
+ * INTERNAL_ERROR for a query only an app answers. */
+CREST_API crest_status_t CREST_CALL crest_core_answer(const uint8_t* fingerprint, size_t fingerprint_length,
+    const uint8_t* query, size_t length, crest_buffer_t* out);
 CREST_API void CREST_CALL crest_buffer_free(crest_buffer_t* buffer);
 
 /* Changes the core starts itself, such as Saved, StorageFailed, what a session

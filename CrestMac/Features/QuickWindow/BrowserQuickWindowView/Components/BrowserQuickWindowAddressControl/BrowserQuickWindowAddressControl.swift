@@ -48,10 +48,9 @@ struct BrowserQuickWindowAddressControl: View {
 
     private func openAddress() {
         guard let space = model.space,
-            let url = AddressResolver.resolve(
-                addressText,
-                searchProvider: space.browsingPreferences.searchProvider
-            )
+            let resolved = try? model.browser.core.query(
+                ResolveAddress(workspaceID: model.browser.family.workspaceID, spaceID: space.id, input: addressText)),
+            let url = resolved.url.flatMap(URL.init(string:))
         else { return }
         addressText = url.absoluteString
         model.open(url, isActive: scenePhase == .active)

@@ -1,6 +1,3 @@
-using System.Text;
-using System.Text.Json.Nodes;
-
 using CrestCore.Application;
 using CrestCore.Contracts;
 using CrestCore.Domain;
@@ -12,21 +9,9 @@ namespace CrestCore.Tests;
 public sealed class SearchPolicyTests {
     private const string KagiId = "00000000-0000-0000-0000-000000000264";
 
-    private static JsonNode Evaluate(JsonObject request) {
-        request["version"] = 1;
-        return JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-    }
-
-    private static JsonObject Custom(string search, string? suggestions = null, string name = "Kagi", string id = KagiId) => new() {
-        ["id"] = "custom:" + id,
-        ["name"] = name,
-        ["searchURLTemplate"] = search,
-        ["suggestionURLTemplate"] = suggestions
-    };
-
-    private static string? Url(JsonObject provider, string query, string purpose = "search") =>
-        Evaluate(new() { ["operation"] = "search.url", ["searchProvider"] = provider, ["query"] = query, ["purpose"] = purpose })["url"]
-            ?.GetValue<string>();
+    /// A custom engine as a Space admits it.
+    private static SearchProvider Kagi(string search, string? suggestions = null) =>
+        SearchProvider.Admit(Guid.Parse(KagiId), "Kagi", search, suggestions);
 
     private static CustomSearchEngine Engine(string name, string template, Guid? id = null) =>
         new(id ?? Guid.Parse(KagiId), name, template, "  ");
@@ -63,9 +48,8 @@ public sealed class SearchPolicyTests {
     [InlineData("100%", "100%25")]
     [InlineData("", "")]
     public void QueriesArePercentEncodedOnceAsUtf8IntoTheSinglePlaceholder(string query, string encoded) {
-        Assert.Equal("https://www.google.com/search?q=" + encoded, Url(new() { ["id"] = "google" }, query));
-        Assert.Equal("https://kagi.com/find/" + encoded + "?source=crest",
-            Url(Custom("https://kagi.com/find/{searchTerms}?source=crest"), query));
+        Assert.Equal("https://www.google.com/search?q=" + encoded, SearchProvider.Google.Search(query));
+        Assert.Equal("https://kagi.com/find/" + encoded + "?source=crest", Kagi("https://kagi.com/find/{searchTerms}?source=crest").Search(query));
     }
 
     [Fact]
@@ -79,33 +63,25 @@ public sealed class SearchPolicyTests {
         };
         Assert.Equal(expected.Keys, SearchProvider.All.Select(p => p.Name));
         foreach (var (id, urls) in expected) {
-            Assert.Equal(urls.Search, Url(new() { ["id"] = id }, "a b"));
-            Assert.Equal(urls.Suggestions, Url(new() { ["id"] = id }, "a b", "suggestions"));
+            Assert.Equal(urls.Search, SearchProvider.Named(id)!.Search("a b"));
+            Assert.Equal(urls.Suggestions, SearchProvider.Named(id)!.Suggest("a b"));
         }
-        Assert.Throws<BrowserRuleException>(() => Url(new() { ["id"] = "yahoo" }, "a"));
-        // A built-in identity cannot smuggle its own template.
-        Assert.Throws<ProtocolException>(() => Url(new() { ["id"] = "google", ["searchURLTemplate"] = "https://evil.example/?q=%s" }, "a"));
     }
 
     [Fact]
     public void CustomEnginesBuildTheirOwnURLsAndAStoredInvalidOneNeverRuns() {
         Assert.Equal("https://kagi.com/api/autosuggest?q=crest%20browser",
-            Url(Custom("https://kagi.com/search?q=%s", "https://kagi.com/api/autosuggest?q=%s"), "crest browser", "suggestions"));
-        Assert.Null(Url(Custom("https://kagi.com/search?q=%s"), "crest", "suggestions"));
-        Assert.Equal("https://www.google.com/search?q=secret", Url(Custom("http://127.0.0.1/search?q=%s"), "secret"));
-        Assert.Throws<ProtocolException>(() => Url(Custom("https://kagi.com/search?q=%s", id: "ABCDEF00-0000-0000-0000-000000000264"), "a"));
-        Assert.Throws<ProtocolException>(() => Url(new() { ["id"] = "google" }, "a", "images"));
+            Kagi("https://kagi.com/search?q=%s", "https://kagi.com/api/autosuggest?q=%s").Suggest("crest browser"));
+        Assert.Null(Kagi("https://kagi.com/search?q=%s").Suggest("crest"));
+        Assert.Equal("https://www.google.com/search?q=secret",
+            SearchProvider.CustomOrDefault(Guid.Parse(KagiId), "Kagi", "http://127.0.0.1/search?q=%s", null).Search("secret"));
     }
 
     [Fact]
     public void AddressIntentSearchesWithTheSpacesProvider() {
-        var intent = Evaluate(new() {
-            ["operation"] = "address.intent",
-            ["input"] = "webkit process model",
-            ["searchProvider"] = new JsonObject { ["id"] = "duckDuckGo" }
-        });
-        Assert.Equal("https://duckduckgo.com/?q=webkit%20process%20model", intent["url"]!.GetValue<string>());
-        Assert.Equal("webkit process model", intent["searchQuery"]!.GetValue<string>());
+        var intent = AddressResolution.Resolve("webkit process model", SearchProvider.DuckDuckGo);
+        Assert.Equal("https://duckduckgo.com/?q=webkit%20process%20model", intent!.Url);
+        Assert.Equal("webkit process model", intent.SearchQuery);
     }
 
     [Theory]
@@ -154,20 +130,18 @@ public sealed class SearchPolicyTests {
 
     [Fact]
     public void StoredEnginesRestoreWithoutInvalidOrDuplicateEntriesAndKeepASafeSelection() {
-        JsonObject Stored(string id, string template) =>
-            new() { ["id"] = id, ["name"] = "Engine " + id[^1], ["searchURLTemplate"] = template, ["suggestionURLTemplate"] = null };
-        var valid = "00000000-0000-0000-0000-000000000001";
-        var invalid = "00000000-0000-0000-0000-000000000002";
-        JsonNode Restore(string selected) => Evaluate(new() {
-            ["operation"] = "search.custom_providers",
-            ["selectedID"] = selected,
-            ["providers"] = new JsonArray(Stored(invalid, "http://127.0.0.1/?q=%s"), Stored(valid, "https://a.example/?q=%s"),
-                Stored(valid, "https://b.example/?q=%s"))
-        });
-        var restored = Restore("custom:" + invalid);
-        Assert.Equal("[1]", restored["indices"]!.ToJsonString());
-        Assert.Equal("google", restored["selectedID"]!.GetValue<string>());
-        Assert.Equal("custom:" + valid, Restore("custom:" + valid)["selectedID"]!.GetValue<string>());
-        Assert.Equal("brave", Restore("brave")["selectedID"]!.GetValue<string>());
+        var valid = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var invalid = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        SearchPreferences Restore(BuiltInSearchEngine? builtIn, Guid? custom) => SearchPreferences.Restore(new BrowsingPreferences(
+            builtIn, custom, [new(invalid, "Engine 2", "http://127.0.0.1/?q=%s", null), new(valid, "Engine 1", "https://a.example/?q=%s", null),
+                new(valid, "Engine 1", "https://b.example/?q=%s", null)],
+            SearchSuggestionsEnabled: false, CurrentTabCleanup.Never, ContentBlockingPolicy.Balanced,
+            new(DataRetention.Forever, DataRetention.Forever, DataRetention.Forever)));
+        var restored = Restore(null, invalid);
+        Assert.Equal([SearchProvider.CustomId(valid)], restored.CustomProviders.Select(provider => provider.Name));
+        Assert.Equal("https://a.example/?q=a", restored.CustomProviders[0].Search("a"));
+        Assert.Equal("google", restored.SelectedId);
+        Assert.Equal(SearchProvider.CustomId(valid), Restore(null, valid).SelectedId);
+        Assert.Equal("brave", Restore(BuiltInSearchEngine.Brave, null).SelectedId);
     }
 }

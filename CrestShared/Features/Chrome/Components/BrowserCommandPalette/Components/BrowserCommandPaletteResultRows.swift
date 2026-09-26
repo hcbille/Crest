@@ -2,11 +2,11 @@ import SwiftUI
 
 struct BrowserCommandPaletteResultRows: View {
     let model: BrowserCommandPaletteModel
-    let items: [BrowserCommandPaletteIndexedResult]
+    let items: [BrowserCommandPaletteItem]
 
     var body: some View {
         ForEach(items) { item in
-            if item.result.isIntent {
+            if item.row.kind.isPrimary {
                 BrowserCommandPaletteIntentRow(model: model, item: item)
                     .id(item.id)
             } else {

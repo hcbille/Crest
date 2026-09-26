@@ -2,22 +2,22 @@ import SwiftUI
 
 struct BrowserCommandPaletteIntentRow: View {
     let model: BrowserCommandPaletteModel
-    let item: BrowserCommandPaletteIndexedResult
+    let item: BrowserCommandPaletteItem
 
     var body: some View {
         Button {
-            model.activate(item.result)
+            model.activate(item.row)
         } label: {
             HStack(spacing: BrowserCommandPaletteMetrics.rowSpacing) {
                 Group {
-                    if let provider = item.result.searchProvider {
+                    if let provider = model.searchProvider(for: item.row) {
                         BrowserSearchProviderIcon(
                             provider: provider,
-                            profileID: model.space?.profile.id,
+                            profileID: model.space?.profileID,
                             size: BrowserCommandPaletteMetrics.intentSymbolPointSize
                         )
                     } else {
-                        Image(systemName: item.result.symbol)
+                        Image(systemName: item.row.symbol)
                             .font(
                                 .system(
                                     size: BrowserCommandPaletteMetrics.intentSymbolPointSize,
@@ -44,10 +44,10 @@ struct BrowserCommandPaletteIntentRow: View {
                     alignment: .leading,
                     spacing: BrowserCommandPaletteMetrics.rowTextSpacing
                 ) {
-                    Text(verbatim: item.result.title)
+                    Text(verbatim: item.row.title)
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
-                    Text(verbatim: item.result.subtitle)
+                    Text(verbatim: item.row.subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -65,8 +65,8 @@ struct BrowserCommandPaletteIntentRow: View {
                 isSelected: model.selectedResultIndex == item.index
             )
         )
-        .accessibilityLabel(Text(verbatim: item.result.title))
-        .accessibilityValue(Text(verbatim: item.result.subtitle))
+        .accessibilityLabel(Text(verbatim: item.row.title))
+        .accessibilityValue(Text(verbatim: item.row.subtitle))
         .accessibilityIdentifier("command-palette-primary-action")
         .browserCommandPaletteHoverSelection(model: model, index: item.index)
     }

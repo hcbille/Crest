@@ -11,11 +11,10 @@ namespace CrestCore.Application;
 public static partial class NativePolicyEvaluator {
     #region Actions - Navigation
 
-    /// Null when the operation is not a link-navigation or history policy.
+    /// Null when the operation is not a link-navigation policy.
     private static JsonObject? EvaluateNavigation(PolicyOperation operation, JsonElement request) => operation switch {
         PolicyOperation.NavigationLink => Navigate(Requests.Link.Decode(request)),
         PolicyOperation.NavigationModifiedLink => Navigate(Requests.Link.DecodeModified(request)),
-        PolicyOperation.HistoryNormalize => new() { ["url"] = new WebAddress(Requests.HistoryNormalize.Decode(request).Url).Normalized },
         _ => null
     };
 

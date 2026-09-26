@@ -178,6 +178,22 @@ internal sealed partial class Device {
         return new(Refusal(authority, joining, now, pages) is null ? candidate : null);
     }
 
+    /// The palette of a window: over the Space it shows, unless that Space is
+    /// locked or being deleted, leaving out the tab it shows there.
+    public Palette Palette(Guid windowId, bool allowsInternalPages) {
+        var window = Opened(windowId);
+        var authority = Workspace(window.WorkspaceId);
+        Guid spaceId;
+        Guid? shown;
+        lock (gate) {
+            spaceId = window.ShownSpaceId;
+            shown = window.Tab(spaceId);
+        }
+        var space = Available(authority.Current, spaceId);
+        if (space is not null && authority.IsLocked(space)) space = null;
+        return new(space, shown, authority.Kind.IsPrivate, allowsInternalPages);
+    }
+
     /// Where a lift in a window's sidebar may drop: each drop it could commit,
     /// checked as the drop would be now, at the end of each list.
     public DropTargetList Answer(DropTargets question, DateTimeOffset now, Pages pages) {

@@ -18,6 +18,8 @@ public static unsafe partial class Exports {
     #region Variables
 
     private static readonly ConcurrentDictionary<ulong, CrestApp> Apps = new();
+    /// Answers the queries that read no state, which need no app.
+    private static readonly StandaloneAnswers Standalone = new();
 
     #endregion
 
@@ -118,6 +120,20 @@ public static unsafe partial class Exports {
         Call(app, query, length, output, ContractCodec.MaximumQueryBytes, (crest, reader, writer) =>
             ContractCodec.WriteAnswer(writer, crest, Finished(ContractCodec.ReadQuery(reader), reader)));
 
+    /// Answers a query that reads no state without an app, for a host that
+    /// has none yet or asks from code that holds none.
+    [UnmanagedCallersOnly(EntryPoint = "crest_core_answer", CallConvs = [typeof(CallConvCdecl)])]
+    public static int CoreAnswer(byte* fingerprint, nuint fingerprintLength, byte* query, nuint length, CrestBuffer* output) {
+        if (output == null) return CoreStatus.InvalidArgument;
+        *output = default;
+        if (fingerprint == null && fingerprintLength != 0) return CoreStatus.InvalidArgument;
+        if (fingerprintLength != (nuint)ContractCodec.Fingerprint.Length
+            || !new ReadOnlySpan<byte>(fingerprint, (int)fingerprintLength).SequenceEqual(ContractCodec.Fingerprint))
+            return CoreStatus.VersionMismatch;
+        return Run(query, length, output, ContractCodec.MaximumQueryBytes, (reader, writer) =>
+            ContractCodec.WriteAnswer(writer, Standalone, Finished(ContractCodec.ReadQuery(reader), reader)));
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "crest_buffer_free", CallConvs = [typeof(CallConvCdecl)])]
     public static void BufferFree(CrestBuffer* buffer) {
         if (buffer == null) return;
@@ -165,15 +181,20 @@ public static unsafe partial class Exports {
         Action<CrestApp, WireReader, WireWriter> run) {
         if (output == null) return CoreStatus.InvalidArgument;
         *output = default;
+        if (!Apps.TryGetValue(app, out var crest)) return CoreStatus.InvalidHandle;
+        return Run(input, length, output, maximumBytes, (reader, writer) => run(crest, reader, writer));
+    }
+
+    /// Decodes one message and runs it, as `Call` does, without an app.
+    private static int Run(byte* input, nuint length, CrestBuffer* output, Func<int, int> maximumBytes, Action<WireReader, WireWriter> run) {
         if (input == null && length != 0) return CoreStatus.InvalidArgument;
         int tag = WireReader.PeekTag(new ReadOnlySpan<byte>(input, (int)Math.Min(length, (nuint)WireReader.MaximumTagBytes)));
         if (length > (nuint)maximumBytes(tag)) return CoreStatus.LimitExceeded;
         try {
-            if (!Apps.TryGetValue(app, out var crest)) return CoreStatus.InvalidHandle;
             var reader = new WireReader(new ReadOnlySpan<byte>(input, (int)length).ToArray());
             var writer = new WireWriter();
             try {
-                run(crest, reader, writer);
+                run(reader, writer);
             } catch (Rejected rejected) {
                 var rejection = new WireWriter();
                 ContractCodec.WriteRejection(rejection, rejected.Rejection);

@@ -93,15 +93,15 @@ internal static class CSharpCodecEmitter {
         code.Append($"        _ => {MessageLimitAttribute.DefaultBytes}\n    }};\n");
     }
 
-    /// Writes the answer to a decoded query, so each query reaches `CrestApp`
-    /// through its own typed overload.
+    /// Writes the answer to a decoded query, so each query reaches whatever
+    /// answers it, an app or the standalone answers, through its own type.
     private static void EmitAnswers(StringBuilder code, ContractSchema schema) {
-        code.Append('\n').Append("    public static void WriteAnswer(WireWriter writer, CrestApp app, object query) {\n");
-        code.Append("        ArgumentNullException.ThrowIfNull(app);\n        ArgumentNullException.ThrowIfNull(query);\n");
+        code.Append('\n').Append("    public static void WriteAnswer(WireWriter writer, IQueryAnswers answers, object query) {\n");
+        code.Append("        ArgumentNullException.ThrowIfNull(answers);\n        ArgumentNullException.ThrowIfNull(query);\n");
         code.Append("        switch (query) {\n");
         foreach (var member in schema.Members(ContractRoot.Query)) {
             code.Append($"            case {member.Name} question:\n");
-            code.Append($"                var answer{member.Tag} = app.Query(question);\n");
+            code.Append($"                var answer{member.Tag} = answers.Query(question);\n");
             code.Append(Write(member.Answer!, $"answer{member.Tag}", "                ", $"Answer{member.Tag}"));
             code.Append("                break;\n");
         }

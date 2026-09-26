@@ -10,12 +10,9 @@ using Xunit;
 namespace CrestCore.Tests;
 
 public sealed class NativePolicyTests {
-    private static JsonObject Kagi() => new() {
-        ["id"] = "custom:00000000-0000-0000-0000-000000000264",
-        ["name"] = "Kagi",
-        ["searchURLTemplate"] = "https://kagi.com/search?q=%s",
-        ["suggestionURLTemplate"] = null
-    };
+    private static SearchProvider Kagi() =>
+        SearchProvider.Admit(Guid.Parse("00000000-0000-0000-0000-000000000264"), "Kagi", "https://kagi.com/search?q=%s", null);
+
     [Theory]
     [InlineData("apple.com", "https://apple.com", null)]
     [InlineData("localhost:3000", "http://localhost:3000", null)]
@@ -23,12 +20,10 @@ public sealed class NativePolicyTests {
     [InlineData("  Café + Swift/URL & WebKit  ", "https://kagi.com/search?q=Caf%C3%A9%20%2B%20Swift%2FURL%20%26%20WebKit", "Café + Swift/URL & WebKit")]
     [InlineData("   ", null, null)]
     public void ExistingAddressCallSitesKeepTheirIntentAndURLSpelling(string input, string? url, string? query) {
-        var bytes = Encoding.UTF8.GetBytes(new JsonObject { ["version"] = 1, ["operation"] = "address.intent", ["input"] = input, ["searchProvider"] = Kagi() }.ToJsonString());
-        var result = NativePolicyEvaluator.Evaluate(bytes);
-        Assert.Equal(result, NativePolicyEvaluator.Evaluate(bytes));
-        var values = JsonNode.Parse(result)!;
-        Assert.Equal(url, values["url"]?.GetValue<string>());
-        Assert.Equal(query, values["searchQuery"]?.GetValue<string>());
+        var resolved = AddressResolution.Resolve(input, Kagi());
+        Assert.Equal(resolved, AddressResolution.Resolve(input, Kagi()));
+        Assert.Equal(url, resolved?.Url);
+        Assert.Equal(query, resolved?.SearchQuery);
     }
     [Theory]
     [InlineData("chrome://extensions/")]
@@ -36,18 +31,11 @@ public sealed class NativePolicyTests {
     [InlineData("CREST://version/")]
     [InlineData("chrome-extension://abcdefghijklmnopabcdefghijklmnop/options.html")]
     public void InternalAddressesRequireTheSelectedEngineCapability(string address) {
-        var request = new JsonObject {
-            ["version"] = 1,
-            ["operation"] = "address.intent",
-            ["input"] = address,
-            ["searchProvider"] = Kagi()
-        };
-        var disabled = JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-        Assert.Equal(address, disabled["searchQuery"]!.GetValue<string>());
-        request["allowsInternalPages"] = true;
-        var enabled = JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-        Assert.Equal(address, enabled["url"]!.GetValue<string>());
-        Assert.Null(enabled["searchQuery"]);
+        var disabled = AddressResolution.Resolve(address, Kagi(), allowsInternalPages: false)!;
+        Assert.Equal(address, disabled.SearchQuery);
+        var enabled = AddressResolution.Resolve(address, Kagi(), allowsInternalPages: true)!;
+        Assert.Equal(address, enabled.Url);
+        Assert.Null(enabled.SearchQuery);
     }
     [Theory]
     [InlineData("file:///Users/crest/Saved%20Page.webarchive", "file:///Users/crest/Saved%20Page.webarchive")]
@@ -56,39 +44,23 @@ public sealed class NativePolicyTests {
     [InlineData("file://example.com/tmp/page.html", null)]
     [InlineData("file:", null)]
     public void LocalDocumentAddressesResolveToFileURLsAndRemainValidTabURLs(string input, string? url) {
-        var request = new JsonObject {
-            ["version"] = 1,
-            ["operation"] = "address.intent",
-            ["input"] = input,
-            ["searchProvider"] = Kagi()
-        };
-        var values = JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
+        var resolved = AddressResolution.Resolve(input, Kagi())!;
         if (url is null) {
-            Assert.False(values["url"]!.GetValue<string>()
-                .StartsWith("file:", StringComparison.OrdinalIgnoreCase));
+            Assert.False(resolved.Url.StartsWith("file:", StringComparison.OrdinalIgnoreCase));
             Assert.Throws<BrowserRuleException>(() => BrowserSpace.ValidateUrl(input));
             return;
         }
-        Assert.Equal(url, values["url"]!.GetValue<string>());
-        Assert.Null(values["searchQuery"]);
+        Assert.Equal(url, resolved.Url);
+        Assert.Null(resolved.SearchQuery);
         BrowserSpace.ValidateUrl(url);
     }
     [Fact]
     public void HomeRelativeAddressesResolveAgainstThisDeviceOnly() {
-        var request = new JsonObject {
-            ["version"] = 1,
-            ["operation"] = "address.intent",
-            ["input"] = "~/Saved.webarchive",
-            ["searchProvider"] = Kagi()
-        };
-        var values = JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-        var resolved = values["url"]!.GetValue<string>();
-        Assert.StartsWith("file:///", resolved);
-        Assert.EndsWith("/Saved.webarchive", resolved);
-        Assert.Null(values["searchQuery"]);
-        request["input"] = "~notapath";
-        var search = JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-        Assert.Equal("~notapath", search["searchQuery"]!.GetValue<string>());
+        var resolved = AddressResolution.Resolve("~/Saved.webarchive", Kagi())!;
+        Assert.StartsWith("file:///", resolved.Url);
+        Assert.EndsWith("/Saved.webarchive", resolved.Url);
+        Assert.Null(resolved.SearchQuery);
+        Assert.Equal("~notapath", AddressResolution.Resolve("~notapath", Kagi())!.SearchQuery);
     }
     [Fact]
     public void LinkPolicyWireContractAcceptsNullableContextAndRejectsExtraInstructions() {

@@ -148,7 +148,7 @@ struct BrowserPlatformCommandPaletteField: NSViewRepresentable {
                 x: rect.maxX, y: rect.minY, width: max(0, editor.bounds.maxX - rect.maxX), height: rect.height)
             suffixLabel.isHidden = false
             field.setAccessibilityHelp(
-                String(localized: "URL completion: \(proposal.acceptedQuery). Press Tab or Right Arrow to accept."))
+                String(localized: "URL completion: \(proposal.accepted). Press Tab or Right Arrow to accept."))
         }
 
         func insert(_ text: String, replacementRange: NSRange) {

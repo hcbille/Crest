@@ -18,8 +18,9 @@ struct BrowserManualSetupPlan: Codable, Equatable, Sendable {
     /// Follows Spaces changed elsewhere while setup was open. When the core
     /// cannot answer, the draft is left as it was.
     mutating func reconcile(with existing: BrowserSession) {
-        guard let entries = BrowserCorePolicy.reconcileSetup(
-            drafts: spaces.map { ($0.id, $0.isNew) }, existing: existing.spaces.map(\.id))
+        guard
+            let entries = BrowserCorePolicy.reconcileSetup(
+                drafts: spaces.map { ($0.id, $0.isNew) }, existing: existing.spaces.map(\.id))
         else { return }
         spaces = entries.map { entry in
             guard let draftIndex = entry.draft else {
@@ -99,17 +100,16 @@ struct BrowserManualSetupPlan: Codable, Equatable, Sendable {
         to spaceID: SpaceID,
         at date: Date = .now
     ) throws -> TabID {
-        guard let intent = AddressResolver.intent(input) else {
+        // A draft's Spaces do not exist yet, so the core resolves the address
+        // as it would outside any workspace, searching with Google.
+        guard let resolved = try? CrestCore.answer(ResolveAddress(workspaceID: nil, spaceID: nil, input: input)),
+            let url = resolved.url.flatMap(URL.init(string:))
+        else {
             throw BrowserManualSetupError.invalidAddress
         }
-        let title: String? =
-            switch intent {
-            case .open: nil
-            case .search(let query, _, _): query
-            }
         return try addTab(
-            title: title,
-            url: intent.url,
+            title: resolved.searchQuery,
+            url: url,
             placement: placement,
             to: spaceID,
             at: date

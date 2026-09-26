@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json.Nodes;
 
 using CrestCore.Application;
@@ -10,11 +9,6 @@ using Xunit;
 namespace CrestCore.Tests;
 
 public sealed class TranslationRulesTests {
-    private static JsonNode Evaluate(JsonObject request) {
-        request["version"] = 1;
-        return JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-    }
-
     /// Edits go through the session intent that owns the persisted rules, and
     /// answer the rules as the session stores them.
     private static JsonNode Set(JsonNode rules, string source, string target, bool enabled) {
@@ -29,10 +23,13 @@ public sealed class TranslationRulesTests {
         return StoredSessionCodec.Encode(authority.Current.AppPreferences!)["translationRules"]!;
     }
 
-    private static JsonNode Rule(JsonNode rules, string source) =>
-        Evaluate(new() { ["operation"] = "translation.rule", ["rules"] = rules.DeepClone(), ["sourceID"] = source });
+    /// What the standalone query answers for `source` over the rules in their
+    /// persisted spelling.
+    private static TranslationDecision Rule(JsonNode rules, string source) => new StandaloneAnswers().Query(new TranslationChoice(
+        [.. rules["sources"]!.AsObject().Select(entry => new TranslationRule(entry.Key, entry.Value!["targetID"]!.GetValue<string>(),
+            entry.Value!["isEnabled"]!.GetValue<bool>()))], source));
 
-    private static string? Target(JsonNode rules, string source) => Rule(rules, source)["target"]?.GetValue<string>();
+    private static string? Target(JsonNode rules, string source) => Rule(rules, source).Target;
 
     private static JsonNode Empty => new JsonObject { ["sources"] = new JsonObject() };
 
@@ -51,7 +48,7 @@ public sealed class TranslationRulesTests {
         Assert.Equal("fr", Target(rules, "de"));
         Assert.Null(Target(rules, "it"));
         Assert.Null(Target(rules, "ja"));
-        Assert.Equal("en", Rule(rules, "it")["rule"]!["targetID"]!.GetValue<string>());
+        Assert.Equal("en", Rule(rules, "it").Rule!.TargetId);
     }
 
     [Fact]
@@ -97,8 +94,8 @@ public sealed class TranslationRulesTests {
     [InlineData("123", "123", false)]
     public void LanguagesMatchByLanguageAndEffectiveScript(string left, string right, bool matches) {
         Assert.Equal(matches, LanguageTag.Matches(left, right));
-        var batch = Evaluate(new() { ["operation"] = "translation.matches", ["language"] = left, ["candidates"] = new JsonArray(right, "ja") });
-        Assert.Equal($"[{(matches ? "true" : "false")},false]", batch["matches"]!.ToJsonString());
+        var batch = new StandaloneAnswers().Query(new LanguagesMatching(left, [right, "ja"]));
+        Assert.Equal([matches, false], batch.Matches);
     }
 
     [Fact]

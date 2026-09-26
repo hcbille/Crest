@@ -15,7 +15,9 @@ import SwiftUI
 /// `BrowserCommandPaletteActionPolicy`, which answers "unavailable" for a card
 /// that is not the focused one.
 struct BrowserStartPage: View {
-    let space: BrowserSpace?
+    /// The window the page's palette answers for.
+    let browser: BrowserStore
+    let space: SpaceModel?
     let isPrivateBrowsing: Bool
     let selectedTabID: TabID?
     let isSourceAvailable: (BrowserTabRuntimeAssignment) -> Bool

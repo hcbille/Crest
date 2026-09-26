@@ -14,11 +14,11 @@ struct BrowserCommandPalette: View {
     @State private var model: BrowserCommandPaletteModel
 
     init(
-        space: BrowserSpace?,
+        browser: BrowserStore,
+        space: SpaceModel?,
         selectedTabID: TabID?,
         initialQuery: String = "",
         commands: BrowserCommandPaletteCommandRegistry? = nil,
-        isPrivateBrowsing: Bool = false,
         isSourceAvailable: @escaping (BrowserTabRuntimeAssignment) -> Bool,
         selectTab:
             @escaping (
@@ -39,11 +39,11 @@ struct BrowserCommandPalette: View {
         self.overlayContentInsets = overlayContentInsets
         _model = State(
             initialValue: BrowserCommandPaletteModel(
+                browser: browser,
                 space: space,
                 selectedTabID: selectedTabID,
                 initialQuery: initialQuery,
                 commands: commands,
-                isPrivateBrowsing: isPrivateBrowsing,
                 isSourceAvailable: isSourceAvailable,
                 selectTab: selectTab,
                 openURL: openURL,
@@ -71,7 +71,8 @@ struct BrowserCommandPalette: View {
     ZStack {
         CrestBrandTheme.canvas
         BrowserCommandPalette(
-            space: BrowserCommandPalettePreviewFixture.currentSpace,
+            browser: BrowserCommandPalettePreviewFixture.browser,
+            space: BrowserCommandPalettePreviewFixture.space,
             selectedTabID: BrowserCommandPalettePreviewFixture.selectedTabID,
             initialQuery: "swift",
             commands: BrowserCommandPalettePreviewFixture.registry,
@@ -86,7 +87,8 @@ struct BrowserCommandPalette: View {
 
 #Preview("Command Palette — Embedded") {
     BrowserCommandPalette(
-        space: BrowserCommandPalettePreviewFixture.currentSpace,
+        browser: BrowserCommandPalettePreviewFixture.browser,
+        space: BrowserCommandPalettePreviewFixture.space,
         selectedTabID: BrowserCommandPalettePreviewFixture.selectedTabID,
         commands: BrowserCommandPalettePreviewFixture.registry,
         isSourceAvailable: { _ in true },

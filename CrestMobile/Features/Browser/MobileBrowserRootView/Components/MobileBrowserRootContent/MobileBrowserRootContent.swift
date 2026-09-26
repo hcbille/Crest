@@ -328,10 +328,10 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
             palette: { contentInsets in
                 MobileBrowserCommandPaletteLayer(
                     mode: commandPaletteMode,
-                    space: browser.selectedSpace,
+                    browser: browser,
+                    space: browser.selectedSpace.flatMap { browser.spaceModel($0.id) },
                     selectedTabID: browser.selectedTab?.id,
                     commands: mobileBrowserCommandContext.paletteRegistry,
-                    isPrivateBrowsing: browser.isPrivateBrowsing,
                     isSourceAvailable: model.isPaletteSourceAvailable,
                     selectTab: model.selectPaletteTab,
                     openURL: { source, url, mode in

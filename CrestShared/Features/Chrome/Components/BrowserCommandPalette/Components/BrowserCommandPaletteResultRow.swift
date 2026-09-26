@@ -2,24 +2,24 @@ import SwiftUI
 
 struct BrowserCommandPaletteResultRow: View {
     let model: BrowserCommandPaletteModel
-    let item: BrowserCommandPaletteIndexedResult
+    let item: BrowserCommandPaletteItem
 
     var body: some View {
         Button {
-            model.activate(item.result)
+            model.activate(item.row)
         } label: {
             HStack(spacing: BrowserCommandPaletteMetrics.rowSpacing) {
-                BrowserCommandPaletteRowIcon(model: model, result: item.result)
+                BrowserCommandPaletteRowIcon(model: model, row: item.row)
 
                 VStack(
                     alignment: .leading,
                     spacing: BrowserCommandPaletteMetrics.rowTextSpacing
                 ) {
-                    Text(verbatim: item.result.title)
+                    Text(verbatim: item.row.title)
                         .font(.body.weight(.semibold))
                         .lineLimit(1)
-                    if !item.result.subtitle.isEmpty {
-                        Text(verbatim: item.result.subtitle)
+                    if !item.row.subtitle.isEmpty {
+                        Text(verbatim: item.row.subtitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -28,7 +28,7 @@ struct BrowserCommandPaletteResultRow: View {
 
                 Spacer(minLength: BrowserCommandPaletteMetrics.rowSpacing)
 
-                BrowserCommandPaletteRowTrailing(model: model, result: item.result)
+                BrowserCommandPaletteRowTrailing(model: model, row: item.row)
 
                 Image(systemName: "arrow.right")
                     .foregroundStyle(.secondary)

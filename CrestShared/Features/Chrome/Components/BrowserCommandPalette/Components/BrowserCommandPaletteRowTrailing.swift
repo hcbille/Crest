@@ -2,11 +2,11 @@ import SwiftUI
 
 struct BrowserCommandPaletteRowTrailing: View {
     let model: BrowserCommandPaletteModel
-    let result: BrowserCommandPaletteResult
+    let row: PaletteRow
 
     @ViewBuilder
     var body: some View {
-        if case .command(let command) = result.target,
+        if let command = row.command,
             let chord = model.commands?.shortcut(for: command)
         {
             Text(verbatim: chord.displayString)
@@ -26,8 +26,8 @@ struct BrowserCommandPaletteRowTrailing: View {
                     )
                 )
                 .accessibilityLabel(Text(verbatim: chord.spokenDescription))
-        } else if !result.trailing.isEmpty {
-            Text(LocalizedStringKey(result.trailing))
+        } else if let action = row.kind.action {
+            Text(action)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -38,7 +38,7 @@ struct BrowserCommandPaletteRowTrailing: View {
     #Preview("Command shortcut") {
         BrowserCommandPaletteRowTrailing(
             model: BrowserCommandPalettePreviewFixture.model(query: "swift"),
-            result: BrowserCommandPalettePreviewFixture.commandResult
+            row: BrowserCommandPalettePreviewFixture.commandRow
         ).padding()
     }
 #endif

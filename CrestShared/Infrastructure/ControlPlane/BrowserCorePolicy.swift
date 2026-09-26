@@ -65,25 +65,6 @@ enum BrowserCorePolicy {
         let decision: LinkNavigationDecision
     }
 
-    private struct AddressIntentRequest: Encodable {
-        let input: String
-        let allowsInternalPages: Bool
-        let searchProvider: SearchProviderDescriptor
-    }
-
-    private struct AddressIntentAnswer: Decodable {
-        let url: String
-        @BrowserCoreOptional var searchQuery: String?
-    }
-
-    private struct HistoryURLRequest: Encodable {
-        let url: String
-    }
-
-    private struct URLAnswer: Decodable {
-        let url: String
-    }
-
     private struct ReleaseLimitRequest: Encodable {
         let level: MemoryPressureLevel
         let platform: DevicePlatform
@@ -187,24 +168,6 @@ enum BrowserCorePolicy {
                 isUserActivatedLink: isUserActivatedLink, isTopLevelNavigation: isTopLevelNavigation)
         }
         return answer.decision
-    }
-
-    static func addressIntent(_ input: String, provider: SearchProvider) -> BrowserAddressIntent? {
-        let request = AddressIntentRequest(
-            input: input, allowsInternalPages: BrowserEngineRegistration.current.supports(.internalPages),
-            searchProvider: SearchProviderDescriptor(provider))
-        guard let answer = evaluate(.addressIntent, request, answer: AddressIntentAnswer.self),
-            let url = URL(string: answer.url)
-        else { return nil }
-        if let query = answer.searchQuery { return .search(query: query, provider: provider, url: url) }
-        return .open(url)
-    }
-
-    static func normalizedHistoryURL(_ url: URL) -> URL? {
-        guard
-            let answer = evaluate(.historyNormalize, HistoryURLRequest(url: url.absoluteString), answer: URLAnswer.self)
-        else { return nil }
-        return URL(string: answer.url)
     }
 
     // MARK: - Actions - Residency

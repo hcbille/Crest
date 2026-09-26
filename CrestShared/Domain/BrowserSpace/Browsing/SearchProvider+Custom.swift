@@ -48,13 +48,10 @@ extension SearchProvider: Identifiable {
             searchTemplate: custom.searchURLTemplate, suggestionTemplate: custom.suggestionURLTemplate)
     }
 
-    // MARK: - Actions - Queries
-
-    func searchURL(for query: String) -> URL? {
-        BrowserCorePolicy.searchURL(provider: self, query: query, purpose: .search)
-    }
-
-    func suggestionURL(for query: String) -> URL? {
-        BrowserCorePolicy.searchURL(provider: self, query: query, purpose: .suggestions)
+    /// A Space's custom engine as the core publishes it.
+    init(custom: CustomSearchProvider) {
+        self.init(
+            name: Self.customPrefix + custom.id.coreIdentifier, title: custom.name, logo: nil,
+            searchTemplate: custom.searchURLTemplate, suggestionTemplate: custom.suggestionURLTemplate)
     }
 }

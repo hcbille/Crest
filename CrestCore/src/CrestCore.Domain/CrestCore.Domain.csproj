@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <!-- History tests walk visits against a small history limit. -->
+    <InternalsVisibleTo Include="CrestCore.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../CrestCore.Contracts/CrestCore.Contracts.csproj" />
   </ItemGroup>
 </Project>

@@ -1,9 +1,8 @@
 import Foundation
 
 /// Explicit source-language choices, held in the core's app preferences. The
-/// portable core decides which rule applies, which target it yields and how an
-/// edit replaces region aliases (`preferences.translation_rule`); an
-/// unavailable core never translates.
+/// core decides which rule applies, which target it yields and how an edit
+/// replaces region aliases; rules the core refuses never translate.
 struct BrowserAutomaticTranslationRules: Codable, Equatable, Sendable {
     struct Rule: Codable, Equatable, Sendable {
         var targetID: String
@@ -37,20 +36,28 @@ struct BrowserAutomaticTranslationRules: Codable, Equatable, Sendable {
     }
 
     func rule(for sourceID: String) -> Rule? {
-        BrowserCorePolicy.translationRule(in: self, sourceID: sourceID)?.rule
+        decision(for: sourceID)?.rule.map { Rule(targetID: $0.targetID, isEnabled: $0.isEnabled) }
     }
 
     func target(for sourceID: String) -> String? {
-        BrowserCorePolicy.translationRule(in: self, sourceID: sourceID)?.target
+        decision(for: sourceID)?.target
     }
 
     static func matches(_ lhs: String, _ rhs: String) -> Bool {
-        BrowserCorePolicy.languageMatches(lhs, candidates: [rhs])?.first ?? false
+        matches(lhs, in: [rhs]).first ?? false
     }
 
     /// `matches(language, candidate)` for each candidate, in one core call.
     static func matches(_ language: String, in candidates: [String]) -> [Bool] {
-        BrowserCorePolicy.languageMatches(language, candidates: candidates)
+        (try? CrestCore.answer(LanguagesMatching(language: language, candidates: candidates)))?.matches
             ?? Array(repeating: false, count: candidates.count)
+    }
+
+    /// What the core decides for pages in `sourceID` under these rules.
+    private func decision(for sourceID: String) -> TranslationDecision? {
+        let rules = sources.map {
+            TranslationRule(sourceLanguage: $0.key, targetID: $0.value.targetID, isEnabled: $0.value.isEnabled)
+        }
+        return try? CrestCore.answer(TranslationChoice(rules: rules, sourceLanguage: sourceID))
     }
 }
