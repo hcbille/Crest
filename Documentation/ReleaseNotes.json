@@ -2745,6 +2745,10 @@
     "2026-09-26-redirect-test-no-real-load": {
       "category": "internal",
       "message": "The WebKit redirect test reports its navigation without a real load that could overtake it"
+    },
+    "2026-09-26-capacity-limits-query": {
+      "category": "internal",
+      "message": "The core's capacity limits are answered by a typed query instead of a JSON policy operation"
     }
   }
 }

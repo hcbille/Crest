@@ -26,7 +26,6 @@ public static partial class NativePolicyEvaluator {
         var operation = PolicyOperationCodes.Parse(Protocol.Text(request, PolicyFields.Operation));
         var answer = EvaluateSetup(operation, request)
             ?? EvaluateTabs(operation, request)
-            ?? EvaluateLimits(operation, request)
             ?? throw new ProtocolException(ProtocolErrorCodes.UnknownPolicy);
         return Encode(answer);
     }

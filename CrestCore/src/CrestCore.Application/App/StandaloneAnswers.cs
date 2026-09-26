@@ -9,9 +9,10 @@ namespace CrestCore.Application;
 /// loads, how a launch treats the person's data, branding as a Space keeps it,
 /// what a page surface shows, which addresses and schemes Crest takes from
 /// outside, how it answers an authentication challenge, how page media
-/// sessions order, and what a site's origin, notification request, blocked
-/// popup or automatic download leads to. A host asks them before it has an app, or from code that holds none; an
-/// app answers them the same way.
+/// sessions order, what a site's origin, notification request, blocked
+/// popup or automatic download leads to, and the capacities the core
+/// enforces. A host asks them before it has an app, or from code that holds
+/// none; an app answers them the same way.
 public sealed class StandaloneAnswers : IQueryAnswers {
     #region Actions - Queries
 
@@ -51,6 +52,9 @@ public sealed class StandaloneAnswers : IQueryAnswers {
             popup.DocumentIdentifier, popup.Origin)),
         AutomaticDownloadCheck download => AutomaticDownloadPolicy.Decide(download.UserInitiated, download.UserApprovedRetry,
             download.SavedDecision, download.HasAllowedAutomaticDownload),
+        EnforcedLimits => new CapacityLimits(BrowserLimits.Folders, BrowserLimits.FolderDepth, BrowserLimits.HistoryEntries,
+            BrowserLimits.SplitMembers, BrowserLimits.BrandColors, BrowserLimits.CrestPalette, BrowserLimits.Spaces,
+            BrowserLimits.TabsPerSpace, NativeSyncJournal.MaximumRecords),
         _ => throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "No area answers this query.")
     };
 

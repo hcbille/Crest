@@ -802,6 +802,18 @@ struct CannotPinSplit: Equatable, Sendable {
     }
 }
 
+struct CapacityLimits: Equatable, Sendable {
+    let folders: Int
+    let folderDepth: Int
+    let historyEntries: Int
+    let splitMembers: Int
+    let brandColors: Int
+    let crestPalette: Int
+    let spaces: Int
+    let tabsPerSpace: Int
+    let syncRecords: Int
+}
+
 struct CaptureDecision: Query, Equatable, Sendable {
     typealias Answer = SitePermissionAnswer
 
@@ -1459,6 +1471,11 @@ struct EditLinkRoute: Intent, LinkIntent, Equatable, Sendable {
     let match: LinkRouteMatch?
     let pattern: String?
     let destinationSpaceID: UUID?
+}
+
+struct EnforcedLimits: Query, Equatable, Sendable {
+    typealias Answer = CapacityLimits
+
 }
 
 struct EngineAlreadyRegistered: Equatable, Sendable {

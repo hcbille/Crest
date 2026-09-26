@@ -2,8 +2,8 @@ import Foundation
 
 struct BrowserSpace: Codable, Equatable, Identifiable, Sendable {
     // The core enforces these; native surfaces read them to shape their UI.
-    static var maximumFolderCount: Int { BrowserCoreLimits.current.folders }
-    static var maximumFolderDepth: Int { BrowserCoreLimits.current.folderDepth }
+    static var maximumFolderCount: Int { CapacityLimits.current.folders }
+    static var maximumFolderDepth: Int { CapacityLimits.current.folderDepth }
 
     let id: SpaceID
     let profile: BrowsingProfile

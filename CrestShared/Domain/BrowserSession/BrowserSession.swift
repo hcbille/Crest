@@ -14,7 +14,7 @@ struct BrowserSession: Codable, Equatable, Sendable {
     var appPreferences: BrowserAppPreferences? = nil
 
     /// The history the core keeps per Space.
-    static var maximumHistoryEntriesPerSpace: Int { BrowserCoreLimits.current.historyEntries }
+    static var maximumHistoryEntriesPerSpace: Int { CapacityLimits.current.historyEntries }
 }
 
 struct BrowserSpaceDeletionIntent: Equatable, Sendable {

@@ -3,7 +3,7 @@ using CrestCore.Contracts;
 namespace CrestCore.Domain;
 
 /// The capacity limits the domain enforces, in one place. Native callers read
-/// them through the `limits` policy operation instead of keeping copies.
+/// them through the `EnforcedLimits` query instead of keeping copies.
 public static class BrowserLimits {
     #region Variables
 
