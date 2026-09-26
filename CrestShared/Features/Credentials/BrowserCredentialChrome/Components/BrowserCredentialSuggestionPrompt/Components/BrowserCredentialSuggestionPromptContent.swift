@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserCredentialSuggestionPromptContent: View {
     let request: BrowserCredentialFillRequest
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     let siteIconData: Data?
     let model: BrowserCredentialSuggestionModel
     let fillErrorMessage: String?

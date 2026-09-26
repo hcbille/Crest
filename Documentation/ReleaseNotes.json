@@ -2917,6 +2917,10 @@
     "ios-residency-left-to-system": {
       "category": "internal",
       "message": "On iPhone and iPad, the system reclaims pages beyond the core's budget, as it does for Safari, and a reclaimed page reloads when shown."
+    },
+    "credentials-read-spaces-from-read-model": {
+      "category": "internal",
+      "message": "Passwords and their prompts read Spaces from the core's read model"
     }
   }
 }

@@ -161,10 +161,10 @@ final class BrowserCredentialFormTests: XCTestCase {
 
     func testSavePromptModelMovesFromCreateToSavedAndSuppressesTheIdenticalCandidate() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
+        let work = try XCTUnwrap(store.spaceModels.first)
         let submittedAt = Date(timeIntervalSince1970: 2_000)
         let origin = try XCTUnwrap(
             CredentialOrigin(url: try XCTUnwrap(URL(string: "https://accounts.crest.test/login")))
@@ -209,10 +209,10 @@ final class BrowserCredentialFormTests: XCTestCase {
 
     func testSystemPasswordOfferRunsOnlyAfterCrestSaveAndRetriesWithoutDuplicatingIt() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
+        let work = try XCTUnwrap(store.spaceModels.first)
         let submittedAt = Date(timeIntervalSince1970: 2_100)
         let origin = try XCTUnwrap(
             CredentialOrigin(url: try XCTUnwrap(URL(string: "https://accounts.crest.test/login")))

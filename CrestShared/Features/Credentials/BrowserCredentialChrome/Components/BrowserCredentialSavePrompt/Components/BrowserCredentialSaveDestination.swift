@@ -3,7 +3,7 @@ import SwiftUI
 /// Where the password is about to go, said before it goes there.
 struct BrowserCredentialSaveDestination: View {
     let destination: BrowserCredentialPromptDestinationMetadata
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     let namesSystemPasswordsDestination: Bool
 
     var body: some View {

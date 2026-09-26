@@ -77,11 +77,10 @@ final class BrowserCredentialDetailModel {
         let sensitiveAccess = BrowserCredentialSensitiveAccess(browser: browser)
         self.request = request
         isAssignmentCurrent = { spaceAssignment in
-            guard let space = browser.space(matching: spaceAssignment) else {
+            guard let space = browser.spaceModel(matching: spaceAssignment) else {
                 return false
             }
-            return spaceAssignment.matches(space)
-                && !spaceAccess.isLocked(space)
+            return !spaceAccess.isLocked(space)
         }
         revealCredential = { credentialID, spaceAssignment, reason in
             try await sensitiveAccess.revealCredential(

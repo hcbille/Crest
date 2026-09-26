@@ -5,7 +5,7 @@ import SwiftUI
 struct BrowserCredentialPromptHeader: View {
     let kind: BrowserCredentialPromptHeaderKind
     let request: BrowserCredentialFillRequest
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     let siteIconData: Data?
     let metrics: BrowserCredentialPromptMetrics
     let dismiss: () -> Void

@@ -8,7 +8,7 @@ import SwiftUI
 struct BrowserCredentialSavePromptHeader: View {
     let candidate: BrowserCredentialSaveCandidate
     let route: BrowserCredentialPromptRoute
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     let metrics: BrowserCredentialPromptMetrics
     let dismiss: () -> Void
     let perform: (BrowserCredentialPromptPrimaryAction) -> Void

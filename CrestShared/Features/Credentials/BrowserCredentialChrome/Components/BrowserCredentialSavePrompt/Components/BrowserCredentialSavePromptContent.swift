@@ -4,7 +4,7 @@ struct BrowserCredentialSavePromptContent: View {
     let candidate: BrowserCredentialSaveCandidate
     let route: BrowserCredentialPromptRoute
     let destination: BrowserCredentialPromptDestinationMetadata
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     let namesSystemPasswordsDestination: Bool
     let metrics: BrowserCredentialPromptMetrics
     let dismiss: () -> Void

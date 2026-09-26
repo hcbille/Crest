@@ -98,11 +98,11 @@ final class BrowserCredentialPromptRouteTests: XCTestCase {
 
     func testReplacingPromptWhileSystemOfferIsSuspendedCannotMutateTheReplacementSpace() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let firstSpace = try XCTUnwrap(store.session.spaces.first)
-        let replacementSpace = try XCTUnwrap(store.session.spaces.dropFirst().first)
+        let firstSpace = try XCTUnwrap(store.spaceModels.first)
+        let replacementSpace = try XCTUnwrap(store.spaceModels.dropFirst().first)
         let origin = try XCTUnwrap(
             CredentialOrigin(url: try XCTUnwrap(URL(string: "https://accounts.crest.test/login")))
         )
@@ -191,10 +191,10 @@ final class BrowserCredentialPromptRouteTests: XCTestCase {
 
     func testUpdateTransitionKeepsTheCandidateSpaceBoundAndCommitsOnce() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let space = try XCTUnwrap(store.session.spaces.first)
+        let space = try XCTUnwrap(store.spaceModels.first)
         let url = try XCTUnwrap(URL(string: "https://accounts.crest.test/login"))
         let origin = try XCTUnwrap(CredentialOrigin(url: url))
         _ = try await store.saveCredential(

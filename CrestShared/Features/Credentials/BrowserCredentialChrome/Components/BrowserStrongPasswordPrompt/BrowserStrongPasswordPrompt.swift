@@ -34,8 +34,8 @@ struct BrowserStrongPasswordPrompt: View {
         }
     }
 
-    private var space: BrowserSpace? {
-        browser.session.space(id: port.spaceID)
+    private var space: BrowserSpaceIdentity? {
+        browser.spaceModel(port.spaceID)?.identity
     }
 
     private var spaceName: String {

@@ -4,7 +4,7 @@ import SwiftUI
 /// commit is right now.
 struct BrowserCredentialSaveActions: View {
     let route: BrowserCredentialPromptRoute
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     let metrics: BrowserCredentialPromptMetrics
     let isStacked: Bool
     let dismiss: () -> Void

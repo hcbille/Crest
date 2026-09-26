@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserStrongPasswordPromptContent: View {
     let request: BrowserCredentialFillRequest
-    let space: BrowserSpace?
+    let space: BrowserSpaceIdentity?
     let siteIconData: Data?
     let model: BrowserStrongPasswordOperationModel
     let metrics: BrowserCredentialPromptMetrics

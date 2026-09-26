@@ -41,8 +41,8 @@ struct BrowserCredentialSuggestionPrompt: View {
         .onDisappear(perform: model.cancel)
     }
 
-    private var space: BrowserSpace? {
-        browser.session.space(id: port.spaceID)
+    private var space: BrowserSpaceIdentity? {
+        browser.spaceModel(port.spaceID)?.identity
     }
 
     private func fill(_ descriptor: CredentialDescriptor) {

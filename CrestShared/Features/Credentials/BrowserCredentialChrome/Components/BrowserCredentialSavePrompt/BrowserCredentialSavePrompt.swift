@@ -38,12 +38,12 @@ struct BrowserCredentialSavePrompt: View {
         }
     }
 
-    private var space: BrowserSpace? {
-        browser.session.space(id: port.spaceID)
+    private var space: BrowserSpaceIdentity? {
+        browser.spaceModel(port.spaceID)?.identity
     }
 
     private var preferences: BrowserCredentialPreferences {
-        space?.credentialPreferences ?? .default
+        browser.spaceModel(port.spaceID)?.settings.editableCredentialPreferences ?? .default
     }
 
     /// Whether this prompt will go on to offer the password to the system's

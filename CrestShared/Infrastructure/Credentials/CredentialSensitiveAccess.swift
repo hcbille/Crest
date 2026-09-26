@@ -36,20 +36,20 @@ final class BrowserCredentialSensitiveAccess {
         matching assignment: BrowserSpaceRuntimeAssignment,
         reason: String = String(localized: "Authenticate to view this Crest password.")
     ) async throws -> BrowserCredential {
-        guard browser.space(matching: assignment) != nil else {
+        guard browser.spaceModel(matching: assignment) != nil else {
             throw BrowserCredentialSensitiveAccessError.missingCredential
         }
         guard try await authenticator.authenticate(reason: reason) else {
             throw BrowserCredentialSensitiveAccessError.authenticationDenied
         }
-        guard browser.space(matching: assignment) != nil else {
+        guard browser.spaceModel(matching: assignment) != nil else {
             throw BrowserCredentialSensitiveAccessError.missingCredential
         }
         guard
             let credential = try await browser.credential(
                 id: id,
                 in: assignment.spaceID
-            ), browser.space(matching: assignment) != nil,
+            ), browser.spaceModel(matching: assignment) != nil,
             credential.descriptor.id == id,
             credential.descriptor.spaceID == assignment.spaceID
         else {
@@ -93,20 +93,20 @@ final class BrowserCredentialSensitiveAccess {
         matching assignment: BrowserSpaceRuntimeAssignment,
         reason: String
     ) async throws -> [BrowserCredential] {
-        guard browser.space(matching: assignment) != nil else {
+        guard browser.spaceModel(matching: assignment) != nil else {
             throw BrowserCredentialSensitiveAccessError.missingCredential
         }
         guard try await authenticator.authenticate(reason: reason) else {
             throw BrowserCredentialSensitiveAccessError.authenticationDenied
         }
-        guard browser.space(matching: assignment) != nil else {
+        guard browser.spaceModel(matching: assignment) != nil else {
             throw BrowserCredentialSensitiveAccessError.missingCredential
         }
         let credentials = try await browser.credentialInventory(
             in: assignment.spaceID
         )
         guard
-            browser.space(matching: assignment) != nil,
+            browser.spaceModel(matching: assignment) != nil,
             credentials.allSatisfy({
                 $0.descriptor.spaceID == assignment.spaceID
             })

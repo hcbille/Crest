@@ -162,11 +162,11 @@ final class BrowserCredentialTests: XCTestCase {
     func testBrowserStoreReusesHTTPAuthenticationOnlyInTheExactSpaceAndRealm() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
-        let personal = try XCTUnwrap(store.session.spaces.dropFirst().first)
+        let work = try XCTUnwrap(store.spaceModels.first)
+        let personal = try XCTUnwrap(store.spaceModels.dropFirst().first)
         let workMembers = try XCTUnwrap(
             BrowserHTTPAuthenticationProtectionSpace(
                 URLProtectionSpace(
@@ -212,10 +212,10 @@ final class BrowserCredentialTests: XCTestCase {
 
     func testBrowserStoreNeverSavesOrReusesHTTPAuthenticationOverPlainHTTP() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
+        let work = try XCTUnwrap(store.spaceModels.first)
         let insecure = try XCTUnwrap(
             BrowserHTTPAuthenticationProtectionSpace(
                 URLProtectionSpace(
@@ -247,12 +247,13 @@ final class BrowserCredentialTests: XCTestCase {
     }
 
     func testDisabledSpaceDoesNotOfferOrSaveCrestCredentials() async throws {
-        var session = BrowserSession.preview
-        let space = try XCTUnwrap(session.spaces.first)
-        session.spaces[0].credentialPreferences.isEnabled = false
+        var seed = SessionState.Seed.preview
+        let space = try XCTUnwrap(seed.spaces.first)
+        seed.spaces[0].settings.credentialPreferences = CredentialPreferences(
+            isEnabled: false, syncsCrestPasswordsWithICloud: true, alsoOffersSaveToSystemPasswords: false)
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: session,
+            seed: seed,
             credentialVault: vault
         )
         let origin = try XCTUnwrap(
@@ -514,10 +515,10 @@ final class BrowserCredentialTests: XCTestCase {
     func testBrowserStoreScopesSuggestionsAndSecretLookupToTheSelectedSpace() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let spaces = store.session.spaces
+        let spaces = store.spaceModels
         let work = try XCTUnwrap(spaces.first)
         let personal = try XCTUnwrap(spaces.dropFirst().first)
         let url = try XCTUnwrap(URL(string: "https://accounts.example.com/sign-in"))
@@ -558,11 +559,11 @@ final class BrowserCredentialTests: XCTestCase {
     func testSpaceSynchronizationPreferenceMigratesExistingCredentialsWithoutTouchingOtherSpaces() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
-        let personal = try XCTUnwrap(store.session.spaces.dropFirst().first)
+        let work = try XCTUnwrap(store.spaceModels.first)
+        let personal = try XCTUnwrap(store.spaceModels.dropFirst().first)
         let url = try XCTUnwrap(URL(string: "https://accounts.example.com/sign-in"))
         let workDescriptor = try await store.saveCredential(
             username: "work-user",
@@ -587,22 +588,22 @@ final class BrowserCredentialTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(migratedWork).descriptor.isSynchronizable)
         XCTAssertTrue(try XCTUnwrap(untouchedPersonal).descriptor.isSynchronizable)
         XCTAssertFalse(
-            try XCTUnwrap(store.session.space(id: work.id))
-                .credentialPreferences.syncsCrestPasswordsWithICloud)
+            try XCTUnwrap(store.spaceModel(work.id))
+                .settings.credentialPreferences.syncsCrestPasswordsWithICloud)
         XCTAssertTrue(
-            try XCTUnwrap(store.session.space(id: personal.id))
-                .credentialPreferences.syncsCrestPasswordsWithICloud)
+            try XCTUnwrap(store.spaceModel(personal.id))
+                .settings.credentialPreferences.syncsCrestPasswordsWithICloud)
     }
 
     func testSynchronizationCompletionRespectsProfileIdentityAndNewerPreferences() async throws {
         for replacesProfile in [false, true] {
             let vault = CredentialSynchronizationInterleavingVault()
             let store = BrowserStore(
-                session: .preview, credentialVault: vault)
+                seed: .preview, credentialVault: vault)
             let otherWindow = store.makeWindowStore()
-            let original = try XCTUnwrap(store.selectedSpace)
+            let original = try XCTUnwrap(store.shownSpace)
             vault.duringSynchronization = {
-                var preferences = original.credentialPreferences
+                var preferences = original.settings.editableCredentialPreferences
                 preferences.isEnabled = false
                 if replacesProfile { otherWindow.replaceProfileForTesting(of: original.id) }
                 otherWindow.updateCredentialPreferences(preferences, in: original.id)
@@ -616,7 +617,7 @@ final class BrowserCredentialTests: XCTestCase {
                 XCTAssertEqual(error as? CredentialVaultError, .missingSpace)
             }
 
-            let preferences = try XCTUnwrap(store.session.space(id: original.id)).credentialPreferences
+            let preferences = try XCTUnwrap(store.spaceModel(original.id)).settings.credentialPreferences
             XCTAssertFalse(preferences.isEnabled)
             XCTAssertEqual(preferences.syncsCrestPasswordsWithICloud, replacesProfile)
         }
@@ -624,7 +625,7 @@ final class BrowserCredentialTests: XCTestCase {
 
     func testBrowserStoreDoesNotSuggestOrSavePasswordsOnHTTP() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
         let insecureURL = try XCTUnwrap(URL(string: "http://example.com/login"))
@@ -646,11 +647,11 @@ final class BrowserCredentialTests: XCTestCase {
     func testFormCredentialLifecycleCreatesOnlyInTheOwningSpaceAndSuppressesAnUnchangedPassword() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
-        let personal = try XCTUnwrap(store.session.spaces.dropFirst().first)
+        let work = try XCTUnwrap(store.spaceModels.first)
+        let personal = try XCTUnwrap(store.spaceModels.dropFirst().first)
         let submittedAt = Date(timeIntervalSince1970: 4_000)
         let url = try XCTUnwrap(URL(string: "https://accounts.crest.test/login"))
         let origin = try XCTUnwrap(CredentialOrigin(url: url))
@@ -692,10 +693,10 @@ final class BrowserCredentialTests: XCTestCase {
 
     func testChangedFormPasswordUpdatesTheExistingRecordWithoutChangingItsIdentity() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
+        let work = try XCTUnwrap(store.spaceModels.first)
         let url = try XCTUnwrap(URL(string: "https://accounts.crest.test/login"))
         let origin = try XCTUnwrap(CredentialOrigin(url: url))
         let createdAt = Date(timeIntervalSince1970: 5_000)
@@ -746,11 +747,11 @@ final class BrowserCredentialTests: XCTestCase {
 
     func testDeletingACommittedFormCredentialRemovesOnlyTheOwningSpacesSuggestionAndSecret() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
-        let personal = try XCTUnwrap(store.session.spaces.dropFirst().first)
+        let work = try XCTUnwrap(store.spaceModels.first)
+        let personal = try XCTUnwrap(store.spaceModels.dropFirst().first)
         let submittedAt = Date(timeIntervalSince1970: 6_000)
         let url = try XCTUnwrap(URL(string: "https://accounts.crest.test/login"))
         let origin = try XCTUnwrap(CredentialOrigin(url: url))
@@ -791,10 +792,10 @@ final class BrowserCredentialTests: XCTestCase {
 
     func testStaleAndFutureFormCandidatesAreRejectedWithoutWritingToTheVault() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
+        let work = try XCTUnwrap(store.spaceModels.first)
         let submittedAt = Date(timeIntervalSince1970: 7_000)
         let origin = try XCTUnwrap(
             CredentialOrigin(url: try XCTUnwrap(URL(string: "https://accounts.crest.test/login")))
@@ -838,10 +839,10 @@ final class BrowserCredentialTests: XCTestCase {
 
     func testConcurrentFormCredentialCommitsCoalesceToOneRecord() async throws {
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: InMemoryCredentialVault()
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
+        let work = try XCTUnwrap(store.spaceModels.first)
         let submittedAt = Date(timeIntervalSince1970: 8_000)
         let origin = try XCTUnwrap(
             CredentialOrigin(url: try XCTUnwrap(URL(string: "https://accounts.crest.test/login")))
@@ -879,11 +880,11 @@ final class BrowserCredentialTests: XCTestCase {
     func testSensitiveCredentialRevealAuthenticatesBeforeReadingTheExactSpace() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
-        let personal = try XCTUnwrap(store.session.spaces.dropFirst().first)
+        let work = try XCTUnwrap(store.spaceModels.first)
+        let personal = try XCTUnwrap(store.spaceModels.dropFirst().first)
         let descriptor = try await store.saveCredential(
             username: "person@example.com",
             password: "work-secret",
@@ -935,11 +936,11 @@ final class BrowserCredentialTests: XCTestCase {
     func testAuthenticatedCredentialExportContainsOnlyOneSpace() async throws {
         let vault = InMemoryCredentialVault()
         let store = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let work = try XCTUnwrap(store.session.spaces.first)
-        let personal = try XCTUnwrap(store.session.spaces.dropFirst().first)
+        let work = try XCTUnwrap(store.spaceModels.first)
+        let personal = try XCTUnwrap(store.spaceModels.dropFirst().first)
         _ = try await store.saveCredential(
             username: "work,person@example.com",
             password: "line one\n\"line two\"",
@@ -962,7 +963,7 @@ final class BrowserCredentialTests: XCTestCase {
         let exported = try await access.exportCredentials(in: work.id)
         let csv = try XCTUnwrap(String(data: exported.contents, encoding: .utf8))
 
-        XCTAssertEqual(exported.fileName, "Crest Passwords - \(work.name).csv")
+        XCTAssertEqual(exported.fileName, "Crest Passwords - \(work.settings.name).csv")
         XCTAssertTrue(csv.contains("\"work,person@example.com\""))
         XCTAssertFalse(csv.contains("personal-secret-must-not-export"))
         XCTAssertEqual(authenticator.reasons.count, 1)
@@ -1090,10 +1091,10 @@ final class BrowserCredentialInventoryTests: XCTestCase {
     func testImportedHTTPPasswordRemainsAvailableForManualAccessOnly() async throws {
         let vault = InMemoryCredentialVault()
         let browser = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let space = try XCTUnwrap(browser.session.spaces.first)
+        let space = try XCTUnwrap(browser.spaceModels.first)
         let url = try XCTUnwrap(URL(string: "http://legacy.example/login"))
         let credential = BrowserCredential(
             descriptor: CredentialDescriptor(
@@ -1124,11 +1125,11 @@ final class BrowserCredentialInventoryTests: XCTestCase {
     func testAuthenticatedInventoryAndAtomicReplacementStayInsideDestinationSpace() async throws {
         let vault = InMemoryCredentialVault()
         let browser = BrowserStore(
-            session: .preview,
+            seed: .preview,
             credentialVault: vault
         )
-        let work = try XCTUnwrap(browser.session.spaces.first)
-        let personal = try XCTUnwrap(browser.session.spaces.dropFirst().first)
+        let work = try XCTUnwrap(browser.spaceModels.first)
+        let personal = try XCTUnwrap(browser.spaceModels.dropFirst().first)
         let origin = try XCTUnwrap(URL(string: "https://isolated.example/login"))
         _ = try await browser.saveCredential(
             username: "work",
