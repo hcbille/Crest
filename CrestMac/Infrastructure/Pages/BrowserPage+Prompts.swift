@@ -34,4 +34,23 @@ extension BrowserPage: BrowserPromptPresenting {
             }
         }
     }
+
+    func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal) {
+        let corePage = corePage
+        let promptID = asked.promptID
+        guard let challenge = BrowserAuthenticationChallenge(asked.question) else {
+            corePage.answer(AnswerAuthentication(promptID: promptID, credential: nil))
+            return
+        }
+        let session = httpAuthenticationSession
+        let presenter = dialogPresenter
+        let spaceName = spaceName
+        Task { @MainActor in
+            let decision = await session.response(to: challenge) { prompt in
+                await presenter.presentHTTPAuthentication(prompt: prompt, spaceName: spaceName, dismissal: dismissal)
+            }
+            corePage.answer(AnswerAuthentication(promptID: promptID, credential: decision.credential))
+        }
+    }
 }
+

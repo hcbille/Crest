@@ -152,7 +152,8 @@ enum MobileBrowserDialogPresenter {
 
     static func presentHTTPAuthentication(
         prompt: BrowserHTTPAuthenticationPrompt,
-        spaceName: String
+        spaceName: String,
+        dismissal: BrowserPromptDismissal? = nil
     ) async -> BrowserHTTPAuthenticationPromptResponse? {
         let descriptor = prompt.descriptor
         var paragraphs: [String] = []
@@ -192,14 +193,16 @@ enum MobileBrowserDialogPresenter {
             field.textContentType = .password
         }
         return await withCheckedContinuation { continuation in
+            // An action or the question's dismissal answers, whichever comes first.
+            let answer = AlertAnswer(continuation)
             alert.addAction(
                 UIAlertAction(title: "Cancel", style: .cancel) { _ in
-                    continuation.resume(returning: nil)
+                    answer.resume(nil)
                 })
             alert.addAction(
                 UIAlertAction(title: "Sign In Once", style: .default) { [weak alert] _ in
-                    continuation.resume(
-                        returning: authenticationResponse(
+                    answer.resume(
+                        authenticationResponse(
                             from: alert,
                             shouldSave: false
                         ))
@@ -207,14 +210,15 @@ enum MobileBrowserDialogPresenter {
             if prompt.allowsSaving {
                 alert.addAction(
                     UIAlertAction(title: "Sign In & Save", style: .default) { [weak alert] _ in
-                        continuation.resume(
-                            returning: authenticationResponse(
+                        answer.resume(
+                            authenticationResponse(
                                 from: alert,
                                 shouldSave: true
                             ))
                     })
             }
-            present(alert) { continuation.resume(returning: nil) }
+            dismissal?.attach { answer.resume(nil) }
+            present(alert, dismissal: dismissal) { answer.resume(nil) }
         }
     }
 
@@ -369,5 +373,21 @@ enum MobileBrowserDialogPresenter {
             current = presented
         }
         return current
+    }
+}
+
+/// Resumes an alert's continuation once, with whichever answer comes first:
+/// one of its actions, or its question's dismissal.
+@MainActor
+private final class AlertAnswer<Value: Sendable> {
+    private var continuation: CheckedContinuation<Value, Never>?
+
+    init(_ continuation: CheckedContinuation<Value, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume(_ value: Value) {
+        continuation?.resume(returning: value)
+        continuation = nil
     }
 }

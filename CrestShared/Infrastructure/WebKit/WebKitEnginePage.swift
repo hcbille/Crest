@@ -46,4 +46,11 @@ final class WebKitEnginePage {
         guard let binding else { return answer(false, nil) }
         binding.raise(question, for: id, answer: answer)
     }
+
+    /// Asks the core a server's request for a user name and password. `answer`
+    /// runs once: with the credential to answer the server with, or nil.
+    func ask(_ question: AuthenticationQuestion, answer: @escaping @MainActor (AuthenticationCredential?) -> Void) {
+        guard let binding else { return answer(nil) }
+        binding.raise(question, for: id, answer: answer)
+    }
 }

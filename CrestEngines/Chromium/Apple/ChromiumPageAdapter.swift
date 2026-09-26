@@ -64,23 +64,6 @@
                     identifier: identifier, linkURL: url, selectionText: selection) ?? false
             }
             native.promptPresenter = page
-            native.httpAuthenticationHandler = { [weak page] values, dismissal, reply in
-                guard let page, let challenge = BrowserAuthenticationChallenge(chromium: values) else {
-                    reply(nil, nil)
-                    return
-                }
-                Task { @MainActor in
-                    let decision = await page.httpAuthenticationSession.response(to: challenge) {
-                        [dialogPresenter = page.dialogPresenter, spaceName = page.spaceName] prompt in
-                        await dialogPresenter.presentHTTPAuthentication(
-                            prompt: prompt, spaceName: spaceName, dismissal: dismissal)
-                    }
-                    switch decision {
-                    case .useCredential(let username, let password): reply(username, password)
-                    case .cancel, .performDefaultHandling: reply(nil, nil)
-                    }
-                }
-            }
             native.protectedLinkHandler = { [weak page] destination in
                 page?.protectedLinkAction(to: destination)
             }
@@ -113,45 +96,6 @@
         /// The engine enforces site permissions itself; the page's permission
         /// session has already applied the change through `applySitePermission`.
         func sitePermissionDidChange(_ permission: SitePermission, on page: BrowserPage) {}
-    }
-
-    extension BrowserAuthenticationChallenge {
-        fileprivate init?(chromium challenge: AuthenticationQuestion) {
-            guard let url = URL(string: challenge.url),
-                let origin = CredentialOrigin(
-                    securityProtocol: url.scheme ?? "", host: challenge.host, port: challenge.port)
-            else { return nil }
-            let realm = challenge.realm.flatMap { $0.isEmpty ? nil : $0 }
-            let method: AuthenticationMethod
-            let scope: BrowserCredentialScope
-            // The scheme as the challenge's descriptor names it.
-            let schemeName: String
-            switch challenge.scheme {
-            case .basic:
-                method = .httpBasic
-                scope = .httpBasic(realm: realm)
-                schemeName = "basic"
-            case .digest:
-                method = .httpDigest
-                scope = .httpDigest(realm: realm)
-                schemeName = "digest"
-            }
-            let previousFailures = challenge.previousFailures
-            self.init(
-                authenticationMethod: method,
-                isProxy: challenge.isProxy,
-                previousFailureCount: previousFailures,
-                protectionSpace: BrowserHTTPAuthenticationProtectionSpace(origin: origin, credentialScope: scope),
-                descriptor: BrowserHTTPAuthenticationDescriptor(
-                    source: BrowserCorePolicy.authenticationSourceLabel(
-                        host: challenge.host, port: challenge.port, scheme: url.scheme,
-                        emptyHostLabel: ProductIdentity.name),
-                    realm: realm,
-                    authenticationMethod: schemeName,
-                    isSecureTransport: origin.isSecure,
-                    previousFailureCount: previousFailures),
-                proposedUsername: nil)
-        }
     }
 
     /// The link actions the engine's own context menu and drag ask about.

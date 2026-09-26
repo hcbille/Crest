@@ -306,17 +306,7 @@ extension BrowserPage: WKNavigationDelegate {
             }
             return
         }
-        Task {
-            let resolution = await httpAuthenticationSession.response(
-                to: challenge
-            ) { [dialogPresenter, spaceName] prompt in
-                await dialogPresenter.presentHTTPAuthentication(
-                    prompt: prompt,
-                    spaceName: spaceName
-                )
-            }
-            completionHandler(resolution.disposition, resolution.credential)
-        }
+        answerSignIn(challenge, from: webKitAdapter?.enginePage, completionHandler: completionHandler)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {

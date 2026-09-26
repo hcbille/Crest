@@ -264,17 +264,7 @@ extension MobileBrowserPage: WKNavigationDelegate {
             }
             return
         }
-        Task {
-            let resolution = await httpAuthenticationSession.response(
-                to: challenge
-            ) { [spaceName] prompt in
-                await MobileBrowserDialogPresenter.presentHTTPAuthentication(
-                    prompt: prompt,
-                    spaceName: spaceName
-                )
-            }
-            completionHandler(resolution.disposition, resolution.credential)
-        }
+        answerSignIn(challenge, from: enginePage, completionHandler: completionHandler)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {

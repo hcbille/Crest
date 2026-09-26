@@ -3,9 +3,9 @@ import XCTest
 
 @testable import Crest
 
-/// A question a WebKit page's document asks travels through the core: the
-/// page's host shows it once the core asks the person, and the answer the
-/// core settles reaches WebKit. WebKit requires an answer to every question,
+/// A question a WebKit page asks travels through the core: the page's host
+/// shows it once the core asks the person, and the answer the core settles
+/// reaches WebKit, a sign-in's credential included. WebKit requires an answer to every question,
 /// so a page that closes answers what it still asks as declined.
 @MainActor
 final class WebKitEngineBindingPromptTests: XCTestCase {
@@ -47,6 +47,26 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
         XCTAssertNil(answer?.text)
     }
 
+    func testASignInReachesItsHostThroughTheCoreAndItsCredentialReachesWebKit() throws {
+        let (browser, opened) = try openPage()
+        let host = PromptHost()
+        opened.webKit.presenter = host
+        var answer: AuthenticationCredential??
+        opened.webKit.ask(
+            AuthenticationQuestion(
+                url: "https://sign-in.crest.test/", host: "sign-in.crest.test", port: 443, realm: "Staff", scheme: .basic,
+                isProxy: false, previousFailures: 0)
+        ) { answer = .some($0) }
+        browser.core.drain()
+        let asked = try XCTUnwrap(host.signIns.first)
+        XCTAssertEqual(asked.question.realm, "Staff")
+
+        let credential = AuthenticationCredential(username: "crest", password: "secret")
+        opened.core.answer(AnswerAuthentication(promptID: asked.promptID, credential: credential))
+        XCTAssertEqual(answer, .some(credential))
+        opened.core.release(keepingState: false)
+    }
+
     /// A page the core opened on WebKit for a tab of a new window's Space.
     private func openPage() throws -> (BrowserStore, (core: CorePage, webKit: WebKitEnginePage)) {
         let tab = BrowserTab.startPage()
@@ -64,8 +84,13 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
 @MainActor
 private final class PromptHost: BrowserPromptPresenting {
     private(set) var asked: [ScriptDialogAsked] = []
+    private(set) var signIns: [AuthenticationAsked] = []
 
     func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {
         self.asked.append(asked)
+    }
+
+    func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal) {
+        signIns.append(asked)
     }
 }

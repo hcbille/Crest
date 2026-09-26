@@ -23,17 +23,27 @@ final class WebKitEngineBinding: EngineBinding {
     /// core settles it.
     private enum PendingPrompt {
         case scriptDialog(pageID: UUID, answer: @MainActor (Bool, String?) -> Void)
+        case authentication(pageID: UUID, answer: @MainActor (AuthenticationCredential?) -> Void)
 
         var pageID: UUID {
             switch self {
-            case .scriptDialog(let pageID, _): pageID
+            case .scriptDialog(let pageID, _), .authentication(let pageID, _): pageID
             }
         }
 
-        /// Answers WebKit as nobody accepting anything.
+        /// Answers WebKit as nobody accepting or giving anything.
         @MainActor func decline() {
             switch self {
             case .scriptDialog(_, let answer): answer(false, nil)
+            case .authentication(_, let answer): answer(nil)
+            }
+        }
+
+        /// The answer that declines the prompt `promptID` through the core.
+        func declining(_ promptID: UUID) -> any PromptIntent {
+            switch self {
+            case .scriptDialog: AnswerScriptDialog(promptID: promptID, accepted: false, text: nil)
+            case .authentication: AnswerAuthentication(promptID: promptID, credential: nil)
             }
         }
     }
@@ -89,11 +99,14 @@ final class WebKitEngineBinding: EngineBinding {
         case .settleScriptDialog(let settlement):
             guard case .scriptDialog(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
             answer(settlement.accepted, settlement.text)
-        case .settleAuthentication, .settlePermission, .settleExtensionInstall, .settleDownloadDestination,
-            .cancelEngineDownload, .removeEngineDownload, .approveEngineDownload:
-            // WebKit answers its own sign-ins and permission requests and runs
-            // its own downloads until its binding reports them to the core
-            // (WP C (j1)), so the core never asks it to.
+        case .settleAuthentication(let settlement):
+            guard case .authentication(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
+            answer(settlement.credential)
+        case .settlePermission, .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload,
+            .removeEngineDownload, .approveEngineDownload:
+            // WebKit answers its own permission requests and runs its own
+            // downloads until its binding reports them to the core (WP C
+            // (j1)), so the core never asks it to.
             break
         }
     }
@@ -130,23 +143,46 @@ final class WebKitEngineBinding: EngineBinding {
         engines.report(ScriptDialogOpened(promptID: promptID, pageID: pageID, question: question), from: self)
     }
 
+    /// Raises with the core a server's request for a user name and password
+    /// a load of page `pageID` met. The core settles it with the credential
+    /// to answer with, or declines it.
+    func raise(
+        _ question: AuthenticationQuestion, for pageID: UUID,
+        answer: @escaping @MainActor (AuthenticationCredential?) -> Void
+    ) {
+        guard let engines else { return answer(nil) }
+        let promptID = UUID()
+        prompts[promptID] = .authentication(pageID: pageID, answer: answer)
+        engines.report(AuthenticationChallenged(promptID: promptID, pageID: pageID, question: question), from: self)
+    }
+
     /// Shows a question the core asks about one of this binding's pages on
     /// the page's host, and closes it once the core settles it. One no host
     /// can show is declined.
     private func ask(_ change: Change) {
         switch change {
         case .scriptDialogAsked(let asked):
-            guard prompts[asked.promptID] != nil else { return }
-            guard let presenter = pages[asked.pageID]?.value?.presenter else {
-                _ = try? engines?.core.send(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
-                return
-            }
-            presenter.ask(asked, dismissal: dismissal(for: asked.promptID))
+            present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
+        case .authenticationAsked(let asked):
+            present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
         case .promptSettled(let settled):
             dismissals.removeValue(forKey: settled.promptID)?.dismiss()
         default:
             break
         }
+    }
+
+    /// Shows one of this binding's prompts with `show` on the host of page
+    /// `pageID`, or declines it when no host can show it.
+    private func present(
+        _ promptID: UUID, on pageID: UUID, _ show: (any BrowserPromptPresenting, BrowserPromptDismissal) -> Void
+    ) {
+        guard let prompt = prompts[promptID] else { return }
+        guard let presenter = pages[pageID]?.value?.presenter else {
+            _ = try? engines?.core.send(prompt.declining(promptID))
+            return
+        }
+        show(presenter, dismissal(for: promptID))
     }
 
     /// A new dismissal for a question a page's host shows.

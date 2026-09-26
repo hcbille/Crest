@@ -7,4 +7,8 @@ import Foundation
 protocol BrowserPromptPresenting: AnyObject {
     /// Shows a script dialog the page's document opened.
     func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal)
+
+    /// Answers a server's request for a user name and password, from the
+    /// Space's saved sign-in or by asking the person.
+    func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal)
 }

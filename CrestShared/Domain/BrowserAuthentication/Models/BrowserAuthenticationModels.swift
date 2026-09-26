@@ -11,6 +11,14 @@ enum BrowserHTTPAuthenticationDecision: Sendable {
     case performDefaultHandling
     case cancel
     case useCredential(username: String, password: String)
+
+    /// The credential the decision answers a server with, if any.
+    var credential: AuthenticationCredential? {
+        switch self {
+        case .useCredential(let username, let password): AuthenticationCredential(username: username, password: password)
+        case .cancel, .performDefaultHandling: nil
+        }
+    }
 }
 
 struct BrowserHTTPAuthenticationDescriptor: Equatable, Sendable {

@@ -33,12 +33,6 @@
         var linkHandler: (String, URL, String) -> Bool = { _, _, _ in false }
         var contextMenuActions: (URL?, String?) -> [[String: String]] = { _, _ in [] }
         var contextMenuAction: (String, URL?, String?) -> Bool = { _, _, _ in false }
-        // The presenters of a page's questions. Each takes a dismissal that
-        // closes what it shows once the core settles the question.
-        var httpAuthenticationHandler:
-            (AuthenticationQuestion, BrowserPromptDismissal, @escaping (String?, String?) -> Void) -> Void = {
-                _, _, reply in reply(nil, nil)
-            }
         /// The platform's page hosting this one, which shows the person the
         /// core's questions about it.
         weak var promptPresenter: (any BrowserPromptPresenting)?
@@ -596,12 +590,11 @@
         /// A server's request for a user name and password. The credential goes
         /// to the core, which hands it to the engine and keeps no copy.
         func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal) {
-            httpAuthenticationHandler(asked.question, dismissal) { [weak engine] username, password in
-                let credential = username.flatMap { username in
-                    password.map { AuthenticationCredential(username: username, password: $0) }
-                }
-                engine?.answer(AnswerAuthentication(promptID: asked.promptID, credential: credential))
+            guard let promptPresenter else {
+                engine?.answer(AnswerAuthentication(promptID: asked.promptID, credential: nil))
+                return
             }
+            promptPresenter.ask(asked, dismissal: dismissal)
         }
 
         /// A site's permission request its Space's choices do not answer. The
