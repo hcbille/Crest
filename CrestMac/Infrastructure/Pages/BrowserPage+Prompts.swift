@@ -65,7 +65,7 @@ extension BrowserPage: BrowserPromptPresenting {
                 spaceName: spaceName, dismissal: dismissal)
             // An Allow the system then refuses saves nothing, so the site
             // cannot gain the capability silently once the system allows it.
-            if response.grants, await self?.systemConsents(to: question.permission) != true {
+            if response.grants, await self?.systemConsent.consents(to: question.permission) != true {
                 response = .denyOnce
             }
             corePage.answer(
@@ -73,16 +73,14 @@ extension BrowserPage: BrowserPromptPresenting {
         }
     }
 
-    /// Whether the system lets the site have `permission` the person allowed,
-    /// asking them when it has not decided. WebKit's location and
-    /// notifications ask here; capture, and what another engine asks the
-    /// system for itself, pass.
-    private func systemConsents(to permission: SitePermission) async -> Bool {
-        guard let webKitAdapter else { return true }
-        switch permission {
-        case .location: return await webKitAdapter.geolocationCoordinator?.systemAuthorizes() ?? true
-        case .notifications: return await authorizedForSystemNotifications(requestIfNeeded: true)
-        default: return true
+    /// Whether the system lets Crest use the person's location for the
+    /// page's sites, asking them when it has not decided: through WebKit's
+    /// location bridge when the page has one, else the system's own service.
+    func systemAuthorizesLocation() async -> Bool {
+        if let coordinator = webKitAdapter?.geolocationCoordinator { return await coordinator.systemAuthorizes() }
+        let dialogs = dialogPresenter
+        return await BrowserGeolocationSystemService().systemAuthorizes {
+            await dialogs.recoverGeolocationSystemAuthorization()
         }
     }
 }

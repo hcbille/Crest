@@ -2785,6 +2785,10 @@
     "2026-09-26-window-rules-read-model": {
       "category": "internal",
       "message": "Browser windows check their Spaces, tabs and folders against the core's published state instead of a copy of the session"
+    },
+    "2026-09-26-system-consent-all-permissions": {
+      "category": "fixed",
+      "message": "Allowing camera, microphone, location or notifications for a site is only remembered once macOS or iOS also allows it, in both engines"
     }
   }
 }

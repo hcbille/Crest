@@ -140,6 +140,11 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
     @ObservationIgnored private var mediaSessionMessageProxy: BrowserMediaSessionScriptMessageProxy?
     @ObservationIgnored var mediaSessionCoordinator: BrowserMediaSessionPageCoordinator?
     @ObservationIgnored var geolocationCoordinator: BrowserGeolocationCoordinator?
+    /// The system's consent the page asks before it sends the person's Allow
+    /// to the core. The page shows no web notifications.
+    @ObservationIgnored lazy var systemConsent: any BrowserSystemConsenting = BrowserSystemConsent(
+        location: { [weak self] in await self?.geolocationCoordinator?.systemAuthorizes() ?? false },
+        notifications: { false })
     @ObservationIgnored private var userActivityHandler: (() -> Void)?
     @ObservationIgnored let httpAuthenticationSession: BrowserHTTPAuthenticationSession
     @ObservationIgnored private let contentRuleSession: BrowserPageContentRuleSession

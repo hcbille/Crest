@@ -252,15 +252,7 @@ final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
     /// asks before it sends the person's Allow to the core, so an Allow the
     /// system refuses is never saved.
     func systemAuthorizes() async -> Bool {
-        switch service.currentAuthorization() {
-        case .authorized:
-            return true
-        case .denied:
-            await recoverSystemAuthorization()
-            return service.currentAuthorization() == .authorized
-        case .notDetermined:
-            return await service.requestAuthorization() == .authorized
-        }
+        await service.systemAuthorizes(recovering: recoverSystemAuthorization)
     }
 
     private func sendPermission(

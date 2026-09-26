@@ -96,6 +96,11 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
     @ObservationIgnored let sitePermissionSession: BrowserPageSitePermissionSession
     @ObservationIgnored let hostedNotificationCenter: (any BrowserHostedWebNotificationCentering)?
     @ObservationIgnored let recoverNotificationSystemAuthorization: @MainActor () async -> Void
+    /// The system's consent the page asks before it sends the person's Allow
+    /// to the core, whichever engine hosts it.
+    @ObservationIgnored lazy var systemConsent: any BrowserSystemConsenting = BrowserSystemConsent(
+        location: { [weak self] in await self?.systemAuthorizesLocation() ?? false },
+        notifications: { [weak self] in await self?.authorizedForSystemNotifications(requestIfNeeded: true) ?? false })
     @ObservationIgnored let serverTrustOverrides: BrowserServerTrustOverrideStore
     @ObservationIgnored let spaceID: SpaceID
     @ObservationIgnored let profileID: UUID
