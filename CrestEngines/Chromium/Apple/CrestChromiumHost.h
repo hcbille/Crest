@@ -10,7 +10,6 @@ typedef void (^CrestDeferredNavigation)(void);
 - (void)cancelDownload:(NSString *)downloadID profile:(NSString *)profileID;
 - (void)removeDownload:(NSString *)downloadID profile:(NSString *)profileID;
 - (void)approveDownload:(NSString *)downloadID profile:(NSString *)profileID warning:(NSString *)token;
-- (void)deleteProfile:(NSString *)profileID ephemeral:(BOOL)ephemeral completion:(void (^)(BOOL deleted))completion;
 // The engine binding creates, loads and closes the pages the core opens,
 // reports what they do straight to the core and presents them to the platform.
 // Makes a page the engine offered the page the core is opening, instead of a
@@ -69,7 +68,6 @@ typedef void (^CrestDeferredNavigation)(void);
 // popup keeps the core's own anchor.
 - (nullable NSDictionary<NSString *, id> *)dispatchExtensionShortcut:(NSEvent *)event
     page:(NSString *)pageID NS_SWIFT_NAME(dispatchExtensionShortcut(_:page:));
-- (void)prepareExtensionProfile:(NSString *)profileID completion:(void (^)(BOOL ready))completion;
 - (void)setExtensionReview:(void (^)(NSDictionary<NSString *, id> *values, NSWindow *window, void (^reply)(BOOL accept, BOOL withhold)))review;
 - (NSString *)engineVersion;
 - (BOOL)installExtension:(NSString *)extensionID package:(NSString *)path profile:(NSString *)profileID window:(NSString *)windowID

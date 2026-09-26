@@ -89,10 +89,8 @@ final class ChromiumExtensionStore {
         return pages.request(InstalledExtensions(profileID: space.profile.id)).extensions.map(Installed.init)
     }
     func load(_ space: BrowserSpace, in browser: BrowserStore? = nil) async {
-        guard authorized(space, in: browser), let host = CrestChromiumRoot.engineHost else { return }
-        let ready = await withCheckedContinuation { continuation in
-            host.prepareExtensionProfile(space.profile.id.uuidString) { ready in continuation.resume(returning: ready) }
-        }
+        guard authorized(space, in: browser), let engine = CrestChromiumRoot.chromiumEngine else { return }
+        let ready = await engine.prepareProfile(space.profile.id)
         guard ready, authorized(space, in: browser) else { return }
         installed[space.profile.id] = Self.installed(in: space)
         revision &+= 1

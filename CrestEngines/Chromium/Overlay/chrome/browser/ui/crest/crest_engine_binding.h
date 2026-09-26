@@ -31,6 +31,7 @@ namespace crest {
 
 class EngineExtensions;
 class EnginePage;
+class EngineProfiles;
 class EnginePrompts;
 
 // Chromium's engine binding: the portable half of Crest's Chromium host, in
@@ -55,18 +56,17 @@ class EnginePrompts;
 class EngineBinding {
  public:
   // What the platform shell still does for the binding. TRANSITIONAL: the
-  // shell keeps the engine profiles and the Browsers until those areas move
-  // into the binding.
+  // shell keeps the Browsers until they move into the binding.
   class Shell {
    public:
     virtual ~Shell() = default;
-    // Creates `page`'s WebContents in the engine profile of `profile`, inside
-    // the Browser of `window`, and answers it, or nullptr when it cannot.
-    virtual void CreateContents(const std::string& page,
-                                const std::string& profile,
-                                bool is_private,
-                                const std::string& window,
-                                base::OnceCallback<void(content::WebContents*)> created) = 0;
+    // Creates `page`'s WebContents in `profile`, which `profile_id` names,
+    // inside the Browser of `window`, and answers it, or nullptr when it
+    // cannot.
+    virtual content::WebContents* CreateContents(const std::string& page,
+                                                 Profile* profile,
+                                                 const std::string& profile_id,
+                                                 const std::string& window) = 0;
     // Makes the WebContents the engine offered as `token` the page, when it is
     // in `profile`, and answers it, or nullptr when the offer is gone.
     virtual content::WebContents* AdoptContents(const std::string& page,
@@ -84,9 +84,8 @@ class EngineBinding {
     // Hosts the view of the inspector docked on `page`, or none when
     // `frontend` is null.
     virtual void DockInspector(const std::string& page, content::WebContents* frontend) = 0;
-    // The engine profile `profile` names, once it is loaded. TRANSITIONAL
-    // until the profiles move into the binding.
-    virtual Profile* ProfileFor(const std::string& profile) = 0;
+    // Closes the pages and Browsers of the profiles being let go of.
+    virtual void ReleaseProfiles(const std::set<std::string>& profiles) = 0;
     // Closes the side panels the shell hosts for `extension` in `profile`'s
     // pages, or only for the tab `tab` names.
     virtual void RetractSidePanels(Profile* profile, const std::string& extension, std::optional<int> tab) = 0;
@@ -123,8 +122,13 @@ class EngineBinding {
   void RefreshStoreListings();
   // The shell hosts the view of the inspector docked on `page`, or none.
   void DockInspector(const std::string& page, content::WebContents* frontend);
-  // Every profile's extensions.
+  // The engine profiles, and every profile's extensions.
+  EngineProfiles& Profiles();
   EngineExtensions& Extensions();
+  // The regular profile a private window's pages derive from, which the
+  // window names when it opens. TRANSITIONAL: which profile it is is a rule
+  // for the core.
+  void SetPrivateSourceProfile(const std::string& profile);
   // What the binding's pages ask the person.
   EnginePrompts& Prompts();
   // The prompt for a permission request in the page that shows `contents`,
@@ -205,11 +209,14 @@ class EngineBinding {
   bool Handle(const engine::AnswerJavaScriptDialog& request);
   bool Handle(const engine::AnswerAuthentication& request);
   bool Handle(const engine::AnswerPermission& request);
+  bool Handle(const engine::PrepareProfile& request);
+  bool Handle(const engine::DeleteProfile& request);
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
   void Create(const engine::CreatePage& creation, bool standalone);
   void CreateNow(const std::string& page);
+  void ProfileLoaded(const std::string& page, Profile* profile);
   void Created(const std::string& page, content::WebContents* contents);
   void Live(EnginePage& page, content::WebContents* contents);
   void Close(const engine::ClosePage& closing);
@@ -230,6 +237,8 @@ class EngineBinding {
   // The pages the engine could not create, until the core closes them, so a
   // platform that comes to one late still hears it has no view.
   std::set<std::string> failed_;
+  std::unique_ptr<EngineProfiles> profiles_;
+  std::string private_source_;
   std::unique_ptr<EngineExtensions> extensions_;
   std::unique_ptr<EnginePrompts> prompts_;
   std::deque<Outgoing> queue_;

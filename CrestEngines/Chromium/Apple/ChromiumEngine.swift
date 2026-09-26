@@ -24,6 +24,10 @@
         private(set) var pages: NativeEnginePages!
         /// Each page this hosts, while its owner keeps it.
         private var hosted: [UUID: WeakNativePage] = [:]
+        /// What waits for the binding's profiles: each preparation and deletion by
+        /// its identity.
+        private var preparations: [UUID: CheckedContinuation<Bool, Never>] = [:]
+        private var deletions: [UUID: CheckedContinuation<Bool, Never>] = [:]
 
         // MARK: - Initializers
 
@@ -53,6 +57,34 @@
             return native
         }
 
+        // MARK: - Actions - Profiles
+
+        /// Loads a Space's profile so its extensions can be listed before anything
+        /// opens in it; answers whether it is ready.
+        func prepareProfile(_ profileID: UUID) async -> Bool {
+            let preparationID = UUID()
+            return await withCheckedContinuation { continuation in
+                guard pages.request(PrepareProfile(profileID: profileID, preparationID: preparationID)) else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                preparations[preparationID] = continuation
+            }
+        }
+
+        /// Deletes a Space's profile and its data; answers whether it is gone.
+        func deleteProfile(_ profileID: UUID, ephemeral: Bool) async -> Bool {
+            let deletionID = UUID()
+            return await withCheckedContinuation { continuation in
+                guard pages.request(DeleteProfile(profileID: profileID, ephemeral: ephemeral, deletionID: deletionID))
+                else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                deletions[deletionID] = continuation
+            }
+        }
+
         func icon(of pageID: UUID) -> Data? {
             pages.request(PageIcon(pageID: pageID)).image
         }
@@ -73,6 +105,11 @@
         private func present(_ presentation: EnginePresentation) {
             switch presentation {
             case .extensionsChanged: CrestChromiumRoot.extensions.refresh()
+            case .profilePrepared(let prepared):
+                preparations.removeValue(forKey: prepared.preparationID)?.resume(returning: prepared.ready)
+            case .profileDeleted(let deleted):
+                deletions.removeValue(forKey: deleted.deletionID)?.resume(returning: deleted.deleted)
+            case .profileReleased(let released): CrestChromiumRoot.profileReleased(released.profileID)
             case .sidePanelRequested(let requested): CrestChromiumRoot.routeSidePanel(requested)
             default:
                 guard let pageID = presentation.pageID else { return }
@@ -85,7 +122,7 @@
         /// The page the presentation is about, or none for a profile's.
         fileprivate var pageID: UUID? {
             switch self {
-            case .extensionsChanged: nil
+            case .extensionsChanged, .profilePrepared, .profileDeleted, .profileReleased: nil
             case .contentFullscreenChanged(let value): value.pageID
             case .contentMessagePosted(let value): value.pageID
             case .contentScriptEvaluated(let value): value.pageID

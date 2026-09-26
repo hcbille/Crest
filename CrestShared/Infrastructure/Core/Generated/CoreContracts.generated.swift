@@ -281,6 +281,9 @@ enum EnginePresentation: Equatable, Sendable {
     case pageViewUnavailable(PageViewUnavailable)
     case permissionRequested(PermissionRequested)
     case popupBlocked(PopupBlocked)
+    case profileDeleted(ProfileDeleted)
+    case profilePrepared(ProfilePrepared)
+    case profileReleased(ProfileReleased)
     case sidePanelRequested(SidePanelRequested)
     case siteDataCleared(SiteDataCleared)
     case stagedLinkUnavailable(StagedLinkUnavailable)
@@ -987,6 +990,14 @@ struct DeleteFolder: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let folderID: UUID
+}
+
+struct DeleteProfile: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let profileID: UUID
+    let ephemeral: Bool
+    let deletionID: UUID
 }
 
 struct DeleteTab: Intent, SessionIntent, Equatable, Sendable {
@@ -2509,8 +2520,20 @@ struct PopupBlocked: Equatable, Sendable {
     let pageURL: String
 }
 
+struct PrepareProfile: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let profileID: UUID
+    let preparationID: UUID
+}
+
 struct PrivateWorkspaceBoundary: Equatable, Sendable {
     let destinationWorkspaceID: UUID
+}
+
+struct ProfileDeleted: Equatable, Sendable {
+    let deletionID: UUID
+    let deleted: Bool
 }
 
 struct ProfileInUse: Equatable, Sendable {
@@ -2519,6 +2542,15 @@ struct ProfileInUse: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Another Space already uses this Space’s browsing data.")
     }
+}
+
+struct ProfilePrepared: Equatable, Sendable {
+    let preparationID: UUID
+    let ready: Bool
+}
+
+struct ProfileReleased: Equatable, Sendable {
+    let profileID: UUID
 }
 
 struct PromoteTransientPage: Intent, SessionIntent, Equatable, Sendable {

@@ -160,7 +160,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         let chromium = ChromiumEngine(host: host, table: binding, fingerprint: fingerprint, pages: pages)
         self.chromium = chromium
         application = try BrowserMacApplication(pageClosePreparation: ChromiumPageClosePreparer(host: host),
-            profileRemover: ChromiumProfileRemover(host: host),
+            profileRemover: ChromiumProfileRemover(engine: chromium),
             defaultEngine: chromium,
             // Site Controls is where a keyboard-triggered extension popup opens
             // when the extension has no pinned tile to anchor to.
@@ -203,11 +203,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         host.setBrowserObserver { [weak self] values in
             MainActor.assumeIsolated {
                 let values = ChromiumInternalURL.presentedValues(values)
-                if let profileID = values["deletedProfile"] as? String {
-                    Self.extensions.refresh()
-                    if self?.privateSourceProfile?.uuidString == profileID { self?.privateWindow?.close() }
-                    return
-                }
                 guard let self, let token = values["adoptionId"] as? String else { return }
                 guard let adoption = BrowserEnginePageAdoption(chromiumValues: values) else {
                     host.rejectAdoption(token)
@@ -220,6 +215,13 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
                 host.rejectAdoption(token)
             }
         }
+    }
+
+    /// The engine let go of a profile: its Space's extensions went with it, and
+    /// a private window derived from it has nothing left to browse in.
+    static func profileReleased(_ profileID: UUID) {
+        extensions.refresh()
+        if instance?.privateSourceProfile == profileID { instance?.privateWindow?.close() }
     }
 
     static var extensionSpaces: [BrowserSpace] { hostCommands?.extensionSpaces ?? [] }

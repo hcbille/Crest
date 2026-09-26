@@ -3,15 +3,10 @@ import Foundation
 
 @MainActor
 struct ChromiumProfileRemover: BrowserEngineProfileRemoving {
-    let host: any CrestChromiumEngineHost
+    let engine: ChromiumEngine
 
     func removeProfile(_ profile: BrowsingProfile, ephemeral: Bool) async throws {
-        let deleted = await withCheckedContinuation { continuation in
-            host.deleteProfile(profile.id.uuidString, ephemeral: ephemeral) { deleted in
-                continuation.resume(returning: deleted)
-            }
-        }
-        guard deleted else { throw RemovalError.failed }
+        guard await engine.deleteProfile(profile.id, ephemeral: ephemeral) else { throw RemovalError.failed }
     }
 
     private enum RemovalError: LocalizedError {

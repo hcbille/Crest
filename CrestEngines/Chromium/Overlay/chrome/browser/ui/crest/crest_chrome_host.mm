@@ -37,6 +37,7 @@
 #include "content/public/browser/restore_type.h"
 #include "chrome/browser/ui/crest/crest_permission_prompt.h"
 #include "chrome/browser/ui/crest/crest_engine_extensions.h"
+#include "chrome/browser/ui/crest/crest_engine_profiles.h"
 #include "chrome/browser/ui/crest/crest_extension_prompt.h"
 #include "extensions/browser/crx_installer.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
@@ -508,12 +509,10 @@ struct PendingLinkNavigation {
   uint64_t revision;
   uint64_t generation;
 };
-class NativeProfileDeletion;
 struct HostState {
   const base::Time started_at = base::Time::Now();
   void (^extension_review)(NSDictionary<NSString*, id>*, NSWindow*, void (^)(BOOL, BOOL));
   Browser* bootstrap = nullptr;
-  Profile* root_profile = nullptr;
   bool started = false;
   bool disposing = false;
   bool quitting = false;
@@ -528,11 +527,6 @@ struct HostState {
   Browser* quit_browser = nullptr;
   void (^quit_preflight)(BOOL);
   std::string creating_window;
-  std::map<std::string, Profile*> profiles;
-  std::map<std::string, std::unique_ptr<ScopedProfileKeepAlive>> profile_leases;
-  std::map<std::string, std::string> creating_pages;
-  std::set<std::string> deleting_profiles;
-  std::map<std::string, std::unique_ptr<NativeProfileDeletion>> profile_deletions;
   std::map<std::string, std::unique_ptr<BrowserOwner>> browsers;
   std::map<std::string, std::unique_ptr<Page>> pages;
   // The action popup opened from a Space that has no page. A page's own popup
@@ -541,10 +535,6 @@ struct HostState {
   std::unique_ptr<ExtensionPopup> space_extension_popup;
   std::map<std::string, NativeAdoption> adoptions;
   std::map<std::string, PendingLinkNavigation> pending_link_navigations;
-  // The regular profile a private window's pages are derived from, which the
-  // window names when it opens. TRANSITIONAL: which profile it is is a rule
-  // for the core.
-  std::string private_source_profile;
   void (^browser_observation)(NSDictionary<NSString*, id>*);
   void (^download_observation)(NSDictionary<NSString*, id>*);
   void (^download_destination)(NSDictionary<NSString*, id>*, void (^)(NSString*));
@@ -614,75 +604,7 @@ void StartAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
 
 
 
-// Chromium owns the wipe, profile registry and crash-recoverable disk cleanup.
-// Keep the profile alive until the wipe and deletion marker have both completed.
 
-class NativeProfileDeletion final : public content::BrowsingDataRemover::Observer,
-                                    public ProfileAttributesStorageObserver {
- public:
-  NativeProfileDeletion(std::string id, base::FilePath path, void (^completion)(BOOL))
-      : id_(std::move(id)), path_(std::move(path)), completion_([completion copy]) {}
-  ~NativeProfileDeletion() override {
-    if (remover_) remover_->RemoveObserver(this);
-    if (observing_storage_) g_browser_process->profile_manager()->GetProfileAttributesStorage().RemoveObserver(this);
-  }
-  void Start(Profile* profile) {
-    if (!profile || State().disposing) { Finish(false); return; }
-    profile_ = profile;
-    keep_alive_ = std::make_unique<ScopedProfileKeepAlive>(profile, ProfileKeepAliveOrigin::kProfileDeletionProcess);
-    if (IsProfileDirectoryMarkedForDeletion(path_)) { Wipe(); return; }
-    auto* manager = g_browser_process->profile_manager();
-    manager->GetProfileAttributesStorage().AddObserver(this);
-    observing_storage_ = true;
-    // This first signs the profile out, preventing data deletion from being
-    // propagated by Chromium Sync, and persists its deletion marker.
-    manager->GetDeleteProfileHelper().MaybeScheduleProfileForDeletion(path_,
-        base::DoNothing(), ProfileMetrics::DELETE_PROFILE_SETTINGS);
-  }
-  void Wipe() {
-    remover_ = profile_->GetBrowsingDataRemover();
-    remover_->AddObserver(this);
-    remover_->RemoveAndReply(base::Time(), base::Time::Max(),
-        chrome_browsing_data_remover::WIPE_PROFILE,
-        chrome_browsing_data_remover::ALL_ORIGIN_TYPES, this);
-  }
-  void OnBrowsingDataRemoverDone(uint64_t failures) override {
-    remover_->RemoveObserver(this);
-    remover_ = nullptr;
-    if (failures || State().disposing) { Finish(false); return; }
-    // Do not report success while the next-launch cleanup marker is only in RAM.
-    g_browser_process->local_state()->CommitPendingWrite(base::BindOnce(
-        &NativeProfileDeletion::Finish, weak_factory_.GetWeakPtr(), true));
-  }
-  void OnProfileWasRemoved(const base::FilePath& path, const std::u16string&) override {
-    if (path != path_) return;
-    g_browser_process->profile_manager()->GetProfileAttributesStorage().RemoveObserver(this);
-    observing_storage_ = false;
-    Wipe();
-  }
-  void Finish(bool success) {
-    if (finished_) return;
-    finished_ = true;
-    auto id = id_;
-    const bool may_retry_creation = !success && !IsProfileDirectoryMarkedForDeletion(path_);
-    void (^reply)(BOOL) = completion_;
-    dispatch_async(dispatch_get_main_queue(), ^{
-      if (may_retry_creation) State().deleting_profiles.erase(id);
-      State().profile_deletions.erase(id);
-      reply(success);
-    });
-  }
- private:
-  std::string id_;
-  base::FilePath path_;
-  void (^completion_)(BOOL);
-  std::unique_ptr<ScopedProfileKeepAlive> keep_alive_;
-  raw_ptr<Profile> profile_ = nullptr;
-  raw_ptr<content::BrowsingDataRemover> remover_ = nullptr;
-  bool observing_storage_ = false;
-  bool finished_ = false;
-  base::WeakPtrFactory<NativeProfileDeletion> weak_factory_{this};
-};
 
 // Re-states Crest's install affordance on every open Chrome Web Store listing.
 
@@ -809,8 +731,7 @@ void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foregrou
   for (const auto& [id, page] : state.pages) if (page->web_contents() == contents.get()) return;
   for (const auto& [id, adoption] : state.adoptions) if (adoption.contents.get() == contents.get()) return;
   std::string profile_id;
-  for (const auto& [id, profile] : state.profiles)
-    if (profile == contents->GetBrowserContext()) { profile_id = id; break; }
+  profile_id = crest::EngineBinding::Get().Profiles().IdFor(contents->GetBrowserContext());
   if (profile_id.empty()) return;
   const std::string token = base::Uuid::GenerateRandomV4().AsLowercaseString();
   state.adoptions.emplace(token, NativeAdoption{contents, profile_id});
@@ -846,9 +767,8 @@ Browser* BrowserFor(const std::string& profile_id, const std::string& window_id)
   const std::string key = profile_id + "/" + window_id;
   if (auto found = state.browsers.find(key); found != state.browsers.end())
     return found->second->browser;
-  auto found = state.profiles.find(profile_id);
-  if (found == state.profiles.end()) return nullptr;
-  Profile* profile = found->second;
+  Profile* profile = crest::EngineBinding::Get().Profiles().Find(profile_id);
+  if (!profile) return nullptr;
   // Named before the status check as well as the creation: a window the core is
   // opening for itself is never subject to `CanCreateEngineBrowser`.
   state.creating_window = window_id;
@@ -870,10 +790,9 @@ Browser* BrowserFor(const std::string& profile_id, const std::string& window_id)
 // composition and is declined when that window is closed.
 bool RegisterEngineBrowser(Browser* browser) {
   auto& state = State();
-  std::string profile_id;
-  for (const auto& [id, profile] : state.profiles)
-    if (profile == browser->GetProfile()) { profile_id = id; break; }
-  if (profile_id.empty() || state.deleting_profiles.contains(profile_id)) return false;
+  const auto& profiles = crest::EngineBinding::Get().Profiles();
+  const std::string profile_id = profiles.IdFor(browser->GetProfile());
+  if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
   NSDictionary<NSString*, NSString*>* placement = [NSClassFromString(@"CrestRoot")
       reserveEngineWindowForProfile:base::SysUTF8ToNSString(profile_id)];
   NSString* window = placement[@"windowId"];
@@ -890,9 +809,8 @@ bool RegisterEngineBrowser(Browser* browser) {
 
 download::DownloadItem* FindDownload(NSString* profile_id, NSString* guid) {
   if (State().disposing) return nullptr;
-  auto found = State().profiles.find(base::SysNSStringToUTF8(profile_id));
-  return found == State().profiles.end() ? nullptr :
-      found->second->GetDownloadManager()->GetDownloadByGuid(base::SysNSStringToUTF8(guid));
+  Profile* profile = crest::EngineBinding::Get().Profiles().Find(base::SysNSStringToUTF8(profile_id));
+  return profile ? profile->GetDownloadManager()->GetDownloadByGuid(base::SysNSStringToUTF8(guid)) : nullptr;
 }
 
 NSString* DownloadWarningToken(download::DownloadItem* item) {
@@ -927,9 +845,8 @@ NSString* DownloadWarning(download::DownloadItem* item, bool* blocked) {
 }
 
 NSMutableDictionary<NSString*, id>* DownloadValues(download::DownloadItem* item) {
-  std::string profile_id;
-  for (const auto& [id, profile] : State().profiles)
-    if (profile == content::DownloadItemUtils::GetBrowserContext(item)) { profile_id = id; break; }
+  const std::string profile_id =
+      crest::EngineBinding::Get().Profiles().IdFor(content::DownloadItemUtils::GetBrowserContext(item));
   if (profile_id.empty()) return nil;
   auto* contents = content::DownloadItemUtils::GetWebContents(item);
   id source = NSNull.null;
@@ -1063,72 +980,10 @@ Page* FindPage(NSString* identifier) {
   auto found = State().pages.find(base::SysNSStringToUTF8(identifier));
   return found == State().pages.end() ? nullptr : found->second.get();
 }
-// Creates `page_id`'s WebContents in its engine profile, inside the Browser of
-// `window_id`, with the platform's presentation of it attached, and answers
-// it, or nullptr. A private page's profile is derived from `source_id`, the
-// regular profile its window was opened from.
-void CreatePageContents(const std::string& page_id, const std::string& profile_id, bool private_mode,
-                        const std::string& source_profile, const std::string& window_id,
-                        base::OnceCallback<void(content::WebContents*)> done) {
-  auto& state = State();
-  if (!state.root_profile || state.disposing || state.pages.contains(page_id) ||
-      state.creating_pages.contains(page_id)) {
-    std::move(done).Run(nullptr);
-    return;
-  }
-  // Reclaim observers only after their WebContents destruction callback returned.
-  std::erase_if(state.pages, [](const auto& pair) { return !pair.second->web_contents(); });
-  const std::string source_id = private_mode ? source_profile : profile_id;
-  if (!base::Uuid::ParseCaseInsensitive(profile_id).is_valid() || state.deleting_profiles.contains(profile_id) ||
-      !base::Uuid::ParseCaseInsensitive(source_id).is_valid() || state.deleting_profiles.contains(source_id)) {
-    std::move(done).Run(nullptr);
-    return;
-  }
-  state.creating_pages.emplace(page_id, profile_id);
-  auto* manager = g_browser_process->profile_manager();
-  CHECK(manager);
-  const base::FilePath path = manager->user_data_dir().AppendASCII("Crest-" + source_id);
-  manager->CreateProfileAsync(path, base::BindOnce(
-      [](std::string page_id, std::string profile_id, std::string source_id, std::string window_id,
-         bool private_mode, base::OnceCallback<void(content::WebContents*)> done, Profile* profile) {
-        auto& state = State();
-        if (!state.creating_pages.erase(page_id) || !profile || state.disposing ||
-            state.deleting_profiles.contains(profile_id) || state.deleting_profiles.contains(source_id)) {
-          std::move(done).Run(nullptr);
-          return;
-        }
-        if (!state.profiles.contains(profile_id)) {
-          // The regular source owns the OTR profile and must outlive it. No
-          // private profile path, session checkpoint, or browsing history is created.
-          state.profile_leases[profile_id] = std::make_unique<ScopedProfileKeepAlive>(
-              profile, ProfileKeepAliveOrigin::kAppWindow);
-          state.profiles[profile_id] = private_mode ? profile->GetOffTheRecordProfile(
-              Profile::OTRProfileID::CreateUnique("Crest::Private::" + profile_id), true) : profile;
-        }
-        Browser* browser = BrowserFor(profile_id, window_id);
-        if (!browser) {
-          std::move(done).Run(nullptr);
-          return;
-        }
-        // Keep the controller's initial entry until the binding supplies its
-        // first URL or restored history. Navigating to about:blank here races
-        // restoration and can leave a spurious Back entry in ordinary tabs.
-        content::WebContents::CreateParams params(state.profiles[profile_id]);
-        params.initially_hidden = true;
-        params.desired_renderer_state = content::WebContents::CreateParams::kNoRendererProcess;
-        auto owned_contents = content::WebContents::Create(params);
-        auto* contents = owned_contents.get();
-        browser->tab_strip_model()->AddWebContents(std::move(owned_contents), -1,
-            ui::PAGE_TRANSITION_AUTO_TOPLEVEL, AddTabTypes::ADD_NONE);
-        state.pages.emplace(page_id, std::make_unique<Page>(contents, browser, profile_id));
-        std::move(done).Run(contents);
-      }, page_id, profile_id, source_id, window_id, private_mode, std::move(done)));
-}
 
 // Lets a page go: the shell forgets it, then its WebContents is destroyed.
 void DisposePage(const std::string& id) {
   auto& state = State();
-  state.creating_pages.erase(id);
   auto found = state.pages.find(id);
   if (found == state.pages.end()) return;
   auto* contents = found->second->web_contents();
@@ -1140,14 +995,46 @@ void DisposePage(const std::string& id) {
   if (index >= 0) strip->DetachAndDeleteWebContentsAt(index);
 }
 
+// Closes every Browser of `profile`: an empty one at once, and one with tabs
+// by closing its tabs, which closes the Browser.
+void CloseBrowsers(Profile* profile) {
+  auto& state = State();
+  for (;;) {
+    auto owner = std::find_if(state.browsers.begin(), state.browsers.end(),
+        [&](const auto& entry) { return entry.second->browser->GetProfile() == profile; });
+    if (owner == state.browsers.end()) break;
+    Browser* browser = owner->second->browser;
+    TabStripModel* strip = browser->tab_strip_model();
+    if (strip->empty()) browser->SynchronouslyDestroyBrowser();
+    else for (int index = strip->count() - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
+  }
+}
+
 // What the Mac shell does for the portable binding. TRANSITIONAL: each part
 // moves into the binding with its area.
 class MacShell final : public crest::EngineBinding::Shell {
  public:
-  void CreateContents(const std::string& page, const std::string& profile, bool is_private,
-                      const std::string& window,
-                      base::OnceCallback<void(content::WebContents*)> created) override {
-    CreatePageContents(page, profile, is_private, State().private_source_profile, window, std::move(created));
+  // The WebContents goes in its window's Browser. The controller keeps its
+  // initial entry until the binding supplies the first address or restored
+  // history: navigating to about:blank here would race restoration and can
+  // leave a spurious Back entry.
+  content::WebContents* CreateContents(const std::string& page, Profile* profile, const std::string& profile_id,
+                                       const std::string& window) override {
+    auto& state = State();
+    if (state.disposing || state.pages.contains(page)) return nullptr;
+    // Reclaim observers only after their WebContents destruction callback returned.
+    std::erase_if(state.pages, [](const auto& pair) { return !pair.second->web_contents(); });
+    Browser* browser = BrowserFor(profile_id, window);
+    if (!browser) return nullptr;
+    content::WebContents::CreateParams params(profile);
+    params.initially_hidden = true;
+    params.desired_renderer_state = content::WebContents::CreateParams::kNoRendererProcess;
+    auto owned_contents = content::WebContents::Create(params);
+    auto* contents = owned_contents.get();
+    browser->tab_strip_model()->AddWebContents(std::move(owned_contents), -1, ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
+                                               AddTabTypes::ADD_NONE);
+    state.pages.emplace(page, std::make_unique<Page>(contents, browser, profile_id));
+    return contents;
   }
 
   content::WebContents* AdoptContents(const std::string& page, const std::string& token,
@@ -1206,9 +1093,21 @@ class MacShell final : public crest::EngineBinding::Shell {
     return true;
   }
 
-  Profile* ProfileFor(const std::string& profile_id) override {
-    auto found = State().profiles.find(profile_id);
-    return found == State().profiles.end() ? nullptr : found->second;
+  // The profiles' pages and Browsers close; the binding lets the profiles go.
+  void ReleaseProfiles(const std::set<std::string>& profiles) override {
+    auto& state = State();
+    state.space_extension_popup.reset();
+    std::vector<std::string> pages;
+    for (const auto& [key, page] : state.pages)
+      if (profiles.contains(page->profile)) pages.push_back(key);
+    for (const auto& key : pages) DisposePage(key);
+    std::erase_if(state.adoptions, [&](const auto& entry) {
+      return !entry.second.contents || profiles.contains(entry.second.profile);
+    });
+    for (const auto& id : profiles) {
+      Profile* profile = crest::EngineBinding::Get().Profiles().Find(id);
+      if (profile) CloseBrowsers(profile);
+    }
   }
 
   // Drops any open panel card for `extension_id` in `profile`, for one tab or
@@ -1349,7 +1248,7 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
 }
 - (void)setPrivateSourceProfile:(NSString*)profileID {
   CHECK(NSThread.isMainThread);
-  State().private_source_profile = base::SysNSStringToUTF8(profileID);
+  crest::EngineBinding::Get().SetPrivateSourceProfile(base::SysNSStringToUTF8(profileID));
 }
 - (void)rejectAdoption:(NSString*)adoptionID {
   CHECK(NSThread.isMainThread);
@@ -1443,9 +1342,8 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
   // than through the WebContents-scoped action runner.
   if (!anchorView.window) return NO;
   const auto profile_id = base::SysNSStringToUTF8(profileID);
-  auto found = State().profiles.find(profile_id);
-  if (found == State().profiles.end()) return NO;
-  Profile* profile = found->second;
+  Profile* profile = crest::EngineBinding::Get().Profiles().Find(profile_id);
+  if (!profile) return NO;
   Profile* owner = profile->GetOriginalProfile();
   const auto id = base::SysNSStringToUTF8(extensionID);
   const auto* extension = extensions::ExtensionRegistry::Get(owner)->enabled_extensions().GetByID(id);
@@ -1529,34 +1427,18 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
 - (void)setExtensionReview:(void (^)(NSDictionary<NSString*, id>*, NSWindow*, void (^)(BOOL, BOOL)))review {
   State().extension_review = [review copy];
 }
-- (void)prepareExtensionProfile:(NSString*)profileID completion:(void (^)(BOOL))completion {
-  const auto id = base::SysNSStringToUTF8(profileID);
-  if (!base::Uuid::ParseCaseInsensitive(id).is_valid() || State().disposing || State().deleting_profiles.contains(id)) { completion(NO); return; }
-  if (State().profiles.contains(id)) { completion(!State().profiles[id]->IsOffTheRecord()); return; }
-  auto* manager = g_browser_process->profile_manager();
-  manager->CreateProfileAsync(manager->user_data_dir().AppendASCII("Crest-" + id), base::BindOnce(
-    [](std::string id, void (^done)(BOOL), Profile* profile) {
-      if (!profile || State().disposing || State().deleting_profiles.contains(id)) { done(NO); return; }
-      if (!State().profiles.contains(id)) {
-        State().profiles[id] = profile;
-        State().profile_leases[id] = std::make_unique<ScopedProfileKeepAlive>(profile, ProfileKeepAliveOrigin::kAppWindow);
-      }
-      crest::EngineBinding::Get().Extensions().For(profile, id);
-      done(YES);
-    }, id, [completion copy]));
-}
 - (BOOL)installExtension:(NSString*)extensionID package:(NSString*)path profile:(NSString*)profileID window:(NSString*)windowID
               completion:(void (^)(BOOL, NSString*))completion {
   CHECK(NSThread.isMainThread);
   const std::string id = base::SysNSStringToUTF8(extensionID);
-  auto found = State().profiles.find(base::SysNSStringToUTF8(profileID));
+  Profile* profile = crest::EngineBinding::Get().Profiles().Find(base::SysNSStringToUTF8(profileID));
   NSWindow* window = [NSClassFromString(@"CrestRoot") windowForIdentifier:windowID];
-  if (found == State().profiles.end() || found->second->IsOffTheRecord() || !window ||
+  if (!profile || profile->IsOffTheRecord() || !window ||
       id.size() != 32 || id.find_first_not_of("abcdefghijklmnop") != std::string::npos) return NO;
-  auto prompt = std::make_unique<ExtensionInstallPrompt>(found->second, gfx::NativeWindow(window),
+  auto prompt = std::make_unique<ExtensionInstallPrompt>(profile, gfx::NativeWindow(window),
       std::make_unique<extensions::InstallPromptData>(extensions::InstallPromptData::UNSET_PROMPT_TYPE));
   prompt->SetSkipPostInstallUI(true);
-  auto installer = extensions::CrxInstaller::Create(found->second, std::move(prompt));
+  auto installer = extensions::CrxInstaller::Create(profile, std::move(prompt));
   installer->set_expected_id(id);
   installer->set_is_gallery_install(true);
   installer->set_delete_source(true);
@@ -1590,75 +1472,17 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
     }
   }
   std::erase_if(state.adoptions, [](const auto& entry) { return !entry.second.contents; });
+  auto& binding = crest::EngineBinding::Get();
   for (NSString* identifier in profileIDs) {
     const std::string id = base::SysNSStringToUTF8(identifier);
-    auto found = state.profiles.find(id);
-    if (found == state.profiles.end()) continue;
-    Profile* profile = found->second;
+    Profile* profile = binding.Profiles().Find(id);
+    if (!profile) continue;
     // Native popups may still await core adoption. Revoke them with their owner.
     std::erase_if(state.adoptions, [&](const auto& entry) { return entry.second.profile == id; });
-    for (;;) {
-      auto owner = std::find_if(state.browsers.begin(), state.browsers.end(),
-          [&](const auto& entry) { return entry.second->browser->GetProfile() == profile; });
-      if (owner == state.browsers.end()) break;
-      Browser* browser = owner->second->browser;
-      TabStripModel* strip = browser->tab_strip_model();
-      if (strip->empty()) browser->SynchronouslyDestroyBrowser();
-      else for (int index = strip->count() - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
-    }
-    crest::EngineBinding::Get().Extensions().Forget(id);
-    state.profiles.erase(found);
-    if (profile->IsOffTheRecord()) ProfileDestroyer::DestroyOTRProfileWhenAppropriate(profile);
-    state.profile_leases.erase(id);
+    CloseBrowsers(profile);
+    binding.Extensions().Forget(id);
+    binding.Profiles().Release(id);
   }
-}
-- (void)deleteProfile:(NSString*)profileID ephemeral:(BOOL)ephemeral completion:(void (^)(BOOL))completion {
-  CHECK(NSThread.isMainThread);
-  auto& state = State();
-  const std::string id = base::SysNSStringToUTF8(profileID);
-  auto* manager = g_browser_process->profile_manager();
-  if (!manager || state.disposing || !base::Uuid::ParseCaseInsensitive(id).is_valid() || state.profile_deletions.contains(id)) {
-    completion(NO); return;
-  }
-  auto found = state.profiles.find(id);
-  Profile* profile = found == state.profiles.end() ? nullptr : found->second;
-  if (ephemeral && profile && !profile->IsOffTheRecord()) { completion(NO); return; }
-  const base::FilePath path = manager->user_data_dir().AppendASCII("Crest-" + id);
-  if (profile == state.root_profile || (profile && !profile->IsOffTheRecord() && profile->GetPath() != path)) {
-    completion(NO); return;
-  }
-  state.deleting_profiles.insert(id);
-  std::set<std::string> released{id};
-  if (profile && !profile->IsOffTheRecord()) {
-    for (const auto& [key, candidate] : state.profiles)
-      if (candidate->GetOriginalProfile() == profile) released.insert(key);
-  }
-  NSMutableArray<NSString*>* pages = [NSMutableArray array];
-  NSMutableArray<NSString*>* profiles = [NSMutableArray array];
-  for (const auto& key : released) {
-    state.deleting_profiles.insert(key);
-    [profiles addObject:base::SysUTF8ToNSString(key)];
-  }
-  std::erase_if(state.creating_pages, [&](const auto& entry) { return released.contains(entry.second); });
-  for (const auto& [key, page] : state.pages)
-    if (released.contains(page->profile)) [pages addObject:base::SysUTF8ToNSString(key)];
-  // Hold the regular profile while releasing browsers and Crest's runtime leases.
-  auto keep_alive = profile && !profile->IsOffTheRecord() ?
-      std::make_unique<ScopedProfileKeepAlive>(profile, ProfileKeepAliveOrigin::kProfileDeletionProcess) : nullptr;
-  [self disposePages:pages windows:@[] releaseProfiles:profiles];
-  if (state.browser_observation) state.browser_observation(@{ @"deletedProfile": profileID });
-  if (ephemeral) { completion(YES); return; }
-  if (!manager->GetProfileAttributesStorage().GetProfileAttributesWithPath(path) &&
-      !manager->GetProfileByPath(path) && !base::PathExists(path)) { completion(YES); return; }
-  auto deletion = std::make_unique<NativeProfileDeletion>(id, path, completion);
-  auto* pending = deletion.get();
-  state.profile_deletions.emplace(id, std::move(deletion));
-  if (auto* loaded = manager->GetProfileByPath(path)) { pending->Start(loaded); return; }
-  if (IsProfileDirectoryMarkedForDeletion(path)) { pending->Finish(false); return; }
-  manager->CreateProfileAsync(path, base::BindOnce([](std::string id, Profile* loaded) {
-    auto found = State().profile_deletions.find(id);
-    if (found != State().profile_deletions.end()) found->second->Start(loaded);
-  }, id));
 }
 - (void)disposePages {
   CHECK(NSThread.isMainThread);
@@ -1682,11 +1506,8 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
       for (int index = count - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
     }
   }
-  for (const auto& [id, profile] : state.profiles)
-    if (profile->IsOffTheRecord()) ProfileDestroyer::DestroyOTRProfileWhenAppropriate(profile);
   crest::EngineBinding::Get().Extensions().Clear();
-  state.profiles.clear();
-  state.profile_leases.clear();
+  crest::EngineBinding::Get().Profiles().ReleaseAll();
 }
 - (void)prepareToClosePages:(NSArray<NSString*>*)pageIDs windows:(NSArray<NSString*>*)windowIDs
                 completion:(void (^)(BOOL))completion {
@@ -1710,7 +1531,8 @@ using CrestChromiumUIStart = void (*)(id<CrestChromiumEngineHost> host, const cr
 - (void)prepareToQuit:(void (^)(BOOL))completion {
   CHECK(NSThread.isMainThread);
   auto& state = State();
-  if (state.quit_preflight || state.close_preflight || state.disposing || !state.profile_deletions.empty()) { completion(NO); return; }
+  if (state.quit_preflight || state.close_preflight || state.disposing ||
+      crest::EngineBinding::Get().Profiles().IsDeletingAny()) { completion(NO); return; }
   state.quit_preflight = [completion copy];
   ContinueQuitPreparation(++state.quit_generation, true);
 }
@@ -2002,9 +1824,7 @@ void AppendLinkMenuItem(NSMenu* menu, content::WebContents* contents, const GURL
 bool OwnsDownload(download::DownloadItem* item) {
   if (!IsEnabled() || State().disposing || item->IsTransient() ||
       item->GetMimeType() == "application/x-chrome-extension") return false;
-  for (const auto& [id, profile] : State().profiles)
-    if (profile == content::DownloadItemUtils::GetBrowserContext(item)) return true;
-  return false;
+  return !crest::EngineBinding::Get().Profiles().IdFor(content::DownloadItemUtils::GetBrowserContext(item)).empty();
 }
 
 void PublishDownload(download::DownloadItem* item) {
@@ -2174,7 +1994,7 @@ bool IsEnabled() {
 void OnBrowserWindowCreated(Browser* browser) {
   if (!State().bootstrap) {
     State().bootstrap = browser;
-    State().root_profile = browser->GetProfile()->GetOriginalProfile();
+    crest::EngineBinding::Get().Profiles().SetRoot(browser->GetProfile()->GetOriginalProfile());
   }
   if (!State().started || !State().creating_window.empty()) return;
   if (RegisterEngineBrowser(browser)) return;
@@ -2245,10 +2065,9 @@ bool CanCreateEngineBrowser(Profile* profile) {
   // the engine's own answer stands.
   if (!IsEnabled() || !State().started || !State().creating_window.empty()) return true;
   if (State().disposing || State().quitting) return true;
-  std::string profile_id;
-  for (const auto& [id, candidate] : State().profiles)
-    if (candidate == profile) { profile_id = id; break; }
-  if (profile_id.empty() || State().deleting_profiles.contains(profile_id)) return false;
+  const auto& profiles = crest::EngineBinding::Get().Profiles();
+  const std::string profile_id = profiles.IdFor(profile);
+  if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
   NSDictionary<NSString*, NSString*>* placement = [NSClassFromString(@"CrestRoot")
       reserveEngineWindowForProfile:base::SysUTF8ToNSString(profile_id)];
   return placement[@"windowId"].length > 0 && placement[@"spaceId"].length > 0;

@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
 #include "chrome/browser/ui/crest/crest_engine_extensions.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
+#include "chrome/browser/ui/crest/crest_engine_profiles.h"
 #include "chrome/browser/ui/crest/crest_engine_prompts.h"
 #include "net/base/auth.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -102,6 +103,8 @@ void EngineBinding::Dispose() {
   due_.clear();
   extensions_.reset();
   prompts_.reset();
+  // The shell lets the profiles go once its Browsers are gone.
+  Profiles().Dispose();
   for (auto& [key, page] : pages_) {
     page->Stop();
   }
@@ -169,8 +172,18 @@ void EngineBinding::CreateNow(const std::string& key) {
   if (!page || page->phase() != EnginePage::Phase::kCreating || !shell_ || disposing_) {
     return;
   }
-  shell_->CreateContents(key, page->profile(), page->is_private(), page->window(),
-                         base::BindOnce(&EngineBinding::Created, weak_factory_.GetWeakPtr(), key));
+  Profiles().Load(page->profile(), page->is_private(), private_source_,
+                  base::BindOnce(&EngineBinding::ProfileLoaded, weak_factory_.GetWeakPtr(), key));
+}
+
+// The page's profile loaded, or could not: a page that closed, or became an
+// offered one, meanwhile gets nothing.
+void EngineBinding::ProfileLoaded(const std::string& key, Profile* profile) {
+  EnginePage* page = Find(key);
+  if (!page || page->phase() != EnginePage::Phase::kCreating || !shell_ || disposing_) {
+    return;
+  }
+  Created(key, profile ? shell_->CreateContents(key, profile, page->profile(), page->window()) : nullptr);
 }
 
 void EngineBinding::Created(const std::string& key, content::WebContents* contents) {
@@ -304,6 +317,17 @@ void EngineBinding::DockInspector(const std::string& key, content::WebContents* 
   if (shell_ && !disposing_) {
     shell_->DockInspector(key, frontend);
   }
+}
+
+EngineProfiles& EngineBinding::Profiles() {
+  if (!profiles_) {
+    profiles_ = std::make_unique<EngineProfiles>();
+  }
+  return *profiles_;
+}
+
+void EngineBinding::SetPrivateSourceProfile(const std::string& profile) {
+  private_source_ = profile;
 }
 
 EngineExtensions& EngineBinding::Extensions() {
@@ -611,18 +635,18 @@ engine::ExtensionActionList EngineBinding::Handle(const engine::PageExtensions& 
 
 engine::ExtensionActionList EngineBinding::Handle(const engine::PinnedExtensions& request) {
   const std::string profile_id = GuidText(request.profile_id);
-  Profile* profile = shell_ && !disposing_ ? shell_->ProfileFor(profile_id) : nullptr;
+  Profile* profile = disposing_ ? nullptr : Profiles().Find(profile_id);
   return profile ? Extensions().Pinned(profile, profile_id) : engine::ExtensionActionList{};
 }
 
 engine::InstalledExtensionList EngineBinding::Handle(const engine::InstalledExtensions& request) {
   const std::string profile_id = GuidText(request.profile_id);
-  Profile* profile = shell_ && !disposing_ ? shell_->ProfileFor(profile_id) : nullptr;
+  Profile* profile = disposing_ ? nullptr : Profiles().Find(profile_id);
   return profile ? Extensions().Installed(profile, profile_id) : engine::InstalledExtensionList{};
 }
 
 bool EngineBinding::Handle(const engine::ChangeExtension& request) {
-  Profile* profile = shell_ && !disposing_ ? shell_->ProfileFor(GuidText(request.profile_id)) : nullptr;
+  Profile* profile = disposing_ ? nullptr : Profiles().Find(GuidText(request.profile_id));
   return profile && Extensions().Change(profile, request.extension_id, request.change);
 }
 
@@ -656,6 +680,57 @@ bool EngineBinding::Handle(const engine::AnswerAuthentication& request) {
 
 bool EngineBinding::Handle(const engine::AnswerPermission& request) {
   return prompts_ && prompts_->Answer(request);
+}
+
+// A Space's profile loads before anything opens in it, so its extensions
+// can be listed; its extensions are followed from then on.
+bool EngineBinding::Handle(const engine::PrepareProfile& request) {
+  if (disposing_) {
+    return false;
+  }
+  const std::string id = GuidText(request.profile_id);
+  Profiles().Prepare(id, base::BindOnce(
+                             [](base::WeakPtr<EngineBinding> binding, std::string id, engine::Guid preparation,
+                                bool ready) {
+                               if (!binding) {
+                                 return;
+                               }
+                               if (ready) {
+                                 binding->Extensions().For(binding->Profiles().Find(id), id);
+                               }
+                               binding->Present(engine::ProfilePrepared{.preparation_id = preparation, .ready = ready});
+                             },
+                             weak_factory_.GetWeakPtr(), id, request.preparation_id));
+  return true;
+}
+
+// Its pages, Browsers and extensions go at once; its data after.
+bool EngineBinding::Handle(const engine::DeleteProfile& request) {
+  if (disposing_) {
+    return false;
+  }
+  const std::string id = GuidText(request.profile_id);
+  const auto released = Profiles().BeginDeletion(id, request.ephemeral);
+  if (!released) {
+    return false;
+  }
+  if (shell_) {
+    shell_->ReleaseProfiles(*released);
+  }
+  for (const std::string& profile : *released) {
+    Extensions().Forget(profile);
+    Profiles().Release(profile);
+  }
+  Present(engine::ProfileReleased{.profile_id = request.profile_id});
+  Profiles().Delete(id, request.ephemeral,
+                    base::BindOnce(
+                        [](base::WeakPtr<EngineBinding> binding, engine::Guid deletion, bool deleted) {
+                          if (binding) {
+                            binding->Present(engine::ProfileDeleted{.deletion_id = deletion, .deleted = deleted});
+                          }
+                        },
+                        weak_factory_.GetWeakPtr(), request.deletion_id));
+  return true;
 }
 
 // Reports and presentations.

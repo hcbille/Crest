@@ -2613,6 +2613,10 @@
     "2026-09-25-chromium-binding-site-services": {
       "category": "internal",
       "message": "Chromium answers a page's site services and presents its prompts from its own C++ binding"
+    },
+    "2026-09-25-chromium-binding-profiles": {
+      "category": "internal",
+      "message": "Chromium keeps Crest's engine profiles in its own C++ binding"
     }
   }
 }

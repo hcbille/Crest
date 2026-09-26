@@ -574,7 +574,7 @@
             case .javaScriptDialogRequested(let dialog): present(dialog)
             case .authenticationRequested(let challenge): present(challenge)
             case .permissionRequested(let request): present(request)
-            case .extensionsChanged, .sidePanelRequested: break
+            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileDeleted, .profileReleased: break
             case .findFinished(let finished): receive(finished)
             case .pageCaptured(let captured): receive(captured)
             case .pageExported(let exported): receive(exported)
