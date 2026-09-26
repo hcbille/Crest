@@ -2829,6 +2829,10 @@
     "2026-09-26-password-files-in-core": {
       "category": "internal",
       "message": "Password file import and export run in Crest's shared core, which keeps none of the passwords it reads or writes"
+    },
+    "2026-09-26-native-core-test-target": {
+      "category": "internal",
+      "message": "The native core's test target builds with the support files its tests use"
     }
   }
 }

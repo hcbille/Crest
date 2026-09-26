@@ -263,6 +263,11 @@ targets:
       - path: CrestTests/BrowserCoreSessionAuthorityTests.swift
       - path: CrestTests/SuspendingBrowserSpaceDataDeleter.swift
       - path: CrestTests/Support/BrowserPage+WebKitTestAccess.swift
+      - path: CrestTests/Support/BrowserInstalledRelease.swift
+      - path: CrestTests/Support/BrowserPrivacyHTTPServer.swift
+      - path: CrestTests/Support/BrowserSession+SidebarOutline.swift
+      - path: CrestTests/Support/BrowserStore+SidebarDrops.swift
+      - path: CrestTests/Support/BrowserStore+Unlocking.swift
       - path: CrestTests/Support/BrowserSession+Seed.swift
       - path: CrestTests/Support/BrowserStoredSessionHarness.swift
       - path: CrestTests/Support/StoredSyncJournal.swift
