@@ -151,8 +151,9 @@ internal sealed record ContractField(string Name, FieldType Type);
 internal sealed record RecordText(string Name, string Text, string? Comment, string? Argument);
 
 /// A sealed positional record. Its primary-constructor parameters cross the
-/// wire, followed by the values the core resolves from them: its `[Resolved]`
-/// computed properties, which the core writes and never reads back. Its
+/// wire, followed, from the core, by the values it resolves from them: its
+/// `[Resolved]` computed properties, which the core writes and never reads
+/// back, so a platform sends the fields alone, as the record's seed. Its
 /// `[Localized]` texts never cross it, and neither do its `Statics`: its public
 /// constants and static values, which Swift receives as static literals.
 internal sealed record ContractRecord(Type Type, IReadOnlyList<ContractField> Fields, IReadOnlyList<ContractField> Resolved,
@@ -162,7 +163,8 @@ internal sealed record ContractRecord(Type Type, IReadOnlyList<ContractField> Fi
 
     public string Name => Type.Name;
 
-    /// What crosses the wire, in order: the fields, then the resolved values.
+    /// What crosses the wire from the core, in order: the fields, then the
+    /// resolved values. A platform sends the fields alone.
     public IReadOnlyList<ContractField> Wire => [.. Fields, .. Resolved];
 
     /// The Apple read model keeps it as an object observed field by field.
@@ -254,6 +256,10 @@ internal sealed class ContractSchema {
     private readonly Dictionary<Type, ContractEnum> enums = [];
     private readonly Dictionary<Type, ContractSet> sets = [];
     private readonly Dictionary<ContractRoot, List<ContractMember>> roots = [];
+    /// The records a platform sends through their seeds: those a message it
+    /// sends holds that hold [Resolved] values, themselves or in a record a
+    /// field holds.
+    private readonly HashSet<Type> seeded = [];
     /// The abstract records a field narrows a root to, with their root.
     private readonly Dictionary<Type, ContractRoot> bases = [];
     private readonly NullabilityInfoContext nullability = new();
@@ -347,6 +353,7 @@ internal sealed class ContractSchema {
         foreach (var type in configurations.OrderBy(type => type.Name, StringComparer.Ordinal)) schema.DescribeRecord(type);
         foreach (var set in sets.OrderBy(type => type.Name, StringComparer.Ordinal)) schema.DescribeSet(set, set.Name);
         schema.Validate();
+        schema.FindSeeds();
         schema.Canonical = schema.Describe();
         return schema;
     }
@@ -787,6 +794,42 @@ internal sealed class ContractSchema {
                 throw new ContractSchemaException($"{narrowed.Base!.Name}: a union base needs at least one concrete member of {narrowed.Root}.");
     }
 
+    /// Marks every record that holds [Resolved] values, itself or through its
+    /// fields, then keeps those a message the platform sends holds. A message
+    /// it sends carries seeds and resolves nothing of its own.
+    private void FindSeeds() {
+        foreach (var record in records.Values.Where(record => record.Resolved.Count > 0)) {
+            if (IsSent(record))
+                throw new ContractSchemaException($"{record.Name}: a message the platform sends cannot carry [Resolved] values, which only the core computes.");
+            seeded.Add(record.Type);
+        }
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            foreach (var record in records.Values.Where(record => !seeded.Contains(record.Type) && !IsSent(record)))
+                if (record.Fields.Any(field => HoldsSeed(field.Type))) changed |= seeded.Add(record.Type);
+        }
+        var sent = new HashSet<Type>();
+        var pending = new Stack<FieldType>(records.Values.Where(IsSent).SelectMany(record => record.Fields).Select(field => field.Type));
+        while (pending.TryPop(out var type))
+            switch (type) {
+                case RecordField record when sent.Add(record.Type):
+                    foreach (var field in records[record.Type].Fields) pending.Push(field.Type);
+                    break;
+                case ListField list: pending.Push(list.Element); break;
+                case OptionalField optional: pending.Push(optional.Value); break;
+            }
+        seeded.IntersectWith(sent);
+    }
+
+    /// Whether a field of this type holds a record that has a seed.
+    public bool HoldsSeed(FieldType type) => type switch {
+        RecordField record => seeded.Contains(record.Type),
+        ListField list => HoldsSeed(list.Element),
+        OptionalField optional => HoldsSeed(optional.Value),
+        _ => false
+    };
+
     /// An observed model reads its record back through `value` and is told
     /// apart from its siblings by a GUID identity.
     private static void ValidateObserved(ContractRecord record) {
@@ -869,6 +912,19 @@ internal sealed class ContractSchema {
     public IReadOnlyList<ContractMember> Members(RootField union) =>
         union.Base is { } narrowed ? [.. roots[union.Root].Where(member => narrowed.IsAssignableFrom(member.Record.Type))] : roots[union.Root];
 
+    /// Whether the platform sends `record` as a message of one of its roots:
+    /// an intent, a query or an engine event, never received.
+    public bool IsSent(ContractRecord record) {
+        ArgumentNullException.ThrowIfNull(record);
+        return ContractRoot.All.Any(root => root.PlatformSends && roots[root].Any(member => member.Record.Type == record.Type));
+    }
+
+    /// Whether a platform builds `type` to send as its seed, which carries the
+    /// fields alone: a record a message it sends holds that holds [Resolved]
+    /// values, itself or in a record a field holds. The core resolves the rest
+    /// when it reads it, so no platform works a resolved value out.
+    public bool HasSeed(Type type) => seeded.Contains(type);
+
     /// The abstract records `type` derives from below `root`, nearest first.
     private static IEnumerable<Type> Ancestors(Type type, Type root) {
         for (var current = type.BaseType; current is not null && current != root; current = current.BaseType)
@@ -903,7 +959,7 @@ internal sealed class ContractSchema {
         foreach (var record in Records)
             text.Append("record ").Append(record.Name).Append('(')
                 .Append(string.Join(", ", record.Fields.Select(field => $"{field.Name}: {Describe(field.Type)}"))).Append(')')
-                .Append(record.Resolved.Count == 0 ? "" : $" resolved({string.Join(", ", record.Resolved.Select(field =>
+                .Append(record.Resolved.Count == 0 ? "" : $" resolved-by-core({string.Join(", ", record.Resolved.Select(field =>
                     $"{field.Name}: {Describe(field.Type)}"))})")
                 .Append(!describesData ? "" : string.Concat(record.Texts.Select(item =>
                     $" {item.Name}=localized({DescribeValue(item.Text)}, {DescribeValue(item.Comment)}, {DescribeValue(item.Argument)})")))

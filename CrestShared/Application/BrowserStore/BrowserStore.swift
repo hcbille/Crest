@@ -136,9 +136,33 @@ final class BrowserStore {
         return true
     }
 
-    /// A window over a new family holding `session`. Without `spaceID` it opens
-    /// on the launch Space and its fallback tab; with one it shows that Space
-    /// and only the `tabs` named.
+    /// A window over a new family the core opens from `seed`, whose tabs wear
+    /// the images `images` holds for the seed's tabs. Without `spaceID` it
+    /// opens on the launch Space and its fallback tab; with one it shows that
+    /// Space and only the `tabs` named.
+    convenience init(
+        seed: SessionState.Seed,
+        images: [UUID: Data] = [:],
+        showing spaceID: SpaceID? = nil,
+        tabs: [SpaceID: TabID] = [:],
+        credentialVault: any CredentialVault = InMemoryCredentialVault(),
+        browsingMode: BrowserBrowsingMode = .standard,
+        linkPreferences: BrowserLinkPreferenceStore = .shared,
+        core: CrestCore = CrestCore()
+    ) {
+        self.init(
+            opening: BrowserWindowOpening(showingSpaceID: spaceID, showingTabs: tabs, restoresTabs: spaceID == nil),
+            credentialVault: credentialVault,
+            browsingMode: browsingMode,
+            family: BrowserStoreFamily(seed: seed, images: images, browsingMode: browsingMode, core: core),
+            linkPreferences: linkPreferences,
+            core: core
+        )
+    }
+
+    /// TRANSITIONAL until the tests, previews and fixtures that still build
+    /// the session copy's values seed with `SessionState.Seed`: a window over
+    /// a new family holding `session`, whose tabs wear the images it carries.
     convenience init(
         session: BrowserSession,
         showing spaceID: SpaceID? = nil,

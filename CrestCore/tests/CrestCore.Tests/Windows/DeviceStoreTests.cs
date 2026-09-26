@@ -19,7 +19,7 @@ public sealed partial class BrowserContractsTests {
         var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
         var (installedCore, installed, _) = InstalledDefaults();
         var session = core ?? installedCore;
-        if (app.StoredSync is null) app.Send(new AdoptLegacySession(installed with { Core = Bytes(session) }, SeedDocument()));
+        if (app.StoredSync is null) app.Send(new AdoptLegacySession(installed with { Core = Bytes(session) }, SeedSession()));
         // The file's session joins the device when a launch opens it.
         var (workspace, _) = TestWorkspaces.OpenStored(app);
         var opened = app.Workspace(workspace).Current;

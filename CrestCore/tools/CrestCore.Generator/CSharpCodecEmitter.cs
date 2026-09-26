@@ -40,7 +40,7 @@ internal static class CSharpCodecEmitter {
         foreach (var root in ContractRoot.All.Where(root => root.TravelsToCore)) EmitLimits(code, schema, root);
         EmitAnswers(code, schema);
         var direct = DirectOnly(schema);
-        foreach (var record in schema.Records.Where(record => !direct.Contains(record.Type))) EmitRecord(code, record);
+        foreach (var record in schema.Records.Where(record => !direct.Contains(record.Type))) EmitRecord(code, schema, record);
         foreach (var item in schema.Enums.Where(item => !direct.Contains(item.Type))) EmitEnum(code, item);
         var tagged = schema.Sets.Where(set => !set.IsOpen && !direct.Contains(set.Type)).ToList();
         foreach (var set in tagged) EmitSet(code, set);
@@ -109,21 +109,31 @@ internal static class CSharpCodecEmitter {
         code.Append("        }\n    }\n");
     }
 
-    /// A record's resolved values follow its fields. The core computes them,
-    /// so it reads them only to pass them.
-    private static void EmitRecord(StringBuilder code, ContractRecord record) {
-        code.Append('\n').Append($"    public static {record.Name} Read{record.Name}(WireReader reader) {{\n");
+    /// A record's resolved values follow its fields from the core. It
+    /// computes them, so a reader of what it wrote passes over them. A message
+    /// the platform sends holds seeds, and a record that has one also reads and
+    /// writes it: its fields alone, with seeds in them.
+    private static void EmitRecord(StringBuilder code, ContractSchema schema, ContractRecord record) {
+        bool sent = schema.IsSent(record);
+        EmitRecordCodec(code, schema, record, record.Name, record.Wire, seeds: sent);
+        if (schema.HasSeed(record.Type)) EmitRecordCodec(code, schema, record, $"{record.Name}Seed", record.Fields, seeds: true);
+    }
+
+    private static void EmitRecordCodec(StringBuilder code, ContractSchema schema, ContractRecord record, string name,
+        IReadOnlyList<ContractField> wire, bool seeds) {
+        var passed = wire.Skip(record.Fields.Count).ToList();
+        code.Append('\n').Append($"    public static {record.Name} Read{name}(WireReader reader) {{\n");
         code.Append("        ArgumentNullException.ThrowIfNull(reader);\n");
-        code.Append(record.Resolved.Count == 0 ? "        return new " : "        var value = new ").Append(record.Name).Append('(');
-        code.Append(string.Join(",", record.Fields.Select(field => $"\n            {Read(field.Type)}")));
+        code.Append(passed.Count == 0 ? "        return new " : "        var value = new ").Append(record.Name).Append('(');
+        code.Append(string.Join(",", record.Fields.Select(field => $"\n            {Read(field.Type, schema, seeds)}")));
         code.Append(");\n");
-        foreach (var field in record.Resolved) code.Append($"        _ = {Read(field.Type)};\n");
-        if (record.Resolved.Count > 0) code.Append("        return value;\n");
+        foreach (var field in passed) code.Append($"        _ = {Read(field.Type, schema, seeds)};\n");
+        if (passed.Count > 0) code.Append("        return value;\n");
         code.Append("    }\n");
 
-        code.Append('\n').Append($"    public static void Write{record.Name}(WireWriter writer, {record.Name} value) {{\n");
+        code.Append('\n').Append($"    public static void Write{name}(WireWriter writer, {record.Name} value) {{\n");
         code.Append("        ArgumentNullException.ThrowIfNull(writer);\n        ArgumentNullException.ThrowIfNull(value);\n");
-        foreach (var field in record.Wire) code.Append(Write(field.Type, $"value.{field.Name}", "        ", field.Name));
+        foreach (var field in wire) code.Append(Write(field.Type, $"value.{field.Name}", "        ", field.Name, schema, seeds));
         code.Append("    }\n");
     }
 
@@ -202,33 +212,39 @@ internal static class CSharpCodecEmitter {
 
     #region Actions - Fields
 
-    private static string Read(FieldType type) => type switch {
+    /// A field's reader. With `seeds`, a record that has a seed reads it.
+    private static string Read(FieldType type, ContractSchema? schema = null, bool seeds = false) => type switch {
         PrimitiveField primitive => $"reader.Read{Method(primitive.Kind)}()",
         EnumField item => $"Read{item.Type.Name}(reader)",
         SetField set => $"Read{set.Type.Name}(reader)",
-        RecordField record => $"Read{record.Type.Name}(reader)",
+        RecordField record => $"Read{record.Type.Name}{Seed(record, schema, seeds)}(reader)",
         RootField { Base: { } narrowed } => $"Read{narrowed.Name}(reader)",
         RootField root => $"Read{root.Root}(reader)",
-        ListField list => $"reader.ReadList(() => {Read(list.Element)})",
-        OptionalField optional => $"reader.ReadPresence() ? ({TypeName(optional)}){Read(optional.Value)} : null",
+        ListField list => $"reader.ReadList(() => {Read(list.Element, schema, seeds)})",
+        OptionalField optional => $"reader.ReadPresence() ? ({TypeName(optional)}){Read(optional.Value, schema, seeds)} : null",
         _ => throw new ContractSchemaException($"Unknown field type {type}.")
     };
 
+    /// The suffix of the reader or writer of a record's seed, where `seeds`
+    /// asks for one and the record has one.
+    private static string Seed(RecordField record, ContractSchema? schema, bool seeds) =>
+        seeds && schema!.HasSeed(record.Type) ? "Seed" : "";
+
     /// Pattern variables in an `if` share the method's scope, so each carries
     /// the field's name as `scope`.
-    private static string Write(FieldType type, string value, string indent, string scope) => type switch {
+    private static string Write(FieldType type, string value, string indent, string scope, ContractSchema? schema = null, bool seeds = false) => type switch {
         PrimitiveField primitive => $"{indent}writer.Write{Method(primitive.Kind)}({value});\n",
         EnumField item => $"{indent}Write{item.Type.Name}(writer, {value});\n",
         SetField set => $"{indent}Write{set.Type.Name}(writer, {value});\n",
-        RecordField record => $"{indent}Write{record.Type.Name}(writer, {value});\n",
+        RecordField record => $"{indent}Write{record.Type.Name}{Seed(record, schema, seeds)}(writer, {value});\n",
         RootField root => $"{indent}Write{root.Root}(writer, {value});\n",
         ListField list => $"{indent}writer.WriteCount({value}.Count);\n"
             + $"{indent}foreach (var item{scope} in {value}) {{\n"
-            + Write(list.Element, $"item{scope}", indent + "    ", $"{scope}Item")
+            + Write(list.Element, $"item{scope}", indent + "    ", $"{scope}Item", schema, seeds)
             + $"{indent}}}\n",
         OptionalField optional => $"{indent}if ({value} is {{ }} present{scope}) {{\n"
             + $"{indent}    writer.WritePresence(true);\n"
-            + Write(optional.Value, $"present{scope}", indent + "    ", $"{scope}Value")
+            + Write(optional.Value, $"present{scope}", indent + "    ", $"{scope}Value", schema, seeds)
             + $"{indent}}} else {{\n{indent}    writer.WritePresence(false);\n{indent}}}\n",
         _ => throw new ContractSchemaException($"Unknown field type {type}.")
     };

@@ -74,6 +74,45 @@ struct Member {
 };
 void Write(engine::WireWriter& writer, Member member) { writer.WriteVarint(member.tag); }
 
+// A SessionState seed, as a platform sends a record the core resolves values
+// of: its fields alone. One Space (all 0x44) with its profile (all 0x55),
+// named Reading, with no tabs and its accent's legacy look, and nothing else.
+struct SessionSeed {};
+void Write(engine::WireWriter& writer, SessionSeed) {
+  using engine::Write;
+  writer.WriteVarint(1);
+  Write(writer, Filled(0x44));
+  Write(writer, Filled(0x55));
+  Write(writer, std::string("Reading"));
+  Write(writer, std::string("book"));
+  // The first accent, and no branding, so the accent's legacy look.
+  writer.WriteVarint(0);
+  Write(writer, false);
+  // No engine chosen, no custom engine, no custom providers and no suggestions;
+  // then the first tab cleanup, content blocking, and history, archive and
+  // download retention.
+  Write(writer, false);
+  Write(writer, false);
+  writer.WriteVarint(0);
+  Write(writer, false);
+  for (int member = 0; member < 5; member++) writer.WriteVarint(0);
+  // Offers to save passwords and sync them, not to the system's; open; saved
+  // tabs expanded and never collapsed.
+  Write(writer, true);
+  Write(writer, true);
+  Write(writer, false);
+  writer.WriteVarint(0);
+  Write(writer, true);
+  Write(writer, false);
+  // No folders, tabs, splits, archived tabs or history; no default Space,
+  // seed marker, Space deletion or app preferences.
+  for (int list = 0; list < 5; list++) writer.WriteVarint(0);
+  Write(writer, false);
+  Write(writer, false);
+  writer.WriteVarint(0);
+  Write(writer, false);
+}
+
 // An intent spelled with the codec's writer: its tag, then its fields.
 template <typename... Fields>
 std::vector<uint8_t> Intent(uint32_t tag, const Fields&... fields) {
@@ -206,16 +245,9 @@ void EngineBoundary() {
   Drained(app);
 
   // A workspace opened from a seed, with a window open over it.
-  const char* space_id = "44444444-4444-4444-4444-444444444444";
-  const char* profile_id = "55555555-5555-5555-5555-555555555555";
-  char json[1024];
-  const int size = std::snprintf(json, sizeof(json),
-      "{\"spaces\":[{\"id\":{\"rawValue\":\"%s\"},\"profile\":{\"id\":\"%s\"},\"name\":\"Reading\",\"tabs\":[],"
-      "\"folders\":[],\"history\":[],\"archivedTabs\":[]}]}", space_id, profile_id);
-  assert(size > 0 && static_cast<size_t>(size) < sizeof(json));
-  // OpenWorkspace: WorkspaceKind.Persistent, then the seed as a byte string.
-  const std::vector<uint8_t> opened = Dispatched(app, Intent(CREST_INTENT_OPEN_WORKSPACE, Member{0},
-      std::optional<engine::Bytes>(engine::Bytes(json, json + size))));
+  // OpenWorkspace: WorkspaceKind.Persistent, then the seed.
+  const std::vector<uint8_t> opened =
+      Dispatched(app, Intent(CREST_INTENT_OPEN_WORKSPACE, Member{0}, std::optional<SessionSeed>(SessionSeed{})));
   assert(opened[0] == 1 && opened[1] == CREST_CHANGE_WORKSPACE_OPENED);
   engine::Guid workspace;
   std::memcpy(workspace.data(), opened.data() + 2, 16);

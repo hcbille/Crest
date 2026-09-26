@@ -296,7 +296,7 @@ final class BrowserOnboardingFlow {
             }
             _ = try browser.core.send(
                 ReviewImport(
-                    source: application, spaces: output.imported,
+                    source: application, spaces: output.imported.map(\.seed),
                     passwordCounts: counts.map { ImportPasswordCount(sourceSpaceID: $0.key, count: $0.value) }))
         } catch {
             send(FailImport(source: application, reason: .read, detail: error.personFacingDescription))

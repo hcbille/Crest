@@ -72,7 +72,7 @@ public sealed unsafe partial class BrowserContractsTests {
     /// when the installed release kept that session whole, with `journal`.
     private static AdoptLegacySession Adoption(JsonObject document, JsonObject? journal = null) =>
         new(new LegacySession(Core: null, WholeGraph: Bytes(document), History: [], journal is null ? null : Bytes(journal)),
-            Seed: Bytes(document));
+            Seed: null);
 
     /// Drains `app` until `done` holds for what arrived, starting from the
     /// changes an intent already `answered`: a change the core started

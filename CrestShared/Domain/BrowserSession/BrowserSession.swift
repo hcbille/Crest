@@ -64,29 +64,6 @@ extension BrowserSession {
         )
     }
 
-    static var freshInstallSeed: BrowserSession {
-        let tab = BrowserTab.startPage()
-        let accent = SpaceAccent.indigo
-        let symbol = "person.fill"
-        // The very first Space a reader ever sees wears a shipped palette, so the
-        // fresh install already looks like the swatch row it can be re-dressed
-        // from. Winter is the quietest of the nine.
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Personal",
-            symbol: symbol,
-            accent: accent,
-            branding: .house(.winter, symbol: symbol),
-            folders: [],
-            tabs: [tab]
-        )
-        return BrowserSession(
-            spaces: [space],
-            disposableSeedMarker: UUID()
-        )
-    }
-
     static func privateBrowsing() -> BrowserSession {
         let tab = BrowserTab.startPage()
         let space = BrowserSpace(

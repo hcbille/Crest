@@ -149,7 +149,11 @@ The core publishes typed changes and never resends unchanged state. It
 derives them by comparing each accepted state with the one before, never
 from hand-written change lists, so no change can be forgotten. Changes are
 named for the state they change and carry resolved values: a tab arrives with
-its icon mode already decided, so no UI works out a rule again. The model is
+its icon mode already decided, so no UI works out a rule again. Resolved
+values travel only from the core: a platform that builds such a record to
+send, such as the session a launch without a file opens from, builds its
+generated seed, the record's fields alone, and the core resolves the rest
+when it reads it. The model is
 keyed by workspace, because persistent, private, borrowed and Quick Window
 sessions all live at once. Changes caused by an intent come back with the
 call, after any changes still pending from earlier, so an older change can

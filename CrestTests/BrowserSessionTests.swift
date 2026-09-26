@@ -161,7 +161,7 @@ final class BrowserSessionTests: XCTestCase {
         session.spaces[0].archivedTabs = [
             ArchivedTab(
                 tab: BrowserTab.startPage(),
-                archivedAt: .distantPast,
+                archivedAt: Date(timeIntervalSince1970: 0),
                 reason: .closed
             ),
             ArchivedTab(
@@ -170,7 +170,7 @@ final class BrowserSessionTests: XCTestCase {
                     url: URL(string: "https://example.com/recoverable"),
                     placement: .current
                 ),
-                archivedAt: .distantPast,
+                archivedAt: Date(timeIntervalSince1970: 0),
                 reason: .closed
             ),
         ]
@@ -664,15 +664,15 @@ final class BrowserSessionTests: XCTestCase {
                 url: URL(string: "https://example.com/archived"),
                 placement: .saved
             ),
-            archivedAt: .distantPast,
+            archivedAt: Date(timeIntervalSince1970: 0),
             reason: .closed
         )
         let history = (0...BrowserSession.maximumHistoryEntriesPerSpace).map { index in
             BrowserHistoryEntry(
                 url: URL(string: "https://example.com/\(index)")!,
                 title: "Visit \(index)",
-                firstVisitedAt: .distantPast,
-                lastVisitedAt: .distantPast
+                firstVisitedAt: Date(timeIntervalSince1970: 0),
+                lastVisitedAt: Date(timeIntervalSince1970: 0)
             )
         }
         let space = BrowserSpace(

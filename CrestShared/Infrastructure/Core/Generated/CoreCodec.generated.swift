@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xc6, 0x2d, 0x3d, 0xcc, 0x7e, 0xa3, 0x18, 0x57, 0xf4, 0xd0, 0x2d, 0x74, 0x62, 0x3f, 0x8b, 0x91, 0x3b, 0xb9, 0xde, 0x62, 0xe1, 0x22, 0x86, 0x52, 0x2f, 0x46, 0x0c, 0x3b, 0xab, 0x4f, 0x62, 0xfd
+        0xf8, 0xe8, 0x51, 0x85, 0x40, 0xbd, 0xdf, 0x0e, 0xf2, 0xd3, 0xbf, 0x5b, 0x19, 0xac, 0x2e, 0x0a, 0xe0, 0x33, 0x27, 0xa1, 0x16, 0x20, 0x98, 0x13, 0xc2, 0x46, 0x27, 0x3e, 0xc6, 0xff, 0x75, 0x39
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -259,41 +259,42 @@ enum CoreCodec {
         case 24: return try ExternalWebLink(from: &reader)
         case 25: return try FallbackTab(from: &reader)
         case 26: return try FindImportData(from: &reader)
-        case 27: return try FixtureServerTrust(from: &reader)
-        case 28: return try HistoryAddresses(from: &reader)
-        case 29: return try ImportPreview(from: &reader)
-        case 30: return try LanguagesMatching(from: &reader)
-        case 31: return try LaunchIsolation(from: &reader)
-        case 32: return try LaunchPlan(from: &reader)
-        case 33: return try LinkNavigation(from: &reader)
-        case 34: return try MediaSessionOrder(from: &reader)
-        case 35: return try MediaSessionReport(from: &reader)
-        case 36: return try MostRecentCredential(from: &reader)
-        case 37: return try NormalizeBranding(from: &reader)
-        case 38: return try NotificationPermissionRequest(from: &reader)
-        case 39: return try NumberedSelections(from: &reader)
-        case 40: return try OpenedWindowSelection(from: &reader)
-        case 41: return try PaletteSuggestions(from: &reader)
-        case 42: return try PasskeyAccess(from: &reader)
-        case 43: return try PendingSave(from: &reader)
-        case 44: return try PendingUploads(from: &reader)
-        case 45: return try PresentPage(from: &reader)
-        case 46: return try ReadArchive(from: &reader)
-        case 47: return try ReadImport(from: &reader)
-        case 48: return try RecordsToUpload(from: &reader)
-        case 49: return try ResolveAddress(from: &reader)
-        case 50: return try RouteExternalLink(from: &reader)
-        case 51: return try SamePage(from: &reader)
-        case 52: return try SchemeHandling(from: &reader)
-        case 53: return try SecureOriginCheck(from: &reader)
-        case 54: return try SelectionPreview(from: &reader)
-        case 55: return try SelectionSearch(from: &reader)
-        case 56: return try SiteDecision(from: &reader)
-        case 57: return try SplitJoinCandidate(from: &reader)
-        case 58: return try StrongPassword(from: &reader)
-        case 59: return try SystemPasswordOffer(from: &reader)
-        case 60: return try SystemPasswordWriteThrough(from: &reader)
-        case 61: return try TranslationChoice(from: &reader)
+        case 27: return try FirstInstallSession(from: &reader)
+        case 28: return try FixtureServerTrust(from: &reader)
+        case 29: return try HistoryAddresses(from: &reader)
+        case 30: return try ImportPreview(from: &reader)
+        case 31: return try LanguagesMatching(from: &reader)
+        case 32: return try LaunchIsolation(from: &reader)
+        case 33: return try LaunchPlan(from: &reader)
+        case 34: return try LinkNavigation(from: &reader)
+        case 35: return try MediaSessionOrder(from: &reader)
+        case 36: return try MediaSessionReport(from: &reader)
+        case 37: return try MostRecentCredential(from: &reader)
+        case 38: return try NormalizeBranding(from: &reader)
+        case 39: return try NotificationPermissionRequest(from: &reader)
+        case 40: return try NumberedSelections(from: &reader)
+        case 41: return try OpenedWindowSelection(from: &reader)
+        case 42: return try PaletteSuggestions(from: &reader)
+        case 43: return try PasskeyAccess(from: &reader)
+        case 44: return try PendingSave(from: &reader)
+        case 45: return try PendingUploads(from: &reader)
+        case 46: return try PresentPage(from: &reader)
+        case 47: return try ReadArchive(from: &reader)
+        case 48: return try ReadImport(from: &reader)
+        case 49: return try RecordsToUpload(from: &reader)
+        case 50: return try ResolveAddress(from: &reader)
+        case 51: return try RouteExternalLink(from: &reader)
+        case 52: return try SamePage(from: &reader)
+        case 53: return try SchemeHandling(from: &reader)
+        case 54: return try SecureOriginCheck(from: &reader)
+        case 55: return try SelectionPreview(from: &reader)
+        case 56: return try SelectionSearch(from: &reader)
+        case 57: return try SiteDecision(from: &reader)
+        case 58: return try SplitJoinCandidate(from: &reader)
+        case 59: return try StrongPassword(from: &reader)
+        case 60: return try SystemPasswordOffer(from: &reader)
+        case 61: return try SystemPasswordWriteThrough(from: &reader)
+        case 62: return try TranslationChoice(from: &reader)
         default: throw WireError.malformed("Unknown Query tag \(tag)")
         }
     }
@@ -1565,13 +1566,24 @@ extension AddressCompletion {
 extension AdoptLegacySession {
     init(from reader: inout WireReader) throws(WireError) {
         let installed = try LegacySession(from: &reader)
-        let seed = try reader.readData()
+        let seed: SessionState.Seed?
+        if try reader.readPresence() {
+            let seedValue = try SessionState.Seed(from: &reader)
+            seed = seedValue
+        } else {
+            seed = nil
+        }
         self.init(installed: installed, seed: seed)
     }
 
     func encode(into writer: inout WireWriter) {
         installed.encode(into: &writer)
-        writer.writeData(seed)
+        if let present0 = seed {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
     }
 
     func encodeIntent(into writer: inout WireWriter) {
@@ -2203,6 +2215,21 @@ extension ArchiveTransientPage {
 extension ArchivedTabState {
     init(from reader: inout WireReader) throws(WireError) {
         let tab = try TabState(from: &reader)
+        let archivedAt = try reader.readDate()
+        let reason = try ArchiveReason(from: &reader)
+        self.init(tab: tab, archivedAt: archivedAt, reason: reason)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        tab.encode(into: &writer)
+        writer.writeDate(archivedAt)
+        reason.encode(into: &writer)
+    }
+}
+
+extension ArchivedTabState.Seed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tab = try TabState.Seed(from: &reader)
         let archivedAt = try reader.readDate()
         let reason = try ArchiveReason(from: &reader)
         self.init(tab: tab, archivedAt: archivedAt, reason: reason)
@@ -7263,6 +7290,25 @@ extension FinishUnlockingSpace {
     }
 }
 
+extension FirstInstallSession {
+    init(from reader: inout WireReader) throws(WireError) {
+        self.init()
+    }
+
+    func encode(into writer: inout WireWriter) {
+    }
+
+    func encodeQuery(into writer: inout WireWriter) {
+        writer.writeTag(27)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> SessionState {
+        let answer = try SessionState(from: &reader)
+        return answer
+    }
+}
+
 extension FixtureServerTrust {
     init(from reader: inout WireReader) throws(WireError) {
         let bundleIdentifier: String?
@@ -7300,7 +7346,7 @@ extension FixtureServerTrust {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(27)
+        writer.writeTag(28)
         encode(into: &writer)
     }
 
@@ -7448,6 +7494,88 @@ extension FolderState {
         }
         writer.writeString(displaySymbol)
         displayColor.encode(into: &writer)
+    }
+}
+
+extension FolderState.Seed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let id = try reader.readUUID()
+        let location = try TabPlacement(from: &reader)
+        let title = try reader.readString()
+        let symbol: String?
+        if try reader.readPresence() {
+            let symbolValue = try reader.readString()
+            symbol = symbolValue
+        } else {
+            symbol = nil
+        }
+        let color: BrandColor?
+        if try reader.readPresence() {
+            let colorValue = try BrandColor(from: &reader)
+            color = colorValue
+        } else {
+            color = nil
+        }
+        let parentID: UUID?
+        if try reader.readPresence() {
+            let parentIDValue = try reader.readUUID()
+            parentID = parentIDValue
+        } else {
+            parentID = nil
+        }
+        let isCollapsed = try reader.readBool()
+        let collapseModifiedAt: Date?
+        if try reader.readPresence() {
+            let collapseModifiedAtValue = try reader.readDate()
+            collapseModifiedAt = collapseModifiedAtValue
+        } else {
+            collapseModifiedAt = nil
+        }
+        let orderAnchorTabID: UUID?
+        if try reader.readPresence() {
+            let orderAnchorTabIDValue = try reader.readUUID()
+            orderAnchorTabID = orderAnchorTabIDValue
+        } else {
+            orderAnchorTabID = nil
+        }
+        self.init(id: id, location: location, title: title, symbol: symbol, color: color, parentID: parentID, isCollapsed: isCollapsed, collapseModifiedAt: collapseModifiedAt, orderAnchorTabID: orderAnchorTabID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(id)
+        location.encode(into: &writer)
+        writer.writeString(title)
+        if let present0 = symbol {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = color {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = parentID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeBool(isCollapsed)
+        if let present0 = collapseModifiedAt {
+            writer.writePresence(true)
+            writer.writeDate(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = orderAnchorTabID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
     }
 }
 
@@ -7701,7 +7829,7 @@ extension HistoryAddresses {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(28)
+        writer.writeTag(29)
         encode(into: &writer)
     }
 
@@ -7877,7 +8005,7 @@ extension ImportPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(29)
+        writer.writeTag(30)
         encode(into: &writer)
     }
 
@@ -7964,10 +8092,10 @@ extension ImportSpaces {
         let workspaceID = try reader.readUUID()
         let windowID = try reader.readUUID()
         let spacesCount = try reader.readCount()
-        var spaces: [SpaceState] = []
+        var spaces: [SpaceState.Seed] = []
         spaces.reserveCapacity(spacesCount)
         for _ in 0..<spacesCount {
-            let spacesElement = try SpaceState(from: &reader)
+            let spacesElement = try SpaceState.Seed(from: &reader)
             spaces.append(spacesElement)
         }
         self.init(workspaceID: workspaceID, windowID: windowID, spaces: spaces)
@@ -8814,7 +8942,7 @@ extension LanguagesMatching {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(30)
+        writer.writeTag(31)
         encode(into: &writer)
     }
 
@@ -8900,7 +9028,7 @@ extension LaunchIsolation {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(31)
+        writer.writeTag(32)
         encode(into: &writer)
     }
 
@@ -8927,7 +9055,7 @@ extension LaunchPlan {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(32)
+        writer.writeTag(33)
         encode(into: &writer)
     }
 
@@ -9272,7 +9400,7 @@ extension LinkNavigation {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(33)
+        writer.writeTag(34)
         encode(into: &writer)
     }
 
@@ -9772,7 +9900,7 @@ extension MediaSessionOrder {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(34)
+        writer.writeTag(35)
         encode(into: &writer)
     }
 
@@ -9799,7 +9927,7 @@ extension MediaSessionReport {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(35)
+        writer.writeTag(36)
         encode(into: &writer)
     }
 
@@ -9879,7 +10007,7 @@ extension MostRecentCredential {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(36)
+        writer.writeTag(37)
         encode(into: &writer)
     }
 
@@ -10613,7 +10741,7 @@ extension NormalizeBranding {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(37)
+        writer.writeTag(38)
         encode(into: &writer)
     }
 
@@ -10667,7 +10795,7 @@ extension NotificationPermissionRequest {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(38)
+        writer.writeTag(39)
         encode(into: &writer)
     }
 
@@ -10761,7 +10889,7 @@ extension NumberedSelections {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(39)
+        writer.writeTag(40)
         encode(into: &writer)
     }
 
@@ -11119,9 +11247,9 @@ extension OpenWindow {
 extension OpenWorkspace {
     init(from reader: inout WireReader) throws(WireError) {
         let kind = try WorkspaceKind(from: &reader)
-        let seed: Data?
+        let seed: SessionState.Seed?
         if try reader.readPresence() {
-            let seedValue = try reader.readData()
+            let seedValue = try SessionState.Seed(from: &reader)
             seed = seedValue
         } else {
             seed = nil
@@ -11133,7 +11261,7 @@ extension OpenWorkspace {
         kind.encode(into: &writer)
         if let present0 = seed {
             writer.writePresence(true)
-            writer.writeData(present0)
+            present0.encode(into: &writer)
         } else {
             writer.writePresence(false)
         }
@@ -11167,7 +11295,7 @@ extension OpenedWindowSelection {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(40)
+        writer.writeTag(41)
         encode(into: &writer)
     }
 
@@ -12287,7 +12415,7 @@ extension PaletteSuggestions {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(41)
+        writer.writeTag(42)
         encode(into: &writer)
     }
 
@@ -12312,7 +12440,7 @@ extension PasskeyAccess {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(42)
+        writer.writeTag(43)
         encode(into: &writer)
     }
 
@@ -12342,7 +12470,7 @@ extension PendingSave {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(43)
+        writer.writeTag(44)
         encode(into: &writer)
     }
 
@@ -12403,7 +12531,7 @@ extension PendingUploads {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(44)
+        writer.writeTag(45)
         encode(into: &writer)
     }
 
@@ -12714,7 +12842,7 @@ extension PresentPage {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(45)
+        writer.writeTag(46)
         encode(into: &writer)
     }
 
@@ -12871,7 +12999,7 @@ extension ReadArchive {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(46)
+        writer.writeTag(47)
         encode(into: &writer)
     }
 
@@ -12903,7 +13031,7 @@ extension ReadImport {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(47)
+        writer.writeTag(48)
         encode(into: &writer)
     }
 
@@ -13007,7 +13135,7 @@ extension RecordsToUpload {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(48)
+        writer.writeTag(49)
         encode(into: &writer)
     }
 
@@ -13691,7 +13819,7 @@ extension ResolveAddress {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(49)
+        writer.writeTag(50)
         encode(into: &writer)
     }
 
@@ -13851,10 +13979,10 @@ extension ReviewImport {
     init(from reader: inout WireReader) throws(WireError) {
         let source = try ImportSource(from: &reader)
         let spacesCount = try reader.readCount()
-        var spaces: [SpaceState] = []
+        var spaces: [SpaceState.Seed] = []
         spaces.reserveCapacity(spacesCount)
         for _ in 0..<spacesCount {
-            let spacesElement = try SpaceState(from: &reader)
+            let spacesElement = try SpaceState.Seed(from: &reader)
             spaces.append(spacesElement)
         }
         let passwordCountsCount = try reader.readCount()
@@ -13898,7 +14026,7 @@ extension RouteExternalLink {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(50)
+        writer.writeTag(51)
         encode(into: &writer)
     }
 
@@ -13921,7 +14049,7 @@ extension SamePage {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(51)
+        writer.writeTag(52)
         encode(into: &writer)
     }
 
@@ -14036,7 +14164,7 @@ extension SchemeHandling {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(52)
+        writer.writeTag(53)
         encode(into: &writer)
     }
 
@@ -14120,7 +14248,7 @@ extension SecureOriginCheck {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(53)
+        writer.writeTag(54)
         encode(into: &writer)
     }
 
@@ -14334,7 +14462,7 @@ extension SelectionPreview {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(54)
+        writer.writeTag(55)
         encode(into: &writer)
     }
 
@@ -14359,7 +14487,7 @@ extension SelectionSearch {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(55)
+        writer.writeTag(56)
         encode(into: &writer)
     }
 
@@ -14491,6 +14619,76 @@ extension SessionState {
         spaces.reserveCapacity(spacesCount)
         for _ in 0..<spacesCount {
             let spacesElement = try SpaceState(from: &reader)
+            spaces.append(spacesElement)
+        }
+        let defaultSpaceID: UUID?
+        if try reader.readPresence() {
+            let defaultSpaceIDValue = try reader.readUUID()
+            defaultSpaceID = defaultSpaceIDValue
+        } else {
+            defaultSpaceID = nil
+        }
+        let disposableSeedMarker: UUID?
+        if try reader.readPresence() {
+            let disposableSeedMarkerValue = try reader.readUUID()
+            disposableSeedMarker = disposableSeedMarkerValue
+        } else {
+            disposableSeedMarker = nil
+        }
+        let spaceDeletionsCount = try reader.readCount()
+        var spaceDeletions: [SpaceDeletionState] = []
+        spaceDeletions.reserveCapacity(spaceDeletionsCount)
+        for _ in 0..<spaceDeletionsCount {
+            let spaceDeletionsElement = try SpaceDeletionState(from: &reader)
+            spaceDeletions.append(spaceDeletionsElement)
+        }
+        let appPreferences: AppPreferences?
+        if try reader.readPresence() {
+            let appPreferencesValue = try AppPreferences(from: &reader)
+            appPreferences = appPreferencesValue
+        } else {
+            appPreferences = nil
+        }
+        self.init(spaces: spaces, defaultSpaceID: defaultSpaceID, disposableSeedMarker: disposableSeedMarker, spaceDeletions: spaceDeletions, appPreferences: appPreferences)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeCount(spaces.count)
+        for element0 in spaces {
+            element0.encode(into: &writer)
+        }
+        if let present0 = defaultSpaceID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = disposableSeedMarker {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeCount(spaceDeletions.count)
+        for element0 in spaceDeletions {
+            element0.encode(into: &writer)
+        }
+        if let present0 = appPreferences {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+    }
+}
+
+extension SessionState.Seed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let spacesCount = try reader.readCount()
+        var spaces: [SpaceState.Seed] = []
+        spaces.reserveCapacity(spacesCount)
+        for _ in 0..<spacesCount {
+            let spacesElement = try SpaceState.Seed(from: &reader)
             spaces.append(spacesElement)
         }
         let defaultSpaceID: UUID?
@@ -16056,7 +16254,7 @@ extension SiteDecision {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(56)
+        writer.writeTag(57)
         encode(into: &writer)
     }
 
@@ -16538,6 +16736,55 @@ extension SpaceSettings {
     }
 }
 
+extension SpaceSettings.Seed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let name = try reader.readString()
+        let symbol = try reader.readString()
+        let accent = try SpaceAccent(from: &reader)
+        let branding: SpaceBranding?
+        if try reader.readPresence() {
+            let brandingValue = try SpaceBranding(from: &reader)
+            branding = brandingValue
+        } else {
+            branding = nil
+        }
+        let browsingPreferences = try BrowsingPreferences(from: &reader)
+        let credentialPreferences = try CredentialPreferences(from: &reader)
+        let accessPolicy = try SpaceAccessPolicy(from: &reader)
+        let isSavedTabsExpanded = try reader.readBool()
+        let savedTabsExpansionModifiedAt: Date?
+        if try reader.readPresence() {
+            let savedTabsExpansionModifiedAtValue = try reader.readDate()
+            savedTabsExpansionModifiedAt = savedTabsExpansionModifiedAtValue
+        } else {
+            savedTabsExpansionModifiedAt = nil
+        }
+        self.init(name: name, symbol: symbol, accent: accent, branding: branding, browsingPreferences: browsingPreferences, credentialPreferences: credentialPreferences, accessPolicy: accessPolicy, isSavedTabsExpanded: isSavedTabsExpanded, savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeString(name)
+        writer.writeString(symbol)
+        accent.encode(into: &writer)
+        if let present0 = branding {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        browsingPreferences.encode(into: &writer)
+        credentialPreferences.encode(into: &writer)
+        accessPolicy.encode(into: &writer)
+        writer.writeBool(isSavedTabsExpanded)
+        if let present0 = savedTabsExpansionModifiedAt {
+            writer.writePresence(true)
+            writer.writeDate(present0)
+        } else {
+            writer.writePresence(false)
+        }
+    }
+}
+
 extension SpaceSettingsChanged {
     init(from reader: inout WireReader) throws(WireError) {
         let workspaceID = try reader.readUUID()
@@ -16622,6 +16869,76 @@ extension SpaceState {
             element0.encode(into: &writer)
         }
         sidebar.encode(into: &writer)
+    }
+}
+
+extension SpaceState.Seed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let id = try reader.readUUID()
+        let profileID = try reader.readUUID()
+        let settings = try SpaceSettings.Seed(from: &reader)
+        let foldersCount = try reader.readCount()
+        var folders: [FolderState.Seed] = []
+        folders.reserveCapacity(foldersCount)
+        for _ in 0..<foldersCount {
+            let foldersElement = try FolderState.Seed(from: &reader)
+            folders.append(foldersElement)
+        }
+        let tabsCount = try reader.readCount()
+        var tabs: [TabState.Seed] = []
+        tabs.reserveCapacity(tabsCount)
+        for _ in 0..<tabsCount {
+            let tabsElement = try TabState.Seed(from: &reader)
+            tabs.append(tabsElement)
+        }
+        let splitGroupsCount = try reader.readCount()
+        var splitGroups: [SplitGroupState.Seed] = []
+        splitGroups.reserveCapacity(splitGroupsCount)
+        for _ in 0..<splitGroupsCount {
+            let splitGroupsElement = try SplitGroupState.Seed(from: &reader)
+            splitGroups.append(splitGroupsElement)
+        }
+        let archivedTabsCount = try reader.readCount()
+        var archivedTabs: [ArchivedTabState.Seed] = []
+        archivedTabs.reserveCapacity(archivedTabsCount)
+        for _ in 0..<archivedTabsCount {
+            let archivedTabsElement = try ArchivedTabState.Seed(from: &reader)
+            archivedTabs.append(archivedTabsElement)
+        }
+        let historyCount = try reader.readCount()
+        var history: [HistoryEntryState] = []
+        history.reserveCapacity(historyCount)
+        for _ in 0..<historyCount {
+            let historyElement = try HistoryEntryState(from: &reader)
+            history.append(historyElement)
+        }
+        self.init(id: id, profileID: profileID, settings: settings, folders: folders, tabs: tabs, splitGroups: splitGroups, archivedTabs: archivedTabs, history: history)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(id)
+        writer.writeUUID(profileID)
+        settings.encode(into: &writer)
+        writer.writeCount(folders.count)
+        for element0 in folders {
+            element0.encode(into: &writer)
+        }
+        writer.writeCount(tabs.count)
+        for element0 in tabs {
+            element0.encode(into: &writer)
+        }
+        writer.writeCount(splitGroups.count)
+        for element0 in splitGroups {
+            element0.encode(into: &writer)
+        }
+        writer.writeCount(archivedTabs.count)
+        for element0 in archivedTabs {
+            element0.encode(into: &writer)
+        }
+        writer.writeCount(history.count)
+        for element0 in history {
+            element0.encode(into: &writer)
+        }
     }
 }
 
@@ -16850,6 +17167,95 @@ extension SplitGroupState {
     }
 }
 
+extension SplitGroupState.Seed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let id = try reader.readUUID()
+        let customTitle: String?
+        if try reader.readPresence() {
+            let customTitleValue = try reader.readString()
+            customTitle = customTitleValue
+        } else {
+            customTitle = nil
+        }
+        let titleModifiedAt: Date?
+        if try reader.readPresence() {
+            let titleModifiedAtValue = try reader.readDate()
+            titleModifiedAt = titleModifiedAtValue
+        } else {
+            titleModifiedAt = nil
+        }
+        let customIconSymbol: String?
+        if try reader.readPresence() {
+            let customIconSymbolValue = try reader.readString()
+            customIconSymbol = customIconSymbolValue
+        } else {
+            customIconSymbol = nil
+        }
+        let iconModifiedAt: Date?
+        if try reader.readPresence() {
+            let iconModifiedAtValue = try reader.readDate()
+            iconModifiedAt = iconModifiedAtValue
+        } else {
+            iconModifiedAt = nil
+        }
+        let tint: BrandColor?
+        if try reader.readPresence() {
+            let tintValue = try BrandColor(from: &reader)
+            tint = tintValue
+        } else {
+            tint = nil
+        }
+        let tintModifiedAt: Date?
+        if try reader.readPresence() {
+            let tintModifiedAtValue = try reader.readDate()
+            tintModifiedAt = tintModifiedAtValue
+        } else {
+            tintModifiedAt = nil
+        }
+        self.init(id: id, customTitle: customTitle, titleModifiedAt: titleModifiedAt, customIconSymbol: customIconSymbol, iconModifiedAt: iconModifiedAt, tint: tint, tintModifiedAt: tintModifiedAt)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(id)
+        if let present0 = customTitle {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = titleModifiedAt {
+            writer.writePresence(true)
+            writer.writeDate(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = customIconSymbol {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = iconModifiedAt {
+            writer.writePresence(true)
+            writer.writeDate(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = tint {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = tintModifiedAt {
+            writer.writePresence(true)
+            writer.writeDate(present0)
+        } else {
+            writer.writePresence(false)
+        }
+    }
+}
+
 extension SplitGroupsChanged {
     init(from reader: inout WireReader) throws(WireError) {
         let workspaceID = try reader.readUUID()
@@ -16885,7 +17291,7 @@ extension SplitJoinCandidate {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(57)
+        writer.writeTag(58)
         encode(into: &writer)
     }
 
@@ -17201,7 +17607,7 @@ extension StrongPassword {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(58)
+        writer.writeTag(59)
         encode(into: &writer)
     }
 
@@ -17365,7 +17771,7 @@ extension SystemPasswordOffer {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(59)
+        writer.writeTag(60)
         encode(into: &writer)
     }
 
@@ -17403,7 +17809,7 @@ extension SystemPasswordWriteThrough {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(60)
+        writer.writeTag(61)
         encode(into: &writer)
     }
 
@@ -17820,6 +18226,170 @@ extension TabState {
     }
 }
 
+extension TabState.Seed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let id = try reader.readUUID()
+        let title = try reader.readString()
+        let url: String?
+        if try reader.readPresence() {
+            let urlValue = try reader.readString()
+            url = urlValue
+        } else {
+            url = nil
+        }
+        let nativeContent: NativeTabContent?
+        if try reader.readPresence() {
+            let nativeContentValue = try NativeTabContent(from: &reader)
+            nativeContent = nativeContentValue
+        } else {
+            nativeContent = nil
+        }
+        let savedURL: String?
+        if try reader.readPresence() {
+            let savedURLValue = try reader.readString()
+            savedURL = savedURLValue
+        } else {
+            savedURL = nil
+        }
+        let symbol = try reader.readString()
+        let faviconURL: String?
+        if try reader.readPresence() {
+            let faviconURLValue = try reader.readString()
+            faviconURL = faviconURLValue
+        } else {
+            faviconURL = nil
+        }
+        let iconAccent: TabIconAccent?
+        if try reader.readPresence() {
+            let iconAccentValue = try TabIconAccent(from: &reader)
+            iconAccent = iconAccentValue
+        } else {
+            iconAccent = nil
+        }
+        let storedIconMode: TabIconMode?
+        if try reader.readPresence() {
+            let storedIconModeValue = try TabIconMode(from: &reader)
+            storedIconMode = storedIconModeValue
+        } else {
+            storedIconMode = nil
+        }
+        let placement = try TabPlacement(from: &reader)
+        let folderID: UUID?
+        if try reader.readPresence() {
+            let folderIDValue = try reader.readUUID()
+            folderID = folderIDValue
+        } else {
+            folderID = nil
+        }
+        let splitGroupID: UUID?
+        if try reader.readPresence() {
+            let splitGroupIDValue = try reader.readUUID()
+            splitGroupID = splitGroupIDValue
+        } else {
+            splitGroupID = nil
+        }
+        let lastActivatedAt = try reader.readDate()
+        let positionModifiedAt: Date?
+        if try reader.readPresence() {
+            let positionModifiedAtValue = try reader.readDate()
+            positionModifiedAt = positionModifiedAtValue
+        } else {
+            positionModifiedAt = nil
+        }
+        let customTitle: String?
+        if try reader.readPresence() {
+            let customTitleValue = try reader.readString()
+            customTitle = customTitleValue
+        } else {
+            customTitle = nil
+        }
+        let titleModifiedAt: Date?
+        if try reader.readPresence() {
+            let titleModifiedAtValue = try reader.readDate()
+            titleModifiedAt = titleModifiedAtValue
+        } else {
+            titleModifiedAt = nil
+        }
+        let keepsPageLoaded = try reader.readBool()
+        self.init(id: id, title: title, url: url, nativeContent: nativeContent, savedURL: savedURL, symbol: symbol, faviconURL: faviconURL, iconAccent: iconAccent, storedIconMode: storedIconMode, placement: placement, folderID: folderID, splitGroupID: splitGroupID, lastActivatedAt: lastActivatedAt, positionModifiedAt: positionModifiedAt, customTitle: customTitle, titleModifiedAt: titleModifiedAt, keepsPageLoaded: keepsPageLoaded)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(id)
+        writer.writeString(title)
+        if let present0 = url {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = nativeContent {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = savedURL {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeString(symbol)
+        if let present0 = faviconURL {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = iconAccent {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = storedIconMode {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        placement.encode(into: &writer)
+        if let present0 = folderID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = splitGroupID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeDate(lastActivatedAt)
+        if let present0 = positionModifiedAt {
+            writer.writePresence(true)
+            writer.writeDate(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = customTitle {
+            writer.writePresence(true)
+            writer.writeString(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = titleModifiedAt {
+            writer.writePresence(true)
+            writer.writeDate(present0)
+        } else {
+            writer.writePresence(false)
+        }
+        writer.writeBool(keepsPageLoaded)
+    }
+}
+
 extension TabsChanged {
     init(from reader: inout WireReader) throws(WireError) {
         let workspaceID = try reader.readUUID()
@@ -18042,7 +18612,7 @@ extension TranslationChoice {
     }
 
     func encodeQuery(into writer: inout WireWriter) {
-        writer.writeTag(61)
+        writer.writeTag(62)
         encode(into: &writer)
     }
 

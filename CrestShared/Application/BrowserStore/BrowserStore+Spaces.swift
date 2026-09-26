@@ -69,7 +69,8 @@ extension BrowserStore {
     func importSpaces(_ spaces: [SpaceState]) throws(Rejection) {
         guard !spaces.isEmpty else { return }
         try family.importSpaces(
-            ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: spaces), from: [], issuedBy: self)
+            ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: spaces.map(\.seed)), from: [],
+            issuedBy: self)
     }
 
     /// Imports the review setup holds for this workspace, as the person chose.

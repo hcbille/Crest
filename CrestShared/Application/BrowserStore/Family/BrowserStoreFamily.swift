@@ -38,13 +38,28 @@ final class BrowserStoreFamily {
     /// one closes once its owner no longer lends its Space.
     var isOpen: Bool { core.isOpen }
 
-    /// A family over a workspace `crest` opens in memory from `session`, of
-    /// the kind `browsingMode` browses in. It keeps nothing: it is never saved
-    /// or synced.
+    /// A family over a workspace `crest` opens in memory from `seed`, of the
+    /// kind `browsingMode` browses in, whose tabs wear the images `images`
+    /// holds for the seed's tabs. It keeps nothing: it is never saved or synced.
+    convenience init(
+        seed: SessionState.Seed, images: [UUID: Data] = [:], browsingMode: BrowserBrowsingMode = .standard,
+        core crest: CrestCore
+    ) {
+        let kind: WorkspaceKind = browsingMode.isPrivate ? .private : .persistent
+        do {
+            self.init(memory: try BrowserCoreSessionAuthority.open(kind, seed: seed, images: images, in: crest))
+        } catch {
+            preconditionFailure("The core refused to open a workspace over a session it was given: \(error)")
+        }
+    }
+
+    /// TRANSITIONAL until the tests, previews and fixtures that still build
+    /// the session copy's values seed with `SessionState.Seed`: a family over
+    /// a workspace opened from `session`, whose tabs wear its images.
     convenience init(session: BrowserSession, browsingMode: BrowserBrowsingMode = .standard, core crest: CrestCore) {
         let kind: WorkspaceKind = browsingMode.isPrivate ? .private : .persistent
         do {
-            self.init(memory: try BrowserCoreSessionAuthority.open(kind, seed: session, in: crest))
+            self.init(memory: try BrowserCoreSessionAuthority.open(kind, session: session, in: crest))
         } catch {
             preconditionFailure("The core refused to open a workspace over a session it was given: \(error)")
         }

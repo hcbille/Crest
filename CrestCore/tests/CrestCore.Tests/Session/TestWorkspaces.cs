@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json.Nodes;
 
 using CrestCore.Application;
@@ -11,8 +10,9 @@ namespace CrestCore.Tests;
 internal static class TestWorkspaces {
     #region Actions - Opening
 
-    /// `session`, a document in the stored format, as the seed of an `OpenWorkspace`.
-    public static byte[] Seed(JsonNode session) => Encoding.UTF8.GetBytes(session.ToJsonString());
+    /// `session`, a document in the stored format, as the seed of an
+    /// `OpenWorkspace`, as a platform builds one.
+    public static SessionState Seed(JsonNode session) => StoredSessionCodec.DecodeSession(session);
 
     /// Opens a workspace of `kind`, persistent unless named, from `session`
     /// and answers the identity the core gave it.

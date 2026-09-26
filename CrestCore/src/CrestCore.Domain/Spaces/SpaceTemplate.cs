@@ -9,7 +9,7 @@ namespace CrestCore.Domain;
 /// and wears that accent's house look; a private one wears the private look
 /// and never offers to save or sync passwords. Both start with one Start Page
 /// tab. The Getting Started practice starts from its own Space, holding the
-/// practice tabs.
+/// practice tabs, and a first launch from the Personal Space.
 public sealed class SpaceTemplate {
     #region Static Variables
 
@@ -29,15 +29,17 @@ public sealed class SpaceTemplate {
     private static readonly BrowsingPreferences OrdinaryBrowsing = new(BuiltInSearchEngine.Google, SelectedCustomEngineId: null, [],
         SearchSuggestionsEnabled: false, CurrentTabCleanup.After12Hours, ContentBlockingPolicy.Balanced, KeepsEverything);
 
+    /// A Space that offers to save passwords and sync Crest's with iCloud.
+    private static readonly CredentialPreferences SavesPasswords = new(IsEnabled: true, SyncsCrestPasswordsWithICloud: true,
+        AlsoOffersSaveToSystemPasswords: false);
+
     /// A Space that never offers to save or sync passwords.
     private static readonly CredentialPreferences NoPasswords = new(IsEnabled: false, SyncsCrestPasswordsWithICloud: false,
         AlsoOffersSaveToSystemPasswords: false);
 
     public static readonly SpaceTemplate Ordinary = new(isPrivate: false, name: number => $"Space {number}",
         symbol: "square.grid.2x2.fill", accent: number => SpaceAccent.All[(number - 1) % SpaceAccent.All.Count],
-        look: accent => accent.House, browsing: OrdinaryBrowsing,
-        credentials: new(IsEnabled: true, SyncsCrestPasswordsWithICloud: true, AlsoOffersSaveToSystemPasswords: false),
-        tabs: StartPage);
+        look: accent => accent.House, browsing: OrdinaryBrowsing, credentials: SavesPasswords, tabs: StartPage);
 
     public static readonly SpaceTemplate Private = new(isPrivate: true, name: number => number == 1 ? "Private" : $"Private {number}",
         symbol: "eyeglasses", accent: _ => SpaceAccent.Indigo, look: _ => PrivateLook,
@@ -54,6 +56,13 @@ public sealed class SpaceTemplate {
     public static readonly SpaceTemplate Practice = new(isPrivate: false, name: _ => "Practice", symbol: "leaf.fill",
         accent: _ => SpaceAccent.Indigo, look: accent => accent.House, browsing: OrdinaryBrowsing, credentials: NoPasswords,
         tabs: (tabIds, now) => [.. PracticeTab.All.Select(tab => tab.Opened(tabIds(), now))]);
+
+    /// The one Space a first launch starts with when nothing is carried to it:
+    /// Personal, wearing the Winter house look, with one Start Page tab. No
+    /// new Space comes from it.
+    public static readonly SpaceTemplate FirstInstall = new(isPrivate: false, name: _ => "Personal", symbol: "person.fill",
+        accent: _ => SpaceAccent.Indigo, look: accent => accent.House, browsing: OrdinaryBrowsing, credentials: SavesPasswords,
+        tabs: StartPage);
 
     #endregion
 

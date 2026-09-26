@@ -112,7 +112,7 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
         do {
             let crest = try CrestCore(configuration: AppConfiguration(storageDirectory: directory.path))
             let storage = try BrowserStore.migratedStorage(
-                core: crest, legacy: legacy, favicons: favicons, seed: .freshInstallSeed)
+                core: crest, legacy: legacy, favicons: favicons, seed: nil)
             let carried = try BrowserStoredSessionHarness.storedJournal(in: directory)
             XCTAssertEqual(storage.projection, installed)
             XCTAssertTrue(storage.projection.spaces.allSatisfy { $0.tabs.contains { $0.faviconData != nil } })
@@ -122,10 +122,10 @@ final class BrowserCoreSessionRecoveryTests: XCTestCase {
         }
 
         defaults.set(
-            try JSONEncoder().encode(BrowserSession.freshInstallSeed), forKey: BrowserLegacySessionDefaults.coreKey)
+            try JSONEncoder().encode(BrowserSession.firstInstall), forKey: BrowserLegacySessionDefaults.coreKey)
         let relaunchedCore = try CrestCore(configuration: AppConfiguration(storageDirectory: directory.path))
         let relaunched = try BrowserStore.migratedStorage(
-            core: relaunchedCore, legacy: legacy, favicons: favicons, seed: .freshInstallSeed)
+            core: relaunchedCore, legacy: legacy, favicons: favicons, seed: nil)
         XCTAssertEqual(relaunched.projection, installed)
     }
 

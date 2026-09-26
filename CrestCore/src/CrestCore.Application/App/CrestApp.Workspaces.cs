@@ -1,19 +1,9 @@
-using System.Text.Json;
-using System.Text.Json.Nodes;
-
 using CrestCore.Contracts;
 using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
 public sealed partial class CrestApp {
-    #region Static Variables
-
-    /// How deep a seed's stored document may nest, as the stored format reads it.
-    private static readonly JsonDocumentOptions SeedDocument = new() { MaxDepth = 64 };
-
-    #endregion
-
     #region Actions - Workspaces
 
     /// Runs one workspace intent. What it changes joins the pending batch in
@@ -39,7 +29,7 @@ public sealed partial class CrestApp {
     /// Opens a workspace over `seed`, repaired as the file's session is when
     /// it loads. A tab the repair gave a new identity follows as `TabCopied`
     /// from the tab whose image it wears.
-    private void OpenSeeded(WorkspaceKind kind, byte[] seed) {
+    private void OpenSeeded(WorkspaceKind kind, SessionState seed) {
         var (session, copies) = Seeded(seed);
         var workspaceId = ids.Next();
         device.Attach(new NativeSessionAuthority(kind, session), workspaceId);
@@ -62,17 +52,11 @@ public sealed partial class CrestApp {
         foreach (var (source, copy) in repairedCopies) Announce(new TabCopied(workspaceId, source, copy));
     }
 
-    /// A seed in the stored format, repaired as the file's session is when it
-    /// loads, with each tab the repair gave a new identity and the tab it
-    /// came from. Throws `Rejected` with `InvalidSession` naming the first
-    /// rule it breaks that the repair cannot mend.
-    private (SessionState Session, IReadOnlyList<(Guid Source, Guid Copy)> Copies) Seeded(byte[] seed) {
-        SessionState session;
-        try {
-            session = StoredSessionCodec.DecodeSession(JsonNode.Parse(seed, documentOptions: SeedDocument));
-        } catch (Exception error) when (StoredSession.IsUndecodable(error)) {
-            throw new Rejected(new InvalidSession(SessionFlaw.Unreadable));
-        }
+    /// `session`, a seed, repaired as the file's session is when it loads,
+    /// with each tab the repair gave a new identity and the tab it came from.
+    /// Throws `Rejected` with `InvalidSession` naming the first rule it breaks
+    /// that the repair cannot mend.
+    private (SessionState Session, IReadOnlyList<(Guid Source, Guid Copy)> Copies) Seeded(SessionState session) {
         var now = StoredSessionCodec.Date(StoredSessionCodec.Seconds(clock.Now));
         SessionState repaired;
         IReadOnlyList<NativeSessionMaintenance.TabOrigin> origins;

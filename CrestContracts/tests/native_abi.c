@@ -92,7 +92,8 @@ static size_t put_bytes(uint8_t* output, size_t at, size_t capacity, const char*
 /* WorkspaceKind members travel as their index in WorkspaceKind.All. */
 enum { persistent_kind = 0, private_kind = 1, borrowed_kind = 2 };
 /* OpenWorkspace: its tag, the kind, then the seed: a presence byte and, when
- * present, a byte string holding a session in the stored format. */
+ * present, a SessionState's fields alone, as a platform sends a record the
+ * core resolves values of. */
 /* A union tag: its LEB128 varint, which takes a second byte from 128 on.
  * Answers how many bytes it took. */
 static size_t put_tag(uint8_t* output, uint32_t tag) {
@@ -104,12 +105,49 @@ static size_t put_tag(uint8_t* output, uint32_t tag) {
     } while (tag != 0);
     return at;
 }
-static size_t open_workspace(uint8_t* output, size_t capacity, uint8_t kind, const char* seed, size_t length) {
-    assert(capacity >= 4);
+static size_t open_workspace(uint8_t* output, size_t capacity, uint8_t kind, const uint8_t* seed, size_t length) {
+    assert(capacity >= 4 + length);
     size_t at = put_tag(output, CREST_INTENT_OPEN_WORKSPACE);
     output[at++] = kind;
     output[at++] = seed != NULL;
-    return seed == NULL ? at : put_bytes(output, at, capacity, seed, length);
+    if (seed != NULL) memcpy(output + at, seed, length);
+    return at + length;
+}
+/* A SessionState seed of one Space named Reading, the Space all 0x44 with the
+ * profile all 0x55, with no tabs and its accent's legacy look. Unless
+ * `deleted` is 0, it also records the deletion of the Space all `deleted`. */
+static size_t session_seed(uint8_t* output, size_t capacity, uint8_t deleted) {
+    static const uint8_t settings[] = {
+        7, 'R', 'e', 'a', 'd', 'i', 'n', 'g', 4, 'b', 'o', 'o', 'k',
+        0,             /* the first accent */
+        0,             /* no branding, so the accent's legacy look */
+        0, 0, 0, 0,    /* no engine chosen, no custom engine, no custom providers, no suggestions */
+        0, 0, 0, 0, 0, /* the first tab cleanup, content blocking, and history, archive and download retention */
+        1, 1, 0,       /* offers to save passwords and sync them, not to the system's */
+        0, 1, 0        /* open, saved tabs expanded, never collapsed */
+    };
+    size_t at = 0;
+    assert(capacity >= 1 + 37 + sizeof(settings) + 4 + 48);
+    output[at++] = 1;
+    memset(output + at, 0x44, 16);
+    memset(output + at + 16, 0x55, 16);
+    memcpy(output + at + 32, settings, sizeof(settings));
+    at += 32 + sizeof(settings);
+    /* No folders, tabs, splits, archived tabs or history, then no default
+     * Space or seed marker. */
+    memset(output + at, 0, 7);
+    at += 7;
+    /* The Space deletions: each its operation, Space and profile. */
+    output[at++] = deleted != 0;
+    if (deleted != 0) {
+        memset(output + at, 0x77, 16);
+        memset(output + at + 16, deleted, 16);
+        memset(output + at + 32, 0x78, 16);
+        at += 48;
+    }
+    /* No app preferences. */
+    output[at++] = 0;
+    return at;
 }
 /* The workspace a WorkspaceOpened at `at` names: the 16 RFC 4122 bytes after
  * its tag. Its kind follows them. */
@@ -127,7 +165,7 @@ static int journal_changed(const crest_buffer_t* buffer, size_t at, const uint8_
 }
 /* Opens a workspace of `kind` from `seed` in `app` and answers its identity:
  * the answer is its WorkspaceOpened alone. */
-static void open_seeded(uint64_t app, uint8_t kind, const char* seed, size_t length, uint8_t workspace[16]) {
+static void open_seeded(uint64_t app, uint8_t kind, const uint8_t* seed, size_t length, uint8_t workspace[16]) {
     uint8_t intent[1100];
     crest_buffer_t buffer = { NULL, 0 };
     size_t size = open_workspace(intent, sizeof(intent), kind, seed, length);
@@ -144,28 +182,24 @@ static void session_boundary(void) {
     uint64_t app = 0;
     crest_buffer_t buffer = { NULL, 0 };
     assert(crest_app_create(fingerprint, sizeof(fingerprint), memory_only, sizeof(memory_only), &app, &buffer) == CREST_OK);
-    char json[1024];
-    int size = snprintf(json, sizeof(json),
-        "{\"selectedSpaceID\":{\"rawValue\":\"%s\"},\"spaces\":[{\"id\":{\"rawValue\":\"%s\"},"
-        "\"profile\":{\"id\":\"%s\"},\"name\":\"Reading\",\"tabs\":[],\"folders\":[],"
-        "\"history\":[],\"archivedTabs\":[]}]}", space_id, space_id, profile_id);
-    assert(size > 0 && (size_t)size < sizeof(json));
-    uint8_t intent[1100];
-    /* A seed that is not a session in the stored format is refused with the
-     * flaw it has (SessionFlaw.Unreadable is 0). */
-    size_t length = open_workspace(intent, sizeof(intent), persistent_kind, "[]", 2);
+    uint8_t seed[256], intent[300];
+    /* A seed the core cannot hold is refused with the flaw it has: its Space
+     * deletion names a Space it does not hold (SessionFlaw.UnknownDeletion is 5). */
+    size_t size = session_seed(seed, sizeof(seed), 0x66);
+    size_t length = open_workspace(intent, sizeof(intent), persistent_kind, seed, size);
     assert(crest_app_dispatch(app, intent, length, &buffer) == CREST_REJECTED);
-    assert(buffer.length == 2 && buffer.bytes[0] == CREST_REJECTION_INVALID_SESSION && buffer.bytes[1] == 0);
+    assert(buffer.length == 2 && buffer.bytes[0] == CREST_REJECTION_INVALID_SESSION && buffer.bytes[1] == 5);
     crest_buffer_free(&buffer);
     /* A borrowed workspace opens only by borrowing. */
-    length = open_workspace(intent, sizeof(intent), borrowed_kind, json, (size_t)size);
+    size = session_seed(seed, sizeof(seed), 0);
+    length = open_workspace(intent, sizeof(intent), borrowed_kind, seed, size);
     assert(crest_app_dispatch(app, intent, length, &buffer) == CREST_REJECTED);
     assert(buffer.length == 2 && buffer.bytes[0] == CREST_REJECTION_BORROWED_WORKSPACE_REQUIRES_SPACE
         && buffer.bytes[1] == borrowed_kind);
     crest_buffer_free(&buffer);
 
     uint8_t workspace[16], private_workspace[16], borrowed[16];
-    open_seeded(app, persistent_kind, json, (size_t)size, workspace);
+    open_seeded(app, persistent_kind, seed, size, workspace);
     open_seeded(app, private_kind, NULL, 0, private_workspace);
     assert(memcmp(workspace, private_workspace, 16) != 0);
     /* BorrowSpace: its tag, the owner, the Space (all 0x44) and its profile
@@ -242,13 +276,10 @@ static void engine_boundary(void) {
     crest_buffer_free(&buffer);
 
     /* A workspace opened from a seed, with a window open over it. */
-    char json[1024];
-    int size = snprintf(json, sizeof(json),
-        "{\"spaces\":[{\"id\":{\"rawValue\":\"%s\"},\"profile\":{\"id\":\"%s\"},\"name\":\"Reading\",\"tabs\":[],"
-        "\"folders\":[],\"history\":[],\"archivedTabs\":[]}]}", space_id, profile_id);
-    assert(size > 0 && (size_t)size < sizeof(json));
+    uint8_t seed[128];
+    size_t size = session_seed(seed, sizeof(seed), 0);
     uint8_t workspace[16];
-    open_seeded(app, persistent_kind, json, (size_t)size, workspace);
+    open_seeded(app, persistent_kind, seed, size, workspace);
     /* OpenWindow: the window, the workspace, not saved, nothing to copy or show,
      * RestoresTabs. It answers its own WindowChanged. */
     uint8_t opening[42] = { 0 };
@@ -366,8 +397,8 @@ static void storage_boundary(void) {
         "\"tabs\":[],\"folders\":[],\"history\":[],\"archivedTabs\":[]}]}", space_id, profile_id);
     assert(size > 0 && (size_t)size < sizeof(json));
     /* AdoptLegacySession: the installed release kept the session whole
-     * (Core absent, WholeGraph present, no history parts, no journal), and the
-     * same session is the seed. */
+     * (Core absent, WholeGraph present, no history parts, no journal), and no
+     * seed stands in for it. */
     uint8_t adoption[1100];
     size_t adopted = 0;
     adoption[adopted++] = CREST_INTENT_ADOPT_LEGACY_SESSION;
@@ -376,7 +407,7 @@ static void storage_boundary(void) {
     adopted = put_bytes(adoption, adopted, sizeof(adoption), json, (size_t)size);
     adoption[adopted++] = 0;
     adoption[adopted++] = 0;
-    adopted = put_bytes(adoption, adopted, sizeof(adoption), json, (size_t)size);
+    adoption[adopted++] = 0;
     assert(crest_app_dispatch(app, adoption, adopted, &buffer) == CREST_OK);
     /* SessionAdopted, carrying no images. The answer starts with the changes
      * the core announced while the adoption ran, so the adoption's Saved comes

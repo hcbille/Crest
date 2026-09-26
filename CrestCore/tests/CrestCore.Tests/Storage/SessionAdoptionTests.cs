@@ -28,7 +28,8 @@ public sealed partial class BrowserContractsTests {
         return (core, new LegacySession(Bytes(core), WholeGraph: null, history, parts["journal"]), journal);
     }
 
-    private static byte[] SeedDocument() => Bytes(SavedSession().Document["session"]!);
+    /// The seed a platform hands an adoption, as it builds one.
+    private static SessionState SeedSession() => StoredSessionCodec.DecodeInstalledSession(SavedSession().Document["session"]!.AsObject());
 
     /// The session `app` keeps in its file, opened as a launch opens it.
     private static NativeSessionAuthority StoredSession(CrestApp app) => app.Workspace(TestWorkspaces.OpenStored(app).Workspace);
@@ -55,7 +56,7 @@ public sealed partial class BrowserContractsTests {
 
         using (var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop))) {
             Assert.Null(app.StoredSync);
-            var adopted = Assert.Single(app.Send(new AdoptLegacySession(installed, SeedDocument())).OfType<SessionAdopted>());
+            var adopted = Assert.Single(app.Send(new AdoptLegacySession(installed, SeedSession())).OfType<SessionAdopted>());
             // The split layout kept images in the platform's own store.
             Assert.Empty(adopted.Favicons);
 
@@ -84,10 +85,10 @@ public sealed partial class BrowserContractsTests {
 
         // A later launch keeps the accepted session, even when the retained
         // defaults have since changed.
-        var changed = new LegacySession(SeedDocument(), WholeGraph: null, [], installed.Journal);
+        var changed = new LegacySession(Bytes(SavedSession().Document["session"]!), WholeGraph: null, [], installed.Journal);
         using var relaunched = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
         relaunched.Drain();
-        Assert.Empty(Own(relaunched.Send(new AdoptLegacySession(changed, SeedDocument()))));
+        Assert.Empty(Own(relaunched.Send(new AdoptLegacySession(changed, SeedSession()))));
         AssertSameSession(expected, StoredDocument(relaunched));
         Assert.Equal(journal["records"]!.AsArray().Count, JsonNode.Parse(relaunched.StoredSync!.Snapshot.Read())!["records"]!.AsArray().Count);
     }
@@ -142,7 +143,7 @@ public sealed partial class BrowserContractsTests {
 
         using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
         var adopted = Assert.Single(app.Send(new AdoptLegacySession(
-            new LegacySession(Core: null, Bytes(document), [], Journal: null), SeedDocument())).OfType<SessionAdopted>());
+            new LegacySession(Core: null, Bytes(document), [], Journal: null), SeedSession())).OfType<SessionAdopted>());
 
         var favicon = Assert.Single(adopted.Favicons);
         Assert.Equal(open, favicon.TabId);
@@ -175,7 +176,7 @@ public sealed partial class BrowserContractsTests {
         core["spaces"]![0]!.AsObject().Remove("accessPolicy");
 
         using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
-        app.Send(new AdoptLegacySession(installed with { Core = Bytes(core) }, SeedDocument()));
+        app.Send(new AdoptLegacySession(installed with { Core = Bytes(core) }, SeedSession()));
 
         var spaces = StoredDocument(app)["spaces"]!.AsArray();
         Assert.Equal(core["spaces"]!.AsArray().Select(item => SpaceId(item!)), spaces.Select(item => SpaceId(item!)));
@@ -199,7 +200,7 @@ public sealed partial class BrowserContractsTests {
             var unreadable = new LegacySession(Bytes(JsonValue.Create("a core a later build may read")!), installed.Core, installed.History,
                 installed.Journal);
             using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
-            Assert.Single(app.Send(new AdoptLegacySession(unreadable, Bytes(seed))).OfType<SessionAdopted>());
+            Assert.Single(app.Send(new AdoptLegacySession(unreadable, StoredSessionCodec.DecodeInstalledSession(seed))).OfType<SessionAdopted>());
             Assert.Equal(Guid.Parse(seed["disposableSeedMarker"]!.GetValue<string>()),
                 Guid.Parse(StoredDocument(app)["disposableSeedMarker"]!.GetValue<string>()));
             Assert.True(File.Exists(directory.File + ".cloud-recovery"));
@@ -208,10 +209,29 @@ public sealed partial class BrowserContractsTests {
         }
         using (var directory = new StorageDirectory()) {
             using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
-            app.Send(new AdoptLegacySession(new LegacySession(null, null, [], installed.Journal), Bytes(seed)));
+            app.Send(new AdoptLegacySession(new LegacySession(null, null, [], installed.Journal), StoredSessionCodec.DecodeInstalledSession(seed)));
             Assert.Equal(SpaceId(seed["spaces"]![0]!), SpaceId(StoredDocument(app)["spaces"]![0]!));
             Assert.False(File.Exists(directory.File + ".cloud-recovery"));
         }
+    }
+
+    /// A file with nothing to carry and no seed takes the session a first
+    /// launch starts with: one Personal Space in the Winter house look,
+    /// showing a Start Page, marked as the disposable seed. A launch without a
+    /// file asks the same session of the standalone answers.
+    [Fact]
+    public void AFileWithNothingToCarryTakesTheFirstInstallSession() {
+        using var directory = new StorageDirectory();
+        using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
+        app.Send(new AdoptLegacySession(new LegacySession(Core: null, WholeGraph: null, [], Journal: null), Seed: null));
+
+        foreach (var session in new[] { StoredSession(app).Current, (SessionState)StandaloneAnswers.Answer(new FirstInstallSession()) }) {
+            var space = Assert.Single(session.Spaces);
+            Assert.Equal(("Personal", "person.fill", SpaceAccent.Indigo), (space.Settings.Name, space.Settings.Symbol, space.Settings.Accent));
+            Assert.True(Assert.Single(space.Tabs).IsStartPage);
+            Assert.NotNull(session.DisposableSeedMarker);
+        }
+        Assert.False(File.Exists(directory.File + ".cloud-recovery"));
     }
 
     [Fact]
@@ -220,7 +240,7 @@ public sealed partial class BrowserContractsTests {
         var (_, installed, journal) = InstalledDefaults();
         journal["schemaVersion"] = 2;
         using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
-        var refused = Assert.Throws<Rejected>(() => app.Send(new AdoptLegacySession(installed with { Journal = Bytes(journal) }, SeedDocument())));
+        var refused = Assert.Throws<Rejected>(() => app.Send(new AdoptLegacySession(installed with { Journal = Bytes(journal) }, SeedSession())));
         Assert.IsType<StorageFromNewerApp>(refused.Rejection);
         Assert.Null(app.StoredSync);
         Assert.DoesNotContain("core", StoredParts(directory.File).Keys);
@@ -233,7 +253,7 @@ public sealed partial class BrowserContractsTests {
         var configuration = new AppConfiguration(directory.Path, DevicePlatform.Desktop);
         JsonNode expected;
         using (var app = new CrestApp(configuration)) {
-            app.Send(new AdoptLegacySession(installed, SeedDocument()));
+            app.Send(new AdoptLegacySession(installed, SeedSession()));
             expected = StoredDocument(app);
         }
         var broken = "not a session"u8.ToArray();
@@ -265,7 +285,7 @@ public sealed partial class BrowserContractsTests {
         var (_, installed, _) = InstalledDefaults();
         var configuration = new AppConfiguration(directory.Path, DevicePlatform.Desktop);
         Assert.Equal((CoreStatus.Rejected, (Rejection?)new RecoveryCheckpointUnusable(StorageFailure.Unavailable)), AppClient.Restore(configuration));
-        using (var app = new CrestApp(configuration)) app.Send(new AdoptLegacySession(installed, SeedDocument()));
+        using (var app = new CrestApp(configuration)) app.Send(new AdoptLegacySession(installed, SeedSession()));
         var checkpoint = File.ReadAllBytes(directory.Recovery);
 
         var original = "original bytes"u8.ToArray();

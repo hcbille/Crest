@@ -155,7 +155,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testFreshInstallSeedPersistsButNeverStagesBeforeCloudBootstrap() async throws {
         let harness = try BrowserStoredSessionHarness(
-            session: .freshInstallSeed, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000099")!)
+            session: .firstInstall, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000099")!)
         let store = harness.store
 
         store.openNewTab(
@@ -181,7 +181,7 @@ final class BrowserStoreTests: XCTestCase {
         let cloudRecords = try await cloud.heldRecords()
 
         let harness = try BrowserStoredSessionHarness(
-            session: .freshInstallSeed, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000097")!)
+            session: .firstInstall, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000097")!)
         let store = harness.store
         let seededSpaceIDs = Set(store.session.spaces.map(\.id))
 
@@ -198,7 +198,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testFirstCloudBootstrapClearsDisposableSeedWhenCloudIsEmpty() throws {
         let harness = try BrowserStoredSessionHarness(
-            session: .freshInstallSeed, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000096")!)
+            session: .firstInstall, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000096")!)
         let store = harness.store
         let seededSpaceIDs = Set(store.session.spaces.map(\.id))
 

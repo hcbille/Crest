@@ -186,7 +186,7 @@ final class BrowserStoredSessionHarness {
     /// the cloud onto a fresh install, as a device joining the same iCloud
     /// does.
     func joiningDevice() async throws -> BrowserStoredSessionHarness {
-        let other = try BrowserStoredSessionHarness(session: .freshInstallSeed)
+        let other = try BrowserStoredSessionHarness(session: .firstInstall)
         try other.deliverNow(ReplaceSeedWithCloudRecords(records: try await heldRecords()))
         return other
     }

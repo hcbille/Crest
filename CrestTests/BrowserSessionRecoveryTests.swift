@@ -9,7 +9,7 @@ import XCTest
 @MainActor
 final class BrowserSessionRecoveryTests: XCTestCase {
     func testBehaviorPreferencesSurviveSessionRoundTrip() throws {
-        var session = BrowserSession.freshInstallSeed
+        var session = BrowserSession.firstInstall
         var preferences = BrowserAppPreferences()
         preferences.checksSpelling = true
         preferences.automaticallyEntersPictureInPicture = false

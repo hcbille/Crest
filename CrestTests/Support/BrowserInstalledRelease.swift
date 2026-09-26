@@ -22,15 +22,16 @@ enum BrowserInstalledRelease {
     }
 
     /// The first session of a new file, as a launch gives it one when the
-    /// installed release kept `session` whole with the journal `journalData`;
-    /// the images its tabs carried land in `favicons`.
+    /// installed release kept `session` whole with the journal `journalData`,
+    /// and no seed stands in for it; the images its tabs carried land in
+    /// `favicons`.
     @MainActor
     static func adopt(
         _ session: BrowserSession, journalData: Data?, into core: CrestCore, favicons: any BrowserFaviconStoring
     ) throws {
         let whole = try JSONEncoder().encode(session)
         let installed = LegacySession(core: nil, wholeGraph: whole, history: [], journal: journalData)
-        for case .sessionAdopted(let adopted) in try core.send(AdoptLegacySession(installed: installed, seed: whole)) {
+        for case .sessionAdopted(let adopted) in try core.send(AdoptLegacySession(installed: installed, seed: nil)) {
             for favicon in adopted.favicons { favicons.reconcile(favicon.image, tabID: favicon.tabID) }
         }
     }

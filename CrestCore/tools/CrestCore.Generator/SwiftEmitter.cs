@@ -86,13 +86,14 @@ internal static class SwiftEmitter {
                     + $"{Literal(constant.Type, constant.Value, StaticIndent)}\n");
             if (record.Statics.Count > 0 && record.Wire.Count > 0) code.Append('\n');
             foreach (var field in record.Wire)
-                code.Append($"    let {Naming.SwiftIdentifier(Naming.SwiftMember(field.Name))}: {TypeName(field.Type)}\n");
+                code.Append($"    let {Naming.SwiftIdentifier(Naming.SwiftMember(field.Name))}: {TypeName(field.Type, schema, isSent)}\n");
             if (record.IsNormalizedOnConstruction) EmitWireInitializer(code, record);
             foreach (var (text, index) in record.Texts.Select((text, index) => (text, index))) {
                 if (record.Fields.Count > 0 || index > 0) code.Append('\n');
                 code.Append($"    var {Naming.SwiftIdentifier(Naming.SwiftMember(text.Name))}: LocalizedStringResource {{\n");
                 code.Append($"        {RecordTextLiteral(text)}\n    }}\n");
             }
+            if (schema.HasSeed(record.Type)) EmitSeed(code, schema, record, equatable);
             code.Append("}\n");
         }
 
@@ -119,6 +120,38 @@ internal static class SwiftEmitter {
         foreach (var record in observed) EmitModel(code, record, equatable);
         return code.ToString();
     }
+
+    /// A record that holds [Resolved] values, itself or in its fields, has a
+    /// seed: its fields alone, with seeds in them, which a platform builds to
+    /// send and the core resolves when it reads it. A seed has no resolved
+    /// value to read. A published record gives its own as `seed`.
+    private static void EmitSeed(StringBuilder code, ContractSchema schema, ContractRecord record, HashSet<Type> equatable) {
+        if (record.IsNormalizedOnConstruction || record.Fields.Any(field => Naming.SwiftMember(field.Name) == "seed"))
+            throw new ContractSchemaException($"{record.Name}: a record with a seed cannot be normalized on construction "
+                + "or name a field Seed.");
+        var conformances = new List<string>();
+        if (equatable.Contains(record.Type)) conformances.Add("Equatable");
+        conformances.Add("Sendable");
+        if (record.IsIdentified) conformances.Add("Identifiable");
+        code.Append('\n').Append($"    /// The fields of a `{record.Name}` alone, as a platform builds one to send. The\n");
+        code.Append("    /// core resolves the rest when it reads it.\n");
+        code.Append($"    struct Seed: {string.Join(", ", conformances)} {{\n");
+        foreach (var field in record.Fields) code.Append($"        let {Local(field.Name)}: {TypeName(field.Type, schema, seeds: true)}\n");
+        code.Append("    }\n\n    /// The record's fields alone, as a platform sends it back.\n    var seed: Seed {\n");
+        code.Append(Wrapped("        Seed(", ")", [.. record.Fields.Select(field =>
+            $"{Naming.SwiftMember(field.Name)}: {SeedValue(field.Type, schema, Local(field.Name))}")])).Append("\n    }\n");
+    }
+
+    /// `value`, a field of a published record, with each record in it that
+    /// has a seed as that seed.
+    private static string SeedValue(FieldType type, ContractSchema schema, string value) => type switch {
+        RecordField record when schema.HasSeed(record.Type) => $"{value}.seed",
+        ListField { Element: RecordField element } when schema.HasSeed(element.Type) => $"{value}.map(\\.seed)",
+        OptionalField { Value: RecordField held } when schema.HasSeed(held.Type) => $"{value}?.seed",
+        ListField list when schema.HoldsSeed(list) => $"{value}.map {{ {SeedValue(list.Element, schema, "$0")} }}",
+        OptionalField optional when schema.HoldsSeed(optional) => $"{value}.map {{ {SeedValue(optional.Value, schema, "$0")} }}",
+        _ => value
+    };
 
     /// A record normalized on construction has no memberwise initializer. The
     /// codec makes it through this one, labeled so that the natural spelling
@@ -358,7 +391,8 @@ internal static class SwiftEmitter {
             code.Append('\n').Append($"extension {record.Name} {{\n");
             code.Append("    init(from reader: inout WireReader) throws(WireError) {\n");
             var lines = new List<string>();
-            foreach (var field in record.Wire) Decode(field.Type, Local(field.Name), lines, "        ");
+            bool isSent = tags.ContainsKey(record.Type);
+            foreach (var field in record.Wire) Decode(field.Type, Local(field.Name), lines, "        ", schema, isSent);
             foreach (var line in lines) code.Append(line).Append('\n');
             var labels = InitializerLabels(record);
             code.Append("        self.init(");
@@ -380,6 +414,7 @@ internal static class SwiftEmitter {
                 }
             }
             code.Append("}\n");
+            if (schema.HasSeed(record.Type)) EmitSeedCodec(code, schema, record);
         }
 
         foreach (var item in schema.Enums) {
@@ -407,6 +442,21 @@ internal static class SwiftEmitter {
             code.Append("    }\n\n    func encode(into writer: inout WireWriter) {\n        writer.writeEnum(tag)\n    }\n}\n");
         }
         return code.ToString();
+    }
+
+    /// A seed crosses the wire as its fields alone, with seeds in them.
+    private static void EmitSeedCodec(StringBuilder code, ContractSchema schema, ContractRecord record) {
+        code.Append('\n').Append($"extension {record.Name}.Seed {{\n");
+        code.Append("    init(from reader: inout WireReader) throws(WireError) {\n");
+        var lines = new List<string>();
+        foreach (var field in record.Fields) Decode(field.Type, Local(field.Name), lines, "        ", schema, seeds: true);
+        foreach (var line in lines) code.Append(line).Append('\n');
+        code.Append("        self.init(");
+        code.Append(string.Join(", ", record.Fields.Select(field => $"{Naming.SwiftMember(field.Name)}: {Local(field.Name)}")));
+        code.Append(")\n    }\n\n    func encode(into writer: inout WireWriter) {\n");
+        foreach (var field in record.Fields)
+            code.Append(Encode(field.Type, Naming.SwiftIdentifier(Naming.SwiftMember(field.Name)), "        ", 0));
+        code.Append("    }\n}\n");
     }
 
     #endregion
@@ -504,15 +554,17 @@ internal static class SwiftEmitter {
 
     private static string Local(string name) => Naming.SwiftIdentifier(Naming.SwiftMember(name));
 
-    /// Appends statements that declare `name` with the decoded value.
-    private static void Decode(FieldType type, string name, List<string> lines, string indent) {
+    /// Appends statements that declare `name` with the decoded value. With
+    /// `seeds`, a record that has a seed decodes as it.
+    private static void Decode(FieldType type, string name, List<string> lines, string indent, ContractSchema? schema = null,
+        bool seeds = false) {
         string plain = name.Trim('`');
         switch (type) {
             case PrimitiveField primitive:
                 lines.Add($"{indent}let {name} = try reader.read{Method(primitive.Kind)}()");
                 break;
             case EnumField or SetField or RecordField:
-                lines.Add($"{indent}let {name} = try {TypeName(type)}(from: &reader)");
+                lines.Add($"{indent}let {name} = try {TypeName(type, schema, seeds)}(from: &reader)");
                 break;
             case RootField { Root.PlatformSends: true, Base: { } narrowed }:
                 lines.Add($"{indent}let {name} = try CoreCodec.decode{narrowed.Name}(from: &reader)");
@@ -525,17 +577,17 @@ internal static class SwiftEmitter {
                 break;
             case ListField list:
                 lines.Add($"{indent}let {plain}Count = try reader.readCount()");
-                lines.Add($"{indent}var {name}: {TypeName(list)} = []");
+                lines.Add($"{indent}var {name}: {TypeName(list, schema, seeds)} = []");
                 lines.Add($"{indent}{name}.reserveCapacity({plain}Count)");
                 lines.Add($"{indent}for _ in 0..<{plain}Count {{");
-                Decode(list.Element, $"{plain}Element", lines, indent + "    ");
+                Decode(list.Element, $"{plain}Element", lines, indent + "    ", schema, seeds);
                 lines.Add($"{indent}    {name}.append({plain}Element)");
                 lines.Add($"{indent}}}");
                 break;
             case OptionalField optional:
-                lines.Add($"{indent}let {name}: {TypeName(optional)}");
+                lines.Add($"{indent}let {name}: {TypeName(optional, schema, seeds)}");
                 lines.Add($"{indent}if try reader.readPresence() {{");
-                Decode(optional.Value, $"{plain}Value", lines, indent + "    ");
+                Decode(optional.Value, $"{plain}Value", lines, indent + "    ", schema, seeds);
                 lines.Add($"{indent}    {name} = {plain}Value");
                 lines.Add($"{indent}}} else {{");
                 lines.Add($"{indent}    {name} = nil");
@@ -575,19 +627,20 @@ internal static class SwiftEmitter {
         _ => throw new ContractSchemaException($"Unknown primitive {kind}.")
     };
 
-    private static string TypeName(FieldType type) => type switch {
+    /// A field's Swift type. With `seeds`, a record that has a seed is it.
+    private static string TypeName(FieldType type, ContractSchema? schema = null, bool seeds = false) => type switch {
         PrimitiveField primitive => Method(primitive.Kind),
         EnumField item => item.Type.Name,
         SetField set => set.Type.Name,
         LocalizedField => "LocalizedStringResource",
         KindsField kinds => kinds.Type.Name,
-        RecordField record => record.Type.Name,
+        RecordField record => seeds && schema!.HasSeed(record.Type) ? $"{record.Type.Name}.Seed" : record.Type.Name,
         RootField { Root.PlatformSends: true, Base: { } narrowed } => $"any {narrowed.Name}",
         RootField { Root.PlatformSends: true } root => $"any {root.Root}",
         RootField root => root.Root.ToString(),
-        ListField list => $"[{TypeName(list.Element)}]",
+        ListField list => $"[{TypeName(list.Element, schema, seeds)}]",
         OptionalField { Value: RootField { Root.PlatformSends: true } } optional => $"({TypeName(optional.Value)})?",
-        OptionalField optional => $"{TypeName(optional.Value)}?",
+        OptionalField optional => $"{TypeName(optional.Value, schema, seeds)}?",
         _ => throw new ContractSchemaException($"Unknown field type {type}.")
     };
 

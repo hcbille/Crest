@@ -168,7 +168,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
     }
 
     func testDisposableSeedIsReplacedBeforeTransportStarts() async throws {
-        let device = try await syncedDevice(.freshInstallSeed)
+        let device = try await syncedDevice(.firstInstall)
         let cloudSession = BrowserSession.privateBrowsing()
         let cloud = try await cloudRecords(of: cloudSession)
         try device.core.transport(

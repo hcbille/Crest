@@ -12,10 +12,11 @@ namespace CrestCore.Contracts;
 /// publishes its `WorkspaceOpened` again. Any other kind starts from the Space
 /// template of its kind, such as the one Space a private workspace starts with.
 ///
-/// `Seed` is a session in the stored format, for launches without a file
-/// (isolated runs, previews, tests). It opens repaired as the file's session
-/// does, with `TabCopied` for each tab the repair gave a new identity. A
-/// seeded workspace keeps nothing: it is never saved or synced.
+/// `Seed` is a session a platform builds for a launch without a file (an
+/// isolated run, a preview or a test): its fields alone, as a platform sends
+/// any record the core resolves values of. It opens repaired as the file's
+/// session does, with `TabCopied` for each tab the repair gave a new
+/// identity. A seeded workspace keeps nothing: it is never saved or synced.
 ///
 /// Refused with `BorrowedWorkspaceRequiresSpace` for a kind that opens only by
 /// borrowing, `NoStoredSession` when the core keeps no file or its file holds
@@ -23,4 +24,4 @@ namespace CrestCore.Contracts;
 /// once the file's session was closed, and `InvalidSession` for a seed the core
 /// cannot hold.
 [MessageLimit(64 * 1024 * 1024)]
-public sealed record OpenWorkspace(WorkspaceKind Kind, byte[]? Seed) : WorkspaceIntent;
+public sealed record OpenWorkspace(WorkspaceKind Kind, SessionState? Seed) : WorkspaceIntent;

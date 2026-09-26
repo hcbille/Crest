@@ -37,10 +37,10 @@
             let order = session.spaces.map(\.id)
             let shownSpace = selectedSpaceID
             let shownTab = selectedTabID(in: spaceID)
-            let replacement = SpaceState(
-                id: space.id, profileID: profileID, settings: space.settings, folders: space.folders, tabs: space.tabs,
-                splitGroups: space.splitGroups, archivedTabs: space.archivedTabs, history: space.history,
-                sidebar: space.sidebar)
+            let seed = space.seed
+            let replacement = SpaceState.Seed(
+                id: seed.id, profileID: profileID, settings: seed.settings, folders: seed.folders, tabs: seed.tabs,
+                splitGroups: seed.splitGroups, archivedTabs: seed.archivedTabs, history: seed.history)
             // A Space is never the last one while it goes.
             let placeholder = SpaceID()
             if session.spaces.count == 1 {

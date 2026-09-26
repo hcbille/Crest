@@ -16,8 +16,7 @@ extension BrowserStore {
             return try isolatedLaunch(core: core, launchEnvironment: launchEnvironment)
         }
         let favicons: any BrowserFaviconStoring = BrowserFaviconFileStore.production() ?? InMemoryBrowserFaviconStore()
-        let stored = try migratedStorage(
-            core: core, legacy: .installed, favicons: favicons, seed: .freshInstallSeed)
+        let stored = try migratedStorage(core: core, legacy: .installed, favicons: favicons, seed: nil)
         return production(
             stored: stored, core: core, favicons: favicons, credentialVault: KeychainCredentialVault())
     }
@@ -67,7 +66,8 @@ extension BrowserStore {
         // The fixture opens as a seed, which the core repairs and never saves
         // or syncs: only the session the core keeps in its file syncs.
         return BrowserStore(
-            session: isolatedFixtureSession(for: launchEnvironment), credentialVault: InMemoryCredentialVault(), core: core)
+            seed: isolatedFixtureSeed(for: launchEnvironment) ?? .firstInstall,
+            credentialVault: InMemoryCredentialVault(), core: core)
     }
 
     private static func persistentIsolatedLaunch(
@@ -81,7 +81,7 @@ extension BrowserStore {
             rootDirectory: directory.appendingPathComponent("Favicons", isDirectory: true))
         let stored = try migratedStorage(
             core: core, legacy: BrowserLegacySessionDefaults(defaults: defaults, journalDefaults: []),
-            favicons: favicons, seed: isolatedFixtureSession(for: launchEnvironment))
+            favicons: favicons, seed: isolatedFixtureSeed(for: launchEnvironment))
         return production(
             stored: stored, core: core, favicons: favicons,
             credentialVault: KeychainCredentialVault(servicePrefix: namespace))
@@ -122,13 +122,14 @@ extension BrowserStore {
     /// Opens the session `core` keeps in its file. On the first launch whose
     /// file holds none, the core carries the installed release's defaults
     /// session, history and sync journal into the file, or installs `seed`
-    /// when there is nothing it can carry; the images that session held inside
-    /// its tabs land in `favicons`. The legacy values are left in place, so
-    /// this is also the seam an upgrade test drives with its own directory,
+    /// when there is nothing it can carry, or without one the session a first
+    /// launch starts with; the images the installed session held inside its
+    /// tabs land in `favicons`. The legacy values are left in place, so this
+    /// is also the seam an upgrade test drives with its own directory,
     /// defaults suite and favicon store.
     static func migratedStorage(
         core: CrestCore, legacy: BrowserLegacySessionDefaults, favicons: any BrowserFaviconStoring,
-        seed: @autoclosure () -> BrowserSession
+        seed: SessionState.Seed?
     ) throws -> BrowserCoreSessionAuthority {
         guard let directory = core.storageDirectory else {
             preconditionFailure("A core that keeps nothing on disk has no stored session to open.")
@@ -138,7 +139,7 @@ extension BrowserStore {
             if let opened = try openStored(core: core, favicons: favicons) {
                 stored = opened
             } else {
-                let adoption = AdoptLegacySession(installed: legacy.values, seed: try JSONEncoder().encode(seed()))
+                let adoption = AdoptLegacySession(installed: legacy.values, seed: seed)
                 for case .sessionAdopted(let adopted) in try core.send(adoption) {
                     for favicon in adopted.favicons {
                         favicons.reconcile(favicon.image, tabID: favicon.tabID)
@@ -165,15 +166,16 @@ extension BrowserStore {
         }
     }
 
-    private static func isolatedFixtureSession(
-        for launchEnvironment: BrowserLaunchEnvironment
-    ) -> BrowserSession {
+    /// The session an isolated launch starts from, or nil for the one a first
+    /// launch starts with, which an isolated run of cloud sync or onboarding
+    /// takes. TRANSITIONAL until the fixtures build seeds of their own.
+    private static func isolatedFixtureSeed(for launchEnvironment: BrowserLaunchEnvironment) -> SessionState.Seed? {
         if launchEnvironment.requestsIsolatedCloudSync
             || launchEnvironment.forcesOnboardingWelcome
             || launchEnvironment.forcesMacOnboardingSetup
             || launchEnvironment.forcesMobileOnboardingSetup
         {
-            return .freshInstallSeed
+            return nil
         }
         #if CREST_PERFORMANCE_HARNESS
             if let performanceSession = BrowserPerformanceSoakFixture.makeSession(
@@ -182,10 +184,10 @@ extension BrowserStore {
                 isHeavy: launchEnvironment.performanceHeavySession,
                 runID: launchEnvironment.performanceRunID
             ) {
-                return performanceSession
+                return performanceSession.seed
             }
         #endif
-        return launchEnvironment.presentsShowcaseSession ? .showcase : .preview
+        return (launchEnvironment.presentsShowcaseSession ? BrowserSession.showcase : .preview).seed
     }
 
     /// A window over a new private workspace, which starts from the core's

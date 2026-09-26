@@ -2817,6 +2817,10 @@
     "2026-09-26-practice-workspace-in-core": {
       "category": "internal",
       "message": "The Getting Started practice starts from Crest's shared core"
+    },
+    "2026-09-26-typed-session-seeds": {
+      "category": "internal",
+      "message": "Crest hands its core typed sessions for new and test workspaces, and the core describes the first-launch session itself"
     }
   }
 }

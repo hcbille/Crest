@@ -298,6 +298,40 @@ public sealed unsafe class ContractCodecTests {
         Assert.Equal(ContractSchema.Load([typeof(Unwatched.Lamp), typeof(Unwatched.Dimmer)]).Fingerprint, schema.Fingerprint);
     }
 
+    /// A record the core resolves values of reaches Swift with a seed where a
+    /// message the platform sends holds it: its fields alone, with seeds in
+    /// them, which the message holds and encodes, so no platform works out a
+    /// resolved value. The core reads a seed's fields alone and still writes
+    /// the record whole. A record only the core writes has no seed, and a
+    /// message the platform sends resolves nothing of its own.
+    [Fact]
+    public void ARecordASentMessageHoldsReachesSwiftAsAFieldsOnlySeed() {
+        var schema = ContractSchema.Load([typeof(Seeded.KeepTab)]);
+        string swift = SwiftEmitter.EmitContracts(schema);
+        string codec = SwiftEmitter.EmitCodec(schema);
+        string core = CSharpCodecEmitter.Emit(schema);
+
+        Assert.Contains("struct KeepTab: Intent, Equatable, Sendable {\n    let archived: ArchivedTabState.Seed\n}\n", swift, StringComparison.Ordinal);
+        Assert.Contains("    struct Seed: Equatable, Sendable {\n        let tab: TabState.Seed\n        let archivedAt: Date\n"
+            + "        let reason: ArchiveReason\n    }\n", swift, StringComparison.Ordinal);
+        Assert.Contains("    var seed: Seed {\n        Seed(tab: tab.seed, archivedAt: archivedAt, reason: reason)\n    }\n", swift,
+            StringComparison.Ordinal);
+        string tabSeed = codec[codec.IndexOf("extension TabState.Seed {", StringComparison.Ordinal)..];
+        tabSeed = tabSeed[..tabSeed.IndexOf("\n}\n", StringComparison.Ordinal)];
+        Assert.Contains("keepsPageLoaded", tabSeed, StringComparison.Ordinal);
+        Assert.DoesNotContain("displayTitle", tabSeed, StringComparison.Ordinal);
+        Assert.Contains("let archived = try ArchivedTabState.Seed(from: &reader)", codec, StringComparison.Ordinal);
+        Assert.Contains("            ReadArchivedTabStateSeed(reader));", core, StringComparison.Ordinal);
+        string readSeed = core[core.IndexOf("public static TabState ReadTabStateSeed(", StringComparison.Ordinal)..];
+        Assert.DoesNotContain("_ = ", readSeed[..readSeed.IndexOf("\n    }\n", StringComparison.Ordinal)], StringComparison.Ordinal);
+        Assert.Contains("public static TabState ReadTabState(WireReader reader)", core, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("struct Seed", SwiftEmitter.EmitContracts(ContractSchema.Load([typeof(Seeded.TabKept)])),
+            StringComparison.Ordinal);
+        var error = Assert.Throws<ContractSchemaException>(() => ContractSchema.Load([typeof(Seeded.Resolving)]));
+        Assert.StartsWith("Resolving:", error.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(typeof(Unwatchable.Valued), "Valued.Value:")]
     [InlineData(typeof(Unwatchable.Numbered), "Numbered.Id:")]
@@ -491,7 +525,7 @@ public sealed unsafe class ContractCodecTests {
 
         // Carrying an installed session may take as much as one stored session part.
         var installed = new byte[MessageLimitAttribute.DefaultBytes];
-        AdoptLegacySession Adoption(byte[] core) => new(new LegacySession(core, null, [], null), "{}"u8.ToArray());
+        AdoptLegacySession Adoption(byte[] core) => new(new LegacySession(core, null, [], null), Seed: null);
         Assert.Empty(app.Send(Adoption(installed)));
         var adoption = AppClient.Encode(writer => ContractCodec.WriteIntent(writer, Adoption(new byte[64 * 1024 * 1024])));
         Assert.Equal(CoreStatus.LimitExceeded, app.Dispatch(adoption).Status);

@@ -40,7 +40,7 @@ public sealed partial class CrestApp {
         // at creation, so one found here was written by an adoption whose
         // takeover failed: it is as unreadable now as it was then.
         if (target.HoldsSession) throw new Rejected(new StorageUnreadable(StorageFailure.Damaged));
-        var first = FirstSession.For(adoption);
+        var first = FirstSession.For(adoption, () => FirstSession.FirstInstall(ids.Next, clock.Now));
         try {
             if (first.RequestsCloudRecovery) target.RequestCloudRecovery();
             target.Install(first.Session, first.Journal);

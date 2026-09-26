@@ -60,30 +60,52 @@ final class BrowserCoreSessionAuthority {
 
     // MARK: - Actions - Opening
 
-    /// Opens a workspace of `kind` in `core`. With `seed`, a session in the
-    /// stored format for launches without a file (isolated runs, previews,
-    /// tests), it keeps nothing: it is never saved or synced, and its tabs wear
-    /// the images `seed` carries. Without one, a private workspace starts from
-    /// the core's private template. Throws the rule that refuses it.
-    static func open(_ kind: WorkspaceKind, seed: BrowserSession?, in core: CrestCore) throws
-        -> BrowserCoreSessionAuthority
+    /// Opens a workspace of `kind` in `core`. With `seed`, a session a
+    /// platform builds for a launch without a file (an isolated run, a preview
+    /// or a test), it keeps nothing: it is never saved or synced, and each of
+    /// its tabs wears the image `images` holds for the seed's tab. Without one,
+    /// a private workspace starts from the core's private template. Throws the
+    /// rule that refuses it.
+    static func open(_ kind: WorkspaceKind, seed: SessionState.Seed?, images: [UUID: Data] = [:], in core: CrestCore)
+        throws -> BrowserCoreSessionAuthority
     {
-        let bytes = try seed.map { try JSONEncoder().encode(compact($0)) }
-        let opened = Self.opened(by: try core.send(OpenWorkspace(kind: kind, seed: bytes)))
-        if let seed { core.state.adoptImages(images(of: seed, openedAs: opened.session), in: opened.workspaceID) }
-        return BrowserCoreSessionAuthority(opened: opened, core: core)
+        try open(kind, seed: seed, in: core) { opened in
+            guard let seed else { return [:] }
+            var placed = images
+            for (space, seeded) in zip(opened.spaces, seed.spaces) {
+                for (tab, source) in zip(space.tabs, seeded.tabs) { placed[tab.id] = images[source.id] }
+            }
+            return placed
+        }
     }
 
-    /// The images `seed`'s tabs wear once the core opened it as `session`.
-    /// The core's repair keeps every Space and tab in its place, so a tab
-    /// wears the image of the seed's tab in its place, even when the repair
-    /// gave it a new identity because another tab shared its own.
-    private static func images(of seed: BrowserSession, openedAs session: SessionState) -> [UUID: Data] {
-        var images = OfferedImages(placedFrom: seed).placed
-        for (space, seeded) in zip(session.spaces, seed.spaces) {
-            for (tab, source) in zip(space.tabs, seeded.tabs) { images[tab.id] = source.faviconData }
+    /// TRANSITIONAL until the tests, previews and fixtures that still build
+    /// the session copy's values seed with `SessionState.Seed`: opens a
+    /// workspace over `session`, whose tabs each wear the image the tab in its
+    /// place carries, even where two of its tabs share an identity.
+    static func open(_ kind: WorkspaceKind, session: BrowserSession, in core: CrestCore) throws
+        -> BrowserCoreSessionAuthority
+    {
+        try open(kind, seed: session.seed, in: core) { opened in
+            var placed = OfferedImages(placedFrom: session).placed
+            for (space, seeded) in zip(opened.spaces, session.spaces) {
+                for (tab, source) in zip(space.tabs, seeded.tabs) { placed[tab.id] = source.faviconData }
+            }
+            return placed
         }
-        return images
+    }
+
+    /// Opens a workspace of `kind` from `seed`, whose tabs wear the images
+    /// `images` places on the session the core opened. The core's repair
+    /// keeps every Space and tab in its place, so a tab wears the image of the
+    /// seed's tab in its place, even when the repair gave it a new identity
+    /// because another tab shared its own.
+    private static func open(
+        _ kind: WorkspaceKind, seed: SessionState.Seed?, in core: CrestCore, images: (SessionState) -> [UUID: Data]
+    ) throws -> BrowserCoreSessionAuthority {
+        let opened = Self.opened(by: try core.send(OpenWorkspace(kind: kind, seed: seed)))
+        if seed != nil { core.state.adoptImages(images(opened.session), in: opened.workspaceID) }
+        return BrowserCoreSessionAuthority(opened: opened, core: core)
     }
 
     /// Opens the session `core` keeps in its file, as it loaded and repaired
