@@ -31,7 +31,8 @@ internal sealed class Prompts(Device device, Pages pages) {
     /// Runs one answer, publishing what it changed to `changes` and handing the
     /// answer to `issue` for the engine that asked. A permission the person
     /// answers to remember becomes the Space's choice in the same step, unless
-    /// the Space locked while the prompt waited.
+    /// the Space locked while the prompt waited. A block the Space took while
+    /// the prompt waited outranks the answer, which then records nothing.
     public void Handle(PromptIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue, DateTimeOffset now,
         IIdSource ids) {
         ArgumentNullException.ThrowIfNull(intent);
@@ -47,6 +48,12 @@ internal sealed class Prompts(Device device, Pages pages) {
                 new SettleExtensionInstall(answer.PromptId, answer.Accepted, answer.WithholdsSiteAccess),
             _ => throw new Rejected(new PromptAnswerMismatch(intent.PromptId))
         };
+        if (prompt.Question is PermissionQuestion asked && Asking(prompt.PageId) is { } asking
+            && Decision(asking.SpaceId, asked) is { Denies: true } blocked) {
+            Settle(intent.PromptId, changes);
+            issue(prompt.Engine, new SettlePermission(intent.PromptId, Grants: false, blocked.IsPersistent));
+            return;
+        }
         if (prompt.Question is PermissionQuestion permission && intent is AnswerPermission { Remembers: true } chosen
             && Asking(prompt.PageId) is { } page && permission.Origin.IsValid) {
             var decision = chosen.Grants ? SitePermissionDecision.GrantPersistently : SitePermissionDecision.DenyPersistently;
@@ -111,7 +118,7 @@ internal sealed class Prompts(Device device, Pages pages) {
             return false;
         }
         if (question is PermissionQuestion permission && page is not null) {
-            var decision = device.Answer(new SiteDecision(page.SpaceId, permission.Origin, permission.Permission, Detail: null)).Decision;
+            var decision = Decision(page.SpaceId, permission);
             if (decision.Verdict != SitePermissionVerdict.Ask) {
                 issue(engine, new SettlePermission(promptId, decision.Grants, decision.IsPersistent));
                 return false;
@@ -141,6 +148,14 @@ internal sealed class Prompts(Device device, Pages pages) {
     private void Settle(Guid promptId, ChangeFeed changes) {
         if (waiting.Remove(promptId)) changes.Publish(new PromptSettled(promptId));
     }
+
+    /// What Space `spaceId`'s choices say about `permission`. A capture request
+    /// respects a block on either device it asks for, and a combined grant
+    /// answers for each device.
+    private SitePermissionDecision Decision(Guid spaceId, PermissionQuestion permission) =>
+        (permission.Permission.IsMedia
+            ? device.Answer(new CaptureDecision(spaceId, permission.Origin, permission.Permission))
+            : device.Answer(new SiteDecision(spaceId, permission.Origin, permission.Permission, Detail: null))).Decision;
 
     /// The page `pageId` names while the core hosts it and its engine still
     /// holds it, so it may ask; null for none.

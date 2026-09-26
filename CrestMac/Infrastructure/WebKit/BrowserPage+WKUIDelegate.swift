@@ -200,20 +200,9 @@ extension BrowserPage: WKUIDelegate {
             decisionHandler(.deny)
             return
         }
-        SitePermission(type).resolve(
-            origin: SiteOrigin(origin),
-            topLevelOrigin: topLevelOrigin,
-            spaceID: spaceID,
-            spaceName: spaceName,
-            permissionCenter: permissionCenter,
-            requests: sitePermissionRequests
-        ) { [weak self] decision in
-            if decision == .grant {
-                self?.sitePermissionSession.recordMediaGrant(
-                    SitePermission(type), origin: SiteOrigin(origin))
-            }
-            decisionHandler(decision)
-        }
+        answerPermission(
+            SitePermission(type), origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitAdapter?.enginePage,
+            decisionHandler: decisionHandler)
     }
 
     @available(macOS 27.0, *)
@@ -229,16 +218,8 @@ extension BrowserPage: WKUIDelegate {
             decisionHandler(.deny)
             return
         }
-        let siteOrigin = SiteOrigin(origin)
-        Task { @MainActor [weak self] in
-            guard let self else {
-                decisionHandler(.deny)
-                return
-            }
-            let allowed = await sitePermissionRequests.authorize(
-                .location, origin: siteOrigin, topLevelOrigin: topLevelOrigin,
-                spaceID: spaceID, spaceName: spaceName, permissionCenter: permissionCenter)
-            decisionHandler(allowed ? .grant : .deny)
-        }
+        answerPermission(
+            .location, origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitAdapter?.enginePage,
+            decisionHandler: decisionHandler)
     }
 }

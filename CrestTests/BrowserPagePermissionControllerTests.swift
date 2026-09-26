@@ -5,35 +5,6 @@ import XCTest
 
 @MainActor
 final class BrowserPagePermissionControllerTests: XCTestCase {
-    func testLocationAuthorizationRemembersAllowAndCannotOverrideANewerBlock() async throws {
-        let controller = BrowserPagePermissionController()
-        controller.setPresentationAvailable(true)
-        let center = BrowserSitePermissionCenter()
-        let origin = SiteOrigin(scheme: "https", host: "location.example", port: 443)
-        let spaceID = SpaceID()
-        func authorize() async -> Bool {
-            await controller.authorize(
-                .location, origin: origin, topLevelOrigin: origin,
-                spaceID: spaceID, spaceName: "Work", permissionCenter: center)
-        }
-        let first = Task { await authorize() }
-        controller.resolve(try await pendingRequest(in: controller), response: .grantPersistently)
-        let firstAllowed = await first.value
-        XCTAssertTrue(firstAllowed)
-        let remembered = await authorize()
-        XCTAssertTrue(remembered)
-        XCTAssertNil(controller.current)
-        XCTAssertEqual(center.records(in: spaceID).first?.decision, .grantPersistently)
-        center.setDecision(.ask, for: .location, origin: origin, in: spaceID)
-        let second = Task { await authorize() }
-        let requestID = try await pendingRequest(in: controller)
-        center.setDecision(.denyPersistently, for: .location, origin: origin, in: spaceID)
-        controller.resolve(requestID, response: .grantPersistently)
-        let secondAllowed = await second.value
-        XCTAssertFalse(secondAllowed)
-        XCTAssertEqual(center.records(in: spaceID).first?.decision, .denyPersistently)
-    }
-
     func testDownloadAndLocationDismissalAreTemporaryAndExplicitChoicesArePreserved() async throws {
         let controller = BrowserPagePermissionController()
         let origin = SiteOrigin(scheme: "https", host: "files.example", port: 443)
@@ -105,31 +76,6 @@ final class BrowserPagePermissionControllerTests: XCTestCase {
         XCTAssertEqual(engine.applied.map(\.permission), [.location])
         XCTAssertEqual(engine.applied.map(\.allowed), [false])
         XCTAssertEqual(refreshed, [.location])
-    }
-
-    func testMediaDismissalDoesNotPersistAndAnOutstandingRequestCannotOverrideABlock() throws {
-        let controller = BrowserPagePermissionController()
-        controller.setPresentationAvailable(true)
-        let center = BrowserSitePermissionCenter()
-        let spaceID = SpaceID()
-        let origin = SiteOrigin(scheme: "https", host: "media.example", port: 443)
-        var decisions: [WKPermissionDecision] = []
-        SitePermission.camera.resolve(
-            origin: origin, topLevelOrigin: origin, spaceID: spaceID, spaceName: "Work",
-            permissionCenter: center, requests: controller
-        ) { decisions.append($0) }
-        controller.cancelAll()
-        XCTAssertEqual(decisions, [.deny])
-        XCTAssertEqual(center.mediaDecision(for: .camera, origin: origin, in: spaceID), .ask)
-        SitePermission.camera.resolve(
-            origin: origin, topLevelOrigin: origin, spaceID: spaceID, spaceName: "Work",
-            permissionCenter: center, requests: controller
-        ) { decisions.append($0) }
-        let request = try XCTUnwrap(controller.current)
-        center.setDecision(.denyPersistently, for: .camera, origin: origin, in: spaceID)
-        controller.resolve(request.id, response: .grantPersistently)
-        XCTAssertEqual(decisions, [.deny, .deny])
-        XCTAssertEqual(center.mediaDecision(for: .camera, origin: origin, in: spaceID), .denyPersistently)
     }
 
     func testDismissalCancelsQueueWithoutSavingDenialsOrAnsweringLaterRequests() throws {

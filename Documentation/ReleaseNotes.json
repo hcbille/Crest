@@ -2761,6 +2761,10 @@
     "2026-09-26-webkit-sign-in-through-core": {
       "category": "internal",
       "message": "WebKit pages' sign-in requests go through the core, offering a saved sign-in first"
+    },
+    "2026-09-26-capture-permission-rules": {
+      "category": "fixed",
+      "message": "A camera and microphone request now follows your choice for each device, and blocking a site while it asks refuses the request"
     }
   }
 }

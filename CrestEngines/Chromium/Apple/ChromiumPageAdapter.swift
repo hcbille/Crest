@@ -45,12 +45,6 @@
         func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
             self.page = page
             native.profileID = page.profileID
-            native.permissionHandler = { [weak page] permission, origin, topLevelOrigin, dismissal in
-                guard let page else { return .denyOnce }
-                return await page.sitePermissionRequests.response(
-                    to: permission, origin: origin, topLevelOrigin: topLevelOrigin, spaceName: page.spaceName,
-                    dismissal: dismissal)
-            }
             native.observer = { [weak page] event in page?.receive(event) }
             native.linkHandler = { [weak page] name, destination, label in
                 guard let page, let action = ChromiumLinkAction(rawValue: name) else { return false }

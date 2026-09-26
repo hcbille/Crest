@@ -11,4 +11,8 @@ protocol BrowserPromptPresenting: AnyObject {
     /// Answers a server's request for a user name and password, from the
     /// Space's saved sign-in or by asking the person.
     func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal)
+
+    /// Asks the person about a site's request for a capability its Space's
+    /// choices do not answer.
+    func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal)
 }

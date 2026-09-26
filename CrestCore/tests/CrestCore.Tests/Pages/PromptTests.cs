@@ -55,6 +55,46 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void ACaptureRequestIsAnsweredFromEitherDevicesBlockOrACombinedGrantWithoutAsking() {
+        var (app, engine, binding, page, _, _, space, _) = LivePage();
+        using var disposal = app;
+        var blocked = new SiteOrigin("https", "blocked.example", 443);
+        var granted = new SiteOrigin("https", "granted.example", 443);
+        app.Send(new DecideSitePermission(space, blocked, SitePermission.Camera, null, SitePermissionDecision.DenyPersistently));
+        app.Send(new DecideSitePermission(space, granted, SitePermission.CameraAndMicrophone, null,
+            SitePermissionDecision.GrantPersistently));
+        app.Drain();
+
+        // A block on the camera refuses a request for both devices.
+        var both = Guid.NewGuid();
+        app.Report(engine, new PermissionRequested(both, page, new(SitePermission.CameraAndMicrophone, blocked, blocked)));
+        Assert.Empty(app.Drain());
+        Assert.Equal(new SettlePermission(both, Grants: false, Remembers: true), binding.Commands[^1]);
+
+        // A grant for both answers a request for the microphone alone.
+        var microphone = Guid.NewGuid();
+        app.Report(engine, new PermissionRequested(microphone, page, new(SitePermission.Microphone, granted, granted)));
+        Assert.Empty(app.Drain());
+        Assert.Equal(new SettlePermission(microphone, Grants: true, Remembers: true), binding.Commands[^1]);
+    }
+
+    [Fact]
+    public void ABlockTheSpaceTakesWhileAPermissionQuestionWaitsOutranksThePersonsAnswer() {
+        var (app, engine, binding, page, _, _, space, _) = LivePage();
+        using var disposal = app;
+        var origin = new SiteOrigin("https", "media.example", 443);
+        var request = Guid.NewGuid();
+        app.Report(engine, new PermissionRequested(request, page, new(SitePermission.Camera, origin, origin)));
+        app.Drain();
+
+        app.Send(new DecideSitePermission(space, origin, SitePermission.Camera, null, SitePermissionDecision.DenyPersistently));
+        Assert.Equal([new PromptSettled(request)], app.Send(new AnswerPermission(request, Grants: true, Remembers: true)));
+        Assert.Equal(new SettlePermission(request, Grants: false, Remembers: true), binding.Commands[^1]);
+        Assert.Equal(SitePermissionDecision.DenyPersistently,
+            app.Query(new CaptureDecision(space, origin, SitePermission.Camera)).Decision);
+    }
+
+    [Fact]
     public void AQuestionNoHostedPageAsksIsDeclinedAndAPromptGoesWhenWithdrawnOrWithItsPage() {
         var (app, engine, binding, page, _, _, _, _) = LivePage();
         using var disposal = app;

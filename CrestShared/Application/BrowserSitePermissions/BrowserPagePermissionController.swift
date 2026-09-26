@@ -107,27 +107,6 @@ final class BrowserPagePermissionController {
         }
     }
 
-    func authorize(
-        _ permission: SitePermission,
-        origin: SiteOrigin,
-        topLevelOrigin: SiteOrigin,
-        spaceID: SpaceID,
-        spaceName: String,
-        permissionCenter: BrowserSitePermissionCenter
-    ) async -> Bool {
-        let decision = permissionCenter.decision(for: permission, origin: origin, in: spaceID)
-        guard decision.verdict == .ask else { return decision.grants }
-        let generation = generation
-        let response = await response(
-            to: permission, origin: origin, topLevelOrigin: topLevelOrigin, spaceName: spaceName)
-        guard generation == self.generation else { return false }
-        guard !permissionCenter.decision(for: permission, origin: origin, in: spaceID).denies else { return false }
-        if let savedDecision = response.savedDecision {
-            permissionCenter.setDecision(savedDecision, for: permission, origin: origin, in: spaceID)
-        }
-        return response.grants
-    }
-
     func cancelAll() {
         generation = UUID()
         let callbacks = requests.flatMap { completions[$0.id] ?? [] }

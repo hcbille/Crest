@@ -52,5 +52,19 @@ extension BrowserPage: BrowserPromptPresenting {
             corePage.answer(AnswerAuthentication(promptID: promptID, credential: decision.credential))
         }
     }
-}
 
+    func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {
+        let question = asked.question
+        let corePage = corePage
+        let promptID = asked.promptID
+        let requests = sitePermissionRequests
+        let spaceName = spaceName
+        Task { @MainActor in
+            let response = await requests.response(
+                to: question.permission, origin: question.origin, topLevelOrigin: question.topLevelOrigin,
+                spaceName: spaceName, dismissal: dismissal)
+            corePage.answer(
+                AnswerPermission(promptID: promptID, grants: response.grants, remembers: response.savedDecision != nil))
+        }
+    }
+}

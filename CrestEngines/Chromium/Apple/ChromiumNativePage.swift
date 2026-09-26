@@ -342,11 +342,6 @@
 
         /// Answers the engine's site permission requests from Crest's record and
         /// prompt.
-        /// Asks the person about a site's permission request that its Space's
-        /// choices do not answer.
-        var permissionHandler:
-            ((SitePermission, SiteOrigin, SiteOrigin, BrowserPromptDismissal) async -> BrowserSitePermissionPromptResponse)?
-
         /// The engine clears the site its page is showing.
         func clearSiteData(for url: URL) async -> Bool {
             guard created, let pages else { return false }
@@ -600,17 +595,11 @@
         /// A site's permission request its Space's choices do not answer. The
         /// core records an answer the person asks it to remember.
         func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {
-            let question = asked.question
-            guard let handler = permissionHandler else {
+            guard let promptPresenter else {
                 engine?.answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
                 return
             }
-            Task { @MainActor [weak engine] in
-                let response = await handler(question.permission, question.origin, question.topLevelOrigin, dismissal)
-                engine?.answer(
-                    AnswerPermission(
-                        promptID: asked.promptID, grants: response.grants, remembers: response.savedDecision != nil))
-            }
+            promptPresenter.ask(asked, dismissal: dismissal)
         }
 
         /// The engine created the page: the page's handlers and scripts go in,

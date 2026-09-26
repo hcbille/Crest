@@ -53,4 +53,11 @@ final class WebKitEnginePage {
         guard let binding else { return answer(nil) }
         binding.raise(question, for: id, answer: answer)
     }
+
+    /// Asks the core a site's request for a capability. `answer` runs once:
+    /// whether the site may use it.
+    func ask(_ question: PermissionQuestion, answer: @escaping @MainActor (Bool) -> Void) {
+        guard let binding else { return answer(false) }
+        binding.raise(question, for: id, answer: answer)
+    }
 }

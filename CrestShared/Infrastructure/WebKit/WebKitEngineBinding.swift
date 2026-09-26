@@ -24,10 +24,11 @@ final class WebKitEngineBinding: EngineBinding {
     private enum PendingPrompt {
         case scriptDialog(pageID: UUID, answer: @MainActor (Bool, String?) -> Void)
         case authentication(pageID: UUID, answer: @MainActor (AuthenticationCredential?) -> Void)
+        case permission(pageID: UUID, answer: @MainActor (Bool) -> Void)
 
         var pageID: UUID {
             switch self {
-            case .scriptDialog(let pageID, _), .authentication(let pageID, _): pageID
+            case .scriptDialog(let pageID, _), .authentication(let pageID, _), .permission(let pageID, _): pageID
             }
         }
 
@@ -36,6 +37,7 @@ final class WebKitEngineBinding: EngineBinding {
             switch self {
             case .scriptDialog(_, let answer): answer(false, nil)
             case .authentication(_, let answer): answer(nil)
+            case .permission(_, let answer): answer(false)
             }
         }
 
@@ -44,6 +46,7 @@ final class WebKitEngineBinding: EngineBinding {
             switch self {
             case .scriptDialog: AnswerScriptDialog(promptID: promptID, accepted: false, text: nil)
             case .authentication: AnswerAuthentication(promptID: promptID, credential: nil)
+            case .permission: AnswerPermission(promptID: promptID, grants: false, remembers: false)
             }
         }
     }
@@ -102,11 +105,14 @@ final class WebKitEngineBinding: EngineBinding {
         case .settleAuthentication(let settlement):
             guard case .authentication(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
             answer(settlement.credential)
-        case .settlePermission, .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload,
-            .removeEngineDownload, .approveEngineDownload:
-            // WebKit answers its own permission requests and runs its own
-            // downloads until its binding reports them to the core (WP C
-            // (j1)), so the core never asks it to.
+        case .settlePermission(let settlement):
+            guard case .permission(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
+            answer(settlement.grants)
+        case .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
+            .approveEngineDownload:
+            // WebKit has no extensions, and runs its own downloads until its
+            // binding reports them to the core (WP C (j1)), so the core never
+            // asks it to.
             break
         }
     }
@@ -156,6 +162,16 @@ final class WebKitEngineBinding: EngineBinding {
         engines.report(AuthenticationChallenged(promptID: promptID, pageID: pageID, question: question), from: self)
     }
 
+    /// Raises with the core a site's request in page `pageID` for a
+    /// capability. The core answers it from the Space's choices, or settles it
+    /// with the person's answer.
+    func raise(_ question: PermissionQuestion, for pageID: UUID, answer: @escaping @MainActor (Bool) -> Void) {
+        guard let engines else { return answer(false) }
+        let promptID = UUID()
+        prompts[promptID] = .permission(pageID: pageID, answer: answer)
+        engines.report(PermissionRequested(promptID: promptID, pageID: pageID, question: question), from: self)
+    }
+
     /// Shows a question the core asks about one of this binding's pages on
     /// the page's host, and closes it once the core settles it. One no host
     /// can show is declined.
@@ -164,6 +180,8 @@ final class WebKitEngineBinding: EngineBinding {
         case .scriptDialogAsked(let asked):
             present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
         case .authenticationAsked(let asked):
+            present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
+        case .permissionAsked(let asked):
             present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
         case .promptSettled(let settled):
             dismissals.removeValue(forKey: settled.promptID)?.dismiss()
