@@ -2701,6 +2701,10 @@
     "2026-09-26-ios-download-clear-test": {
       "category": "internal",
       "message": "The iOS download-clearing test ends its download before clearing it, as the download center now requires"
+    },
+    "2026-09-26-engine-abi-open-page-transient": {
+      "category": "internal",
+      "message": "The engine ABI check sends OpenPage with its new transient presentation field"
     }
   }
 }
