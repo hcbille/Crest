@@ -113,10 +113,7 @@ struct BrowserSidebarTabRowSurface: ViewModifier {
             )
             .overlay {
                 BrowserFolderNestDropHighlight(
-                    isTargeted: sidebarInteraction.sidebarReorderState.resolvedTarget?.kind
-                        == .createCurrentFolder(configuration.tab.id)
-                )
-                .allowsHitTesting(false)
+                    state: sidebarInteraction.sidebarReorderState, target: .currentTab(configuration.tab.id))
             }
             .crestCollectionItemTransition()
             .accessibilityElement(children: .contain)

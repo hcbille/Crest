@@ -60,11 +60,7 @@ struct BrowserFolderHeader: View {
         // above the header is already drawn by the row's own reorder indicator,
         // on every shell, so the header carries only the nesting answer.
         .overlay {
-            BrowserFolderNestDropHighlight(
-                isTargeted: BrowserFolderRowPresentationPolicy.showsNestOutline(
-                    for: configuration.nestingLift
-                )
-            )
+            BrowserFolderNestDropHighlight(state: sidebarInteraction.sidebarReorderState, target: .folder(folder.id))
         }
     }
 }

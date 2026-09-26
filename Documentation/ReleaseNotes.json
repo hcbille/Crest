@@ -2857,6 +2857,10 @@
     "2026-09-26-offer-default-and-live-engines": {
       "category": "internal",
       "message": "Features appear in menus and settings only for the default engine or an engine a page is open on"
+    },
+    "2026-09-26-sidebar-lift-speed": {
+      "category": "improved",
+      "message": "Picking up tabs, folders and multi-selections in the sidebar responds faster, especially with many tabs"
     }
   }
 }

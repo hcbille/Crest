@@ -74,20 +74,6 @@ struct BrowserFolderGroupConfiguration {
         context.isCurrent(assignment) && context.space.folders.contains(folder.id)
     }
 
-    /// What releasing the lift in flight would file inside this folder, if
-    /// anything would.
-    ///
-    /// The reorder state resolves the target from the measured geometry — a
-    /// collapsed folder registers the middle band of its row as a nesting zone —
-    /// so the folder only has to draw the answer. Nothing but a tab or a folder
-    /// can appear here: a split group moves as one block and refuses folder
-    /// zones outright.
-    var nestingLift: BrowserSidebarReorderItem? {
-        let state = sidebarInteraction.sidebarReorderState
-        guard state.isTargetedFolder(folder.id) else { return nil }
-        return state.lift?.item
-    }
-
     /// The drag item the folder lifts as. What it holds is captured when the
     /// lift begins, not while the row draws.
     var dragItem: BrowserFolderDragItem {

@@ -15,6 +15,9 @@ final class BrowserSidebarReorderState {
         /// What the lift carries and where the core would let it land, asked
         /// once as it began; nil for a lift whose plan is asked at its drop.
         var plan: BrowserSidebarLiftPlan? = nil
+        /// The rows the lift carries, worked out once as it began, since
+        /// every row asks whether it is one of them each time it renders.
+        var rowIDs: Set<BrowserSidebarReorderItemID> = []
     }
 
     private(set) var lift: Lift?
@@ -32,10 +35,14 @@ final class BrowserSidebarReorderState {
     @ObservationIgnored private var landingExpirationTask: Task<Void, Never>?
     @ObservationIgnored private var needsLandingMeasurement = false
     @ObservationIgnored private var landingSection: BrowserSidebarReorderSection?
+    /// The rows the landing preview carries, kept with it.
+    @ObservationIgnored private var landingRowIDs: Set<BrowserSidebarReorderItemID> = []
+    /// The section order a lift's insertion reads, worked out once per target
+    /// and row registration rather than by every row as it renders.
+    @ObservationIgnored private var insertionOrder: InsertionOrder?
 
     func isRevealing(_ id: BrowserSidebarReorderItemID) -> Bool {
-        landingPreview?.item.selectionRowIDs.contains(id) == true
-            && landingPreview?.landing?.isRevealing == true
+        landingPreview?.landing?.isRevealing == true && landingRowIDs.contains(id)
     }
 
     func revealLanding(_ id: UUID) {
@@ -44,12 +51,13 @@ final class BrowserSidebarReorderState {
     }
 
     func hidesSource(_ id: BrowserSidebarReorderItemID) -> Bool {
-        isLifted(id) || landingPreview?.item.selectionRowIDs.contains(id) == true
+        isLifted(id) || landingPreview != nil && landingRowIDs.contains(id)
     }
 
     func finishLanding(_ id: UUID) {
         guard landingPreview?.landing?.id == id else { return }
         landingPreview = nil
+        landingRowIDs = []
         landingSessionToken = nil
         needsLandingMeasurement = false
         landingSection = nil
@@ -120,7 +128,7 @@ final class BrowserSidebarReorderState {
     }
 
     func isLifted(_ id: BrowserSidebarReorderItemID) -> Bool {
-        lift?.item.selectionRowIDs.contains(id) == true
+        lift?.rowIDs.contains(id) == true
     }
 
     // MARK: - Geometry registration
@@ -231,7 +239,7 @@ final class BrowserSidebarReorderState {
             return BrowserPinnedTabReorderLayout(ids: ids)
         }
         var result = BrowserPinnedTabReorderLayout(ids: ids, liftedID: lift.item.id)
-        result.liftedIDs = lift.item.selectionRowIDs
+        result.liftedIDs = lift.rowIDs
         if case .insert(let section, _, let index) = resolvedTarget?.kind, section.usesGridOrdering,
             constraintMessage == nil
         {
@@ -316,6 +324,7 @@ final class BrowserSidebarReorderState {
         }
         if let id = landingPreview?.landing?.id { finishLanding(id) }
         let frame = frame(ofRow: item.id)
+        let rowIDs = item.selectionRowIDs
         lift = Lift(
             item: item,
             section: section,
@@ -326,8 +335,9 @@ final class BrowserSidebarReorderState {
             ),
             previewRows: item.selection == nil
                 ? folderPreviewRows(for: item)
-                : selectionRows(in: item.spaceAssignment).filter { item.selectionRowIDs.contains($0.id) },
-            plan: plan
+                : selectionRows(in: item.spaceAssignment).filter { rowIDs.contains($0.id) },
+            plan: plan,
+            rowIDs: rowIDs
         )
         stagedLift = nil
         cancelStagedLiftExpiration()
@@ -394,6 +404,7 @@ final class BrowserSidebarReorderState {
             let frame = landingFrame
         {
             preview.landing = BrowserSidebarReorderLanding(frame: frame)
+            landingRowIDs = lift?.rowIDs ?? preview.item.selectionRowIDs
             landingPreview = preview
             landingSessionToken = sessionToken
             needsLandingMeasurement = true
@@ -477,12 +488,9 @@ final class BrowserSidebarReorderState {
         guard let context = insertionContext(for: id) else { return .zero }
         return BrowserSidebarReorderPolicy.displacement(
             candidateIndex: context.candidateIndex,
-            draggedSlot: context.draggedSlot,
-            insertionIndex: context.index,
-            layout: BrowserSidebarReorderPolicy.slotLayout(
-                for: context.ordered,
-                fallbackStride: context.fallbackStride
-            )
+            draggedSlot: context.order.draggedSlot,
+            insertionIndex: context.order.index,
+            layout: context.order.slotLayout
         )
     }
 
@@ -502,16 +510,16 @@ final class BrowserSidebarReorderState {
         for id: BrowserSidebarReorderItemID
     ) -> BrowserSidebarReorderIndicator? {
         guard let context = insertionContext(for: id) else { return nil }
-        let flowsHorizontally = context.section.flowsHorizontally
+        let flowsHorizontally = context.order.section.flowsHorizontally
 
-        if context.candidateIndex == context.index {
+        if context.candidateIndex == context.order.index {
             return BrowserSidebarReorderIndicator(
                 side: .before,
                 flowsHorizontally: flowsHorizontally
             )
         }
-        if context.index >= context.candidateCount,
-            context.candidateIndex == context.candidateCount - 1
+        if context.order.index >= context.order.candidateCount,
+            context.candidateIndex == context.order.candidateCount - 1
         {
             return BrowserSidebarReorderIndicator(
                 side: .after,
@@ -617,14 +625,27 @@ final class BrowserSidebarReorderState {
 
     // MARK: - Resolution
 
-    private struct InsertionContext {
+    /// The order of the section a lift would be inserted into, which every
+    /// row of it reads to find its own slot.
+    private struct InsertionOrder {
+        /// The lift, target and row registrations it was worked out for.
+        let item: BrowserSidebarReorderItemID
+        let target: BrowserSidebarReorderTarget
+        let rowSize: CGSize
+        let rowsRevision: Int
+
         let section: BrowserSidebarReorderSection
-        let ordered: [BrowserSidebarReorderRow]
-        let candidateIndex: Int
+        /// Each row's place among the section's rows other than the lifted one.
+        let candidateIndexes: [BrowserSidebarReorderItemID: Int]
         let candidateCount: Int
         let draggedSlot: Int
         let index: Int
-        let fallbackStride: CGFloat
+        let slotLayout: BrowserSidebarReorderPolicy.SlotLayout
+    }
+
+    private struct InsertionContext {
+        let order: InsertionOrder
+        let candidateIndex: Int
     }
 
     private func insertionContext(
@@ -633,30 +654,41 @@ final class BrowserSidebarReorderState {
         guard let lift,
             lift.item.id != id,
             let target = resolvedTarget,
-            case .insert(let section, _, let index) = target.kind
+            case .insert = target.kind,
+            let order = insertionOrder(for: lift, target: target),
+            let candidateIndex = order.candidateIndexes[id]
         else { return nil }
+        return InsertionContext(order: order, candidateIndex: candidateIndex)
+    }
 
+    /// The insertion order for `lift` at `target`, kept until the lift, the
+    /// target or the registered rows change.
+    private func insertionOrder(for lift: Lift, target: BrowserSidebarReorderTarget) -> InsertionOrder? {
+        if let order = insertionOrder, order.item == lift.item.id, order.target == target,
+            order.rowSize == lift.rowSize,
+            order.rowsRevision == geometry.rowsRevision
+        {
+            return order
+        }
+        guard case .insert(let section, _, let index) = target.kind else { return nil }
         let ordered = BrowserSidebarReorderPolicy.rows(
             in: section,
             from: registeredRows(in: lift.item.spaceAssignment)
         )
         let candidates = ordered.filter { $0.id != lift.item.id }
-        guard let candidateIndex = candidates.firstIndex(where: { $0.id == id })
-        else { return nil }
-        let draggedSlot =
-            ordered.firstIndex { $0.id == lift.item.id } ?? candidates.count
-
-        return InsertionContext(
+        let order = InsertionOrder(
+            item: lift.item.id, target: target, rowSize: lift.rowSize, rowsRevision: geometry.rowsRevision,
             section: section,
-            ordered: ordered,
-            candidateIndex: candidateIndex,
+            candidateIndexes: Dictionary(
+                candidates.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first }),
             candidateCount: candidates.count,
-            draggedSlot: draggedSlot,
+            draggedSlot: ordered.firstIndex { $0.id == lift.item.id } ?? candidates.count,
             index: index,
-            fallbackStride: section.usesGridOrdering
-                ? lift.rowSize.width
-                : lift.rowSize.height
-        )
+            slotLayout: BrowserSidebarReorderPolicy.slotLayout(
+                for: ordered,
+                fallbackStride: section.usesGridOrdering ? lift.rowSize.width : lift.rowSize.height))
+        insertionOrder = order
+        return order
     }
 
     private func resolveTarget() {

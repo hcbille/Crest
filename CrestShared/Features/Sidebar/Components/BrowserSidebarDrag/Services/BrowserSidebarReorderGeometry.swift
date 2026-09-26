@@ -25,7 +25,12 @@ final class BrowserSidebarReorderGeometry {
     }
 
     private(set) var selectionRowsRevision = 0
-    @ObservationIgnored private(set) var rows: [BrowserSidebarReorderItemID: RegisteredRow] = [:]
+    /// Advances with every change to the rows, so what is worked out from
+    /// them can be kept until they change.
+    @ObservationIgnored private(set) var rowsRevision = 0
+    @ObservationIgnored private(set) var rows: [BrowserSidebarReorderItemID: RegisteredRow] = [:] {
+        didSet { rowsRevision &+= 1 }
+    }
     /// Registrations a later one replaced while their view was still on
     /// screen, by item and view. A row that moves between lists is two views
     /// for a moment, and the departing one can measure itself again during its

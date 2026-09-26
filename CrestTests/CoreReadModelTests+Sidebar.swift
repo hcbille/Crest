@@ -446,7 +446,7 @@ enum SidebarReads {
         let configuration = BrowserFolderGroupConfiguration(
             sidebarInteraction: interaction, folder: folder, depth: depth, context: context, spacePresentation: nil)
         _ = (folder.title, folder.displaySymbol, folder.artworkColor, folder.isCollapsed, folder.location)
-        _ = (configuration.displayBranding, configuration.isAvailableForDisplay, configuration.nestingLift)
+        _ = (configuration.displayBranding, configuration.isAvailableForDisplay)
         _ = BrowserSidebarSelection.showsSelected(.folder(folder.id), in: context)
         _ = interaction.editingFolderRequest
         _ = (configuration.shownFolderTabID, configuration.residencyRevision)
