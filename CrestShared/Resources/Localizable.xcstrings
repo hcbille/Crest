@@ -1,6 +1,90 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "A Space can contain up to %lld custom search engines." : {
+
+    },
+    "A Space can hold up to %lld pinned tabs. Unpin tabs or select fewer tabs." : {
+
+    },
+    "A Space has more pinned tabs than it can hold." : {
+
+    },
+    "A Space’s profile changed." : {
+
+    },
+    "A record can’t be read." : {
+
+    },
+    "A record moved to another Space." : {
+
+    },
+    "A record’s contents don’t match its identity." : {
+
+    },
+    "A tab names a folder in another Space." : {
+
+    },
+    "An export is already in progress for this page." : {
+
+    },
+    "Crest can keep up to %lld saved site permissions. Reset some to save more." : {
+
+    },
+    "Crest couldn’t apply the latest changes from iCloud." : {
+
+    },
+    "Crest couldn’t read the iCloud sync state an earlier version saved." : {
+
+    },
+    "Crest hit a problem applying these records." : {
+
+    },
+    "Crest lost track of an iCloud download it was applying." : {
+
+    },
+    "Crest needs at least one Space." : {
+
+    },
+    "Folders are nested inside each other." : {
+
+    },
+    "Some iCloud records can’t be read. Update Crest on all your devices and try again." : {
+
+    },
+    "Split View needs 2 to %lld tabs. Select fewer tabs or use a smaller split." : {
+
+    },
+    "The page could not be exported." : {
+
+    },
+    "The page export is too large." : {
+
+    },
+    "The page export timed out." : {
+
+    },
+    "The page navigated before its export finished." : {
+
+    },
+    "The page renderer stopped." : {
+
+    },
+    "The page was closed." : {
+
+    },
+    "There are more records than sync keeps." : {
+
+    },
+    "This page cannot be exported." : {
+
+    },
+    "Two Spaces share a profile." : {
+
+    },
+    "Two records share one identity." : {
+
+    },
     "Quit and cancel the download in progress?" : {
 
     },

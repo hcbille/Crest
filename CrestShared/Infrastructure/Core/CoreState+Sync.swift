@@ -33,4 +33,7 @@ extension CoreState {
     func apply(_ change: CloudTransportChanged) {}
 
     func apply(_ change: CloudMergeBegan) {}
+
+    /// iCloud sync's status and next steps, which the sync controller keeps.
+    func apply(_ change: CloudSyncAdvanced) {}
 }

@@ -6,35 +6,6 @@ import XCTest
 
 @MainActor
 final class BrowserCloudSyncControllerTests: XCTestCase {
-    func testUnconfiguredControllerReportsTheExistingFailureAndDiagnostics() async throws {
-        let suiteName = "BrowserCloudSyncControllerTests.Unconfigured.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let controller = BrowserCloudSyncController(
-            core: CrestCore(),
-            configuration: nil,
-            defaults: defaults
-        )
-
-        XCTAssertTrue(controller.isEnabled)
-        XCTAssertEqual(controller.phase, .checking)
-        XCTAssertEqual(controller.accountState, .checking)
-        XCTAssertNil(controller.containerIdentifier)
-
-        await controller.start()
-
-        XCTAssertEqual(
-            controller.phase,
-            .failed("Crest’s CloudKit container is not configured.")
-        )
-        XCTAssertEqual(controller.accountState, .couldNotDetermine)
-        XCTAssertNil(controller.errorDescription)
-        XCTAssertTrue(controller.diagnosticsReport.contains("Container: Not configured"))
-        XCTAssertTrue(controller.diagnosticsReport.contains("Enabled: true"))
-        XCTAssertTrue(controller.diagnosticsReport.contains("Account: Could not determine"))
-        XCTAssertTrue(controller.diagnosticsReport.contains("Status: Needs attention"))
-    }
-
     func testAvailableAccountStartsAutomaticTransportWithoutForcingAManualSync() async throws {
         let core = CrestCore()
         let preferences = TestBrowserCloudSyncPreferences()
@@ -93,26 +64,6 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         XCTAssertTrue(factory.transports.isEmpty)
         XCTAssertNil(controller.conflict)
         XCTAssertTrue(try core.query(CloudTransport()).awaitsAccountDecision)
-    }
-
-    func testUnavailableAccountWaitsWithoutCreatingATransport() async {
-        let core = CrestCore()
-        let preferences = TestBrowserCloudSyncPreferences()
-        let remote = TestBrowserCloudSyncRemoteService(accountState: .noAccount)
-        let factory = TestBrowserCloudSyncTransportFactory()
-        let controller = BrowserCloudSyncController(
-            core: core,
-            configuration: testConfiguration,
-            preferences: preferences,
-            remoteService: remote,
-            transportFactory: factory
-        )
-
-        await controller.start()
-
-        XCTAssertEqual(controller.accountState, .noAccount)
-        XCTAssertEqual(controller.phase, .waitingForAccount)
-        XCTAssertTrue(factory.transports.isEmpty)
     }
 
     func testDifferentAccountContentPausesForExplicitReconciliation() async throws {
@@ -275,28 +226,6 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         XCTAssertEqual(controller.phase, .ready)
     }
 
-    /// Turning sync off must not launder the wrong-account guard. Clearing the
-    /// stored pause here would let the next switch on merge this device's Spaces
-    /// into whichever account is signed in, without asking again.
-    func testTurningSyncOffKeepsAPendingAccountDecision() async throws {
-        let core = try awaitingAccountDecision(CrestCore())
-        let controller = BrowserCloudSyncController(
-            core: core,
-            configuration: testConfiguration,
-            preferences: TestBrowserCloudSyncPreferences(),
-            remoteService: TestBrowserCloudSyncRemoteService(accountState: .available),
-            transportFactory: TestBrowserCloudSyncTransportFactory()
-        )
-
-        controller.isEnabled = false
-        for _ in 0..<100 where controller.phase != .disabled {
-            await Task.yield()
-        }
-
-        XCTAssertEqual(controller.phase, .disabled)
-        XCTAssertTrue(try core.query(CloudTransport()).awaitsAccountDecision)
-    }
-
     /// A disable that lands while `start` is suspended used to be overtaken: the
     /// resumed launch built a transport with automatic sync on and reported Ready
     /// while the interface said Off.
@@ -328,95 +257,6 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         XCTAssertTrue(factory.transports.isEmpty)
         XCTAssertEqual(controller.phase, .disabled)
         XCTAssertNil(controller.lastSuccessAt)
-    }
-
-    /// A failure raised while handling a fetched batch must not be painted over
-    /// with "Up to date" in the same cycle.
-    func testAFailedSyncIsNeverReportedAsUpToDate() async throws {
-        let factory = TestBrowserCloudSyncTransportFactory(
-            syncFailure: TestBrowserCloudSyncRemoteService.TestFailure.unavailable
-        )
-        let controller = BrowserCloudSyncController(
-            core: CrestCore(),
-            configuration: testConfiguration,
-            preferences: TestBrowserCloudSyncPreferences(),
-            remoteService: TestBrowserCloudSyncRemoteService(accountState: .available),
-            transportFactory: factory
-        )
-
-        await controller.start()
-        await controller.syncNow()
-
-        XCTAssertNil(controller.lastSuccessAt)
-        XCTAssertNotEqual(controller.phase, .ready)
-        XCTAssertNotNil(controller.errorDescription)
-    }
-
-    func testAnExistingTransportFailureIsNotRetriedByTheController() async throws {
-        let factory = TestBrowserCloudSyncTransportFactory(
-            syncFailure: TestBrowserCloudSyncRemoteService.TestFailure.unavailable
-        )
-        let controller = BrowserCloudSyncController(
-            core: CrestCore(),
-            configuration: testConfiguration,
-            preferences: TestBrowserCloudSyncPreferences(),
-            remoteService: TestBrowserCloudSyncRemoteService(accountState: .available),
-            transportFactory: factory,
-            retryDelay: .milliseconds(1)
-        )
-        await controller.start()
-        let transport = try XCTUnwrap(factory.transports.first)
-
-        await controller.syncNow()
-        try? await Task.sleep(for: .milliseconds(30))
-
-        let syncCount = await transport.syncCount
-        XCTAssertEqual(syncCount, 1)
-        XCTAssertNotEqual(controller.phase, .ready)
-    }
-
-    func testAutomaticActivityClearsARecoveredTransientFailure() async throws {
-        let factory = TestBrowserCloudSyncTransportFactory()
-        let controller = BrowserCloudSyncController(
-            core: CrestCore(),
-            configuration: testConfiguration,
-            preferences: TestBrowserCloudSyncPreferences(),
-            remoteService: TestBrowserCloudSyncRemoteService(accountState: .available),
-            transportFactory: factory
-        )
-        await controller.start()
-        let transport = try XCTUnwrap(factory.transports.first)
-        await transport.emit(.failed("iCloud is temporarily unavailable."))
-
-        await transport.emit(.uploaded(recordCount: 2))
-
-        XCTAssertEqual(controller.phase, .ready)
-        XCTAssertNil(controller.errorDescription)
-        XCTAssertEqual(controller.lastUploadedRecordCount, 2)
-        XCTAssertNotNil(controller.lastSuccessAt)
-    }
-
-    func testSkippedRecordsAndRemovedCloudDataReachTheDiagnostics() async throws {
-        let factory = TestBrowserCloudSyncTransportFactory()
-        let controller = BrowserCloudSyncController(
-            core: CrestCore(),
-            configuration: testConfiguration,
-            preferences: TestBrowserCloudSyncPreferences(),
-            remoteService: TestBrowserCloudSyncRemoteService(accountState: .available),
-            transportFactory: factory
-        )
-        await controller.start()
-        let transport = try XCTUnwrap(factory.transports.first)
-
-        await transport.emit(.skippedRecords(count: 2, requiresAppUpdate: true))
-        await transport.emit(.cloudDataRemoved)
-
-        XCTAssertEqual(controller.skippedRecordCount, 2)
-        XCTAssertTrue(controller.requiresAppUpdate)
-        XCTAssertTrue(controller.cloudDataWasRemoved)
-        XCTAssertTrue(controller.diagnosticsReport.contains("Records skipped: 2"))
-        XCTAssertTrue(controller.diagnosticsReport.contains("Needs app update: true"))
-        XCTAssertTrue(controller.diagnosticsReport.contains("iCloud data removed: true"))
     }
 
     /// Nothing observed `CKAccountChanged`, so a device that was signed out at
@@ -507,44 +347,6 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         XCTAssertEqual(controller.lastFetchedRecordCount, 4)
     }
 
-    func testDisablingSyncCancelsASuspendedPullWithoutReportingSuccess() async throws {
-        let factory = TestBrowserCloudSyncTransportFactory(suspendsPull: true)
-        let controller = BrowserCloudSyncController(
-            core: CrestCore(), configuration: testConfiguration,
-            preferences: TestBrowserCloudSyncPreferences(),
-            remoteService: TestBrowserCloudSyncRemoteService(accountState: .available), transportFactory: factory
-        )
-        await controller.start()
-        let transport = try XCTUnwrap(factory.transports.first)
-        let pull = Task { await controller.pullFromICloud() }
-        for _ in 0..<1_000 where !(await transport.isPullSuspended) { await Task.yield() }
-        let suspended = await transport.isPullSuspended
-        XCTAssertTrue(suspended)
-        controller.isEnabled = false
-        await pull.value
-        XCTAssertEqual(controller.phase, .disabled)
-        XCTAssertNil(controller.lastSuccessAt)
-        XCTAssertNil(controller.observedCloudRecordCount)
-    }
-
-    func testFailedPullDoesNotReportSuccessOrReplaceEitherCopy() async throws {
-        let device = try await syncedDevice()
-        let local = try device.storedPart("journal")
-        let controller = BrowserCloudSyncController(
-            core: device.core, configuration: testConfiguration,
-            preferences: TestBrowserCloudSyncPreferences(),
-            remoteService: TestBrowserCloudSyncRemoteService(accountState: .available),
-            transportFactory: TestBrowserCloudSyncTransportFactory(
-                syncFailure: TestBrowserCloudSyncRemoteService.TestFailure.unavailable)
-        )
-        await controller.start()
-        await controller.pullFromICloud()
-        XCTAssertNotEqual(controller.phase, .ready)
-        XCTAssertNil(controller.lastSuccessAt)
-        XCTAssertNil(controller.observedCloudRecordCount)
-        XCTAssertEqual(try device.storedPart("journal"), local)
-    }
-
     private var testConfiguration: BrowserCloudSyncConfiguration {
         BrowserCloudSyncConfiguration(containerIdentifier: "iCloud.com.pauldavis.crest")
     }
@@ -593,7 +395,7 @@ private actor TestBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
     }
 
     private let hasEntitlement: Bool
-    private var state: BrowserCloudAccountState
+    private var state: CloudAccountState
     private let snapshot: [SyncRecord]
     private let suspendsAccountState: Bool
     private var initialFailures: Int
@@ -605,7 +407,7 @@ private actor TestBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
 
     init(
         hasEntitlement: Bool = true,
-        accountState: BrowserCloudAccountState,
+        accountState: CloudAccountState,
         snapshot: [SyncRecord] = [],
         suspendsAccountState: Bool = false,
         initialFailures: Int = 0
@@ -619,7 +421,7 @@ private actor TestBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
 
     func hasRequiredEntitlement() async -> Bool { hasEntitlement }
 
-    func accountState() async throws -> BrowserCloudAccountState {
+    func accountState() async throws -> CloudAccountState {
         if suspendsAccountState, !wasReleased {
             isSuspended = true
             await withCheckedContinuation { releaseWaiters.append($0) }

@@ -30,6 +30,10 @@ public sealed partial class CrestApp {
 
     private CloudContentComparison Answer(CloudComparison query) => StoredSyncSession().Answer(query);
 
+    /// Whether the session this core keeps in its file is still the disposable
+    /// seed a first launch made.
+    private bool StoredSessionIsDisposableSeed() => storedSession is { IsReleased: false, IsDisposableSeed: true };
+
     /// Whether the stored session's journal holds records waiting to upload,
     /// once every stage queued before the call settled.
     private bool JournalHoldsUploads() {

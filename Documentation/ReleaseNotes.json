@@ -2765,6 +2765,10 @@
     "2026-09-26-capture-permission-rules": {
       "category": "fixed",
       "message": "A camera and microphone request now follows your choice for each device, and blocking a site while it asks refuses the request"
+    },
+    "2026-09-26-cloud-sync-decisions-in-core": {
+      "category": "internal",
+      "message": "Crest decides each step of iCloud sync in its core: starting, pausing for an account change, applying your choice and retrying"
     }
   }
 }

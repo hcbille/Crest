@@ -21,6 +21,9 @@ internal sealed class CloudTransportStore {
 
     private CloudTransportRecord record;
     private bool adopted;
+    /// Sync was turned off before the installed release's state was adopted:
+    /// the adoption starts it over unless an account decision waits.
+    private bool resetsOnAdoption;
     /// A merge failed, or an earlier launch left one unrecovered, and no full
     /// snapshot has been taken since without another failing meanwhile.
     private bool needsRecovery;
@@ -86,9 +89,7 @@ internal sealed class CloudTransportStore {
                     Finish(finish);
                     break;
                 case ResetCloudTransport reset:
-                    needsRecovery = false;
-                    Save(CloudTransportRecord.Initial(record.RecordSchema) with { OverwritesCloud = reset.OverwritesCloud },
-                        CloudFieldWrite.Cleared);
+                    StartOver(reset.OverwritesCloud);
                     break;
                 case SettleCloudOverwrite when record.OverwritesCloud && !holdsUploads:
                     Save(record with { OverwritesCloud = false }, fields: null);
@@ -102,6 +103,36 @@ internal sealed class CloudTransportStore {
         }
     }
 
+    /// Whether an account change waits for the person's decision.
+    public bool AwaitsAccountDecision {
+        get {
+            lock (gate) return record.AwaitsAccountDecision;
+        }
+    }
+
+    /// Starts the transport's state over, as `ResetCloudTransport` does.
+    /// Throws `Rejected` with `SaveFailed`, keeping what was there.
+    public void Reset(bool overwritesCloud) {
+        lock (gate) StartOver(overwritesCloud);
+    }
+
+    /// Starts the transport's state over unless an account decision waits,
+    /// as turning sync off does; before the installed release's state is
+    /// adopted, the adoption does. Throws `Rejected` with `SaveFailed`.
+    public void ResetUnlessAwaitingDecision() {
+        lock (gate) {
+            if (!adopted) resetsOnAdoption = true;
+            else if (!record.AwaitsAccountDecision) StartOver(overwritesCloud: false);
+        }
+    }
+
+    /// No cursor, no server fields, no full pull and no account decision
+    /// waiting, in one save. The caller holds the lock.
+    private void StartOver(bool overwritesCloud) {
+        needsRecovery = false;
+        Save(CloudTransportRecord.Initial(record.RecordSchema) with { OverwritesCloud = overwritesCloud }, CloudFieldWrite.Cleared);
+    }
+
     /// Starts the transport under the schema it reads, adopting the installed
     /// release's file the first time. The caller holds the lock.
     private void Open(OpenCloudTransport open) {
@@ -111,8 +142,11 @@ internal sealed class CloudTransportStore {
                 : (CloudTransportRecord.Initial(open.RecordSchema), []);
             bool recovers = storage is { CloudRecoveryRequested: true };
             if (recovers) (legacy, fields) = (legacy.Recovering(), []);
+            if (resetsOnAdoption && !legacy.AwaitsAccountDecision)
+                (legacy, fields) = (CloudTransportRecord.Initial(open.RecordSchema), []);
             Save(legacy, new CloudFieldWrite(Clearing: true, fields, []), DeviceAdoption.CloudTransport);
             adopted = true;
+            resetsOnAdoption = false;
             device.NoteAdopted(DeviceAdoption.CloudTransport);
             needsRecovery = record.RequiresFullPull;
             if (recovers) storage!.ConsumeCloudRecovery();

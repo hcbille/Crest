@@ -32,6 +32,9 @@ protocol PageRequest: Sendable {
 /// The members of `Intent` that derive from the core's `CloseIntent`.
 protocol CloseIntent: Intent {}
 
+/// The members of `Intent` that derive from the core's `CloudSyncControlIntent`.
+protocol CloudSyncControlIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `CloudSyncIntent`.
 protocol CloudSyncIntent: Intent {}
 
@@ -81,6 +84,7 @@ enum Change: Equatable, Sendable {
     case authenticationAsked(AuthenticationAsked)
     case closeReady(CloseReady)
     case cloudMergeBegan(CloudMergeBegan)
+    case cloudSyncAdvanced(CloudSyncAdvanced)
     case cloudTransportChanged(CloudTransportChanged)
     case downloadApprovalAsked(DownloadApprovalAsked)
     case downloadDestinationAsked(DownloadDestinationAsked)
@@ -353,6 +357,7 @@ extension CoreState {
         case .authenticationAsked(let change): apply(change)
         case .closeReady(let change): apply(change)
         case .cloudMergeBegan(let change): apply(change)
+        case .cloudSyncAdvanced(let change): apply(change)
         case .cloudTransportChanged(let change): apply(change)
         case .downloadApprovalAsked(let change): apply(change)
         case .downloadDestinationAsked(let change): apply(change)
@@ -873,6 +878,10 @@ struct CheckBeforeUnload: Equatable, Sendable {
     let pageID: UUID
 }
 
+struct ChooseCloudCopy: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let usesCloud: Bool
+}
+
 struct ChooseExternalLinkDestination: Intent, LinkIntent, Equatable, Sendable {
     let destination: ExternalLinkDestination
     let spaceID: UUID?
@@ -966,10 +975,21 @@ struct CloseWorkspace: Intent, WorkspaceIntent, Equatable, Sendable {
     let workspaceID: UUID
 }
 
+struct CloudAccountChecked: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let state: CloudAccountState
+}
+
 struct CloudComparison: Query, Equatable, Sendable {
     typealias Answer = CloudContentComparison
 
     let cloud: [SyncRecord]
+}
+
+struct CloudContentCompared: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let cloudRecords: Int
+    let comparison: CloudContentComparison
 }
 
 struct CloudContentComparison: Equatable, Sendable {
@@ -978,6 +998,21 @@ struct CloudContentComparison: Equatable, Sendable {
     let cloudRecords: Int
     let deviceSpaces: Int
     let cloudSpaces: Int
+}
+
+struct CloudContentTaken: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+}
+
+struct CloudCopyApplied: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let usesCloud: Bool
+    let cloudRecords: Int
+}
+
+struct CloudEntitlementChecked: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let granted: Bool
 }
 
 struct CloudFieldsOf: Query, Equatable, Sendable {
@@ -1000,6 +1035,51 @@ struct CloudRecordFields: Equatable, Sendable {
     let schemaVersion: Int?
 }
 
+struct CloudSeedReplaced: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let cloudRecords: Int
+}
+
+struct CloudStepFailed: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let step: CloudSyncStepKind
+    let message: String
+    let observedCloudRecords: Int?
+}
+
+struct CloudSync: Query, Equatable, Sendable {
+    typealias Answer = CloudSyncStatus
+
+}
+
+struct CloudSyncAdvanced: Equatable, Sendable {
+    let status: CloudSyncStatus
+    let steps: [CloudSyncStep]
+}
+
+struct CloudSyncStatus: Equatable, Sendable {
+    let isEnabled: Bool
+    let account: CloudAccountState
+    let phase: CloudSyncPhase
+    let problem: CloudSyncProblem?
+    let failureMessage: String?
+    let lastAttemptAt: Date?
+    let lastSuccessAt: Date?
+    let lastFetchedRecords: Int
+    let lastUploadedRecords: Int
+    let observedCloudRecords: Int?
+    let conflict: CloudContentComparison?
+    let skippedRecords: Int
+    let requiresAppUpdate: Bool
+    let cloudDataRemoved: Bool
+}
+
+struct CloudSyncStep: Equatable, Sendable {
+    let kind: CloudSyncStepKind
+    let attempt: Int64
+    let usesCloud: Bool
+}
+
 struct CloudTransport: Query, Equatable, Sendable {
     typealias Answer = CloudTransportState
 
@@ -1009,12 +1089,35 @@ struct CloudTransportChanged: Equatable, Sendable {
     let state: CloudTransportState
 }
 
+struct CloudTransportPulled: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let cloudRecords: Int
+    let localChangesUnsaved: Bool
+}
+
+struct CloudTransportReported: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let report: CloudTransportReport
+    let message: String?
+    let recordCount: Int
+    let requiresAppUpdate: Bool
+}
+
+struct CloudTransportStarted: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+}
+
 struct CloudTransportState: Equatable, Sendable {
     let requiresFullPull: Bool
     let awaitsAccountDecision: Bool
     let overwritesCloud: Bool
     let engineState: Data?
     let isAdopted: Bool
+}
+
+struct CloudTransportSynced: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let attempt: Int64
+    let localChangesUnsaved: Bool
 }
 
 struct CollapseFolder: Intent, SessionIntent, Equatable, Sendable {
@@ -1026,6 +1129,11 @@ struct CollapseFolder: Intent, SessionIntent, Equatable, Sendable {
 
 struct ColorPalette: Equatable, Sendable {
     let colors: [BrandColor]
+}
+
+struct ConfigureCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let isEnabled: Bool
+    let canReachCloud: Bool
 }
 
 struct ContentFrame: Equatable, Sendable, Identifiable {
@@ -2620,6 +2728,9 @@ struct NotificationRequestAnswer: Equatable, Sendable {
     let action: HostedNotificationRequestAction
 }
 
+struct NotifyCloudLocalChanges: Intent, CloudSyncControlIntent, Equatable, Sendable {
+}
+
 struct NumberedSelection: Equatable, Sendable {
     let command: ShortcutCommand
     let target: NumberedSelectionTarget
@@ -2635,6 +2746,9 @@ struct NumberedSelections: Query, Equatable, Sendable {
     typealias Answer = NumberedSelectionList
 
     let windowID: UUID
+}
+
+struct ObserveCloudAccountAvailability: Intent, CloudSyncControlIntent, Equatable, Sendable {
 }
 
 struct ObserveCloudAccountChange: Intent, CloudTransportIntent, Equatable, Sendable {
@@ -3360,6 +3474,12 @@ struct ReportMemoryPressure: Intent, PageIntent, Equatable, Sendable {
     let level: MemoryPressureLevel
 }
 
+struct RequestCloudPull: Intent, CloudSyncControlIntent, Equatable, Sendable {
+}
+
+struct RequestCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
+}
+
 struct ResetCloudTransport: Intent, CloudTransportIntent, Equatable, Sendable {
     let overwritesCloud: Bool
 }
@@ -3403,6 +3523,9 @@ struct ResolvedAddress: Equatable, Sendable {
     let searchQuery: String?
 }
 
+struct RestartCloudSyncAfterAccountChange: Intent, CloudSyncControlIntent, Equatable, Sendable {
+}
+
 struct RestartDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
 }
@@ -3420,6 +3543,9 @@ struct RestoreInteractionState: PageRequest, Equatable, Sendable {
     let pageID: UUID
     let state: Data
     let expectedURL: String
+}
+
+struct RetryCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
 }
 
 struct ReturnToSavedAddress: Intent, SessionIntent, Equatable, Sendable {
@@ -3611,6 +3737,10 @@ struct SetBrowsingPreferences: Intent, SessionIntent, Equatable, Sendable {
     let currentTabCleanup: CurrentTabCleanup
     let contentBlocking: ContentBlockingPolicy
     let dataRetention: DataRetentionPreferences
+}
+
+struct SetCloudSyncEnabled: Intent, CloudSyncControlIntent, Equatable, Sendable {
+    let isEnabled: Bool
 }
 
 struct SetCredentialPreferences: Intent, SessionIntent, Equatable, Sendable {
@@ -4145,6 +4275,9 @@ struct StaleCredentialComparison: Equatable, Sendable {
 
 struct StaleUnlockRequest: Equatable, Sendable {
     let requestID: UUID
+}
+
+struct StartCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
 }
 
 struct StartPageNotCopied: Equatable, Sendable {
@@ -5475,6 +5608,45 @@ struct CapabilityStatus: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `CloudAccountState`. A member's wire tag is its index in `all`.
+struct CloudAccountState: Hashable, Sendable {
+    let tag: Int
+    let name: String
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        self.name = name
+    }
+
+    static let checking = CloudAccountState(tag: 0, name: "checking")
+    static let available = CloudAccountState(tag: 1, name: "available")
+    static let noAccount = CloudAccountState(tag: 2, name: "noAccount")
+    static let restricted = CloudAccountState(tag: 3, name: "restricted")
+    static let temporarilyUnavailable = CloudAccountState(tag: 4, name: "temporarilyUnavailable")
+    static let couldNotDetermine = CloudAccountState(tag: 5, name: "couldNotDetermine")
+
+    static let all: [CloudAccountState] = [
+        checking,
+        available,
+        noAccount,
+        restricted,
+        temporarilyUnavailable,
+        couldNotDetermine
+    ]
+
+    static func named(_ name: String?) -> CloudAccountState? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CloudAccountState, rhs: CloudAccountState) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `CloudAccountTransition`. A member's wire tag is its index in `all`.
 struct CloudAccountTransition: Hashable, Sendable {
     let tag: Int
@@ -5499,6 +5671,184 @@ struct CloudAccountTransition: Hashable, Sendable {
     }
 
     static func == (lhs: CloudAccountTransition, rhs: CloudAccountTransition) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CloudSyncPhase`. A member's wire tag is its index in `all`.
+struct CloudSyncPhase: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let isRetryable: Bool
+
+    private init(tag: Int, name: String, isRetryable: Bool) {
+        self.tag = tag
+        self.name = name
+        self.isRetryable = isRetryable
+    }
+
+    static let disabled = CloudSyncPhase(tag: 0, name: "disabled", isRetryable: false)
+    static let checking = CloudSyncPhase(tag: 1, name: "checking", isRetryable: false)
+    static let ready = CloudSyncPhase(tag: 2, name: "ready", isRetryable: false)
+    static let syncing = CloudSyncPhase(tag: 3, name: "syncing", isRetryable: false)
+    static let needsReconciliation = CloudSyncPhase(tag: 4, name: "needsReconciliation", isRetryable: false)
+    static let waitingForAccount = CloudSyncPhase(tag: 5, name: "waitingForAccount", isRetryable: true)
+    static let failed = CloudSyncPhase(tag: 6, name: "failed", isRetryable: true)
+
+    static let all: [CloudSyncPhase] = [
+        disabled,
+        checking,
+        ready,
+        syncing,
+        needsReconciliation,
+        waitingForAccount,
+        failed
+    ]
+
+    static func named(_ name: String?) -> CloudSyncPhase? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CloudSyncPhase, rhs: CloudSyncPhase) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CloudSyncProblem`. A member's wire tag is its index in `all`.
+struct CloudSyncProblem: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let reportsError: Bool
+
+    private init(tag: Int, name: String, reportsError: Bool) {
+        self.tag = tag
+        self.name = name
+        self.reportsError = reportsError
+    }
+
+    static let notConfigured = CloudSyncProblem(tag: 0, name: "notConfigured", reportsError: false)
+    static let entitlementMissing = CloudSyncProblem(tag: 1, name: "entitlementMissing", reportsError: true)
+    static let localChangesUnsaved = CloudSyncProblem(tag: 2, name: "localChangesUnsaved", reportsError: true)
+
+    static let all: [CloudSyncProblem] = [notConfigured, entitlementMissing, localChangesUnsaved]
+
+    static func named(_ name: String?) -> CloudSyncProblem? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CloudSyncProblem, rhs: CloudSyncProblem) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CloudSyncStepKind`. A member's wire tag is its index in `all`.
+struct CloudSyncStepKind: Hashable, Sendable {
+    let tag: Int
+    let name: String
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        self.name = name
+    }
+
+    static let checkEntitlement = CloudSyncStepKind(tag: 0, name: "checkEntitlement")
+    static let checkAccount = CloudSyncStepKind(tag: 1, name: "checkAccount")
+    static let replaceSeed = CloudSyncStepKind(tag: 2, name: "replaceSeed")
+    static let compareContent = CloudSyncStepKind(tag: 3, name: "compareContent")
+    static let takeCloudContent = CloudSyncStepKind(tag: 4, name: "takeCloudContent")
+    static let applyChosenCopy = CloudSyncStepKind(tag: 5, name: "applyChosenCopy")
+    static let startTransport = CloudSyncStepKind(tag: 6, name: "startTransport")
+    static let discardStartedTransport = CloudSyncStepKind(tag: 7, name: "discardStartedTransport")
+    static let stopTransport = CloudSyncStepKind(tag: 8, name: "stopTransport")
+    static let syncTransport = CloudSyncStepKind(tag: 9, name: "syncTransport")
+    static let pullTransport = CloudSyncStepKind(tag: 10, name: "pullTransport")
+    static let notifyTransport = CloudSyncStepKind(tag: 11, name: "notifyTransport")
+    static let scheduleRetry = CloudSyncStepKind(tag: 12, name: "scheduleRetry")
+    static let cancelRetry = CloudSyncStepKind(tag: 13, name: "cancelRetry")
+    static let restartAfterAccountChange = CloudSyncStepKind(tag: 14, name: "restartAfterAccountChange")
+
+    static let all: [CloudSyncStepKind] = [
+        checkEntitlement,
+        checkAccount,
+        replaceSeed,
+        compareContent,
+        takeCloudContent,
+        applyChosenCopy,
+        startTransport,
+        discardStartedTransport,
+        stopTransport,
+        syncTransport,
+        pullTransport,
+        notifyTransport,
+        scheduleRetry,
+        cancelRetry,
+        restartAfterAccountChange
+    ]
+
+    static func named(_ name: String?) -> CloudSyncStepKind? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CloudSyncStepKind, rhs: CloudSyncStepKind) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `CloudTransportReport`. A member's wire tag is its index in `all`.
+struct CloudTransportReport: Hashable, Sendable {
+    let tag: Int
+    let name: String
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        self.name = name
+    }
+
+    static let stopped = CloudTransportReport(tag: 0, name: "stopped")
+    static let syncing = CloudTransportReport(tag: 1, name: "syncing")
+    static let idle = CloudTransportReport(tag: 2, name: "idle")
+    static let pausedForAccountConfirmation = CloudTransportReport(tag: 3, name: "pausedForAccountConfirmation")
+    static let failed = CloudTransportReport(tag: 4, name: "failed")
+    static let fetched = CloudTransportReport(tag: 5, name: "fetched")
+    static let uploaded = CloudTransportReport(tag: 6, name: "uploaded")
+    static let accountChanged = CloudTransportReport(tag: 7, name: "accountChanged")
+    static let skippedRecords = CloudTransportReport(tag: 8, name: "skippedRecords")
+    static let cloudDataRemoved = CloudTransportReport(tag: 9, name: "cloudDataRemoved")
+
+    static let all: [CloudTransportReport] = [
+        stopped,
+        syncing,
+        idle,
+        pausedForAccountConfirmation,
+        failed,
+        fetched,
+        uploaded,
+        accountChanged,
+        skippedRecords,
+        cloudDataRemoved
+    ]
+
+    static func named(_ name: String?) -> CloudTransportReport? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CloudTransportReport, rhs: CloudTransportReport) -> Bool {
         lhs.tag == rhs.tag
     }
 

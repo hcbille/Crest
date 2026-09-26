@@ -38,6 +38,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
     private readonly SpaceAccess access;
     /// The cloud transport's state on this device.
     private readonly CloudTransportStore cloudTransport;
+    /// What iCloud sync does next on this device.
+    private readonly CloudSyncControl cloudSync;
     /// The time session intents are stamped with.
     private readonly IClock clock;
     /// Where the identities the core gives new records come from.
@@ -73,6 +75,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             closePreparations = new(pages, downloads, ids);
             access = new(device, grants);
             cloudTransport = new(storage: null, device);
+            cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed);
             return;
         }
         storage = SessionStorage.Open(directory, Announce, out var loaded);
@@ -83,6 +86,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         closePreparations = new(pages, downloads, ids);
         access = new(device, grants);
         cloudTransport = new(storage, device);
+        cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed);
         try {
             if (loaded.Session is { } stored) Establish(stored, loaded.Journal, loaded.LegacySelection);
         } catch (Exception error) {
@@ -106,6 +110,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
         ArgumentNullException.ThrowIfNull(intent);
         if (intent is CloudSyncIntent cloud) return Handle(cloud);
         if (intent is CloudTransportIntent transport) return cloudTransport.Handle(transport, JournalHoldsUploads);
+        if (intent is CloudSyncControlIntent control) return cloudSync.Handle(control);
         IReadOnlyList<Change> published;
         lock (gate) {
             var changes = new ChangeFeed();
@@ -186,6 +191,7 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
             CloudComparison comparison => Answer(comparison),
             CloudTransport state => cloudTransport.Answer(state),
             CloudFieldsOf fields => cloudTransport.Answer(fields),
+            CloudSync status => cloudSync.Answer(status),
             _ => null
         };
         if (transport is not null) return (TAnswer)transport;

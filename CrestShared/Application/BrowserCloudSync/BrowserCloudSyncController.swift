@@ -1,60 +1,68 @@
 import Foundation
 import Observation
 
-/// Brings sync up against the signed-in iCloud account and keeps it running:
-/// account checks, the first launch's seed, reconciling with an account it has
-/// not synced with, conflict choices and retries. It reads what the stored
-/// session's journal holds from the core's published state, asks the core
-/// how the cloud's content compares, and sends the core the person's choices
-/// off the main thread; it never reads the journal itself.
+/// Takes the steps the core decides for iCloud sync on this device, and shows
+/// the status it answers. The core decides when sync starts, what a start
+/// checks and in which order, when the first launch takes the cloud's
+/// content, when an account change waits for the person and what their choice
+/// applies, when a sync or a pull counts as a success, and when a failed
+/// launch is retried. This side asks CloudKit for the entitlement, the account
+/// and the cloud's records, runs the transport, and reports what each step
+/// came to; it never reads the journal itself.
 @Observable
 @MainActor
 final class BrowserCloudSyncController {
-    private(set) var accountState: BrowserCloudAccountState = .checking
-    private(set) var phase: BrowserCloudSyncPhase
-    private(set) var lastAttemptAt: Date?
-    private(set) var lastSuccessAt: Date?
-    private(set) var lastFetchedRecordCount = 0
-    private(set) var lastUploadedRecordCount = 0
-    private(set) var observedCloudRecordCount: Int?
-    private(set) var errorDescription: String?
-    private(set) var conflict: BrowserCloudSyncConflictSummary?
-    private(set) var skippedRecordCount = 0
-    private(set) var requiresAppUpdate = false
-    private(set) var cloudDataWasRemoved = false
-    var isEnabled: Bool {
-        didSet {
-            guard isEnabled != oldValue else { return }
-            preferences.saveIsEnabled(isEnabled)
-            Task { await enabledStateDidChange() }
-        }
-    }
+    // MARK: - Variables
 
     let containerIdentifier: String?
 
-    @ObservationIgnored private let core: CrestCore
-    @ObservationIgnored private let configuration: BrowserCloudSyncConfiguration?
-    @ObservationIgnored private let preferences: any BrowserCloudSyncPreferences
-    /// Where an installed release kept the transport's state, which the core
-    /// adopts the first time the transport opens.
-    @ObservationIgnored private let legacyState: BrowserLegacyCloudSyncState?
-    /// Whether the core opened the transport's state in this process.
-    @ObservationIgnored private var isTransportStateOpen = false
-    @ObservationIgnored private let remoteService: (any BrowserCloudSyncRemoteService)?
-    @ObservationIgnored private let transportFactory: (any BrowserCloudSyncTransportFactory)?
-    @ObservationIgnored private let retryDelay: Duration
-    @ObservationIgnored private var transport: (any BrowserCloudSyncTransport)?
-    @ObservationIgnored private var isRunning = false
-    @ObservationIgnored private var accountRestartRequested = false
-    @ObservationIgnored private var startGeneration = 0
-    @ObservationIgnored private var retryTask: Task<Void, Never>?
-    @ObservationIgnored private var retryAttempts = 0
-    @ObservationIgnored private var accountObservation: (any NSObjectProtocol)?
+    /// iCloud sync's status, as the core last answered it.
+    private(set) var status: CloudSyncStatus
 
-    /// Crest only retries a launch that could not reach iCloud a few times. A
-    /// signed-out account heals through `accountAvailabilityDidChange` instead of
-    /// through polling.
-    private static let maximumRetryAttempts = 3
+    var isEnabled: Bool {
+        get { status.isEnabled }
+        set {
+            guard newValue != status.isEnabled else { return }
+            preferences.saveIsEnabled(newValue)
+            let steps = advance(SetCloudSyncEnabled(isEnabled: newValue))
+            Task { await take(steps) }
+        }
+    }
+
+    var accountState: CloudAccountState { status.account }
+
+    var phase: BrowserCloudSyncPhase {
+        switch status.phase {
+        case .disabled: .disabled
+        case .ready: .ready
+        case .syncing: .syncing
+        case .needsReconciliation: .needsReconciliation
+        case .waitingForAccount: .waitingForAccount
+        case .failed: .failed(failureMessage)
+        default: .checking
+        }
+    }
+
+    var lastAttemptAt: Date? { status.lastAttemptAt }
+    var lastSuccessAt: Date? { status.lastSuccessAt }
+    var lastFetchedRecordCount: Int { status.lastFetchedRecords }
+    var lastUploadedRecordCount: Int { status.lastUploadedRecords }
+    var observedCloudRecordCount: Int? { status.observedCloudRecords }
+    var skippedRecordCount: Int { status.skippedRecords }
+    var requiresAppUpdate: Bool { status.requiresAppUpdate }
+    var cloudDataWasRemoved: Bool { status.cloudDataRemoved }
+    var conflict: BrowserCloudSyncConflictSummary? { status.conflict.map(BrowserCloudSyncConflictSummary.init) }
+
+    /// What the error line says: a failure in the platform's own words, or
+    /// the words for the reason the core found.
+    var errorDescription: String? {
+        switch status.problem {
+        case nil: status.failureMessage
+        case .entitlementMissing?: "The app is missing access to Crest’s CloudKit container."
+        case .localChangesUnsaved?: localErrorDescription
+        default: nil
+        }
+    }
 
     /// How many records the stored session's journal holds, as the core last
     /// published it.
@@ -67,174 +75,6 @@ final class BrowserCloudSyncController {
     /// the latest edits, or could not save them.
     var localErrorDescription: String? {
         core.state.syncStagingFailure.map { String(localized: $0.title) } ?? core.state.storageFailureDescription
-    }
-
-    init(
-        core: CrestCore,
-        configuration: BrowserCloudSyncConfiguration?,
-        preferences: any BrowserCloudSyncPreferences,
-        legacyState: BrowserLegacyCloudSyncState? = nil,
-        remoteService: (any BrowserCloudSyncRemoteService)?,
-        transportFactory: (any BrowserCloudSyncTransportFactory)?,
-        retryDelay: Duration = .seconds(30)
-    ) {
-        self.core = core
-        self.configuration = configuration
-        self.preferences = preferences
-        self.legacyState = legacyState
-        self.remoteService = remoteService
-        self.transportFactory = transportFactory
-        self.retryDelay = retryDelay
-        containerIdentifier = configuration?.containerIdentifier
-        let initiallyEnabled = preferences.loadIsEnabled() ?? true
-        isEnabled = initiallyEnabled
-        phase = initiallyEnabled ? .checking : .disabled
-    }
-
-    /// Brings sync up against the account that is signed in right now.
-    ///
-    /// Every step after the first suspension re-reads `isEnabled` and the start
-    /// generation. Turning sync off mid-launch discards the transport and reports
-    /// Off, so a start that resumed afterwards and carried on would leave a live
-    /// engine syncing behind an interface that says it is not.
-    func start() async {
-        guard isEnabled, !isRunning, transport == nil else { return }
-        isRunning = true
-        startGeneration += 1
-        let generation = startGeneration
-        defer {
-            isRunning = false
-            scheduleAccountRestartIfNeeded()
-            scheduleRetryIfNeeded()
-        }
-        guard configuration != nil else {
-            phase = .failed("Crest’s CloudKit container is not configured.")
-            accountState = .couldNotDetermine
-            return
-        }
-        guard let remoteService, let transportFactory else {
-            phase = .failed("Crest’s CloudKit container is not configured.")
-            accountState = .couldNotDetermine
-            return
-        }
-        guard await remoteService.hasRequiredEntitlement() else {
-            guard isCurrentStart(generation) else { return }
-            phase = .failed("iCloud Sync is unavailable in this build of Crest.")
-            accountState = .couldNotDetermine
-            errorDescription = "The app is missing access to Crest’s CloudKit container."
-            return
-        }
-        guard isCurrentStart(generation) else { return }
-
-        phase = .checking
-        errorDescription = nil
-        lastAttemptAt = .now
-
-        do {
-            try await openTransportState()
-            guard isCurrentStart(generation) else { return }
-            let state = try await remoteService.accountState()
-            guard isCurrentStart(generation) else { return }
-            accountState = state
-            guard accountState == .available else {
-                phase = .waitingForAccount
-                return
-            }
-
-            try await replaceDisposableSeedStateFromCloudIfNeeded(
-                using: remoteService
-            )
-            guard isCurrentStart(generation) else { return }
-            if try core.query(CloudTransport()).awaitsAccountDecision {
-                try await prepareAccountReconciliation(
-                    remoteService: remoteService,
-                    transportFactory: transportFactory,
-                    generation: generation
-                )
-                return
-            }
-            try await startTransport(
-                using: transportFactory,
-                generation: generation
-            )
-        } catch {
-            guard isCurrentStart(generation) else { return }
-            fail(error)
-        }
-    }
-
-    func syncNow() async {
-        guard isEnabled, conflict == nil, !isRunning else { return }
-        if transport == nil {
-            await start()
-            return
-        }
-        isRunning = true
-        let generation = startGeneration
-        defer {
-            isRunning = false
-            scheduleAccountRestartIfNeeded()
-            scheduleRetryIfNeeded()
-        }
-        lastAttemptAt = .now
-        do {
-            phase = .syncing
-            try await transport?.syncNow()
-            guard isCurrentStart(generation) else { return }
-            guard !accountRestartRequested else { return }
-            guard conflict == nil else {
-                phase = .needsReconciliation
-                return
-            }
-            recordSuccess()
-        } catch {
-            guard isCurrentStart(generation) else { return }
-            fail(error)
-        }
-    }
-
-    func localChangesDidStage() async {
-        guard isEnabled, conflict == nil else { return }
-        await transport?.notifyLocalChanges()
-    }
-
-    /// Called only after the settings confirmation. A full pull merges content;
-    /// it never chooses either side as an authoritative replacement.
-    func pullFromICloud() async {
-        guard isEnabled, conflict == nil, !isRunning,
-            accountState == .available, let transport
-        else { return }
-        isRunning = true
-        let generation = startGeneration
-        defer {
-            isRunning = false
-            scheduleAccountRestartIfNeeded()
-            scheduleRetryIfNeeded()
-        }
-        lastAttemptAt = .now
-        phase = .syncing
-        do {
-            let count = try await transport.pullFromICloud()
-            guard isCurrentStart(generation), !accountRestartRequested else { return }
-            observedCloudRecordCount = count
-            lastFetchedRecordCount = count
-            skippedRecordCount = 0
-            requiresAppUpdate = false
-            recordSuccess()
-        } catch {
-            guard isCurrentStart(generation) else { return }
-            fail(error)
-        }
-    }
-
-    func resolveUsingThisDevice() async {
-        guard isEnabled, conflict != nil, configuration != nil else { return }
-        await resolve(usesCloud: false)
-    }
-
-    func resolveUsingICloud() async {
-        guard isEnabled, conflict != nil, configuration != nil else { return }
-        await resolve(usesCloud: true)
     }
 
     var diagnosticsReport: String {
@@ -258,290 +98,87 @@ final class BrowserCloudSyncController {
         ).report
     }
 
-    private func enabledStateDidChange() async {
-        if isEnabled {
-            if isRunning {
-                accountRestartRequested = true
-                return
-            }
-            await start()
-        } else {
-            startGeneration += 1
-            cancelRetry()
-            let previous = transport
-            transport = nil
-            conflict = nil
-            accountRestartRequested = false
-            phase = .disabled
-            errorDescription = nil
-            await previous?.stop()
-            guard !isEnabled else { return }
-            await resetTransportStateUnlessAnAccountDecisionIsPending()
+    /// What the status says for a failed phase.
+    private var failureMessage: String {
+        switch status.problem {
+        case .notConfigured?: "Crest’s CloudKit container is not configured."
+        case .entitlementMissing?: "iCloud Sync is unavailable in this build of Crest."
+        case .localChangesUnsaved?: "Local changes could not be saved for sync."
+        default: status.failureMessage ?? ""
         }
     }
 
-    /// Turning sync off is not an answer to "is this the same iCloud account?".
-    ///
-    /// Clearing the stored pause here would let the next switch on merge this
-    /// device's Spaces into whichever account happens to be signed in, without
-    /// ever asking again.
-    private func resetTransportStateUnlessAnAccountDecisionIsPending() async {
-        guard (try? await openTransportState()) != nil,
-            (try? core.query(CloudTransport()))?.awaitsAccountDecision == false
-        else { return }
-        _ = try? await resetTransport(overwritingCloud: false)
+    @ObservationIgnored private let core: CrestCore
+    @ObservationIgnored private let preferences: any BrowserCloudSyncPreferences
+    /// Where an installed release kept the transport's state, which the core
+    /// adopts the first time the transport opens.
+    @ObservationIgnored private let legacyState: BrowserLegacyCloudSyncState?
+    @ObservationIgnored private let remoteService: (any BrowserCloudSyncRemoteService)?
+    @ObservationIgnored private let transportFactory: (any BrowserCloudSyncTransportFactory)?
+    @ObservationIgnored private let retryDelay: Duration
+    @ObservationIgnored private var transport: (any BrowserCloudSyncTransport)?
+    /// The cloud's records a comparison loaded, which the device takes when
+    /// it holds nothing.
+    @ObservationIgnored private var comparedRecords: [SyncRecord] = []
+    @ObservationIgnored private var retryTask: Task<Void, Never>?
+    @ObservationIgnored private var accountObservation: (any NSObjectProtocol)?
+    /// Whether the core opened the transport's state in this process.
+    @ObservationIgnored private var isTransportStateOpen = false
+
+    // MARK: - Initializers
+
+    init(
+        core: CrestCore,
+        configuration: BrowserCloudSyncConfiguration?,
+        preferences: any BrowserCloudSyncPreferences,
+        legacyState: BrowserLegacyCloudSyncState? = nil,
+        remoteService: (any BrowserCloudSyncRemoteService)?,
+        transportFactory: (any BrowserCloudSyncTransportFactory)?,
+        retryDelay: Duration = .seconds(30)
+    ) {
+        self.core = core
+        self.preferences = preferences
+        self.legacyState = legacyState
+        self.remoteService = remoteService
+        self.transportFactory = transportFactory
+        self.retryDelay = retryDelay
+        containerIdentifier = configuration?.containerIdentifier
+        let configure = ConfigureCloudSync(
+            isEnabled: preferences.loadIsEnabled() ?? true,
+            canReachCloud: configuration != nil && remoteService != nil && transportFactory != nil)
+        var answered: CloudSyncStatus?
+        for case .cloudSyncAdvanced(let advanced) in (try? core.send(configure)) ?? [] { answered = advanced.status }
+        guard let answered else { preconditionFailure("The core answered no iCloud sync status.") }
+        status = answered
     }
 
-    /// Has the core open the transport's state under the record schema this
-    /// build reads, adopting the state an installed release kept the first
-    /// time. Once per process.
-    private func openTransportState() async throws {
-        guard !isTransportStateOpen else { return }
-        let legacy = try core.query(CloudTransport()).isAdopted ? nil : legacyState?.read()
-        try await send(OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: legacy))
-        isTransportStateOpen = true
+    // MARK: - Actions - Requests
+
+    /// Brings sync up against the account that is signed in right now.
+    func start() async {
+        await run(StartCloudSync())
     }
 
-    /// Starts the transport's state over, with this device's copy
-    /// overwriting the cloud's when `overwritingCloud`.
-    private func resetTransport(overwritingCloud: Bool) async throws {
-        try await openTransportState()
-        try await send(ResetCloudTransport(overwritesCloud: overwritingCloud))
+    func syncNow() async {
+        await run(RequestCloudSync())
     }
 
-    /// Sends the core an intent about the transport's own state off the main
-    /// thread.
-    private func send(_ intent: some CloudTransportIntent) async throws {
-        let core = core
-        try await Task.detached(priority: .utility) { _ = try core.transport(intent) }.value
+    func localChangesDidStage() async {
+        await run(NotifyCloudLocalChanges())
     }
 
-    private func prepareAccountReconciliation(
-        remoteService: any BrowserCloudSyncRemoteService,
-        transportFactory: any BrowserCloudSyncTransportFactory,
-        generation: Int
-    ) async throws {
-        let remote = try await remoteService.loadSnapshot()
-        guard isCurrentStart(generation) else { return }
-        observedCloudRecordCount = remote.count
-        // A comparison the core refuses stops here: it never reads as a device
-        // with nothing to keep.
-        let comparison = try await compare(with: remote)
-        guard isCurrentStart(generation) else { return }
-        if comparison.deviceRecords > 0, !comparison.matches {
-            conflict = BrowserCloudSyncConflictSummary(comparison)
-            phase = .needsReconciliation
-            return
-        }
-
-        if comparison.deviceRecords == 0, comparison.cloudRecords > 0 {
-            try await deliver(ReplaceWithCloudRecords(records: remote))
-        }
-        try await resetTransport(overwritingCloud: false)
-        try await startTransport(
-            using: transportFactory,
-            generation: generation
-        )
+    /// Called only after the settings confirmation. A full pull merges content;
+    /// it never chooses either side as an authoritative replacement.
+    func pullFromICloud() async {
+        await run(RequestCloudPull())
     }
 
-    private func replaceDisposableSeedStateFromCloudIfNeeded(
-        using remoteService: any BrowserCloudSyncRemoteService
-    ) async throws {
-        guard core.state.syncsDisposableSeed else { return }
-        let remote = try await remoteService.loadSnapshot()
-        observedCloudRecordCount = remote.count
-        try await deliver(ReplaceSeedWithCloudRecords(records: remote))
-        try await resetTransport(overwritingCloud: false)
+    func resolveUsingThisDevice() async {
+        await run(ChooseCloudCopy(usesCloud: false))
     }
 
-    /// How the stored session's journal compares with `remote`, the cloud's
-    /// records, once every stage the core queued has settled. The core
-    /// compares them off the main thread.
-    private func compare(with cloud: [SyncRecord]) async throws -> CloudContentComparison {
-        let core = core
-        return try await Task.detached(priority: .utility) {
-            await core.settleSync()
-            return try core.query(CloudComparison(cloud: cloud))
-        }.value
-    }
-
-    /// Sends the core the person's choice, or what the first launch takes from
-    /// the cloud, off the main thread. What it changed reaches the windows
-    /// through the core's wake.
-    private func deliver(_ intent: some CloudSyncIntent) async throws {
-        let core = core
-        try await Task.detached(priority: .utility) { _ = try core.deliver(intent) }.value
-    }
-
-    /// Starts CKSyncEngine and lets its system scheduler perform the routine
-    /// fetch/send cycle. `syncNow()` is reserved for the explicit button so two
-    /// schedulers cannot drive overlapping work at launch.
-    private func startTransport(
-        using transportFactory: any BrowserCloudSyncTransportFactory,
-        generation: Int
-    ) async throws {
-        if transport == nil {
-            let created = try transportFactory.makeTransport(
-                statusHandler: { [weak self] status in
-                    await self?.receive(status, generation: generation)
-                },
-                activityHandler: { [weak self] activity in
-                    await self?.receive(activity, generation: generation)
-                }
-            )
-            transport = created
-            await created.start()
-            guard isCurrentStart(generation) else {
-                await created.stop()
-                return
-            }
-        }
-    }
-
-    private func resolve(usesCloud: Bool) async {
-        guard !isRunning, let remoteService, let transportFactory else { return }
-        isRunning = true
-        startGeneration += 1
-        let generation = startGeneration
-        defer {
-            isRunning = false
-            scheduleAccountRestartIfNeeded()
-            scheduleRetryIfNeeded()
-        }
-        phase = .syncing
-        lastAttemptAt = .now
-        do {
-            let latestRemote = try await remoteService.loadSnapshot()
-            guard isCurrentStart(generation) else { return }
-            observedCloudRecordCount = latestRemote.count
-            let records = latestRemote
-            if usesCloud {
-                try await deliver(ReplaceWithCloudRecords(records: records))
-            } else {
-                try await deliver(OverwriteCloud(records: records))
-            }
-            try await resetTransport(overwritingCloud: !usesCloud)
-            transport = nil
-            conflict = nil
-            try await startTransport(
-                using: transportFactory,
-                generation: generation
-            )
-        } catch {
-            guard isCurrentStart(generation) else { return }
-            fail(error)
-        }
-    }
-
-    private func receive(_ status: BrowserCloudSyncStatus, generation: Int) {
-        guard isCurrentStart(generation), conflict == nil else { return }
-        switch status {
-        case .stopped:
-            phase = isEnabled ? .checking : .disabled
-        case .syncing:
-            phase = .syncing
-        case .idle:
-            phase = .ready
-            clearRecoveredFailureIfNeeded()
-        case .pausedForAccountConfirmation:
-            phase = .needsReconciliation
-        case .failed(let message):
-            phase = .failed(message)
-            errorDescription = message
-        }
-    }
-
-    private func receive(_ activity: BrowserCloudSyncActivity, generation: Int) {
-        guard isCurrentStart(generation) else { return }
-        switch activity {
-        case .fetched(let recordCount):
-            lastFetchedRecordCount = recordCount
-            lastSuccessAt = .now
-            clearRecoveredFailureIfNeeded()
-        case .uploaded(let recordCount):
-            lastUploadedRecordCount = recordCount
-            lastSuccessAt = .now
-            clearRecoveredFailureIfNeeded()
-        case .accountChanged:
-            let previous = transport
-            transport = nil
-            startGeneration += 1
-            Task { await previous?.stop() }
-            conflict = nil
-            accountRestartRequested = true
-            phase = .checking
-            scheduleAccountRestartIfNeeded()
-        case .skippedRecords(let count, let needsUpdate):
-            skippedRecordCount += count
-            requiresAppUpdate = requiresAppUpdate || needsUpdate
-        case .cloudDataRemoved:
-            cloudDataWasRemoved = true
-        }
-    }
-
-    private func recordSuccess() {
-        if let localError = localErrorDescription {
-            phase = .failed("Local changes could not be saved for sync.")
-            errorDescription = localError
-            return
-        }
-        lastSuccessAt = .now
-        phase = .ready
-        errorDescription = nil
-        retryAttempts = 0
-        cancelRetry()
-    }
-
-    /// CKSyncEngine retries transient CloudKit failures through the system
-    /// scheduler. Activity arriving outside an explicit `syncNow()` proves that
-    /// automatic retry recovered, so the earlier error must not remain sticky.
-    private func clearRecoveredFailureIfNeeded() {
-        guard !isRunning, errorDescription != nil else { return }
-        phase = .ready
-        errorDescription = nil
-        retryAttempts = 0
-        cancelRetry()
-    }
-
-    private func isCurrentStart(_ generation: Int) -> Bool {
-        isEnabled && generation == startGeneration
-    }
-
-    private func cancelRetry() {
-        retryTask?.cancel()
-        retryTask = nil
-    }
-
-    /// Retries a launch that ended without a working transport.
-    ///
-    /// Nothing else would: a device that was offline or signed out when Crest
-    /// launched used to stay dormant until the next launch or an explicit
-    /// Sync Now.
-    private func scheduleRetryIfNeeded() {
-        guard isEnabled,
-            conflict == nil,
-            !isRunning,
-            !accountRestartRequested,
-            transport == nil,
-            remoteService != nil,
-            transportFactory != nil,
-            retryTask == nil,
-            retryAttempts < Self.maximumRetryAttempts,
-            phase.isRetryable
-        else { return }
-        retryAttempts += 1
-        let delay = retryDelay
-        retryTask = Task { [weak self] in
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled else { return }
-            await self?.retryAfterDelay()
-        }
-    }
-
-    private func retryAfterDelay() async {
-        retryTask = nil
-        guard isEnabled, conflict == nil, !isRunning else { return }
-        await syncNow()
+    func resolveUsingICloud() async {
+        await run(ChooseCloudCopy(usesCloud: true))
     }
 
     /// Watches for iCloud sign-in, sign-out, and account switches.
@@ -561,39 +198,230 @@ final class BrowserCloudSyncController {
         }
     }
 
-    /// Re-drives the start sequence against whichever account is signed in now.
+    /// Starts sync again against whichever account is signed in now.
     func accountAvailabilityDidChange() async {
-        cancelRetry()
-        retryAttempts = 0
-        startGeneration += 1
-        let previous = transport
-        transport = nil
-        conflict = nil
-        accountRestartRequested = isRunning
-        await previous?.stop()
-        guard isEnabled else { return }
-        phase = .checking
-        await start()
+        await run(ObserveCloudAccountAvailability())
     }
 
-    private func scheduleAccountRestartIfNeeded() {
-        guard accountRestartRequested, !isRunning else { return }
-        Task { [weak self] in
-            await self?.restartAfterAccountChangeIfNeeded()
+    // MARK: - Actions - Steps
+
+    /// Tells the core `intent` and takes the steps it answers.
+    private func run(_ intent: some CloudSyncControlIntent) async {
+        await take(advance(intent))
+    }
+
+    /// Takes `steps` in order; the steps a step's report leads to come
+    /// before the ones after it.
+    private func take(_ steps: [CloudSyncStep]) async {
+        var pending = steps
+        while !pending.isEmpty {
+            let step = pending.removeFirst()
+            pending.insert(contentsOf: await take(step), at: 0)
         }
     }
 
-    private func restartAfterAccountChangeIfNeeded() async {
-        guard accountRestartRequested, !isRunning else { return }
-        accountRestartRequested = false
-        await start()
+    /// Takes one step and answers the steps its report leads to.
+    private func take(_ step: CloudSyncStep) async -> [CloudSyncStep] {
+        let attempt = step.attempt
+        switch step.kind {
+        case .checkEntitlement:
+            let granted = await remoteService?.hasRequiredEntitlement() ?? false
+            return advance(CloudEntitlementChecked(attempt: attempt, granted: granted))
+        case .checkAccount:
+            return await reporting(step) { _ in
+                try await self.openTransportState()
+                let state = try await self.remote().accountState()
+                return CloudAccountChecked(attempt: attempt, state: state)
+            }
+        case .replaceSeed:
+            return await reporting(step) { observed in
+                let records = try await self.remote().loadSnapshot()
+                observed = records.count
+                try await self.deliver(ReplaceSeedWithCloudRecords(records: records))
+                return CloudSeedReplaced(attempt: attempt, cloudRecords: records.count)
+            }
+        case .compareContent:
+            return await reporting(step) { observed in
+                let records = try await self.remote().loadSnapshot()
+                observed = records.count
+                self.comparedRecords = records
+                let comparison = try await self.compare(with: records)
+                return CloudContentCompared(attempt: attempt, cloudRecords: records.count, comparison: comparison)
+            }
+        case .takeCloudContent:
+            return await reporting(step) { _ in
+                let records = self.comparedRecords
+                self.comparedRecords = []
+                try await self.deliver(ReplaceWithCloudRecords(records: records))
+                return CloudContentTaken(attempt: attempt)
+            }
+        case .applyChosenCopy:
+            return await reporting(step) { observed in
+                let records = try await self.remote().loadSnapshot()
+                observed = records.count
+                if step.usesCloud {
+                    try await self.deliver(ReplaceWithCloudRecords(records: records))
+                } else {
+                    try await self.deliver(OverwriteCloud(records: records))
+                }
+                return CloudCopyApplied(attempt: attempt, usesCloud: step.usesCloud, cloudRecords: records.count)
+            }
+        case .startTransport:
+            return await startTransport(for: step)
+        case .stopTransport:
+            let previous = transport
+            transport = nil
+            await previous?.stop()
+            return []
+        case .syncTransport:
+            return await reporting(step) { _ in
+                try await self.transport?.syncNow()
+                return CloudTransportSynced(attempt: attempt, localChangesUnsaved: self.localErrorDescription != nil)
+            }
+        case .pullTransport:
+            return await reporting(step) { _ in
+                let count = try await self.transport?.pullFromICloud() ?? 0
+                return CloudTransportPulled(
+                    attempt: attempt, cloudRecords: count, localChangesUnsaved: self.localErrorDescription != nil)
+            }
+        case .notifyTransport:
+            await transport?.notifyLocalChanges()
+            return []
+        case .scheduleRetry:
+            let delay = retryDelay
+            retryTask = Task { [weak self] in
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled else { return }
+                await self?.run(RetryCloudSync())
+            }
+            return []
+        case .cancelRetry:
+            retryTask?.cancel()
+            retryTask = nil
+            return []
+        case .restartAfterAccountChange:
+            Task { [weak self] in await self?.run(RestartCloudSyncAfterAccountChange()) }
+            return []
+        default:
+            return []
+        }
     }
 
-    private func fail(_ error: any Error) {
-        let message =
-            remoteService?.message(for: error)
-            ?? String(describing: error)
-        errorDescription = message
-        phase = .failed(message)
+    /// Creates and starts the transport, whose reports name the attempt it
+    /// started for. A transport started for a start that is no longer
+    /// current is stopped again.
+    private func startTransport(for step: CloudSyncStep) async -> [CloudSyncStep] {
+        let attempt = step.attempt
+        let created: any BrowserCloudSyncTransport
+        do {
+            guard let transportFactory else { throw BrowserCloudSyncError.remoteChangeNotApplied("No transport.") }
+            created = try transportFactory.makeTransport(
+                statusHandler: { [weak self] status in await self?.report(status, attempt: attempt) },
+                activityHandler: { [weak self] activity in await self?.report(activity, attempt: attempt) })
+        } catch {
+            return failed(step, error, observed: nil)
+        }
+        transport = created
+        await created.start()
+        let next = advance(CloudTransportStarted(attempt: attempt))
+        if next.contains(where: { $0.kind == .discardStartedTransport }) { await created.stop() }
+        return next.filter { $0.kind != .discardStartedTransport }
+    }
+
+    /// Runs a step's work and reports what it came to, or the failure with
+    /// the cloud records a snapshot counted before it.
+    private func reporting<Report: CloudSyncControlIntent>(
+        _ step: CloudSyncStep, _ work: (inout Int?) async throws -> Report
+    ) async -> [CloudSyncStep] {
+        var observed: Int?
+        do {
+            let report = try await work(&observed)
+            return advance(report)
+        } catch {
+            return failed(step, error, observed: observed)
+        }
+    }
+
+    private func failed(_ step: CloudSyncStep, _ error: any Error, observed: Int?) -> [CloudSyncStep] {
+        let message = remoteService?.message(for: error) ?? String(describing: error)
+        return advance(
+            CloudStepFailed(attempt: step.attempt, step: step.kind, message: message, observedCloudRecords: observed))
+    }
+
+    private func report(_ status: BrowserCloudSyncStatus, attempt: Int64) async {
+        let (report, message): (CloudTransportReport, String?) =
+            switch status {
+            case .stopped: (.stopped, nil)
+            case .syncing: (.syncing, nil)
+            case .idle: (.idle, nil)
+            case .pausedForAccountConfirmation: (.pausedForAccountConfirmation, nil)
+            case .failed(let message): (.failed, message)
+            }
+        await run(
+            CloudTransportReported(
+                attempt: attempt, report: report, message: message, recordCount: 0, requiresAppUpdate: false))
+    }
+
+    private func report(_ activity: BrowserCloudSyncActivity, attempt: Int64) async {
+        let (report, count, needsUpdate): (CloudTransportReport, Int, Bool) =
+            switch activity {
+            case .fetched(let count): (.fetched, count, false)
+            case .uploaded(let count): (.uploaded, count, false)
+            case .accountChanged: (.accountChanged, 0, false)
+            case .skippedRecords(let count, let needsUpdate): (.skippedRecords, count, needsUpdate)
+            case .cloudDataRemoved: (.cloudDataRemoved, 0, false)
+            }
+        await run(
+            CloudTransportReported(
+                attempt: attempt, report: report, message: nil, recordCount: count, requiresAppUpdate: needsUpdate))
+    }
+
+    // MARK: - Actions - Core
+
+    /// Tells the core `intent`, keeps the status it answered, and answers the
+    /// steps to take.
+    private func advance(_ intent: some CloudSyncControlIntent) -> [CloudSyncStep] {
+        guard let changes = try? core.send(intent) else { return [] }
+        for case .cloudSyncAdvanced(let advanced) in changes {
+            status = advanced.status
+            return advanced.steps
+        }
+        return []
+    }
+
+    private func remote() throws -> any BrowserCloudSyncRemoteService {
+        guard let remoteService else { throw BrowserCloudSyncError.remoteChangeNotApplied("No remote service.") }
+        return remoteService
+    }
+
+    /// Has the core open the transport's state under the record schema this
+    /// build reads, adopting the state an installed release kept the first
+    /// time. Once per process.
+    private func openTransportState() async throws {
+        guard !isTransportStateOpen else { return }
+        let legacy = try core.query(CloudTransport()).isAdopted ? nil : legacyState?.read()
+        let core = core
+        let open = OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: legacy)
+        try await Task.detached(priority: .utility) { _ = try core.transport(open) }.value
+        isTransportStateOpen = true
+    }
+
+    /// How the stored session's journal compares with `cloud`, the cloud's
+    /// records, once every stage the core queued has settled. The core
+    /// compares them off the main thread.
+    private func compare(with cloud: [SyncRecord]) async throws -> CloudContentComparison {
+        let core = core
+        return try await Task.detached(priority: .utility) {
+            await core.settleSync()
+            return try core.query(CloudComparison(cloud: cloud))
+        }.value
+    }
+
+    /// Sends the core the person's choice, or what the first launch takes from
+    /// the cloud, off the main thread. What it changed reaches the windows
+    /// through the core's wake.
+    private func deliver(_ intent: some CloudSyncIntent) async throws {
+        let core = core
+        try await Task.detached(priority: .utility) { _ = try core.deliver(intent) }.value
     }
 }

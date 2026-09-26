@@ -3,7 +3,7 @@ import Foundation
 struct BrowserCloudSyncDiagnostics: Equatable, Sendable {
     let containerIdentifier: String?
     let isEnabled: Bool
-    let accountState: BrowserCloudAccountState
+    let accountState: CloudAccountState
     let phase: BrowserCloudSyncPhase
     let localRecordCount: Int
     let pendingUploadCount: Int

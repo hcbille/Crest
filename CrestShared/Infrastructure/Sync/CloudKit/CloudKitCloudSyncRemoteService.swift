@@ -15,7 +15,7 @@ actor CloudKitBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
         )
     }
 
-    func accountState() async throws -> BrowserCloudAccountState {
+    func accountState() async throws -> CloudAccountState {
         let container = cloudContainer()
         database = container.privateCloudDatabase
         let status = try await container.accountStatus()
@@ -75,7 +75,7 @@ actor CloudKitBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
         return result
     }
 
-    private static func accountState(for status: CKAccountStatus) -> BrowserCloudAccountState {
+    private static func accountState(for status: CKAccountStatus) -> CloudAccountState {
         switch status {
         case .available: .available
         case .noAccount: .noAccount
