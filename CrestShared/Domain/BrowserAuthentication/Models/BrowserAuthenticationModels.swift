@@ -1,24 +1,10 @@
 struct BrowserAuthenticationChallenge: Equatable, Sendable {
-    let authenticationMethod: BrowserAuthenticationMethod
+    let authenticationMethod: AuthenticationMethod
     let isProxy: Bool
     let previousFailureCount: Int
     let protectionSpace: BrowserHTTPAuthenticationProtectionSpace?
     let descriptor: BrowserHTTPAuthenticationDescriptor
     let proposedUsername: String?
-}
-
-/// Raw values are the core's `authentication.handling` spellings.
-enum BrowserAuthenticationHandling: String, Decodable, Equatable {
-    case promptForCredentials
-    case performDefaultHandling
-    case cancel
-}
-
-/// Raw values are the core's `authentication.handling` method spellings.
-enum BrowserAuthenticationMethod: String, Encodable, Equatable, Sendable {
-    case httpBasic
-    case httpDigest
-    case other
 }
 
 enum BrowserHTTPAuthenticationDecision: Sendable {

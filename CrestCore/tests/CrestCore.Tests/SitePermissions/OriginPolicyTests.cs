@@ -15,6 +15,7 @@ public sealed class OriginPolicyTests {
     [InlineData("http", "::1", true)]
     [InlineData("http", "maps.example", false)]
     [InlineData("file", "localhost", false)]
+    [InlineData("https", "", false)]
     public void PowerfulFeaturesNeedASecureContext(string scheme, string host, bool allowed) =>
         Assert.Equal(allowed, SecureOriginPolicy.Allows(new(scheme, host, 0)));
 
@@ -43,6 +44,7 @@ public sealed class OriginPolicyTests {
         Assert.False(ExternalUrlPolicy.AcceptsWebLink("file", null));
         Assert.False(ExternalUrlPolicy.AcceptsWebLink("javascript", "example.com"));
         Assert.False(ExternalUrlPolicy.AcceptsWebLink(null, "example.com"));
+        Assert.False(ExternalUrlPolicy.AcceptsWebLink("https", new string('a', ExternalUrlPolicy.MaximumHostLength + 1)));
     }
 
     [Fact]
@@ -53,6 +55,7 @@ public sealed class OriginPolicyTests {
         Assert.False(ExternalUrlPolicy.AcceptsLocalDocument(new(true, true, true, null)));
         Assert.False(ExternalUrlPolicy.AcceptsLocalDocument(new(true, false, false, null)));
         Assert.False(ExternalUrlPolicy.AcceptsLocalDocument(new(false, false, true, null)));
+        Assert.False(ExternalUrlPolicy.AcceptsLocalDocument(new(true, false, true, new string('a', ExternalUrlPolicy.MaximumHostLength + 1))));
     }
 
     [Fact]
@@ -66,23 +69,30 @@ public sealed class OriginPolicyTests {
 
     [Fact]
     public void ADocumentShowsOneBlockedPopupIndicationUntilItNavigates() {
-        var blocked = BlockedPopupPageState.Empty.Apply(BlockedPopupEvent.Blocked, "doc-1", Site)!;
+        static BlockedPopupPageState? After(BlockedPopupPageState state, BlockedPopupEvent popupEvent, string? document = null,
+            SiteOrigin? origin = null) => BlockedPopupPolicy.Apply(state, popupEvent, document, origin);
+        var blocked = After(BlockedPopupPageState.Empty, BlockedPopupEvent.Blocked, "doc-1", Site)!;
         Assert.Equal(BlockedPopupStatus.Blocked, blocked.Status);
         Assert.Equal(1, blocked.IndicationRevision);
-        Assert.Null(blocked.Apply(BlockedPopupEvent.Blocked, "doc-1", Site));
-        Assert.Null(blocked.Apply(BlockedPopupEvent.PopupAllowed, null, null));
+        Assert.Null(After(blocked, BlockedPopupEvent.Blocked, "doc-1", Site));
+        Assert.Null(After(blocked, BlockedPopupEvent.PopupAllowed));
 
-        var allowed = blocked.Apply(BlockedPopupEvent.PermissionAllowed, null, null)!;
+        var allowed = After(blocked, BlockedPopupEvent.PermissionAllowed)!;
         Assert.Equal(BlockedPopupStatus.AllowedAwaitingRetry, allowed.Status);
-        Assert.Equal(BlockedPopupStatus.Blocked, allowed.Apply(BlockedPopupEvent.PermissionBlockedAgain, null, null)!.Status);
+        Assert.Equal(BlockedPopupStatus.Blocked, After(allowed, BlockedPopupEvent.PermissionBlockedAgain)!.Status);
 
-        var cleared = allowed.Apply(BlockedPopupEvent.PopupAllowed, null, null)!;
+        var cleared = After(allowed, BlockedPopupEvent.PopupAllowed)!;
         Assert.Null(cleared.Status);
         Assert.Null(cleared.DocumentIdentifier);
         Assert.Equal(1, cleared.IndicationRevision);
-        Assert.Null(cleared.Apply(BlockedPopupEvent.Navigation, null, null));
-        Assert.Null(blocked.Apply(BlockedPopupEvent.Navigation, null, null)!.Status);
-        Assert.Throws<BrowserRuleException>(() => cleared.Apply(BlockedPopupEvent.Blocked, null, Site));
+        Assert.Null(After(cleared, BlockedPopupEvent.Navigation));
+        Assert.Null(After(blocked, BlockedPopupEvent.Navigation)!.Status);
+        // An indication needs its document and a readable origin, and a status never stands without its origin.
+        Assert.IsType<InvalidBlockedPopup>(Assert.Throws<Rejected>(() => After(cleared, BlockedPopupEvent.Blocked, null, Site)).Rejection);
+        Assert.IsType<InvalidBlockedPopup>(Assert.Throws<Rejected>(() =>
+            After(cleared, BlockedPopupEvent.Blocked, "doc-2", new SiteOrigin("https", "", 443))).Rejection);
+        Assert.IsType<InvalidBlockedPopup>(Assert.Throws<Rejected>(() =>
+            After(blocked with { Origin = null }, BlockedPopupEvent.PopupAllowed)).Rejection);
     }
 
     [Fact]

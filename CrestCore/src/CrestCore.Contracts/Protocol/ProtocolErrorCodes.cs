@@ -9,12 +9,9 @@ public static class ProtocolErrorCodes {
     public const string InvalidCounter = "invalid_counter";
     public const string InvalidEntryPoint = "invalid_entry_point";
     public const string InvalidInput = "invalid_input";
-    public const string InvalidPermissionDecision = "invalid_permission_decision";
     public const string InvalidPlacement = "invalid_placement";
     public const string InvalidPlatform = "invalid_platform";
-    public const string InvalidPlaybackState = "invalid_playback_state";
     public const string InvalidPressureLevel = "invalid_pressure_level";
-    public const string InvalidStatus = "invalid_status";
     public const string InvalidString = "invalid_string";
     public const string InvalidUuid = "invalid_uuid";
     public const string PolicyInputLimit = "policy_input_limit";
@@ -28,8 +25,6 @@ public static class ProtocolErrorCodes {
     public const string VersionMismatch = "version_mismatch";
 
     // Site permissions and origins.
-    public const string InvalidAuthenticationMethod = "invalid_authentication_method";
-    public const string InvalidPopupEvent = "invalid_popup_event";
 
     #endregion
 }

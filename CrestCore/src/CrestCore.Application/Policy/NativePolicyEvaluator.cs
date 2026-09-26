@@ -24,12 +24,7 @@ public static partial class NativePolicyEvaluator {
         var request = Protocol.Parse(utf8);
         if (request.GetProperty(PolicyFields.Version).GetInt32() != 1) throw new ProtocolException(ProtocolErrorCodes.VersionMismatch);
         var operation = PolicyOperationCodes.Parse(Protocol.Text(request, PolicyFields.Operation));
-        var answer = EvaluateDownloads(operation, request)
-            ?? EvaluateSitePermissions(operation, request)
-            ?? EvaluateOrigins(operation, request)
-            ?? EvaluateAuthentication(operation, request)
-            ?? EvaluateSetup(operation, request)
-            ?? EvaluateMedia(operation, request)
+        var answer = EvaluateSetup(operation, request)
             ?? EvaluateTabs(operation, request)
             ?? EvaluateLimits(operation, request)
             ?? throw new ProtocolException(ProtocolErrorCodes.UnknownPolicy);

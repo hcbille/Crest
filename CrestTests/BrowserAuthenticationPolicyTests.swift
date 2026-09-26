@@ -15,7 +15,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
         ] {
             XCTAssertEqual(
                 BrowserCorePolicy.authenticationHandling(
-                    method: BrowserAuthenticationMethod(authenticationMethod: method),
+                    method: AuthenticationMethod(authenticationMethod: method),
                     isProxy: false,
                     previousFailureCount: 0
                 ),
@@ -24,7 +24,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
         }
         XCTAssertEqual(
             BrowserCorePolicy.authenticationHandling(
-                method: BrowserAuthenticationMethod(authenticationMethod: NSURLAuthenticationMethodHTTPDigest),
+                method: AuthenticationMethod(authenticationMethod: NSURLAuthenticationMethodHTTPDigest),
                 isProxy: false,
                 previousFailureCount: 0
             ),

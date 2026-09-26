@@ -137,6 +137,7 @@ enum Rejection: Equatable, Error, Sendable {
     case downloadLimitReached(DownloadLimitReached)
     case duplicateCredential(DuplicateCredential)
     case duplicateDownload(DuplicateDownload)
+    case duplicateMediaSession(DuplicateMediaSession)
     case duplicatePage(DuplicatePage)
     case duplicateSearchEngineName(DuplicateSearchEngineName)
     case engineAlreadyRegistered(EngineAlreadyRegistered)
@@ -147,6 +148,7 @@ enum Rejection: Equatable, Error, Sendable {
     case folderDepthLimitReached(FolderDepthLimitReached)
     case folderLimitReached(FolderLimitReached)
     case incompleteSplit(IncompleteSplit)
+    case invalidBlockedPopup(InvalidBlockedPopup)
     case invalidCredentialDate(InvalidCredentialDate)
     case invalidCredentialOrigin(InvalidCredentialOrigin)
     case invalidCredentialRecord(InvalidCredentialRecord)
@@ -160,6 +162,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidFolderSymbol(InvalidFolderSymbol)
     case invalidImport(InvalidImport)
     case invalidLinkRouteEdit(InvalidLinkRouteEdit)
+    case invalidMediaSessionCount(InvalidMediaSessionCount)
     case invalidName(InvalidName)
     case invalidPasswordLength(InvalidPasswordLength)
     case invalidRetentionLifetime(InvalidRetentionLifetime)
@@ -178,6 +181,7 @@ enum Rejection: Equatable, Error, Sendable {
     case linkPatternTooLong(LinkPatternTooLong)
     case linkRouteExists(LinkRouteExists)
     case linkRoutesFull(LinkRoutesFull)
+    case mediaSessionLimitReached(MediaSessionLimitReached)
     case noArchivedTabs(NoArchivedTabs)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
@@ -618,6 +622,32 @@ struct AuthenticationQuestion: Equatable, Sendable {
     let previousFailures: Int
 }
 
+struct AuthenticationSource: Query, Equatable, Sendable {
+    typealias Answer = AuthenticationSourceLabel
+
+    let host: String
+    let port: Int
+    let scheme: String?
+}
+
+struct AuthenticationSourceLabel: Equatable, Sendable {
+    let label: String?
+}
+
+struct AutomaticDownloadCheck: Query, Equatable, Sendable {
+    typealias Answer = AutomaticDownloadVerdict
+
+    let userInitiated: Bool
+    let userApprovedRetry: Bool
+    let savedDecision: SitePermissionDecision
+    let hasAllowedAutomaticDownload: Bool
+}
+
+struct AutomaticDownloadVerdict: Equatable, Sendable {
+    let action: AutomaticDownloadAction
+    let hasAllowedAutomaticDownload: Bool
+}
+
 struct AwaitDownloadApproval: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
 }
@@ -655,6 +685,29 @@ struct BeginUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
 
 struct BlockAutomaticDownload: Intent, DownloadIntent, Equatable, Sendable {
     let downloadID: UUID
+}
+
+struct BlockedPopupPageState: Equatable, Sendable {
+    static let maximumDocumentIdentifierLength: Int = 128
+    static let empty = BlockedPopupPageState(status: nil, origin: nil, documentIdentifier: nil, indicationRevision: 0)
+
+    let status: BlockedPopupStatus?
+    let origin: SiteOrigin?
+    let documentIdentifier: String?
+    let indicationRevision: Int
+}
+
+struct BlockedPopupTransition: Query, Equatable, Sendable {
+    typealias Answer = BlockedPopupTransitioned
+
+    let state: BlockedPopupPageState
+    let event: BlockedPopupEvent
+    let documentIdentifier: String?
+    let origin: SiteOrigin?
+}
+
+struct BlockedPopupTransitioned: Equatable, Sendable {
+    let state: BlockedPopupPageState?
 }
 
 struct BorrowSpace: Intent, WorkspaceIntent, Equatable, Sendable {
@@ -768,6 +821,18 @@ struct CapturePage: PageRequest, Equatable, Sendable {
 
 struct CertificateChain: Equatable, Sendable {
     let certificates: [Data]
+}
+
+struct ChallengeHandled: Equatable, Sendable {
+    let handling: AuthenticationHandling
+}
+
+struct ChallengeHandling: Query, Equatable, Sendable {
+    typealias Answer = ChallengeHandled
+
+    let method: AuthenticationMethod
+    let isProxy: Bool
+    let previousFailureCount: Int
 }
 
 struct ChangeExtension: PageRequest, Equatable, Sendable {
@@ -1356,6 +1421,10 @@ struct DuplicateCredential: Equatable, Sendable {
 struct DuplicateDownload: Equatable, Sendable {
 }
 
+struct DuplicateMediaSession: Equatable, Sendable, Identifiable {
+    let id: String
+}
+
 struct DuplicatePage: Equatable, Sendable {
     let pageID: UUID
 }
@@ -1514,10 +1583,27 @@ struct ExtensionsChanged: Equatable, Sendable {
     let profileID: UUID
 }
 
+struct ExternalAddressVerdict: Equatable, Sendable {
+    let accepted: Bool
+}
+
 struct ExternalLinkPlacement: Equatable, Sendable {
     let spaceID: UUID?
     let opensQuickWindow: Bool
     let substitutesForLockedSpace: Bool
+}
+
+struct ExternalLocalDocument: Query, Equatable, Sendable {
+    typealias Answer = ExternalAddressVerdict
+
+    let facts: LocalDocumentFacts
+}
+
+struct ExternalWebLink: Query, Equatable, Sendable {
+    typealias Answer = ExternalAddressVerdict
+
+    let scheme: String?
+    let host: String?
 }
 
 struct FailDownload: Intent, DownloadIntent, Equatable, Sendable {
@@ -1579,6 +1665,18 @@ struct FinishUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
     let spaceID: UUID
     let requestID: UUID
     let authenticated: Bool
+}
+
+struct FixtureServerTrust: Query, Equatable, Sendable {
+    typealias Answer = FixtureServerTrusted
+
+    let bundleIdentifier: String?
+    let expectedCertificateSha256: String?
+    let actualCertificateSha256: String
+}
+
+struct FixtureServerTrusted: Equatable, Sendable {
+    let trusted: Bool
 }
 
 struct FolderAlreadyExists: Equatable, Sendable {
@@ -1810,6 +1908,9 @@ struct InteractionState: Equatable, Sendable {
     let state: Data?
 }
 
+struct InvalidBlockedPopup: Equatable, Sendable {
+}
+
 struct InvalidCredentialDate: Equatable, Sendable {
 }
 
@@ -1855,6 +1956,10 @@ struct InvalidImport: Equatable, Sendable {
 
 struct InvalidLinkRouteEdit: Equatable, Sendable {
     let routeID: UUID
+}
+
+struct InvalidMediaSessionCount: Equatable, Sendable {
+    let count: Int
 }
 
 struct InvalidName: Equatable, Sendable {
@@ -2130,12 +2235,24 @@ struct LoadPage: Equatable, Sendable {
     let url: String
 }
 
+struct LocalDocumentFacts: Equatable, Sendable {
+    let isFile: Bool
+    let hasUser: Bool
+    let hasPath: Bool
+    let host: String?
+}
+
 struct LockAllSpaces: Intent, SpaceAccessIntent, Equatable, Sendable {
     let sceneWentInactive: Bool
 }
 
 struct LockSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
     let spaceID: UUID
+}
+
+struct MediaSessionArbitration: Equatable, Sendable {
+    let order: [Int]
+    let nowPlaying: Int?
 }
 
 struct MediaSessionChanged: Equatable, Sendable {
@@ -2151,6 +2268,59 @@ struct MediaSessionChanged: Equatable, Sendable {
     let audible: Bool
     let muted: Bool
     let actions: [MediaSessionAction]
+}
+
+struct MediaSessionEntry: Equatable, Sendable, Identifiable {
+    let id: String
+    let ordinal: UInt64
+    let playback: MediaPlaybackState
+    let isAudible: Bool
+}
+
+struct MediaSessionEvent: Equatable, Sendable {
+    let sequence: UInt64
+    let isInvalidated: Bool
+    let hasActiveSession: Bool
+    let playback: MediaPlaybackState
+}
+
+struct MediaSessionEventDecision: Equatable, Sendable {
+    let accepted: Bool
+    let evictOldest: Int
+    let disposition: MediaSessionDisposition
+    let supersedesTabSiblings: Bool
+    let ordinal: UInt64?
+    let nextOrdinal: UInt64
+    let clearsDismissal: Bool
+}
+
+struct MediaSessionIdentity: Equatable, Sendable {
+    let isRetired: Bool
+    let lastSequence: UInt64?
+    let ordinal: UInt64?
+    let isDismissed: Bool
+    let previousPlayback: MediaPlaybackState?
+}
+
+struct MediaSessionLimitReached: Equatable, Sendable {
+    let maximum: Int
+}
+
+struct MediaSessionOrder: Query, Equatable, Sendable {
+    typealias Answer = MediaSessionArbitration
+
+    static let maximumSessions: Int = 64
+
+    let sessions: [MediaSessionEntry]
+}
+
+struct MediaSessionReport: Query, Equatable, Sendable {
+    typealias Answer = MediaSessionEventDecision
+
+    let event: MediaSessionEvent
+    let identity: MediaSessionIdentity
+    let retainedIdentities: Int
+    let nextOrdinal: UInt64
 }
 
 struct MergeCloudSnapshot: Intent, CloudSyncIntent, Equatable, Sendable {
@@ -2353,6 +2523,17 @@ struct NormalizedBranding: Equatable, Sendable {
 
 struct NotPrivateWorkspace: Equatable, Sendable {
     let workspaceID: UUID
+}
+
+struct NotificationPermissionRequest: Query, Equatable, Sendable {
+    typealias Answer = NotificationRequestAnswer
+
+    let decision: SitePermissionDecision
+    let hasUserActivation: Bool
+}
+
+struct NotificationRequestAnswer: Equatable, Sendable {
+    let action: HostedNotificationRequestAction
 }
 
 struct NumberedSelection: Equatable, Sendable {
@@ -3181,6 +3362,17 @@ struct SavedAddressReturn: Equatable, Sendable {
     let changesPage: Bool
 }
 
+struct SchemeHandled: Equatable, Sendable {
+    let disposition: ExternalSchemeDisposition
+}
+
+struct SchemeHandling: Query, Equatable, Sendable {
+    typealias Answer = SchemeHandled
+
+    let scheme: String?
+    let appInitiated: Bool
+}
+
 struct ScriptDialogAsked: Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
@@ -3206,6 +3398,16 @@ struct SearchEngineLimitReached: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("A Space can contain up to \(limit) custom search engines.")
     }
+}
+
+struct SecureOriginCheck: Query, Equatable, Sendable {
+    typealias Answer = SecureOriginVerdict
+
+    let origin: SiteOrigin
+}
+
+struct SecureOriginVerdict: Equatable, Sendable {
+    let allowed: Bool
 }
 
 struct SelectSearchEngine: Intent, SessionIntent, Equatable, Sendable {
@@ -4266,6 +4468,18 @@ struct ZoomPage: PageRequest, Equatable, Sendable {
 
 // MARK: - Enums
 
+enum AuthenticationHandling: Int, CaseIterable, Sendable {
+    case promptForCredentials = 0
+    case performDefaultHandling = 1
+    case cancel = 2
+}
+
+enum AuthenticationMethod: Int, CaseIterable, Sendable {
+    case httpBasic = 0
+    case httpDigest = 1
+    case other = 2
+}
+
 enum AuthenticationScheme: Int, CaseIterable, Sendable {
     case basic = 0
     case digest = 1
@@ -4546,11 +4760,23 @@ enum MediaPlayback: Int, CaseIterable, Sendable {
     case paused = 2
 }
 
+enum MediaPlaybackState: Int, CaseIterable, Sendable {
+    case none = 0
+    case paused = 1
+    case playing = 2
+}
+
 enum MediaSessionAction: Int, CaseIterable, Sendable {
     case play = 0
     case pause = 1
     case previousTrack = 2
     case nextTrack = 3
+}
+
+enum MediaSessionDisposition: Int, CaseIterable, Sendable {
+    case retire = 0
+    case clear = 1
+    case publish = 2
 }
 
 enum PageExportFormat: Int, CaseIterable, Sendable {

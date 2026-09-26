@@ -76,17 +76,6 @@ static void policy_boundary(void) {
     assert(crest_core_evaluate_policy((const uint8_t*)setup, strlen(setup), output, 256, &length) == CREST_OK);
     output[length] = 0;
     assert(strstr((const char*)output, "\"error\":\"pinned_limit_reached\""));
-    /* Media arbitration is a core rule. */
-    char answer[2048];
-    const char *media = "{\"version\":1,\"operation\":\"media.arbitrate\",\"sessions\":["
-        "{\"id\":\"tab:b\",\"ordinal\":2,\"playbackState\":\"playing\",\"audible\":true},"
-        "{\"id\":\"tab:a\",\"ordinal\":1,\"playbackState\":\"paused\",\"audible\":true}]}";
-    assert(crest_core_evaluate_policy((const uint8_t*)media, strlen(media), (uint8_t*)answer, sizeof(answer) - 1, &length) == CREST_OK);
-    answer[length] = 0;
-    assert(strstr(answer, "\"order\":[1,0]") && strstr(answer, "\"nowPlaying\":0"));
-    const char *metadata = "{\"version\":1,\"operation\":\"media.arbitrate\",\"sessions\":["
-        "{\"id\":\"tab:a\",\"ordinal\":1,\"playbackState\":\"paused\",\"audible\":true,\"title\":\"Song\"}]}";
-    assert(crest_core_evaluate_policy((const uint8_t*)metadata, strlen(metadata), (uint8_t*)answer, sizeof(answer) - 1, &length) == CREST_INVALID_MESSAGE);
 }
 static const char* space_id = "44444444-4444-4444-4444-444444444444";
 static const char* profile_id = "55555555-5555-5555-5555-555555555555";

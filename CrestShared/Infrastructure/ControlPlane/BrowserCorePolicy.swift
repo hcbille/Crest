@@ -81,18 +81,6 @@ enum BrowserCorePolicy {
         @BrowserCoreOptional var action: BrowserProcessRecoveryAction?
     }
 
-    private struct AutomaticDownloadRequest: Encodable {
-        let userInitiated: Bool
-        let userApprovedRetry: Bool
-        let savedDecision: SitePermissionDecision
-        let hasAllowedAutomaticDownload: Bool
-    }
-
-    private struct AutomaticDownloadAnswer: Decodable {
-        let hasAllowedAutomaticDownload: Bool
-        @BrowserCoreOptional var action: AutomaticDownloadAction?
-    }
-
     // MARK: - Variables
 
     private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "CorePolicy")
@@ -148,23 +136,6 @@ enum BrowserCorePolicy {
         evaluate(
             .residencyProcessRecovery, ProcessRecoveryRequest(consecutiveTerminations: consecutiveTerminations),
             answer: ProcessRecoveryAnswer.self)?.action ?? .showFailure
-    }
-
-    // MARK: - Actions - Downloads
-
-    /// The automatic-download action and the page/origin throttle state to
-    /// keep. An unavailable core asks the person instead of deciding silently.
-    static func automaticDownload(
-        isUserInitiated: Bool, isUserApprovedRetry: Bool,
-        savedDecision: SitePermissionDecision, hasAllowedAutomaticDownload: Bool
-    ) -> (action: AutomaticDownloadAction, hasAllowedAutomaticDownload: Bool) {
-        let request = AutomaticDownloadRequest(
-            userInitiated: isUserInitiated, userApprovedRetry: isUserApprovedRetry, savedDecision: savedDecision,
-            hasAllowedAutomaticDownload: hasAllowedAutomaticDownload)
-        guard let answer = evaluate(.downloadsAutomatic, request, answer: AutomaticDownloadAnswer.self) else {
-            return (.requestPermission, hasAllowedAutomaticDownload)
-        }
-        return (answer.action ?? .requestPermission, answer.hasAllowedAutomaticDownload)
     }
 
     // MARK: - Actions - Evaluation

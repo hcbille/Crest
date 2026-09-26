@@ -1,3 +1,5 @@
+using CrestCore.Contracts;
+
 namespace CrestCore.Domain;
 
 /// Arbitration between page media sessions, identical for every engine.
@@ -13,7 +15,6 @@ public static class MediaSessionPolicy {
     #region Variables
 
     public const int MaximumRetainedIdentities = 512;
-    public const int MaximumSessions = 64;
 
     #endregion
 
@@ -23,7 +24,7 @@ public static class MediaSessionPolicy {
         int retainedIdentities, ulong nextOrdinal) {
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(identity);
-        if (retainedIdentities < 0) throw new BrowserRuleException(BrowserRuleCodes.InvalidMediaSessionCount);
+        if (retainedIdentities < 0) throw new Rejected(new InvalidMediaSessionCount(retainedIdentities));
         if (identity.IsRetired || report.Sequence <= (identity.LastSequence ?? 0))
             return new(false, 0, MediaSessionDisposition.Clear, false, null, nextOrdinal, false);
         int retained = retainedIdentities + (identity.LastSequence is null ? 1 : 0);
@@ -44,9 +45,10 @@ public static class MediaSessionPolicy {
 
     public static MediaSessionArbitration Arbitrate(IReadOnlyList<MediaSessionEntry> sessions) {
         ArgumentNullException.ThrowIfNull(sessions);
-        if (sessions.Count > MaximumSessions) throw new BrowserRuleException(BrowserRuleCodes.MediaSessionLimit);
-        if (sessions.Select(session => session.Id).Distinct(StringComparer.Ordinal).Count() != sessions.Count)
-            throw new BrowserRuleException(BrowserRuleCodes.DuplicateMediaSession);
+        if (sessions.Count > MediaSessionOrder.MaximumSessions)
+            throw new Rejected(new MediaSessionLimitReached(MediaSessionOrder.MaximumSessions));
+        if (sessions.GroupBy(session => session.Id, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1) is { } repeated)
+            throw new Rejected(new DuplicateMediaSession(repeated.Key));
         var order = Enumerable.Range(0, sessions.Count).ToList();
         order.Sort((lhs, rhs) => Compare(sessions[lhs], sessions[rhs]));
         int? owner = null;

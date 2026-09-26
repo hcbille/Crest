@@ -2705,6 +2705,10 @@
     "2026-09-26-engine-abi-open-page-transient": {
       "category": "internal",
       "message": "The engine ABI check sends OpenPage with its new transient presentation field"
+    },
+    "2026-09-26-site-rules-typed-queries": {
+      "category": "internal",
+      "message": "Link, scheme, sign-in, media, location, notification, popup and automatic-download rules are answered by typed core queries"
     }
   }
 }

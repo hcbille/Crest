@@ -1,6 +1,6 @@
 import Foundation
 
-extension BrowserAuthenticationMethod {
+extension AuthenticationMethod {
     init(authenticationMethod: String) {
         switch authenticationMethod {
         case NSURLAuthenticationMethodHTTPBasic:

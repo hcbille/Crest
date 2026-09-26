@@ -1,6 +1,3 @@
-using System.Text;
-using System.Text.Json.Nodes;
-
 using CrestCore.Application;
 using CrestCore.Contracts;
 using CrestCore.Domain;
@@ -14,11 +11,6 @@ public sealed class MediaSessionPolicyTests {
 
     private static MediaSessionEvent Report(ulong sequence, MediaPlaybackState playback = MediaPlaybackState.Playing,
         bool active = true, bool invalidated = false) => new(sequence, invalidated, active, playback);
-
-    private static JsonNode Evaluate(JsonObject request) {
-        request["version"] = 1;
-        return JsonNode.Parse(NativePolicyEvaluator.Evaluate(Encoding.UTF8.GetBytes(request.ToJsonString())))!;
-    }
 
     [Fact]
     public void StaleAndRetiredReportsChangeNothing() {
@@ -90,55 +82,22 @@ public sealed class MediaSessionPolicyTests {
         ]);
         Assert.Equal(1, tie.NowPlaying);
         Assert.Null(MediaSessionPolicy.Arbitrate([Entry("a", 1, MediaPlaybackState.None, true)]).NowPlaying);
-        Assert.Equal(BrowserRuleCodes.DuplicateMediaSession, Assert.Throws<BrowserRuleException>(() => MediaSessionPolicy.Arbitrate([
+        Assert.Equal(new DuplicateMediaSession("a"), Assert.Throws<Rejected>(() => MediaSessionPolicy.Arbitrate([
             Entry("a", 1, MediaPlaybackState.Paused, true), Entry("a", 2, MediaPlaybackState.Paused, true)
-        ])).Code);
+        ])).Rejection);
     }
 
     [Fact]
-    public void TheOperationsCarryOnlyOrderingAndLifecycleFacts() {
-        var decision = Evaluate(new() {
-            ["operation"] = "media.session_event",
-            ["event"] = new JsonObject { ["sequence"] = 3, ["invalidated"] = false, ["active"] = true, ["playbackState"] = "playing" },
-            ["identity"] = new JsonObject {
-                ["retired"] = false,
-                ["lastSequence"] = 2,
-                ["ordinal"] = 4,
-                ["dismissed"] = true,
-                ["previousPlaybackState"] = "paused"
-            },
-            ["retainedIdentities"] = 3,
-            ["nextOrdinal"] = 6
-        });
-        Assert.True(decision["accepted"]!.GetValue<bool>());
-        Assert.Equal("publish", decision["disposition"]!.GetValue<string>());
-        Assert.Equal(4UL, decision["ordinal"]!.GetValue<ulong>());
-        Assert.True(decision["clearsDismissal"]!.GetValue<bool>());
-
-        var arbitration = Evaluate(new() {
-            ["operation"] = "media.arbitrate",
-            ["sessions"] = new JsonArray(
-                new JsonObject { ["id"] = "tab:b", ["ordinal"] = 2, ["playbackState"] = "paused", ["audible"] = false },
-                new JsonObject { ["id"] = "tab:a", ["ordinal"] = 1, ["playbackState"] = "none", ["audible"] = false })
-        });
-        Assert.Equal(1, arbitration["order"]![0]!.GetValue<int>());
-        Assert.Equal(0, arbitration["nowPlaying"]!.GetValue<int>());
-
-        var withTitle = new JsonObject {
-            ["operation"] = "media.arbitrate",
-            ["sessions"] = new JsonArray(new JsonObject {
-                ["id"] = "tab:a",
-                ["ordinal"] = 1,
-                ["playbackState"] = "paused",
-                ["audible"] = false,
-                ["title"] = "Song"
-            })
-        };
-        Assert.Equal(ProtocolErrorCodes.UnexpectedMember, Assert.Throws<ProtocolException>(() => Evaluate(withTitle)).Code);
-        var unknownState = new JsonObject {
-            ["operation"] = "media.arbitrate",
-            ["sessions"] = new JsonArray(new JsonObject { ["id"] = "tab:a", ["ordinal"] = 1, ["playbackState"] = "buffering", ["audible"] = false })
-        };
-        Assert.Equal(ProtocolErrorCodes.InvalidPlaybackState, Assert.Throws<ProtocolException>(() => Evaluate(unknownState)).Code);
+    public void TheQueriesAnswerWithoutAnAppAndRefuseMoreSessionsThanTheStoreOrders() {
+        var answers = new StandaloneAnswers();
+        var decision = answers.Query(new MediaSessionReport(Report(3),
+            Fresh with { LastSequence = 2, Ordinal = 4, IsDismissed = true, PreviousPlayback = MediaPlaybackState.Paused }, 3, 6));
+        Assert.Equal(new MediaSessionEventDecision(true, 0, MediaSessionDisposition.Publish, true, 4, 6, true), decision);
+        var sessions = Enumerable.Range(0, MediaSessionOrder.MaximumSessions + 1)
+            .Select(index => new MediaSessionEntry($"tab:{index}", (ulong)index, MediaPlaybackState.Paused, false)).ToArray();
+        Assert.Equal(new MediaSessionLimitReached(MediaSessionOrder.MaximumSessions),
+            Assert.Throws<Rejected>(() => answers.Query(new MediaSessionOrder(sessions))).Rejection);
+        Assert.Equal(new InvalidMediaSessionCount(-1),
+            Assert.Throws<Rejected>(() => answers.Query(new MediaSessionReport(Report(1), Fresh, -1, 0))).Rejection);
     }
 }

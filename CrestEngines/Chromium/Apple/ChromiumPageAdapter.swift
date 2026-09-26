@@ -149,7 +149,7 @@
                     securityProtocol: url.scheme ?? "", host: challenge.host, port: challenge.port)
             else { return nil }
             let realm = challenge.realm.flatMap { $0.isEmpty ? nil : $0 }
-            let method: BrowserAuthenticationMethod
+            let method: AuthenticationMethod
             let scope: BrowserCredentialScope
             // The scheme as the challenge's descriptor names it.
             let schemeName: String

@@ -1,3 +1,5 @@
+using CrestCore.Contracts;
+
 namespace CrestCore.Domain;
 
 /// HTTP authentication rules: which challenges Crest prompts for, how the

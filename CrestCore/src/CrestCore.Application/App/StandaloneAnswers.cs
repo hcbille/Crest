@@ -7,7 +7,10 @@ namespace CrestCore.Application;
 /// addresses history keeps for others, how translation languages match, which
 /// translation rule applies, what an address typed outside any workspace
 /// loads, how a launch treats the person's data, branding as a Space keeps it,
-/// and what a page surface shows. A host asks them before it has an app, or from code that holds none; an
+/// what a page surface shows, which addresses and schemes Crest takes from
+/// outside, how it answers an authentication challenge, how page media
+/// sessions order, and what a site's origin, notification request, blocked
+/// popup or automatic download leads to. A host asks them before it has an app, or from code that holds none; an
 /// app answers them the same way.
 public sealed class StandaloneAnswers : IQueryAnswers {
     #region Actions - Queries
@@ -29,6 +32,25 @@ public sealed class StandaloneAnswers : IQueryAnswers {
         LaunchIsolation launch => LaunchPolicy.Plan(launch.Environment, launch.Platform, storedStartup: null, hasActiveLaunchGate: false),
         NormalizeBranding branding => new NormalizedBranding(SpaceBrandingPolicy.Normalize(branding.Branding)),
         PresentPage page => new PagePresented(PagePresentation.Of(page)),
+        ExternalWebLink link => new ExternalAddressVerdict(ExternalUrlPolicy.AcceptsWebLink(link.Scheme, link.Host)),
+        ExternalLocalDocument document => new ExternalAddressVerdict(ExternalUrlPolicy.AcceptsLocalDocument(document.Facts)),
+        SchemeHandling scheme => new SchemeHandled(ExternalSchemePolicy.Disposition(scheme.Scheme, scheme.AppInitiated)),
+        ChallengeHandling challenge => new ChallengeHandled(AuthenticationPolicy.Handling(challenge.Method, challenge.IsProxy,
+            challenge.PreviousFailureCount)),
+        AuthenticationSource source => new AuthenticationSourceLabel(AuthenticationPolicy.SourceLabel(source.Host, source.Port,
+            source.Scheme)),
+        FixtureServerTrust trust => new FixtureServerTrusted(AuthenticationPolicy.TrustsPhysicalValidationServer(trust.BundleIdentifier,
+            trust.ExpectedCertificateSha256, trust.ActualCertificateSha256)),
+        MediaSessionReport report => MediaSessionPolicy.Decide(report.Event, report.Identity, report.RetainedIdentities,
+            report.NextOrdinal),
+        MediaSessionOrder order => MediaSessionPolicy.Arbitrate(order.Sessions),
+        SecureOriginCheck origin => new SecureOriginVerdict(SecureOriginPolicy.Allows(origin.Origin)),
+        NotificationPermissionRequest request => new NotificationRequestAnswer(HostedNotificationRequestAction.For(request.Decision,
+            request.HasUserActivation)),
+        BlockedPopupTransition popup => new BlockedPopupTransitioned(BlockedPopupPolicy.Apply(popup.State, popup.Event,
+            popup.DocumentIdentifier, popup.Origin)),
+        AutomaticDownloadCheck download => AutomaticDownloadPolicy.Decide(download.UserInitiated, download.UserApprovedRetry,
+            download.SavedDecision, download.HasAllowedAutomaticDownload),
         _ => throw new ArgumentOutOfRangeException(nameof(query), query.GetType().Name, "No area answers this query.")
     };
 

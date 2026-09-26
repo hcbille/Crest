@@ -4,7 +4,7 @@ extension BrowserAuthenticationChallenge {
     init(_ challenge: URLAuthenticationChallenge) {
         let protectionSpace = challenge.protectionSpace
         self.init(
-            authenticationMethod: BrowserAuthenticationMethod(
+            authenticationMethod: AuthenticationMethod(
                 authenticationMethod: protectionSpace.authenticationMethod
             ),
             isProxy: protectionSpace.isProxy(),

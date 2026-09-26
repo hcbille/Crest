@@ -3,22 +3,9 @@ import Foundation
 /// One stateless core policy call. Raw values are the core's spellings in
 /// `PolicyOperation.cs`.
 enum BrowserPolicyOperation: String, Codable, Sendable {
-    case authenticationFixtureTrust = "authentication.fixture_trust"
-    case authenticationHandling = "authentication.handling"
-    case authenticationSourceLabel = "authentication.source_label"
-    case downloadsAutomatic = "downloads.automatic"
-    case externalLocalDocument = "external.local_document"
-    case externalScheme = "external.scheme"
-    case externalURL = "external.url"
-    case geolocationOrigin = "geolocation.origin"
     case limits
-    case mediaArbitrate = "media.arbitrate"
-    case mediaSessionEvent = "media.session_event"
-    case notificationsOrigin = "notifications.origin"
-    case notificationsPermissionRequest = "notifications.permission_request"
     case onboardingCompletion = "onboarding.completion"
     case onboardingGuide = "onboarding.guide"
-    case popupsNotice = "popups.notice"
     case residencyProcessRecovery = "residency.process_recovery"
     case residencyReleaseLimit = "residency.release_limit"
     case residencyReleasePlan = "residency.release_plan"

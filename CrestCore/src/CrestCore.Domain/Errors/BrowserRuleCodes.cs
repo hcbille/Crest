@@ -7,7 +7,6 @@ public static class BrowserRuleCodes {
     public const string AccessAlreadyAttached = "access_already_attached";
     public const string BorrowedProfileRequiresOwner = "borrowed_profile_requires_owner";
     public const string DeletionRequiresCommand = "deletion_requires_command";
-    public const string DuplicateMediaSession = "duplicate_media_session";
     public const string DuplicateResidencyCandidate = "duplicate_residency_candidate";
     public const string DuplicateSyncRecord = "duplicate_sync_record";
     public const string InvalidAddress = "invalid_address";
@@ -17,7 +16,6 @@ public static class BrowserRuleCodes {
     public const string InvalidHistoryRange = "invalid_history_range";
     public const string InvalidHistoryVisit = "invalid_history_visit";
     public const string InvalidIdentity = "invalid_identity";
-    public const string InvalidMediaSessionCount = "invalid_media_session_count";
     public const string InvalidName = "invalid_name";
     public const string InvalidNativeKind = "invalid_native_kind";
     public const string InvalidPageCount = "invalid_page_count";
@@ -48,7 +46,6 @@ public static class BrowserRuleCodes {
     public const string InvalidTabContent = "invalid_tab_content";
     public const string InvalidTabCount = "invalid_tab_count";
     public const string InvalidTerminationCount = "invalid_termination_count";
-    public const string MediaSessionLimit = "media_session_limit";
     public const string NotBorrowedWorkspace = "not_borrowed_workspace";
     public const string PinnedLimitReached = "pinned_limit_reached";
     public const string ProfileLeaseRevoked = "profile_lease_revoked";
@@ -74,8 +71,6 @@ public static class BrowserRuleCodes {
     public const string WrongSpaceIdentity = "wrong_space_identity";
 
     // Site permissions and origins.
-    public const string InvalidBlockedPopup = "invalid_blocked_popup";
-    public const string InvalidSiteOrigin = "invalid_site_origin";
 
     #endregion
 }

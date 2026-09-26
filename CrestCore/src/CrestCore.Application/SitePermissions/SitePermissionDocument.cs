@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 using CrestCore.Contracts;
 using CrestCore.Domain;
@@ -75,38 +74,6 @@ internal static class SitePermissionDocument {
 
     private static Guid? Identity(JsonElement value) =>
         value.ValueKind == JsonValueKind.String && Guid.TryParseExact(value.GetString(), "D", out var id) && id != Guid.Empty ? id : null;
-
-    #endregion
-
-    #region Actions - Requests
-
-    /// A decision a request names by its saved spelling.
-    public static SitePermissionDecision DecodeDecision(JsonElement request, string field) =>
-        SitePermissionDecision.Named(Protocol.Text(request, field, 64))
-        ?? throw new ProtocolException(ProtocolErrorCodes.InvalidPermissionDecision);
-
-    #endregion
-
-    #region Actions - Origins
-
-    /// An origin in the record's shape.
-    public static JsonObject EncodeOrigin(SiteOrigin origin) => new() {
-        [Scheme] = origin.Scheme,
-        [Host] = origin.Host,
-        [Port] = origin.Port
-    };
-
-    /// An origin a platform reported in a request, which must be exactly the
-    /// record's shape and one the rules can read.
-    public static SiteOrigin DecodeOrigin(JsonElement value) {
-        Protocol.Members(value, Scheme, Host, Port);
-        var origin = new SiteOrigin(Protocol.Text(value, Scheme, SiteOrigin.MaximumSchemeLength),
-            Protocol.Text(value, Host, SiteOrigin.MaximumHostLength), value.GetProperty(Port).GetInt32());
-        return origin.IsValid ? origin : throw new BrowserRuleException(BrowserRuleCodes.InvalidSiteOrigin);
-    }
-
-    public static SiteOrigin? DecodeOptionalOrigin(JsonElement request, string field) =>
-        request.TryGetProperty(field, out var value) && value.ValueKind != JsonValueKind.Null ? DecodeOrigin(value) : null;
 
     #endregion
 }
