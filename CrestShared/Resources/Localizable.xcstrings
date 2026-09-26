@@ -19818,6 +19818,24 @@
     },
     "This password file is not valid UTF-8 text." : {
 
+    },
+    "This file was transferred over an insecure connection and could have been changed by someone else. Keep it only if you trust its source." : {
+
+    },
+    "This type of file can change your computer. Keep it only if you trust its source." : {
+
+    },
+    "This file is not commonly downloaded. The engine could not confirm that it is safe." : {
+
+    },
+    "This file may change your browser or computer settings without your permission." : {
+
+    },
+    "The engine blocked this insecure download." : {
+
+    },
+    "The engine blocked this download because of its safety or organization policy verdict." : {
+
     }
   },
   "version" : "1.3"

@@ -198,15 +198,6 @@ final class BrowserPagePool:
             downloadCenter
             ?? BrowserDownloadCenter(
                 core: core,
-                promptForCredentials: { prompt, spaceName in
-                    await dialogPresenter.presentHTTPAuthentication(
-                        prompt: prompt,
-                        spaceName: spaceName
-                    )
-                },
-                allowsCredentialSaving: !browsingMode.isPrivate,
-                loadCredential: loadHTTPAuthenticationCredential,
-                saveCredential: saveHTTPAuthenticationCredential,
                 approveRiskyDownload: { assessment, sourceURL, spaceName, _ in
                     await dialogPresenter.approveRiskyDownload(
                         assessment: assessment,
@@ -687,9 +678,6 @@ final class BrowserPagePool:
                 ($0.id, $0.credentialPreferences.isEnabled)
             }
         )
-        for (spaceID, isEnabled) in enabledBySpaceID {
-            downloadCenter.setCredentialAccessEnabled(isEnabled, in: spaceID)
-        }
         for page in tabRuntimes.values.lazy.map(\.page) {
             page.setCredentialAccessEnabled(
                 enabledBySpaceID[page.spaceID] ?? false

@@ -52,84 +52,6 @@ final class BrowserDownloadRetryTests: XCTestCase {
         )
     }
 
-    func testRetryRegistrationRequiresTheExactLiveLeaseContextAndLedgerItem() {
-        let leaseID = fixedID(0x11)
-        let itemID = fixedID(0x12)
-        let profileID = fixedID(0x13)
-        let spaceID = fixedID(0x14)
-        let lease = BrowserDownloadRetryLease(
-            id: leaseID,
-            itemID: itemID,
-            profileID: profileID,
-            spaceID: spaceID
-        )
-        let item = DownloadState.fixture(
-            id: itemID, profileID: profileID, createdAt: Date(timeIntervalSinceReferenceDate: 1_000))
-
-        XCTAssertTrue(
-            BrowserDownloadRetryRegistrationPolicy.shouldRegister(
-                lease: lease,
-                currentLease: lease,
-                item: item,
-                contextAssignment: lease.assignment,
-                isAssignmentAvailable: true
-            )
-        )
-    }
-
-    func testRetryRegistrationRejectsDeletedReplacedAndStaleState() {
-        let itemID = fixedID(0x21)
-        let profileID = fixedID(0x22)
-        let spaceID = fixedID(0x23)
-        let lease = BrowserDownloadRetryLease(
-            id: fixedID(0x24),
-            itemID: itemID,
-            profileID: profileID,
-            spaceID: spaceID
-        )
-        let createdAt = Date(timeIntervalSinceReferenceDate: 2_000)
-        let item = DownloadState.fixture(id: itemID, profileID: profileID, createdAt: createdAt)
-        let replacedLease = BrowserDownloadRetryLease(
-            id: fixedID(0x25),
-            itemID: itemID,
-            profileID: profileID,
-            spaceID: spaceID
-        )
-        let replacementAssignment = BrowserSpaceRuntimeAssignment(
-            spaceID: spaceID,
-            profileID: fixedID(0x26)
-        )
-        let completedItem = DownloadState.fixture(
-            id: itemID, profileID: profileID, createdAt: createdAt, phase: .finished)
-        let canceledItem = DownloadState.fixture(
-            id: itemID, profileID: profileID, createdAt: createdAt, phase: .canceled, message: "Canceled.")
-
-        let rejectedInputs:
-            [(
-                BrowserDownloadRetryLease?, DownloadState?, BrowserSpaceRuntimeAssignment?, Bool
-            )] = [
-                (nil, item, lease.assignment, true),
-                (replacedLease, item, lease.assignment, true),
-                (lease, nil, lease.assignment, true),
-                (lease, item, nil, true),
-                (lease, item, replacementAssignment, true),
-                (lease, completedItem, lease.assignment, true),
-                (lease, canceledItem, lease.assignment, true),
-                (lease, item, lease.assignment, false),
-            ]
-        for (currentLease, currentItem, contextAssignment, isAssignmentAvailable) in rejectedInputs {
-            XCTAssertFalse(
-                BrowserDownloadRetryRegistrationPolicy.shouldRegister(
-                    lease: lease,
-                    currentLease: currentLease,
-                    item: currentItem,
-                    contextAssignment: contextAssignment,
-                    isAssignmentAvailable: isAssignmentAvailable
-                )
-            )
-        }
-    }
-
     func testDownloadSourceCaptureIsClampedMatchedOnceAndExpires() throws {
         let destination = try XCTUnwrap(URL(string: "https://example.com/file.bin"))
         let capture = BrowserDownloadSourceCapture(
@@ -182,13 +104,5 @@ final class BrowserDownloadRetryTests: XCTestCase {
                 messageBody: body.merging(["href": "javascript:alert(1)"]) { _, new in new }
             )
         )
-    }
-
-    private func fixedID(_ byte: UInt8) -> UUID {
-        UUID(
-            uuid: (
-                byte, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0
-            ))
     }
 }

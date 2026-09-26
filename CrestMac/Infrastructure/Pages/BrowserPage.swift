@@ -6,7 +6,7 @@ import os
 
 @Observable
 @MainActor
-final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPagePermissionProviding {
+final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     // MARK: - Static Variables
 
     @ObservationIgnored static let lifecycleSignposter = OSSignposter(
@@ -464,7 +464,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPa
         userActivityHandler = nil
         linkContextCapture.clear()
         sitePermissionSession.resetMediaGrants()
-        downloadCenter.resetAutomaticDownloadSequence(for: pageEngine)
+        webKitAdapter?.enginePage.resetAutomaticDownloads()
         engineAdapter.detach(from: self)
         mediaSessionCoordinator = nil
     }

@@ -7,7 +7,8 @@ import WebKit
 struct MobileDownloadRiskConfirmationRequest: Identifiable, Equatable, Sendable {
     let id: UUID
     let assessment: DownloadRiskAssessment
-    let sourceURL: URL?
+    /// The host the file came from, when known.
+    let sourceHost: String?
     let spaceName: String
     /// The profile the download belongs to. Only windows browsing it present
     /// the request.
@@ -16,13 +17,13 @@ struct MobileDownloadRiskConfirmationRequest: Identifiable, Equatable, Sendable 
     init(
         id: UUID = UUID(),
         assessment: DownloadRiskAssessment,
-        sourceURL: URL?,
+        sourceHost: String?,
         spaceName: String,
         profileID: UUID
     ) {
         self.id = id
         self.assessment = assessment
-        self.sourceURL = sourceURL
+        self.sourceHost = sourceHost
         self.spaceName = spaceName
         self.profileID = profileID
     }
@@ -32,7 +33,7 @@ struct MobileDownloadRiskConfirmationRequest: Identifiable, Equatable, Sendable 
     }
 
     var sourceLabel: String? {
-        sourceURL?.host() ?? sourceURL?.absoluteString
+        sourceHost
     }
 
     var message: String {

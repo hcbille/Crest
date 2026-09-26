@@ -153,17 +153,29 @@ final class BrowserDownloadTransferTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appending(path: "crest-download-permissions-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let permissions = BrowserSitePermissionCenter()
-        let center = BrowserDownloadCenter(
-            permissionCenter: permissions,
-            resolveDownloadDestination: { filename, _, _ in
+        // A page WebKit's binding built for the core, whose downloads the core
+        // records and whose file places this answers.
+        let space = try XCTUnwrap(BrowserSession.preview.spaces.first)
+        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let permissions = BrowserSitePermissionCenter(core: browser.core)
+        let prompts = BrowserDownloadPrompts(
+            core: browser.core, approve: { _, _ in false },
+            resolveDestination: { filename, _, _ in
                 .destination(root.appending(path: "\(UUID())-\(filename)"), securityScopedURL: nil)
             })
-        let web = WKWebView()
-        let owner = DownloadPermissionOwner()
-        web.uiDelegate = owner
-        web.navigationDelegate = owner
-        owner.sitePermissionRequests.setPresentationAvailable(true)
+        let opened = try XCTUnwrap(
+            browser.openWebKitPage(
+                in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
+        let page = BrowserPage(
+            corePage: opened.core, enginePage: opened.webKit, dialogPresenter: BrowserDialogPresenter(),
+            downloadCenter: BrowserDownloadCenter(core: browser.core), permissionCenter: permissions,
+            spaceID: space.id, profileID: space.profile.id, spaceName: space.name, openNewTab: { _ in })
+        defer {
+            page.release(keepingState: false)
+            withExtendedLifetime(prompts) {}
+        }
+        page.sitePermissionRequests.setPresentationAvailable(true)
+        let web = page.webView
         let url = try XCTUnwrap(URL(string: "https://downloads.crest.test/"))
         web.loadSimulatedRequest(
             URLRequest(url: url),
@@ -180,39 +192,42 @@ final class BrowserDownloadTransferTests: XCTestCase {
                 }, 100);
                 </script>
                 """)
-        let spaceID = SpaceID()
-        let profileID = UUID()
         let origin = try XCTUnwrap(SiteOrigin(url: url))
         try await waitForDownloadCondition { web.url == url && !web.isLoading }
-        owner.receiveDownload = { download in
-            XCTAssertFalse(download.isUserInitiated)
-            center.start(download, in: web, profileID: profileID, spaceID: spaceID, spaceName: "Work")
-        }
         func start() async throws {
             _ = try await web.callAsyncJavaScript(
                 "window.pendingDownloads++;",
                 arguments: [:], in: nil, contentWorld: .page)
         }
+        func finished() -> Int { browser.core.state.downloads.filter { $0.phase == .finished }.count }
+
+        // The site's first file under Ask goes through without asking.
         try await start()
-        try await waitForDownloadCondition { center.items.filter { $0.phase == .finished }.count == 1 }
-        XCTAssertNil(owner.sitePermissionRequests.current)
+        try await waitForDownloadCondition { finished() == 1 }
+        XCTAssertNil(page.sitePermissionRequests.current)
+
+        // A second asks; dismissing it blocks the file and saves nothing.
         try await start()
-        try await waitForDownloadCondition { owner.sitePermissionRequests.current != nil }
-        XCTAssertEqual(owner.sitePermissionRequests.current?.permission, .automaticDownloads)
-        XCTAssertEqual(owner.sitePermissionRequests.current?.origin, origin)
-        owner.sitePermissionRequests.cancelAll()
-        try await waitForDownloadCondition { center.items.contains { $0.phase == .blockedAutomaticDownload } }
-        XCTAssertEqual(permissions.decision(for: .automaticDownloads, origin: origin, in: spaceID), .ask)
-        XCTAssertTrue(permissions.records(in: spaceID).isEmpty)
+        try await waitForDownloadCondition { page.sitePermissionRequests.current != nil }
+        XCTAssertEqual(page.sitePermissionRequests.current?.permission, .automaticDownloads)
+        XCTAssertEqual(page.sitePermissionRequests.current?.origin, origin)
+        page.sitePermissionRequests.cancelAll()
+        try await waitForDownloadCondition {
+            browser.core.state.downloads.contains { $0.phase == .blockedAutomaticDownload }
+        }
+        XCTAssertEqual(permissions.decision(for: .automaticDownloads, origin: origin, in: space.id), .ask)
+        XCTAssertTrue(permissions.records(in: space.id).isEmpty)
+
+        // Allowing and remembering it lets this file and the next through.
         try await start()
-        try await waitForDownloadCondition { owner.sitePermissionRequests.current != nil }
-        owner.sitePermissionRequests.resolve(
-            try XCTUnwrap(owner.sitePermissionRequests.current?.id), response: .grantPersistently)
-        try await waitForDownloadCondition { center.items.filter { $0.phase == .finished }.count == 2 }
+        try await waitForDownloadCondition { page.sitePermissionRequests.current != nil }
+        page.sitePermissionRequests.resolve(
+            try XCTUnwrap(page.sitePermissionRequests.current?.id), response: .grantPersistently)
+        try await waitForDownloadCondition { finished() == 2 }
         try await start()
-        try await waitForDownloadCondition { center.items.filter { $0.phase == .finished }.count == 3 }
-        XCTAssertNil(owner.sitePermissionRequests.current)
-        XCTAssertEqual(permissions.records(in: spaceID).first?.decision, .grantPersistently)
+        try await waitForDownloadCondition { finished() == 3 }
+        XCTAssertNil(page.sitePermissionRequests.current)
+        XCTAssertEqual(permissions.records(in: space.id).first?.decision, .grantPersistently)
     }
 
     @MainActor
@@ -297,23 +312,4 @@ final class BrowserDownloadTransferTests: XCTestCase {
     }
 
 
-}
-
-@MainActor
-private final class DownloadPermissionOwner: NSObject, WKUIDelegate, WKNavigationDelegate,
-    BrowserPagePermissionProviding
-{
-    let sitePermissionRequests = BrowserPagePermissionController()
-    var receiveDownload: ((WKDownload) -> Void)?
-
-    func webView(
-        _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
-    ) {
-        decisionHandler(navigationAction.shouldPerformDownload ? .download : .allow)
-    }
-
-    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
-        receiveDownload?(download)
-    }
 }

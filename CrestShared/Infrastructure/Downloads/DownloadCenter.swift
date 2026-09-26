@@ -3,32 +3,13 @@ import Observation
 import os
 
 /// Crest's downloads for one browsing mode: the core's download records, the
-/// feedback they present, native data saves, and the transfers each engine
-/// runs. Every record change is an intent sent to the core. An engine either
-/// reports its own downloads to the core, which records them, or runs them
-/// through a `BrowserDownloadTransport` it registers with the center.
+/// feedback they present, and native data saves. Every record change is an
+/// intent sent to the core; engines report their own downloads to the core,
+/// which records them and hands the person's row actions back to the engine.
 @Observable
 @MainActor
 final class BrowserDownloadCenter: NSObject {
     // MARK: - Types
-
-    typealias CredentialPromptHandler =
-        @MainActor (
-            BrowserHTTPAuthenticationPrompt,
-            String
-        ) async -> BrowserHTTPAuthenticationPromptResponse?
-
-    typealias CredentialLoader =
-        @MainActor (
-            BrowserHTTPAuthenticationProtectionSpace,
-            SpaceID
-        ) async throws -> BrowserCredential?
-
-    typealias CredentialSaver =
-        @MainActor (
-            BrowserHTTPAuthenticationSaveRequest,
-            SpaceID
-        ) async throws -> Void
 
     /// Asks the person to approve a risky download: its assessment, source,
     /// Space name and profile.
@@ -61,27 +42,16 @@ final class BrowserDownloadCenter: NSObject {
     }
 
     @ObservationIgnored let permissionCenter: BrowserSitePermissionCenter
-    @ObservationIgnored let promptForCredentials: CredentialPromptHandler
     @ObservationIgnored let approveRiskyDownload: RiskApprovalHandler
     @ObservationIgnored let resolveDownloadDestination: DownloadDestinationResolver
-    /// The transports engines registered, one per transport type.
-    @ObservationIgnored private var transports: [ObjectIdentifier: any BrowserDownloadTransport] = [:]
     @ObservationIgnored private var feedbackExpirationTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var dataSaveAssignments: [UUID: BrowserSpaceRuntimeAssignment] = [:]
     @ObservationIgnored private var lastRetentionSweepAt: Date?
-    @ObservationIgnored private let loadCredential: CredentialLoader
-    @ObservationIgnored private let saveCredential: CredentialSaver
-    @ObservationIgnored private let allowsAnyCredentialSaving: Bool
-    @ObservationIgnored private var credentialAccessBySpaceID: [SpaceID: Bool] = [:]
 
     // MARK: - Initializers
 
     init(
         core: CrestCore = CrestCore(),
-        promptForCredentials: @escaping CredentialPromptHandler = { _, _ in nil },
-        allowsCredentialSaving: Bool = true,
-        loadCredential: @escaping CredentialLoader = { _, _ in nil },
-        saveCredential: @escaping CredentialSaver = { _, _ in },
         approveRiskyDownload: @escaping RiskApprovalHandler = { _, _, _, _ in false },
         permissionCenter: BrowserSitePermissionCenter = BrowserSitePermissionCenter(),
         resolveDownloadDestination:
@@ -97,64 +67,10 @@ final class BrowserDownloadCenter: NSObject {
             }
     ) {
         self.core = core
-        self.promptForCredentials = promptForCredentials
-        allowsAnyCredentialSaving = allowsCredentialSaving
-        self.loadCredential = loadCredential
-        self.saveCredential = saveCredential
         self.approveRiskyDownload = approveRiskyDownload
         self.permissionCenter = permissionCenter
         self.resolveDownloadDestination = resolveDownloadDestination
         super.init()
-    }
-
-    // MARK: - Actions - Transports
-
-    /// The center's transport of `Transport`'s type, made on first use.
-    func transport<Transport: BrowserDownloadTransport>(
-        _ make: (BrowserDownloadCenter) -> Transport
-    ) -> Transport {
-        let key = ObjectIdentifier(Transport.self)
-        if let existing = transports[key] as? Transport { return existing }
-        let transport = make(self)
-        transports[key] = transport
-        return transport
-    }
-
-    /// Starts a new automatic-download sequence for the page `engine` hosts,
-    /// once its document is replaced or the page goes away.
-    func resetAutomaticDownloadSequence(for engine: any BrowserPageEngine) {
-        let pageView = ObjectIdentifier(engine.nativeView)
-        for transport in transports.values {
-            transport.resetAutomaticDownloadSequence(forPageView: pageView)
-        }
-    }
-
-    // MARK: - Actions - Credentials
-
-    func setCredentialAccessEnabled(_ isEnabled: Bool, in spaceID: SpaceID) {
-        credentialAccessBySpaceID[spaceID] = isEnabled
-        for transport in transports.values {
-            transport.setCredentialStorageEnabled(allowsAnyCredentialSaving && isEnabled, in: spaceID)
-        }
-    }
-
-    func isCredentialAccessEnabled(in spaceID: SpaceID) -> Bool {
-        allowsAnyCredentialSaving && (credentialAccessBySpaceID[spaceID] ?? true)
-    }
-
-    /// The HTTP authentication session for one transfer in `spaceID`, saving
-    /// credentials only where the Space allows it.
-    func makeAuthenticationSession(in spaceID: SpaceID) -> BrowserHTTPAuthenticationSession {
-        BrowserHTTPAuthenticationSession(
-            spaceID: spaceID,
-            allowsCredentialSaving: isCredentialAccessEnabled(in: spaceID),
-            loadCredential: { [loadCredential] protectionSpace in
-                try await loadCredential(protectionSpace, spaceID)
-            },
-            saveCredential: { [saveCredential] request in
-                try await saveCredential(request, spaceID)
-            }
-        )
     }
 
     // MARK: - Actions - Records
@@ -201,25 +117,6 @@ final class BrowserDownloadCenter: NSObject {
                 downloadID: itemID, destination: destination.absoluteString, filename: destination.lastPathComponent))
     }
 
-    /// One progress reading for a transfer. `estimator` is the state the
-    /// caller keeps for that transfer; the reading replaces it. Nil when the
-    /// core refuses the sample, and the caller keeps its last reading.
-    func sampleProgress(
-        _ estimator: inout DownloadTransferEstimator?,
-        completedUnitCount: Int64,
-        totalUnitCount: Int64,
-        fractionCompleted: Double,
-        isPaused: Bool,
-        uptime: TimeInterval = ProcessInfo.processInfo.systemUptime
-    ) -> DownloadProgressReading? {
-        let sample = DownloadProgress(
-            estimator: estimator, completedUnitCount: completedUnitCount, totalUnitCount: totalUnitCount,
-            fractionCompleted: fractionCompleted.isFinite ? fractionCompleted : 0, isPaused: isPaused, uptime: uptime)
-        guard let reading = try? core.query(sample) else { return nil }
-        estimator = reading.estimator
-        return reading
-    }
-
     /// The core's risk verdict for a download. A download the core cannot
     /// judge asks the person first rather than passing as safe.
     func riskVerdict(suggestedFilename: String, mimeType: String?, isUserInitiated: Bool) -> DownloadRiskVerdict {
@@ -264,35 +161,22 @@ final class BrowserDownloadCenter: NSObject {
                     profileID: $0.profileID,
                     lifetime: $0.settings.browsingPreferences.dataRetention.downloads.lifetime)
             })
-        let changes = (try? core.send(expiry)) ?? []
-        for case .downloadsRemoved(let removal) in changes {
-            for itemID in removal.downloadIDs {
-                for transport in transports.values { transport.forget(itemID) }
-            }
-        }
+        _ = try? core.send(expiry)
         return true
     }
 
-    /// Cancels a live download. One an engine reports to the core is cancelled
-    /// by the core, on its engine too.
+    /// Cancels a live download. The core cancels one an engine runs on its
+    /// engine too.
     func cancel(_ itemID: UUID) {
-        if dataSaveAssignments.removeValue(forKey: itemID) != nil {
-            send(CancelDownload(downloadID: itemID, message: "Canceled."))
-            return
-        }
-        for transport in transports.values where transport.cancel(itemID) { return }
+        dataSaveAssignments.removeValue(forKey: itemID)
         if item(itemID)?.phase.isLive == true { send(CancelDownload(downloadID: itemID, message: "Canceled.")) }
     }
 
-    /// Clears a record whose download ended. One an engine reports to the core
-    /// also leaves the engine's own list.
+    /// Clears a record whose download ended. One an engine ran also leaves the
+    /// engine's own list.
     func clear(_ itemID: UUID) {
-        guard item(itemID)?.phase.isLive != true,
-            !transports.values.contains(where: { $0.isTransferring(itemID) }),
-            dataSaveAssignments[itemID] == nil
-        else { return }
+        guard item(itemID)?.phase.isLive != true, dataSaveAssignments[itemID] == nil else { return }
         send(RemoveDownload(downloadID: itemID))
-        for transport in transports.values { transport.forget(itemID) }
     }
 
     /// Deletes a Space's records. The core cancels and removes the downloads
@@ -300,34 +184,22 @@ final class BrowserDownloadCenter: NSObject {
     func deleteRecords(profileID: UUID, spaceID: SpaceID) {
         let assignment = BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: profileID)
         dataSaveAssignments = dataSaveAssignments.filter { $0.value != assignment }
-        for transport in transports.values { transport.removeTransfers(in: assignment) }
         send(RemoveProfileDownloads(profileID: profileID))
     }
 
+    /// Retries a download the site's choices blocked, while its Space is
+    /// still there to hold it: the core has its engine replay it.
     @discardableResult
     func retryAutomaticDownload(
         _ itemID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
-        isAssignmentAvailable:
-            @escaping @MainActor (BrowserSpaceRuntimeAssignment) -> Bool
-    ) async -> Bool {
-        guard let item = item(itemID),
-            item.profileID == assignment.profileID,
-            item.phase.canRetry
-        else {
-            return false
-        }
-        for transport in Array(transports.values) {
-            if let retried = await transport.retryAutomaticDownload(
-                itemID, matching: assignment, isAssignmentAvailable: isAssignmentAvailable)
-            {
-                return retried
-            }
-        }
-        send(
-            FailDownload(
-                downloadID: itemID, reason: nil, message: "Reload the original page, then try the download again."))
-        return false
+        isAssignmentAvailable: @MainActor (BrowserSpaceRuntimeAssignment) -> Bool
+    ) -> Bool {
+        guard let item = item(itemID), item.profileID == assignment.profileID, item.phase.canRetry,
+            isAssignmentAvailable(assignment)
+        else { return false }
+        send(RestartDownload(downloadID: itemID))
+        return true
     }
 
     // MARK: - Actions - Native data saves

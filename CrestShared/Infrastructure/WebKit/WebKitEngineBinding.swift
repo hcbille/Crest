@@ -8,7 +8,8 @@ import WebKit
 /// which prepares the page for it. The owner tears the web view down when it
 /// releases the page, so closing only tells the core the page is gone. The
 /// questions a page's document asks go to the core, which the page's host
-/// shows the person, and come back as the core settles them.
+/// shows the person, and come back as the core settles them. The files its
+/// pages download run as WebKit's own downloads, which it reports to the core.
 /// TRANSITIONAL until WP C (j1): a page the core unloads hands it no restore
 /// state; its owner archives WebKit's state from the live web view instead.
 @MainActor
@@ -55,6 +56,8 @@ final class WebKitEngineBinding: EngineBinding {
 
     let integration = BrowserEngineRegistration.webKit
     private weak var engines: Engines?
+    /// The files this binding's pages download, which the core records.
+    private(set) lazy var downloads = WebKitDownloads(binding: self)
     /// The pages this binding built, while their owners keep them.
     private var pages: [UUID: WeakPage] = [:]
     /// The questions this binding's pages raised, by prompt, until the core
@@ -108,13 +111,28 @@ final class WebKitEngineBinding: EngineBinding {
         case .settlePermission(let settlement):
             guard case .permission(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
             answer(settlement.grants)
-        case .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
-            .approveEngineDownload:
-            // WebKit has no extensions, and runs its own downloads until its
-            // binding reports them to the core (WP C (j1)), so the core never
-            // asks it to.
+        case .settleDownloadDestination(let settlement):
+            downloads.settle(settlement)
+        case .cancelEngineDownload(let cancellation):
+            downloads.cancel(cancellation.downloadID)
+        case .removeEngineDownload(let removal):
+            downloads.remove(removal.downloadID)
+        case .approveEngineDownload(let approval):
+            // WebKit warns about nothing itself, so the only download the core
+            // approves is a blocked one the person retried.
+            downloads.approve(approval.downloadID)
+        case .settleExtensionInstall:
+            // WebKit has no extensions, so the core never asks it to.
             break
         }
+    }
+
+    /// The core this binding reports to, while it is attached.
+    var core: CrestCore? { engines?.core }
+
+    /// Reports what one of this binding's pages or downloads did.
+    func report(_ event: some EngineEvent) {
+        engines?.report(event, from: self)
     }
 
     // MARK: - Actions - Pages
@@ -132,6 +150,7 @@ final class WebKitEngineBinding: EngineBinding {
                 decorate: BrowserPlatformWebKit.decorate)
         return WebKitEnginePage(
             id: creation.pageID,
+            profileID: creation.profileID,
             webView: BrowserPlatformWebKit.makeWebView(configuration: configuration),
             contentRuleLists: inputs.contentRuleLists,
             ownsUserContentController: !inputs.sharesUserContentController)

@@ -10,6 +10,8 @@ final class WebKitEnginePage {
 
     /// The core's page this one is.
     let id: UUID
+    /// The profile the page browses in, which its downloads belong to.
+    let profileID: UUID
     let webView: WKWebView
     let engine: BrowserWebKitPageEngine
     /// The content rules the page was built with.
@@ -29,8 +31,12 @@ final class WebKitEnginePage {
 
     // MARK: - Initializers
 
-    init(id: UUID, webView: WKWebView, contentRuleLists: [WKContentRuleList], ownsUserContentController: Bool) {
+    init(
+        id: UUID, profileID: UUID, webView: WKWebView, contentRuleLists: [WKContentRuleList],
+        ownsUserContentController: Bool
+    ) {
         self.id = id
+        self.profileID = profileID
         self.webView = webView
         engine = BrowserWebKitPageEngine(webView: webView)
         self.contentRuleLists = contentRuleLists
@@ -74,5 +80,24 @@ final class WebKitEnginePage {
         } onCancel: {
             Task { @MainActor in binding.withdraw(promptID) }
         }
+    }
+
+    // MARK: - Actions - Downloads
+
+    /// Hands the core a download the page's web view started, which the
+    /// binding runs as WebKit's own. `isUserInitiated` counts it as the
+    /// person's when a trusted gesture of theirs started it.
+    func startDownload(_ download: WKDownload, isUserInitiated: Bool = false) {
+        guard let binding else {
+            download.cancel { _ in }
+            return
+        }
+        binding.downloads.start(download, from: self, isUserInitiated: isUserInitiated)
+    }
+
+    /// Starts a new automatic-download sequence for the page, whose document
+    /// was replaced or which goes away.
+    func resetAutomaticDownloads() {
+        binding?.downloads.resetAutomaticSequence(of: id)
     }
 }

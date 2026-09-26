@@ -1,6 +1,6 @@
 import Foundation
-import WebKit
 
+/// The request a retry of a blocked download replays.
 enum BrowserDownloadRetryRequestPolicy {
     nonisolated static func replayableRequest(
         from original: URLRequest
@@ -28,29 +28,5 @@ enum BrowserDownloadRetryRequestPolicy {
         request.networkServiceType = original.networkServiceType
         request.allowsCellularAccess = original.allowsCellularAccess
         return request
-    }
-}
-
-@MainActor
-final class BrowserDownloadRetryContext {
-    weak var webView: WKWebView?
-    let request: URLRequest
-    let assignment: BrowserSpaceRuntimeAssignment
-    let spaceName: String
-
-    init(
-        webView: WKWebView,
-        request: URLRequest,
-        profileID: UUID,
-        spaceID: SpaceID,
-        spaceName: String
-    ) {
-        self.webView = webView
-        self.request = request
-        assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: spaceID,
-            profileID: profileID
-        )
-        self.spaceName = spaceName
     }
 }

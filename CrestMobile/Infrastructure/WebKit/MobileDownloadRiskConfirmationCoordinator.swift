@@ -35,21 +35,51 @@ final class MobileDownloadRiskConfirmationCoordinator {
         spaceName: String,
         profileID: UUID
     ) async -> Bool {
+        await requestApproval(
+            MobileDownloadRiskConfirmationRequest(
+                assessment: assessment,
+                sourceHost: sourceURL?.host() ?? sourceURL?.absoluteString,
+                spaceName: spaceName,
+                profileID: profileID
+            ),
+            dismissal: nil)
+    }
+
+    /// Asks whether to go on with a download the core judged dangerous, for
+    /// its reasons, until the core settles the question.
+    func requestApproval(
+        for asked: DownloadApprovalAsked, spaceName: String, profileID: UUID, dismissal: BrowserPromptDismissal
+    ) async -> Bool {
+        await requestApproval(
+            MobileDownloadRiskConfirmationRequest(
+                assessment: DownloadRiskAssessment(sanitizedFilename: asked.filename, reasons: asked.reasons),
+                sourceHost: asked.sourceHost,
+                spaceName: spaceName,
+                profileID: profileID
+            ),
+            dismissal: dismissal)
+    }
+
+    private func requestApproval(
+        _ request: MobileDownloadRiskConfirmationRequest, dismissal: BrowserPromptDismissal?
+    ) async -> Bool {
         await withCheckedContinuation { continuation in
-            let pending = PendingRequest(
-                request: MobileDownloadRiskConfirmationRequest(
-                    assessment: assessment,
-                    sourceURL: sourceURL,
-                    spaceName: spaceName,
-                    profileID: profileID
-                ),
-                continuation: continuation
-            )
+            let pending = PendingRequest(request: request, continuation: continuation)
             if current == nil {
                 present(pending)
             } else {
                 queued.append(pending)
             }
+            dismissal?.attach { [weak self] in self?.withdraw(request.id) }
+        }
+    }
+
+    /// Takes back a request nobody waits on any more, as declined.
+    private func withdraw(_ requestID: UUID) {
+        if current?.request.id == requestID {
+            cancel()
+        } else if let index = queued.firstIndex(where: { $0.request.id == requestID }) {
+            queued.remove(at: index).continuation.resume(returning: false)
         }
     }
 

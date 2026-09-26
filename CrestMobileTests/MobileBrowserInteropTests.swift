@@ -71,10 +71,8 @@ final class MobileBrowserInteropTests: XCTestCase {
             folders: [],
             tabs: [tab]
         )
-        let center = BrowserDownloadCenter(
-            approveRiskyDownload: { _, _, _, _ in true }
-        )
         let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let downloads = MobileBrowserDownloads(core: browser.core, permissionCenter: BrowserSitePermissionCenter())
         let page = try XCTUnwrap(
             browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
@@ -82,7 +80,7 @@ final class MobileBrowserInteropTests: XCTestCase {
                     enginePage: opened.webKit,
                     tab: tab,
                     space: space,
-                    downloadCenter: center,
+                    downloadCenter: downloads.center,
                     openNewTab: { _ in }
                 )
             }
@@ -93,15 +91,10 @@ final class MobileBrowserInteropTests: XCTestCase {
         }
 
         page.webView.startDownload(using: URLRequest(url: sourceURL)) { download in
-            center.start(
-                download,
-                in: page.webView,
-                profileID: profile.id,
-                spaceID: space.id,
-                spaceName: space.name
-            )
+            page.enginePage.startDownload(download, isUserInitiated: true)
         }
 
+        let center = downloads.center
         try await waitUntil(timeout: 5) {
             center.items.first?.phase == .finished
                 || center.items.contains { if case .failed = $0.phase { true } else { false } }
@@ -128,7 +121,7 @@ final class MobileBrowserInteropTests: XCTestCase {
             .appendingPathComponent("Downloads", isDirectory: true)
             .appendingPathComponent(filename)
         let browser = BrowserStore.privateBrowsing(core: .hostingPages())
-        let permissionCenter = BrowserSitePermissionCenter()
+        let permissionCenter = BrowserSitePermissionCenter(core: browser.core)
         let pages = MobileBrowserPageStore(
             browser: browser,
             browsingMode: .privateBrowsing,
@@ -154,13 +147,7 @@ final class MobileBrowserInteropTests: XCTestCase {
         // User initiation bypasses the extra prompt for ordinary installers.
         // An executable disguised as an image still requires confirmation.
         page.webView.startDownload(using: URLRequest(url: sourceURL)) { download in
-            pages.downloadCenter.start(
-                download,
-                in: page.webView,
-                profileID: privateSpace.profile.id,
-                spaceID: privateSpace.id,
-                spaceName: privateSpace.name
-            )
+            page.enginePage.startDownload(download, isUserInitiated: true)
         }
 
         try await waitUntil(timeout: 5) {
@@ -194,7 +181,7 @@ final class MobileBrowserInteropTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
     }
 
-    func testDownloadHTTPAuthenticationUsesTheSpaceSessionWithoutSavingOnHTTP() async throws {
+    func testADownloadsSignInIsAskedThroughItsPagesHostAndItsCredentialCompletesIt() async throws {
         let filename = "crest-auth-\(UUID().uuidString).payload"
         let server = try MobileDownloadHTTPServer(
             payload: Data("authenticated download".utf8),
@@ -217,31 +204,8 @@ final class MobileBrowserInteropTests: XCTestCase {
             folders: [],
             tabs: [tab]
         )
-        var prompts: [BrowserHTTPAuthenticationPrompt] = []
-        var loadCount = 0
-        var saveCount = 0
-        let center = BrowserDownloadCenter(
-            promptForCredentials: { prompt, requestedSpaceName in
-                XCTAssertEqual(requestedSpaceName, space.name)
-                prompts.append(prompt)
-                return BrowserHTTPAuthenticationPromptResponse(
-                    username: "member",
-                    password: "test-secret",
-                    shouldSave: true
-                )
-            },
-            loadCredential: { _, requestedSpaceID in
-                XCTAssertEqual(requestedSpaceID, space.id)
-                loadCount += 1
-                return nil
-            },
-            saveCredential: { _, requestedSpaceID in
-                XCTAssertEqual(requestedSpaceID, space.id)
-                saveCount += 1
-            },
-            approveRiskyDownload: { _, _, _, _ in true }
-        )
         let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let downloads = MobileBrowserDownloads(core: browser.core, permissionCenter: BrowserSitePermissionCenter())
         let page = try XCTUnwrap(
             browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
                 MobileBrowserPage(
@@ -249,36 +213,32 @@ final class MobileBrowserInteropTests: XCTestCase {
                     enginePage: opened.webKit,
                     tab: tab,
                     space: space,
-                    downloadCenter: center,
+                    downloadCenter: downloads.center,
                     openNewTab: { _ in }
                 )
             }
         )
+        // The page's host answers the core's question with the member's sign-in.
+        let host = SigningInPromptHost(core: browser.core)
+        page.enginePage.presenter = host
         defer {
             server.stop()
             try? FileManager.default.removeItem(at: destination)
         }
 
         page.webView.startDownload(using: URLRequest(url: sourceURL)) { download in
-            center.start(
-                download,
-                in: page.webView,
-                profileID: profile.id,
-                spaceID: space.id,
-                spaceName: space.name
-            )
+            page.enginePage.startDownload(download, isUserInitiated: true)
         }
 
+        let center = downloads.center
         try await waitUntil(timeout: 5) {
             center.items.first?.phase == .finished
                 || center.items.contains { if case .failed = $0.phase { true } else { false } }
         }
 
         XCTAssertEqual(center.items.first?.phase, .finished)
-        XCTAssertEqual(prompts.count, 1)
-        XCTAssertEqual(prompts.first?.allowsSaving, false)
-        XCTAssertEqual(loadCount, 0)
-        XCTAssertEqual(saveCount, 0)
+        XCTAssertEqual(host.asked.map(\.question.host), ["localhost"])
+        XCTAssertEqual(try Data(contentsOf: destination), Data("authenticated download".utf8))
         await Self.removeDataStore(profile.id)
     }
 
@@ -1624,5 +1584,33 @@ private final class MobileDownloadHTTPServer: @unchecked Sendable {
             }
         }
         connection.start(queue: queue)
+    }
+}
+
+/// A page's host that answers a server's sign-in question through the core
+/// with one member's credential, and remembers what it was asked.
+@MainActor
+private final class SigningInPromptHost: BrowserPromptPresenting {
+    private let core: CrestCore
+    private(set) var asked: [AuthenticationAsked] = []
+
+    init(core: CrestCore) {
+        self.core = core
+    }
+
+    func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {
+        _ = try? core.send(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
+    }
+
+    func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal) {
+        self.asked.append(asked)
+        _ = try? core.send(
+            AnswerAuthentication(
+                promptID: asked.promptID,
+                credential: AuthenticationCredential(username: "member", password: "test-secret")))
+    }
+
+    func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {
+        _ = try? core.send(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
     }
 }

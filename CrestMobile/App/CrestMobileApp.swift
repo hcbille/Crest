@@ -110,22 +110,7 @@ private final class BrowserMobileApplication {
         if launchEnvironment.presentsShowcaseSession, let profileID = browser.shownSpace?.profileID {
             core.addShowcaseDownloads(profileID: profileID)
         }
-        let downloads = MobileBrowserDownloads(
-            core: core,
-            permissionCenter: permissionCenter,
-            loadCredential: { protectionSpace, spaceID in
-                try await browser.httpAuthenticationCredential(for: protectionSpace, in: spaceID)
-            },
-            saveCredential: { request, spaceID in
-                try await browser.saveHTTPAuthenticationCredential(
-                    username: request.username,
-                    password: request.password,
-                    protectionSpace: request.protectionSpace,
-                    in: spaceID,
-                    replacing: request.replacing
-                )
-            }
-        )
+        let downloads = MobileBrowserDownloads(core: core, permissionCenter: permissionCenter)
         let privateDownloads = MobileBrowserDownloads(
             core: core,
             browsingMode: .privateBrowsing,

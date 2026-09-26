@@ -1,19 +1,23 @@
 import Foundation
 
 /// Answers the questions the core asks about the downloads engines run,
-/// whichever engine runs them: where each file goes, and whether to keep one
-/// its engine warned about. One follows each core.
+/// whichever engine runs them: where each file goes, and whether to go on
+/// with one the core or its engine judged dangerous. One follows each core,
+/// or one each browsing mode whose Spaces it claims.
 @MainActor
 final class BrowserDownloadPrompts {
     // MARK: - Types
 
-    /// Asks the person whether to keep the download `asked` is about, until
-    /// the dismissal closes the question.
+    /// Asks the person whether to go on with the download `asked` is about,
+    /// until the dismissal closes the question.
     typealias Approve = @MainActor (_ asked: DownloadApprovalAsked, _ dismissal: BrowserPromptDismissal) async -> Bool
 
     // MARK: - Variables
 
     private weak var core: CrestCore?
+    /// Whether this answers for the Space a question names, or for a
+    /// question that names none.
+    private let claims: @MainActor (UUID?) -> Bool
     private let approve: Approve
     private let resolveDestination: BrowserDownloadCenter.DownloadDestinationResolver
     /// What closes each approval the person is shown, until the core settles it.
@@ -24,16 +28,19 @@ final class BrowserDownloadPrompts {
 
     // MARK: - Initializers
 
-    /// Answers `core`'s download questions, asking the person with `approve`
-    /// and choosing each file's place with `resolveDestination`.
+    /// Answers `core`'s download questions about the Spaces it `claims`,
+    /// asking the person with `approve` and choosing each file's place with
+    /// `resolveDestination`.
     init(
         core: CrestCore,
+        claims: @escaping @MainActor (UUID?) -> Bool = { _ in true },
         approve: @escaping Approve,
         resolveDestination: @escaping BrowserDownloadCenter.DownloadDestinationResolver = {
             await BrowserPlatformDownloadDirectory.resolve(suggestedFilename: $0, spaceID: $1, forcesPrompt: $2)
         }
     ) {
         self.core = core
+        self.claims = claims
         self.approve = approve
         self.resolveDestination = resolveDestination
         core.followPrompts(self) { [weak self] change in self?.ask(change) }
@@ -49,9 +56,9 @@ final class BrowserDownloadPrompts {
     /// approval once the core settles it.
     private func ask(_ change: Change) {
         switch change {
-        case .downloadDestinationAsked(let asked):
+        case .downloadDestinationAsked(let asked) where claims(asked.spaceID):
             choose(asked)
-        case .downloadApprovalAsked(let asked):
+        case .downloadApprovalAsked(let asked) where claims(asked.spaceID):
             let dismissal = BrowserPromptDismissal()
             dismissals[asked.promptID] = dismissal
             Task { @MainActor [weak self, approve] in

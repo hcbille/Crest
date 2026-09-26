@@ -47,18 +47,12 @@ struct MobileDownloadsView: View {
                 break
             }
         case .retry(let itemID):
-            Task {
-                guard downloadItem(for: action) != nil else { return }
-                await pages.downloadCenter.retryAutomaticDownload(
-                    itemID,
-                    matching: assignment
-                ) { expectedAssignment in
-                    BrowserSidebarAccessPolicy.unlockedSpace(
-                        matching: expectedAssignment,
-                        in: browser,
-                        accessController: spaceAccess
-                    ) != nil
-                }
+            pages.downloadCenter.retryAutomaticDownload(itemID, matching: assignment) { expectedAssignment in
+                BrowserSidebarAccessPolicy.unlockedSpace(
+                    matching: expectedAssignment,
+                    in: browser,
+                    accessController: spaceAccess
+                ) != nil
             }
         case .cancel(let itemID):
             pages.cancelDownload(itemID)

@@ -60,6 +60,9 @@ final class MobileBrowserPageStore:
     var contentBlockingErrorDescription: String? { contentBlocking.errorDescription }
     let downloadCenter: BrowserDownloadCenter
     let downloadRiskConfirmation: MobileDownloadRiskConfirmationCoordinator
+    /// The answers to the core's questions about this mode's downloads, which
+    /// a store made on its own keeps while it lives.
+    @ObservationIgnored private let downloadPrompts: BrowserDownloadPrompts
     let permissionCenter: BrowserSitePermissionCenter
     let serverTrustOverrides = BrowserServerTrustOverrideStore()
 
@@ -150,12 +153,11 @@ final class MobileBrowserPageStore:
             ?? MobileBrowserDownloads(
                 core: browser.core,
                 browsingMode: browsingMode,
-                permissionCenter: permissionCenter,
-                loadCredential: loadHTTPAuthenticationCredential,
-                saveCredential: saveHTTPAuthenticationCredential
+                permissionCenter: permissionCenter
             )
         downloadRiskConfirmation = downloads.riskConfirmation
         downloadCenter = downloads.center
+        downloadPrompts = downloads.prompts
         contentBlocking = BrowserContentBlockingController(
             provider: contentRuleListProvider ?? BrowserContentRuleListProvider.forLaunch(core: downloads.center.core))
         if monitorsMemoryPressure {
@@ -526,9 +528,6 @@ final class MobileBrowserPageStore:
                 ($0.id, $0.credentialPreferences.isEnabled)
             }
         )
-        for (spaceID, isEnabled) in enabledBySpaceID {
-            downloadCenter.setCredentialAccessEnabled(isEnabled, in: spaceID)
-        }
         for page in pagesByTabID.values {
             page.setCredentialAccessEnabled(
                 enabledBySpaceID[page.spaceID] ?? false

@@ -2837,6 +2837,10 @@
     "2026-09-26-review-build-tests-stay-unnamed": {
       "category": "internal",
       "message": "Test runs hosted by review builds no longer open the review app's own session and stores"
+    },
+    "2026-09-26-webkit-downloads-through-core": {
+      "category": "internal",
+      "message": "WebKit's downloads run as the engine's own through the core, which asks where to save, whether to keep a risky file, and whether a site may download automatically"
     }
   }
 }

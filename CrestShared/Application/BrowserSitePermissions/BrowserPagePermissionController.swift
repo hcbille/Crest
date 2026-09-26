@@ -1,11 +1,6 @@
 import Foundation
 import Observation
 
-@MainActor
-protocol BrowserPagePermissionProviding: AnyObject {
-    var sitePermissionRequests: BrowserPagePermissionController { get }
-}
-
 /// Owns unanswered requests for one page. A detached page cannot ask through
 /// another page's controls, and dismissal never creates a saved denial.
 @Observable

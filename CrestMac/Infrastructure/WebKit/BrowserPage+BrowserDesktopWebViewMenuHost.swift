@@ -24,14 +24,7 @@ extension BrowserPage: BrowserDesktopWebViewMenuHost {
                 _ = await download.cancel()
                 return
             }
-            downloadCenter.start(
-                download,
-                in: webView,
-                profileID: profileID,
-                spaceID: spaceID,
-                spaceName: spaceName,
-                isUserInitiated: true
-            )
+            startDownload(download, in: webView, isUserInitiated: true)
         }
     }
 

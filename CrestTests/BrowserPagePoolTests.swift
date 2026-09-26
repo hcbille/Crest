@@ -441,7 +441,6 @@ final class BrowserPagePoolTests: XCTestCase {
         pool.reconcileCredentialAccess(in: session)
 
         XCTAssertFalse(try XCTUnwrap(pool.activePage).isCredentialAccessEnabled)
-        XCTAssertFalse(pool.downloadCenter.isCredentialAccessEnabled(in: space.id))
     }
 
     func testDeactivatingDesktopPagePresentationRetainsAndRestoresItsPage() throws {

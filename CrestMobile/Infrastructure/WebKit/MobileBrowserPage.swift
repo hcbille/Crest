@@ -12,7 +12,7 @@ import WebKit
 
 @Observable
 @MainActor
-final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, BrowserPagePermissionProviding {
+final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// The core's page, which `release(keepingState:)` ends.
     @ObservationIgnored let corePage: CorePage
     private(set) var tabID: TabID
@@ -504,7 +504,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint, Bro
         translation.reset()
         readerModeSession.invalidate()
         mediaSessionCoordinator?.prepareForRemoval()
-        downloadCenter.resetAutomaticDownloadSequence(for: pageEngine)
+        enginePage.resetAutomaticDownloads()
         webView.stopLoading()
         webView.removeFromSuperview()
         webView.navigationDelegate = nil

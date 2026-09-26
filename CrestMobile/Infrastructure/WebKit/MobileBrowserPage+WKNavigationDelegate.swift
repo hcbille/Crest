@@ -63,7 +63,7 @@ extension MobileBrowserPage: WKNavigationDelegate {
         // return to history keeps the entries the person may go forward to.
         navigationHistory.documentDidCommit(in: webView.backForwardList)
         refreshNavigationState()
-        downloadCenter.resetAutomaticDownloadSequence(for: pageEngine)
+        enginePage.resetAutomaticDownloads()
     }
 
     func webView(
@@ -189,17 +189,7 @@ extension MobileBrowserPage: WKNavigationDelegate {
             for: navigationAction.request.url,
             in: webView
         )
-        downloadCenter.start(
-            download,
-            in: webView,
-            profileID: profileID,
-            spaceID: spaceID,
-            spaceName: spaceName,
-            isUserInitiated:
-                BrowserDownloadInitiationPolicy
-                .userInitiatedOverride(hasTrustedSource: feedbackSource != nil),
-            feedbackSource: feedbackSource
-        )
+        startDownload(download, feedbackSource: feedbackSource)
         discardDownloadOnlySurfaceIfNeeded()
     }
 
@@ -213,18 +203,26 @@ extension MobileBrowserPage: WKNavigationDelegate {
                 ?? navigationResponse.response.url,
             in: webView
         )
-        downloadCenter.start(
-            download,
-            in: webView,
-            profileID: profileID,
-            spaceID: spaceID,
-            spaceName: spaceName,
-            isUserInitiated:
-                BrowserDownloadInitiationPolicy
-                .userInitiatedOverride(hasTrustedSource: feedbackSource != nil),
-            feedbackSource: feedbackSource
-        )
+        startDownload(download, feedbackSource: feedbackSource)
         discardDownloadOnlySurfaceIfNeeded()
+    }
+
+    /// Hands a download the page's web view started to WebKit's binding, which
+    /// runs it as the engine's own, and shows it leaving from where the
+    /// person started it. Only Crest's trusted activation bridge counts it as
+    /// the person's own.
+    private func startDownload(_ download: WKDownload, feedbackSource: BrowserDownloadFeedbackSource?) {
+        if let feedbackSource {
+            downloadCenter.presentFeedback(
+                BrowserDownloadFeedbackEvent(
+                    id: UUID(), profileID: profileID, spaceID: spaceID,
+                    filename: download.originalRequest?.url?.lastPathComponent.nilIfEmpty ?? "download",
+                    source: feedbackSource))
+        }
+        enginePage.startDownload(
+            download,
+            isUserInitiated: BrowserDownloadInitiationPolicy.userInitiatedOverride(
+                hasTrustedSource: feedbackSource != nil) ?? false)
     }
 
     func discardDownloadOnlySurfaceIfNeeded() {

@@ -76,23 +76,12 @@ struct BrowserSidebarUtilityCoordinator {
         case .open(_, let destination):
             platformActions.openFinishedDownload(item, destination)
         case .retry(let itemID):
-            Task {
-                // The ownership the guard above proved is a moment old by the
-                // time this runs, and the retry itself keeps checking as it
-                // goes, because a download outlives the tap that asked for it.
-                guard downloadItem(for: action, matching: assignment) != nil else {
-                    return
-                }
-                await downloadCenter.retryAutomaticDownload(
-                    itemID,
-                    matching: assignment
-                ) { expectedAssignment in
-                    BrowserSidebarAccessPolicy.unlockedSpace(
-                        matching: expectedAssignment,
-                        in: browser,
-                        accessController: spaceAccess
-                    ) != nil
-                }
+            downloadCenter.retryAutomaticDownload(itemID, matching: assignment) { expectedAssignment in
+                BrowserSidebarAccessPolicy.unlockedSpace(
+                    matching: expectedAssignment,
+                    in: browser,
+                    accessController: spaceAccess
+                ) != nil
             }
         case .cancel(let itemID):
             platformActions.cancelDownload(itemID)

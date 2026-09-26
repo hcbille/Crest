@@ -46,7 +46,7 @@ extension BrowserPage: WKNavigationDelegate {
         // return to history keeps the entries the person may go forward to.
         navigationHistory.documentDidCommit(in: webView.backForwardList)
         refreshNavigationState()
-        downloadCenter.resetAutomaticDownloadSequence(for: pageEngine)
+        webKitAdapter?.enginePage.resetAutomaticDownloads()
         Task { [weak self] in
             guard let self, let passkeyAccess = self.passkeyAccess,
                 self.webKitView?.url?.scheme == "https",
@@ -223,17 +223,11 @@ extension BrowserPage: WKNavigationDelegate {
             for: navigationAction.request.url,
             in: webView
         )
-        downloadCenter.start(
-            download,
-            in: webView,
-            profileID: profileID,
-            spaceID: spaceID,
-            spaceName: spaceName,
-            isUserInitiated:
-                BrowserDownloadInitiationPolicy
-                .userInitiatedOverride(hasTrustedSource: feedbackSource != nil),
-            feedbackSource: feedbackSource
-        )
+        startDownload(
+            download, in: webView,
+            isUserInitiated: BrowserDownloadInitiationPolicy.userInitiatedOverride(
+                hasTrustedSource: feedbackSource != nil) ?? false,
+            feedbackSource: feedbackSource)
         discardDownloadOnlySurfaceIfNeeded()
     }
 
@@ -247,18 +241,33 @@ extension BrowserPage: WKNavigationDelegate {
                 ?? navigationResponse.response.url,
             in: webView
         )
-        downloadCenter.start(
-            download,
-            in: webView,
-            profileID: profileID,
-            spaceID: spaceID,
-            spaceName: spaceName,
-            isUserInitiated:
-                BrowserDownloadInitiationPolicy
-                .userInitiatedOverride(hasTrustedSource: feedbackSource != nil),
-            feedbackSource: feedbackSource
-        )
+        startDownload(
+            download, in: webView,
+            isUserInitiated: BrowserDownloadInitiationPolicy.userInitiatedOverride(
+                hasTrustedSource: feedbackSource != nil) ?? false,
+            feedbackSource: feedbackSource)
         discardDownloadOnlySurfaceIfNeeded()
+    }
+
+    /// Hands a download the page's web view started to WebKit's binding, which
+    /// runs it as the engine's own, and shows it leaving from where the
+    /// person started it.
+    func startDownload(
+        _ download: WKDownload, in webView: WKWebView, isUserInitiated: Bool,
+        feedbackSource: BrowserDownloadFeedbackSource? = nil
+    ) {
+        guard let enginePage = webKitAdapter?.enginePage else {
+            download.cancel { _ in }
+            return
+        }
+        if let source = BrowserMacDownloadFeedbackSource.capture(in: webView) ?? feedbackSource {
+            downloadCenter.presentFeedback(
+                BrowserDownloadFeedbackEvent(
+                    id: UUID(), profileID: profileID, spaceID: spaceID,
+                    filename: download.originalRequest?.url?.lastPathComponent.nilIfEmpty ?? "download",
+                    source: source))
+        }
+        enginePage.startDownload(download, isUserInitiated: isUserInitiated)
     }
 
     func discardDownloadOnlySurfaceIfNeeded() {
