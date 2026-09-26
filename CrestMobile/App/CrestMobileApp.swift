@@ -56,8 +56,8 @@ private final class BrowserMobileApplication {
 
     init() throws {
         #if CREST_REVIEW_BUILD
-        setenv("CREST_ISOLATED_SESSION", "1", 1)
-        setenv("CREST_ISOLATED_PERSISTENCE_ID", "core-native-ui-review", 0)
+            setenv("CREST_ISOLATED_SESSION", "1", 1)
+            setenv("CREST_ISOLATED_PERSISTENCE_ID", "core-native-ui-review", 0)
         #endif
         let launchEnvironment = BrowserLaunchEnvironment.current
         let forceOnboarding = launchEnvironment.forcesOnboardingWelcome
@@ -92,6 +92,9 @@ private final class BrowserMobileApplication {
         // which ones the device store keeps: never a private Space's.
         let permissionCenter = BrowserSitePermissionCenter(core: core)
         permissionCenter.adoptLegacyRecords(legacyDevice.sitePermissions)
+        // An unfinished manual setup waits in the device store for onboarding
+        // to go on with it.
+        _ = try? core.send(AdoptSetupDraft(draft: legacyDevice.manualSetupDraft))
         // An isolated launch keeps its engine session state behind the same
         // boundary as Crest's browser-session and sync owners.
         let tabStateArchive = BrowserTabStateArchive.forLaunch(launchEnvironment)

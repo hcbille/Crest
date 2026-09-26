@@ -82,6 +82,7 @@ internal sealed partial class Device {
         keptPermissions.Restore(records.SitePermissions);
         shortcuts = records.Shortcuts;
         links = records.Links;
+        keptSetupDraft = platform.KeepsSetupDraft ? records.SetupDraft : null;
         adopted.UnionWith(records.Adopted);
     }
 
@@ -203,6 +204,7 @@ internal sealed partial class Device {
                 if (followUp is not null && window.Id == followUp.Window?.Id) window.Apply(followUp);
                 window.Repair(next);
             }, next));
+            if (FollowingSpaces(workspaceId, next) is { } setup) changes.Add(setup);
             owner = workspaces.GetValueOrDefault(workspaceId);
         }
         foreach (var change in changes) announce(change);
@@ -283,7 +285,7 @@ internal sealed partial class Device {
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
     private DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. keptPermissions.PersistentRecords],
-        shortcuts, links, new HashSet<DeviceAdoption>(adopted));
+        shortcuts, links, keptSetupDraft, new HashSet<DeviceAdoption>(adopted));
 
     #endregion
 

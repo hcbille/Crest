@@ -74,6 +74,7 @@ struct BrowserOnboardingWindowContent: View {
     }
 
     private func start() async {
+        flow.start()
         flow.discoverInstalledSources()
         if progress.isChecking {
             await progress.refresh()
@@ -86,7 +87,7 @@ struct BrowserOnboardingWindowContent: View {
         withAnimation(motion(CrestMotion.onboardingStep)) {
             flow.reset(for: request)
         }
-        selectedManualSpaceID = flow.manualPlan?.spaces.first?.id
+        selectedManualSpaceID = flow.manualSetup.spaces.first?.spaceID
     }
 
     private func synchronizePresentationState(
@@ -100,11 +101,7 @@ struct BrowserOnboardingWindowContent: View {
                 selectedSourceSpaceID = flow.plan?.spaces.first?.id
             }
         case .manualSetup:
-            if flow.manualPlan?.spaces.contains(where: {
-                $0.id == selectedManualSpaceID
-            }) != true {
-                selectedManualSpaceID = flow.manualPlan?.spaces.first?.id
-            }
+            flow.manualSetup.repairSelection($selectedManualSpaceID)
         case .welcome, .featureSpaces, .featureTabs, .featureSync,
             .importSelection, .reading, .committing, .complete:
             break

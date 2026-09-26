@@ -63,7 +63,6 @@ struct BrowserOnboardingStepContent: View {
         case .manualSetup:
             BrowserOnboardingManualSetupPage(
                 flow: flow,
-                browserSession: flow.browser.session,
                 opensGettingStarted: progress.willOpenGettingStarted(for: flow.request.entryPoint),
                 selectedSpaceID: $selectedManualSpaceID,
                 back: { transition(to: .importBrowser) },
@@ -91,11 +90,7 @@ struct BrowserOnboardingStepContent: View {
 
     private func beginManualSetup() {
         flow.beginManualSetup()
-        if flow.manualPlan?.spaces.contains(where: {
-            $0.id == selectedManualSpaceID
-        }) != true {
-            selectedManualSpaceID = flow.manualPlan?.spaces.first?.id
-        }
+        flow.manualSetup.repairSelection($selectedManualSpaceID)
     }
 
     private func transition(to step: BrowserOnboardingStep) {

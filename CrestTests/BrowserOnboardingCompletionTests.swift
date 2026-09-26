@@ -33,8 +33,9 @@ final class BrowserOnboardingCompletionTests: XCTestCase {
 
     func testDeniedAuthenticationLeavesManualPlanUncommittedAndRetryAddsEachSpaceOnce() async throws {
         let browser = protectedBrowser()
-        var plan = BrowserManualSetupPlan(existing: browser.session)
-        let addedID = try plan.addSpace()
+        let setup = BrowserManualSetupModel(core: browser.core)
+        setup.begin(workspaceID: browser.family.workspaceID, startsOver: true)
+        let addedID = try XCTUnwrap(setup.addSpace())
         let authenticator = OnboardingCompletionAuthenticator()
         let access = BrowserSpaceAccessController(authenticator: authenticator)
         browser.attachSpaceAccess(access)
@@ -43,7 +44,7 @@ final class BrowserOnboardingCompletionTests: XCTestCase {
         let before = browser.session
         let rejected = Task {
             await BrowserOnboardingCompletion.complete(
-                request: .firstRun, browser: browser, progress: progress, spaceAccess: access, manualPlan: plan)
+                request: .firstRun, browser: browser, progress: progress, spaceAccess: access, appliesManualSetup: true)
         }
         await authenticator.waitForRequest()
         authenticator.resolve(false)
@@ -54,7 +55,7 @@ final class BrowserOnboardingCompletionTests: XCTestCase {
 
         let retry = Task {
             await BrowserOnboardingCompletion.complete(
-                request: .firstRun, browser: browser, progress: progress, spaceAccess: access, manualPlan: plan)
+                request: .firstRun, browser: browser, progress: progress, spaceAccess: access, appliesManualSetup: true)
         }
         await authenticator.waitForRequest()
         authenticator.resolve(true)
@@ -109,15 +110,16 @@ final class BrowserOnboardingCompletionTests: XCTestCase {
 
     func testManualCompletionPreservesUnrelatedUpdatesDuringAuthentication() async throws {
         let browser = protectedBrowser()
-        var plan = BrowserManualSetupPlan(existing: browser.session)
-        let addedID = try plan.addSpace()
+        let setup = BrowserManualSetupModel(core: browser.core)
+        setup.begin(workspaceID: browser.family.workspaceID, startsOver: true)
+        let addedID = try XCTUnwrap(setup.addSpace())
         let authenticator = OnboardingCompletionAuthenticator()
         let access = BrowserSpaceAccessController(authenticator: authenticator)
         browser.attachSpaceAccess(access)
         let progress = BrowserOnboardingProgressStore(persistence: InMemoryBrowserOnboardingProgressPersistence())
         let task = Task {
             await BrowserOnboardingCompletion.complete(
-                request: .firstRun, browser: browser, progress: progress, spaceAccess: access, manualPlan: plan)
+                request: .firstRun, browser: browser, progress: progress, spaceAccess: access, appliesManualSetup: true)
         }
         await authenticator.waitForRequest()
         let updated = browser.session.spaces[1]

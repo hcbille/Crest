@@ -37,7 +37,7 @@ struct MobileOnboardingCurrentPage: View {
             )
         case .manualSetup:
             BrowserSpaceSetupWizard(
-                plan: context.plan,
+                setup: context.setup,
                 selectedSpaceID: context.selectedSpaceID,
                 errorMessage: context.errorMessage,
                 opensGettingStarted: context.opensGettingStarted,

@@ -2,10 +2,10 @@ namespace CrestCore.Contracts;
 
 /// Brings Spaces into the persistent workspace: a file's Spaces
 /// (`ImportSpaces`), imported Spaces a person reviewed
-/// (`ImportReviewedSpaces`) or the Spaces a manual setup drafted
-/// (`ApplyManualSetup`). The Spaces arrive in the stored format, as a JSON
-/// array, and the choices about them are typed and name each Space by its
-/// identity. An import is saved with its sync journal before it returns.
+/// (`ImportReviewedSpaces`) or the Spaces of the manual setup the device holds
+/// (`ApplyManualSetup`). The choices about them are typed and name each Space
+/// by its identity. An import is saved with its sync journal before it
+/// returns.
 ///
 /// Folder and history records keep their identities unless another Space
 /// already holds them, because those identities are global in sync. A Space,

@@ -148,11 +148,13 @@ internal sealed class SqliteConnection : IDisposable {
             + "record_schema INTEGER NOT NULL, requires_full_pull INTEGER NOT NULL, awaits_account_decision INTEGER NOT NULL, "
             + "overwrites_cloud INTEGER NOT NULL, engine_state BLOB)");
         Execute("CREATE TABLE IF NOT EXISTS device_cloud_record (name TEXT PRIMARY KEY, fields BLOB NOT NULL, schema_version INTEGER)");
+        Execute("CREATE TABLE IF NOT EXISTS device_setup_draft (id INTEGER PRIMARY KEY CHECK (id = 0), document TEXT NOT NULL)");
     }
 
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
-    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadShortcuts(), ReadLinks(), ReadAdoptions());
+    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadShortcuts(), ReadLinks(), ReadSetupDraft(),
+        ReadAdoptions());
 
     private List<SavedWindow> ReadWindows() {
         var windows = new Dictionary<Guid, (Guid ShownSpace, long Used)>();
@@ -237,6 +239,14 @@ internal sealed class SqliteConnection : IDisposable {
         return links with { Routes = routes, RememberedSites = sites };
     }
 
+    /// The unfinished manual setup, or null when the store keeps none or it
+    /// does not read.
+    private KeptSetupDraft? ReadSetupDraft() {
+        string? document = null;
+        Rows("SELECT document FROM device_setup_draft", statement => document = Sqlite.ColumnText(statement, 0));
+        return KeptSetupDraft.Read(document);
+    }
+
     private HashSet<DeviceAdoption> ReadAdoptions() {
         var adoptions = new HashSet<DeviceAdoption>();
         foreach (var table in new[] { "device_marker", "device_adoption" })
@@ -254,6 +264,7 @@ internal sealed class SqliteConnection : IDisposable {
         if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
         if (written is null || !records.Shortcuts.SameAs(written.Shortcuts)) WriteShortcuts(records.Shortcuts);
         if (written is null || !records.Links.Equals(written.Links)) WriteLinks(records.Links);
+        if (written is null || !KeptSetupDraft.Same(records.SetupDraft, written.SetupDraft)) WriteSetupDraft(records.SetupDraft);
         if (written is null || !records.Adopted.SetEquals(written.Adopted)) WriteAdoptions(records.Adopted);
     }
 
@@ -359,6 +370,13 @@ internal sealed class SqliteConnection : IDisposable {
                 Checked(Sqlite.sqlite3_bind_int64(statement, 3, index));
             });
         }
+    }
+
+    /// The unfinished manual setup as its one document, or no row for none.
+    private void WriteSetupDraft(KeptSetupDraft? draft) {
+        Execute("DELETE FROM device_setup_draft");
+        if (draft is null) return;
+        Insert("INSERT INTO device_setup_draft(id, document) VALUES(0,?)", statement => Bind(statement, 1, draft.Document));
     }
 
     /// Every adoption goes into `device_adoption`; the ones an older build

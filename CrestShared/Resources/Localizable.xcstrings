@@ -2274,6 +2274,7 @@
       }
     },
     "Add %@ to %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2301,6 +2302,7 @@
       }
     },
     "Add a site" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2311,6 +2313,7 @@
       }
     },
     "Add a Space" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2392,6 +2395,7 @@
 
     },
     "Add New Space" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2481,6 +2485,7 @@
       }
     },
     "Add starting sites (optional)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2507,6 +2512,7 @@
       }
     },
     "Added in this setup" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5548,6 +5554,7 @@
       }
     },
     "Create a Space to start shaping your browser." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5569,6 +5576,7 @@
       }
     },
     "Create another separate place for the browsing that belongs together." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10051,6 +10059,7 @@
       }
     },
     "In Space" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11215,6 +11224,7 @@
       }
     },
     "Name it, choose its look, and add the sites you want ready on day one." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13138,6 +13148,7 @@
       }
     },
     "Popular sites" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -18427,6 +18438,7 @@
       }
     },
     "Type any website, or choose from a few popular starting points." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -19724,6 +19736,9 @@
 
     },
     "Windows, open tabs, and pinned tabs" : {
+
+    },
+    "Setup is no longer in progress. Start it again." : {
 
     }
   },

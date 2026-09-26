@@ -128,7 +128,7 @@ public sealed partial class BrowserContractsTests {
         var trips = current.Spaces[1];
         Assert.Equal(("Trips", "airplane"), (trips.Settings.Name, trips.Settings.Symbol));
         var pinnedTrip = Assert.Single(trips.Tabs);
-        Assert.Equal((TabId(moved), TabPlacement.Pinned, ManualSetupPolicy.PinnedTabSymbol, "https://moved.example/"),
+        Assert.Equal((TabId(moved), TabPlacement.Pinned, WorkspaceImportPolicy.PinnedTabSymbol, "https://moved.example/"),
             (pinnedTrip.Id, pinnedTrip.Placement, pinnedTrip.Symbol, pinnedTrip.SavedUrl));
         Assert.Contains(new ImportedTab(TabId(moved), 1, TabId(moved)), changes.OfType<TabsImported>().Single().Tabs);
         Assert.Equal(reading.Id, device.Space(window));
@@ -136,45 +136,30 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void AManualSetupAddsEachDraftsTabsAfterTheirSectionAndTakesTheDraftsOrder() {
+    public void AManualSetupAddsItsNewSpacesRenamesTheRestTakesItsOrderAndEnds() {
         var fixture = SavedSession();
         var session = fixture.Document["session"]!;
         using var device = new TestDevice(session);
         var window = device.Showing(session);
         var existing = device.Authority.Current.Spaces[0];
-        var draft = ImportedSpace("ignored", ImportedTab("https://open.example/"), ImportedTab("https://saved.example/", "saved"));
-        draft["id"] = SwiftId(existing.Id);
-        draft["profile"]!["id"] = existing.ProfileId.ToString();
-        var created = ImportedSpace("New", ImportedTab("https://first.example/"), ImportedTab("https://pinned.example/", "pinned"));
-        SetupSpace[] drafts = [new(SpaceId(created), true, Customization("Work")), new(existing.Id, false, Customization("Reading"))];
+        device.Send(new BeginManualSetup(device.Workspace, StartsOver: true));
+        var created = Drafted(device.Send(new AddSetupSpace())).Spaces[1].SpaceId;
+        device.Send(new CustomizeSetupSpace(created, Customization("Work")));
+        device.Send(new CustomizeSetupSpace(existing.Id, Customization("Reading")));
+        device.Send(new MoveSetupSpace(created, existing.Id));
 
-        device.Send(new ApplyManualSetup(device.Workspace, window, ImportedSpaces(draft, created), drafts, OrderWasEdited: true));
+        var changes = device.Send(new ApplyManualSetup(device.Workspace, window));
 
         var current = device.Authority.Current;
         Assert.Null(current.DisposableSeedMarker);
-        Assert.Equal([SpaceId(created), existing.Id], current.Spaces.Select(space => space.Id));
-        Assert.Equal(["https://pinned.example/", "https://first.example/"], current.Spaces[0].Tabs.Select(tab => tab.Url));
-        Assert.Equal(["https://example.com/article#one", "https://saved.example/", "https://open.example/"],
-            current.Spaces[1].Tabs.Select(tab => tab.Url));
-        Assert.Equal("Work", current.Spaces[0].Settings.Name);
-        // The window shows the first Space the setup brought, on its last open tab added.
-        Assert.Equal(SpaceId(created), device.Space(window));
-        Assert.Equal(TabId(created["tabs"]![0]!), device.Tab(window, SpaceId(created)));
-
-        var crowded = ImportedSpace("Crowded", [.. Enumerable.Range(0, TabPlacement.PinnedCapacity + 1)
-            .Select(index => ImportedTab($"https://pin.example/{index}", "pinned"))]);
-        Assert.Equal(new PinnedTabsFull(TabPlacement.PinnedCapacity), Assert.Throws<Rejected>(() => device.Send(new ApplyManualSetup(
-            device.Workspace, window, ImportedSpaces(crowded), [new(SpaceId(crowded), true, Customization("Crowded"))], false))).Rejection);
-        var moved = ImportedSpace("Moved");
-        moved["id"] = SwiftId(existing.Id);
-        Assert.Equal(new SpaceProfileChanged(existing.Id), Assert.Throws<Rejected>(() => device.Send(new ApplyManualSetup(
-            device.Workspace, window, ImportedSpaces(moved), [new(existing.Id, false, Customization("Moved"))], false))).Rejection);
-        Assert.Equal(new SpaceAlreadyExists(existing.Id), Assert.Throws<Rejected>(() => device.Send(new ApplyManualSetup(
-            device.Workspace, window, ImportedSpaces(moved), [new(existing.Id, true, Customization("Moved"))], false))).Rejection);
-        var sharing = ImportedSpace("Sharing");
-        sharing["profile"]!["id"] = existing.ProfileId.ToString();
-        Assert.Equal(new ProfileInUse(existing.ProfileId), Assert.Throws<Rejected>(() => device.Send(new ApplyManualSetup(
-            device.Workspace, window, ImportedSpaces(sharing), [new(SpaceId(sharing), true, Customization("Sharing"))], false))).Rejection);
+        Assert.Equal([created, existing.Id], current.Spaces.Select(space => space.Id));
+        Assert.DoesNotContain(current.Spaces[0].Tabs, tab => tab.Url is not null);
+        Assert.Equal(existing.Tabs, current.Spaces[1].Tabs);
+        Assert.Equal(("Work", "Reading"), (current.Spaces[0].Settings.Name, current.Spaces[1].Settings.Name));
+        // The window shows the first Space the setup brought, and the setup ends.
+        Assert.Equal(created, device.Space(window));
+        Assert.Contains(new SetupDraftChanged(null), changes);
+        Assert.IsType<NoManualSetup>(Assert.Throws<Rejected>(() => device.Send(new ApplyManualSetup(device.Workspace, window))).Rejection);
     }
 
     [Fact]
@@ -227,22 +212,20 @@ public sealed partial class BrowserContractsTests {
             [new(SpaceId(space), false, null, Customization("Imported"), [], [])])));
         Assert.Equal(new InvalidImport(ImportFlaw.UnpairedChoices), Refusal(new ImportReviewedSpaces(device.Workspace, window,
             ImportedSpaces(space), [new(Guid.NewGuid(), true, null, Customization("Imported"), [], [])])));
-        Assert.Equal(new InvalidImport(ImportFlaw.UnpairedChoices), Refusal(new ApplyManualSetup(device.Workspace, window,
-            ImportedSpaces(space, space), [new(SpaceId(space), true, Customization("Imported"))], false)));
+        Assert.Equal(new NoManualSetup(), Refusal(new ApplyManualSetup(device.Workspace, window)));
         var borrowing = device.Borrow(session["spaces"]![0]!);
         Assert.Equal(new PersistentWorkspaceRequired(borrowing), Refusal(new ImportSpaces(borrowing, window, ReadSpaces(space))));
         Assert.Same(kept, device.Authority.Current);
 
-        var profile = kept.Spaces[0].ProfileId;
         device.Send(new CreateSpace(device.Workspace, window, Guid.NewGuid()));
         device.Send(new BeginDeletingSpace(device.Workspace, window, fixture.Space, Guid.NewGuid()));
         kept = device.Authority.Current;
-        var leaving = ImportedSpace("Leaving");
-        leaving["id"] = SwiftId(fixture.Space);
-        leaving["profile"]!["id"] = profile.ToString();
-        Assert.Equal(new SpaceBeingDeleted(fixture.Space), Refusal(new ApplyManualSetup(device.Workspace, window, ImportedSpaces(leaving),
-            [new(fixture.Space, false, Customization("Leaving"))], false)));
+        Assert.Equal(new SpaceBeingDeleted(fixture.Space), Refusal(new ImportReviewedSpaces(device.Workspace, window, ImportedSpaces(space),
+            [new(SpaceId(space), true, fixture.Space, Customization("Leaving"), [], [])])));
         Assert.Same(kept, device.Authority.Current);
+        // A manual setup leaves out a Space going away.
+        Assert.DoesNotContain(Drafted(device.Send(new BeginManualSetup(device.Workspace, StartsOver: true))).Spaces,
+            draft => draft.SpaceId == fixture.Space);
     }
 
     [Fact]
@@ -261,7 +244,8 @@ public sealed partial class BrowserContractsTests {
         // Over a first launch's disposable Spaces, everything imports into new Spaces.
         Assert.Null(device.Query(new ImportReviewSuggestions(device.Workspace, [Reviewed(space)])).Spaces.Single().DestinationId);
         // A manual setup that adds nothing still ends the first launch's disposable state.
-        device.Send(new ApplyManualSetup(device.Workspace, window, ImportedSpaces(), [], false));
+        device.Send(new BeginManualSetup(device.Workspace, StartsOver: true));
+        device.Send(new ApplyManualSetup(device.Workspace, window));
         var suggested = device.Query(new ImportReviewSuggestions(device.Workspace, [Reviewed(space)])).Spaces.Single();
         Assert.Equal((SpaceId(space), (Guid?)existing.Id), (suggested.SourceSpaceId, suggested.DestinationId));
         Assert.Equal([TabId(duplicate)], suggested.DuplicateTabIds);

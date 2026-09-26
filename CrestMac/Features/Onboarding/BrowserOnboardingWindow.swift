@@ -52,9 +52,7 @@ struct BrowserOnboardingWindow: View {
         self.hostOpenBrowser = hostOpenBrowser
         _flow = State(initialValue: flow)
         _selectedSourceSpaceID = State(initialValue: nil)
-        _selectedManualSpaceID = State(
-            initialValue: flow.manualPlan?.spaces.first?.id
-        )
+        _selectedManualSpaceID = State(initialValue: flow.manualSetup.spaces.first?.spaceID)
         _customizationSpaceID = State(initialValue: nil)
     }
 
@@ -83,8 +81,11 @@ struct BrowserOnboardingWindow: View {
             // Completing the gate turns its existing WindowGroup window into
             // the browser. Opening the scene again creates a second window.
             BrowserOnboardingLaunchGateWindow.restore()
-            if let hostOpenBrowser { hostOpenBrowser() }
-            else if !reusesLaunchWindow { openWindow(id: BrowserSceneID.browser.rawValue) }
+            if let hostOpenBrowser {
+                hostOpenBrowser()
+            } else if !reusesLaunchWindow {
+                openWindow(id: BrowserSceneID.browser.rawValue)
+            }
             close()
         }
     }

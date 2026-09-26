@@ -6,7 +6,6 @@ struct MobileBrowserOnboardingView: View {
     @Bindable var cloudSync: BrowserCloudSyncController
     @Bindable var progress: BrowserOnboardingProgressStore
     @Bindable var coordinator: BrowserOnboardingCoordinator
-    let draftPersistence: MobileOnboardingDraftPersistence
     let tutorialPersonalSpace: BrowserSpace
     let tutorialWorkSpace: BrowserSpace
     let spaceAccess: BrowserSpaceAccessController
@@ -15,9 +14,10 @@ struct MobileBrowserOnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var step: MobileBrowserOnboardingStep
-    @State private var manualPlan: BrowserManualSetupPlan
+    /// The manual setup the core holds, which it keeps for the next launch
+    /// until setup finishes.
+    @State private var setup: BrowserManualSetupModel
     @State private var selectedSpaceID: SpaceID?
-    @State private var customizedSpaceID: SpaceID?
     @State private var errorMessage: String?
     @State private var completionTask: Task<Void, Never>?
 
@@ -29,7 +29,6 @@ struct MobileBrowserOnboardingView: View {
         coordinator: BrowserOnboardingCoordinator,
         spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
         didOpenGettingStarted: @escaping (BrowserTabRuntimeAssignment) -> Void = { _ in },
-        draftPersistence: MobileOnboardingDraftPersistence = .live,
         tutorialPersonalSpace: BrowserSpace =
             MobileOnboardingPreviewFixtures.tutorialPersonalSpace,
         tutorialWorkSpace: BrowserSpace =
@@ -42,14 +41,9 @@ struct MobileBrowserOnboardingView: View {
         self.coordinator = coordinator
         self.didOpenGettingStarted = didOpenGettingStarted
         self.spaceAccess = spaceAccess
-        self.draftPersistence = draftPersistence
         self.tutorialPersonalSpace = tutorialPersonalSpace
         self.tutorialWorkSpace = tutorialWorkSpace
-
-        let resumedPlan = draftPersistence.plan(for: request, existing: browser.session)
-
-        _manualPlan = State(initialValue: resumedPlan)
-        _selectedSpaceID = State(initialValue: resumedPlan.spaces.first?.id)
+        _setup = State(initialValue: BrowserManualSetupModel(core: browser.core))
         _step = State(
             initialValue: MobileBrowserOnboardingPolicy.initialStep(for: request)
         )
@@ -73,10 +67,7 @@ struct MobileBrowserOnboardingView: View {
         MobileOnboardingLifecycleModifier(
             request: request,
             progress: progress,
-            plan: $manualPlan,
-            customizedSpaceID: $customizedSpaceID,
-            draftPersistence: draftPersistence,
-            browser: browser,
+            appeared: { startManualSetup(for: request) },
             requestChanged: reset
         )
     }
@@ -92,10 +83,8 @@ struct MobileBrowserOnboardingView: View {
             workSpace: tutorialWorkSpace,
             featureCloseTitle: featureCloseTitle,
             featureCloseAction: featureCloseAction,
-            plan: $manualPlan,
+            setup: setup,
             selectedSpaceID: $selectedSpaceID,
-            existingSession: browser.session,
-            horizontalSizeClass: horizontalSizeClass,
             errorMessage: errorMessage,
             opensGettingStarted: progress.willOpenGettingStarted(for: request.entryPoint),
             setupSecondaryTitle: setupSecondaryTitle,
@@ -103,9 +92,6 @@ struct MobileBrowserOnboardingView: View {
             advance: advance,
             setupSecondaryAction: handleSetupSecondaryAction,
             finish: finishManualSetup,
-            addSpace: addSpace,
-            customize: { customizedSpaceID = $0 },
-            remove: removeSpace,
             close: close,
             reviewFeatures: { move(to: .featureSpaces) }
         )
@@ -191,38 +177,6 @@ struct MobileBrowserOnboardingView: View {
         }
     }
 
-    private func addSpace() {
-        do {
-            let newSpaceID = try manualPlan.addSpace()
-            errorMessage = nil
-            if reduceMotion {
-                selectedSpaceID = newSpaceID
-            } else {
-                withAnimation(
-                    BrowserVisualAccessibilityPolicy.animation(
-                        CrestMotion.onboardingProgress,
-                        reduceMotion: reduceMotion
-                    )
-                ) {
-                    selectedSpaceID = newSpaceID
-                }
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func removeSpace(_ spaceID: SpaceID) {
-        let index = manualPlan.spaces.firstIndex { $0.id == spaceID }
-        guard manualPlan.removeSpace(spaceID) else { return }
-        let fallbackIndex = min(index ?? 0, max(0, manualPlan.spaces.count - 1))
-        selectedSpaceID =
-            manualPlan.spaces[
-                mobileOnboardingSafe: fallbackIndex
-            ]?.id
-        errorMessage = nil
-    }
-
     private func welcomeStatus(_ action: BrowserOnboardingWelcomeAction) -> String {
         if action == .checking {
             return "Checking iCloud for an existing Crest setup…"
@@ -242,31 +196,35 @@ struct MobileBrowserOnboardingView: View {
     private func reset(for request: BrowserOnboardingRequest) {
         completionTask?.cancel()
         completionTask = nil
-        customizedSpaceID = nil
         errorMessage = nil
-        manualPlan = draftPersistence.plan(for: request, existing: browser.session)
-        selectedSpaceID = manualPlan.spaces.first?.id
+        startManualSetup(for: request)
         move(to: MobileBrowserOnboardingPolicy.initialStep(for: request))
+    }
+
+    /// Goes on with the manual setup the core kept, following Spaces changed
+    /// meanwhile, or starts one; a rerun always starts over.
+    private func startManualSetup(for request: BrowserOnboardingRequest) {
+        setup.begin(workspaceID: browser.family.workspaceID, startsOver: request.entryPoint == .rerun)
+        selectedSpaceID = setup.spaces.first?.spaceID
     }
 
     private func finishManualSetup() {
         do {
-            _ = try manualPlan.preview(in: browser)
-            completeSetup(manualPlan: manualPlan)
+            _ = try browser.manualSetupPreview()
+            completeSetup(appliesManualSetup: true)
         } catch {
             errorMessage = error.personFacingDescription
         }
     }
 
-    private func completeSetup(manualPlan: BrowserManualSetupPlan? = nil) {
+    private func completeSetup(appliesManualSetup: Bool = false) {
         guard completionTask == nil else { return }
         completionTask = Task { @MainActor in
             let result = await BrowserOnboardingCompletion.complete(
                 request: request, browser: browser, progress: progress, spaceAccess: spaceAccess,
-                manualPlan: manualPlan,
+                appliesManualSetup: appliesManualSetup,
                 willComplete: { guide in
                     if let guide { didOpenGettingStarted(guide) }
-                    draftPersistence.clear()
                     coordinator.isMobilePresented = false
                 })
             guard !Task.isCancelled else { return }
@@ -307,7 +265,6 @@ struct MobileBrowserOnboardingView: View {
         cloudSync: fixture.cloudSync,
         progress: progress,
         coordinator: fixture.onboardingCoordinator,
-        draftPersistence: .preview,
         tutorialPersonalSpace: fixture.alternateSpace,
         tutorialWorkSpace: fixture.space
     )

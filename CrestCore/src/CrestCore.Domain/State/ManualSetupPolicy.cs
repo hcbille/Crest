@@ -2,76 +2,98 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Domain;
 
-/// Rules for editing a manual-setup draft before the workspace import applies
-/// it. The draft may add Spaces up to the import limit, add tabs within the
-/// pinned limit, and follows the session when Spaces change elsewhere.
+/// Rules for a manual setup before `ApplyManualSetup` applies it: the Spaces
+/// it starts from, the name and look a new Space takes, how far it may grow,
+/// and how it follows Spaces changed elsewhere while it waits.
 public static class ManualSetupPolicy {
-    #region Variables
+    #region Static Variables
 
+    /// The symbol a new Space of a setup wears until the person picks one.
     public const string NewSpaceSymbol = "square.grid.2x2.fill";
-    public const string PinnedTabSymbol = "pin.fill";
-    public const string TabSymbol = "globe";
-    public const int MaximumDrafts = WorkspaceImportPolicy.MaximumSpaces * 2;
 
     #endregion
 
-    #region Actions - Spaces
+    #region Actions - Starting
 
-    /// The ordinal of the Space a draft of <paramref name="draftCount"/> Spaces adds.
-    public static int NewSpaceNumber(int draftCount) {
-        if (draftCount < 0) throw new BrowserRuleException(BrowserRuleCodes.InvalidTabCount);
-        if (draftCount >= WorkspaceImportPolicy.MaximumSpaces) throw new BrowserRuleException(BrowserRuleCodes.SpaceLimitReached);
-        return draftCount + 1;
+    /// A setup of the Spaces `session` keeps, in their order, with a new Space
+    /// when there are none.
+    public static SetupDraft Started(Guid workspaceId, SessionState session, Func<Guid> nextId) {
+        var draft = new SetupDraft(workspaceId, [.. Staying(session).Select(Existing)], OrderWasEdited: false);
+        return draft.Spaces.Count == 0 ? Adding(draft, nextId) : draft;
     }
 
-    public static string NewSpaceName(int number) => $"Space {number}";
+    /// `draft` following the Spaces `session` keeps now: an existing Space
+    /// deleted meanwhile, or going away, leaves it, every other Space keeps
+    /// its place and choices, and a Space created meanwhile joins at the end.
+    public static SetupDraft Reconciled(SetupDraft draft, SessionState session) {
+        ArgumentNullException.ThrowIfNull(draft);
+        var spaces = Staying(session);
+        var current = spaces.Select(space => space.Id).ToHashSet();
+        var kept = draft.Spaces.Where(space => space.IsNew || current.Contains(space.SpaceId)).DistinctBy(space => space.SpaceId).ToList();
+        var named = kept.Select(space => space.SpaceId).ToHashSet();
+        kept.AddRange(spaces.Where(space => !named.Contains(space.Id)).Select(Existing));
+        return kept.Count == draft.Spaces.Count && kept.SequenceEqual(draft.Spaces) ? draft : draft with { Spaces = kept };
+    }
 
-    /// Drops drafts of existing Spaces deleted elsewhere, refreshes the ones
-    /// that remain, keeps every new draft in its place, and appends Spaces
-    /// created elsewhere in session order.
-    public static IReadOnlyList<ManualSetupEntry> Reconcile(IReadOnlyList<ManualSetupDraft> drafts, IReadOnlyList<Guid> existing) {
-        ArgumentNullException.ThrowIfNull(drafts);
-        ArgumentNullException.ThrowIfNull(existing);
-        if (drafts.Count > MaximumDrafts || existing.Count > MaximumDrafts)
-            throw new BrowserRuleException(BrowserRuleCodes.SpaceLimitReached);
-        Dictionary<Guid, int> positions = [];
-        for (int index = 0; index < existing.Count; index++) positions.TryAdd(existing[index], index);
-        List<ManualSetupEntry> result = [];
-        HashSet<Guid> claimed = [];
-        for (int index = 0; index < drafts.Count; index++) {
-            var draft = drafts[index];
-            if (!draft.IsNew && !positions.ContainsKey(draft.Id)) continue;
-            bool first = claimed.Add(draft.Id);
-            result.Add(new(index, !draft.IsNew && first ? positions[draft.Id] : null));
-        }
-        for (int index = 0; index < existing.Count; index++)
-            if (claimed.Add(existing[index])) result.Add(new(null, index));
-        return result;
+    /// The Spaces of `session` that are not going away.
+    private static IReadOnlyList<SpaceState> Staying(SessionState session) {
+        ArgumentNullException.ThrowIfNull(session);
+        return [.. session.Spaces.Where(space => session.SpaceDeletions.All(deletion => deletion.SpaceId != space.Id))];
+    }
+
+    private static SetupDraftSpace Existing(SpaceState space) {
+        var settings = space.Settings;
+        return new(space.Id, space.ProfileId, IsNew: false, new(settings.Name, settings.Symbol, settings.Accent, settings.Look));
     }
 
     #endregion
 
-    #region Actions - Tabs
+    #region Actions - Editing
 
-    /// Admits a tab into a placement. <paramref name="otherAddedPinned"/>
-    /// counts the draft's other pinned additions, excluding this tab.
-    public static ManualSetupTab AdmitTab(TabPlacement placement, int existingPinned, int otherAddedPinned,
-        string url, string? title) {
-        ArgumentNullException.ThrowIfNull(url);
-        if (existingPinned < 0 || otherAddedPinned < 0) throw new BrowserRuleException(BrowserRuleCodes.InvalidTabCount);
-        if (placement == TabPlacement.Pinned && (long)existingPinned + otherAddedPinned >= TabPlacement.PinnedCapacity)
-            throw new BrowserRuleException(BrowserRuleCodes.PinnedLimitReached);
-        return new(Title(url, title), placement == TabPlacement.Pinned ? PinnedTabSymbol : TabSymbol,
-            placement.IsDurable);
+    /// `draft` with a new Space at its end, named for its place and wearing
+    /// the accents in turn, and the house look of its accent. Throws `Rejected`
+    /// with `SpaceLimitReached` when the setup holds as many Spaces as a
+    /// workspace may.
+    public static SetupDraft Adding(SetupDraft draft, Func<Guid> nextId) {
+        ArgumentNullException.ThrowIfNull(draft);
+        ArgumentNullException.ThrowIfNull(nextId);
+        int count = draft.Spaces.Count;
+        if (count >= WorkspaceImportPolicy.MaximumSpaces) throw new Rejected(new SpaceLimitReached(WorkspaceImportPolicy.MaximumSpaces));
+        var accent = SpaceAccent.All[count % SpaceAccent.All.Count];
+        var space = new SetupDraftSpace(nextId(), nextId(), IsNew: true,
+            new($"Space {count + 1}", NewSpaceSymbol, accent, accent.House));
+        return draft with { Spaces = [.. draft.Spaces, space] };
     }
 
-    /// The typed title when there is one, otherwise the site's host without a
-    /// leading "www.", otherwise the address itself.
-    public static string Title(string url, string? title) {
-        ArgumentNullException.ThrowIfNull(url);
-        if (!string.IsNullOrWhiteSpace(title)) return title.Trim();
-        string host = Uri.TryCreate(url, UriKind.Absolute, out var parsed) && parsed.Host.Length > 0 ? parsed.Host : url;
-        return SiteHost.WithoutWww(host);
+    /// `draft` without the new Space `spaceId`. An existing Space stays.
+    public static SetupDraft Removing(SetupDraft draft, Guid spaceId) {
+        ArgumentNullException.ThrowIfNull(draft);
+        return draft.Spaces.Any(space => space.SpaceId == spaceId && space.IsNew)
+            ? draft with { Spaces = [.. draft.Spaces.Where(space => space.SpaceId != spaceId)] }
+            : draft;
+    }
+
+    /// `draft` with `spaceId` where `targetId` stands, keeping its order.
+    public static SetupDraft Moving(SetupDraft draft, Guid spaceId, Guid targetId) {
+        ArgumentNullException.ThrowIfNull(draft);
+        var spaces = draft.Spaces.ToList();
+        int source = spaces.FindIndex(space => space.SpaceId == spaceId), target = spaces.FindIndex(space => space.SpaceId == targetId);
+        if (source < 0 || target < 0 || source == target) return draft;
+        var moved = spaces[source];
+        spaces.RemoveAt(source);
+        spaces.Insert(target, moved);
+        return draft with { Spaces = spaces, OrderWasEdited = true };
+    }
+
+    /// `draft` with `spaceId` taking `customization`, its look kept within
+    /// the ranges every device draws and its name as typed.
+    public static SetupDraft Customizing(SetupDraft draft, Guid spaceId, SpaceCustomization customization) {
+        ArgumentNullException.ThrowIfNull(draft);
+        ArgumentNullException.ThrowIfNull(customization);
+        var kept = customization with { Branding = SpaceBrandingPolicy.Normalize(customization.Branding) };
+        return draft with {
+            Spaces = [.. draft.Spaces.Select(space => space.SpaceId == spaceId ? space with { Customization = kept } : space)]
+        };
     }
 
     #endregion

@@ -59,6 +59,9 @@ protocol PromptIntent: Intent {}
 /// The members of `Intent` that derive from the core's `SessionIntent`.
 protocol SessionIntent: Intent {}
 
+/// The members of `Intent` that derive from the core's `SetupDraftIntent`.
+protocol SetupDraftIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `ShortcutIntent`.
 protocol ShortcutIntent: Intent {}
 
@@ -105,6 +108,7 @@ enum Change: Equatable, Sendable {
     case saved(Saved)
     case scriptDialogAsked(ScriptDialogAsked)
     case sessionAdopted(SessionAdopted)
+    case setupDraftChanged(SetupDraftChanged)
     case shortcutsChanged(ShortcutsChanged)
     case sidebarChanged(SidebarChanged)
     case sitePermissionsChanged(SitePermissionsChanged)
@@ -202,6 +206,7 @@ enum Rejection: Equatable, Error, Sendable {
     case noArchivedTabs(NoArchivedTabs)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
+    case noManualSetup(NoManualSetup)
     case noSavedAddress(NoSavedAddress)
     case noSplitStep(NoSplitStep)
     case noStoredSession(NoStoredSession)
@@ -289,6 +294,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .invalidSyncRecords(let value): value.message
         case .legacyCloudStateUnreadable(let value): value.message
         case .noIncludedSpaces(let value): value.message
+        case .noManualSetup(let value): value.message
         case .notAnArchive(let value): value.message
         case .persistentWorkspaceRequired(let value): value.message
         case .pinnedTabsDragAlone(let value): value.message
@@ -406,6 +412,7 @@ extension CoreState {
         case .saved(let change): apply(change)
         case .scriptDialogAsked(let change): apply(change)
         case .sessionAdopted(let change): apply(change)
+        case .setupDraftChanged(let change): apply(change)
         case .shortcutsChanged(let change): apply(change)
         case .sidebarChanged(let change): apply(change)
         case .sitePermissionsChanged(let change): apply(change)
@@ -471,6 +478,9 @@ struct AddSearchEngine: Intent, SessionIntent, Equatable, Sendable {
     let selects: Bool
 }
 
+struct AddSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
+}
+
 struct AddressCompletion: Equatable, Sendable {
     let typed: String
     let suffix: String
@@ -491,6 +501,10 @@ struct AdoptOfferedPage: PageRequest, Equatable, Sendable {
 
     let pageID: UUID
     let adoptionID: UUID
+}
+
+struct AdoptSetupDraft: Intent, SetupDraftIntent, Equatable, Sendable {
+    let draft: Data?
 }
 
 struct AdoptShortcuts: Intent, ShortcutIntent, Equatable, Sendable {
@@ -596,9 +610,6 @@ struct AppPreferencesChanged: Equatable, Sendable {
 struct ApplyManualSetup: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
-    let spaces: Data
-    let drafts: [SetupSpace]
-    let orderWasEdited: Bool
 }
 
 struct ApproveEngineDownload: Equatable, Sendable {
@@ -735,6 +746,11 @@ struct BeginDownload: Intent, DownloadIntent, Equatable, Sendable {
     let filename: String
     let createdAt: Date
     let isAcknowledged: Bool
+}
+
+struct BeginManualSetup: Intent, SetupDraftIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let startsOver: Bool
 }
 
 struct BeginUnlockingSpace: Intent, SpaceAccessIntent, Equatable, Sendable {
@@ -1408,6 +1424,11 @@ struct CustomSearchProvider: Equatable, Sendable, Identifiable {
     let suggestionURLTemplate: String?
 }
 
+struct CustomizeSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
+    let spaceID: UUID
+    let customization: SpaceCustomization
+}
+
 struct DataRetentionPreferences: Equatable, Sendable {
     let history: DataRetention
     let archive: DataRetention
@@ -1452,6 +1473,9 @@ struct DeleteTabs: Intent, SessionIntent, Equatable, Sendable {
     let windowID: UUID
     let spaceID: UUID
     let selection: TabSelection
+}
+
+struct DiscardManualSetup: Intent, SetupDraftIntent, Equatable, Sendable {
 }
 
 struct DismissShownTab: Intent, WindowIntent, Equatable, Sendable {
@@ -2683,6 +2707,11 @@ struct MovePageToWindow: PageRequest, Equatable, Sendable {
     let windowID: UUID
 }
 
+struct MoveSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
+    let spaceID: UUID
+    let targetSpaceID: UUID
+}
+
 struct MoveSplit: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -2812,6 +2841,12 @@ struct NoCurrentTabs: Equatable, Sendable {
 struct NoIncludedSpaces: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Choose at least one Space to import.")
+    }
+}
+
+struct NoManualSetup: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Setup is no longer in progress. Start it again.")
     }
 }
 
@@ -3574,6 +3609,10 @@ struct RemoveSearchEngine: Intent, SessionIntent, Equatable, Sendable {
     let engineID: UUID
 }
 
+struct RemoveSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
+    let spaceID: UUID
+}
+
 struct RenameFolder: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -4025,10 +4064,22 @@ struct SettleScriptDialog: Equatable, Sendable {
     let text: String?
 }
 
-struct SetupSpace: Equatable, Sendable {
+struct SetupDraft: Equatable, Sendable {
+    let workspaceID: UUID
+    let spaces: [SetupDraftSpace]
+    let orderWasEdited: Bool
+}
+
+struct SetupDraftChanged: Equatable, Sendable {
+    let draft: SetupDraft?
+}
+
+struct SetupDraftSpace: Equatable, Sendable {
     let spaceID: UUID
+    let profileID: UUID
     let isNew: Bool
     let customization: SpaceCustomization
+    let shownName: String
 }
 
 struct ShortcutBinding: Equatable, Sendable {
@@ -4276,6 +4327,8 @@ struct SpaceCrest: Equatable, Sendable {
 }
 
 struct SpaceCustomization: Equatable, Sendable {
+    static let untitledName: String = "Untitled Space"
+
     let name: String
     let symbol: String
     let accent: SpaceAccent
@@ -6277,14 +6330,16 @@ struct DataRetention: Hashable, Sendable {
 struct DevicePlatform: Hashable, Sendable {
     let tag: Int
     let name: String
+    let keepsSetupDraft: Bool
 
-    private init(tag: Int, name: String) {
+    private init(tag: Int, name: String, keepsSetupDraft: Bool) {
         self.tag = tag
         self.name = name
+        self.keepsSetupDraft = keepsSetupDraft
     }
 
-    static let desktop = DevicePlatform(tag: 0, name: "desktop")
-    static let mobile = DevicePlatform(tag: 1, name: "mobile")
+    static let desktop = DevicePlatform(tag: 0, name: "desktop", keepsSetupDraft: false)
+    static let mobile = DevicePlatform(tag: 1, name: "mobile", keepsSetupDraft: true)
 
     static let all: [DevicePlatform] = [desktop, mobile]
 

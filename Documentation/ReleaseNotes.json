@@ -2805,6 +2805,10 @@
     "2026-09-26-import-export-in-core": {
       "category": "improved",
       "message": "Importing from other browsers and Crest browser-data files, and exporting, now run in Crest's shared core on Mac and iPhone"
+    },
+    "2026-09-26-manual-setup-in-core": {
+      "category": "internal",
+      "message": "The manual setup is held by Crest's shared core, and an unfinished setup on iPhone and iPad waits for the next launch"
     }
   }
 }

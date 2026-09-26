@@ -1,58 +1,140 @@
 import Foundation
 import Observation
+import SwiftUI
 
+/// The platform's side of the manual setup the core holds for this device:
+/// the setup as the core last published it, and the intents the person's
+/// edits send. The core keeps the setup, its rules and, on a platform that
+/// keeps one, the unfinished setup for the next launch; a refused edit shows
+/// the core's own words.
 @MainActor
 @Observable
 final class BrowserManualSetupModel {
-    // MARK: - Types
-
-    /// What a preview answers for: the plan, and the session of the browser
-    /// it was drafted over as that browser last changed it.
-    private struct PreviewInputs: Equatable {
-        let plan: BrowserManualSetupPlan
-        let browser: ObjectIdentifier
-        let sessionRevision: Int
-    }
-
     // MARK: - Variables
 
-    var address: String
-    var placement: TabPlacement
+    let core: CrestCore
+    /// Why the last edit was refused, until the next one succeeds.
     var errorMessage: String?
-    /// What the core said the setup would leave, until the plan or the
-    /// session changes, so a view's body never asks it again.
-    @ObservationIgnored private var preview: (inputs: PreviewInputs, session: BrowserSession?)?
 
-    var canAddAddress: Bool {
-        !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    /// The setup in progress, or nil before it starts and once it ends.
+    var draft: SetupDraft? { core.state.setupDraft }
+
+    /// The setup's Spaces in its order.
+    var spaces: [SetupDraftSpace] { draft?.spaces ?? [] }
+
+    /// The setup's Spaces as the Space picker and previews draw them.
+    var previewSpaces: [BrowserSpace] { spaces.map(Self.preview) }
 
     // MARK: - Initializers
 
-    init(
-        address: String = "",
-        placement: TabPlacement = .saved,
-        errorMessage: String? = nil
-    ) {
-        self.address = address
-        self.placement = placement
-        self.errorMessage = errorMessage
+    init(core: CrestCore) {
+        self.core = core
     }
 
-    // MARK: - Actions - Preview
+    // MARK: - Actions - Setup
 
-    /// The session the setup would leave `browser`'s workspace with, or nil
-    /// when the core would refuse it. The core answers once each time the
-    /// plan or the workspace's session changes.
-    func previewSession(
-        for plan: BrowserManualSetupPlan,
-        in browser: BrowserStore
-    ) -> BrowserSession? {
-        let inputs = PreviewInputs(
-            plan: plan, browser: ObjectIdentifier(browser), sessionRevision: browser.sessionRevision)
-        if let preview, preview.inputs == inputs { return preview.session }
-        let session = try? plan.preview(in: browser)
-        preview = (inputs, session)
-        return session
+    /// Starts a setup of `workspaceID`'s Spaces, or goes on with the one the
+    /// core holds, unless `startsOver`.
+    func begin(workspaceID: UUID, startsOver: Bool) {
+        send(BeginManualSetup(workspaceID: workspaceID, startsOver: startsOver))
+    }
+
+    /// Ends the setup without applying it.
+    func discard() {
+        send(DiscardManualSetup())
+    }
+
+    /// Adds a new Space and answers it, or nil when the core refused it.
+    @discardableResult
+    func addSpace() -> SpaceID? {
+        guard send(AddSetupSpace()) else { return nil }
+        return spaces.last?.spaceID
+    }
+
+    func removeSpace(_ spaceID: SpaceID) {
+        send(RemoveSetupSpace(spaceID: spaceID))
+    }
+
+    func moveSpace(_ spaceID: SpaceID, to targetID: SpaceID) {
+        send(MoveSetupSpace(spaceID: spaceID, targetSpaceID: targetID))
+    }
+
+    /// The setup's Space `spaceID`, or nil when the setup no longer holds it.
+    func space(_ spaceID: SpaceID?) -> SetupDraftSpace? {
+        spaces.first { $0.spaceID == spaceID }
+    }
+
+    /// `selectedSpaceID` when the setup holds it, otherwise its first Space.
+    func repairSelection(_ selectedSpaceID: Binding<SpaceID?>) {
+        guard space(selectedSpaceID.wrappedValue) == nil else { return }
+        selectedSpaceID.wrappedValue = spaces.first?.spaceID
+    }
+
+    // MARK: - Actions - Bindings
+
+    func nameBinding(for spaceID: SpaceID) -> Binding<String> {
+        Binding(
+            get: { self.space(spaceID)?.customization.name ?? "" },
+            set: { name in
+                self.customize(spaceID) {
+                    SpaceCustomization(name: name, symbol: $0.symbol, accent: $0.accent, branding: $0.branding)
+                }
+            }
+        )
+    }
+
+    func symbolBinding(for spaceID: SpaceID) -> Binding<String> {
+        Binding(
+            get: { self.space(spaceID)?.customization.symbol ?? BrowserImportSpaceCustomization.fallbackSymbol },
+            set: { symbol in
+                self.customize(spaceID) {
+                    SpaceCustomization(name: $0.name, symbol: symbol, accent: $0.accent, branding: $0.branding)
+                }
+            }
+        )
+    }
+
+    func brandingBinding(for spaceID: SpaceID) -> Binding<BrowserSpaceBranding> {
+        Binding(
+            get: {
+                self.space(spaceID).map { BrowserSpaceBranding(look: $0.customization.branding) }
+                    ?? BrowserSpaceBranding(look: SpaceAccent.indigo.house)
+            },
+            set: { branding in
+                self.customize(spaceID) {
+                    SpaceCustomization(name: $0.name, symbol: $0.symbol, accent: $0.accent, branding: branding.core)
+                }
+            }
+        )
+    }
+
+    private func customize(_ spaceID: SpaceID, _ edit: (SpaceCustomization) -> SpaceCustomization) {
+        guard let space = space(spaceID) else { return }
+        send(CustomizeSetupSpace(spaceID: spaceID, customization: edit(space.customization)))
+    }
+
+    // MARK: - Actions - Sending
+
+    /// Sends `intent`, keeping the core's words when it refuses it.
+    @discardableResult
+    private func send(_ intent: some Intent) -> Bool {
+        do {
+            _ = try core.send(intent)
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.explanation
+            return false
+        }
+    }
+
+    /// `space` as a Space the previews draw: its identity, name and look,
+    /// holding nothing yet.
+    private static func preview(_ space: SetupDraftSpace) -> BrowserSpace {
+        let customization = space.customization
+        return BrowserSpace(
+            id: space.spaceID, profile: BrowsingProfile(id: space.profileID), name: space.shownName,
+            symbol: customization.symbol, accent: customization.accent,
+            branding: BrowserSpaceBranding(look: customization.branding), folders: [], tabs: [])
     }
 }

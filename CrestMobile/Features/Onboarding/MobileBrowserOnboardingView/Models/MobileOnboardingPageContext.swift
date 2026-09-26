@@ -10,10 +10,8 @@ struct MobileOnboardingPageContext {
     let workSpace: BrowserSpace
     let featureCloseTitle: String?
     let featureCloseAction: (() -> Void)?
-    let plan: Binding<BrowserManualSetupPlan>
+    let setup: BrowserManualSetupModel
     let selectedSpaceID: Binding<SpaceID?>
-    let existingSession: BrowserSession
-    let horizontalSizeClass: UserInterfaceSizeClass?
     let errorMessage: String?
     var opensGettingStarted = false
     let setupSecondaryTitle: String
@@ -21,9 +19,6 @@ struct MobileOnboardingPageContext {
     let advance: () -> Void
     let setupSecondaryAction: () -> Void
     let finish: () -> Void
-    let addSpace: () -> Void
-    let customize: (SpaceID) -> Void
-    let remove: (SpaceID) -> Void
     let close: () -> Void
     let reviewFeatures: () -> Void
 }

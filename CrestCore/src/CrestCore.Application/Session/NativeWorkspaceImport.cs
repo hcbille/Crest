@@ -147,40 +147,38 @@ internal sealed class NativeWorkspaceImport {
         affected = inputs.FirstOrDefault();
     }
 
-    /// Applies a manual setup's drafts in their order; see `ApplyManualSetup`.
-    internal void ApplyDrafts(IReadOnlyList<SetupSpace> drafts, bool orderWasEdited) {
-        var paired = Pair(drafts, draft => draft.SpaceId);
-        WorkspaceImportPolicy.RequireSpaceCapacity(spaces.Count, drafts.Count(draft => draft.IsNew));
+    /// The Space a manual setup's `space` brings into the import: the new
+    /// Space it makes, holding nothing yet, or the identity and profile of the
+    /// existing Space it names. `ApplySetup` gives it its name and look.
+    internal static SpaceState SetupSpace(SetupDraftSpace space) {
+        ArgumentNullException.ThrowIfNull(space);
+        var customization = space.Customization;
+        var settings = new SpaceSettings(customization.Name, customization.Symbol, customization.Accent, customization.Branding,
+            StoredSessionCodec.DefaultBrowsingPreferences, StoredSessionCodec.DefaultCredentialPreferences, SpaceAccessPolicy.Open,
+            IsSavedTabsExpanded: true, SavedTabsExpansionModifiedAt: null);
+        return new(space.SpaceId, space.ProfileId, settings, Folders: [], Tabs: [], SplitGroups: [], ArchivedTabs: [], History: []);
+    }
+
+    /// Applies a manual setup's Spaces in their order; see `ApplyManualSetup`.
+    internal void ApplySetup(SetupDraft setup) {
+        var paired = Pair(setup.Spaces, draft => draft.SpaceId);
+        WorkspaceImportPolicy.RequireSpaceCapacity(spaces.Count, setup.Spaces.Count(draft => draft.IsNew));
         foreach (var (input, draft) in paired) {
             var id = input.Id;
             bool created = draft.IsNew;
             var destination = created ? input : spaces.FirstOrDefault(s => s.Id == id);
-            if (destination is null) continue; // A draft cannot recreate an existing Space deleted elsewhere.
+            if (destination is null) continue; // A setup cannot recreate an existing Space deleted elsewhere.
             Available(id);
             if (!created && destination.State.ProfileId != input.State.ProfileId) throw new Rejected(new SpaceProfileChanged(id));
             if (created && spaces.Any(s => s.Id == id)) throw new Rejected(new SpaceAlreadyExists(id));
             if (created && spaces.Any(s => s.State.ProfileId == input.State.ProfileId))
                 throw new Rejected(new ProfileInUse(input.State.ProfileId));
             Customize(destination, draft.Customization);
-            var added = input.State.Tabs.ToArray();
-            var old = created ? [] : destination.State.Tabs.ToArray();
-            WorkspaceImportPolicy.RequirePinnedCapacity(old.Concat(added).Count(t => t.Placement == TabPlacement.Pinned));
-            var ordered = added.OrderBy(t => t.Placement.Rank).ToArray();
-            if (created) destination.State = destination.State with { Tabs = ordered };
-            else {
-                var list = old.ToList();
-                // Each section's imported tabs follow the tabs it already holds.
-                foreach (var placement in TabPlacement.All) {
-                    int end = list.FindIndex(t => t.Placement.Rank > placement.Rank);
-                    list.InsertRange(end < 0 ? list.Count : end, ordered.Where(t => t.Placement == placement));
-                }
-                destination.State = destination.State with { Tabs = list.ToArray() };
-            }
-            ShowAdded(destination, created ? added : ordered);
-            if (created) spaces.Add(destination);
-            if (created || added.Length > 0) affected ??= destination;
+            if (!created) continue;
+            spaces.Add(destination);
+            affected ??= destination;
         }
-        if (orderWasEdited) {
+        if (setup.OrderWasEdited) {
             var order = paired.Select(pair => pair.Input.Id).ToArray();
             spaces = [.. order.Select(id => spaces.FirstOrDefault(s => s.Id == id)).OfType<Draft>()
                 .Concat(spaces.Where(s => !order.Contains(s.Id)))];
@@ -271,7 +269,7 @@ internal sealed class NativeWorkspaceImport {
                 Placement = placement,
                 FolderId = folder,
                 SavedUrl = placement.IsDurable ? tab.SavedUrl ?? tab.Url : null,
-                Symbol = placement == TabPlacement.Pinned ? ManualSetupPolicy.PinnedTabSymbol : tab.Symbol
+                Symbol = placement == TabPlacement.Pinned ? WorkspaceImportPolicy.PinnedTabSymbol : tab.Symbol
             });
         }).ToArray();
         var existing = isNew ? [] : destination.State.Tabs;
@@ -397,11 +395,6 @@ internal sealed class NativeWorkspaceImport {
     /// Throws `Rejected` with `SpaceBeingDeleted` when `id` is going away.
     private void Available(Guid id) {
         if (session.SpaceDeletions.Any(deletion => deletion.SpaceId == id)) throw new Rejected(new SpaceBeingDeleted(id));
-    }
-
-    private static void ShowAdded(Draft space, IEnumerable<TabState> tabs) {
-        var chosen = tabs.LastOrDefault(t => t.Placement == TabPlacement.Current) ?? tabs.FirstOrDefault();
-        if (chosen is not null) space.ShownTab = chosen.Id;
     }
 
     #endregion

@@ -77,9 +77,17 @@ extension BrowserStore {
         try family.importSpaces(try plan.intent(in: self), from: plan.sources, issuedBy: self)
     }
 
-    /// Applies a manual setup's drafts.
-    func commitManualSetup(_ plan: BrowserManualSetupPlan) throws {
-        try family.importSpaces(try plan.intent(in: self), from: plan.sources, issuedBy: self)
+    /// Applies the manual setup the core holds for this workspace, which then
+    /// ends. Throws the rule that refused it.
+    func applyManualSetup() throws(Rejection) {
+        try family.importSpaces(
+            ApplyManualSetup(workspaceID: family.workspaceID, windowID: windowID), from: [], issuedBy: self)
+    }
+
+    /// The session applying the manual setup the core holds would leave this
+    /// workspace with. Throws the rule that would refuse it.
+    func manualSetupPreview() throws(Rejection) -> BrowserSession {
+        try importPreview(ApplyManualSetup(workspaceID: family.workspaceID, windowID: windowID), of: [])
     }
 
     /// The session `intent`, an import of `sources`, would leave this

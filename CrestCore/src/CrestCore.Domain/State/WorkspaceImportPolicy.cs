@@ -14,6 +14,9 @@ public static class WorkspaceImportPolicy {
     public const string OverflowFolderTitle = "Imported Pinned Tabs";
     public const string OverflowFolderSymbol = "pin.slash";
 
+    /// The symbol an imported tab wears once pinned.
+    public const string PinnedTabSymbol = "pin.fill";
+
     #endregion
 
     #region Actions - State policy
@@ -22,11 +25,6 @@ public static class WorkspaceImportPolicy {
     /// would take a workspace holding `existing` past the limit.
     public static void RequireSpaceCapacity(int existing, int additions) {
         if ((long)existing + additions > MaximumSpaces) throw new Rejected(new SpaceLimitReached(MaximumSpaces));
-    }
-
-    /// Throws `Rejected` with `PinnedTabsFull` when a Space cannot pin `count` tabs.
-    public static void RequirePinnedCapacity(int count) {
-        if (!TabPlacement.Pinned.Holds(count)) throw new Rejected(new PinnedTabsFull(TabPlacement.PinnedCapacity));
     }
 
     /// An imported Space must already hold well-formed split runs. Repair

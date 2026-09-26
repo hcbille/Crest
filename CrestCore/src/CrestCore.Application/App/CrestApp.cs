@@ -141,6 +141,9 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                 case LinkIntent link:
                     device.Handle(link, changes);
                     break;
+                case SetupDraftIntent setup:
+                    device.Handle(setup, changes, ids);
+                    break;
                 case PageIntent page:
                     pages.Handle(page, changes, Issue);
                     break;
@@ -150,6 +153,8 @@ public sealed partial class CrestApp : IQueryAnswers, IDisposable {
                     else if (session is ArchiveTransientPage archived) pages.Completed(archived.PageId);
                     // A deleted Space leaves nothing in this device's link preferences.
                     else if (session is FinishDeletingSpace deleted) device.ForgetLinks(deleted.SpaceId, changes);
+                    // An applied manual setup ends.
+                    else if (session is ApplyManualSetup applied) device.FinishManualSetup(applied.WorkspaceId, changes);
                     break;
                 case SpaceAccessIntent grant:
                     access.Handle(grant, changes);

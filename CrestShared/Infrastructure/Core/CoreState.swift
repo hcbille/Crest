@@ -107,6 +107,13 @@ final class CoreState {
         set { publish(newValue, into: \.linkPreferencesStorage, as: \.linkPreferences) }
     }
     @ObservationIgnored private var linkPreferencesStorage: LinkPreferences?
+    /// The manual setup this device holds, as the core last published it, or
+    /// nil while none is in progress.
+    var setupDraft: SetupDraft? {
+        get { observed(\.setupDraftStorage, as: \.setupDraft) }
+        set { publish(newValue, into: \.setupDraftStorage, as: \.setupDraft) }
+    }
+    @ObservationIgnored private var setupDraftStorage: SetupDraft?
     /// This process's access to each Space profile that holds a grant or is
     /// waiting on the device owner, as the core last published it. A profile
     /// missing here holds no grant.

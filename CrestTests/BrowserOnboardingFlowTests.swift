@@ -303,10 +303,9 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         let browser = BrowserStore(session: session)
         let flow = makeFlow(entryPoint: .rerun, browser: browser)
         flow.beginManualSetup()
-        var plan = try XCTUnwrap(flow.manualPlan)
-        let newSpaceID = try plan.addSpace()
-        plan.setSpaceIdentity(name: "Renamed", symbol: first.symbol, for: first.id)
-        flow.updateManualPlan(plan)
+        let newSpaceID = try XCTUnwrap(flow.manualSetup.addSpace())
+        flow.manualSetup.nameBinding(for: first.id).wrappedValue = "Renamed"
+        let pending = try XCTUnwrap(flow.manualSetup.draft)
         let progress = BrowserOnboardingProgressStore(
             persistence: InMemoryBrowserOnboardingProgressPersistence(hasCompletedSetup: true))
         let authenticator = SuspendedGuideAuthenticator()
@@ -320,7 +319,7 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         await waitUntil { !flow.isCompletingSetup }
 
         XCTAssertEqual(browser.session, session)
-        XCTAssertEqual(flow.manualPlan, plan)
+        XCTAssertEqual(flow.manualSetup.draft, pending)
         XCTAssertEqual(flow.state, .manualSetup)
         XCTAssertEqual(completionCount, 0)
 
@@ -329,7 +328,7 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         authenticator.complete()
         await waitUntil { completionCount == 1 }
 
-        XCTAssertNil(flow.manualPlan)
+        XCTAssertNil(flow.manualSetup.draft)
         XCTAssertEqual(flow.state, .complete)
         XCTAssertEqual(browser.session.spaces.filter { $0.id == newSpaceID }.count, 1)
         XCTAssertEqual(browser.session.spaces.first?.name, "Renamed")

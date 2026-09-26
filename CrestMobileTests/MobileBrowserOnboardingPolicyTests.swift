@@ -51,17 +51,4 @@ final class MobileBrowserOnboardingPolicyTests: XCTestCase {
         )
     }
 
-    @MainActor
-    func testRerunDiscardsTheOldDraftAndKeepsExistingSpaces() throws {
-        let session = BrowserSession.preview
-        var oldDraft = BrowserManualSetupPlan(existing: session)
-        let uncommittedID = try oldDraft.addSpace()
-        let persistence = MobileOnboardingDraftPersistence(load: { oldDraft }, save: { _ in }, clear: {})
-        let resumed = persistence.plan(for: .firstRun, existing: session)
-        XCTAssertTrue(resumed.spaces.contains { $0.id == uncommittedID })
-        let rerun = persistence.plan(for: .rerun, existing: session)
-        XCTAssertEqual(rerun, BrowserManualSetupPlan(existing: session))
-        XCTAssertFalse(rerun.spaces.contains { $0.id == uncommittedID })
-    }
-
 }

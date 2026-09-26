@@ -6,9 +6,6 @@ namespace CrestCore.Domain;
 public static class SpaceOrganizationPolicy {
     #region Static Variables
 
-    /// What a Space named with nothing but blanks is called.
-    private const string UntitledName = "Untitled Space";
-
     /// The symbol a Space given a blank one wears.
     private const string DefaultSymbol = "square.grid.2x2";
 
@@ -26,7 +23,7 @@ public static class SpaceOrganizationPolicy {
 
     #region Mutators
 
-    public static string Name(string value) => string.IsNullOrWhiteSpace(value) ? UntitledName : value.Trim();
+    public static string Name(string value) => SpaceCustomization.Resolved(value);
 
     /// The name a person gave a Space, trimmed, as `Name` reads it. Throws
     /// `Rejected` with `InvalidName` for one longer than a Space name holds.

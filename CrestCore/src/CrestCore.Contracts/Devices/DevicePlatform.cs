@@ -10,19 +10,26 @@ public sealed class DevicePlatform {
 
     /// The Mac gives back one page under warning pressure and half of the
     /// eligible pages, at least one, under critical pressure. A page on screen
-    /// is never taken.
+    /// is never taken. A manual setup left unfinished starts over at the next
+    /// launch.
     public static readonly DevicePlatform Desktop = new(name: "desktop", warningReleaseLimit: _ => 1,
-        criticalReleaseLimit: eligible => Math.Max(1, (eligible + 1) / 2), reclaimsPresentedPagesAt: null);
+        criticalReleaseLimit: eligible => Math.Max(1, (eligible + 1) / 2), reclaimsPresentedPagesAt: null, keepsSetupDraft: false);
 
     /// iPhone and iPad hold on under warning pressure and give back one page
     /// under critical pressure. Critical pressure may also take a carousel card
-    /// away from the focused one when nothing off screen could go.
+    /// away from the focused one when nothing off screen could go. An
+    /// unfinished manual setup waits for the next launch, since the system may
+    /// end the app while it is in the background.
     public static readonly DevicePlatform Mobile = new(name: "mobile", warningReleaseLimit: _ => 0,
-        criticalReleaseLimit: _ => 1, reclaimsPresentedPagesAt: MemoryPressureLevel.Critical);
+        criticalReleaseLimit: _ => 1, reclaimsPresentedPagesAt: MemoryPressureLevel.Critical, keepsSetupDraft: true);
 
     public static IReadOnlyList<DevicePlatform> All { get; } = [Desktop, Mobile];
 
     public string Name { get; }
+
+    /// Whether the device store keeps an unfinished manual setup for the next
+    /// launch.
+    public bool KeepsSetupDraft { get; }
 
     /// The most pages pressure at each level may take back, from the number of
     /// eligible pages.
@@ -37,8 +44,9 @@ public sealed class DevicePlatform {
     #region Constructors
 
     private DevicePlatform(string name, Func<int, int> warningReleaseLimit, Func<int, int> criticalReleaseLimit,
-        MemoryPressureLevel? reclaimsPresentedPagesAt) {
+        MemoryPressureLevel? reclaimsPresentedPagesAt, bool keepsSetupDraft) {
         Name = name;
+        KeepsSetupDraft = keepsSetupDraft;
         releaseLimits = new Dictionary<MemoryPressureLevel, Func<int, int>> {
             [MemoryPressureLevel.Warning] = warningReleaseLimit,
             [MemoryPressureLevel.Critical] = criticalReleaseLimit

@@ -14,11 +14,7 @@ internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<Ses
     /// The most tabs one window or Space brings.
     public const int MaximumTabs = BrowserDataSpace.MaximumTabs;
 
-    /// The folder pinned tabs past the limit move to.
-    private const string OverflowFolderTitle = "Imported Pinned Tabs";
-    private const string OverflowFolderSymbol = "pin.slash";
     private const string UntitledFolder = "Untitled Folder";
-    private const string PinnedTabSymbol = "pin.fill";
 
     #endregion
 
@@ -78,7 +74,8 @@ internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<Ses
                 placement = TabPlacement.Saved;
                 if (overflow is null) {
                     overflow = ids.Next();
-                    folders.Add(Folder(overflow.Value, OverflowFolderTitle, OverflowFolderSymbol, parent: null));
+                    folders.Add(Folder(overflow.Value, WorkspaceImportPolicy.OverflowFolderTitle, WorkspaceImportPolicy.OverflowFolderSymbol,
+                        parent: null));
                 }
                 folder = overflow;
             }
@@ -86,7 +83,7 @@ internal sealed record SessionDraft(int Ordinal, string? Name, IReadOnlyList<Ses
                 ?? throw new Rejected(new SessionOverLimits());
             string url = tab.Address.Spelling;
             tabs.Add(new(ids.Next(), title, NativeContent: null, url, placement.IsDurable ? url : null,
-                placement == TabPlacement.Pinned ? PinnedTabSymbol : TabIconMode.WebSymbol, placement,
+                placement == TabPlacement.Pinned ? WorkspaceImportPolicy.PinnedTabSymbol : TabIconMode.WebSymbol, placement,
                 placement == TabPlacement.Saved ? folder : null, SplitGroupId: null, tab.LastActivatedAt ?? importedAt));
         }
 

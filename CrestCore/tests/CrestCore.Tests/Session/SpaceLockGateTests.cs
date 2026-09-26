@@ -44,11 +44,11 @@ public sealed partial class BrowserContractsTests {
         Assert.IsType<SpaceLocked>(Assert.Throws<Rejected>(() =>
             device.Send(new RenameTab(device.Workspace, identity.Space, tab, "Leaked"))).Rejection);
         Assert.Equal(1UL, core.Revision);
-        // A setup that would add tabs to a locked Space and rename it is refused.
-        var draft = session["spaces"]![0]!.DeepClone();
-        var setup = new ApplyManualSetup(device.Workspace, Guid.NewGuid(), Encoding.UTF8.GetBytes(new JsonArray(draft).ToJsonString()),
-            [new(identity.Space, false, new("Renamed", "book", SpaceAccent.Indigo, StoredSessionCodec.DecodeBranding(new JsonObject())))],
-            false);
+        // A setup that would rename a locked Space is refused.
+        device.Send(new BeginManualSetup(device.Workspace, StartsOver: true));
+        device.Send(new CustomizeSetupSpace(identity.Space,
+            new("Renamed", "book", SpaceAccent.Indigo, StoredSessionCodec.DecodeBranding(new JsonObject()))));
+        var setup = new ApplyManualSetup(device.Workspace, Guid.NewGuid());
         Assert.IsType<SpaceLocked>(Assert.Throws<Rejected>(() => device.Send(setup)).Rejection);
         Assert.Equal(1UL, core.Revision);
         // A person sees the setup before they unlock the Space it writes into.
@@ -129,35 +129,30 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void AManualSetupIsRefusedOnlyWhenItsDraftWouldChangeALockedSpace() {
+    public void AManualSetupIsRefusedOnlyWhenItWouldChangeALockedSpace() {
         var session = GuardedSession(withOpenSecondSpace: true);
         using var device = new TestDevice(session);
         var window = device.Showing(session);
         var (locked, open) = (device.Authority.Current.Spaces[0], device.Authority.Current.Spaces[1]);
         var kept = Stored(locked);
-        JsonObject Draft(SpaceState space, params JsonObject[] tabs) {
-            var draft = ImportedSpace(space.Settings.Name, tabs);
-            draft["id"] = SwiftId(space.Id);
-            draft["profile"]!["id"] = space.ProfileId.ToString();
-            return draft;
-        }
-        // Every existing Space is a draft; the open one gains a tab and a name,
-        // and the drafts' order moves the locked Space second.
-        ApplyManualSetup Setup(SpaceCustomization lockedLook) => new(device.Workspace, window,
-            ImportedSpaces(Draft(open, ImportedTab("https://added.example/")), Draft(locked)),
-            [new(open.Id, false, Customization("Renamed")), new(locked.Id, false, lockedLook)], OrderWasEdited: true);
+        // The setup renames the open Space and moves the locked one second.
+        device.Send(new BeginManualSetup(device.Workspace, StartsOver: true));
+        device.Send(new CustomizeSetupSpace(open.Id, Customization("Renamed")));
+        device.Send(new MoveSetupSpace(open.Id, locked.Id));
+        device.Send(new CustomizeSetupSpace(locked.Id, Customization("Also renamed")));
 
         var before = device.Authority.Current;
-        Assert.Equal(new SpaceLocked(locked.Id), Assert.Throws<Rejected>(() => device.Send(Setup(Customization("Also renamed")))).Rejection);
+        Assert.Equal(new SpaceLocked(locked.Id),
+            Assert.Throws<Rejected>(() => device.Send(new ApplyManualSetup(device.Workspace, window))).Rejection);
         Assert.Same(before, device.Authority.Current);
 
         // Moving a Space in the order changes no Space, as ReorderSpaces moves a locked one too.
-        device.Send(Setup(OwnCustomization(locked)));
+        device.Send(new CustomizeSetupSpace(locked.Id, OwnCustomization(locked)));
+        device.Send(new ApplyManualSetup(device.Workspace, window));
         var current = device.Authority.Current;
         Assert.Equal([open.Id, locked.Id], current.Spaces.Select(space => space.Id));
         Assert.Equal(kept, Stored(current.Spaces[1]));
         Assert.Equal("Renamed", current.Spaces[0].Settings.Name);
-        Assert.Contains(current.Spaces[0].Tabs, tab => tab.Url == "https://added.example/");
     }
 
     [Fact]

@@ -57,8 +57,8 @@ static void app_boundary(void) {
     assert(crest_app_destroy(app) == CREST_INVALID_HANDLE);
 }
 static void policy_boundary(void) {
-    const char *request = "{\"version\":1,\"operation\":\"setup.tab\",\"placement\":\"pinned\",\"existingPinnedCount\":12,"
-        "\"addedPinnedCount\":0,\"url\":\"https://example.com/\",\"title\":null}";
+    const char *request = "{\"version\":1,\"operation\":\"residency.release_limit\",\"level\":\"warning\","
+        "\"platform\":\"desktop\",\"eligiblePageCount\":0}";
     size_t length = 0;
     assert(crest_core_evaluate_policy(NULL, 0, NULL, 0, &length) == CREST_INVALID_ARGUMENT);
     assert(crest_core_evaluate_policy((const uint8_t*)request, strlen(request), NULL, 0, &length) == CREST_BUFFER_TOO_SMALL);
@@ -69,7 +69,7 @@ static void policy_boundary(void) {
     assert(length == required && output[0] == 0xa5);
     assert(crest_core_evaluate_policy((const uint8_t*)request, strlen(request), output, 256, &length) == CREST_OK);
     assert(output[length] == 0xa5); output[length] = 0;
-    assert(strstr((const char*)output, "\"error\":\"pinned_limit_reached\""));
+    assert(strstr((const char*)output, "\"limit\":0"));
     const uint8_t invalid[] = { 0xff };
     assert(crest_core_evaluate_policy(invalid, sizeof(invalid), output, 256, &length) == CREST_INVALID_MESSAGE);
     assert(length == 0);

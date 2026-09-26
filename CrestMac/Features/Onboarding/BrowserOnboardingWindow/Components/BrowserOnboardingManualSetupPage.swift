@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BrowserOnboardingManualSetupPage: View {
     let flow: BrowserOnboardingFlow
-    let browserSession: BrowserSession
     let opensGettingStarted: Bool
     @Binding var selectedSpaceID: SpaceID?
     let back: () -> Void
@@ -10,7 +9,7 @@ struct BrowserOnboardingManualSetupPage: View {
 
     var body: some View {
         BrowserSpaceSetupWizard(
-            plan: manualPlanBinding,
+            setup: flow.manualSetup,
             selectedSpaceID: $selectedSpaceID,
             opensGettingStarted: opensGettingStarted,
             back: back,
@@ -24,17 +23,5 @@ struct BrowserOnboardingManualSetupPage: View {
             }
         }
         .accessibilityIdentifier("manual-setup-editor")
-    }
-
-    private var manualPlanBinding: Binding<BrowserManualSetupPlan> {
-        Binding(
-            get: {
-                flow.manualPlan
-                    ?? BrowserManualSetupPlan(existing: browserSession)
-            },
-            set: { plan in
-                flow.updateManualPlan(plan)
-            }
-        )
     }
 }

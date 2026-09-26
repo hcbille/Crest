@@ -1,17 +1,14 @@
 namespace CrestCore.Contracts;
 
-/// Applies a manual setup: each Space of `Spaces` is a draft, and `Drafts`
-/// says for each whether it makes a new Space or adds to the existing Space
-/// with its identity and profile, and the name and look that Space takes. A
-/// draft's tabs join each section after the tabs the Space already holds
-/// there. When `OrderWasEdited`, the Spaces take the drafts' order, followed by
-/// any Space the drafts do not name. A first launch's Spaces stop being
-/// disposable.
+/// Applies the manual setup this device holds for the workspace: each new
+/// Space of the setup joins with its identity, profile, name and look, and
+/// each existing Space takes the name and look the setup gave it. When the
+/// setup's order was edited, the Spaces take it, followed by any Space the
+/// setup does not name. A first launch's Spaces stop being disposable. The
+/// setup ends once it is applied.
 ///
-/// Refused with `PinnedTabsFull` when a Space would pin too many tabs,
-/// `SpaceProfileChanged` when an existing Space no longer uses the draft's
-/// profile, and `SpaceAlreadyExists` or `ProfileInUse` when a new Space takes
-/// an identity or profile another Space holds.
-[MessageLimit(64 * 1024 * 1024)]
-public sealed record ApplyManualSetup(Guid WorkspaceId, Guid WindowId, byte[] Spaces, IReadOnlyList<SetupSpace> Drafts,
-    bool OrderWasEdited) : ImportWorkspace(WorkspaceId, WindowId);
+/// Refused with `NoManualSetup` when no setup is in progress for the
+/// workspace, `SpaceProfileChanged` when an existing Space no longer uses the
+/// setup's profile, and `SpaceAlreadyExists` or `ProfileInUse` when a new
+/// Space takes an identity or profile another Space holds.
+public sealed record ApplyManualSetup(Guid WorkspaceId, Guid WindowId) : ImportWorkspace(WorkspaceId, WindowId);

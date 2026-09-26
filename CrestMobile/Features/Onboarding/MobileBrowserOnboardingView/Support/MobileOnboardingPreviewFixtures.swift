@@ -15,11 +15,6 @@ enum MobileOnboardingPreviewFixtures {
         return space
     }
 
-    @MainActor
-    static var manualPlan: BrowserManualSetupPlan {
-        BrowserManualSetupPlan(existing: MobileBrowserPreviewFixture().browser.session)
-    }
-
     static let samplePinnedTabs = [
         BrowserTab(
             id: UUID(

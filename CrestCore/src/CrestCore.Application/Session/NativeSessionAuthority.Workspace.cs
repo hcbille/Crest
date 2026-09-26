@@ -14,10 +14,15 @@ public sealed partial class NativeSessionAuthority {
         Importing(basis, intent, NativeWorkspaceImport.Decoded(intent.Spaces), previewed, now, ids,
             import => import.ImportReviewed(intent.Reviews, ids));
 
+    /// Applies the manual setup the device holds for this workspace; see
+    /// `ApplyManualSetup`. The device ends the setup once the session accepts it.
     private SessionEdit ApplyingManualSetup(SessionState basis, ApplyManualSetup intent, DateTimeOffset now, IIdSource ids,
-        bool previewed) =>
-        Importing(basis, intent, NativeWorkspaceImport.Decoded(intent.Spaces), previewed, now, ids,
-            import => import.ApplyDrafts(intent.Drafts, intent.OrderWasEdited));
+        bool previewed) {
+        if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
+        var setup = device?.ManualSetup(workspaceId) ?? throw new Rejected(new NoManualSetup());
+        return Importing(basis, intent, [.. setup.Spaces.Select(NativeWorkspaceImport.SetupSpace)], previewed, now, ids,
+            import => import.ApplySetup(setup));
+    }
 
     /// An import's work, which only the persistent workspace takes: `apply`
     /// runs the intent's own rules over the Spaces read from `spaces`, then

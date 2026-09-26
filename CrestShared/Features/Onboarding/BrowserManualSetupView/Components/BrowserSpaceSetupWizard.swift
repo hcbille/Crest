@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The plan stays a draft until the host's final action saves it.
+/// The manual setup the core holds, which stays a setup until the host's
+/// final action applies it.
 struct BrowserSpaceSetupWizard: View {
-    @Binding var plan: BrowserManualSetupPlan
+    let setup: BrowserManualSetupModel
     @Binding var selectedSpaceID: SpaceID?
     var errorMessage: String?
     var opensGettingStarted = true
@@ -10,13 +11,12 @@ struct BrowserSpaceSetupWizard: View {
     let finish: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var model = BrowserManualSetupModel()
     @State private var step = Step.appearance
 
     private enum Step: Int { case appearance, ready }
 
-    private var draft: BrowserManualSetupSpaceDraft? {
-        model.selectedDraft(in: plan, selectedSpaceID: selectedSpaceID)
+    private var draft: SetupDraftSpace? {
+        setup.space(selectedSpaceID)
     }
 
     var body: some View {
@@ -25,16 +25,16 @@ struct BrowserSpaceSetupWizard: View {
             VStack(spacing: 0) {
                 progress
                 if let draft {
-                    let branding = model.brandingBinding(for: draft.id, plan: $plan)
-                    let symbol = model.symbolBinding(for: draft.id, plan: $plan)
+                    let branding = setup.brandingBinding(for: draft.spaceID)
+                    let symbol = setup.symbolBinding(for: draft.spaceID)
                     #if os(iOS)
                         if step == .appearance {
                             BrowserMobileSpaceAppearanceWorkspace(
                                 branding: branding, symbol: symbol,
-                                name: model.nameBinding(for: draft.id, plan: $plan),
-                                spacePicker: spacePicker(for: draft.id)
+                                name: setup.nameBinding(for: draft.spaceID),
+                                spacePicker: spacePicker(for: draft.spaceID)
                             )
-                            .id(draft.id)
+                            .id(draft.spaceID)
                         } else {
                             ScrollView {
                                 page(draft: draft, branding: branding, symbol: symbol, compact: !wide)
@@ -48,9 +48,9 @@ struct BrowserSpaceSetupWizard: View {
                             if wide {
                                 BrowserSpaceAppearanceHero(
                                     branding: branding.wrappedValue, symbol: symbol.wrappedValue,
-                                    name: draft.customization.resolvedName,
-                                    editableName: model.nameBinding(for: draft.id, plan: $plan), showsNameHint: true,
-                                    spacePicker: spacePicker(for: draft.id)
+                                    name: draft.shownName,
+                                    editableName: setup.nameBinding(for: draft.spaceID), showsNameHint: true,
+                                    spacePicker: spacePicker(for: draft.spaceID)
                                 )
                                 .frame(width: min(280, geometry.size.width * 0.30), height: 440)
                             }
@@ -59,10 +59,10 @@ struct BrowserSpaceSetupWizard: View {
                                     if !wide {
                                         BrowserSpaceAppearanceHero(
                                             branding: branding.wrappedValue, symbol: symbol.wrappedValue,
-                                            name: draft.customization.resolvedName, compact: true,
-                                            editableName: model.nameBinding(for: draft.id, plan: $plan),
+                                            name: draft.shownName, compact: true,
+                                            editableName: setup.nameBinding(for: draft.spaceID),
                                             showsNameHint: true,
-                                            spacePicker: spacePicker(for: draft.id)
+                                            spacePicker: spacePicker(for: draft.spaceID)
                                         )
                                         .frame(height: 192)
                                     }
@@ -97,18 +97,16 @@ struct BrowserSpaceSetupWizard: View {
                 Rectangle().fill(BrowserOnboardingPalette.parchment)
                 if let draft {
                     RadialGradient(
-                        colors: [draft.customization.branding.secondaryColor.color.opacity(0.12), .clear],
+                        colors: [
+                            BrowserSpaceBranding(look: draft.customization.branding).secondaryColor.color.opacity(0.12),
+                            .clear,
+                        ],
                         center: .init(x: 0.22, y: 0.48), startRadius: 0, endRadius: 500)
                 }
             }
         }
-        .onAppear {
-            if plan.spaces.isEmpty { addSpace() }
-            model.repairSelection(plan: plan, selectedSpaceID: $selectedSpaceID)
-        }
-        .onChange(of: plan.spaces.map(\.id)) { _, _ in
-            model.repairSelection(plan: plan, selectedSpaceID: $selectedSpaceID)
-        }
+        .onAppear { setup.repairSelection($selectedSpaceID) }
+        .onChange(of: setup.spaces.map(\.spaceID)) { _, _ in setup.repairSelection($selectedSpaceID) }
     }
 
     private var chromeBackground: Color {
@@ -146,27 +144,28 @@ struct BrowserSpaceSetupWizard: View {
     }
 
     @ViewBuilder private func page(
-        draft: BrowserManualSetupSpaceDraft, branding: Binding<BrowserSpaceBranding>,
+        draft: SetupDraftSpace, branding: Binding<BrowserSpaceBranding>,
         symbol: Binding<String>, compact: Bool
     ) -> some View {
         switch step {
         case .appearance:
             BrowserSpaceBrandingEditor(branding: branding, symbol: symbol, compact: compact, showsPreview: false)
-                .id(draft.id)
+                .id(draft.spaceID)
         case .ready:
             VStack(alignment: .leading, spacing: 20) {
                 Text("Your Spaces are ready").font(CrestTypography.display(36))
                 Text("Review your Spaces or add another before opening Crest.")
                     .foregroundStyle(.secondary)
-                ForEach(plan.spaces) { space in
+                ForEach(setup.spaces, id: \.spaceID) { space in
                     Button {
-                        selectedSpaceID = space.id
+                        selectedSpaceID = space.spaceID
                         step = .appearance
                     } label: {
                         HStack(spacing: 16) {
                             BrowserSpaceEditorIdentityPreview(
-                                branding: space.customization.branding, symbol: space.customization.symbol, size: 44)
-                            Text(space.customization.resolvedName).font(.headline)
+                                branding: BrowserSpaceBranding(look: space.customization.branding),
+                                symbol: space.customization.symbol, size: 44)
+                            Text(space.shownName).font(.headline)
                             Spacer()
                             Text("Edit").foregroundStyle(.secondary)
                             Image(systemName: "chevron.forward").foregroundStyle(.secondary)
@@ -177,7 +176,7 @@ struct BrowserSpaceSetupWizard: View {
                     .buttonStyle(.plain)
                     .contextMenu {
                         if space.isNew {
-                            Button("Remove Space", role: .destructive) { model.removeSpace(space.id, plan: $plan) }
+                            Button("Remove Space", role: .destructive) { setup.removeSpace(space.spaceID) }
                         }
                     }
                 }
@@ -203,7 +202,7 @@ struct BrowserSpaceSetupWizard: View {
 
     private var footer: some View {
         VStack(spacing: 8) {
-            if let message = errorMessage ?? model.errorMessage {
+            if let message = errorMessage ?? setup.errorMessage {
                 Text(message).foregroundStyle(.red).font(.callout)
             }
             HStack {
@@ -243,18 +242,19 @@ struct BrowserSpaceSetupWizard: View {
     }
 
     private func addSpace() {
-        model.addSpace(plan: $plan, selectedSpaceID: $selectedSpaceID)
+        if let added = setup.addSpace() { selectedSpaceID = added }
         step = .appearance
     }
 
     private func spacePicker(for spaceID: SpaceID) -> BrowserSpaceCustomizationPicker {
         BrowserSpaceCustomizationPicker(
-            spaces: plan.spaces.map { model.previewSpace(for: $0, in: nil) },
+            spaces: setup.previewSpaces,
             selectedSpaceID: spaceID,
             selectSpace: {
-                model.select($0, selectedSpaceID: $selectedSpaceID)
+                selectedSpaceID = $0
+                setup.errorMessage = nil
                 step = .appearance
             },
-            moveSpace: { plan.moveSpace($0, to: $1) }, addSpace: addSpace)
+            moveSpace: { setup.moveSpace($0, to: $1) }, addSpace: addSpace)
     }
 }

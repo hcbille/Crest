@@ -19,7 +19,9 @@ final class BrowserOnboardingFlow {
             reviewPreviewCache = nil
         }
     }
-    private(set) var manualPlan: BrowserManualSetupPlan?
+    /// The manual setup the core holds for this device, which the flow
+    /// starts, and applies when setup finishes.
+    let manualSetup: BrowserManualSetupModel
     private(set) var passwordCountsBySourceSpace: [SpaceID: Int] = [:]
     private(set) var currentImportPayload: BrowserDetectedImportPayload?
     private(set) var failure: BrowserOnboardingFailure?
@@ -59,7 +61,7 @@ final class BrowserOnboardingFlow {
 
     var nextImportStep: BrowserOnboardingStep {
         if plan != nil { return .review }
-        if manualPlan != nil { return .manualSetup }
+        if manualSetup.draft != nil { return .manualSetup }
         return .importBrowser
     }
 
@@ -96,13 +98,24 @@ final class BrowserOnboardingFlow {
         importReadCoordinator = BrowserOnboardingImportReadCoordinator(
             reader: importReader ?? LiveBrowserOnboardingImportReader(core: browser.core)
         )
-
-        let initialManualPlan =
-            request.entryPoint == .manualSetup
-            ? BrowserManualSetupPlan(existing: browser.session)
-            : nil
-        manualPlan = initialManualPlan
+        manualSetup = BrowserManualSetupModel(core: browser.core)
         state = Self.initialState(for: request.entryPoint)
+    }
+
+    /// Starts the manual setup a manual-setup request opens on, over the
+    /// workspace as it is now; any other request starts without one. The
+    /// window calls this once it appears, since a view may build the flow
+    /// more than once.
+    func start() {
+        startManualSetup(for: request)
+    }
+
+    private func startManualSetup(for request: BrowserOnboardingRequest) {
+        if request.entryPoint == .manualSetup {
+            manualSetup.begin(workspaceID: browser.family.workspaceID, startsOver: true)
+        } else {
+            manualSetup.discard()
+        }
     }
 
     func discoverInstalledSources() {
@@ -130,11 +143,7 @@ final class BrowserOnboardingFlow {
         failure = nil
         completionSummary = nil
         completionFailure = nil
-
-        manualPlan =
-            request.entryPoint == .manualSetup
-            ? BrowserManualSetupPlan(existing: browser.session)
-            : nil
+        startManualSetup(for: request)
         state = Self.initialState(for: request.entryPoint)
     }
 
@@ -162,13 +171,14 @@ final class BrowserOnboardingFlow {
         let generation = operationGeneration
         let request = self.request
         let browser = self.browser
-        let pendingPlan = step == .manualSetup ? manualPlan : nil
+        let appliesManualSetup = step == .manualSetup && manualSetup.draft != nil
+        let newSpaceCount = manualSetup.spaces.filter(\.isNew).count
         isCompletingSetup = true
         completionFailure = nil
         completionTask = Task { @MainActor [weak self] in
             let result = await BrowserOnboardingCompletion.complete(
                 request: request, browser: browser, progress: progress, spaceAccess: spaceAccess,
-                manualPlan: pendingPlan)
+                appliesManualSetup: appliesManualSetup)
             guard let self, !Task.isCancelled,
                 operationGeneration == generation, self.request == request
             else { return }
@@ -176,7 +186,7 @@ final class BrowserOnboardingFlow {
             isCompletingSetup = false
             switch result {
             case .completed:
-                if let pendingPlan { finishManualSetup(pendingPlan) }
+                if appliesManualSetup { finishManualSetup(newSpaceCount: newSpaceCount) }
                 onCompleted()
             case .cancelled:
                 break
@@ -267,11 +277,11 @@ final class BrowserOnboardingFlow {
         prepareManualSetup()
     }
 
+    /// Goes on with the manual setup the core holds, following Spaces changed
+    /// meanwhile, or starts one.
     private func prepareManualSetup() {
         importReadCoordinator.cancel()
-        var updated = manualPlan ?? BrowserManualSetupPlan(existing: browser.session)
-        updated.reconcile(with: browser.session)
-        manualPlan = updated
+        manualSetup.begin(workspaceID: browser.family.workspaceID, startsOver: false)
         failure = nil
         state = .manualSetup
     }
@@ -279,10 +289,6 @@ final class BrowserOnboardingFlow {
     func updatePlan(_ plan: BrowserImportReviewPlan) {
         guard !isCommittingImport else { return }
         self.plan = plan
-    }
-
-    func updateManualPlan(_ plan: BrowserManualSetupPlan) {
-        manualPlan = plan
     }
 
     func setDestination(
@@ -342,12 +348,9 @@ final class BrowserOnboardingFlow {
         plan = updated
     }
 
-    private func finishManualSetup(_ manualPlan: BrowserManualSetupPlan) {
+    private func finishManualSetup(newSpaceCount: Int) {
         completionSummary = BrowserOnboardingSummary.completedManualSetup(
-            newSpaceCount: manualPlan.spaces.filter(\.isNew).count,
-            addedTabCount: manualPlan.spaces.reduce(0) { $0 + $1.addedTabs.count }
-        )
-        self.manualPlan = nil
+            newSpaceCount: newSpaceCount, addedTabCount: 0)
         plan = nil
         failure = nil
         state = .complete
