@@ -8,14 +8,13 @@ import Foundation
 /// the payload itself therefore hashes and memcmps a whole image buffer on every
 /// update; an identity that samples a few fixed offsets is constant work but can
 /// alias two genuinely different icons. Neither is acceptable, so the work happens
-/// exactly once, where the payload is stored: `BrowserTab` fingerprints its favicon
-/// when the bytes are assigned, and the render path compares digests for the rest
+/// exactly once, where the payload is stored: `FaviconAssets` fingerprints a tab's
+/// image when the bytes are set, and the render path compares digests for the rest
 /// of the payload's life.
 ///
 /// The digest reads every byte exactly once and carries the payload's length in its
 /// own padding, so distinct icons cannot alias and no separate byte count is needed.
-/// It is never stored or synchronized: `BrowserTab` leaves it out of its coding keys
-/// and recomputes it whenever the bytes are assigned.
+/// It is never stored or synchronized: it is recomputed whenever the bytes are set.
 struct BrowserFaviconPayloadIdentity: Hashable, Sendable {
     private let digest: SHA256Digest
 

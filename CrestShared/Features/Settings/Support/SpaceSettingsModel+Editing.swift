@@ -2,7 +2,7 @@ import Foundation
 
 /// A Space's settings as the settings panes edit them: the Swift preference
 /// values the panes bind their controls to, read from what the core published.
-/// TRANSITIONAL until S6.7 retires the Swift preference values.
+/// TRANSITIONAL until the settings panes bind `SpaceSettings` directly.
 extension SpaceSettingsModel {
     // MARK: - Variables
 

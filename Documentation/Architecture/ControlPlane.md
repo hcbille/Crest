@@ -142,15 +142,15 @@ before it is announced (`BrowserStoreFirstObservable`), so a view rendering
 during an announcement reads the new value. A generator check refuses views
 that read a whole read-model list's `.values`.
 
-Views read the read model directly. `BrowserStore` is the per-window facade
-that sends intents and answers what a window shows; apart from the copy below,
-it holds no browser state of its own.
+Views, engine glue and page hosts read the read model directly. `BrowserStore`
+is the per-window facade that sends intents and answers what a window shows;
+it holds no browser state of its own. Tests and previews build sessions as
+typed seeds (`SessionState.Seed`) and read them back from the read model.
 
-TRANSITIONAL until P4.6 deletes it: each attached workspace still has
-a Swift session copy (`BrowserSession`, kept in `CoreState.sessionCopies`)
-that the session changes update. Engine glue, the page pools and a shrinking
-set of tests read it. No view reads it. `BrowserSession+CoreSeed.swift` maps
-the copy's values to seeds for the tests that still build one.
+TRANSITIONAL until the windows follow navigation commits instead: after each
+batch, `CrestCore` tells the windows over every workspace whose session the
+batch changed (`followSessions`). They then reconcile their pages and, for the
+session the core keeps in its file, the favicon store.
 
 ## State the core keeps
 
@@ -421,15 +421,15 @@ its runtime store; each iPhone or iPad scene has its own. When the core moves
 a page to another engine, the page takes the new engine's adapter and view in
 place, so its tab, lease and window keep it. WebKit's binding builds a page
 the core moved to WebKit from the inputs the page's owner keeps, and hands it
-over before the core loads it.
+over before the core loads it. What a page owner does beyond that is shared
+too (`BrowserPageOwner`): `BrowserPagePool` (Mac) and `MobileBrowserPageStore`
+(iPhone and iPad) keep only presentation and each platform's own commands.
 
 TRANSITIONAL:
 
 - The page's owner still supplies `WebKitPageInputs`, the profile's website
   data store and the Space's content rules, which the platform's content
   blocking compiles. The binding does not own them yet.
-- `BrowserPagePool` (Mac) and `MobileBrowserPageStore` (iPhone and iPad) still
-  hold presentation and each platform's commands beside the shared host.
 - A WebKit page the core unloads hands it no restore state; its owner archives
   WebKit's interaction state itself.
 

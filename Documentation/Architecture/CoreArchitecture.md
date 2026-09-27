@@ -110,8 +110,8 @@ for `EnginePage` lists every direct engine call.
    at boundaries. Inside the core, methods take the objects themselves
    (`window.Show(space, tab)`), not their identifiers. Crest does not wrap a
    GUID in a type just to name it. The Swift `TabID`, `SpaceID`, `FolderID`,
-   `SplitGroupID` and `BrowserWindowID` wrappers retire with the Swift session
-   copy.
+   `SplitGroupID` and `BrowserWindowID` wrappers retire next, now that the
+   Swift session copy is gone.
 5. A wrapper type is justified only when it carries behavior or an invariant,
    as `SiteOrigin` does with normalization. A record whose constructor
    normalizes its fields is marked `[NormalizedOnConstruction]`. Swift receives
@@ -325,7 +325,8 @@ remains, and the existing commands run through the typed API.
 - The device store holds windows and selection, with a one-time migration from
   `BrowserWindowState`.
 - The Swift session copy, the per-command rebuild and apply code, the 87
-  `persist(` calls and `TransactionalSessionPersistence` go.
+  `persist(` calls and `TransactionalSessionPersistence` go. Done: Swift keeps
+  only the read model, and tests build sessions as typed seeds.
 
 Done when Swift holds only the generated read model and durable saves run off
 the main thread.

@@ -408,23 +408,6 @@ final class BrowserCredentialFormTests: XCTestCase {
         XCTAssertEqual(pageValues["password"] as? String, "filled-shadow-secret")
     }
 
-    func testOlderSessionsDecodeWithSafeCredentialPreferenceDefaults() throws {
-        let encoded = try JSONEncoder().encode(BrowserSession.preview)
-        var root = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-        var spaces = try XCTUnwrap(root["spaces"] as? [[String: Any]])
-        for index in spaces.indices {
-            spaces[index]["credentialPreferences"] = nil
-        }
-        root["spaces"] = spaces
-        let legacyData = try JSONSerialization.data(withJSONObject: root)
-        let decoded = try JSONDecoder().decode(BrowserSession.self, from: legacyData)
-
-        XCTAssertTrue(
-            decoded.spaces.allSatisfy {
-                $0.credentialPreferences == .default
-            })
-    }
-
     private func credentialBridgeWebView(
         html: String,
         receive: @escaping @MainActor (WKScriptMessage) -> Void = { _ in }

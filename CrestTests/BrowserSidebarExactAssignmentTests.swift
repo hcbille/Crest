@@ -70,8 +70,8 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             )
         )
         XCTAssertTrue(
-            try XCTUnwrap(context.store.session.space(id: context.source.id))
-                .contains(context.sourceTab.id)
+            try XCTUnwrap(context.store.spaceModel(context.source.id))
+                .tabs.contains(context.sourceTab.id)
         )
     }
 
@@ -88,8 +88,8 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             )
         )
         XCTAssertNil(
-            try XCTUnwrap(context.store.session.space(id: context.source.id))
-                .tabs.first(where: { $0.id == context.sourceTab.id })?
+            try XCTUnwrap(context.store.spaceModel(context.source.id))
+                .tabs.model(context.sourceTab.id)?
                 .customTitle
         )
     }
@@ -198,14 +198,14 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             )
         )
         let movedTab = try XCTUnwrap(
-            context.store.session.space(id: context.destination.id)?
-                .tabs.first(where: { $0.id == context.sourceTab.id })
+            context.store.spaceModel(context.destination.id)?
+                .tabs.model(context.sourceTab.id)
         )
         XCTAssertEqual(movedTab.placement, .saved)
         XCTAssertEqual(movedTab.folderID, folderID)
         XCTAssertFalse(
-            try XCTUnwrap(context.store.session.space(id: context.source.id))
-                .contains(context.sourceTab.id)
+            try XCTUnwrap(context.store.spaceModel(context.source.id))
+                .tabs.contains(context.sourceTab.id)
         )
     }
 
@@ -233,8 +233,8 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             )
         )
         XCTAssertTrue(
-            try XCTUnwrap(context.store.session.space(id: context.source.id))
-                .folders.contains(where: { $0.id == folderID })
+            try XCTUnwrap(context.store.spaceModel(context.source.id))
+                .folders.contains(folderID)
         )
     }
 
@@ -302,8 +302,8 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             )
         )
         XCTAssertEqual(
-            context.store.session.space(id: context.source.id)?
-                .folders.first(where: { $0.id == movedFolderID })?
+            context.store.spaceModel(context.source.id)?
+                .folders.model(movedFolderID)?
                 .parentID,
             nil
         )
@@ -344,7 +344,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             )
         )
         XCTAssertEqual(
-            context.store.session.space(id: context.source.id)?.history.count,
+            context.store.spaceModel(context.source.id)?.history.entries.count,
             1
         )
     }
@@ -380,7 +380,7 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
             )
         )
         XCTAssertEqual(
-            context.store.session.space(id: context.source.id)?.history.count,
+            context.store.spaceModel(context.source.id)?.history.entries.count,
             1
         )
     }
@@ -463,12 +463,12 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
         line: UInt = #line
     ) {
         XCTAssertTrue(
-            store.session.space(id: sourceID)?.contains(tabID) == true,
+            store.spaceModel(sourceID)?.tabs.contains(tabID) == true,
             file: file,
             line: line
         )
         XCTAssertFalse(
-            store.session.space(id: destinationID)?.contains(tabID) == true,
+            store.spaceModel(destinationID)?.tabs.contains(tabID) == true,
             file: file,
             line: line
         )

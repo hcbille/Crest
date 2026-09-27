@@ -585,51 +585,7 @@ final class MobileBrowserNavigationTests: XCTestCase {
         XCTAssertEqual(navigation.regularSidebarPresentation, .docked)
     }
 
-    // MARK: - Toolbar swipe routing
-
     // MARK: - Split fixtures
-
-    private func makeSplitFixture(
-        selectedIndex: Int
-    ) -> (space: SpaceState.Seed, members: [TabState.Seed]) {
-        let groupID = fixedUUID(0x6000)
-        let members = (0..<3).map { index in
-            TabState.Seed(
-                id: fixedUUID(0x6100 + index),
-                title: "Card \(index)",
-                url: URL(string: "https://cards.crest.test/\(index)"),
-                placement: .current,
-                splitGroupID: groupID
-            )
-        }
-        let space = SpaceState.Seed(
-            id: fixedUUID(0x6200),
-            profileID: fixedUUID(0x6300),
-            name: "Split",
-            symbol: "rectangle.split.2x1",
-            accent: .indigo,
-            folders: [],
-            tabs: members
-        )
-        return (space, members)
-    }
-
-    private func makeSplitBrowser(
-        _ split: (space: SpaceState.Seed, members: [TabState.Seed])
-    ) throws -> BrowserStore {
-        let browser = BrowserStore.hostingPages(
-            SessionState.Seed(spaces: [split.space]),
-            showing: split.space.id,
-            tabs: shownTabs(in: [split.space])
-        )
-        let space = try XCTUnwrap(browser.shownSpace)
-        XCTAssertEqual(
-            space.shownSplit(containing: split.members[0].id),
-            split.members[0].splitGroupID,
-            "The fixture must survive repair as one renderable run."
-        )
-        return browser
-    }
 
     private func makeModel(
         browser: BrowserStore,
@@ -1463,26 +1419,5 @@ private final class RecordingMobileWebsiteDataStoreRemover:
 
     func removeProfile(_ profile: BrowsingProfile, ephemeral: Bool) async throws {
         removedProfileIDs.append(profile.id)
-    }
-}
-
-private struct MobileChromeContinuityShell: View {
-    let page: MobileBrowserPage
-    let space: SpaceModel?
-    var appearance = BrowserChromeAppearance()
-    var direction = LayoutDirection.leftToRight
-
-    var body: some View {
-        MobileRegularBrowserLayout(
-            layout: MobileRegularWindowLayoutPolicy.resolve(availableWidth: 1200, preferredSidebarWidth: 320),
-            sidebarPresentation: .docked, preferredSidebarWidth: .constant(320), reduceTransparency: true,
-            layoutDirection: direction, space: space, showSidebar: {}, commitSidebarWidth: { _ in },
-            sidebar: Color.clear,
-            detail: MobileBrowserWebView(page: page)
-                .padding(appearance.pageInsets(docked: true, direction: direction))
-        )
-        .environment(\.browserChromeAppearance, appearance)
-        .transaction { $0.disablesAnimations = true }
-        .environment(\.layoutDirection, direction)
     }
 }

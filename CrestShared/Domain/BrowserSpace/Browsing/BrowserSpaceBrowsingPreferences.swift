@@ -45,8 +45,8 @@ struct BrowserSpaceBrowsingPreferences: Codable, Equatable, Sendable {
         }
     }
 
-    /// TRANSITIONAL until S6.7 retires the Swift session copy: the preferences
-    /// the core publishes, read the way the decoder reads its stored form.
+    /// TRANSITIONAL until the settings panes bind `SpaceSettings`: the
+    /// preferences the core publishes, read the way it reads its stored form.
     init(core preferences: BrowsingPreferences) {
         selectedSearchProviderID =
             preferences.selectedCustomEngineID.map { SearchProvider.customPrefix + $0.coreIdentifier }

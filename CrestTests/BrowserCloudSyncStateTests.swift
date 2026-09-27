@@ -54,7 +54,7 @@ final class BrowserCloudSyncStateTests: XCTestCase {
     /// until a full snapshot is applied.
     @MainActor
     func testFailedMergeSurvivesRestartUntilAFullSnapshotIsApplied() async throws {
-        let harness = try BrowserStoredSessionHarness(session: .preview)
+        let harness = try BrowserStoredSessionHarness(seed: .preview)
         await harness.store.flushPendingSyncPersistence()
         try harness.core.transport(
             OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: nil))

@@ -20,15 +20,15 @@ final class BrowserSpaceOrderActionsTests: XCTestCase {
         browser.moveSpaces(from: IndexSet(integer: 0), to: session.spaces.count)
         actions.moveUp()
 
-        XCTAssertEqual(browser.session.spaces.map(\.id), [originalSpaces[1].id, movedID, originalSpaces[2].id])
+        XCTAssertEqual(browser.spaceModels.map(\.id), [originalSpaces[1].id, movedID, originalSpaces[2].id])
         XCTAssertEqual(browser.selectedSpaceID, shownSpaceID)
-        XCTAssertEqual(browser.session.defaultSpaceID, session.defaultSpaceID)
+        XCTAssertEqual(browser.workspaceModel?.defaultSpaceID, session.defaultSpaceID)
         for original in opened {
             XCTAssertEqual(browser.spaceModel(original.id)?.value, original)
         }
 
         actions.moveDown()
-        XCTAssertEqual(browser.session.spaces.last?.id, movedID)
+        XCTAssertEqual(browser.spaceModels.last?.id, movedID)
         XCTAssertFalse(actions.canMoveDown)
         let revision = browser.sessionRevision
         actions.moveDown()

@@ -1,34 +1,26 @@
 import Foundation
 import Observation
 
-/// One workspace the core opened for a store family, and the Swift copy of
-/// its session. `projection` is that copy, with native favicon assets; only
-/// the session changes the core publishes update it (see
-/// `BrowserCoreSessionBridge.swift`), so it can never show an unaccepted edit.
-/// It holds browsing data only. What each window shows is the core device's:
-/// an intent names the window that issued it, and the device moves that
-/// window when the intent commits and repairs the others. Nothing here names
-/// a revision.
+/// One workspace the core opened for a store family. It holds no browsing
+/// data: the read model holds the workspace's session, and only the session
+/// changes the core publishes update it, so it can never show an unaccepted
+/// edit. What each window shows is the core device's: an intent names the
+/// window that issued it, and the device moves that window when the intent
+/// commits and repairs the others.
 ///
 /// The core opens the workspace (`OpenWorkspace`, `BorrowSpace`), gives it its
 /// identity and closes it (`CloseWorkspace`). Whoever owns the family closes
-/// it when its windows go; a workspace no one closed closes once this copy is
-/// gone.
+/// it when its windows go; a workspace no one closed closes once this
+/// authority is gone.
 @Observable @MainActor
 final class BrowserCoreSessionAuthority {
-    // MARK: - Types
-
-    /// The images the issuer of a command holds, which `FaviconAssets` places
-    /// while the core's changes for the command are applied.
-    typealias OfferedImages = FaviconAssets.Offer
-
     // MARK: - Variables
 
-    private(set) var projection: BrowserSession
     /// Whether the core still holds the workspace open. It closes when this
-    /// copy closes it, when the workspace it borrows from closes or stops
-    /// lending its Space, and when the core closes it for any other reason.
-    private(set) var isOpen = true
+    /// authority closes it, when the workspace it borrows from closes or
+    /// stops lending its Space, and when the core closes it for any other
+    /// reason.
+    var isOpen: Bool { device?.state.workspaces[workspaceID] != nil }
     /// The workspace the core gave the session, which every change to it names.
     let workspaceID: UUID
     /// The core whose device shows this session in its windows.
@@ -36,15 +28,10 @@ final class BrowserCoreSessionAuthority {
 
     // MARK: - Initializers
 
-    /// The workspace `opened` announced, whose changes reach this copy from
-    /// then on. Its tabs wear the images `core` holds for them, so a caller
-    /// that brings images of its own adopts them first.
+    /// The workspace `opened` announced.
     private init(opened: WorkspaceOpened, core: CrestCore) {
         workspaceID = opened.workspaceID
         device = core
-        let images = core.state.favicons
-        projection = BrowserSession(core: opened.session, image: { images.image(of: $0) })
-        core.state.register(self, for: opened.workspaceID)
     }
 
     /// A workspace no one closed closes on the main queue's next turn, never
@@ -74,22 +61,6 @@ final class BrowserCoreSessionAuthority {
             var placed = images
             for (space, seeded) in zip(opened.spaces, seed.spaces) {
                 for (tab, source) in zip(space.tabs, seeded.tabs) { placed[tab.id] = images[source.id] }
-            }
-            return placed
-        }
-    }
-
-    /// TRANSITIONAL until the tests, previews and fixtures that still build
-    /// the session copy's values seed with `SessionState.Seed`: opens a
-    /// workspace over `session`, whose tabs each wear the image the tab in its
-    /// place carries, even where two of its tabs share an identity.
-    static func open(_ kind: WorkspaceKind, session: BrowserSession, in core: CrestCore) throws
-        -> BrowserCoreSessionAuthority
-    {
-        try open(kind, seed: session.seed, in: core) { opened in
-            var placed = OfferedImages(placedFrom: session).placed
-            for (space, seeded) in zip(opened.spaces, session.spaces) {
-                for (tab, source) in zip(space.tabs, seeded.tabs) { placed[tab.id] = source.faviconData }
             }
             return placed
         }
@@ -154,40 +125,5 @@ final class BrowserCoreSessionAuthority {
     func close() {
         guard isOpen else { return }
         _ = try? device?.send(CloseWorkspace(workspaceID: workspaceID))
-        isOpen = false
-    }
-
-    // MARK: - Actions - Changes
-
-    /// TRANSITIONAL until S6.7: one session change the core published for this
-    /// workspace. See `BrowserSession.apply(_:images:)`.
-    func receive(_ change: Change, images: FaviconAssets) {
-        if case .workspaceClosed = change { isOpen = false }
-        projection.apply(change, images: images)
-    }
-
-    // MARK: - Actions - Seeds
-
-    private nonisolated static func compactTab(_ source: BrowserTab) -> BrowserTab {
-        var tab = source
-        tab.faviconData = nil
-        return tab
-    }
-
-    private nonisolated static func compactArchive(_ source: ArchivedTab) -> ArchivedTab {
-        var entry = source
-        entry.tab.faviconData = nil
-        return entry
-    }
-
-    /// `source` without the images its tabs wear, which stay native assets,
-    /// as a seed or a sync stage carries it.
-    nonisolated static func compact(_ source: BrowserSession) -> BrowserSession {
-        var session = source
-        for index in session.spaces.indices {
-            session.spaces[index].tabs = session.spaces[index].tabs.map(compactTab)
-            session.spaces[index].archivedTabs = session.spaces[index].archivedTabs.map(compactArchive)
-        }
-        return session
     }
 }

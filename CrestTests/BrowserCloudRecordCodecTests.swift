@@ -13,10 +13,10 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
     /// them through the CloudKit mapping and uploads them again.
     @MainActor
     func testAdditiveCloudPayloadSurvivesCoreEditAndUpload() async throws {
-        let session = BrowserSession.preview
-        let sender = try BrowserStoredSessionHarness(session: session)
+        let session = SessionState.Seed.preview
+        let sender = try BrowserStoredSessionHarness(seed: session)
         await sender.store.flushPendingSyncPersistence()
-        let receiver = try BrowserStoredSessionHarness(session: session)
+        let receiver = try BrowserStoredSessionHarness(seed: session)
         await receiver.store.flushPendingSyncPersistence()
         let codec = BrowserCloudRecordCodec()
         let space = SyncRecordReference(kind: .space, id: session.spaces[0].id)
@@ -39,8 +39,8 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
 
         try receiver.deliverNow(MergeSyncRecords(records: [try XCTUnwrap(codec.syncRecord(from: cloud))]))
         receiver.store.updateSpaceIdentity(
-            session.spaces[0].id, name: "Renamed by the older client", symbol: session.spaces[0].symbol,
-            accent: session.spaces[0].accent)
+            session.spaces[0].id, name: "Renamed by the older client", symbol: session.spaces[0].settings.symbol,
+            accent: session.spaces[0].settings.accent)
         await receiver.store.flushPendingSyncPersistence()
 
         let saved = try XCTUnwrap(try receiver.core.query(RecordsToUpload(records: [space])).records.first)
@@ -57,11 +57,11 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
 
     @MainActor
     func testFullSpaceCustomizationSyncsBetweenStoresAndSurvivesReload() async throws {
-        let session = BrowserSession.preview
+        let session = SessionState.Seed.preview
         let spaceID = session.spaces[0].id
-        let senderHarness = try BrowserStoredSessionHarness(session: session)
+        let senderHarness = try BrowserStoredSessionHarness(seed: session)
         await senderHarness.store.flushPendingSyncPersistence()
-        let receiverHarness = try BrowserStoredSessionHarness(session: session)
+        let receiverHarness = try BrowserStoredSessionHarness(seed: session)
         let sender = senderHarness.store
         let receiver = receiverHarness.store
         let codec = BrowserCloudRecordCodec()
@@ -71,6 +71,10 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
         }
         func waiting(_ harness: BrowserStoredSessionHarness) throws -> [SyncRecord] {
             try harness.core.query(RecordsToUpload(records: harness.core.query(PendingUploads()).records)).records
+        }
+        // The look a store's Space wears, in the vocabulary the views draw.
+        func look(in store: BrowserStore) -> BrowserSpaceBranding? {
+            store.spaceModel(spaceID).map { BrowserSpaceBranding(look: $0.settings.look) }
         }
         try receiverHarness.deliverNow(MergeSyncRecords(records: throughCloud(waiting(senderHarness))))
         try senderHarness.acknowledgePendingUploads()
@@ -103,16 +107,16 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
             try receiverHarness.deliverNow(MergeSyncRecords(records: throughCloud(pending)))
             try senderHarness.acknowledgePendingUploads()
 
-            let expected = try XCTUnwrap(sender.session.space(id: spaceID)?.branding)
-            XCTAssertEqual(receiver.session.space(id: spaceID)?.branding, expected, "Charge: \(charge)")
-            let reloaded = try JSONDecoder().decode(
-                BrowserSession.self, from: JSONEncoder().encode(receiver.session))
-            XCTAssertEqual(reloaded.space(id: spaceID)?.branding, expected)
-            XCTAssertEqual(reloaded.space(id: spaceID)?.profile.id, session.spaces[0].profile.id)
+            let expected = try XCTUnwrap(look(in: sender))
+            XCTAssertEqual(look(in: receiver), expected, "Charge: \(charge)")
+            await receiver.flushPendingSyncPersistence()
+            let reloaded = try XCTUnwrap(try receiverHarness.stored().session.space(id: spaceID))
+            XCTAssertEqual(reloaded.settings, receiver.spaceModel(spaceID)?.value.seed.settings)
+            XCTAssertEqual(reloaded.profileID, session.spaces[0].profileID)
         }
 
         // Editing on the receiving device must produce a fresh Space record too.
-        var returnedBranding = try XCTUnwrap(receiver.session.space(id: spaceID)?.branding)
+        var returnedBranding = try XCTUnwrap(look(in: receiver))
         returnedBranding.iconStyle = .simpleSymbol
         returnedBranding.symbolColor = .gold
         returnedBranding.crest.palette = nil
@@ -121,10 +125,10 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
         receiver.updateSpaceBranding(returnedBranding, in: spaceID)
         await receiver.flushPendingSyncPersistence()
         try senderHarness.deliverNow(MergeSyncRecords(records: throughCloud(waiting(receiverHarness))))
-        XCTAssertEqual(sender.session.space(id: spaceID)?.branding, returnedBranding.normalized())
-        XCTAssertEqual(sender.session.space(id: spaceID)?.name, "Garden")
-        XCTAssertEqual(sender.session.space(id: spaceID)?.symbol, "leaf.fill")
-        XCTAssertEqual(sender.session.space(id: spaceID)?.accent, .teal)
+        XCTAssertEqual(look(in: sender), returnedBranding.normalized())
+        XCTAssertEqual(sender.spaceModel(spaceID)?.settings.name, "Garden")
+        XCTAssertEqual(sender.spaceModel(spaceID)?.settings.symbol, "leaf.fill")
+        XCTAssertEqual(sender.spaceModel(spaceID)?.settings.accent, .teal)
     }
 
     func testRecordsMapToCloudKitFieldsAndBackWithTheirBytes() throws {

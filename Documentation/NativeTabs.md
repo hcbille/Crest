@@ -1,6 +1,6 @@
 # Native tab content
 
-A native tab is a `BrowserTab` with a `BrowserNativeTabContent` descriptor. It uses the existing session, Space/profile assignment, Saved and Current placement, folders, split group membership, selection, archive, duplication, and persistence paths. It does not have a website URL or a second tab collection.
+A native tab is a tab (`TabState`) with a native content descriptor (`NativeTabContent`, drawn as `BrowserNativeTabContent`). It uses the existing session, Space/profile assignment, Saved and Current placement, folders, split group membership, selection, archive, duplication, and persistence paths. It does not have a website URL or a second tab collection.
 
 `BrowserNativeTabHost` resolves the descriptor into a SwiftUI view inside the same card surface used by single pages and Split View. Layout and focus remain owned by the surrounding browser. The host receives a captured tab/Space/profile assignment. Outbound links pass through `BrowserNativeTabActions`, which checks that assignment, the current descriptor, and access to the Space before opening a website in a new tab.
 

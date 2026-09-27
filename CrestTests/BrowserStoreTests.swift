@@ -8,7 +8,7 @@ final class BrowserStoreTests: XCTestCase {
 
     func testFreshInstallSeedPersistsButNeverStagesBeforeCloudBootstrap() async throws {
         let harness = try BrowserStoredSessionHarness(
-            session: .firstInstall, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000099")!)
+            seed: nil, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000099")!)
         let store = harness.store
 
         store.openNewTab(
@@ -26,19 +26,19 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testFirstCloudBootstrapReplacesDisposableSeedInsteadOfMergingIt() async throws {
-        let cloudSession = BrowserSession.privateBrowsing()
+        let cloudSession = SessionState.Seed(spaces: [.blank(number: 1)])
         let cloud = try await BrowserStoredSessionHarness.uploaded(
-            cloudSession, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000098")!)
+            seed: cloudSession, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000098")!)
         let cloudRecords = try await cloud.heldRecords()
 
         let harness = try BrowserStoredSessionHarness(
-            session: .firstInstall, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000097")!)
+            seed: nil, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000097")!)
         let store = harness.store
         let seededSpaceIDs = Set(store.spaceModels.map(\.id))
 
         try harness.deliverNow(ReplaceSeedWithCloudRecords(records: cloudRecords))
 
-        XCTAssertFalse(store.session.hasDisposableSeedState)
+        XCTAssertEqual(store.workspaceModel?.isDisposableSeed, false)
         XCTAssertEqual(store.spaceModels.map(\.id), cloudSession.spaces.map(\.id))
         XCTAssertTrue(seededSpaceIDs.isDisjoint(with: store.spaceModels.map(\.id)))
         let held = try harness.storedJournal().records
@@ -49,13 +49,13 @@ final class BrowserStoreTests: XCTestCase {
 
     func testFirstCloudBootstrapClearsDisposableSeedWhenCloudIsEmpty() throws {
         let harness = try BrowserStoredSessionHarness(
-            session: .firstInstall, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000096")!)
+            seed: nil, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000096")!)
         let store = harness.store
         let seededSpaceIDs = Set(store.spaceModels.map(\.id))
 
         try harness.deliverNow(ReplaceSeedWithCloudRecords(records: []))
 
-        XCTAssertFalse(store.session.hasDisposableSeedState)
+        XCTAssertEqual(store.workspaceModel?.isDisposableSeed, false)
         XCTAssertEqual(store.spaceModels.count, 1)
         XCTAssertEqual(store.shownSpace?.settings.name, "Space 1")
         XCTAssertTrue(seededSpaceIDs.isDisjoint(with: store.spaceModels.map(\.id)))
@@ -164,7 +164,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testUpdatingSpaceBrowsingPreferencesPersistsOnlyThatSpacesChoices() async throws {
-        let harness = try await BrowserStoredSessionHarness.uploaded(.preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000010")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000010")!)
         let store = harness.store
         let selectedSpaceID = store.selectedSpaceID
         let otherSpace = try XCTUnwrap(
@@ -190,7 +190,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testNormalStoreMutationStagesAndPersistsTheLocalSyncJournal() async throws {
-        let harness = try await BrowserStoredSessionHarness.uploaded(.preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!)
         let store = harness.store
 
         store.openNewTab(url: try XCTUnwrap(URL(string: "https://example.com/synced")))
@@ -304,7 +304,7 @@ final class BrowserStoreTests: XCTestCase {
     /// showing a tab is an edit the journal stages with the newest session.
     func testRapidSelectionChangesStageTheLatestSession() async throws {
         let harness = try await BrowserStoredSessionHarness.staged(
-            .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!)
+            seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!)
         let store = harness.store
         let tabs = try XCTUnwrap(store.shownSpace).tabs
         let selectableTabs = Array(tabs.models.prefix(3))
@@ -324,7 +324,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testDeletingASpacePurgesCredentialsAndStagesExplicitSyncTombstones() async throws {
-        let harness = try await BrowserStoredSessionHarness.uploaded(.preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000011")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000011")!)
         let store = harness.store
         let vault = try XCTUnwrap(store.credentialVault as? InMemoryCredentialVault)
         let deletedSpace = try XCTUnwrap(store.spaceModels.first)
@@ -391,7 +391,7 @@ final class BrowserStoreTests: XCTestCase {
         XCTAssertEqual(deleter.deletedSpaces, [BrowserSpaceRuntimeAssignment(space: deletedSpace)])
         XCTAssertNotNil(store.spaceModel(deletedSpace.id))
         XCTAssertEqual(store.deletingSpaceIDs, [deletedSpace.id])
-        XCTAssertEqual(store.session.spaceDeletions?.first?.profileID, deletedSpace.profileID)
+        XCTAssertEqual(store.workspaceModel?.spaceDeletions.first?.profileID, deletedSpace.profileID)
         let descriptors = await vault.descriptors(
             in: deletedSpace.id
         )

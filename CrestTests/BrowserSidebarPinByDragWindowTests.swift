@@ -51,7 +51,7 @@ final class BrowserSidebarPinByDragWindowTests: XCTestCase {
         pump(0.4)
 
         let space = try XCTUnwrap(
-            fixture.model.browser.session.space(id: fixture.assignment.spaceID)
+            fixture.model.browser.spaceModel(fixture.assignment.spaceID)
         )
         XCTAssertTrue(
             space.pinnedTabs.contains { $0.title == "Joiner" },

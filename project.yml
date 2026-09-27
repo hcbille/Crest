@@ -243,7 +243,6 @@ targets:
     platform: macOS
     sources:
       - path: CrestTests/BrowserTabStateArchiveTests.swift
-      - path: CrestTests/BrowserSessionRecoveryTests.swift
       - path: CrestTests/BrowserDataRetentionTests.swift
       - path: CrestTests/BrowserWebHostViewTests.swift
       - path: CrestTests/BrowserPageNavigationMarkerTests.swift
@@ -266,10 +265,9 @@ targets:
       - path: CrestTests/Support/BrowserPagePool+Presenting.swift
       - path: CrestTests/Support/BrowserInstalledRelease.swift
       - path: CrestTests/Support/BrowserPrivacyHTTPServer.swift
-      - path: CrestTests/Support/BrowserSession+SidebarOutline.swift
+      - path: CrestTests/Support/BrowserStore+SidebarOutline.swift
       - path: CrestTests/Support/BrowserStore+SidebarDrops.swift
       - path: CrestTests/Support/BrowserStore+Unlocking.swift
-      - path: CrestTests/Support/BrowserSession+Seed.swift
       - path: CrestTests/Support/BrowserStoredSessionHarness.swift
       - path: CrestTests/Support/StoredSyncJournal.swift
     dependencies:

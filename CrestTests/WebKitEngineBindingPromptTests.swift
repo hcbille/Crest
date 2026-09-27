@@ -85,11 +85,9 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
 
     /// A page the core opened on WebKit for a tab of a new window's Space.
     private func openPage() throws -> (BrowserStore, (core: CorePage, webKit: WebKitEnginePage)) {
-        let tab = BrowserTab.startPage()
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Prompts", symbol: "circle", accent: .indigo, folders: [],
-            tabs: [tab])
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let tab = TabState.Seed.startPage()
+        let space = SpaceState.Seed(name: "Prompts", symbol: "circle", accent: .indigo, tabs: [tab])
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let opened = try XCTUnwrap(
             browser.openWebKitPage(in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
         return (browser, opened)

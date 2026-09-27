@@ -8,7 +8,7 @@
         func removeSpaceForTesting(_ spaceID: SpaceID) {
             let operation = UUID()
             let window = windowID
-            guard let profileID = session.space(id: spaceID)?.profile.id else {
+            guard let profileID = spaceModel(spaceID)?.profileID else {
                 preconditionFailure("A test removed a Space the session does not hold.")
             }
             do {
@@ -52,12 +52,10 @@
         /// replacement may still do. The workspace takes imports, so it is a
         /// persistent one.
         func replaceProfileForTesting(of spaceID: SpaceID, with profileID: UUID = UUID()) {
-            guard let copy = session.space(id: spaceID),
-                let space = workspaceModel?.spaces.models.first(where: { $0.id == spaceID })?.value
-            else {
+            guard let space = spaceModel(spaceID)?.value else {
                 preconditionFailure("A test replaced the profile of a Space the session does not hold.")
             }
-            let order = session.spaces.map(\.id)
+            let order = spaceModels.map(\.id)
             let shownSpace = selectedSpaceID
             let shownTab = selectedTabID(in: spaceID)
             let seed = space.seed
@@ -66,21 +64,27 @@
                 splitGroups: seed.splitGroups, archivedTabs: seed.archivedTabs, history: seed.history)
             // A Space is never the last one while it goes.
             let placeholder = SpaceID()
-            if session.spaces.count == 1 {
+            if spaceModels.count == 1 {
                 _ = family.send(
                     CreateSpace(
                         workspaceID: family.workspaceID, windowID: windowID, spaceID: placeholder),
                     from: self)
             }
+            // The tabs it brings back wear the images they wore.
+            var images: [UUID: Data] = [:]
+            for tabID in space.tabs.map(\.id) + space.archivedTabs.map(\.tab.id) {
+                images[tabID] = core.state.favicons.image(of: tabID)
+            }
             removeSpaceForTesting(spaceID)
+            core.state.favicons.offer(FaviconAssets.Offer(imported: [images]), in: family.workspaceID)
+            defer { core.state.favicons.withdrawOffer(in: family.workspaceID) }
             do {
-                try family.importSpaces(
-                    ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: [replacement]),
-                    from: [copy], issuedBy: self)
+                try family.commit(
+                    ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: [replacement]), from: self)
             } catch {
                 preconditionFailure("The core refused to bring a Space back for a test: \(error)")
             }
-            if session.space(id: placeholder) != nil { removeSpaceForTesting(placeholder) }
+            if spaceModel(placeholder) != nil { removeSpaceForTesting(placeholder) }
             family.send(ReorderSpaces(workspaceID: family.workspaceID, spaceIDs: order), from: self)
             selectPresentedSpace(shownSpace)
             if let shownTab { activateSessionTab(shownTab, in: spaceID) }

@@ -62,12 +62,14 @@ engine registration and engine-contributed views by file, and no Swift outside
 `CrestEngines` tests `CREST_CHROMIUM_HOST`.
 
 One shared page host, `BrowserPageHost`, keeps each workspace's pages on the
-Mac, iPhone and iPad. TRANSITIONAL: `BrowserPagePool` and
-`MobileBrowserPageStore` still hold presentation and each platform's commands
-beside it, and still supply WebKit's per-profile stores and content rules.
+Mac, iPhone and iPad, and one shared page owner, `BrowserPageOwner`, does the
+rest of the work both platforms' pages have in common. `BrowserPagePool` and
+`MobileBrowserPageStore` keep only presentation and each platform's own
+commands. TRANSITIONAL: the shared owner still supplies WebKit's per-profile
+stores and content rules.
 
-TRANSITIONAL until P4.6 deletes it: a Swift session copy per workspace still
-feeds engine glue, the page pools and some tests. No view reads it.
+Engine glue, the page hosts and the tests read the core's read model; no Swift
+copy of the session remains.
 
 ## Work packages
 
@@ -120,9 +122,7 @@ Remaining, TRANSITIONAL:
 
 - `CredentialContentBridge.swift` in `CrestShared/Infrastructure/Credentials`
   still imports WebKit to install the WebKit credential bridge.
-- `BrowserPagePool`'s initializer defaults name WebKit types, and `BrowserPage`
-  builds a `BrowserPopupCoordinator`, which imports WebKit, for every page.
-  The transient page lease carries WebKit content-rule lists.
+- The transient page lease carries WebKit content-rule lists.
 - WebKit builds a page the core moved to it from the inputs its owner keeps,
   not from stores and rules of its own.
 - `MobileBrowserPage` stays concretely typed over WebKit.

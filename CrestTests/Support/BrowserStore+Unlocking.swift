@@ -3,14 +3,10 @@ import Foundation
 @testable import Crest
 
 extension BrowserStore {
-    /// Unlocks `space` in the core, as the device owner's authentication does,
-    /// for a test that shows or edits a protected Space. The core keeps every
-    /// protected Space locked until then, whatever the views believe.
-    func unlockForTesting(_ space: BrowserSpace) {
-        unlockForTesting(spaceID: space.id)
-    }
-
-    /// Unlocks the seeded Space `space` as `unlockForTesting(_:)` does.
+    /// Unlocks the seeded Space `space` in the core, as the device owner's
+    /// authentication does, for a test that shows or edits a protected Space.
+    /// The core keeps every protected Space locked until then, whatever the
+    /// views believe.
     func unlockForTesting(_ space: SpaceState.Seed) {
         unlockForTesting(spaceID: space.id)
     }

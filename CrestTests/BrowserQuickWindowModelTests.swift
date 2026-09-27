@@ -377,10 +377,10 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         XCTAssertTrue(model.wasPromoted)
         XCTAssertTrue(context.pages.activePage === promotedPage)
         XCTAssertEqual(context.pages.activePage?.profileID, context.source.profileID)
-        let tabs = context.browser.session.tabIDs
+        let tabs = context.browser.openTabIDs
         XCTAssertFalse(model.promote(to: BrowserSpaceRuntimeAssignment(space: context.source)))
         model.releaseForDismissal()
-        XCTAssertEqual(context.browser.session.tabIDs, tabs)
+        XCTAssertEqual(context.browser.openTabIDs, tabs)
         XCTAssertTrue(context.browser.spaceModel(context.source.id)?.archive.entries.isEmpty == true)
     }
 

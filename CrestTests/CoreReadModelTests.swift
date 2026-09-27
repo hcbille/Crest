@@ -187,7 +187,7 @@ final class CoreReadModelTests: XCTestCase {
                 store.closeTab(current.id, in: space.id)
             })
 
-        // The rest is changed directly, on a read model no session copy follows.
+        // The rest is changed directly, on a read model no workspace's windows follow.
         let detached = CoreState()
         for batch in batches { apply(batch, to: detached) }
         let detachedSpace = try XCTUnwrap(detached.workspaces[workspace.id]?.spaces.model(space.id))
@@ -264,7 +264,7 @@ final class CoreReadModelTests: XCTestCase {
 
     private func apply(_ batch: [Change], to state: CoreState) {
         for change in batch { state.apply(change) }
-        state.finishBatch(batch)
+        state.finishBatch()
     }
 
     /// The workspace's records and members, and every window's, as values.

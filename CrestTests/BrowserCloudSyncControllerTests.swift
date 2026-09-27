@@ -54,7 +54,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
             configuration: testConfiguration,
             preferences: preferences,
             remoteService: TestBrowserCloudSyncRemoteService(
-                accountState: .available, snapshot: try await cloudRecords(of: .privateBrowsing())),
+                accountState: .available, snapshot: try await cloudRecords(of: SessionState.Seed(spaces: [.blank(number: 1)]))),
             transportFactory: factory
         )
 
@@ -70,7 +70,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         let device = try await syncedDevice()
         let local = try device.storedPart("journal")
         let localRecordCount = try device.storedJournal().records.count
-        let cloud = try await cloudRecords(of: .privateBrowsing())
+        let cloud = try await cloudRecords(of: SessionState.Seed(spaces: [.blank(number: 1)]))
         _ = try awaitingAccountDecision(device.core)
         let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
@@ -94,7 +94,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
             BrowserCloudSyncConflictSummary(
                 localRecordCount: localRecordCount,
                 cloudRecordCount: cloud.count,
-                localSpaceCount: BrowserSession.preview.spaces.count,
+                localSpaceCount: SessionState.Seed.preview.spaces.count,
                 cloudSpaceCount: 1
             )
         )
@@ -105,7 +105,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
     func testUseICloudResolutionReplacesLocalContentAndClearsThePause() async throws {
         let device = try await syncedDevice()
-        let cloudSession = BrowserSession.privateBrowsing()
+        let cloudSession = SessionState.Seed(spaces: [.blank(number: 1)])
         _ = try awaitingAccountDecision(device.core)
         let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
@@ -124,7 +124,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
         await controller.resolveUsingICloud()
 
-        XCTAssertEqual(device.store.session.spaces.map(\.id), cloudSession.spaces.map(\.id))
+        XCTAssertEqual(device.store.spaceModels.map(\.id), cloudSession.spaces.map(\.id))
         XCTAssertTrue(try device.core.query(PendingUploads()).records.isEmpty)
         let transport = try device.core.query(CloudTransport())
         XCTAssertFalse(transport.awaitsAccountDecision)
@@ -141,7 +141,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
             accountState: .available,
-            snapshot: try await cloudRecords(of: .privateBrowsing())
+            snapshot: try await cloudRecords(of: SessionState.Seed(spaces: [.blank(number: 1)]))
         )
         let factory = TestBrowserCloudSyncTransportFactory()
         let controller = BrowserCloudSyncController(
@@ -169,7 +169,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
     func testDisposableSeedIsReplacedBeforeTransportStarts() async throws {
         let device = try await syncedDevice(.firstInstall)
-        let cloudSession = BrowserSession.privateBrowsing()
+        let cloudSession = SessionState.Seed(spaces: [.blank(number: 1)])
         let cloud = try await cloudRecords(of: cloudSession)
         try device.core.transport(
             OpenCloudTransport(recordSchema: BrowserCloudRecordCodec.currentSchemaVersion, legacy: nil))
@@ -192,7 +192,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         await controller.start()
 
         XCTAssertFalse(device.core.state.syncsDisposableSeed)
-        XCTAssertEqual(device.store.session.spaces.map(\.id), cloudSession.spaces.map(\.id))
+        XCTAssertEqual(device.store.spaceModels.map(\.id), cloudSession.spaces.map(\.id))
         XCTAssertNil(
             try device.core.query(CloudTransport()).engineState, "The transport starts over with the cloud's content")
         XCTAssertEqual(controller.observedCloudRecordCount, cloud.count)
@@ -353,8 +353,8 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
     /// A device whose file holds `session`, its launch staged: the core the
     /// controller reads and tells.
-    private func syncedDevice(_ session: BrowserSession = .preview) async throws -> BrowserStoredSessionHarness {
-        let device = try BrowserStoredSessionHarness(session: session)
+    private func syncedDevice(_ session: SessionState.Seed = .preview) async throws -> BrowserStoredSessionHarness {
+        let device = try BrowserStoredSessionHarness(seed: session)
         await device.store.flushPendingSyncPersistence()
         return device
     }
@@ -367,9 +367,9 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         return core
     }
 
-    private func cloudRecords(of session: BrowserSession) async throws -> [SyncRecord] {
+    private func cloudRecords(of session: SessionState.Seed) async throws -> [SyncRecord] {
         let other = try BrowserStoredSessionHarness(
-            session: session, syncDeviceID: UUID(uuidString: "30000000-0000-0000-0000-000000000001")!)
+            seed: session, syncDeviceID: UUID(uuidString: "30000000-0000-0000-0000-000000000001")!)
         return try await other.pendingRecords()
     }
 }

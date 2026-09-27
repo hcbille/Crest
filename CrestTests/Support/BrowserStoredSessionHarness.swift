@@ -12,6 +12,7 @@ final class BrowserStoredSessionHarness {
 
     enum HarnessError: Error {
         case sqlite(Int32)
+        case missingPart(String)
     }
 
     // MARK: - Variables
@@ -24,78 +25,55 @@ final class BrowserStoredSessionHarness {
 
     // MARK: - Initializers
 
-    /// Gives a new file `session` as its first session, with the journal of
-    /// a device that has staged nothing yet, `syncDeviceID` when named, then
-    /// opens it with a window on its launch Space.
+    /// Gives a new file the session a core opens from `seed`, or without one
+    /// the session a first launch starts with, as its first session, with the
+    /// journal of a device that has staged nothing yet, `syncDeviceID` when
+    /// named, then opens it with a window on its launch Space. The images
+    /// `favicons` holds are the ones its tabs wear.
     convenience init(
-        session: BrowserSession, syncDeviceID: UUID? = nil,
+        seed: SessionState.Seed?, syncDeviceID: UUID? = nil,
         favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
     ) throws {
-        try self.init(session: session, journalData: syncDeviceID.map { StoredSyncJournal.fresh(deviceID: $0) }, favicons: favicons)
-    }
-
-    /// Gives a new file the session a core opens from `seed` as its first
-    /// session, as above. TRANSITIONAL: the installed release's format carries
-    /// it, until the harness adopts seeds with their journals.
-    convenience init(
-        seed: SessionState.Seed, syncDeviceID: UUID? = nil,
-        favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
-    ) throws {
-        try self.init(session: BrowserSession(opening: seed), syncDeviceID: syncDeviceID, favicons: favicons)
+        try self.init(
+            seed: seed, journalData: syncDeviceID.map { StoredSyncJournal.fresh(deviceID: $0) }, favicons: favicons)
     }
 
     /// Gives a new file the session a core opens from `seed` and the journal
-    /// `journalData` holds, as `init(session:journalData:favicons:)` does.
-    convenience init(
-        seed: SessionState.Seed, journalData: Data?,
-        favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
-    ) throws {
-        try self.init(session: BrowserSession(opening: seed), journalData: journalData, favicons: favicons)
-    }
-
-    /// `staged(_:syncDeviceID:)` from a seed.
-    static func staged(seed: SessionState.Seed, syncDeviceID: UUID = UUID()) async throws
-        -> BrowserStoredSessionHarness
-    {
-        try await staged(BrowserSession(opening: seed), syncDeviceID: syncDeviceID)
-    }
-
-    /// `uploaded(_:syncDeviceID:)` from a seed.
-    static func uploaded(seed: SessionState.Seed, syncDeviceID: UUID = UUID()) async throws
-        -> BrowserStoredSessionHarness
-    {
-        try await uploaded(BrowserSession(opening: seed), syncDeviceID: syncDeviceID)
-    }
-
-    /// A file of device `syncDeviceID` whose first session is `session`, opened
-    /// as above, once its launch staged it: its journal holds every record of
-    /// `session`, none of them uploaded yet.
-    static func staged(_ session: BrowserSession, syncDeviceID: UUID = UUID()) async throws -> BrowserStoredSessionHarness {
-        let harness = try BrowserStoredSessionHarness(session: session, syncDeviceID: syncDeviceID)
-        await harness.core.settleSync()
-        return harness
-    }
-
-    /// A file of device `syncDeviceID` whose first session is `session`, opened
-    /// as above, once the cloud saved everything its launch staged: a device
-    /// that has already uploaded `session`.
-    static func uploaded(_ session: BrowserSession, syncDeviceID: UUID = UUID()) async throws -> BrowserStoredSessionHarness {
-        let harness = try BrowserStoredSessionHarness(session: session, syncDeviceID: syncDeviceID)
-        _ = try await harness.uploadPendingRecords()
-        return harness
-    }
-
-    /// Gives a new file `session` and the journal `journalData` holds, which
-    /// only the core reads, as its first session, then opens it as above.
+    /// `journalData` holds, which only the core reads, as its first session,
+    /// then opens it as above.
     init(
-        session: BrowserSession, journalData: Data?,
+        seed: SessionState.Seed?, journalData: Data?,
         favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
     ) throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         self.favicons = favicons
         core = try CrestCore(configuration: AppConfiguration(storageDirectory: directory.path))
-        try BrowserInstalledRelease.adopt(session, journalData: journalData, into: core, favicons: favicons)
+        try BrowserInstalledRelease.adopt(seed, journalData: journalData, into: core)
         store = try Self.open(core, favicons: favicons)
+    }
+
+    /// A file of device `syncDeviceID` whose first session is the one a core
+    /// opens from `seed`, opened as above, once its launch staged it: its
+    /// journal holds every record of the session, none of them uploaded yet.
+    static func staged(
+        seed: SessionState.Seed, syncDeviceID: UUID = UUID(),
+        favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
+    ) async throws -> BrowserStoredSessionHarness {
+        let harness = try BrowserStoredSessionHarness(seed: seed, syncDeviceID: syncDeviceID, favicons: favicons)
+        await harness.core.settleSync()
+        return harness
+    }
+
+    /// A file of device `syncDeviceID` whose first session is the one a core
+    /// opens from `seed`, opened as above, once the cloud saved everything
+    /// its launch staged: a device that has already uploaded the session.
+    static func uploaded(
+        seed: SessionState.Seed, syncDeviceID: UUID = UUID(),
+        favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
+    ) async throws -> BrowserStoredSessionHarness {
+        let harness = try BrowserStoredSessionHarness(seed: seed, syncDeviceID: syncDeviceID, favicons: favicons)
+        _ = try await harness.uploadPendingRecords()
+        return harness
     }
 
     /// Opens the file a harness left behind, as a launch after a crash would.
@@ -123,33 +101,38 @@ final class BrowserStoredSessionHarness {
     func relaunch() async throws -> BrowserStoredSessionHarness {
         await store.flushPendingSyncPersistence()
         let copy = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try copyFile(to: copy)
+        return try BrowserStoredSessionHarness(copying: copy, favicons: favicons)
+    }
+
+    /// Copies the file as it stands now into `copy`, a new directory.
+    private func copyFile(to copy: URL) throws {
         try FileManager.default.createDirectory(at: copy, withIntermediateDirectories: true)
         for suffix in ["", "-wal", "-shm"] where FileManager.default.fileExists(atPath: url.path + suffix) {
             try FileManager.default.copyItem(
                 atPath: url.path + suffix, toPath: copy.appendingPathComponent(url.lastPathComponent).path + suffix)
         }
-        return try BrowserStoredSessionHarness(copying: copy, favicons: favicons)
     }
 
     // MARK: - Actions - Reading the file
 
-    /// The session and journal the file holds now.
-    func stored() throws -> (session: BrowserSession, journal: StoredSyncJournal?) {
-        try withConnection { connection in
-            let core = try XCTUnwrap(try Self.read("core", in: connection))
-            var session = try JSONDecoder().decode(BrowserSession.self, from: core)
-            for index in session.spaces.indices {
-                let history = try XCTUnwrap(
-                    try Self.read("history." + session.spaces[index].id.uuidString, in: connection))
-                session.spaces[index].history = try JSONDecoder().decode([BrowserHistoryEntry].self, from: history)
-                for tab in session.spaces[index].tabs.indices {
-                    session.spaces[index].tabs[tab].faviconData = favicons.favicon(
-                        tabID: session.spaces[index].tabs[tab].id)
-                }
-            }
-            let journal = try Self.read("journal", in: connection).map(StoredSyncJournal.init)
-            return (session, journal)
+    /// The session the file holds now, as the next launch opens it, and its
+    /// journal. The session is read from a copy of the file, so this harness
+    /// keeps its own. The read model keeps no disposable seed's marker, so,
+    /// like `BrowserStore.sessionSeed`, the session carries none.
+    func stored() throws -> (session: SessionState.Seed, journal: StoredSyncJournal?) {
+        let copy = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: copy) }
+        try copyFile(to: copy)
+        let reader = try CrestCore(configuration: AppConfiguration(storageDirectory: copy.path))
+        var session: SessionState?
+        for case .workspaceOpened(let opened) in try reader.send(OpenWorkspace(kind: .persistent, seed: nil)) {
+            session = opened.session
         }
+        var seed = try XCTUnwrap(session).seed
+        seed.disposableSeedMarker = nil
+        let journal = try withConnection { try Self.read("journal", in: $0) }.map(StoredSyncJournal.init)
+        return (seed, journal)
     }
 
     /// One stored part's bytes, exactly as the file holds them.
@@ -219,7 +202,7 @@ final class BrowserStoredSessionHarness {
     /// the cloud onto a fresh install, as a device joining the same iCloud
     /// does.
     func joiningDevice() async throws -> BrowserStoredSessionHarness {
-        let other = try BrowserStoredSessionHarness(session: .firstInstall)
+        let other = try BrowserStoredSessionHarness(seed: nil)
         try other.deliverNow(ReplaceSeedWithCloudRecords(records: try await heldRecords()))
         return other
     }
@@ -308,6 +291,28 @@ final class BrowserStoredSessionHarness {
     private static func execute(_ sql: String, in connection: OpaquePointer) throws {
         let result = sqlite3_exec(connection, sql, nil, nil, nil)
         guard result == SQLITE_OK else { throw HarnessError.sqlite(result) }
+    }
+
+    /// Every stored part the session file in `directory` holds, by part.
+    static func parts(in directory: URL) throws -> [String: Data] {
+        let url = directory.appendingPathComponent("session.sqlite")
+        return try withConnection(at: url, writable: false) { connection in
+            var statement: OpaquePointer?
+            let prepared = sqlite3_prepare_v2(connection, "SELECT part, data FROM checkpoint", -1, &statement, nil)
+            guard prepared == SQLITE_OK, let statement else { throw HarnessError.sqlite(prepared) }
+            defer { sqlite3_finalize(statement) }
+            var parts: [String: Data] = [:]
+            while true {
+                let result = sqlite3_step(statement)
+                if result == SQLITE_DONE { return parts }
+                guard result == SQLITE_ROW, let part = sqlite3_column_text(statement, 0) else {
+                    throw HarnessError.sqlite(result)
+                }
+                let bytes = sqlite3_column_blob(statement, 1)
+                parts[String(cString: part)] =
+                    bytes.map { Data(bytes: $0, count: Int(sqlite3_column_bytes(statement, 1))) } ?? Data()
+            }
+        }
     }
 
     private static func read(_ part: String, in connection: OpaquePointer) throws -> Data? {

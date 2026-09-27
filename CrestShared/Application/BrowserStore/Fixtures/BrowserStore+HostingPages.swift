@@ -35,19 +35,6 @@
                 seed: seed, images: images, showing: spaceID, tabs: tabs, browsingMode: browsingMode, core: core)
         }
 
-        /// TRANSITIONAL until the tests that still build the session copy's
-        /// values seed with `SessionState.Seed`: the window above over
-        /// `session`, whose tabs wear the images it carries.
-        static func hostingPages(
-            _ session: BrowserSession,
-            showing spaceID: SpaceID? = nil,
-            tabs: [SpaceID: TabID] = [:],
-            browsingMode: BrowserBrowsingMode = .standard,
-            core: CrestCore = .hostingPages()
-        ) -> BrowserStore {
-            BrowserStore(session: session, showing: spaceID, tabs: tabs, browsingMode: browsingMode, core: core)
-        }
-
         /// Tab `tabID` of Space `spaceID` as its page takes it, for a test that
         /// builds a page itself.
         func pageTab(_ tabID: TabID, in spaceID: SpaceID) -> BrowserPageTab {

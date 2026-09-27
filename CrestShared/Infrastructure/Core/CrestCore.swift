@@ -51,8 +51,8 @@ final class CrestCore {
     @ObservationIgnored private let wake = CoreWakeRelay()
     /// Callers waiting for a revision to reach disk. A drain resumes them.
     @ObservationIgnored var saveWaiters: [(revision: Int64, continuation: CheckedContinuation<Void, Never>)] = []
-    /// TRANSITIONAL until S6: who hears which workspaces' sessions each batch
-    /// changed.
+    /// TRANSITIONAL until WP C's "navigation commit first": who hears which
+    /// workspaces' sessions each batch changed.
     @ObservationIgnored private var sessionFollowers: [Follower<Set<UUID>>] = []
     /// Who hears that an intent from the cloud transport committed.
     @ObservationIgnored private var cloudDeliveryFollowers: [Follower<Void>] = []
@@ -335,7 +335,7 @@ final class CrestCore {
             default: break
             }
         }
-        state.finishBatch(changes)
+        state.finishBatch()
         let touched = state.touchedWorkspaces
         state.touchedWorkspaces = []
         if !touched.isEmpty { sessionsChanged(touched) }
@@ -359,8 +359,9 @@ final class CrestCore {
     /// Calls `handler` with the workspaces whose session each batch changed,
     /// once the batch is applied: a drain's, or the changes an intent answered,
     /// which carry first any the core made on its own, such as a cloud merge.
-    /// The registration lasts as long as `owner`. TRANSITIONAL until S6: the
-    /// windows over a session follow it this way.
+    /// The registration lasts as long as `owner`. TRANSITIONAL until WP C's
+    /// "navigation commit first": the windows over a session follow it this
+    /// way.
     func followSessions(_ owner: AnyObject, _ handler: @escaping @MainActor (Set<UUID>) -> Void) {
         sessionFollowers.removeAll { $0.owner == nil }
         sessionFollowers.append(Follower(owner: owner, handler: handler))

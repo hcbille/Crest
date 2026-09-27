@@ -113,39 +113,6 @@ extension BrowserStore {
     }
 }
 
-// MARK: - Deletion
-
-/// Space-exact targeted history removal.
-///
-/// Every entry point takes a ``BrowserSpaceRuntimeAssignment`` rather than a
-/// bare `SpaceID`, matching the rest of the deletion surface: a Space that was
-/// replaced or is mid-deletion must not have its successor's history erased by
-/// a request captured against the old one.
-extension BrowserStore {
-    @discardableResult
-    func deleteHistory(
-        for url: URL,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment) != nil else { return false }
-        return sendRecords(
-            RemoveHistoryAddress(
-                workspaceID: family.workspaceID, spaceID: assignment.spaceID, address: url.absoluteString))
-    }
-
-    @discardableResult
-    func deleteHistory(
-        from startDate: Date,
-        until endDate: Date,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        guard spaceModel(matching: assignment) != nil else { return false }
-        return sendRecords(
-            RemoveHistoryRange(
-                workspaceID: family.workspaceID, spaceID: assignment.spaceID, start: startDate, end: endDate))
-    }
-}
-
 // MARK: - Data Retention
 
 extension BrowserStore {

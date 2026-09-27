@@ -119,8 +119,8 @@ enum BrowserPerformanceSoakFixture {
                     visitCount: historyIndex % 5 + 1
                 )
             }
-            // TRANSITIONAL: the soak's looks are built in the session copy's
-            // branding vocabulary until that folds into the core's.
+            // TRANSITIONAL: the soak's looks are built in the Swift branding
+            // vocabulary until that folds into the core's.
             return SpaceState.Seed(
                 name: appearance.name, symbol: "gauge.with.dots.needle.67percent", accent: .teal,
                 branding: appearance.branding.core, folders: folders, tabs: tabs, history: history,

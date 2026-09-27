@@ -66,16 +66,14 @@ extension BrowserStore {
     /// workspace's own. Throws the rule the core refused them with.
     func importSpaces(_ spaces: [SpaceState]) throws(Rejection) {
         guard !spaces.isEmpty else { return }
-        try family.importSpaces(
-            ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: spaces.map(\.seed)), from: [],
-            issuedBy: self)
+        try family.commit(
+            ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: spaces.map(\.seed)), from: self)
     }
 
     /// Imports the review setup holds for this workspace, as the person chose.
     /// Throws the rule that refused it.
     func importReviewedSpaces() throws(Rejection) {
-        try family.importSpaces(
-            ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID), from: [], issuedBy: self)
+        try family.commit(ImportReviewedSpaces(workspaceID: family.workspaceID, windowID: windowID), from: self)
     }
 
     /// The session importing the review setup holds would leave this

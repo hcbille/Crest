@@ -22,7 +22,7 @@ final class BrowserAppPreferenceStore {
     private var detached: BrowserAppPreferences
 
     var preferences: BrowserAppPreferences {
-        browser?.family.authoritativeSession.appPreferences ?? detached
+        browser?.workspaceModel?.appPreferences.map(BrowserAppPreferences.init(core:)) ?? detached
     }
 
     var startupBehavior: BrowserStartupBehavior {
@@ -83,7 +83,7 @@ final class BrowserAppPreferenceStore {
     func bind(to browser: BrowserStore, legacy: BrowserLegacyAppPreferences) {
         detached = legacy.preferences
         self.browser = browser
-        guard browser.family.authoritativeSession.appPreferences == nil else { return }
+        guard browser.workspaceModel?.appPreferences == nil else { return }
         browser.sendAppPreferences(ImportAppPreferences(workspaceID: browser.family.workspaceID, legacy: legacy.core))
     }
 

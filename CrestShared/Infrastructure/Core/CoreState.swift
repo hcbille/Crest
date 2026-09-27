@@ -143,10 +143,8 @@ final class CoreState {
         observed(\.spaceAccessStorage, as: \.spaceAccess)
     }
     @ObservationIgnored var spaceAccessStorage: [BrowserSpaceRuntimeAssignment: SpaceLockChanged] = [:]
-    /// TRANSITIONAL until S6.7 deletes the Swift session copy: the copy of
-    /// each attached workspace, which its session changes update.
-    @ObservationIgnored var sessionCopies: [UUID: SessionCopy] = [:]
-    /// TRANSITIONAL until S6.7: the workspaces whose session the batch being
+    /// TRANSITIONAL until WP C's "navigation commit first" replaces the
+    /// windows' session follow: the workspaces whose session the batch being
     /// applied has changed so far, which `CrestCore` reports and clears once
     /// the batch is applied.
     @ObservationIgnored var touchedWorkspaces: Set<UUID> = []

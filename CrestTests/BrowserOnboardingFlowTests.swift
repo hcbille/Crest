@@ -32,7 +32,7 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         flow.commitReviewedImport()
         await waitUntil { flow.step == .complete }
         XCTAssertEqual(flow.completionSummary.map { localized($0) }, "Imported 1 reviewed tab across 1 Space.")
-        XCTAssertEqual(flow.browser.session.spaces.filter { $0.name == "Imported" }.count, 1)
+        XCTAssertEqual(flow.browser.spaceModels.filter { $0.settings.name == "Imported" }.count, 1)
     }
 
     func testCancellationPreventsALateReadFromPublishingAReview() async {
@@ -73,7 +73,7 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         await waitUntil { flow.step == .review }
         flow.commitReviewedImport()
         await committer.waitUntilFinalizationStarted()
-        XCTAssertTrue(flow.browser.session.spaces.contains { $0.name == "Committed Before Reset" })
+        XCTAssertTrue(flow.browser.spaceModels.contains { $0.settings.name == "Committed Before Reset" })
 
         flow.reset(for: BrowserOnboardingRequest(entryPoint: .manualSetup))
         XCTAssertTrue(flow.isCommittingImport)
@@ -81,7 +81,7 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         committer.completeFinalization()
         await waitUntil { !flow.isCommittingImport && flow.step == .manualSetup }
         XCTAssertNil(flow.failure)
-        XCTAssertTrue(flow.browser.session.spaces.contains { $0.name == "Committed Before Reset" })
+        XCTAssertTrue(flow.browser.spaceModels.contains { $0.settings.name == "Committed Before Reset" })
     }
 
     private func makeFlow(
@@ -91,7 +91,7 @@ final class BrowserOnboardingFlowTests: XCTestCase {
     ) -> BrowserOnboardingFlow {
         BrowserOnboardingFlow(
             request: BrowserOnboardingRequest(entryPoint: .importBrowser),
-            browser: BrowserStore(session: BrowserSession.preview),
+            browser: BrowserStore(seed: .preview),
             sourceDiscovery: sourceDiscovery,
             dataAccessProvider: StubDataAccessProvider(),
             importReader: reader,
@@ -124,31 +124,23 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         )
     }
 
-    private func makeSpace(name: String) -> BrowserSpace {
-        let tab = BrowserTab(
+    private func makeSpace(name: String) -> SpaceState.Seed {
+        let tab = TabState.Seed(
             title: "Example",
             url: URL(string: "https://example.com"),
             placement: .current
         )
-        return BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: name,
-            symbol: "square.and.arrow.down",
-            accent: .indigo,
-            folders: [],
-            tabs: [tab]
-        )
+        return SpaceState.Seed(name: name, symbol: "square.and.arrow.down", accent: .indigo, tabs: [tab])
     }
 
     /// What reading `application` brings: `spaces`, as the core holds them.
     private func readOutput(
         application: ImportSource,
-        spaces: [BrowserSpace]
+        spaces: [SpaceState.Seed]
     ) -> BrowserOnboardingImportReadOutput {
         BrowserOnboardingImportReadOutput(
             payload: BrowserDetectedImportPayload(application: application, profiles: []),
-            imported: BrowserStore(session: BrowserSession(spaces: spaces)).snapshot.spaces,
+            imported: BrowserStore(seed: SessionState.Seed(spaces: spaces)).snapshot.spaces,
             passwordCandidates: []
         )
     }

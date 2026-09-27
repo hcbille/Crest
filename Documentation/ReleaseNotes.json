@@ -2973,6 +2973,10 @@
     "chromium-engine-keeps-its-browsers": {
       "category": "internal",
       "message": "The Chromium engine keeps track of its own browser windows and tabs, and the Mac app only hosts their windows"
+    },
+    "session-copy-deleted": {
+      "category": "internal",
+      "message": "Swift keeps the browsing session only in the core's read model; its separate copy is gone"
     }
   }
 }

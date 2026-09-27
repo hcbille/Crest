@@ -20,8 +20,8 @@ struct BrowserAutomaticTranslationRules: Codable, Equatable, Sendable {
 
     private init(sources: [String: Rule]) { self.sources = sources }
 
-    /// TRANSITIONAL until S6.7 retires the Swift session copy: the rules the
-    /// core publishes.
+    /// TRANSITIONAL until the settings panes bind `AppPreferences`: the rules
+    /// the core publishes.
     init(core rules: [TranslationRule]) {
         self.init(
             sources: Dictionary(

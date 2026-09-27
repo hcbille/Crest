@@ -249,7 +249,7 @@ final class BrowserSplitCardLiftPolicyTests: XCTestCase {
     /// Card frames as the row would register them for `members` in the order
     /// given: the first member in the leading column, and so on.
     private static func registeredFrames(
-        members: [BrowserTab],
+        members: [BrowserSplitCardTestFixture.Member],
         widths: [CGFloat]
     ) -> [TabID: CGRect] {
         Dictionary(
@@ -640,18 +640,14 @@ private enum BrowserSplitCardTestFixture {
         member(id: trailingTabID, title: "Split View Spec"),
     ]
 
-    private static let groupID = uuid(0x01)
+    /// A card of the row: only its identity matters to the lift.
+    struct Member: Identifiable, Equatable {
+        let id: TabID
+        let title: String
+    }
 
-    private static func member(id: TabID, title: String) -> BrowserTab {
-        BrowserTab(
-            id: id,
-            title: title,
-            url: URL(fileURLWithPath: "/split-card-tests/\(id.uuidString)"),
-            symbol: "globe",
-            placement: .current,
-            splitGroupID: groupID,
-            lastActivatedAt: Date(timeIntervalSince1970: 1_700_000_000)
-        )
+    private static func member(id: TabID, title: String) -> Member {
+        Member(id: id, title: title)
     }
 
     private static func tabID(_ finalByte: UInt8) -> TabID {

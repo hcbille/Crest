@@ -155,8 +155,8 @@ final class BrowserDownloadTransferTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         // A page WebKit's binding built for the core, whose downloads the core
         // records and whose file places this answers.
-        let space = try XCTUnwrap(BrowserSession.preview.spaces.first)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let space = try XCTUnwrap(SessionState.Seed.preview.spaces.first)
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let permissions = BrowserSitePermissionCenter(core: browser.core)
         let prompts = BrowserDownloadPrompts(
             core: browser.core, approve: { _, _ in false },
@@ -169,7 +169,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
         let page = BrowserPage(
             corePage: opened.core, webKitPage: opened.webKit, dialogPresenter: BrowserDialogPresenter(),
             downloadCenter: BrowserDownloadCenter(core: browser.core), permissionCenter: permissions,
-            spaceID: space.id, profileID: space.profile.id, spaceName: space.name, openNewTab: { _ in })
+            spaceID: space.id, profileID: space.profileID, spaceName: space.settings.name, openNewTab: { _ in })
         defer {
             page.release(keepingState: false)
             withExtendedLifetime(prompts) {}

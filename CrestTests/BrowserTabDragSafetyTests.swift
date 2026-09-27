@@ -388,10 +388,10 @@ final class BrowserTabDragSafetyTests: XCTestCase {
         )
         XCTAssertEqual(
             try XCTUnwrap(
-                closeContext.browser.session.space(
-                    id: closeContext.sourceAssignment.spaceID
+                closeContext.browser.spaceModel(
+                    closeContext.sourceAssignment.spaceID
                 )
-            ).tabs.first(where: { $0.id == closeContext.tab.id })?.placement,
+            ).tabs.model(closeContext.tab.id)?.placement,
             .pinned
         )
 
@@ -415,10 +415,10 @@ final class BrowserTabDragSafetyTests: XCTestCase {
         )
         XCTAssertEqual(
             try XCTUnwrap(
-                deleteContext.browser.session.space(
-                    id: deleteContext.sourceAssignment.spaceID
+                deleteContext.browser.spaceModel(
+                    deleteContext.sourceAssignment.spaceID
                 )
-            ).tabs.first(where: { $0.id == deleteContext.tab.id })?.placement,
+            ).tabs.model(deleteContext.tab.id)?.placement,
             .saved
         )
     }

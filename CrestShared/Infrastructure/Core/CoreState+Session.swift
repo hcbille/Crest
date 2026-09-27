@@ -3,26 +3,10 @@ import Foundation
 /// Each session change updates the workspace it names and the images its tabs
 /// wear. The images move first, while the read model still holds what the
 /// change replaces, so a tab a change places anew is told apart from one it
-/// keeps.
-///
-/// TRANSITIONAL until S6.7 deletes the Swift session copy: each change then
-/// reaches the copy of its workspace, which registers here once its session
-/// joins the device and reads its tabs' images from `favicons`.
+/// keeps. Each change also marks its workspace touched, so the windows over
+/// that session follow it once the batch is applied.
 extension CoreState {
-    // MARK: - Types
-
-    /// A registered session copy, held weakly: the family that owns it may go.
-    struct SessionCopy {
-        weak var authority: BrowserCoreSessionAuthority?
-    }
-
-    // MARK: - Actions - Registration
-
-    /// Sends the changes of `workspace` to `authority`'s session copy.
-    func register(_ authority: BrowserCoreSessionAuthority, for workspace: UUID) {
-        sessionCopies = sessionCopies.filter { $0.value.authority != nil }
-        sessionCopies[workspace] = SessionCopy(authority: authority)
-    }
+    // MARK: - Actions - Images
 
     /// The images the platform kept for the tabs of a workspace that opened
     /// before they were offered, as the persistent session a launch loads
@@ -36,13 +20,9 @@ extension CoreState {
     // MARK: - Actions - Batches
 
     /// A batch of changes was applied: images of tabs a change removed and no
-    /// workspace holds any longer are gone. In debug builds the read model is
-    /// then checked against each session copy.
-    func finishBatch(_ changes: [Change]) {
+    /// workspace holds any longer are gone.
+    func finishBatch() {
         favicons.finishBatch { tabID in workspaces.values.contains { $0.holds(tabID: tabID) } }
-        #if DEBUG
-            checkSessionCopies(after: changes)
-        #endif
     }
 
     // MARK: - Actions - Changes
@@ -56,7 +36,7 @@ extension CoreState {
             favicons.place(change.session.spaces.flatMap(Self.tabIDs), in: change.workspaceID)
             publish(WorkspaceModel(change), forKey: change.workspaceID, into: \.workspacesStorage, as: \.workspaces)
         }
-        forward(.workspaceOpened(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: WorkspaceClosed) {
@@ -64,18 +44,17 @@ extension CoreState {
             favicons.detach(workspace.tabIDs)
             publish(nil, forKey: change.workspaceID, into: \.workspacesStorage, as: \.workspaces)
         }
-        forward(.workspaceClosed(change), to: change.workspaceID)
-        sessionCopies[change.workspaceID] = nil
+        touch(change.workspaceID)
     }
 
     func apply(_ change: WorkspaceChanged) {
         workspaces[change.workspaceID]?.apply(change)
-        forward(.workspaceChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: AppPreferencesChanged) {
         workspaces[change.workspaceID]?.apply(change)
-        forward(.appPreferencesChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: SpacesChanged) {
@@ -84,12 +63,12 @@ extension CoreState {
             favicons.place(change.added.flatMap(Self.tabIDs), in: change.workspaceID)
             workspace.apply(change)
         }
-        forward(.spacesChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: SpaceSettingsChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
-        forward(.spaceSettingsChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: TabsChanged) {
@@ -101,28 +80,28 @@ extension CoreState {
                 in: change.workspaceID)
             space.apply(change)
         }
-        forward(.tabsChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: FoldersChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
-        forward(.foldersChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: SplitGroupsChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
-        forward(.splitGroupsChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
-    /// The session copy keeps no sidebar lists, so the change reaches only the
-    /// read model.
+    /// The sidebar's lists are the read model's alone: windows need not
+    /// follow them.
     func apply(_ change: SidebarChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
     }
 
     func apply(_ change: HistoryChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
-        forward(.historyChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: ArchiveChanged) {
@@ -134,21 +113,21 @@ extension CoreState {
                 in: change.workspaceID)
             space.apply(change)
         }
-        forward(.archiveChanged(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: TabCopied) {
         if workspaces[change.workspaceID]?.holdsOpen(tabID: change.copyTabID) == true {
             favicons.copy(change.sourceTabID, to: change.copyTabID, in: change.workspaceID)
         }
-        forward(.tabCopied(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     func apply(_ change: TabsImported) {
         if let workspace = workspaces[change.workspaceID] {
             favicons.place(imported: change.tabs.filter { workspace.holds(tabID: $0.tabID) }, in: change.workspaceID)
         }
-        forward(.tabsImported(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     /// A promoted page changes no state of its own: the session's changes
@@ -160,7 +139,7 @@ extension CoreState {
         if workspaces[change.workspaceID]?.holdsOpen(tabID: change.tabID) == true {
             favicons.assign(adopts: change.adopts, to: change.tabID, in: change.workspaceID, from: change.pageID)
         }
-        forward(.tabFaviconAssigned(change), to: change.workspaceID)
+        touch(change.workspaceID)
     }
 
     private func space(_ spaceID: UUID, in workspaceID: UUID) -> SpaceModel? {
@@ -172,8 +151,7 @@ extension CoreState {
         space.tabs.map(\.id) + space.archivedTabs.map(\.tab.id)
     }
 
-    private func forward(_ change: Change, to workspace: UUID) {
+    private func touch(_ workspace: UUID) {
         touchedWorkspaces.insert(workspace)
-        sessionCopies[workspace]?.authority?.receive(change, images: favicons)
     }
 }

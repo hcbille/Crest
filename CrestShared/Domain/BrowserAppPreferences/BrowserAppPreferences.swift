@@ -1,7 +1,7 @@
 import Foundation
 
-/// The core's app-wide behavior preferences, as the session projection carries
-/// them. The core owns the record: it lives beside the Spaces in the session
+/// The core's app-wide behavior preferences, as the settings edit them. The
+/// core owns the record: it lives beside the Spaces in the session
 /// checkpoint, stays on this device, and changes only through `preferences.*`
 /// commands. Appearance preferences are not part of it and stay in defaults.
 struct BrowserAppPreferences: Equatable, Sendable {

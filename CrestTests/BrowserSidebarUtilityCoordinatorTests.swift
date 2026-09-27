@@ -20,16 +20,10 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         coordinator.actions.openHistoryEntry(entry, assignment)
 
         let source = try XCTUnwrap(
-            context.browser.session.space(id: context.source.id)
+            context.browser.spaceModel(context.source.id)
         )
-        XCTAssertFalse(
-            source.archivedTabs.contains(where: {
-                $0.id == context.archived.id
-            }))
-        XCTAssertTrue(
-            source.tabs.contains(where: {
-                $0.id == context.archived.id
-            }))
+        XCTAssertFalse(source.archive.contains(tabID: context.archived.id))
+        XCTAssertTrue(source.tabs.contains(context.archived.id))
         XCTAssertEqual(port.restoredTabs, [context.archived.id])
         XCTAssertEqual(port.openedURLs.map(\.absoluteString), [context.history.url])
     }
@@ -226,16 +220,16 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
         XCTAssertTrue(port.restoredTabs.isEmpty, file: file, line: line)
         XCTAssertTrue(port.openedURLs.isEmpty, file: file, line: line)
         let source = try XCTUnwrap(
-            context.browser.session.space(id: context.source.id)
+            context.browser.spaceModel(context.source.id)
         )
         XCTAssertEqual(
-            source.archivedTabs.map(\.id),
+            source.archive.entries.map(\.tab.id),
             [context.archived.id],
             file: file,
             line: line
         )
         XCTAssertFalse(
-            source.tabs.contains(where: { $0.url?.absoluteString == context.history.url }),
+            source.tabs.models.contains(where: { $0.url == context.history.url }),
             file: file,
             line: line
         )

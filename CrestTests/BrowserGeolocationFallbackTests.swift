@@ -261,12 +261,12 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
         systemAuthorization: BrowserGeolocationSystemAuthorization = .authorized,
         recoversSystemAuthorization: Bool = false,
         url: URL? = nil,
-        space: BrowserSpace? = nil
+        space: SpaceState.Seed? = nil
     ) throws -> Fixture {
         let url = try XCTUnwrap(url ?? URL(string: "https://location.crest.test/"))
         let origin = try XCTUnwrap(SiteOrigin(url: url))
-        let space = try XCTUnwrap(space ?? BrowserSession.preview.spaces.first)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let space = try XCTUnwrap(space ?? SessionState.Seed.preview.spaces.first)
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         // The Space's choices live in the core that hosts the page, as in the app.
         let permissionCenter = BrowserSitePermissionCenter(core: browser.core)
         permissionCenter.setDecision(
@@ -295,8 +295,8 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
                         }
                     },
                     spaceID: space.id,
-                    profileID: space.profile.id,
-                    spaceName: space.name,
+                    profileID: space.profileID,
+                    spaceName: space.settings.name,
                     openNewTab: { _ in }
                 )
             })

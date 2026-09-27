@@ -89,21 +89,6 @@ struct BrowserSpaceBranding: Codable, Equatable, Sendable {
         self.hasCustomAppearance = hasCustomAppearance
     }
 
-    /// The look a Space stored without branding wears, as the core's
-    /// `SpaceSettings.look` resolves it. TRANSITIONAL until S6.8 turns the
-    /// session copy's seeds into stored-format builders: only the copy's
-    /// seeds and decoder dress a Space here.
-    static func legacy(accent: SpaceAccent, symbol: String) -> BrowserSpaceBranding {
-        BrowserSpaceBranding(
-            colors: accent.legacyColors.map(BrowserSpaceBrandColor.init(core:)),
-            bannerPattern: .diagonal,
-            bannerStrength: 1,
-            keepsControlsReadable: true,
-            iconStyle: .simpleSymbol,
-            crest: BrowserSpaceCrest(symbol: crestSymbol(forLegacySymbol: symbol))
-        )
-    }
-
     /// The house look a new Space of `accent` wears, which the core keeps on
     /// the accent. Every accent's house look ignores the Space's symbol.
     static func initial(accent: SpaceAccent, symbol: String) -> BrowserSpaceBranding {

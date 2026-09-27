@@ -11,36 +11,16 @@ final class BrowserSpaceAccessTests: XCTestCase {
     func testChosenDefaultSpaceBecomesTheLaunchSelection() throws {
         let store = BrowserStore(seed: .preview)
         let work = try XCTUnwrap(store.spaceModels.first)
-        let personal = try XCTUnwrap(store.session.spaces.last)
+        let personal = try XCTUnwrap(store.spaceModels.last)
 
         store.setDefaultSpace(personal.id)
         store.selectSpace(work.id)
 
-        XCTAssertEqual(store.session.defaultSpaceID, personal.id)
+        XCTAssertEqual(store.workspaceModel?.defaultSpaceID, personal.id)
         XCTAssertEqual(store.selectedSpaceID, work.id)
         let relaunched = SessionState.Seed(
             spaces: store.spaceModels.map(\.value.seed), defaultSpaceID: store.workspaceModel?.defaultSpaceID)
         XCTAssertEqual(BrowserStore(seed: relaunched).selectedSpaceID, personal.id)
-    }
-
-    func testLegacySessionAndSpaceDecodeWithSafeAccessDefaults() throws {
-        let encoded = try JSONEncoder().encode(BrowserSession.preview)
-        var object = try XCTUnwrap(
-            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
-        )
-        object.removeValue(forKey: "defaultSpaceID")
-        var spaces = try XCTUnwrap(object["spaces"] as? [[String: Any]])
-        for index in spaces.indices {
-            spaces[index].removeValue(forKey: "accessPolicy")
-        }
-        object["spaces"] = spaces
-        let legacyData = try JSONSerialization.data(withJSONObject: object)
-
-        var decoded = try JSONDecoder().decode(BrowserSession.self, from: legacyData)
-        decoded = try decoded.openedAsSeed()
-
-        XCTAssertEqual(decoded.defaultSpaceID, decoded.spaces.first?.id)
-        XCTAssertTrue(decoded.spaces.allSatisfy { $0.accessPolicy == .open })
     }
 
     /// The stores the tests' controllers unlock Spaces of, which the
@@ -143,16 +123,14 @@ final class BrowserSpaceAccessTests: XCTestCase {
     }
 
     func testStorePersistsDefaultAndPrivateSpacePolicies() throws {
-        let store = BrowserStore(
-            session: .preview
-        )
-        let personal = try XCTUnwrap(store.session.spaces.last)
+        let store = BrowserStore(seed: .preview)
+        let personal = try XCTUnwrap(store.spaceModels.last)
 
         store.setDefaultSpace(personal.id)
         store.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: personal.id)
 
-        XCTAssertEqual(store.session.defaultSpaceID, personal.id)
-        XCTAssertEqual(store.session.space(id: personal.id)?.accessPolicy, .deviceOwnerAuthentication)
+        XCTAssertEqual(store.workspaceModel?.defaultSpaceID, personal.id)
+        XCTAssertEqual(store.spaceModel(personal.id)?.settings.accessPolicy, .deviceOwnerAuthentication)
     }
 }
 

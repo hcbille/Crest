@@ -107,7 +107,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         XCTAssertNotEqual(model.privateBrowser.family.workspaceID, closed)
         let url = try XCTUnwrap(URL(string: "https://private.example"))
         let tab = try XCTUnwrap(model.privateBrowser.openNewTab(url: url))
-        XCTAssertTrue(model.privateBrowser.session.tabIDs.contains(tab))
+        XCTAssertTrue(model.privateBrowser.openTabIDs.contains(tab))
     }
 
     func testIsolatedWindowModelUsesOnlyEphemeralWebsiteData() throws {
@@ -203,10 +203,10 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         XCTAssertFalse(first.privateBrowser.family === root.family)
         XCTAssertFalse(second.privateBrowser.family === root.family)
         let secondPrivateSession = second.privateBrowser.sessionSeed
-        let normalSession = root.session
+        let normalSession = root.sessionSeed
         let privateTabID = try XCTUnwrap(first.privateBrowser.openNewTab(url: url))
-        XCTAssertTrue(first.privateBrowser.session.tabIDs.contains(privateTabID))
+        XCTAssertTrue(first.privateBrowser.openTabIDs.contains(privateTabID))
         XCTAssertEqual(second.privateBrowser.sessionSeed, secondPrivateSession)
-        XCTAssertEqual(root.session, normalSession)
+        XCTAssertEqual(root.sessionSeed, normalSession)
     }
 }

@@ -65,27 +65,6 @@ extension SessionState.Seed {
 
     /// The session previews, isolated runs and tests open by default.
     static let preview = SessionPreviewSeed.make()
-
-    // MARK: - Actions - Building
-
-    /// The preview session with every open tab stale in the Space a window
-    /// opens on, and one more stale tab there. Cleanup keeps the one that
-    /// window shows.
-    static func cleanupFixture(now: Date) -> SessionState.Seed {
-        var session = preview
-        let launchSpaceID = session.defaultSpaceID ?? session.spaces.first?.id
-        guard let spaceIndex = session.spaces.firstIndex(where: { $0.id == launchSpaceID }) else { return session }
-        let stale = now.addingTimeInterval(-13 * 60 * 60)
-        for tabIndex in session.spaces[spaceIndex].tabs.indices
-        where !session.spaces[spaceIndex].tabs[tabIndex].placement.isDurable {
-            session.spaces[spaceIndex].tabs[tabIndex].lastActivatedAt = stale
-        }
-        session.spaces[spaceIndex].tabs.append(
-            TabState.Seed(
-                title: "Old research", url: URL(string: "https://example.com/old"), placement: .current,
-                lastActivatedAt: stale))
-        return session
-    }
 }
 
 extension SpaceModel {

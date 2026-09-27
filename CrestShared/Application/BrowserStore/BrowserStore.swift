@@ -4,9 +4,6 @@ import Observation
 @Observable
 @MainActor
 final class BrowserStore {
-    /// The core-owned browsing data. It carries no selection; what this window
-    /// shows is `window`. Only intents change it.
-    var session: BrowserSession { family.currentSession }
     /// This window in the core's device, which owns what it shows.
     let windowID: BrowserWindowID
     private(set) var sessionRevision = 0
@@ -122,8 +119,8 @@ final class BrowserStore {
     }
 
     /// Runs one intent about this window. What it changed, including a tab
-    /// use the core recorded, reaches the family's session copy through the
-    /// core's changes. Answers false when a rule refused it.
+    /// use the core recorded, reaches the read model through the core's
+    /// changes. Answers false when a rule refused it.
     @discardableResult
     private func sendWindowIntent(_ intent: some Intent) -> Bool {
         do { try core.send(intent) } catch { return false }
@@ -150,28 +147,6 @@ final class BrowserStore {
             credentialVault: credentialVault,
             browsingMode: browsingMode,
             family: BrowserStoreFamily(seed: seed, images: images, browsingMode: browsingMode, core: core),
-            linkPreferences: linkPreferences,
-            core: core
-        )
-    }
-
-    /// TRANSITIONAL until the tests, previews and fixtures that still build
-    /// the session copy's values seed with `SessionState.Seed`: a window over
-    /// a new family holding `session`, whose tabs wear the images it carries.
-    convenience init(
-        session: BrowserSession,
-        showing spaceID: SpaceID? = nil,
-        tabs: [SpaceID: TabID] = [:],
-        credentialVault: any CredentialVault = InMemoryCredentialVault(),
-        browsingMode: BrowserBrowsingMode = .standard,
-        linkPreferences: BrowserLinkPreferenceStore = .shared,
-        core: CrestCore = CrestCore()
-    ) {
-        self.init(
-            opening: BrowserWindowOpening(showingSpaceID: spaceID, showingTabs: tabs, restoresTabs: spaceID == nil),
-            credentialVault: credentialVault,
-            browsingMode: browsingMode,
-            family: BrowserStoreFamily(session: session, browsingMode: browsingMode, core: core),
             linkPreferences: linkPreferences,
             core: core
         )
