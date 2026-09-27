@@ -92,7 +92,7 @@ public sealed record SavedAddressReturn(bool ChangesPage);
 /// or its process failed, and whether the surface restores an unloaded page by
 /// itself. It reads no state, so a view may ask it without an app.
 public sealed record PresentPage(TabSurface? Surface, bool HasPage, bool HasNavigationFailure, bool HasProcessFailure,
-    bool RestoresUnloaded) : Query<PagePresented>;
+    bool RestoresUnloaded) : StandaloneQuery<PagePresented>;
 
 /// What a page surface shows.
 public sealed record PagePresented(PagePresentation Presentation);

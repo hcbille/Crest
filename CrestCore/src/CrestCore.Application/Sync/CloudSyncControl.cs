@@ -10,7 +10,7 @@ namespace CrestCore.Application;
 /// failed launch is retried. The platform takes the steps it answers, which
 /// reach CloudKit and the transport, and reports what each came to; a result
 /// for a start that is no longer current changes only what it must.
-internal sealed class CloudSyncControl {
+internal sealed class CloudSyncControl : ICloudSyncControlIntentHandler<List<CloudSyncStep>> {
     #region Static Variables
 
     /// A launch that could not reach iCloud is retried this many times; a
@@ -69,45 +69,64 @@ internal sealed class CloudSyncControl {
     #region Actions - Intents
 
     /// Runs one intent and answers the status it left with the steps the
-    /// platform takes next. Throws `Rejected` when the transport's state
-    /// cannot be saved.
+    /// platform takes next, which each intent adds to. Throws `Rejected` when
+    /// the transport's state cannot be saved.
     public IReadOnlyList<Change> Handle(CloudSyncControlIntent intent) {
         ArgumentNullException.ThrowIfNull(intent);
         lock (gate) {
-            var steps = intent switch {
-                ConfigureCloudSync configure => Configure(configure),
-                SetCloudSyncEnabled enabling => SetEnabled(enabling.IsEnabled),
-                StartCloudSync => Start(),
-                RequestCloudSync => SyncNow(),
-                RequestCloudPull => Pull(),
-                ChooseCloudCopy choice => Choose(choice.UsesCloud),
-                NotifyCloudLocalChanges => enabled && conflict is null && transportLive ? [Step(CloudSyncStepKind.NotifyTransport)] : [],
-                ObserveCloudAccountAvailability => AccountAvailabilityChanged(),
-                RetryCloudSync => RetryDue(),
-                RestartCloudSyncAfterAccountChange => RestartDue(),
-                CloudEntitlementChecked checkedEntitlement => EntitlementChecked(checkedEntitlement),
-                CloudAccountChecked checkedAccount => AccountChecked(checkedAccount),
-                CloudSeedReplaced replaced => SeedReplaced(replaced),
-                CloudContentCompared compared => ContentCompared(compared),
-                CloudContentTaken taken => ResetThenStart(taken.Attempt, overwritesCloud: false),
-                CloudCopyApplied applied => CopyApplied(applied),
-                CloudTransportStarted started => TransportStarted(started.Attempt),
-                CloudTransportSynced synced => Synced(synced),
-                CloudTransportPulled pulled => Pulled(pulled),
-                CloudStepFailed failed => StepFailed(failed),
-                CloudTransportReported report => Reported(report),
-                _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Sync control does not handle this intent.")
-            };
+            var steps = new List<CloudSyncStep>();
+            intent.Dispatch(this, steps);
             return [new CloudSyncAdvanced(Status(), steps)];
         }
     }
 
-    private List<CloudSyncStep> Configure(ConfigureCloudSync configure) {
+    public void Handle(ConfigureCloudSync configure, List<CloudSyncStep> steps) {
         enabled = configure.IsEnabled;
         canReachCloud = configure.CanReachCloud;
         phase = enabled ? CloudSyncPhase.Checking : CloudSyncPhase.Disabled;
-        return [];
     }
+
+    public void Handle(SetCloudSyncEnabled enabling, List<CloudSyncStep> steps) => steps.AddRange(SetEnabled(enabling.IsEnabled));
+
+    public void Handle(StartCloudSync start, List<CloudSyncStep> steps) => steps.AddRange(Start());
+
+    public void Handle(RequestCloudSync request, List<CloudSyncStep> steps) => steps.AddRange(SyncNow());
+
+    public void Handle(RequestCloudPull request, List<CloudSyncStep> steps) => steps.AddRange(Pull());
+
+    public void Handle(ChooseCloudCopy choice, List<CloudSyncStep> steps) => steps.AddRange(Choose(choice.UsesCloud));
+
+    public void Handle(NotifyCloudLocalChanges notice, List<CloudSyncStep> steps) {
+        if (enabled && conflict is null && transportLive) steps.Add(Step(CloudSyncStepKind.NotifyTransport));
+    }
+
+    public void Handle(ObserveCloudAccountAvailability observation, List<CloudSyncStep> steps) => steps.AddRange(AccountAvailabilityChanged());
+
+    public void Handle(RetryCloudSync retry, List<CloudSyncStep> steps) => steps.AddRange(RetryDue());
+
+    public void Handle(RestartCloudSyncAfterAccountChange restart, List<CloudSyncStep> steps) => steps.AddRange(RestartDue());
+
+    public void Handle(CloudEntitlementChecked result, List<CloudSyncStep> steps) => steps.AddRange(EntitlementChecked(result));
+
+    public void Handle(CloudAccountChecked result, List<CloudSyncStep> steps) => steps.AddRange(AccountChecked(result));
+
+    public void Handle(CloudSeedReplaced result, List<CloudSyncStep> steps) => steps.AddRange(SeedReplaced(result));
+
+    public void Handle(CloudContentCompared result, List<CloudSyncStep> steps) => steps.AddRange(ContentCompared(result));
+
+    public void Handle(CloudContentTaken taken, List<CloudSyncStep> steps) => steps.AddRange(ResetThenStart(taken.Attempt, overwritesCloud: false));
+
+    public void Handle(CloudCopyApplied result, List<CloudSyncStep> steps) => steps.AddRange(CopyApplied(result));
+
+    public void Handle(CloudTransportStarted started, List<CloudSyncStep> steps) => steps.AddRange(TransportStarted(started.Attempt));
+
+    public void Handle(CloudTransportSynced result, List<CloudSyncStep> steps) => steps.AddRange(Synced(result));
+
+    public void Handle(CloudTransportPulled result, List<CloudSyncStep> steps) => steps.AddRange(Pulled(result));
+
+    public void Handle(CloudStepFailed failed, List<CloudSyncStep> steps) => steps.AddRange(StepFailed(failed));
+
+    public void Handle(CloudTransportReported report, List<CloudSyncStep> steps) => steps.AddRange(Reported(report));
 
     /// Turning sync on starts it, once a start under way ends; turning it off
     /// drops the transport and starts its state over, keeping an account

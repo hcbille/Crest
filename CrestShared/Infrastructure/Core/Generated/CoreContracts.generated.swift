@@ -56,14 +56,23 @@ protocol DataDeletionIntent: Intent {}
 /// The members of `Intent` that derive from the core's `DownloadIntent`.
 protocol DownloadIntent: Intent {}
 
+/// The members of `EngineEvent` that derive from the core's `EngineDownloadEvent`.
+protocol EngineDownloadEvent: EngineEvent {}
+
 /// The members of `Intent` that derive from the core's `ImportWorkspace`.
 protocol ImportWorkspace: Intent {}
 
 /// The members of `Intent` that derive from the core's `LinkIntent`.
 protocol LinkIntent: Intent {}
 
+/// The members of `EngineEvent` that derive from the core's `PageEvent`.
+protocol PageEvent: EngineEvent {}
+
 /// The members of `Intent` that derive from the core's `PageIntent`.
 protocol PageIntent: Intent {}
+
+/// The members of `EngineEvent` that derive from the core's `PromptEvent`.
+protocol PromptEvent: EngineEvent {}
 
 /// The members of `Intent` that derive from the core's `PromptIntent`.
 protocol PromptIntent: Intent {}
@@ -1390,7 +1399,7 @@ struct AuthenticationAsked: Equatable, Sendable {
 struct AuthenticationBusy: Equatable, Sendable {
 }
 
-struct AuthenticationChallenged: EngineEvent, Equatable, Sendable {
+struct AuthenticationChallenged: EngineEvent, PromptEvent, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
     let question: AuthenticationQuestion
@@ -2563,11 +2572,11 @@ struct EngineDownload: Equatable, Sendable {
     var approvalToken: String
 }
 
-struct EngineDownloadChanged: EngineEvent, Equatable, Sendable {
+struct EngineDownloadChanged: EngineEvent, EngineDownloadEvent, Equatable, Sendable {
     let download: EngineDownload
 }
 
-struct EngineDownloadDestinationRequested: EngineEvent, Equatable, Sendable {
+struct EngineDownloadDestinationRequested: EngineEvent, EngineDownloadEvent, Equatable, Sendable {
     let promptID: UUID
     let download: EngineDownload
     let suggestedFilename: String
@@ -2749,7 +2758,7 @@ struct ExtensionInstallQuestion: Equatable, Sendable {
     var withholdsSiteAccess: Bool
 }
 
-struct ExtensionInstallRequested: EngineEvent, Equatable, Sendable {
+struct ExtensionInstallRequested: EngineEvent, PromptEvent, Equatable, Sendable {
     let promptID: UUID
     let windowID: UUID
     let question: ExtensionInstallQuestion
@@ -3778,18 +3787,18 @@ struct NavigateTab: Intent, SessionIntent, Equatable, Sendable {
     let input: String
 }
 
-struct NavigationCommitted: EngineEvent, Equatable, Sendable {
+struct NavigationCommitted: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let url: String
     let sameDocument: Bool
 }
 
-struct NavigationFailed: EngineEvent, Equatable, Sendable {
+struct NavigationFailed: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let failure: PageFailure
 }
 
-struct NavigationFinished: EngineEvent, Equatable, Sendable {
+struct NavigationFinished: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let url: String
     let title: String
@@ -3803,7 +3812,7 @@ struct NavigationRecorded: Equatable, Sendable {
     let url: String
 }
 
-struct NavigationStarted: EngineEvent, Equatable, Sendable {
+struct NavigationStarted: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let url: String
     let sameDocument: Bool
@@ -4020,22 +4029,22 @@ struct PageChanged: Equatable, Sendable {
     let page: PageState
 }
 
-struct PageClosed: EngineEvent, Equatable, Sendable {
+struct PageClosed: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let restoreState: PageRestoreState?
 }
 
-struct PageCrashed: EngineEvent, Equatable, Sendable {
+struct PageCrashed: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let domain: String
     let code: Int64
 }
 
-struct PageCreated: EngineEvent, Equatable, Sendable {
+struct PageCreated: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
 }
 
-struct PageCreationFailed: EngineEvent, Equatable, Sendable {
+struct PageCreationFailed: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
 }
 
@@ -4077,7 +4086,7 @@ struct PageIcon: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
-struct PageIconChanged: EngineEvent, Equatable, Sendable {
+struct PageIconChanged: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let url: String
     let accent: TabIconAccent?
@@ -4237,7 +4246,7 @@ struct PageState: Equatable, Sendable, Identifiable {
     let live: PageLiveState
 }
 
-struct PageStateChanged: EngineEvent, Equatable, Sendable {
+struct PageStateChanged: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let snapshot: PageSnapshot
 }
@@ -4368,7 +4377,7 @@ struct PermissionQuestion: Equatable, Sendable {
     var topLevelOrigin: SiteOrigin
 }
 
-struct PermissionRequested: EngineEvent, Equatable, Sendable {
+struct PermissionRequested: EngineEvent, PromptEvent, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
     let question: PermissionQuestion
@@ -4493,11 +4502,11 @@ struct PromptSettled: Equatable, Sendable {
     let promptID: UUID
 }
 
-struct PromptWithdrawn: EngineEvent, Equatable, Sendable {
+struct PromptWithdrawn: EngineEvent, PromptEvent, Equatable, Sendable {
     let promptID: UUID
 }
 
-struct ProtectedMediaUnavailable: EngineEvent, Equatable, Sendable {
+struct ProtectedMediaUnavailable: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let keySystem: KeySystem
 }
@@ -4820,7 +4829,7 @@ struct ScriptDialogAsked: Equatable, Sendable {
     let question: ScriptDialogQuestion
 }
 
-struct ScriptDialogOpened: EngineEvent, Equatable, Sendable {
+struct ScriptDialogOpened: EngineEvent, PromptEvent, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
     let question: ScriptDialogQuestion
@@ -5770,7 +5779,7 @@ struct StagedLinkElsewhere: Equatable, Sendable {
     let sourcePageID: UUID
 }
 
-struct StagedLinkUnavailable: EngineEvent, Equatable, Sendable {
+struct StagedLinkUnavailable: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
 }
 

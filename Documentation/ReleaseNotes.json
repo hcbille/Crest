@@ -3049,6 +3049,10 @@
     "generated-message-handlers": {
       "category": "internal",
       "message": "The contract generator now gives each family of core messages a handler interface in the core and a handling protocol in the apps, so a new message without a handler fails to build."
+    },
+    "core-receivers-use-message-handlers": {
+      "category": "internal",
+      "message": "Each part of the core now handles its messages through the generated handler interfaces instead of hand-written type switches, with no change in behaviour."
     }
   }
 }

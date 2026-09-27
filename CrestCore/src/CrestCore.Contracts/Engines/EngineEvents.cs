@@ -6,28 +6,32 @@ public abstract record EngineEvent;
 
 #region Pages
 
+/// Something that happened to a page the core may host, which its `PageId`
+/// names. The core reads the page once and hands the report to it.
+public abstract record PageEvent(Guid PageId) : EngineEvent;
+
 /// The engine's page is gone: the core asked the engine to close it, or the
 /// page closed itself, as `window.close()` does. A page closed keeping its
 /// state hands back what brings it back, when its engine can.
-public sealed record PageClosed(Guid PageId, PageRestoreState? RestoreState) : EngineEvent;
+public sealed record PageClosed(Guid PageId, PageRestoreState? RestoreState) : PageEvent(PageId);
 
 /// A page's renderer stopped: it crashed, or the system ended it. The document
 /// it showed is gone, and the core decides whether the engine brings it back.
 /// `Domain` and `Code` are the engine's own reason, which a failure page shows
 /// as technical details and nothing branches on.
-public sealed record PageCrashed(Guid PageId, string Domain, long Code) : EngineEvent;
+public sealed record PageCrashed(Guid PageId, string Domain, long Code) : PageEvent(PageId);
 
 /// The engine created the page, which is now live.
-public sealed record PageCreated(Guid PageId) : EngineEvent;
+public sealed record PageCreated(Guid PageId) : PageEvent(PageId);
 
 /// The engine could not create the page.
-public sealed record PageCreationFailed(Guid PageId) : EngineEvent;
+public sealed record PageCreationFailed(Guid PageId) : PageEvent(PageId);
 
 /// The engine found an icon for the document a page shows at `Url`, or the
 /// color the page's theme puts behind it changed. The binding keeps the
 /// image; once the document is recorded, the core has the page's tab wear it
 /// when the tab's icon follows its page.
-public sealed record PageIconChanged(Guid PageId, string Url, TabIconAccent? Accent) : EngineEvent;
+public sealed record PageIconChanged(Guid PageId, string Url, TabIconAccent? Accent) : PageEvent(PageId);
 
 /// The engine opened a page of its own in the profile `ProfileId` names: a
 /// script's `window.open`, a link to a new window or tab, or an extension's
@@ -43,12 +47,12 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
 /// What a page's engine shows changed. A binding reports a page's latest
 /// snapshot at most once per turn, and only when it differs from the last one
 /// it reported.
-public sealed record PageStateChanged(Guid PageId, PageSnapshot Snapshot) : EngineEvent;
+public sealed record PageStateChanged(Guid PageId, PageSnapshot Snapshot) : PageEvent(PageId);
 
 /// The page's document, or a frame of its own site, asked for `KeySystem`,
 /// which the engine does not have. The core moves the page to an engine that
 /// plays protected media through the platform, when one is registered.
-public sealed record ProtectedMediaUnavailable(Guid PageId, KeySystem KeySystem) : EngineEvent;
+public sealed record ProtectedMediaUnavailable(Guid PageId, KeySystem KeySystem) : PageEvent(PageId);
 
 #endregion
 
@@ -57,66 +61,73 @@ public sealed record ProtectedMediaUnavailable(Guid PageId, KeySystem KeySystem)
 /// A page's navigation took effect at `Url`. A new document begins a record
 /// of its own; a move within the document begins one only when it reaches
 /// another page, since a fragment is part of the page it names.
-public sealed record NavigationCommitted(Guid PageId, string Url, bool SameDocument) : EngineEvent;
+public sealed record NavigationCommitted(Guid PageId, string Url, bool SameDocument) : PageEvent(PageId);
 
 /// A page's navigation failed as `Failure` describes, so the document it was
 /// loading records nothing, and the page shows the failure until another
 /// navigation begins.
-public sealed record NavigationFailed(Guid PageId, PageFailure Failure) : EngineEvent;
+public sealed record NavigationFailed(Guid PageId, PageFailure Failure) : PageEvent(PageId);
 
 /// A page's navigation finished at `Url`, titled `Title`, which may be empty.
 /// The core records the first finish of each document: the tab that owns the
 /// page shows the address and title, and the Space's history holds a visit. A
 /// move within the document finishes once its title settles.
-public sealed record NavigationFinished(Guid PageId, string Url, string Title) : EngineEvent;
+public sealed record NavigationFinished(Guid PageId, string Url, string Title) : PageEvent(PageId);
 
 /// A page began navigating to `Url`: a load that will replace its document,
 /// or, when `SameDocument`, a move within the document it shows, such as
 /// `history.pushState` or a fragment. Nothing is recorded until the
 /// navigation finishes.
-public sealed record NavigationStarted(Guid PageId, string Url, bool SameDocument) : EngineEvent;
+public sealed record NavigationStarted(Guid PageId, string Url, bool SameDocument) : PageEvent(PageId);
 
 /// The link staged for the page's first load no longer applies, so the page
 /// did not load it. A stale link is never retried as a bare address, which
 /// would lose where it was followed.
-public sealed record StagedLinkUnavailable(Guid PageId) : EngineEvent;
+public sealed record StagedLinkUnavailable(Guid PageId) : PageEvent(PageId);
 
 #endregion
 
 #region Prompts
 
+/// A question the engine raises with the person, or takes back, which its
+/// `PromptId` names until the core settles it.
+public abstract record PromptEvent(Guid PromptId) : EngineEvent;
+
 /// A server a page loads from asked for a user name and password; the load
 /// waits for the core's `SettleAuthentication`.
-public sealed record AuthenticationChallenged(Guid PromptId, Guid PageId, AuthenticationQuestion Question) : EngineEvent;
+public sealed record AuthenticationChallenged(Guid PromptId, Guid PageId, AuthenticationQuestion Question) : PromptEvent(PromptId);
 
 /// Whether a page the core asked may go.
 public sealed record BeforeUnloadAnswered(Guid PageId, bool Proceeds) : EngineEvent;
 
 /// An extension install the window `WindowId` started needs the person's
 /// approval, which waits for the core's `SettleExtensionInstall`.
-public sealed record ExtensionInstallRequested(Guid PromptId, Guid WindowId, ExtensionInstallQuestion Question) : EngineEvent;
+public sealed record ExtensionInstallRequested(Guid PromptId, Guid WindowId, ExtensionInstallQuestion Question) : PromptEvent(PromptId);
 
 /// A document in a page asked for a permission Crest records, which waits for
 /// the core's `SettlePermission`. The core answers from the Space's choices
 /// when they hold one, and asks the person only when they do not.
-public sealed record PermissionRequested(Guid PromptId, Guid PageId, PermissionQuestion Question) : EngineEvent;
+public sealed record PermissionRequested(Guid PromptId, Guid PageId, PermissionQuestion Question) : PromptEvent(PromptId);
 
 /// The engine no longer waits for a prompt's answer: the page moved on, or
 /// what asked went away.
-public sealed record PromptWithdrawn(Guid PromptId) : EngineEvent;
+public sealed record PromptWithdrawn(Guid PromptId) : PromptEvent(PromptId);
 
 /// A document in a page opened a script dialog, which waits for the core's
 /// `SettleScriptDialog`.
-public sealed record ScriptDialogOpened(Guid PromptId, Guid PageId, ScriptDialogQuestion Question) : EngineEvent;
+public sealed record ScriptDialogOpened(Guid PromptId, Guid PageId, ScriptDialogQuestion Question) : PromptEvent(PromptId);
 
 #endregion
 
 #region Downloads
 
+/// A download the engine runs, which the core records in its download ledger.
+public abstract record EngineDownloadEvent(EngineDownload Download) : EngineEvent;
+
 /// An engine download started, progressed, finished or failed. The core
 /// records it in the download ledger, in the Space its page or profile belongs
 /// to, and asks the person to keep a file the engine warned about.
-public sealed record EngineDownloadChanged(EngineDownload Download) : EngineEvent;
+public sealed record EngineDownloadChanged(EngineDownload Download) : EngineDownloadEvent(Download);
 
 /// A download the engine runs for one of Crest's profiles: the page it came
 /// from, its file and progress, and a warning the person may override while it
@@ -176,7 +187,7 @@ public enum EngineDownloadState {
 /// `SourceHost` is the host the file came from, which that question shows; the
 /// engine never sends the address itself.
 public sealed record EngineDownloadDestinationRequested(Guid PromptId, EngineDownload Download, string SuggestedFilename,
-    bool ForcesPrompt, DownloadRiskFacts Facts, bool UserInitiated, string? SourceHost) : EngineEvent;
+    bool ForcesPrompt, DownloadRiskFacts Facts, bool UserInitiated, string? SourceHost) : EngineDownloadEvent(Download);
 
 #endregion
 

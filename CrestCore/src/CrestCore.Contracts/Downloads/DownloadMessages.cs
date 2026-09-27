@@ -84,7 +84,7 @@ public sealed record SetDownloadDestination(Guid DownloadId, string Destination,
 /// decision, and whether the page has already had its one automatic download
 /// while that decision is Ask.
 public sealed record AutomaticDownloadCheck(bool UserInitiated, bool UserApprovedRetry, SitePermissionDecision SavedDecision,
-    bool HasAllowedAutomaticDownload) : Query<AutomaticDownloadVerdict>;
+    bool HasAllowedAutomaticDownload) : StandaloneQuery<AutomaticDownloadVerdict>;
 
 /// The action for one download and the throttle state its page and origin
 /// carry into the next automatic download.

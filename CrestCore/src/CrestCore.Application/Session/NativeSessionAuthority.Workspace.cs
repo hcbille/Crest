@@ -3,29 +3,27 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-public sealed partial class NativeSessionAuthority {
+internal sealed partial class NativeSessionAuthority {
     #region Actions - Imports
 
-    private SessionEdit ImportingSpaces(SessionState basis, ImportSpaces intent, DateTimeOffset now, IIdSource ids, bool previewed) =>
-        Importing(basis, intent, intent.Spaces, previewed, now, ids, import => import.AddSpaces());
+    public SessionEdit Handle(ImportSpaces intent, SessionTurn turn) =>
+        Importing(turn.Basis, intent, intent.Spaces, turn.Previewed, turn.Now, turn.Ids, import => import.AddSpaces());
 
     /// Imports the review setup holds for this workspace; see
     /// `ImportReviewedSpaces`.
-    private SessionEdit ImportingReviewedSpaces(SessionState basis, ImportReviewedSpaces intent, DateTimeOffset now, IIdSource ids,
-        bool previewed) {
+    public SessionEdit Handle(ImportReviewedSpaces intent, SessionTurn turn) {
         if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
         var review = device?.ImportReview(workspaceId) ?? throw new Rejected(new NoSetup());
-        return Importing(basis, intent, [.. review.Spaces.Select(space => space.Source)], previewed, now, ids,
-            import => import.ImportReviewed(review.Spaces, ids));
+        return Importing(turn.Basis, intent, [.. review.Spaces.Select(space => space.Source)], turn.Previewed, turn.Now, turn.Ids,
+            import => import.ImportReviewed(review.Spaces, turn.Ids));
     }
 
     /// Applies the manual setup the device holds for this workspace; see
     /// `ApplyManualSetup`. The device ends the setup once the session accepts it.
-    private SessionEdit ApplyingManualSetup(SessionState basis, ApplyManualSetup intent, DateTimeOffset now, IIdSource ids,
-        bool previewed) {
+    public SessionEdit Handle(ApplyManualSetup intent, SessionTurn turn) {
         if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
         var setup = device?.ManualSetup(workspaceId) ?? throw new Rejected(new NoManualSetup());
-        return Importing(basis, intent, [.. setup.Spaces.Select(NativeWorkspaceImport.SetupSpace)], previewed, now, ids,
+        return Importing(turn.Basis, intent, [.. setup.Spaces.Select(NativeWorkspaceImport.SetupSpace)], turn.Previewed, turn.Now, turn.Ids,
             import => import.ApplySetup(setup));
     }
 

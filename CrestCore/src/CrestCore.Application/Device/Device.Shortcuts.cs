@@ -3,10 +3,18 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one shortcut intent needs: the commands this device offers, whose
+/// bindings it reads, and where it publishes them.
+internal sealed record ShortcutTurn(IReadOnlyList<ShortcutCommand> Offered, ChangeFeed Changes);
+
+#endregion
+
 /// This device's shortcut choices, which the device store keeps. What a
 /// choice binds is read on the device's platform, over the commands its
 /// default engine offers.
-internal sealed partial class Device {
+internal sealed partial class Device : IShortcutIntentHandler<ShortcutTurn> {
     #region Variables
 
     private ShortcutOverrides shortcuts = ShortcutOverrides.None;
@@ -15,33 +23,42 @@ internal sealed partial class Device {
 
     #region Actions - Shortcut intents
 
-    /// Runs one shortcut intent over `offered`, the commands this device
-    /// offers, publishing the bindings when any of them changed.
-    public void Handle(ShortcutIntent intent, IReadOnlyList<ShortcutCommand> offered, ChangeFeed changes) {
+    /// Runs one shortcut intent over the commands this device offers, holding
+    /// the device lock, publishing the bindings when any of them changed.
+    public void Handle(ShortcutIntent intent, ShortcutTurn turn) {
         ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(offered);
-        ArgumentNullException.ThrowIfNull(changes);
-        lock (gate) {
-            if (intent is AdoptShortcuts adoption) {
-                Adopt(adoption);
-                changes.Publish(Shortcuts(offered));
-                return;
-            }
-            var revised = intent switch {
-                AssignShortcut assigning => shortcuts.Assigning(assigning.Command, Chord(assigning.Keys), offered, platform),
-                ReassignShortcut reassigning => shortcuts.Reassigning(reassigning.Command, Chord(reassigning.Keys), offered, platform),
-                UnassignShortcut unassigning => shortcuts.Unassigning(unassigning.Command, platform),
-                ResetShortcut resetting => shortcuts.Resetting(resetting.Command),
-                ResetShortcuts => ShortcutOverrides.None,
-                _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.")
-            };
-            if (revised.SameAs(shortcuts)) return;
-            var before = Shortcuts(offered);
-            shortcuts = revised;
-            storage?.EnqueueDevice(Records());
-            var after = Shortcuts(offered);
-            if (after.IsCustomized != before.IsCustomized || !after.Bindings.SequenceEqual(before.Bindings)) changes.Publish(after);
-        }
+        ArgumentNullException.ThrowIfNull(turn);
+        lock (gate) intent.Dispatch(this, turn);
+    }
+
+    /// An adoption always publishes the bindings. The caller holds the device
+    /// lock, as for each shortcut intent.
+    public void Handle(AdoptShortcuts adoption, ShortcutTurn turn) {
+        Adopt(adoption);
+        turn.Changes.Publish(Shortcuts(turn.Offered));
+    }
+
+    public void Handle(AssignShortcut assigning, ShortcutTurn turn) =>
+        Revise(shortcuts.Assigning(assigning.Command, Chord(assigning.Keys), turn.Offered, platform), turn);
+
+    public void Handle(ReassignShortcut reassigning, ShortcutTurn turn) =>
+        Revise(shortcuts.Reassigning(reassigning.Command, Chord(reassigning.Keys), turn.Offered, platform), turn);
+
+    public void Handle(UnassignShortcut unassigning, ShortcutTurn turn) => Revise(shortcuts.Unassigning(unassigning.Command, platform), turn);
+
+    public void Handle(ResetShortcut resetting, ShortcutTurn turn) => Revise(shortcuts.Resetting(resetting.Command), turn);
+
+    public void Handle(ResetShortcuts resetting, ShortcutTurn turn) => Revise(ShortcutOverrides.None, turn);
+
+    /// Keeps `revised`, and publishes the bindings when any of them changed.
+    /// The caller holds the device lock.
+    private void Revise(ShortcutOverrides revised, ShortcutTurn turn) {
+        if (revised.SameAs(shortcuts)) return;
+        var before = Shortcuts(turn.Offered);
+        shortcuts = revised;
+        storage?.EnqueueDevice(Records());
+        var after = Shortcuts(turn.Offered);
+        if (after.IsCustomized != before.IsCustomized || !after.Bindings.SequenceEqual(before.Bindings)) turn.Changes.Publish(after);
     }
 
     /// Carries the choices an installed release kept into the device store

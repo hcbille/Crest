@@ -3,7 +3,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-public sealed partial class NativeSessionAuthority {
+internal sealed partial class NativeSessionAuthority {
     #region Actions - App preferences
 
     /// The app-wide behavior preferences belong to the persistent workspace and
@@ -13,26 +13,26 @@ public sealed partial class NativeSessionAuthority {
         if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
     }
 
-    private SessionEdit SettingPreferences(SessionState basis, SetAppPreferences intent) {
+    public SessionEdit Handle(SetAppPreferences intent, SessionTurn turn) {
         RequirePreferenceOwner();
         var preferences = intent.Preferences with {
             TranslationRules = AutomaticTranslationRules.Restore(intent.Preferences.TranslationRules).Rules
         };
-        return Preferred(basis, preferences);
+        return Preferred(turn.Basis, preferences);
     }
 
-    private SessionEdit SettingTranslationRule(SessionState basis, SetTranslationRule intent) {
+    public SessionEdit Handle(SetTranslationRule intent, SessionTurn turn) {
         RequirePreferenceOwner();
-        return Preferred(basis, (basis.AppPreferences ?? AppPreferences.Default)
+        return Preferred(turn.Basis, (turn.Basis.AppPreferences ?? AppPreferences.Default)
             .WithTranslationRule(intent.SourceLanguage, intent.TargetLanguage, intent.IsEnabled));
     }
 
     /// An import applies only while the session holds no preferences, so a
     /// later launch never imports over a choice.
-    private SessionEdit ImportingPreferences(SessionState basis, ImportAppPreferences intent) {
+    public SessionEdit Handle(ImportAppPreferences intent, SessionTurn turn) {
         RequirePreferenceOwner();
-        return basis.AppPreferences is not null ? new(basis, Staging: null)
-            : Preferred(basis, StoredSessionCodec.ImportAppPreferences(intent.Legacy));
+        return turn.Basis.AppPreferences is not null ? new(turn.Basis, Staging: null)
+            : Preferred(turn.Basis, StoredSessionCodec.ImportAppPreferences(intent.Legacy));
     }
 
     /// `basis` with `preferences`, keeping its record when they are equal.

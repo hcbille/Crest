@@ -7,7 +7,7 @@ namespace CrestCore.Contracts;
 /// the next ordinal it would give. Refused with `InvalidMediaSessionCount` for
 /// a negative count.
 public sealed record MediaSessionReport(MediaSessionEvent Event, MediaSessionIdentity Identity, int RetainedIdentities,
-    ulong NextOrdinal) : Query<MediaSessionEventDecision>;
+    ulong NextOrdinal) : StandaloneQuery<MediaSessionEventDecision>;
 
 /// The ordering and lifecycle facts of one page media-session report. Engines
 /// sequence reports per document; metadata and artwork stay native.

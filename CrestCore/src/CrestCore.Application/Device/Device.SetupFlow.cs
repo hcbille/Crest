@@ -3,13 +3,22 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one setup flow intent needs: where it publishes the flow it leaves,
+/// where new identities come from, and the app's own finish, which applies
+/// the manual setup through the workspace.
+internal sealed record SetupFlowTurn(ChangeFeed Changes, IIdSource Ids, Action<FinishSetup> Finish);
+
+#endregion
+
 /// Setup on this device: the flow the person is in, over one workspace, and
 /// whether this device has completed setup, which the device store keeps. The
 /// flow holds the browsers chosen to import from, the queue of them and the
 /// review of the one it is on; the platform reads each browser and imports its
 /// passwords, and tells the flow how that went. `FinishSetup` applies the
 /// manual setup and completes setup; see `CrestApp`.
-internal sealed partial class Device {
+internal sealed partial class Device : ISetupFlowIntentHandler<SetupFlowTurn> {
     #region Types
 
     /// What finishing setup over `WorkspaceId` does: apply the manual setup the
@@ -30,51 +39,91 @@ internal sealed partial class Device {
     #region Actions - Setup flow intents
 
     /// Runs one setup flow intent, publishing the flow it leaves.
-    public void Handle(SetupFlowIntent intent, ChangeFeed changes, IIdSource ids) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(ids);
-        switch (intent) {
-            case AdoptSetupCompletion adoption:
-                lock (gate) Adopt(adoption, changes);
-                return;
-            case StartSetup start:
-                Start(start, changes, ids);
-                return;
-            case FinishSetup:
-                throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The app finishes setup.");
-        }
-        var session = FlowSession();
+    public void Handle(SetupFlowIntent intent, SetupFlowTurn turn) => intent.Dispatch(this, turn);
+
+    public void Handle(AdoptSetupCompletion adoption, SetupFlowTurn turn) {
+        lock (gate) Adopt(adoption, turn.Changes);
+    }
+
+    /// Opens setup for `intent`'s entry over its workspace. A manual setup the
+    /// device holds is kept for the manual-setup step only where the platform
+    /// keeps one and the entry does not start it over.
+    public void Handle(StartSetup intent, SetupFlowTurn turn) {
+        var authority = Workspace(intent.WorkspaceId);
+        if (!authority.Kind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(intent.WorkspaceId));
+        var session = authority.Current;
         lock (gate) {
-            var flow = setupFlow ?? throw new Rejected(new NoSetup());
-            Publish(intent switch {
-                ShowSetupStep show => Showing(flow, show.Step, session, changes, ids),
-                OfferImportSources offer => flow with { Offered = offer.Installed, Selected = [.. offer.Installed.Where(flow.Selected.Contains)] },
-                ToggleImportSource toggle => Toggling(Idle(flow), toggle.Source),
-                ContinueImport => Continuing(Idle(flow), session, changes, ids),
-                ReviewImport review => Reviewing(flow, review, session),
-                FailImport failure => Failing(flow, failure),
-                CancelImportRead => flow.Phase == SetupPhase.Reading
-                    ? flow with { Phase = SetupPhase.Idle, Step = SetupStep.ImportBrowser, Source = null, Failure = null } : flow,
-                ChooseImportDestination choice => Editing(flow, review =>
-                    ImportReviewPolicy.ChoosingDestination(review, choice.SourceSpaceId, choice.DestinationSpaceId, session)),
-                IncludeImportTabs tabs => Editing(flow, review =>
-                    ImportReviewPolicy.IncludingTabs(review, tabs.SourceSpaceId, tabs.TabIds, tabs.Included, session)),
-                PlaceImportTab placing => Editing(flow, review =>
-                    ImportReviewPolicy.Placing(review, placing.SourceSpaceId, placing.TabId, placing.Placement, session)),
-                IncludeImportSpace space => Editing(flow, review =>
-                    ImportReviewPolicy.IncludingSpace(review, space.SourceSpaceId, space.Included, session)),
-                IncludeImportPasswords passwords => Editing(flow, review =>
-                    ImportReviewPolicy.IncludingPasswords(review, passwords.SourceSpaceId, passwords.Included, session)),
-                CustomizeImportSpace customizing => Editing(flow, review =>
-                    ImportReviewPolicy.Customizing(review, customizing.SourceSpaceId, customizing.Customization, session)),
-                ShowImportSpace shown => flow.Review is { } review
-                    ? flow with { Review = ImportReviewPolicy.Showing(review, shown.SourceSpaceId) } : flow,
-                BeginImportCommit => Committing(flow),
-                FinishImportCommit finished => Committed(flow, finished.PasswordCount, session, changes, ids),
-                _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.")
-            }, changes);
+            if (intent.Entry.StartsManualSetupOver || !platform.KeepsSetupDraft) KeepSetup(null, turn.Changes);
+            var flow = new SetupFlowState(intent.WorkspaceId, intent.Entry, intent.Entry.FirstStep, BackStep: null, NextStep: null,
+                SetupPhase.Idle, Offered: setupFlow?.Offered ?? [], Selected: [], Queue: null, Source: null, Review: null, Failure: null,
+                Summary: null, OpensGuide: false, OpensCrestFromWelcome: false);
+            if (flow.Step == SetupStep.ManualSetup) BeginSetup(intent.WorkspaceId, session, startsOver: false, turn.Changes, turn.Ids);
+            Publish(flow, turn.Changes);
         }
+    }
+
+    /// The app finishes setup, which applies the manual setup through the
+    /// workspace before the device completes it.
+    public void Handle(FinishSetup finish, SetupFlowTurn turn) => turn.Finish(finish);
+
+    public void Handle(ShowSetupStep show, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Showing(flow, show.Step, session, turn.Changes, turn.Ids));
+
+    public void Handle(OfferImportSources offer, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, _) => flow with { Offered = offer.Installed, Selected = [.. offer.Installed.Where(flow.Selected.Contains)] });
+
+    public void Handle(ToggleImportSource toggle, SetupFlowTurn turn) => ReviseFlow(turn, (flow, _) => Toggling(Idle(flow), toggle.Source));
+
+    public void Handle(ContinueImport continuing, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Continuing(Idle(flow), session, turn.Changes, turn.Ids));
+
+    public void Handle(ReviewImport review, SetupFlowTurn turn) => ReviseFlow(turn, (flow, session) => Reviewing(flow, review, session));
+
+    public void Handle(FailImport failure, SetupFlowTurn turn) => ReviseFlow(turn, (flow, _) => Failing(flow, failure));
+
+    public void Handle(CancelImportRead cancel, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, _) => flow.Phase == SetupPhase.Reading
+            ? flow with { Phase = SetupPhase.Idle, Step = SetupStep.ImportBrowser, Source = null, Failure = null } : flow);
+
+    public void Handle(ChooseImportDestination choice, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Editing(flow, review =>
+            ImportReviewPolicy.ChoosingDestination(review, choice.SourceSpaceId, choice.DestinationSpaceId, session)));
+
+    public void Handle(IncludeImportTabs tabs, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Editing(flow, review =>
+            ImportReviewPolicy.IncludingTabs(review, tabs.SourceSpaceId, tabs.TabIds, tabs.Included, session)));
+
+    public void Handle(PlaceImportTab placing, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Editing(flow, review =>
+            ImportReviewPolicy.Placing(review, placing.SourceSpaceId, placing.TabId, placing.Placement, session)));
+
+    public void Handle(IncludeImportSpace space, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Editing(flow, review =>
+            ImportReviewPolicy.IncludingSpace(review, space.SourceSpaceId, space.Included, session)));
+
+    public void Handle(IncludeImportPasswords passwords, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Editing(flow, review =>
+            ImportReviewPolicy.IncludingPasswords(review, passwords.SourceSpaceId, passwords.Included, session)));
+
+    public void Handle(CustomizeImportSpace customizing, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Editing(flow, review =>
+            ImportReviewPolicy.Customizing(review, customizing.SourceSpaceId, customizing.Customization, session)));
+
+    public void Handle(ShowImportSpace shown, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, _) => flow.Review is { } review
+            ? flow with { Review = ImportReviewPolicy.Showing(review, shown.SourceSpaceId) } : flow);
+
+    public void Handle(BeginImportCommit begin, SetupFlowTurn turn) => ReviseFlow(turn, (flow, _) => Committing(flow));
+
+    public void Handle(FinishImportCommit finished, SetupFlowTurn turn) =>
+        ReviseFlow(turn, (flow, session) => Committed(flow, finished.PasswordCount, session, turn.Changes, turn.Ids));
+
+    /// Publishes the flow `edit` makes of the open one over the session setup
+    /// works over, which is read outside the device lock. Throws `Rejected`
+    /// with `NoSetup` while no setup is open.
+    private void ReviseFlow(SetupFlowTurn turn, Func<SetupFlowState, SessionState, SetupFlowState> edit) {
+        var session = FlowSession();
+        lock (gate) Publish(edit(setupFlow ?? throw new Rejected(new NoSetup()), session), turn.Changes);
     }
 
     /// The session setup works over, read outside the device lock.
@@ -82,23 +131,6 @@ internal sealed partial class Device {
         Guid workspaceId;
         lock (gate) workspaceId = (setupFlow ?? throw new Rejected(new NoSetup())).WorkspaceId;
         return (Attached(workspaceId) ?? throw new Rejected(new NoSetup())).Current;
-    }
-
-    /// Opens setup for `intent`'s entry over its workspace. A manual setup the
-    /// device holds is kept for the manual-setup step only where the platform
-    /// keeps one and the entry does not start it over.
-    private void Start(StartSetup intent, ChangeFeed changes, IIdSource ids) {
-        var authority = Workspace(intent.WorkspaceId);
-        if (!authority.Kind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(intent.WorkspaceId));
-        var session = authority.Current;
-        lock (gate) {
-            if (intent.Entry.StartsManualSetupOver || !platform.KeepsSetupDraft) KeepSetup(null, changes);
-            var flow = new SetupFlowState(intent.WorkspaceId, intent.Entry, intent.Entry.FirstStep, BackStep: null, NextStep: null,
-                SetupPhase.Idle, Offered: setupFlow?.Offered ?? [], Selected: [], Queue: null, Source: null, Review: null, Failure: null,
-                Summary: null, OpensGuide: false, OpensCrestFromWelcome: false);
-            if (flow.Step == SetupStep.ManualSetup) BeginSetup(intent.WorkspaceId, session, startsOver: false, changes, ids);
-            Publish(flow, changes);
-        }
     }
 
     #endregion

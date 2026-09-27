@@ -634,15 +634,11 @@ internal interface IWorkspaceIntentHandler<TContext, TResult> {
 
 /// <summary>Answers each case of <c>Query</c> with its own answer.</summary>
 internal interface IQueryHandler<TContext> {
-    AuthenticationSourceLabel Handle(AuthenticationSource message, TContext context);
-    AutomaticDownloadVerdict Handle(AutomaticDownloadCheck message, TContext context);
     ContentRuleList Handle(BalancedProtectionRules message, TContext context);
-    BlockedPopupTransitioned Handle(BlockedPopupTransition message, TContext context);
     SavedAddressReturn Handle(CanReturnToSavedAddress message, TContext context);
     SendPermission Handle(CanSend message, TContext context);
     TearOffPermission Handle(CanTearOff message, TContext context);
     SitePermissionAnswer Handle(CaptureDecision message, TContext context);
-    ChallengeHandled Handle(ChallengeHandling message, TContext context);
     CloudContentComparison Handle(CloudComparison message, TContext context);
     CloudRecordFieldList Handle(CloudFieldsOf message, TContext context);
     CloudSyncStatus Handle(CloudSync message, TContext context);
@@ -654,30 +650,16 @@ internal interface IQueryHandler<TContext> {
     CredentialSavePlan Handle(CredentialSave message, TContext context);
     CredentialSaveVerdict Handle(CredentialSaveCheck message, TContext context);
     CredentialChoice Handle(CredentialSaveMatch message, TContext context);
-    SessionState Handle(DetachedSession message, TContext context);
     DownloadProgressReading Handle(DownloadProgress message, TContext context);
     DownloadRiskVerdict Handle(DownloadRisk message, TContext context);
     DropTargetList Handle(DropTargets message, TContext context);
-    CapacityLimits Handle(EnforcedLimits message, TContext context);
     ExportedDocument Handle(ExportWorkspace message, TContext context);
-    ExternalAddressVerdict Handle(ExternalLocalDocument message, TContext context);
-    ExternalAddressVerdict Handle(ExternalWebLink message, TContext context);
     FallbackTabIndex Handle(FallbackTab message, TContext context);
-    ImportData Handle(FindImportData message, TContext context);
-    SessionState Handle(FirstInstallSession message, TContext context);
-    FixtureServerTrusted Handle(FixtureServerTrust message, TContext context);
-    HistoryAddressList Handle(HistoryAddresses message, TContext context);
     ImportPasswordRoutes Handle(ImportPasswordDestinations message, TContext context);
     ImportedWorkspace Handle(ImportPreview message, TContext context);
-    LanguageMatches Handle(LanguagesMatching message, TContext context);
-    LaunchDecision Handle(LaunchIsolation message, TContext context);
     LaunchDecision Handle(LaunchPlan message, TContext context);
     LinkNavigationAnswer Handle(LinkNavigation message, TContext context);
-    MediaSessionArbitration Handle(MediaSessionOrder message, TContext context);
-    MediaSessionEventDecision Handle(MediaSessionReport message, TContext context);
     CredentialChoice Handle(MostRecentCredential message, TContext context);
-    NormalizedBranding Handle(NormalizeBranding message, TContext context);
-    NotificationRequestAnswer Handle(NotificationPermissionRequest message, TContext context);
     NumberedSelectionList Handle(NumberedSelections message, TContext context);
     OpenedWindowSelected Handle(OpenedWindowSelection message, TContext context);
     PaletteAnswer Handle(PaletteSuggestions message, TContext context);
@@ -685,33 +667,82 @@ internal interface IQueryHandler<TContext> {
     CredentialImportPlan Handle(PasswordImportPreview message, TContext context);
     PendingSaveRevision Handle(PendingSave message, TContext context);
     PendingUploadList Handle(PendingUploads message, TContext context);
-    PagePresented Handle(PresentPage message, TContext context);
     ImportedSpaces Handle(ReadArchive message, TContext context);
     ImportedSpaces Handle(ReadImport message, TContext context);
     UploadBatch Handle(RecordsToUpload message, TContext context);
     ResolvedAddress Handle(ResolveAddress message, TContext context);
     ExternalLinkPlacement Handle(RouteExternalLink message, TContext context);
-    PageMatch Handle(SamePage message, TContext context);
-    SchemeHandled Handle(SchemeHandling message, TContext context);
-    SecureOriginVerdict Handle(SecureOriginCheck message, TContext context);
     SelectedTabs Handle(SelectionPreview message, TContext context);
     SelectionSearchAnswer Handle(SelectionSearch message, TContext context);
     SitePermissionAnswer Handle(SiteDecision message, TContext context);
     SplitJoinCandidateTab Handle(SplitJoinCandidate message, TContext context);
+    TAnswer Handle<TAnswer>(StandaloneQuery<TAnswer> message, TContext context);
     StrongPasswordRecipe Handle(StrongPassword message, TContext context);
     SystemPasswordOfferDecision Handle(SystemPasswordOffer message, TContext context);
     SystemPasswordWriteThroughSupport Handle(SystemPasswordWriteThrough message, TContext context);
+}
+
+/// <summary>Answers each case of <c>StandaloneQuery</c> with its own answer.</summary>
+internal interface IStandaloneQueryHandler<TContext> {
+    AuthenticationSourceLabel Handle(AuthenticationSource message, TContext context);
+    AutomaticDownloadVerdict Handle(AutomaticDownloadCheck message, TContext context);
+    BlockedPopupTransitioned Handle(BlockedPopupTransition message, TContext context);
+    ChallengeHandled Handle(ChallengeHandling message, TContext context);
+    SessionState Handle(DetachedSession message, TContext context);
+    CapacityLimits Handle(EnforcedLimits message, TContext context);
+    ExternalAddressVerdict Handle(ExternalLocalDocument message, TContext context);
+    ExternalAddressVerdict Handle(ExternalWebLink message, TContext context);
+    ImportData Handle(FindImportData message, TContext context);
+    SessionState Handle(FirstInstallSession message, TContext context);
+    FixtureServerTrusted Handle(FixtureServerTrust message, TContext context);
+    HistoryAddressList Handle(HistoryAddresses message, TContext context);
+    LanguageMatches Handle(LanguagesMatching message, TContext context);
+    LaunchDecision Handle(LaunchIsolation message, TContext context);
+    MediaSessionArbitration Handle(MediaSessionOrder message, TContext context);
+    MediaSessionEventDecision Handle(MediaSessionReport message, TContext context);
+    NormalizedBranding Handle(NormalizeBranding message, TContext context);
+    NotificationRequestAnswer Handle(NotificationPermissionRequest message, TContext context);
+    PagePresented Handle(PresentPage message, TContext context);
+    PageMatch Handle(SamePage message, TContext context);
+    SchemeHandled Handle(SchemeHandling message, TContext context);
+    SecureOriginVerdict Handle(SecureOriginCheck message, TContext context);
     TranslationDecision Handle(TranslationChoice message, TContext context);
 }
 
 /// <summary>Handles each case of <c>EngineEvent</c>.</summary>
 internal interface IEngineEventHandler<TContext> {
-    void Handle(AuthenticationChallenged message, TContext context);
     void Handle(BeforeUnloadAnswered message, TContext context);
     void Handle(DataErased message, TContext context);
+    void Handle(EngineDownloadEvent message, TContext context);
+    void Handle(PageEvent message, TContext context);
+    void Handle(PageOffered message, TContext context);
+    void Handle(PromptEvent message, TContext context);
+}
+
+/// <summary>Handles each case of <c>EngineEvent</c>, answering a result of the receiver's choice.</summary>
+internal interface IEngineEventHandler<TContext, TResult> {
+    TResult Handle(BeforeUnloadAnswered message, TContext context);
+    TResult Handle(DataErased message, TContext context);
+    TResult Handle(EngineDownloadEvent message, TContext context);
+    TResult Handle(PageEvent message, TContext context);
+    TResult Handle(PageOffered message, TContext context);
+    TResult Handle(PromptEvent message, TContext context);
+}
+
+/// <summary>Handles each case of <c>EngineDownloadEvent</c>.</summary>
+internal interface IEngineDownloadEventHandler<TContext> {
     void Handle(EngineDownloadChanged message, TContext context);
     void Handle(EngineDownloadDestinationRequested message, TContext context);
-    void Handle(ExtensionInstallRequested message, TContext context);
+}
+
+/// <summary>Handles each case of <c>EngineDownloadEvent</c>, answering a result of the receiver's choice.</summary>
+internal interface IEngineDownloadEventHandler<TContext, TResult> {
+    TResult Handle(EngineDownloadChanged message, TContext context);
+    TResult Handle(EngineDownloadDestinationRequested message, TContext context);
+}
+
+/// <summary>Handles each case of <c>PageEvent</c>.</summary>
+internal interface IPageEventHandler<TContext> {
     void Handle(NavigationCommitted message, TContext context);
     void Handle(NavigationFailed message, TContext context);
     void Handle(NavigationFinished message, TContext context);
@@ -721,23 +752,13 @@ internal interface IEngineEventHandler<TContext> {
     void Handle(PageCreated message, TContext context);
     void Handle(PageCreationFailed message, TContext context);
     void Handle(PageIconChanged message, TContext context);
-    void Handle(PageOffered message, TContext context);
     void Handle(PageStateChanged message, TContext context);
-    void Handle(PermissionRequested message, TContext context);
-    void Handle(PromptWithdrawn message, TContext context);
     void Handle(ProtectedMediaUnavailable message, TContext context);
-    void Handle(ScriptDialogOpened message, TContext context);
     void Handle(StagedLinkUnavailable message, TContext context);
 }
 
-/// <summary>Handles each case of <c>EngineEvent</c>, answering a result of the receiver's choice.</summary>
-internal interface IEngineEventHandler<TContext, TResult> {
-    TResult Handle(AuthenticationChallenged message, TContext context);
-    TResult Handle(BeforeUnloadAnswered message, TContext context);
-    TResult Handle(DataErased message, TContext context);
-    TResult Handle(EngineDownloadChanged message, TContext context);
-    TResult Handle(EngineDownloadDestinationRequested message, TContext context);
-    TResult Handle(ExtensionInstallRequested message, TContext context);
+/// <summary>Handles each case of <c>PageEvent</c>, answering a result of the receiver's choice.</summary>
+internal interface IPageEventHandler<TContext, TResult> {
     TResult Handle(NavigationCommitted message, TContext context);
     TResult Handle(NavigationFailed message, TContext context);
     TResult Handle(NavigationFinished message, TContext context);
@@ -747,13 +768,27 @@ internal interface IEngineEventHandler<TContext, TResult> {
     TResult Handle(PageCreated message, TContext context);
     TResult Handle(PageCreationFailed message, TContext context);
     TResult Handle(PageIconChanged message, TContext context);
-    TResult Handle(PageOffered message, TContext context);
     TResult Handle(PageStateChanged message, TContext context);
+    TResult Handle(ProtectedMediaUnavailable message, TContext context);
+    TResult Handle(StagedLinkUnavailable message, TContext context);
+}
+
+/// <summary>Handles each case of <c>PromptEvent</c>.</summary>
+internal interface IPromptEventHandler<TContext> {
+    void Handle(AuthenticationChallenged message, TContext context);
+    void Handle(ExtensionInstallRequested message, TContext context);
+    void Handle(PermissionRequested message, TContext context);
+    void Handle(PromptWithdrawn message, TContext context);
+    void Handle(ScriptDialogOpened message, TContext context);
+}
+
+/// <summary>Handles each case of <c>PromptEvent</c>, answering a result of the receiver's choice.</summary>
+internal interface IPromptEventHandler<TContext, TResult> {
+    TResult Handle(AuthenticationChallenged message, TContext context);
+    TResult Handle(ExtensionInstallRequested message, TContext context);
     TResult Handle(PermissionRequested message, TContext context);
     TResult Handle(PromptWithdrawn message, TContext context);
-    TResult Handle(ProtectedMediaUnavailable message, TContext context);
     TResult Handle(ScriptDialogOpened message, TContext context);
-    TResult Handle(StagedLinkUnavailable message, TContext context);
 }
 
 /// <summary>Answers each case of <c>EngineQuestion</c> with its own answer.</summary>
@@ -1553,15 +1588,11 @@ internal static class ContractDispatch {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(handler);
         return message switch {
-            AuthenticationSource @case => (TAnswer)(object)handler.Handle(@case, context),
-            AutomaticDownloadCheck @case => (TAnswer)(object)handler.Handle(@case, context),
             BalancedProtectionRules @case => (TAnswer)(object)handler.Handle(@case, context),
-            BlockedPopupTransition @case => (TAnswer)(object)handler.Handle(@case, context),
             CanReturnToSavedAddress @case => (TAnswer)(object)handler.Handle(@case, context),
             CanSend @case => (TAnswer)(object)handler.Handle(@case, context),
             CanTearOff @case => (TAnswer)(object)handler.Handle(@case, context),
             CaptureDecision @case => (TAnswer)(object)handler.Handle(@case, context),
-            ChallengeHandling @case => (TAnswer)(object)handler.Handle(@case, context),
             CloudComparison @case => (TAnswer)(object)handler.Handle(@case, context),
             CloudFieldsOf @case => (TAnswer)(object)handler.Handle(@case, context),
             CloudSync @case => (TAnswer)(object)handler.Handle(@case, context),
@@ -1573,30 +1604,16 @@ internal static class ContractDispatch {
             CredentialSave @case => (TAnswer)(object)handler.Handle(@case, context),
             CredentialSaveCheck @case => (TAnswer)(object)handler.Handle(@case, context),
             CredentialSaveMatch @case => (TAnswer)(object)handler.Handle(@case, context),
-            DetachedSession @case => (TAnswer)(object)handler.Handle(@case, context),
             DownloadProgress @case => (TAnswer)(object)handler.Handle(@case, context),
             DownloadRisk @case => (TAnswer)(object)handler.Handle(@case, context),
             DropTargets @case => (TAnswer)(object)handler.Handle(@case, context),
-            EnforcedLimits @case => (TAnswer)(object)handler.Handle(@case, context),
             ExportWorkspace @case => (TAnswer)(object)handler.Handle(@case, context),
-            ExternalLocalDocument @case => (TAnswer)(object)handler.Handle(@case, context),
-            ExternalWebLink @case => (TAnswer)(object)handler.Handle(@case, context),
             FallbackTab @case => (TAnswer)(object)handler.Handle(@case, context),
-            FindImportData @case => (TAnswer)(object)handler.Handle(@case, context),
-            FirstInstallSession @case => (TAnswer)(object)handler.Handle(@case, context),
-            FixtureServerTrust @case => (TAnswer)(object)handler.Handle(@case, context),
-            HistoryAddresses @case => (TAnswer)(object)handler.Handle(@case, context),
             ImportPasswordDestinations @case => (TAnswer)(object)handler.Handle(@case, context),
             ImportPreview @case => (TAnswer)(object)handler.Handle(@case, context),
-            LanguagesMatching @case => (TAnswer)(object)handler.Handle(@case, context),
-            LaunchIsolation @case => (TAnswer)(object)handler.Handle(@case, context),
             LaunchPlan @case => (TAnswer)(object)handler.Handle(@case, context),
             LinkNavigation @case => (TAnswer)(object)handler.Handle(@case, context),
-            MediaSessionOrder @case => (TAnswer)(object)handler.Handle(@case, context),
-            MediaSessionReport @case => (TAnswer)(object)handler.Handle(@case, context),
             MostRecentCredential @case => (TAnswer)(object)handler.Handle(@case, context),
-            NormalizeBranding @case => (TAnswer)(object)handler.Handle(@case, context),
-            NotificationPermissionRequest @case => (TAnswer)(object)handler.Handle(@case, context),
             NumberedSelections @case => (TAnswer)(object)handler.Handle(@case, context),
             OpenedWindowSelection @case => (TAnswer)(object)handler.Handle(@case, context),
             PaletteSuggestions @case => (TAnswer)(object)handler.Handle(@case, context),
@@ -1604,24 +1621,51 @@ internal static class ContractDispatch {
             PasswordImportPreview @case => (TAnswer)(object)handler.Handle(@case, context),
             PendingSave @case => (TAnswer)(object)handler.Handle(@case, context),
             PendingUploads @case => (TAnswer)(object)handler.Handle(@case, context),
-            PresentPage @case => (TAnswer)(object)handler.Handle(@case, context),
             ReadArchive @case => (TAnswer)(object)handler.Handle(@case, context),
             ReadImport @case => (TAnswer)(object)handler.Handle(@case, context),
             RecordsToUpload @case => (TAnswer)(object)handler.Handle(@case, context),
             ResolveAddress @case => (TAnswer)(object)handler.Handle(@case, context),
             RouteExternalLink @case => (TAnswer)(object)handler.Handle(@case, context),
-            SamePage @case => (TAnswer)(object)handler.Handle(@case, context),
-            SchemeHandling @case => (TAnswer)(object)handler.Handle(@case, context),
-            SecureOriginCheck @case => (TAnswer)(object)handler.Handle(@case, context),
             SelectionPreview @case => (TAnswer)(object)handler.Handle(@case, context),
             SelectionSearch @case => (TAnswer)(object)handler.Handle(@case, context),
             SiteDecision @case => (TAnswer)(object)handler.Handle(@case, context),
             SplitJoinCandidate @case => (TAnswer)(object)handler.Handle(@case, context),
+            StandaloneQuery<TAnswer> family => handler.Handle(family, context),
             StrongPassword @case => (TAnswer)(object)handler.Handle(@case, context),
             SystemPasswordOffer @case => (TAnswer)(object)handler.Handle(@case, context),
             SystemPasswordWriteThrough @case => (TAnswer)(object)handler.Handle(@case, context),
-            TranslationChoice @case => (TAnswer)(object)handler.Handle(@case, context),
             _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract Query.")
+        };
+    }
+
+    public static TAnswer Dispatch<TAnswer, TContext>(this StandaloneQuery<TAnswer> message, IStandaloneQueryHandler<TContext> handler, TContext context) {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(handler);
+        return message switch {
+            AuthenticationSource @case => (TAnswer)(object)handler.Handle(@case, context),
+            AutomaticDownloadCheck @case => (TAnswer)(object)handler.Handle(@case, context),
+            BlockedPopupTransition @case => (TAnswer)(object)handler.Handle(@case, context),
+            ChallengeHandling @case => (TAnswer)(object)handler.Handle(@case, context),
+            DetachedSession @case => (TAnswer)(object)handler.Handle(@case, context),
+            EnforcedLimits @case => (TAnswer)(object)handler.Handle(@case, context),
+            ExternalLocalDocument @case => (TAnswer)(object)handler.Handle(@case, context),
+            ExternalWebLink @case => (TAnswer)(object)handler.Handle(@case, context),
+            FindImportData @case => (TAnswer)(object)handler.Handle(@case, context),
+            FirstInstallSession @case => (TAnswer)(object)handler.Handle(@case, context),
+            FixtureServerTrust @case => (TAnswer)(object)handler.Handle(@case, context),
+            HistoryAddresses @case => (TAnswer)(object)handler.Handle(@case, context),
+            LanguagesMatching @case => (TAnswer)(object)handler.Handle(@case, context),
+            LaunchIsolation @case => (TAnswer)(object)handler.Handle(@case, context),
+            MediaSessionOrder @case => (TAnswer)(object)handler.Handle(@case, context),
+            MediaSessionReport @case => (TAnswer)(object)handler.Handle(@case, context),
+            NormalizeBranding @case => (TAnswer)(object)handler.Handle(@case, context),
+            NotificationPermissionRequest @case => (TAnswer)(object)handler.Handle(@case, context),
+            PresentPage @case => (TAnswer)(object)handler.Handle(@case, context),
+            SamePage @case => (TAnswer)(object)handler.Handle(@case, context),
+            SchemeHandling @case => (TAnswer)(object)handler.Handle(@case, context),
+            SecureOriginCheck @case => (TAnswer)(object)handler.Handle(@case, context),
+            TranslationChoice @case => (TAnswer)(object)handler.Handle(@case, context),
+            _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract StandaloneQuery.")
         };
     }
 
@@ -1629,12 +1673,54 @@ internal static class ContractDispatch {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(handler);
         switch (message) {
-            case AuthenticationChallenged @case: handler.Handle(@case, context); return;
             case BeforeUnloadAnswered @case: handler.Handle(@case, context); return;
             case DataErased @case: handler.Handle(@case, context); return;
+            case EngineDownloadEvent @case: handler.Handle(@case, context); return;
+            case PageEvent @case: handler.Handle(@case, context); return;
+            case PageOffered @case: handler.Handle(@case, context); return;
+            case PromptEvent @case: handler.Handle(@case, context); return;
+            default: throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract EngineEvent.");
+        }
+    }
+
+    public static TResult Dispatch<TContext, TResult>(this EngineEvent message, IEngineEventHandler<TContext, TResult> handler, TContext context) {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(handler);
+        return message switch {
+            BeforeUnloadAnswered @case => handler.Handle(@case, context),
+            DataErased @case => handler.Handle(@case, context),
+            EngineDownloadEvent @case => handler.Handle(@case, context),
+            PageEvent @case => handler.Handle(@case, context),
+            PageOffered @case => handler.Handle(@case, context),
+            PromptEvent @case => handler.Handle(@case, context),
+            _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract EngineEvent.")
+        };
+    }
+
+    public static void Dispatch<TContext>(this EngineDownloadEvent message, IEngineDownloadEventHandler<TContext> handler, TContext context) {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(handler);
+        switch (message) {
             case EngineDownloadChanged @case: handler.Handle(@case, context); return;
             case EngineDownloadDestinationRequested @case: handler.Handle(@case, context); return;
-            case ExtensionInstallRequested @case: handler.Handle(@case, context); return;
+            default: throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract EngineDownloadEvent.");
+        }
+    }
+
+    public static TResult Dispatch<TContext, TResult>(this EngineDownloadEvent message, IEngineDownloadEventHandler<TContext, TResult> handler, TContext context) {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(handler);
+        return message switch {
+            EngineDownloadChanged @case => handler.Handle(@case, context),
+            EngineDownloadDestinationRequested @case => handler.Handle(@case, context),
+            _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract EngineDownloadEvent.")
+        };
+    }
+
+    public static void Dispatch<TContext>(this PageEvent message, IPageEventHandler<TContext> handler, TContext context) {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(handler);
+        switch (message) {
             case NavigationCommitted @case: handler.Handle(@case, context); return;
             case NavigationFailed @case: handler.Handle(@case, context); return;
             case NavigationFinished @case: handler.Handle(@case, context); return;
@@ -1644,27 +1730,17 @@ internal static class ContractDispatch {
             case PageCreated @case: handler.Handle(@case, context); return;
             case PageCreationFailed @case: handler.Handle(@case, context); return;
             case PageIconChanged @case: handler.Handle(@case, context); return;
-            case PageOffered @case: handler.Handle(@case, context); return;
             case PageStateChanged @case: handler.Handle(@case, context); return;
-            case PermissionRequested @case: handler.Handle(@case, context); return;
-            case PromptWithdrawn @case: handler.Handle(@case, context); return;
             case ProtectedMediaUnavailable @case: handler.Handle(@case, context); return;
-            case ScriptDialogOpened @case: handler.Handle(@case, context); return;
             case StagedLinkUnavailable @case: handler.Handle(@case, context); return;
-            default: throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract EngineEvent.");
+            default: throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract PageEvent.");
         }
     }
 
-    public static TResult Dispatch<TContext, TResult>(this EngineEvent message, IEngineEventHandler<TContext, TResult> handler, TContext context) {
+    public static TResult Dispatch<TContext, TResult>(this PageEvent message, IPageEventHandler<TContext, TResult> handler, TContext context) {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(handler);
         return message switch {
-            AuthenticationChallenged @case => handler.Handle(@case, context),
-            BeforeUnloadAnswered @case => handler.Handle(@case, context),
-            DataErased @case => handler.Handle(@case, context),
-            EngineDownloadChanged @case => handler.Handle(@case, context),
-            EngineDownloadDestinationRequested @case => handler.Handle(@case, context),
-            ExtensionInstallRequested @case => handler.Handle(@case, context),
             NavigationCommitted @case => handler.Handle(@case, context),
             NavigationFailed @case => handler.Handle(@case, context),
             NavigationFinished @case => handler.Handle(@case, context),
@@ -1674,14 +1750,36 @@ internal static class ContractDispatch {
             PageCreated @case => handler.Handle(@case, context),
             PageCreationFailed @case => handler.Handle(@case, context),
             PageIconChanged @case => handler.Handle(@case, context),
-            PageOffered @case => handler.Handle(@case, context),
             PageStateChanged @case => handler.Handle(@case, context),
+            ProtectedMediaUnavailable @case => handler.Handle(@case, context),
+            StagedLinkUnavailable @case => handler.Handle(@case, context),
+            _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract PageEvent.")
+        };
+    }
+
+    public static void Dispatch<TContext>(this PromptEvent message, IPromptEventHandler<TContext> handler, TContext context) {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(handler);
+        switch (message) {
+            case AuthenticationChallenged @case: handler.Handle(@case, context); return;
+            case ExtensionInstallRequested @case: handler.Handle(@case, context); return;
+            case PermissionRequested @case: handler.Handle(@case, context); return;
+            case PromptWithdrawn @case: handler.Handle(@case, context); return;
+            case ScriptDialogOpened @case: handler.Handle(@case, context); return;
+            default: throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract PromptEvent.");
+        }
+    }
+
+    public static TResult Dispatch<TContext, TResult>(this PromptEvent message, IPromptEventHandler<TContext, TResult> handler, TContext context) {
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(handler);
+        return message switch {
+            AuthenticationChallenged @case => handler.Handle(@case, context),
+            ExtensionInstallRequested @case => handler.Handle(@case, context),
             PermissionRequested @case => handler.Handle(@case, context),
             PromptWithdrawn @case => handler.Handle(@case, context),
-            ProtectedMediaUnavailable @case => handler.Handle(@case, context),
             ScriptDialogOpened @case => handler.Handle(@case, context),
-            StagedLinkUnavailable @case => handler.Handle(@case, context),
-            _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract EngineEvent.")
+            _ => throw new ArgumentOutOfRangeException(nameof(message), message.GetType().Name, "Not a contract PromptEvent.")
         };
     }
 

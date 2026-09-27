@@ -3,18 +3,25 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-public sealed partial class NativeSessionAuthority {
-    #region Types
+#region Types
 
-    /// What one session intent changes: the next session, how it stages (null
-    /// for an edit no journal ever reads), what the window that issued it
-    /// shows next, what it did that the two states cannot tell, the sweep it
-    /// records, and the Quick Window or Peek page it kept or archived.
-    private sealed record SessionEdit(SessionState Next, SyncStaging? Staging, WindowFollowUp? FollowUp = null,
-        SessionTabEvents? Events = null, SweepMark? Sweep = null, Guid? Completes = null);
+/// What one session intent changes: the next session, how it stages (null
+/// for an edit no journal ever reads), what the window that issued it
+/// shows next, what it did that the two states cannot tell, the sweep it
+/// records, and the Quick Window or Peek page it kept or archived.
+internal sealed record SessionEdit(SessionState Next, SyncStaging? Staging, WindowFollowUp? FollowUp = null,
+    SessionTabEvents? Events = null, NativeSessionAuthority.SweepMark? Sweep = null, Guid? Completes = null);
 
-    #endregion
+/// What one session intent's edit reads: the accepted session it edits, the
+/// time it is stamped with, where new identities come from, what the device's
+/// pages show, and whether an import is only previewed, which reads Spaces
+/// this process has not unlocked.
+internal sealed record SessionTurn(SessionState Basis, DateTimeOffset Now, IIdSource Ids, Pages? Pages, bool Previewed);
 
+#endregion
+
+internal sealed partial class NativeSessionAuthority : ISessionIntentHandler<SessionTurn, SessionEdit?>,
+    IImportWorkspaceHandler<SessionTurn, SessionEdit?> {
     #region Actions - Intents
 
     /// Runs one session intent at `now`, drawing new identities from `ids`
@@ -89,86 +96,8 @@ public sealed partial class NativeSessionAuthority {
     /// `previewed` reads Spaces this process has not unlocked, as a person
     /// sees them before they import. The caller holds the gate.
     private SessionEdit? Edit(SessionIntent intent, DateTimeOffset now, IIdSource ids, Pages? pages, bool previewed = false) {
-        if (intent is SidebarDrop drop) return Edit(Committed(drop, IntentBasis(), ids), now, ids, pages, previewed);
         var basis = IntentBasis();
-        var edit = intent switch {
-            ClearHistory clear => ClearingHistory(basis, clear),
-            RemoveHistoryAddress removal => RemovingHistory(basis, removal),
-            RemoveHistoryRange removal => RemovingHistory(basis, removal),
-            SweepExpiredRecords => Sweeping(basis, now),
-            CleanUpCurrentTabs cleanup => CleaningUp(basis, cleanup, now),
-            RestoreArchivedTab restore => Restoring(basis, restore, now),
-            CreateFolder creation => CreatingFolder(basis, creation, now),
-            RenameFolder rename => RenamingFolder(basis, rename),
-            CollapseFolder collapse => CollapsingFolder(basis, collapse, now),
-            SetFolderColor color => ColoringFolder(basis, color),
-            SetFolderSymbol symbol => SymbolizingFolder(basis, symbol),
-            MoveFolder move => MovingFolder(basis, move, now),
-            DeleteFolder deletion => DeletingFolder(basis, deletion, now),
-            FileTabs filing => Filing(basis, filing, now),
-            JoinSplit join => JoiningSplit(basis, join, now, ids, pages),
-            OpenLinkInSplit link => OpeningLinkInSplit(basis, link, now, ids, pages),
-            LeaveSplit leave => LeavingSplit(basis, leave, now),
-            MoveSplitMember move => MovingSplitMember(basis, move, now),
-            StepSplitMember step => SteppingSplitMember(basis, step, now),
-            DissolveSplit dissolve => DissolvingSplit(basis, dissolve, now),
-            MoveSplit move => MovingSplit(basis, move, now),
-            NameSplit name => NamingSplit(basis, name, now),
-            SetSplitIcon icon => SettingSplitIcon(basis, icon, now),
-            TintSplit tint => TintingSplit(basis, tint, now),
-            OpenTab opening => OpeningTab(basis, opening, now),
-            ShowStartPage showing => ShowingStartPage(basis, showing, now),
-            OpenAddress address => OpeningAddress(basis, address, now, pages?.OpensInternalPages ?? false),
-            ReopenClosedTab reopening => ReopeningClosedTab(basis, reopening, now),
-            CloseTab closing => ClosingTab(basis, closing, now),
-            DeleteTab deletion => DeletingTab(basis, deletion, now),
-            ClearCurrentTabs clearing => ClearingCurrentTabs(basis, clearing, now),
-            DuplicateTab copy => DuplicatingTab(basis, copy, now, ids, pages),
-            MoveTab move => MovingTab(basis, move, now),
-            TogglePin toggle => TogglingPin(basis, toggle, now),
-            CloseTabs closing => ClosingTabs(basis, closing, now),
-            DeleteTabs deletion => DeletingTabs(basis, deletion, now),
-            DuplicateTabs copies => DuplicatingTabs(basis, copies, now, ids, pages),
-            SplitTabs split => SplittingTabs(basis, split, now, ids, pages),
-            SeparateSplits separation => SeparatingSplits(basis, separation, now),
-            KeepTabsLoaded residency => KeepingTabsLoaded(basis, residency),
-            MoveTabsToSpace move => MovingTabsToSpace(basis, move, now),
-            MoveTabToSpace move => MovingTabToSpace(basis, move, now),
-            MoveTabToWindow move => MovingTabToWindow(basis, move, now),
-            FolderTabs folding => FoldingTabs(basis, folding, now, ids),
-            FolderTabsAround folding => FoldingTabsAround(basis, folding, now, ids),
-            PromoteTransientPage promotion => PromotingTransientPage(basis, promotion, now, ids, pages),
-            ArchiveTransientPage archive => ArchivingTransientPage(basis, archive, now, ids, pages),
-            NavigateTab navigation => NavigatingTab(basis, navigation, pages?.OpensInternalPages ?? false),
-            RenameTab rename => RenamingTab(basis, rename, now),
-            ChooseTabIcon icon => ChoosingTabIcon(basis, icon),
-            ReplaceSavedAddress adoption => ReplacingSavedAddress(basis, adoption),
-            ReturnToSavedAddress returning => ReturningToSavedAddress(basis, returning),
-            KeepPageLoaded residency => KeepingPageLoaded(basis, residency),
-            CreateSpace creation => CreatingSpace(basis, creation, now, ids),
-            SetSpaceIdentity identity => SettingIdentity(basis, identity),
-            SetSpaceBranding branding => SettingBranding(basis, branding),
-            SetCredentialPreferences credentials => SettingCredentials(basis, credentials),
-            SetSpaceAccess access => SettingAccess(basis, access),
-            SetDefaultSpace choice => SettingDefault(basis, choice),
-            ReorderSpaces order => Reordering(basis, order),
-            ExpandSavedTabs expansion => ExpandingSavedTabs(basis, expansion, now),
-            BeginDeletingSpace deletion => BeginningDeletion(basis, deletion),
-            FinishDeletingSpace deletion => FinishingDeletion(basis, deletion),
-            ResetPrivateBrowsing reset => ResettingPrivateBrowsing(basis, reset, now, ids),
-            SetAppPreferences preferences => SettingPreferences(basis, preferences),
-            SetTranslationRule rule => SettingTranslationRule(basis, rule),
-            ImportAppPreferences import => ImportingPreferences(basis, import),
-            SetBrowsingPreferences preferences => SettingBrowsingPreferences(basis, preferences, now),
-            AddSearchEngine engine => AddingSearchEngine(basis, engine),
-            UpdateSearchEngine engine => UpdatingSearchEngine(basis, engine),
-            RemoveSearchEngine engine => RemovingSearchEngine(basis, engine),
-            SelectSearchEngine engine => SelectingSearchEngine(basis, engine),
-            ImportSpaces import => ImportingSpaces(basis, import, now, ids, previewed),
-            ImportReviewedSpaces import => ImportingReviewedSpaces(basis, import, now, ids, previewed),
-            ApplyManualSetup setup => ApplyingManualSetup(basis, setup, now, ids, previewed),
-            _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The session does not handle this intent.")
-        };
+        var edit = intent.Dispatch(this, new SessionTurn(basis, now, ids, pages, previewed));
         if (edit is null) return null;
         // An import brings Spaces whole, so its session is checked whole.
         if (intent is ImportWorkspace) Validate(edit.Next);
@@ -176,6 +105,11 @@ public sealed partial class NativeSessionAuthority {
         ValidateBorrowedSession(edit.Next);
         return edit;
     }
+
+    /// A drop commits the edit it decides, from the same basis.
+    public SessionEdit? Handle(SidebarDrop drop, SessionTurn turn) => Committed(drop, turn.Basis, turn.Ids).Dispatch(this, turn);
+
+    public SessionEdit? Handle(ImportWorkspace import, SessionTurn turn) => import.Dispatch(this, turn);
 
     /// The accepted session an intent edits. A borrowed Space takes its
     /// owner's current settings, as a refresh would, since an intent proposes

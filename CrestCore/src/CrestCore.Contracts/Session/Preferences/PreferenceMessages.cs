@@ -40,7 +40,7 @@ public sealed record SetTranslationRule(Guid WorkspaceId, string SourceLanguage,
 
 /// Whether each of `Candidates` names the same translation language as
 /// `Language`. It reads no state, so a host may ask it without an app.
-public sealed record LanguagesMatching(string Language, IReadOnlyList<string> Candidates) : Query<LanguageMatches>;
+public sealed record LanguagesMatching(string Language, IReadOnlyList<string> Candidates) : StandaloneQuery<LanguageMatches>;
 
 /// For each candidate, in order, whether it names the asked language.
 public sealed record LanguageMatches(IReadOnlyList<bool> Matches);
@@ -51,7 +51,7 @@ public sealed record LanguageMatches(IReadOnlyList<bool> Matches);
 /// startup answer is the one for a person who never chose; `LaunchPlan` reads
 /// the saved choice once a workspace keeps one. It reads no state, so the host
 /// asks it before it makes an app.
-public sealed record LaunchIsolation(DevicePlatform Platform, LaunchEnvironment Environment) : Query<LaunchDecision>;
+public sealed record LaunchIsolation(DevicePlatform Platform, LaunchEnvironment Environment) : StandaloneQuery<LaunchDecision>;
 
 /// How one launch treats the person's data and what its first window opens.
 /// An isolated launch never reads or writes the installed profile.
@@ -70,7 +70,7 @@ public sealed record LaunchPlan(Guid WorkspaceId, DevicePlatform Platform, Launc
 /// The rule among `Rules` that applies to pages in `SourceLanguage`, whose
 /// region aliases share it, and the language such pages are translated into.
 /// It reads no state, so a host may ask it without an app.
-public sealed record TranslationChoice(IReadOnlyList<TranslationRule> Rules, string SourceLanguage) : Query<TranslationDecision>;
+public sealed record TranslationChoice(IReadOnlyList<TranslationRule> Rules, string SourceLanguage) : StandaloneQuery<TranslationDecision>;
 
 /// The rule that applies to a source language, or null, and the language its
 /// pages are translated into, or null when they are not.

@@ -2,7 +2,7 @@ namespace CrestCore.Contracts;
 
 /// Whether Crest opens an address as a local document, from the facts the
 /// platform's own parser reported. Only document-open routes ask.
-public sealed record ExternalLocalDocument(LocalDocumentFacts Facts) : Query<ExternalAddressVerdict>;
+public sealed record ExternalLocalDocument(LocalDocumentFacts Facts) : StandaloneQuery<ExternalAddressVerdict>;
 
 /// Whether Crest takes the address.
 public sealed record ExternalAddressVerdict(bool Accepted);
@@ -15,11 +15,11 @@ public sealed record LocalDocumentFacts(bool IsFile, bool HasUser, bool HasPath,
 /// Whether another app, a drop, a Peek, a popup or a menu may hand Crest an
 /// address as a web link: HTTP or HTTPS with a host. The address arrives as
 /// the scheme and host the platform's own parser reported.
-public sealed record ExternalWebLink(string? Scheme, string? Host) : Query<ExternalAddressVerdict>;
+public sealed record ExternalWebLink(string? Scheme, string? Host) : StandaloneQuery<ExternalAddressVerdict>;
 
 /// Which engine, if any, owns a navigation once its scheme is known. Only a
 /// load Crest itself started may keep `file:`.
-public sealed record SchemeHandling(string? Scheme, bool AppInitiated) : Query<SchemeHandled>;
+public sealed record SchemeHandling(string? Scheme, bool AppInitiated) : StandaloneQuery<SchemeHandled>;
 
 /// Who owns the navigation.
 public sealed record SchemeHandled(ExternalSchemeDisposition Disposition);

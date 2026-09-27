@@ -6,7 +6,7 @@ namespace CrestCore.Application;
 /// The downloads area: this run's download ledger and the changes each
 /// download intent publishes. An event that does not apply to a record's
 /// phase publishes nothing. Nothing here is persisted or synced.
-public sealed class Downloads {
+internal sealed class Downloads : IDownloadIntentHandler<ChangeFeed> {
     #region Variables
 
     private readonly DownloadLedger ledger = new();
@@ -15,56 +15,43 @@ public sealed class Downloads {
 
     #region Actions - Intents
 
-    public void Handle(DownloadIntent intent, ChangeFeed changes) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        switch (intent) {
-            case BeginDownload begin:
-                Updated(ledger.Begin(begin.DownloadId, begin.ProfileId, begin.Filename, begin.CreatedAt, begin.IsAcknowledged), changes);
-                break;
-            case SetDownloadDestination destination:
-                Updated(ledger.SetDestination(destination.DownloadId, destination.Destination, destination.Filename), changes);
-                break;
-            case RecordDownloadTransfer transfer:
-                Updated(ledger.RecordTransfer(transfer.DownloadId, transfer.Telemetry, transfer.Progress), changes);
-                break;
-            case AssessDownloadRisk risk:
-                Updated(ledger.AssessRisk(risk.DownloadId, risk.Assessment), changes);
-                break;
-            case AwaitDownloadApproval approval:
-                Updated(ledger.AwaitApproval(approval.DownloadId), changes);
-                break;
-            case FinishDownload finish:
-                Updated(ledger.Finish(finish.DownloadId, finish.FinalByteCount), changes);
-                break;
-            case FailDownload failure:
-                Updated(ledger.Fail(failure.DownloadId, failure.Reason, failure.Message), changes);
-                break;
-            case CancelDownload cancellation:
-                Updated(ledger.Cancel(cancellation.DownloadId, cancellation.Message), changes);
-                break;
-            case BlockAutomaticDownload block:
-                Updated(ledger.BlockAutomaticDownload(block.DownloadId), changes);
-                break;
-            case RestartDownload restart:
-                Updated(ledger.Restart(restart.DownloadId), changes);
-                break;
-            case AcknowledgeDownloads acknowledgement:
-                foreach (var download in ledger.AcknowledgeProfile(acknowledgement.ProfileId)) Updated(download, changes);
-                break;
-            case RemoveDownload removal:
-                Removed(ledger.Remove(removal.DownloadId) ? [removal.DownloadId] : [], changes);
-                break;
-            case RemoveProfileDownloads profileRemoval:
-                Removed(ledger.RemoveProfile(profileRemoval.ProfileId), changes);
-                break;
-            case ExpireDownloads expiry:
-                Removed(ledger.RemoveExpired(expiry.Retentions, expiry.Now), changes);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Downloads does not handle this intent.");
-        }
+    public void Handle(DownloadIntent intent, ChangeFeed changes) => intent.Dispatch(this, changes);
+
+    public void Handle(BeginDownload begin, ChangeFeed changes) =>
+        Updated(ledger.Begin(begin.DownloadId, begin.ProfileId, begin.Filename, begin.CreatedAt, begin.IsAcknowledged), changes);
+
+    public void Handle(SetDownloadDestination destination, ChangeFeed changes) =>
+        Updated(ledger.SetDestination(destination.DownloadId, destination.Destination, destination.Filename), changes);
+
+    public void Handle(RecordDownloadTransfer transfer, ChangeFeed changes) =>
+        Updated(ledger.RecordTransfer(transfer.DownloadId, transfer.Telemetry, transfer.Progress), changes);
+
+    public void Handle(AssessDownloadRisk risk, ChangeFeed changes) => Updated(ledger.AssessRisk(risk.DownloadId, risk.Assessment), changes);
+
+    public void Handle(AwaitDownloadApproval approval, ChangeFeed changes) => Updated(ledger.AwaitApproval(approval.DownloadId), changes);
+
+    public void Handle(FinishDownload finish, ChangeFeed changes) => Updated(ledger.Finish(finish.DownloadId, finish.FinalByteCount), changes);
+
+    public void Handle(FailDownload failure, ChangeFeed changes) =>
+        Updated(ledger.Fail(failure.DownloadId, failure.Reason, failure.Message), changes);
+
+    public void Handle(CancelDownload cancellation, ChangeFeed changes) =>
+        Updated(ledger.Cancel(cancellation.DownloadId, cancellation.Message), changes);
+
+    public void Handle(BlockAutomaticDownload block, ChangeFeed changes) => Updated(ledger.BlockAutomaticDownload(block.DownloadId), changes);
+
+    public void Handle(RestartDownload restart, ChangeFeed changes) => Updated(ledger.Restart(restart.DownloadId), changes);
+
+    public void Handle(AcknowledgeDownloads acknowledgement, ChangeFeed changes) {
+        foreach (var download in ledger.AcknowledgeProfile(acknowledgement.ProfileId)) Updated(download, changes);
     }
+
+    public void Handle(RemoveDownload removal, ChangeFeed changes) =>
+        Removed(ledger.Remove(removal.DownloadId) ? [removal.DownloadId] : [], changes);
+
+    public void Handle(RemoveProfileDownloads profileRemoval, ChangeFeed changes) => Removed(ledger.RemoveProfile(profileRemoval.ProfileId), changes);
+
+    public void Handle(ExpireDownloads expiry, ChangeFeed changes) => Removed(ledger.RemoveExpired(expiry.Retentions, expiry.Now), changes);
 
     private void Updated(DownloadState? download, ChangeFeed changes) {
         if (download is not null) changes.Publish(new DownloadUpdated(download, ledger.IndexOf(download.Id)));

@@ -3,28 +3,27 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-public sealed partial class CrestApp {
+public sealed partial class CrestApp : IWorkspaceIntentHandler<ChangeFeed> {
     #region Actions - Workspaces
 
-    /// Runs one workspace intent. What it changes joins the pending batch in
-    /// the order it happened: a closing workspace's pages, then its windows,
-    /// then that it closed; an opening workspace whole, then the tabs its
-    /// repair gave a new identity. The caller holds the lock.
-    private void Handle(WorkspaceIntent intent) {
-        switch (intent) {
-            case OpenWorkspace opening: Open(opening); break;
-            case BorrowSpace borrowing: Borrow(borrowing); break;
-            case CloseWorkspace closing: Close(closing.WorkspaceId); break;
-            default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "No area handles this workspace intent.");
-        }
-    }
+    // A workspace intent's changes join the pending batch in the order they
+    // happened: a closing workspace's pages, then its windows, then that it
+    // closed; an opening workspace whole, then the tabs its repair gave a new
+    // identity. The caller holds the lock.
 
-    private void Open(OpenWorkspace intent) {
+    void IWorkspaceIntentHandler<ChangeFeed>.Handle(OpenWorkspace intent, ChangeFeed changes) {
         if (!intent.Kind.OpensDirectly) throw new Rejected(new BorrowedWorkspaceRequiresSpace(intent.Kind));
         if (intent.Seed is { } seed) OpenSeeded(intent.Kind, seed);
         else if (intent.Kind.KeepsFile) OpenStored();
         else device.Attach(new NativeSessionAuthority(intent.Kind, Template(intent.Kind)), ids.Next());
     }
+
+    void IWorkspaceIntentHandler<ChangeFeed>.Handle(BorrowSpace intent, ChangeFeed changes) {
+        var owner = device.Workspace(intent.WorkspaceId);
+        device.Attach(owner.Borrow(intent.SpaceId, intent.ProfileId), ids.Next());
+    }
+
+    void IWorkspaceIntentHandler<ChangeFeed>.Handle(CloseWorkspace intent, ChangeFeed changes) => Close(intent.WorkspaceId);
 
     /// Opens a workspace over `seed`, repaired as the file's session is when
     /// it loads. A tab the repair gave a new identity follows as `TabCopied`
@@ -79,11 +78,6 @@ public sealed partial class CrestApp {
         var template = kind.IsPractice ? SpaceTemplate.Practice : SpaceTemplate.For(kind.IsPrivate);
         var space = template.Make(ids.Next(), ids.Next(), ids.Next, number: 1, now);
         return new([space], DefaultSpaceId: null, DisposableSeedMarker: null, SpaceDeletions: [], AppPreferences: null);
-    }
-
-    private void Borrow(BorrowSpace intent) {
-        var owner = device.Workspace(intent.WorkspaceId);
-        device.Attach(owner.Borrow(intent.SpaceId, intent.ProfileId), ids.Next());
     }
 
     /// Closes a workspace and, first, every workspace that borrows from it:

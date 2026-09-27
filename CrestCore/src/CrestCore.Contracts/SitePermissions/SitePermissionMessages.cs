@@ -42,7 +42,7 @@ public sealed record ResetSpacePermissions(Guid SpaceId) : SitePermissionIntent;
 /// A page's blocked-popup notice after one popup event from `State`. Refused
 /// with `InvalidBlockedPopup` for a state or event the notice cannot hold.
 public sealed record BlockedPopupTransition(BlockedPopupPageState State, BlockedPopupEvent Event, string? DocumentIdentifier,
-    SiteOrigin? Origin) : Query<BlockedPopupTransitioned>;
+    SiteOrigin? Origin) : StandaloneQuery<BlockedPopupTransitioned>;
 
 /// The page's popup state after the event, or null when the event changed
 /// nothing and the page keeps its state and shows no new indication.
@@ -61,14 +61,14 @@ public sealed record SitePermissionAnswer(SitePermissionDecision Decision);
 /// What a page's request to post notifications leads to, given the saved
 /// decision for its site and whether a person's gesture started it.
 public sealed record NotificationPermissionRequest(SitePermissionDecision Decision, bool HasUserActivation)
-    : Query<NotificationRequestAnswer>;
+    : StandaloneQuery<NotificationRequestAnswer>;
 
 /// What the notification request leads to.
 public sealed record NotificationRequestAnswer(HostedNotificationRequestAction Action);
 
 /// Whether a site may use a capability that needs a secure origin, such as
 /// location or hosted notifications, at all.
-public sealed record SecureOriginCheck(SiteOrigin Origin) : Query<SecureOriginVerdict>;
+public sealed record SecureOriginCheck(SiteOrigin Origin) : StandaloneQuery<SecureOriginVerdict>;
 
 /// Whether the origin is secure enough for the capability.
 public sealed record SecureOriginVerdict(bool Allowed);

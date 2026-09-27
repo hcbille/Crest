@@ -3,7 +3,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-public sealed partial class NativeSessionAuthority {
+internal sealed partial class NativeSessionAuthority {
     #region Types
 
     /// One workspace's part in a move between windows: the state it held, and
@@ -21,10 +21,10 @@ public sealed partial class NativeSessionAuthority {
     /// Moves the tab to another Space of this workspace. The issuing window
     /// gives up the tab it showed for the one it showed before, and when the
     /// intent follows the tab it moves to the destination and shows it there.
-    private SessionEdit MovingTabToSpace(SessionState basis, MoveTabToSpace intent, DateTimeOffset now) {
+    public SessionEdit Handle(MoveTabToSpace intent, SessionTurn turn) {
         if (intent.DestinationSpaceId == intent.SpaceId) throw new Rejected(new AlreadyInSpace(intent.SpaceId));
-        var space = Editable(basis, intent.SpaceId);
-        var destination = Editable(basis, intent.DestinationSpaceId);
+        var space = Editable(turn.Basis, intent.SpaceId);
+        var destination = Editable(turn.Basis, intent.DestinationSpaceId);
         var edited = BrowserTabCollection.Restore(space);
         var receiving = BrowserTabCollection.Restore(destination);
         _ = edited.Tab(intent.TabId);
@@ -33,16 +33,16 @@ public sealed partial class NativeSessionAuthority {
         var fallback = followUp.FallbackAfterDismissing(space.Id, intent.TabId,
             space.Tabs.Select(tab => tab.Id).Where(id => id != intent.TabId).ToHashSet());
         var shown = edited.TransferTo(receiving, intent.TabId, followUp.Window?.Tab(space.Id), fallback, intent.Placement,
-            intent.FolderId, intent.BeforeTabId, afterSelection: false, shownThere, now);
+            intent.FolderId, intent.BeforeTabId, afterSelection: false, shownThere, turn.Now);
         if (intent.Follows) {
-            receiving.Tab(intent.TabId).Activate(now);
+            receiving.Tab(intent.TabId).Activate(turn.Now);
             shownThere = intent.TabId;
         }
         edited.PruneSplitMetadata();
         receiving.PruneSplitMetadata();
         followUp.ShowTab(space.Id, shown).ShowTab(destination.Id, shownThere);
         if (intent.Follows) followUp.ShowSpace(destination.Id);
-        return new(Replacing(basis, edited.Capture(space), receiving.Capture(destination)), SyncStaging.Transfer, followUp);
+        return new(Replacing(turn.Basis, edited.Capture(space), receiving.Capture(destination)), SyncStaging.Transfer, followUp);
     }
 
     #endregion
@@ -63,12 +63,12 @@ public sealed partial class NativeSessionAuthority {
     /// Both windows show this workspace, so the tab stays where it is: the
     /// window it moves to shows it and its Space, and the tab's use is
     /// recorded, as showing a tab records it.
-    private SessionEdit MovingTabToWindow(SessionState basis, MoveTabToWindow intent, DateTimeOffset now) {
-        var space = Editable(basis, intent.SpaceId);
+    public SessionEdit Handle(MoveTabToWindow intent, SessionTurn turn) {
+        var space = Editable(turn.Basis, intent.SpaceId);
         if (space.Tabs.All(tab => tab.Id != intent.TabId)) throw new Rejected(new UnknownTab(intent.TabId));
         var followUp = new WindowFollowUp(IssuingWindow(intent.DestinationWindowId)).ShowTab(space.Id, intent.TabId).ShowSpace(space.Id);
-        var used = space with { Tabs = [.. space.Tabs.Select(tab => tab.Id == intent.TabId ? tab with { LastActivatedAt = now } : tab)] };
-        return new(Replacing(basis, used), SyncStaging.TabUse, followUp);
+        var used = space with { Tabs = [.. space.Tabs.Select(tab => tab.Id == intent.TabId ? tab with { LastActivatedAt = turn.Now } : tab)] };
+        return new(Replacing(turn.Basis, used), SyncStaging.TabUse, followUp);
     }
 
     /// Moves the tab out of this workspace into `receiving`, the workspace the

@@ -5,7 +5,7 @@ namespace CrestCore.Application;
 
 /// This device's link preferences, which the device store keeps and never
 /// syncs, and where a link another app hands a window opens under them.
-internal sealed partial class Device {
+internal sealed partial class Device : ILinkIntentHandler<ChangeFeed> {
     #region Variables
 
     private LinkPreferences links = LinkPreferencePolicy.Default;
@@ -14,32 +14,41 @@ internal sealed partial class Device {
 
     #region Actions - Link intents
 
-    /// Runs one link intent, publishing the preferences when they changed. An
-    /// adoption always publishes them, so the platform reads them from launch.
+    /// Runs one link intent holding the device lock, publishing the
+    /// preferences when they changed.
     public void Handle(LinkIntent intent, ChangeFeed changes) {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(changes);
-        lock (gate) {
-            if (intent is AdoptLinkPreferences adoption) {
-                Adopt(adoption);
-                changes.Publish(new LinkPreferencesChanged(links));
-                return;
-            }
-            Revise(intent switch {
-                ChooseExternalLinkDestination choice =>
-                    links with { Destination = choice.Destination, DestinationSpaceId = choice.SpaceId ?? links.DestinationSpaceId },
-                SetLinkBehavior setting => setting.Behavior.Setting(links, setting.IsOn),
-                ChoosePeekModifier choice => links with { PeekModifier = choice.Modifier },
-                ChooseQuickWindowArchivePolicy choice => links with { ArchivePolicy = choice.Policy },
-                AddLinkRoute adding => LinkPreferencePolicy.Adding(links, adding),
-                EditLinkRoute edit => LinkPreferencePolicy.Editing(links, edit),
-                MoveLinkRoute move => LinkPreferencePolicy.Moving(links, move),
-                RemoveLinkRoute removal => LinkPreferencePolicy.Removing(links, removal),
-                RememberQuickWindowSpace remembering => LinkPreferencePolicy.Remembering(links, remembering.Url, remembering.SpaceId),
-                _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.")
-            }, changes);
-        }
+        lock (gate) intent.Dispatch(this, changes);
     }
+
+    /// An adoption always publishes the preferences, so the platform reads
+    /// them from launch. The caller holds the device lock, as for each link
+    /// intent.
+    public void Handle(AdoptLinkPreferences adoption, ChangeFeed changes) {
+        Adopt(adoption);
+        changes.Publish(new LinkPreferencesChanged(links));
+    }
+
+    public void Handle(ChooseExternalLinkDestination choice, ChangeFeed changes) =>
+        Revise(links with { Destination = choice.Destination, DestinationSpaceId = choice.SpaceId ?? links.DestinationSpaceId }, changes);
+
+    public void Handle(SetLinkBehavior setting, ChangeFeed changes) => Revise(setting.Behavior.Setting(links, setting.IsOn), changes);
+
+    public void Handle(ChoosePeekModifier choice, ChangeFeed changes) => Revise(links with { PeekModifier = choice.Modifier }, changes);
+
+    public void Handle(ChooseQuickWindowArchivePolicy choice, ChangeFeed changes) => Revise(links with { ArchivePolicy = choice.Policy }, changes);
+
+    public void Handle(AddLinkRoute adding, ChangeFeed changes) => Revise(LinkPreferencePolicy.Adding(links, adding), changes);
+
+    public void Handle(EditLinkRoute edit, ChangeFeed changes) => Revise(LinkPreferencePolicy.Editing(links, edit), changes);
+
+    public void Handle(MoveLinkRoute move, ChangeFeed changes) => Revise(LinkPreferencePolicy.Moving(links, move), changes);
+
+    public void Handle(RemoveLinkRoute removal, ChangeFeed changes) => Revise(LinkPreferencePolicy.Removing(links, removal), changes);
+
+    public void Handle(RememberQuickWindowSpace remembering, ChangeFeed changes) =>
+        Revise(LinkPreferencePolicy.Remembering(links, remembering.Url, remembering.SpaceId), changes);
 
     /// Forgets a deleted Space in the link preferences: its routes, its
     /// choice as the external-link Space and the sites that remembered it.

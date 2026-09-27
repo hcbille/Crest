@@ -17,7 +17,8 @@ namespace CrestCore.Application;
 /// engine bindings wait in a queue that is delivered once the lock is
 /// released, on the thread of the host's call that caused them, or of its next
 /// drain for those the transport caused.
-public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposable {
+public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposable,
+    IIntentHandler<ChangeFeed, IReadOnlyList<Change>>, IPromptIntentHandler<ChangeFeed> {
     #region Variables
 
     private readonly Lock gate = new();
@@ -114,84 +115,16 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
     /// only its receipts; see `Handle(CloudSyncIntent)`.
     public IReadOnlyList<Change> Send(Intent intent) {
         ArgumentNullException.ThrowIfNull(intent);
-        if (intent is CloudSyncIntent cloud) return Handle(cloud);
-        if (intent is CloudTransportIntent transport) return cloudTransport.Handle(transport, JournalHoldsUploads);
-        if (intent is CloudSyncControlIntent control) return cloudSync.Handle(control);
+        return intent.Dispatch(this, new ChangeFeed());
+    }
+
+    /// Runs `work`, an intent's own, holding the lock, then settles what any
+    /// intent leaves behind, and delivers the engine commands they caused once
+    /// the lock is released. Answers the pending changes, then `changes`.
+    private IReadOnlyList<Change> Sending(ChangeFeed changes, Action work) {
         IReadOnlyList<Change> published;
         lock (gate) {
-            var changes = new ChangeFeed();
-            switch (intent) {
-                case DownloadIntent download:
-                    engineDownloads.Before(download, changes, Issue);
-                    downloads.Handle(download, changes);
-                    break;
-                case AdoptLegacySession adoption:
-                    Adopt(adoption, changes);
-                    break;
-                case WorkspaceIntent workspace:
-                    Handle(workspace);
-                    break;
-                case WindowIntent window:
-                    device.Handle(window, changes);
-                    pages.RecoverShown(changes, Issue);
-                    break;
-                case SitePermissionIntent permission:
-                    device.Handle(permission, changes, clock.Now, ids);
-                    break;
-                case ChooseSiteEngine choice:
-                    if (engines.Registered(choice.Engine) is null) throw new Rejected(new UnregisteredEngine(choice.Engine));
-                    device.Choose(choice);
-                    break;
-                case ShortcutIntent shortcut:
-                    device.Handle(shortcut, Engines.OfferedCommands(RegisteredEngines()), changes);
-                    break;
-                case LinkIntent link:
-                    device.Handle(link, changes);
-                    break;
-                case SetupDraftIntent setup:
-                    device.Handle(setup, changes, ids);
-                    break;
-                case FinishSetup finish:
-                    Finish(finish, changes);
-                    break;
-                case SetupFlowIntent flow:
-                    device.Handle(flow, changes, ids);
-                    break;
-                case PageIntent page:
-                    pages.Handle(page, changes, Issue);
-                    PublishEngines(changes.Publish);
-                    break;
-                case DataDeletionIntent deletion:
-                    dataDeletions.Handle(deletion, changes, Issue);
-                    break;
-                case SessionIntent session:
-                    if (session is FinishDeletingSpace finishing) RequireErased(finishing);
-                    device.Workspace(session.WorkspaceId).Handle(session, clock.Now, ids, pages);
-                    if (session is PromoteTransientPage promoted) pages.Completed(promoted.PageId);
-                    else if (session is ArchiveTransientPage archived) pages.Completed(archived.PageId);
-                    // A deleted Space leaves nothing in this device's link preferences.
-                    else if (session is FinishDeletingSpace deleted) device.ForgetLinks(deleted.SpaceId, changes);
-                    // An applied manual setup ends.
-                    else if (session is ApplyManualSetup applied) device.FinishManualSetup(applied.WorkspaceId, changes);
-                    break;
-                case SpaceAccessIntent grant:
-                    access.Handle(grant, changes);
-                    break;
-                case CloseIntent closing:
-                    closePreparations.Handle(closing, changes, Issue);
-                    break;
-                case PromptIntent prompt when ClosePreparations.Concerns(prompt):
-                    closePreparations.Handle(prompt, changes);
-                    break;
-                case PromptIntent prompt when EngineDownloads.Concerns(prompt):
-                    engineDownloads.Handle(prompt, changes, Issue);
-                    break;
-                case PromptIntent prompt:
-                    prompts.Handle(prompt, changes, Issue, clock.Now, ids);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "No area handles this intent.");
-            }
+            work();
             // Which pages windows show now, and what closed tabs no longer keep.
             pages.Stamp(clock.Now);
             pages.PruneRestoreStates();
@@ -205,6 +138,74 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
         return published;
     }
 
+    // The cloud transport's intents run on its thread, outside the lock.
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(CloudSyncIntent intent, ChangeFeed changes) => Handle(intent);
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(CloudTransportIntent intent, ChangeFeed changes) =>
+        cloudTransport.Handle(intent, JournalHoldsUploads);
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(CloudSyncControlIntent intent, ChangeFeed changes) => cloudSync.Handle(intent);
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(DownloadIntent intent, ChangeFeed changes) => Sending(changes, () => {
+        engineDownloads.Before(intent, changes, Issue);
+        downloads.Handle(intent, changes);
+    });
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(AdoptLegacySession intent, ChangeFeed changes) => Sending(changes, () => Adopt(intent, changes));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(WorkspaceIntent intent, ChangeFeed changes) =>
+        Sending(changes, () => intent.Dispatch(this, changes));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(WindowIntent intent, ChangeFeed changes) => Sending(changes, () => {
+        device.Handle(intent, changes);
+        pages.RecoverShown(changes, Issue);
+    });
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(SitePermissionIntent intent, ChangeFeed changes) =>
+        Sending(changes, () => device.Handle(intent, new SitePermissionTurn(changes, clock.Now, ids)));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(ChooseSiteEngine choice, ChangeFeed changes) => Sending(changes, () => {
+        if (engines.Registered(choice.Engine) is null) throw new Rejected(new UnregisteredEngine(choice.Engine));
+        device.Choose(choice);
+    });
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(ShortcutIntent intent, ChangeFeed changes) =>
+        Sending(changes, () => device.Handle(intent, new ShortcutTurn(Engines.OfferedCommands(RegisteredEngines()), changes)));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(LinkIntent intent, ChangeFeed changes) => Sending(changes, () => device.Handle(intent, changes));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(SetupDraftIntent intent, ChangeFeed changes) =>
+        Sending(changes, () => device.Handle(intent, new SetupDraftTurn(changes, ids)));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(SetupFlowIntent intent, ChangeFeed changes) =>
+        Sending(changes, () => device.Handle(intent, new SetupFlowTurn(changes, ids, finish => Finish(finish, changes))));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(PageIntent intent, ChangeFeed changes) => Sending(changes, () => {
+        pages.Handle(intent, new PageTurn(changes, Issue));
+        PublishEngines(changes.Publish);
+    });
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(DataDeletionIntent intent, ChangeFeed changes) =>
+        Sending(changes, () => dataDeletions.Handle(intent, new DeletionTurn(changes, Issue)));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(SessionIntent session, ChangeFeed changes) => Sending(changes, () => {
+        if (session is FinishDeletingSpace finishing) RequireErased(finishing);
+        device.Workspace(session.WorkspaceId).Handle(session, clock.Now, ids, pages);
+        if (session is PromoteTransientPage promoted) pages.Completed(promoted.PageId);
+        else if (session is ArchiveTransientPage archived) pages.Completed(archived.PageId);
+        // A deleted Space leaves nothing in this device's link preferences.
+        else if (session is FinishDeletingSpace deleted) device.ForgetLinks(deleted.SpaceId, changes);
+        // An applied manual setup ends.
+        else if (session is ApplyManualSetup applied) device.FinishManualSetup(applied.WorkspaceId, changes);
+    });
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(SpaceAccessIntent intent, ChangeFeed changes) => Sending(changes, () => access.Handle(intent, changes));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(CloseIntent intent, ChangeFeed changes) =>
+        Sending(changes, () => closePreparations.Handle(intent, new CloseTurn(changes, Issue)));
+
+    IReadOnlyList<Change> IIntentHandler<ChangeFeed, IReadOnlyList<Change>>.Handle(PromptIntent intent, ChangeFeed changes) => Sending(changes, () => intent.Dispatch(this, changes));
+
     /// A Space's deletion finishes only once this run erased its profile's
     /// data on every registered engine. Throws `Rejected` otherwise; a Space
     /// the session no longer holds is the session's to refuse.
@@ -216,101 +217,23 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
 
     #endregion
 
-    #region Actions - Queries
+    #region Actions - Prompts
 
-    public TAnswer Query<TAnswer>(Query<TAnswer> query) {
-        ArgumentNullException.ThrowIfNull(query);
-        object? transport = query switch {
-            PendingUploads pending => Answer(pending),
-            RecordsToUpload upload => Answer(upload),
-            CloudComparison comparison => Answer(comparison),
-            CloudTransport state => cloudTransport.Answer(state),
-            CloudFieldsOf fields => cloudTransport.Answer(fields),
-            CloudSync status => cloudSync.Answer(status),
-            _ => null
-        };
-        if (transport is not null) return (TAnswer)transport;
-        if (query is PaletteSuggestions palette) return (TAnswer)(object)Suggesting(palette);
-        object? read = query switch {
-            FindImportData find => portability.Answer(find),
-            ReadImport import => portability.Answer(import),
-            ReadArchive archive => portability.Answer(archive),
-            CredentialImportPreview preview => credentials.Answer(preview),
-            PasswordImportPreview imported => credentials.Answer(imported),
-            CredentialExport passwords => credentials.Answer(passwords),
-            _ => null
-        };
-        if (read is not null) return (TAnswer)read;
-        if (query is ExportWorkspace export) return (TAnswer)(object)Exporting(export);
-        lock (gate) {
-            object answer = query switch {
-                DownloadProgress progress => downloads.Answer(progress),
-                DownloadRisk risk => downloads.Answer(risk),
-                CredentialCapture capture => credentials.Answer(capture),
-                CredentialFill fill => credentials.Answer(fill),
-                CredentialSaveCheck check => credentials.Answer(check),
-                MostRecentCredential recency => credentials.Answer(recency),
-                CredentialSaveMatch match => credentials.Answer(match),
-                CredentialSave save => credentials.Answer(save),
-                StrongPassword password => credentials.Answer(password),
-                PasskeyAccess access => credentials.Answer(access),
-                SystemPasswordWriteThrough writeThrough => credentials.Answer(writeThrough),
-                SystemPasswordOffer offer => credentials.Answer(offer),
-                BalancedProtectionRules rules => contentBlocking.Answer(rules),
-                RouteExternalLink route => device.Answer(route),
-                LinkNavigation navigation => device.Answer(navigation, pages),
-                OpenedWindowSelection selection => device.Answer(selection),
-                CanTearOff tearOff => device.Answer(tearOff),
-                SiteDecision decision => device.Answer(decision),
-                ImportPasswordDestinations destinations => device.Answer(destinations),
-                CaptureDecision capture => device.Answer(capture),
-                NumberedSelections numbered => device.Answer(numbered),
-                SplitJoinCandidate candidate => device.Answer(candidate, clock.Now, pages),
-                DropTargets targets => device.Answer(targets, clock.Now, pages),
-                SelectionPreview preview => device.Workspace(preview.WorkspaceId).Answer(preview),
-                CanReturnToSavedAddress savedAddress => pages.Answer(savedAddress),
-                FallbackTab fallback => Window.Answer(fallback),
-                PendingSave => new PendingSaveRevision(storage?.PendingRevision is { } revision ? checked((long)revision) : null),
-                CanSend check => Permission(check.Intent),
-                LaunchPlan plan => device.Workspace(plan.WorkspaceId).Plan(plan),
-                ImportPreview preview => device.Workspace(preview.Import.WorkspaceId).Preview(preview.Import, clock.Now),
-                ResolveAddress { WorkspaceId: { } workspace } address => device.Workspace(workspace).Answer(address, pages.OpensInternalPages),
-                SelectionSearch search => device.Workspace(search.WorkspaceId).Answer(search),
-                _ => StandaloneAnswers.Answer(query)
-            };
-            return (TAnswer)answer;
-        }
-    }
+    // Each answer goes to the area that asked its question. The caller holds the lock.
 
-    /// The file an export writes. Only reading the session holds the lock;
-    /// writing the file reads immutable records outside it.
-    private ExportedDocument Exporting(ExportWorkspace export) {
-        SessionState session;
-        lock (gate) session = device.Workspace(export.WorkspaceId).Exported();
-        return portability.Export(session, export.Format);
-    }
+    void IPromptIntentHandler<ChangeFeed>.Handle(AnswerAuthentication answer, ChangeFeed changes) => prompts.Handle(answer, changes, Issue, clock.Now, ids);
 
-    /// What a window's palette offers. Only reading what the window shows
-    /// holds the lock; ranking reads immutable records outside it, so a
-    /// palette answering on another thread never holds up the window.
-    private PaletteAnswer Suggesting(PaletteSuggestions question) {
-        Palette palette;
-        lock (gate) palette = device.Palette(question.WindowId, pages.OpensInternalPages);
-        return palette.Answer(question.Text, question.Commands, question.Remote);
-    }
+    void IPromptIntentHandler<ChangeFeed>.Handle(AnswerExtensionInstall answer, ChangeFeed changes) => prompts.Handle(answer, changes, Issue, clock.Now, ids);
 
-    /// Whether the core would accept a session intent now: the rule that would
-    /// refuse it, or none. The identities a check draws are never used.
-    private SendPermission Permission(Intent intent) {
-        if (intent is not SessionIntent session)
-            throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Only a session intent can be checked.");
-        try {
-            device.Workspace(session.WorkspaceId).Check(session, clock.Now, new SystemIdSource(), pages);
-            return new(Refusal: null);
-        } catch (Rejected refused) {
-            return new(refused.Rejection);
-        }
-    }
+    void IPromptIntentHandler<ChangeFeed>.Handle(AnswerPermission answer, ChangeFeed changes) => prompts.Handle(answer, changes, Issue, clock.Now, ids);
+
+    void IPromptIntentHandler<ChangeFeed>.Handle(AnswerScriptDialog answer, ChangeFeed changes) => prompts.Handle(answer, changes, Issue, clock.Now, ids);
+
+    void IPromptIntentHandler<ChangeFeed>.Handle(AnswerDownloadApproval answer, ChangeFeed changes) => engineDownloads.Handle(answer, changes, Issue);
+
+    void IPromptIntentHandler<ChangeFeed>.Handle(AnswerDownloadDestination answer, ChangeFeed changes) => engineDownloads.Handle(answer, changes, Issue);
+
+    void IPromptIntentHandler<ChangeFeed>.Handle(AnswerQuitWithDownloads answer, ChangeFeed changes) => closePreparations.Handle(answer, changes);
 
     #endregion
 

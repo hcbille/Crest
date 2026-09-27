@@ -3,11 +3,11 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-public sealed partial class NativeSessionAuthority {
+internal sealed partial class NativeSessionAuthority {
     #region Types
 
     /// When the session was last swept, and the retention each Space had then.
-    private sealed record SweepMark(DateTimeOffset At, IReadOnlyList<SpaceRetention> Retention) {
+    internal sealed record SweepMark(DateTimeOffset At, IReadOnlyList<SpaceRetention> Retention) {
         #region Actions - Throttling
 
         /// Whether a sweep at `now` of `session` would repeat this one: it comes
@@ -20,7 +20,7 @@ public sealed partial class NativeSessionAuthority {
     }
 
     /// What a Space keeps and for how long.
-    private sealed record SpaceRetention(Guid SpaceId, CurrentTabCleanup Cleanup, DataRetentionPreferences Records) {
+    internal sealed record SpaceRetention(Guid SpaceId, CurrentTabCleanup Cleanup, DataRetentionPreferences Records) {
         #region Actions - Reading
 
         public static IReadOnlyList<SpaceRetention> Of(SessionState session) => [.. session.Spaces.Select(space =>
@@ -44,24 +44,24 @@ public sealed partial class NativeSessionAuthority {
 
     #region Actions - History
 
-    private SessionEdit ClearingHistory(SessionState basis, ClearHistory intent) {
-        IEnumerable<SpaceState> spaces = intent.SpaceId is { } spaceId ? [Editable(basis, spaceId)] : EditableSpaces(basis);
-        return new(Replacing(basis, [.. spaces.Select(space => space.History.Count == 0 ? space : space with { History = [] })]),
+    public SessionEdit Handle(ClearHistory intent, SessionTurn turn) {
+        IEnumerable<SpaceState> spaces = intent.SpaceId is { } spaceId ? [Editable(turn.Basis, spaceId)] : EditableSpaces(turn.Basis);
+        return new(Replacing(turn.Basis, [.. spaces.Select(space => space.History.Count == 0 ? space : space with { History = [] })]),
             SyncStaging.Deletion);
     }
 
-    private SessionEdit RemovingHistory(SessionState basis, RemoveHistoryAddress intent) {
-        var space = Editable(basis, intent.SpaceId);
+    public SessionEdit Handle(RemoveHistoryAddress intent, SessionTurn turn) {
+        var space = Editable(turn.Basis, intent.SpaceId);
         var address = new WebAddress(intent.Address).Normalized;
-        return new(Replacing(basis, WithoutHistory(space, entry => address is not null && entry.Url == address)), SyncStaging.Deletion);
+        return new(Replacing(turn.Basis, WithoutHistory(space, entry => address is not null && entry.Url == address)), SyncStaging.Deletion);
     }
 
-    private SessionEdit RemovingHistory(SessionState basis, RemoveHistoryRange intent) {
-        var space = Editable(basis, intent.SpaceId);
+    public SessionEdit Handle(RemoveHistoryRange intent, SessionTurn turn) {
+        var space = Editable(turn.Basis, intent.SpaceId);
         if (intent.End < intent.Start) throw new Rejected(new InvalidDateRange());
         var removed = RecordRemovalPolicy.WithinRange(Seconds(space.History.Select(entry => entry.LastVisitedAt)),
             StoredSessionCodec.Seconds(intent.Start), StoredSessionCodec.Seconds(intent.End)).ToHashSet();
-        return new(Replacing(basis, WithoutHistory(space, (_, index) => removed.Contains(index))), SyncStaging.Deletion);
+        return new(Replacing(turn.Basis, WithoutHistory(space, (_, index) => removed.Contains(index))), SyncStaging.Deletion);
     }
 
     private static SpaceState WithoutHistory(SpaceState space, Func<HistoryEntryState, bool> removes) =>
@@ -78,18 +78,18 @@ public sealed partial class NativeSessionAuthority {
 
     /// Cleans up and applies retention in every Space not being deleted, or
     /// nothing when the last sweep covers this one.
-    private SessionEdit? Sweeping(SessionState basis, DateTimeOffset now) {
-        if (lastSweep?.Covers(now, basis) == true) return null;
+    public SessionEdit? Handle(SweepExpiredRecords intent, SessionTurn turn) {
+        if (lastSweep?.Covers(turn.Now, turn.Basis) == true) return null;
         var kept = device?.ShownTabs(workspaceId);
-        var swept = EditableSpaces(basis, maintains: true).Select(space => Expired(CleanedUp(space, now, kept), now)).ToArray();
-        return new(Replacing(basis, swept), SyncStaging.Expiry, Sweep: new(now, SpaceRetention.Of(basis)));
+        var swept = EditableSpaces(turn.Basis, maintains: true).Select(space => Expired(CleanedUp(space, turn.Now, kept), turn.Now)).ToArray();
+        return new(Replacing(turn.Basis, swept), SyncStaging.Expiry, Sweep: new(turn.Now, SpaceRetention.Of(turn.Basis)));
     }
 
-    private SessionEdit CleaningUp(SessionState basis, CleanUpCurrentTabs intent, DateTimeOffset now) {
+    public SessionEdit Handle(CleanUpCurrentTabs intent, SessionTurn turn) {
         IEnumerable<SpaceState> spaces = intent.SpaceId is { } spaceId
-            ? [Editable(basis, spaceId, maintains: true)] : EditableSpaces(basis, maintains: true);
+            ? [Editable(turn.Basis, spaceId, maintains: true)] : EditableSpaces(turn.Basis, maintains: true);
         var kept = device?.ShownTabs(workspaceId);
-        return new(Replacing(basis, [.. spaces.Select(space => CleanedUp(space, now, kept))]), SyncStaging.Expiry);
+        return new(Replacing(turn.Basis, [.. spaces.Select(space => CleanedUp(space, turn.Now, kept))]), SyncStaging.Expiry);
     }
 
     /// `space` with its open tabs unused for longer than its cleanup lifetime
@@ -123,24 +123,24 @@ public sealed partial class NativeSessionAuthority {
     #region Actions - Archive
 
     /// Reopens the tab the Space archived last, which the issuing window shows.
-    private SessionEdit ReopeningClosedTab(SessionState basis, ReopenClosedTab intent, DateTimeOffset now) {
-        var space = Editable(basis, intent.SpaceId);
+    public SessionEdit Handle(ReopenClosedTab intent, SessionTurn turn) {
+        var space = Editable(turn.Basis, intent.SpaceId);
         var newest = space.ArchivedTabs.MaxBy(archived => archived.ArchivedAt) ?? throw new Rejected(new NoArchivedTabs(space.Id));
-        return Restoring(basis, new RestoreArchivedTab(intent.WorkspaceId, intent.WindowId, space.Id, newest.Tab.Id), now);
+        return Handle(new RestoreArchivedTab(intent.WorkspaceId, intent.WindowId, space.Id, newest.Tab.Id), turn);
     }
 
     /// Reopens the archived tab as an open tab, which the issuing window shows.
-    private SessionEdit Restoring(SessionState basis, RestoreArchivedTab intent, DateTimeOffset now) {
-        var space = Editable(basis, intent.SpaceId);
+    public SessionEdit Handle(RestoreArchivedTab intent, SessionTurn turn) {
+        var space = Editable(turn.Basis, intent.SpaceId);
         var index = space.ArchivedTabs.ToList().FindIndex(archived => archived.Tab.Id == intent.TabId);
         if (index < 0) throw new Rejected(new UnknownArchivedTab(intent.TabId));
-        if (basis.Spaces.Any(candidate => candidate.Tabs.Any(tab => tab.Id == intent.TabId)))
+        if (turn.Basis.Spaces.Any(candidate => candidate.Tabs.Any(tab => tab.Id == intent.TabId)))
             throw new Rejected(new TabAlreadyExists(intent.TabId));
         var remaining = space with { ArchivedTabs = [.. space.ArchivedTabs.Where((_, position) => position != index)] };
         var edited = BrowserTabCollection.Restore(remaining);
-        var restored = edited.RestoreArchived(space.ArchivedTabs[index].Tab, now);
+        var restored = edited.RestoreArchived(space.ArchivedTabs[index].Tab, turn.Now);
         var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId)).ShowTab(space.Id, restored.Id);
-        return new(Replacing(basis, edited.Capture(remaining)), SyncStaging.Creation, followUp);
+        return new(Replacing(turn.Basis, edited.Capture(remaining)), SyncStaging.Creation, followUp);
     }
 
     #endregion

@@ -3,11 +3,19 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one setup intent needs: where it publishes the setup it leaves, and
+/// where the identities of the Spaces it adds come from.
+internal sealed record SetupDraftTurn(ChangeFeed Changes, IIdSource Ids);
+
+#endregion
+
 /// The manual setup this device holds: the one in progress over a workspace,
 /// which follows that workspace's Spaces, and on a platform that keeps an
 /// unfinished setup, the copy the device store keeps for the next launch.
 /// `ApplyManualSetup` reads the one in progress and ends it once applied.
-internal sealed partial class Device {
+internal sealed partial class Device : ISetupDraftIntentHandler<SetupDraftTurn> {
     #region Variables
 
     /// The setup in progress, or null.
@@ -20,26 +28,28 @@ internal sealed partial class Device {
 
     #region Actions - Setup intents
 
-    /// Runs one setup intent, publishing the setup it leaves.
-    public void Handle(SetupDraftIntent intent, ChangeFeed changes, IIdSource ids) {
+    /// Runs one setup intent holding the device lock, publishing the setup it
+    /// leaves.
+    public void Handle(SetupDraftIntent intent, SetupDraftTurn turn) {
         ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(ids);
-        lock (gate) {
-            if (intent is AdoptSetupDraft adoption) {
-                Adopt(adoption);
-                return;
-            }
-            var draft = setupDraft ?? throw new Rejected(new NoManualSetup());
-            KeepSetup(intent switch {
-                AddSetupSpace => ManualSetupPolicy.Adding(draft, ids.Next),
-                RemoveSetupSpace removal => ManualSetupPolicy.Removing(draft, removal.SpaceId),
-                MoveSetupSpace move => ManualSetupPolicy.Moving(draft, move.SpaceId, move.TargetSpaceId),
-                CustomizeSetupSpace customizing => ManualSetupPolicy.Customizing(draft, customizing.SpaceId, customizing.Customization),
-                _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.")
-            }, changes);
-        }
+        ArgumentNullException.ThrowIfNull(turn);
+        lock (gate) intent.Dispatch(this, turn);
     }
+
+    public void Handle(AddSetupSpace adding, SetupDraftTurn turn) => KeepSetup(ManualSetupPolicy.Adding(HeldSetup(), turn.Ids.Next), turn.Changes);
+
+    public void Handle(RemoveSetupSpace removal, SetupDraftTurn turn) =>
+        KeepSetup(ManualSetupPolicy.Removing(HeldSetup(), removal.SpaceId), turn.Changes);
+
+    public void Handle(MoveSetupSpace move, SetupDraftTurn turn) =>
+        KeepSetup(ManualSetupPolicy.Moving(HeldSetup(), move.SpaceId, move.TargetSpaceId), turn.Changes);
+
+    public void Handle(CustomizeSetupSpace customizing, SetupDraftTurn turn) =>
+        KeepSetup(ManualSetupPolicy.Customizing(HeldSetup(), customizing.SpaceId, customizing.Customization), turn.Changes);
+
+    /// The manual setup the device holds. Throws `Rejected` with
+    /// `NoManualSetup` while it holds none. The caller holds the device lock.
+    private SetupDraft HeldSetup() => setupDraft ?? throw new Rejected(new NoManualSetup());
 
     /// Starts a setup of `session`'s Spaces over `workspaceId`, or goes on with
     /// the one held or kept unless `startsOver`, and publishes it. The caller
@@ -54,8 +64,8 @@ internal sealed partial class Device {
     }
 
     /// Carries the setup an installed release kept into the device store
-    /// once. The caller holds the device lock.
-    private void Adopt(AdoptSetupDraft intent) {
+    /// once. The caller holds the device lock, as for each setup intent.
+    public void Handle(AdoptSetupDraft intent, SetupDraftTurn turn) {
         if (storage is not { } target || adopted.Contains(DeviceAdoption.SetupDraft)) return;
         if (platform.KeepsSetupDraft) keptSetupDraft ??= LegacySetupDraftDocument.Read(intent.Draft);
         adopted.Add(DeviceAdoption.SetupDraft);

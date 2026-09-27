@@ -3,13 +3,21 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one site permission intent needs: where it publishes each Space it
+/// changed, and the time and identity a choice it records takes.
+internal sealed record SitePermissionTurn(ChangeFeed Changes, DateTimeOffset Now, IIdSource Ids);
+
+#endregion
+
 /// This device's site permission choices. The device store keeps the
 /// persistent session's choices, and only on a device with a file; every other
 /// Space's choices (private, seeded, or one no attached session holds) live in
 /// memory until the process ends. A borrowed workspace shows its owner's
 /// Space, so its choices are the owner's. A Space's lock comes from the
 /// session that holds it; a Space no session holds has no lock of its own.
-internal sealed partial class Device {
+internal sealed partial class Device : ISitePermissionIntentHandler<SitePermissionTurn> {
     #region Variables
 
     /// The persistent session's choices, which the device store keeps.
@@ -22,23 +30,12 @@ internal sealed partial class Device {
     #region Actions - Site permission intents
 
     /// Runs one site permission intent, publishing each Space it changed.
-    public void Handle(SitePermissionIntent intent, ChangeFeed changes, DateTimeOffset now, IIdSource ids) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(ids);
-        switch (intent) {
-            case AdoptSitePermissions adoption: Adopt(adoption, changes); break;
-            case DecideSitePermission decision: Decide(decision, changes, now, ids); break;
-            case ResetSitePermission reset: Reset(reset, changes); break;
-            case ResetSpacePermissions reset: Reset(reset, changes); break;
-            default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.");
-        }
-    }
+    public void Handle(SitePermissionIntent intent, SitePermissionTurn turn) => intent.Dispatch(this, turn);
 
     /// Carries the choices an installed release kept into the device store
     /// once, merged after any the store already holds, and saves them before
     /// returning. Every call publishes each Space that holds a choice.
-    private void Adopt(AdoptSitePermissions intent, ChangeFeed changes) {
+    public void Handle(AdoptSitePermissions intent, SitePermissionTurn turn) {
         lock (gate) {
             if (storage is { } target && !adopted.Contains(DeviceAdoption.SitePermissions)) {
                 var merged = new SitePermissionLedger();
@@ -55,35 +52,35 @@ internal sealed partial class Device {
                 target.EnqueueDevice(Records());
             }
             foreach (var space in keptPermissions.Spaces.Union(passingPermissions.Spaces))
-                changes.Publish(new SitePermissionsChanged(space, PermissionRecords(space), []));
+                turn.Changes.Publish(new SitePermissionsChanged(space, PermissionRecords(space), []));
         }
     }
 
-    private void Decide(DecideSitePermission intent, ChangeFeed changes, DateTimeOffset now, IIdSource ids) {
+    public void Handle(DecideSitePermission intent, SitePermissionTurn turn) {
         var (keeps, locked) = ChoiceScope(intent.SpaceId);
         if (locked) throw new Rejected(new SpaceLocked(intent.SpaceId));
         lock (gate) {
             var outcome = (keeps ? keptPermissions : passingPermissions).Set(intent.SpaceId, intent.Origin, intent.Permission, intent.Detail,
-                intent.Decision, ids.Next(), StoredSessionCodec.Seconds(now));
+                intent.Decision, turn.Ids.Next(), StoredSessionCodec.Seconds(turn.Now));
             if (keeps && outcome.PersistenceChanged) storage?.EnqueueDevice(Records());
-            PublishPermissions(outcome, changes);
+            PublishPermissions(outcome, turn.Changes);
         }
     }
 
-    private void Reset(ResetSitePermission intent, ChangeFeed changes) {
+    public void Handle(ResetSitePermission intent, SitePermissionTurn turn) {
         lock (gate) {
             var kept = keptPermissions.ResetRecord(intent.RecordId);
             if (kept.PersistenceChanged) storage?.EnqueueDevice(Records());
-            PublishPermissions(kept.Changes.Count > 0 ? kept : passingPermissions.ResetRecord(intent.RecordId), changes);
+            PublishPermissions(kept.Changes.Count > 0 ? kept : passingPermissions.ResetRecord(intent.RecordId), turn.Changes);
         }
     }
 
-    private void Reset(ResetSpacePermissions intent, ChangeFeed changes) {
+    public void Handle(ResetSpacePermissions intent, SitePermissionTurn turn) {
         lock (gate) {
             var kept = keptPermissions.ResetSpace(intent.SpaceId);
             var passing = passingPermissions.ResetSpace(intent.SpaceId);
             if (kept.PersistenceChanged) storage?.EnqueueDevice(Records());
-            PublishPermissions(new SitePermissionOutcome(kept.PersistenceChanged, [.. kept.Changes.Concat(passing.Changes).Distinct()]), changes);
+            PublishPermissions(new SitePermissionOutcome(kept.PersistenceChanged, [.. kept.Changes.Concat(passing.Changes).Distinct()]), turn.Changes);
         }
     }
 

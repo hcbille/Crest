@@ -16,7 +16,7 @@ public sealed record ExportedDocument(byte[] Contents, ExportFormat Format);
 /// where the browser keeps its data. The platform holds any access the folder
 /// needs while the core looks; a folder that is missing or unreadable holds
 /// none.
-public sealed record FindImportData(ImportSource Source, string Folder) : Query<ImportData>;
+public sealed record FindImportData(ImportSource Source, string Folder) : StandaloneQuery<ImportData>;
 
 /// What a browser keeps in its data folder: each profile with the files an
 /// import reads, and each store of saved passwords, in the order a person
