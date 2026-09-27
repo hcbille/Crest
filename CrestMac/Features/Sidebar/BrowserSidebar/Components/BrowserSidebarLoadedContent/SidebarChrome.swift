@@ -26,12 +26,9 @@ struct SidebarChrome: View {
                 )
                 .contentTransition(.opacity)
                 .background {
-                    // Only the empty navigation-strip background starts a
-                    // window drag. Controls and tab gestures keep their input.
-                    Color.clear
-                        .contentShape(.rect)
-                        .gesture(WindowDragGesture())
-                        .allowsWindowActivationEvents()
+                    // Only the empty navigation-strip background acts as the
+                    // title bar. Controls and tab gestures keep their input.
+                    Color.clear.browserWindowChromeGestures()
                 }
                 .animation(
                     BrowserVisualAccessibilityPolicy.animation(

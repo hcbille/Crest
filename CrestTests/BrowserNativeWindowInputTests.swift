@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class BrowserNativeWindowInputTests: XCTestCase {
-    func testBrowserChromeDisablesAutomaticTitlebarDraggingWithoutReplacingNativeControls() throws {
+    func testBrowserChromeKeepsTheNativeTitleBarAndControls() throws {
         let window = makeWindow()
         defer { window.close() }
         let content = try XCTUnwrap(window.contentView)
@@ -16,9 +16,9 @@ final class BrowserNativeWindowInputTests: XCTestCase {
         content.addSubview(chrome)
         window.layoutIfNeeded()
 
-        // Automatic titlebar drags are decided before the content receives its
-        // mouse-drag sequence. Explicit sidebar window gestures remain separate.
-        XCTAssertFalse(window.isMovable)
+        // The title bar drags and double-clicks as the system's does; content
+        // under it still receives its own clicks.
+        XCTAssertTrue(window.isMovable)
         XCTAssertTrue(window.styleMask.contains(.resizable))
         XCTAssertTrue(window.styleMask.contains(.titled))
         XCTAssertTrue(content.hitTest(NSPoint(x: 400, y: 574)) === input)
@@ -30,25 +30,35 @@ final class BrowserNativeWindowInputTests: XCTestCase {
         chrome.isVisible = false
         chrome.sidebarOnRight = true
         chrome.applyBrowserChrome()
-        XCTAssertFalse(window.isMovable)
+        XCTAssertTrue(window.isMovable)
         XCTAssertTrue(content.hitTest(NSPoint(x: 400, y: 574)) === input)
     }
 
-    func testDetachingChromeRestoresEachWindowsOriginalDraggingPolicy() throws {
-        for originallyMovable in [true, false] {
-            let window = makeWindow()
-            defer { window.close() }
-            window.isMovable = originallyMovable
-            let chrome = BrowserNativeWindowControlsHostView()
-            try XCTUnwrap(window.contentView).addSubview(chrome)
-            XCTAssertFalse(window.isMovable)
+    func testAPageUnderTheTitleBarKeepsItsMouseDowns() {
+        let host = BrowserWebHostView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        let selector = NSSelectorFromString("_opaqueRectForWindowMoveWhenInTitlebar")
+        typealias OpaqueRect = @convention(c) (AnyObject, Selector) -> NSRect
 
-            chrome.removeFromSuperview()
+        // Neither AppKit nor the window server may start a window drag from a
+        // page: the whole page is closed to it.
+        XCTAssertFalse(host.mouseDownCanMoveWindow)
+        XCTAssertTrue(host.responds(to: selector))
+        let opaqueRect = unsafeBitCast(host.method(for: selector), to: OpaqueRect.self)(host, selector)
+        XCTAssertEqual(opaqueRect, host.bounds)
+    }
 
-            XCTAssertEqual(window.isMovable, originallyMovable)
-            chrome.restoreWindowChrome()
-            XCTAssertEqual(window.isMovable, originallyMovable)
-        }
+    func testLeavingAWindowKeepsTheFullscreenStateAppKitGaveIt() {
+        let windowed: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
+        let chrome = windowed.union(.fullSizeContentView)
+
+        XCTAssertEqual(
+            BrowserNativeWindowControlsPolicy.restoredStyleMask(
+                original: windowed, current: chrome.union(.fullScreen)),
+            windowed.union(.fullScreen))
+        XCTAssertEqual(
+            BrowserNativeWindowControlsPolicy.restoredStyleMask(
+                original: windowed.union(.fullScreen), current: chrome),
+            windowed)
     }
 
     private func makeWindow() -> NSWindow {

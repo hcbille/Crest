@@ -11,6 +11,8 @@ static_assert(!std::is_abstract_v<CrestBrowserWindow>);
 #import <QuartzCore/QuartzCore.h>
 #import "CrestChromiumHost.h"
 
+#include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/share/share_attempt.h"
 #include "chrome/browser/ui/browser.h"
@@ -20,6 +22,7 @@ static_assert(!std::is_abstract_v<CrestBrowserWindow>);
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_bubble.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "components/input/native_web_keyboard_event.h"
@@ -398,9 +401,32 @@ LocationBarTesting* CrestLocationBar::GetLocationBarForTesting() {
 // --- CrestExclusiveAccessContext ---------------------------------------------
 
 CrestExclusiveAccessContext::CrestExclusiveAccessContext(Browser* browser)
-    : browser_(browser) {}
+    : browser_(browser) {
+  // A Crest window holds a Browser for each profile it shows, and each hears
+  // the window it answers for.
+  NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
+  NSMutableArray* observers = [NSMutableArray array];
+  for (NSNotificationName name in @[ NSWindowDidEnterFullScreenNotification,
+                                      NSWindowDidExitFullScreenNotification ]) {
+    const bool entered = [name isEqualToString:NSWindowDidEnterFullScreenNotification];
+    [observers addObject:[center addObserverForName:name
+                                              object:nil
+                                               queue:nil
+                                          usingBlock:^(NSNotification* notification) {
+                                            if (notification.object == crest::WindowForBrowser(browser_)) {
+                                              WindowFullscreenChanged(entered);
+                                            }
+                                          }]];
+  }
+  window_fullscreen_observers_ = (__bridge_retained void*)observers;
+}
 
 CrestExclusiveAccessContext::~CrestExclusiveAccessContext() {
+  NSArray* observers = (__bridge_transfer NSArray*)window_fullscreen_observers_;
+  window_fullscreen_observers_ = nullptr;
+  for (id observer in observers) {
+    [NSNotificationCenter.defaultCenter removeObserver:observer];
+  }
   HideFullscreenDisclosure(ExclusiveAccessBubbleHideReason::kInterrupted);
 }
 
@@ -417,16 +443,24 @@ void CrestExclusiveAccessContext::EnterFullscreen(
     const url::Origin& origin,
     ExclusiveAccessBubbleType bubble_type,
     FullscreenTabParams fullscreen_tab_params) {
-  crest::ReportContentFullscreen(GetWebContentsForExclusiveAccess(), true);
+  // Only a page's own request shows the page alone. The browser's or an
+  // extension's fullscreen keeps Crest's chrome around the page.
+  content::WebContents* contents = GetWebContentsForExclusiveAccess();
+  if (contents && !exclusive_access_bubble::IsExclusiveAccessModeBrowserFullscreen(bubble_type)) {
+    content_fullscreen_ = contents->GetWeakPtr();
+    crest::ReportContentFullscreen(contents, true);
+  }
   NSWindow* window = crest::WindowForBrowser(browser_);
   if (window && !(window.styleMask & NSWindowStyleMaskFullScreen)) {
+    // The disclosure shows once the window is fullscreen, where it belongs.
     [window toggleFullScreen:nil];
+    return;
   }
-  ShowFullscreenDisclosure(origin);
+  UpdateExclusiveAccessBubble({.origin = origin, .type = bubble_type}, {});
 }
 
 void CrestExclusiveAccessContext::ExitFullscreen() {
-  crest::ReportContentFullscreen(GetWebContentsForExclusiveAccess(), false);
+  EndContentFullscreen();
   HideFullscreenDisclosure(ExclusiveAccessBubbleHideReason::kInterrupted);
   NSWindow* window = crest::WindowForBrowser(browser_);
   if (window && (window.styleMask & NSWindowStyleMaskFullScreen)) {
@@ -434,12 +468,33 @@ void CrestExclusiveAccessContext::ExitFullscreen() {
   }
 }
 
+void CrestExclusiveAccessContext::WindowFullscreenChanged(bool entered) {
+  // Chromium's own windows report every transition, as the fullscreen
+  // controller expects: entering shows its disclosure, and leaving ends the
+  // page's fullscreen however the window left.
+  browser_->WindowFullscreenStateChanged();
+  if (!entered) {
+    EndContentFullscreen();
+  }
+}
+
+void CrestExclusiveAccessContext::EndContentFullscreen() {
+  content::WebContents* contents = content_fullscreen_.get();
+  content_fullscreen_.reset();
+  if (contents) {
+    crest::ReportContentFullscreen(contents, false);
+  }
+}
+
 void CrestExclusiveAccessContext::UpdateExclusiveAccessBubble(
     const ExclusiveAccessBubbleParams& params,
     ExclusiveAccessBubbleHideCallback first_hide_callback) {
+  // Crest discloses a page's fullscreen. The browser's or an extension's keeps
+  // Crest's chrome and needs no instruction.
   const bool should_close_bubble =
-      !params.has_download &&
-      params.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE;
+      (!params.has_download &&
+       params.type == EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE) ||
+      exclusive_access_bubble::IsExclusiveAccessModeBrowserFullscreen(params.type);
   if (should_close_bubble) {
     if (first_hide_callback) {
       std::move(first_hide_callback)
@@ -552,10 +607,16 @@ void CrestExclusiveAccessContext::ShowFullscreenDisclosure(
   fullscreen_disclosure_ = (__bridge_retained void*)panel;
   fullscreen_disclosure_hide_callback_ = std::move(first_hide_callback);
   exclusive_access_bubble_visible_ = true;
+  fullscreen_disclosure_timer_.Start(
+      FROM_HERE, ExclusiveAccessBubble::kShowTime,
+      base::BindOnce(&CrestExclusiveAccessContext::HideFullscreenDisclosure,
+                     base::Unretained(this),
+                     ExclusiveAccessBubbleHideReason::kTimeout));
 }
 
 void CrestExclusiveAccessContext::HideFullscreenDisclosure(
     ExclusiveAccessBubbleHideReason reason) {
+  fullscreen_disclosure_timer_.Stop();
   NSPanel* panel = (__bridge_transfer NSPanel*)fullscreen_disclosure_;
   fullscreen_disclosure_ = nullptr;
   exclusive_access_bubble_visible_ = false;

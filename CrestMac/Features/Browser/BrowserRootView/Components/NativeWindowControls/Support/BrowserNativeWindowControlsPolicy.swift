@@ -18,6 +18,16 @@ enum BrowserNativeWindowControlsPolicy {
         return max(0, windowWidth - sidebarWidth)
     }
 
+    /// The style a window returns to when Crest's chrome leaves it. AppKit
+    /// owns the fullscreen bit and changes it only in its own transitions, so
+    /// a window left while in fullscreen, or first met there, keeps the state
+    /// AppKit gave it.
+    static func restoredStyleMask(
+        original: NSWindow.StyleMask, current: NSWindow.StyleMask
+    ) -> NSWindow.StyleMask {
+        original.subtracting(.fullScreen).union(current.intersection(.fullScreen))
+    }
+
     static func showsToolbar(in styleMask: NSWindow.StyleMask) -> Bool {
         !styleMask.contains(.fullScreen)
     }

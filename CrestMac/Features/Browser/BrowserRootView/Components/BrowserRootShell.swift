@@ -102,16 +102,6 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                     reduceMotion: reduceMotion
                 )
 
-                BrowserNativeWindowControlsBridge(
-                    isVisible: model.sidebarPresentation.showsWindowControls,
-                    sidebarPosition: appearance.sidebarOnRight ? 1 : 0,
-                    sidebarWidth: model.sidebarWidth
-                )
-                .frame(maxWidth: .infinity)
-                .frame(height: 0)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-
                 BrowserWindowTransparencyBridge(
                     isEnabled: windowTransparencyIsEnabled && !reduceTransparency,
                     isWindowFocused: model.isWindowFocusedBinding
@@ -125,6 +115,19 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                         .id(notice)
                 }
             }
+
+            // The window's chrome belongs to the window, not to the chrome a
+            // fullscreen page hides: taking it down would restore the window's
+            // style while AppKit is carrying it into fullscreen.
+            BrowserNativeWindowControlsBridge(
+                isVisible: model.sidebarPresentation.showsWindowControls,
+                sidebarPosition: appearance.sidebarOnRight ? 1 : 0,
+                sidebarWidth: model.sidebarWidth
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: 0)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
         .overlayPreferenceValue(BrowserRootPageBoundsKey.self) { anchor in
             GeometryReader { proxy in

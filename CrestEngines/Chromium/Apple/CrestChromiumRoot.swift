@@ -648,6 +648,10 @@
             window.isReleasedWhenClosed = false
             windows[request.id] = window
             window.contentViewController = NSHostingController(rootView: application.browserWindowContent(request))
+            // The hosting controller sizes the window to its content before
+            // SwiftUI has laid any of it out, which leaves a new window at its
+            // minimum size.
+            window.setContentSize(BrowserMainWindowSizingPolicy.idealContentSize)
             NotificationCenter.default.addObserver(
                 self, selector: #selector(windowClosed(_:)),
                 name: NSWindow.willCloseNotification, object: window)
@@ -655,7 +659,7 @@
                 // Frames belong to AppKit's autosave records, as they do for the
                 // SwiftUI scene. Tear-off windows keep their drop placement.
                 let autosaveName = "crest.chromium.window.\(request.id.uuidString)"
-                if !window.setFrameUsingName(autosaveName) { window.center() }
+                if !window.setFrameUsingName(autosaveName) { placeNewWindow(window) }
                 window.setFrameAutosaveName(autosaveName)
                 restorableWindowIDs.removeAll { $0 == request.id }
                 restorableWindowIDs.append(request.id)
@@ -664,6 +668,22 @@
                 window.center()
             }
             window.makeKeyAndOrderFront(nil)
+        }
+
+        /// Places a normal window that has no frame of its own yet: at the size
+        /// of the window the person is using, cascaded from it, as new windows
+        /// open on the Mac, or at the ideal size in the middle of the screen.
+        private func placeNewWindow(_ window: NSWindow) {
+            guard let source = NSApp.keyWindow, source !== window,
+                windows.values.contains(where: { $0 === source }),
+                !source.styleMask.contains(.fullScreen)
+            else {
+                window.center()
+                return
+            }
+            window.setFrame(source.frame, display: false)
+            let sourceTopLeft = NSPoint(x: source.frame.minX, y: source.frame.maxY)
+            window.cascadeTopLeft(from: window.cascadeTopLeft(from: sourceTopLeft))
         }
 
         private var activeModel: BrowserMacWindowModel? {
@@ -748,6 +768,10 @@
             }
             guard let id = windows.first(where: { $0.value === window })?.key else { return }
             windows.removeValue(forKey: id)
+            // AppKit keeps the frame this window last saved. The name goes with
+            // the window, since AppKit gives it to no other window while this one
+            // is alive, so the window reopened under this identity keeps saving.
+            window.setFrameAutosaveName("")
             // A window the user closed is not restored; windows still open at quit
             // are, so a terminating application keeps its recorded list.
             if !quitting, restorableWindowIDs.contains(id) {

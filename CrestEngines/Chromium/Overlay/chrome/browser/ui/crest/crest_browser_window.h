@@ -9,7 +9,9 @@
 
 #include <memory>
 
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/timer/timer.h"
 #include <string>
 #include <vector>
 
@@ -123,6 +125,12 @@ class CrestLocationBar : public LocationBar {
 // Fullscreen / exclusive-access context for the Crest window. Every mouse and
 // key event over web contents routes through ExclusiveAccessManager, which
 // dereferences this — it must exist.
+//
+// A page's fullscreen shows the page alone in the window's native fullscreen.
+// Chromium hears each of the window's fullscreen transitions, whoever asked
+// for them, as it does from its own windows, so a window that leaves
+// fullscreen from its own button or the Window menu ends the page's
+// fullscreen too.
 class CrestExclusiveAccessContext : public ExclusiveAccessContext {
  public:
   explicit CrestExclusiveAccessContext(Browser* browser);
@@ -144,14 +152,24 @@ class CrestExclusiveAccessContext : public ExclusiveAccessContext {
   bool CanUserExitFullscreen() const override;
 
  private:
+  // The Browser's window finished entering (`entered`) or leaving fullscreen.
+  void WindowFullscreenChanged(bool entered);
+  // The page shown fullscreen goes back to its place among Crest's chrome.
+  void EndContentFullscreen();
   void ShowFullscreenDisclosure(
       const url::Origin& origin,
       ExclusiveAccessBubbleHideCallback first_hide_callback = {});
   void HideFullscreenDisclosure(ExclusiveAccessBubbleHideReason reason);
 
   Browser* browser_;
+  // The page shown fullscreen, from its request until its fullscreen ends.
+  base::WeakPtr<content::WebContents> content_fullscreen_;
+  // The observers of the window's fullscreen transitions.
+  void* window_fullscreen_observers_ = nullptr;
   void* fullscreen_disclosure_ = nullptr;
   ExclusiveAccessBubbleHideCallback fullscreen_disclosure_hide_callback_;
+  // Hides the disclosure after the time Chromium's own bubble shows for.
+  base::OneShotTimer fullscreen_disclosure_timer_;
   bool exclusive_access_bubble_visible_ = false;
 };
 

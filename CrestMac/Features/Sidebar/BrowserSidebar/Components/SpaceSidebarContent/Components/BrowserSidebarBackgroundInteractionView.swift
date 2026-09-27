@@ -6,8 +6,7 @@ struct BrowserSidebarBackgroundInteractionView: View {
 
     var body: some View {
         Color.clear
-            .contentShape(.rect)
-            .gesture(WindowDragGesture())
+            .browserWindowChromeGestures()
             .contextMenu {
                 ForEach(
                     BrowserSidebarBackgroundInteractionPolicy.actions.filter { $0 != .newSpace || createSpace != nil },

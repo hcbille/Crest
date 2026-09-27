@@ -4,7 +4,6 @@ import AppKit
 
 struct BrowserNativeWindowChromeSnapshot {
     let styleMask: NSWindow.StyleMask
-    let isMovable: Bool
     let titlebarAppearsTransparent: Bool
     let titleVisibility: NSWindow.TitleVisibility
     let titlebarSeparatorStyle: NSTitlebarSeparatorStyle
@@ -58,10 +57,9 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     func applyBrowserChrome() {
         guard let window else { return }
-        // AppKit's automatic titlebar drag can claim the mouse-drag sequence
-        // before the webpage underneath receives it. Sidebar backgrounds use
-        // explicit WindowDragGesture instead; fullscreen owns its native bar.
-        window.isMovable = window.styleMask.contains(.fullScreen) && originalChrome?.isMovable == true
+        // The window stays movable, so the title bar drags and double-clicks
+        // as the system's does. A page under the title bar keeps its own
+        // mouse-downs (`BrowserWebHostView`).
         if !window.styleMask.contains(.fullSizeContentView) {
             window.styleMask.insert(.fullSizeContentView)
         }
@@ -119,8 +117,8 @@ final class BrowserNativeWindowControlsHostView: NSView {
         sidebarOnRight = false
         positionWindowControls()
         nativeButtonOrigins.removeAll()
-        window.styleMask = originalChrome.styleMask
-        window.isMovable = originalChrome.isMovable
+        window.styleMask = BrowserNativeWindowControlsPolicy.restoredStyleMask(
+            original: originalChrome.styleMask, current: window.styleMask)
         window.titleVisibility = originalChrome.titleVisibility
         window.titlebarAppearsTransparent = originalChrome.titlebarAppearsTransparent
         window.titlebarSeparatorStyle = originalChrome.titlebarSeparatorStyle
@@ -139,7 +137,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
         guard let window, originalChrome == nil else { return }
         originalChrome = BrowserNativeWindowChromeSnapshot(
             styleMask: window.styleMask,
-            isMovable: window.isMovable,
             titlebarAppearsTransparent: window.titlebarAppearsTransparent,
             titleVisibility: window.titleVisibility,
             titlebarSeparatorStyle: window.titlebarSeparatorStyle,

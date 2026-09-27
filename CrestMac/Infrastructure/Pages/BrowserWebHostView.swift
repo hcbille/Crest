@@ -310,6 +310,19 @@ final class BrowserWebHostView: NSView {
         super.keyDown(with: event)
     }
 
+    // A page keeps its own mouse-downs, even under the window's title bar, so
+    // a drag there selects text rather than moving the window. The engine
+    // draws the page out of process into views that are transparent here, so
+    // AppKit would otherwise leave the title bar above them free for the
+    // window server to drag, without asking the app. Chromium's own content
+    // view answers the same private question for the same reason.
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    @objc(_opaqueRectForWindowMoveWhenInTitlebar)
+    private func opaqueRectForWindowMoveWhenInTitlebar() -> NSRect {
+        bounds
+    }
+
     override func layout() {
         super.layout()
         layoutHostedWebView()
