@@ -113,7 +113,7 @@ struct BrowserPrivacySettingsPane: View {
 
     private var contentBlockingPolicyBinding: Binding<ContentBlockingPolicy> {
         browser.browsingPreferenceBinding(
-            \.contentBlockingPolicy,
+            \.contentBlocking,
             in: selectedSpaceID,
             default: .balanced
         )

@@ -147,23 +147,23 @@ extension BrowserStore {
     /// core sweeps the Space under, then the engine it searches with, each only
     /// when it differs from what the read model holds.
     func updateBrowsingPreferences(
-        _ preferences: BrowserSpaceBrowsingPreferences,
+        _ preferences: BrowsingPreferences,
         in spaceID: SpaceID
     ) {
         let owner = profileSettingsBrowser
-        guard let current = owner.spaceModel(spaceID)?.settings.editableBrowsingPreferences else { return }
+        guard let current = owner.spaceModel(spaceID)?.settings.browsingPreferences else { return }
         let workspaceID = owner.family.workspaceID
         if preferences.searchSuggestionsEnabled != current.searchSuggestionsEnabled
-            || preferences.currentTabCleanupPolicy != current.currentTabCleanupPolicy
-            || preferences.contentBlockingPolicy != current.contentBlockingPolicy
+            || preferences.currentTabCleanup != current.currentTabCleanup
+            || preferences.contentBlocking != current.contentBlocking
             || preferences.dataRetention != current.dataRetention
         {
             sendSpaceSettings(
                 SetBrowsingPreferences(
                     workspaceID: workspaceID, spaceID: spaceID,
                     searchSuggestionsEnabled: preferences.searchSuggestionsEnabled,
-                    currentTabCleanup: preferences.currentTabCleanupPolicy,
-                    contentBlocking: preferences.contentBlockingPolicy, dataRetention: preferences.dataRetention.core))
+                    currentTabCleanup: preferences.currentTabCleanup, contentBlocking: preferences.contentBlocking,
+                    dataRetention: preferences.dataRetention))
         }
         if preferences.searchProvider != current.searchProvider {
             let selection = preferences.searchProvider.selection
@@ -179,7 +179,7 @@ extension BrowserStore {
     /// and selects it when `selects`. Throws the rule the engine breaks; an
     /// unchanged save changes nothing.
     func upsertCustomSearchProvider(
-        _ provider: BrowserCustomSearchProvider,
+        _ engine: CustomSearchEngine,
         selects: Bool,
         in spaceID: SpaceID
     ) throws {
@@ -187,22 +187,21 @@ extension BrowserStore {
         guard let space = owner.spaceModel(spaceID) else { return }
         let workspaceID = owner.family.workspaceID
         do throws(Rejection) {
-            if space.settings.browsingPreferences.customSearchProviders.contains(where: { $0.id == provider.id }) {
+            if space.settings.browsingPreferences.customSearchProviders.contains(where: { $0.id == engine.id }) {
                 try owner.family.commit(
-                    UpdateSearchEngine(workspaceID: workspaceID, spaceID: spaceID, engine: provider.engine),
+                    UpdateSearchEngine(workspaceID: workspaceID, spaceID: spaceID, engine: engine),
                     from: owner)
                 if selects {
                     try owner.family.commit(
                         SelectSearchEngine(
                             workspaceID: workspaceID, spaceID: spaceID, builtIn: nil,
-                            customEngineID: provider.id),
+                            customEngineID: engine.id),
                         from: owner)
                 }
             } else {
                 try owner.family.commit(
                     AddSearchEngine(
-                        workspaceID: workspaceID, spaceID: spaceID, engine: provider.engine,
-                        selects: selects),
+                        workspaceID: workspaceID, spaceID: spaceID, engine: engine, selects: selects),
                     from: owner)
             }
         } catch {

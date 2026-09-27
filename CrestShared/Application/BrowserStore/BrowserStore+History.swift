@@ -120,10 +120,10 @@ extension BrowserStore {
     /// under the new retention as it accepts it, so a changed retention is
     /// never held back by the last sweep.
     func updateDataRetentionPreferences(
-        _ retention: BrowserSpaceDataRetentionPreferences,
+        _ retention: DataRetentionPreferences,
         in spaceID: SpaceID
     ) {
-        guard var preferences = spaceModel(spaceID)?.settings.editableBrowsingPreferences,
+        guard var preferences = spaceModel(spaceID)?.settings.browsingPreferences,
             preferences.dataRetention != retention
         else {
             return

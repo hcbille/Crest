@@ -14,7 +14,7 @@ final class BrowserDataRetentionTests: XCTestCase {
         let cleanedSpaceID = session.spaces[0].id
         let untouchedSpaceID = session.spaces[1].id
         Self.retain(.init(history: .thirtyDays, archive: .thirtyDays, downloads: .forever), in: &session.spaces[0])
-        Self.retain(.default, in: &session.spaces[1])
+        Self.retain(BrowsingPreferences.seeded.dataRetention, in: &session.spaces[1])
         session.spaces[0].history = [
             Self.history(title: "Old", visitedAt: oldDate),
             Self.history(title: "Recent", visitedAt: recentDate),
@@ -161,9 +161,7 @@ final class BrowserDataRetentionTests: XCTestCase {
     }
 
     /// Gives the seeded `space` the retention windows `retention` names.
-    private static func retain(_ retention: BrowserSpaceDataRetentionPreferences, in space: inout SpaceState.Seed) {
-        var preferences = BrowserSpaceBrowsingPreferences(core: space.settings.browsingPreferences)
-        preferences.dataRetention = retention
-        space.settings.browsingPreferences = preferences.core
+    private static func retain(_ retention: DataRetentionPreferences, in space: inout SpaceState.Seed) {
+        space.settings.browsingPreferences.dataRetention = retention
     }
 }

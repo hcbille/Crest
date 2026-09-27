@@ -54,7 +54,7 @@ struct BrowserSpaceBrowsingSection: View {
             Button("Clean Up Eligible Tabs Now", systemImage: "archivebox") {
                 browser.cleanupCurrentTabs(in: space.id)
             }
-            .disabled(currentPreferences.currentTabCleanupPolicy == .never)
+            .disabled(currentPreferences.currentTabCleanup == .never)
 
             Text(
                 "This policy applies only to \(space.settings.name). Eligible tabs remain recoverable from Archive."
@@ -79,8 +79,8 @@ struct BrowserSpaceBrowsingSection: View {
         manageSearchEngines()
     }
 
-    private var currentPreferences: BrowserSpaceBrowsingPreferences {
-        space.settings.editableBrowsingPreferences
+    private var currentPreferences: BrowsingPreferences {
+        space.settings.browsingPreferences
     }
 
     private var searchProviderBinding: Binding<SearchProvider> {
@@ -88,7 +88,7 @@ struct BrowserSpaceBrowsingSection: View {
     }
 
     private var cleanupPolicyBinding: Binding<CurrentTabCleanup> {
-        browser.browsingPreferenceBinding(\.currentTabCleanupPolicy, in: space)
+        browser.browsingPreferenceBinding(\.currentTabCleanup, in: space)
     }
 
     private var searchProviderPicker: some View {
@@ -131,7 +131,7 @@ struct BrowserSpaceBrowsingSection: View {
                 Text(policy.title)
             },
             selectedValue: {
-                Text(currentPreferences.currentTabCleanupPolicy.title)
+                Text(currentPreferences.currentTabCleanup.title)
                     .foregroundStyle(.secondary)
             })
     }

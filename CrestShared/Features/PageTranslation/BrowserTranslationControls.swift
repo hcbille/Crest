@@ -41,7 +41,7 @@ struct BrowserTranslationActions: View {
     private var automaticallyTranslatesSource: Binding<Bool> {
         Binding {
             preferences.automaticallyTranslates
-                && preferences.preferences.translationRules.target(for: translation.sourceID) != nil
+                && preferences.preferences.translationRules.decision(for: translation.sourceID)?.target != nil
         } set: { enabled in
             preferences.setTranslationRule(
                 sourceID: translation.sourceID, targetID: translation.targetID, isEnabled: enabled)
@@ -75,7 +75,7 @@ struct BrowserTranslationActions: View {
             }
             .disabled(
                 translation.targetID.isEmpty
-                    || BrowserAutomaticTranslationRules.matches(translation.sourceID, translation.targetID))
+                    || BrowserTranslationLanguageCatalog.matches(translation.sourceID, translation.targetID))
         }
         Toggle("Offer to Translate", isOn: $preferences.offersTranslation)
         Button("Download More Languages…", systemImage: "arrow.down.circle") { translation.showsInformation = true }

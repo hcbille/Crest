@@ -2981,6 +2981,10 @@
     "folder-symbol-stays-unset-across-sync": {
       "category": "internal",
       "message": "A folder without its own symbol keeps none when it syncs to another device"
+    },
+    "settings-bind-core-preferences": {
+      "category": "internal",
+      "message": "The Settings panes and page actions edit the core's own browsing, password and app preferences, with no Swift copy to convert them"
     }
   }
 }

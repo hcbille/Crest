@@ -45,7 +45,7 @@ private final class BrowserMobileApplication {
     let privateDownloads: MobileBrowserDownloads
     let tabStateArchive: (any BrowserTabStateArchiving)?
     let windowLayouts: BrowserWindowLayouts
-    let startupBehavior: BrowserStartupBehavior
+    let startupBehavior: StartupBehavior
     let automaticallyPresentsOnboarding: Bool
     let usesEphemeralWebsiteDataStores: Bool
     let presentsInstalledApplicationUI: Bool
@@ -77,7 +77,7 @@ private final class BrowserMobileApplication {
             BrowserLinkPreferenceStore(core: core, legacyPreferences: legacyDevice.linkPreferences))
         let browser = try BrowserStore.production(core: core, launchEnvironment: launchEnvironment)
         BrowserAppPreferenceStore.shared.bind(
-            to: browser, legacy: BrowserLegacyAppPreferences.read(for: launchEnvironment))
+            to: browser, legacy: LegacyAppPreferences.read(for: launchEnvironment))
         let transientBrowsing = BrowserTransientBrowsingCoordinator()
         let cloudSync =
             usesIsolatedLaunch

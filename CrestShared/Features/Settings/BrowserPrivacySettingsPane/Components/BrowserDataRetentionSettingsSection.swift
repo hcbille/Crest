@@ -94,7 +94,7 @@ struct BrowserDataRetentionSettingsSection: View {
     }
 
     private func apply(_ change: BrowserDataRetentionChange) {
-        guard var retention = browser.spaceModel(spaceID)?.settings.editableBrowsingPreferences.dataRetention else {
+        guard var retention = browser.spaceModel(spaceID)?.settings.browsingPreferences.dataRetention else {
             pendingChange = nil
             return
         }

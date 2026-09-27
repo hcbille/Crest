@@ -42,7 +42,7 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testDurableClosePolicyControlsNativeStateAndFreshPoolRestoration() async throws {
-        for policy in BrowserDurableTabClosePolicy.allCases {
+        for policy in SavedTabClosePolicy.allCases {
             let archive = try makeTabStateArchive()
             let root = try XCTUnwrap(URL(string: "https://state.crest.test/root"))
             let child = try XCTUnwrap(URL(string: "https://state.crest.test/child"))
@@ -65,7 +65,7 @@ final class BrowserPagePoolTests: XCTestCase {
                 profileID: space.profileID, tabID: unrelatedID)
             let unrelatedState = archive.archivedState(profileID: space.profileID, tabID: unrelatedID)
             let preferences = BrowserAppPreferenceStore()
-            preferences.bind(to: browser, legacy: BrowserLegacyAppPreferences())
+            preferences.bind(to: browser, legacy: .unsaved)
             preferences.savedTabClosePolicy = policy
             let action = BrowserDurableTabCloseAction(
                 browser: browser, spaceAccess: BrowserSpaceAccessController(), preferences: preferences,
@@ -243,7 +243,7 @@ final class BrowserPagePoolTests: XCTestCase {
 
         let space = try XCTUnwrap(browser.shownSpace)
         browser.updateCredentialPreferences(
-            BrowserCredentialPreferences(
+            CredentialPreferences(
                 isEnabled: false, syncsCrestPasswordsWithICloud: false, alsoOffersSaveToSystemPasswords: false),
             in: space.id)
         pool.reconcileCredentialAccess()

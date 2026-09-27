@@ -44,10 +44,7 @@ enum BrowserPerformanceSoakFixture {
 
     /// Google, no cleanup and no content blocking, so nothing a soak measures
     /// is swept or blocked away.
-    private static let soakBrowsing = BrowsingPreferences(
-        selectedBuiltInEngine: .google, selectedCustomEngineID: nil, customSearchProviders: [],
-        searchSuggestionsEnabled: false, currentTabCleanup: .never, contentBlocking: .off,
-        dataRetention: BrowsingPreferences.seeded.dataRetention)
+    private static let soakBrowsing = BrowsingPreferences.seeded(cleanup: .never, blocking: .off)
 
     private static func makeHeavySession(
         baseURL: URL,

@@ -15,24 +15,39 @@ struct BrowserTranslationHost: ViewModifier {
 
     @State private var hostID = UUID()
     @Environment(\.scenePhase) private var scenePhase
-    private var preferences: BrowserAppPreferences { BrowserAppPreferenceStore.shared.preferences }
+    private var preferences: AppPreferences { BrowserAppPreferenceStore.shared.preferences }
     private var automaticallyTranslates: Bool { preferences.automaticallyTranslates }
     private var offersTranslation: Bool { preferences.offersTranslation }
-    private var languageRules: BrowserAutomaticTranslationRules { preferences.translationRules }
+    private var languageRules: [TranslationRule] { preferences.translationRules }
 
     private var translationTarget: (any BrowserPageEngine)? {
         page.pageEngine.registration.supports(.translation) ? page.pageEngine : nil
     }
 
-    private var detectionID: String {
-        "\(translation.documentRevision)-\(isActive)-\(isLoading)-\(isReaderActive)-\(scenePhase == .background)-\(automaticallyTranslates)-\(languageRules.rawValue)"
+    /// What detecting the page's language depends on; detection runs again
+    /// whenever any of it changes.
+    private struct Detection: Equatable {
+        let documentRevision: Int
+        let isActive: Bool
+        let isLoading: Bool
+        let isReaderActive: Bool
+        let isInBackground: Bool
+        let automaticallyTranslates: Bool
+        let languageRules: [TranslationRule]
+    }
+
+    private var detection: Detection {
+        Detection(
+            documentRevision: translation.documentRevision, isActive: isActive, isLoading: isLoading,
+            isReaderActive: isReaderActive, isInBackground: scenePhase == .background,
+            automaticallyTranslates: automaticallyTranslates, languageRules: languageRules)
     }
 
     func body(content: Content) -> some View {
         let configuration = translation.configuration
         return
             content
-            .task(id: detectionID) {
+            .task(id: detection) {
                 guard !Task.isCancelled, let engine = translationTarget else { return }
                 translation.updatePreferences(
                     automaticallyTranslates: automaticallyTranslates, offersTranslation: offersTranslation,

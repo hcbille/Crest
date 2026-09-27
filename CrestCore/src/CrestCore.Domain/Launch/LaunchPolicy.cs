@@ -8,7 +8,7 @@ public static class LaunchPolicy {
     #region Variables
 
     /// The documented default for a person who never chose.
-    public const StartupBehavior DefaultStartup = StartupBehavior.ShowStartPage;
+    public static StartupBehavior DefaultStartup => AppPreferences.Default.Startup;
 
     #endregion
 

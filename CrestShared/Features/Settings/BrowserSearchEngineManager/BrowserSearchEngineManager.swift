@@ -7,7 +7,7 @@ struct BrowserSearchEngineManager: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var editorRequest: BrowserSearchEngineEditorRequest?
-    @State private var pendingDeletion: BrowserCustomSearchProvider?
+    @State private var pendingDeletion: CustomSearchProvider?
     @State private var keyboardDismissal = BrowserSearchEngineKeyboardDismissal()
 
     init(
@@ -100,7 +100,7 @@ struct BrowserSearchEngineManager: View {
         } message: { custom in
             Text(
                 verbatim:
-                    preferences.searchProvider == custom.provider
+                    preferences.searchProvider == SearchProvider(custom: custom)
                     ? String(localized: "Google will become this Space’s search engine.")
                     : String(
                         localized: "This removes \(custom.name) from this Space."
@@ -109,8 +109,8 @@ struct BrowserSearchEngineManager: View {
         }
     }
 
-    private var preferences: BrowserSpaceBrowsingPreferences {
-        space.settings.editableBrowsingPreferences
+    private var preferences: BrowsingPreferences {
+        space.settings.browsingPreferences
     }
 
     private func providerRow(_ provider: SearchProvider) -> some View {
@@ -125,15 +125,15 @@ struct BrowserSearchEngineManager: View {
     }
 
     private func customProviderRow(
-        _ custom: BrowserCustomSearchProvider
+        _ custom: CustomSearchProvider
     ) -> some View {
         HStack {
             Button {
-                select(custom.provider)
+                select(SearchProvider(custom: custom))
             } label: {
                 BrowserSearchEngineProviderLabel(
-                    provider: custom.provider, profileID: space.profileID,
-                    isSelected: preferences.searchProvider == custom.provider
+                    provider: SearchProvider(custom: custom), profileID: space.profileID,
+                    isSelected: preferences.searchProvider == SearchProvider(custom: custom)
                 )
                 .contentShape(.rect)
             }
@@ -159,13 +159,13 @@ struct BrowserSearchEngineManager: View {
     }
 
     private func save(
-        _ custom: BrowserCustomSearchProvider,
+        _ engine: CustomSearchEngine,
         selectsProvider: Bool
     ) throws {
-        try browser.upsertCustomSearchProvider(custom, selects: selectsProvider, in: space.id)
+        try browser.upsertCustomSearchProvider(engine, selects: selectsProvider, in: space.id)
     }
 
-    private func remove(_ custom: BrowserCustomSearchProvider) {
+    private func remove(_ custom: CustomSearchProvider) {
         browser.removeCustomSearchProvider(id: custom.id, in: space.id)
         pendingDeletion = nil
     }

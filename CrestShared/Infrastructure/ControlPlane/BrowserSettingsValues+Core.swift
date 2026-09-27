@@ -1,27 +1,11 @@
 import Foundation
 
-// TRANSITIONAL until the settings panes and page actions bind the core's
-// records (`SpaceSettings`, `AppPreferences`) directly: the Swift preference
-// and branding values they still edit, read from the records the core
-// publishes and written back as the records a settings intent carries.
+// TRANSITIONAL until the Space look editors and renderers draw the core's
+// branding records (`SpaceBranding`) directly: the Swift branding values they
+// still edit, read from the records the core publishes and written back as the
+// records a settings intent carries.
 
 // MARK: - Reading the core's records
-
-extension BrowserAppPreferences {
-    init(core preferences: AppPreferences) {
-        self.init()
-        translationRules = BrowserAutomaticTranslationRules(core: preferences.translationRules)
-        startupBehavior = BrowserStartupBehavior(coreTerm: preferences.startup) ?? Self.defaults.startupBehavior
-        savedTabClosePolicy =
-            BrowserDurableTabClosePolicy(coreTerm: preferences.savedTabClose) ?? Self.defaults.savedTabClosePolicy
-        offersTranslation = preferences.offersTranslation
-        automaticallyTranslates = preferences.automaticallyTranslates
-        checksSpelling = preferences.checksSpelling
-        automaticallyEntersPictureInPicture = preferences.automaticallyEntersPictureInPicture
-        savedTabFaviconReturnsToSavedURL = preferences.savedTabFaviconReturnsToSavedURL
-        splitFocusFollowsMouse = preferences.splitFocusFollowsMouse
-    }
-}
 
 extension BrowserSpaceBrandColor {
     init(core color: BrandColor) {
@@ -156,53 +140,5 @@ extension BrowserSpaceCrestCharge {
             CrestCharge(kind: .monogram, symbol: nil, text: letters, style: CrestMonogramStyle(swiftTerm: style))
         case .none: CrestCharge(kind: .none, symbol: nil, text: nil, style: nil)
         }
-    }
-}
-
-extension BrowserSpaceDataRetentionPreferences {
-    var core: DataRetentionPreferences {
-        DataRetentionPreferences(history: history, archive: archive, downloads: downloads)
-    }
-}
-
-extension BrowserCredentialPreferences {
-    var core: CredentialPreferences {
-        CredentialPreferences(
-            isEnabled: isEnabled, syncsCrestPasswordsWithICloud: syncsCrestPasswordsWithICloud,
-            alsoOffersSaveToSystemPasswords: alsoOffersSaveToSystemPasswords)
-    }
-}
-
-extension BrowserAppPreferences {
-    /// These preferences as the core's record carries them.
-    var core: AppPreferences {
-        AppPreferences(
-            startup: StartupBehavior(swiftTerm: startupBehavior) ?? .showStartPage,
-            offersTranslation: offersTranslation, automaticallyTranslates: automaticallyTranslates,
-            translationRules: translationRules.sources.keys.sorted().compactMap { source in
-                translationRules.sources[source].map {
-                    TranslationRule(sourceLanguage: source, targetID: $0.targetID, isEnabled: $0.isEnabled)
-                }
-            },
-            checksSpelling: checksSpelling, automaticallyEntersPictureInPicture: automaticallyEntersPictureInPicture,
-            savedTabClose: SavedTabClosePolicy(swiftTerm: savedTabClosePolicy) ?? .resumeLastLocation,
-            savedTabFaviconReturnsToSavedURL: savedTabFaviconReturnsToSavedURL,
-            splitFocusFollowsMouse: splitFocusFollowsMouse)
-    }
-}
-
-extension BrowserSpaceBrowsingPreferences {
-    /// These preferences as the core keeps them.
-    var core: BrowsingPreferences {
-        let selection = searchProvider.selection
-        return BrowsingPreferences(
-            selectedBuiltInEngine: selection.builtIn, selectedCustomEngineID: selection.customEngineID,
-            customSearchProviders: customSearchProviders.map {
-                CustomSearchProvider(
-                    id: $0.id, name: $0.name, searchURLTemplate: $0.searchURLTemplate,
-                    suggestionURLTemplate: $0.suggestionURLTemplate)
-            },
-            searchSuggestionsEnabled: searchSuggestionsEnabled, currentTabCleanup: currentTabCleanupPolicy,
-            contentBlocking: contentBlockingPolicy, dataRetention: dataRetention.core)
     }
 }

@@ -23,7 +23,7 @@ public sealed partial class NativeSessionAuthority {
 
     private SessionEdit SettingTranslationRule(SessionState basis, SetTranslationRule intent) {
         RequirePreferenceOwner();
-        return Preferred(basis, (basis.AppPreferences ?? AppPreferencesPolicy.Default)
+        return Preferred(basis, (basis.AppPreferences ?? AppPreferences.Default)
             .WithTranslationRule(intent.SourceLanguage, intent.TargetLanguage, intent.IsEnabled));
     }
 

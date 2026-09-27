@@ -19,11 +19,7 @@ final class BrowserHostedWebNotificationTests: XCTestCase {
             accent: .teal,
             folders: [],
             tabs: [tab],
-            browsingPreferences: BrowserSpaceBrowsingPreferences(
-                searchProvider: .google,
-                currentTabCleanupPolicy: .never,
-                contentBlockingPolicy: .off
-            ).core
+            browsingPreferences: BrowsingPreferences.seeded(cleanup: .never, blocking: .off)
         )
         let permissionCenter = BrowserSitePermissionCenter()
         permissionCenter.setDecision(

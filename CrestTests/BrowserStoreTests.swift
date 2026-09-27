@@ -74,7 +74,7 @@ final class BrowserStoreTests: XCTestCase {
         XCTAssertFalse(store.syncsSession)
         let privateSpace = try XCTUnwrap(store.shownSpace)
         let branding = BrowserSpaceBranding(look: privateSpace.settings.look)
-        let browsing = BrowserSpaceBrowsingPreferences(core: privateSpace.settings.browsingPreferences)
+        let browsing = privateSpace.settings.browsingPreferences
         XCTAssertEqual(privateSpace.settings.name, "Private")
         XCTAssertEqual(privateSpace.settings.symbol, "eyeglasses")
         XCTAssertEqual(
@@ -89,7 +89,7 @@ final class BrowserStoreTests: XCTestCase {
         )
         XCTAssertEqual(branding.bannerPattern, .solid)
         XCTAssertEqual(browsing.searchProvider, .duckDuckGo)
-        XCTAssertEqual(browsing.currentTabCleanupPolicy, .never)
+        XCTAssertEqual(browsing.currentTabCleanup, .never)
         XCTAssertFalse(
             try XCTUnwrap(store.shownSpace)
                 .settings.credentialPreferences.syncsCrestPasswordsWithICloud
@@ -170,22 +170,16 @@ final class BrowserStoreTests: XCTestCase {
         let otherSpace = try XCTUnwrap(
             store.spaceModels.first { $0.id != selectedSpaceID }
         )
-        let preferences = BrowserSpaceBrowsingPreferences(
-            searchProvider: .duckDuckGo,
-            currentTabCleanupPolicy: .never
-        )
+        var preferences = try XCTUnwrap(store.spaceModel(selectedSpaceID)).settings.browsingPreferences
+        let untouched = otherSpace.settings.browsingPreferences
+        preferences.searchProvider = .duckDuckGo
+        preferences.currentTabCleanup = .never
 
         store.updateBrowsingPreferences(preferences, in: selectedSpaceID)
         await store.flushPendingSyncPersistence()
 
-        XCTAssertEqual(
-            store.spaceModel(selectedSpaceID).map { BrowserSpaceBrowsingPreferences(core: $0.settings.browsingPreferences) },
-            preferences
-        )
-        XCTAssertEqual(
-            store.spaceModel(otherSpace.id).map { BrowserSpaceBrowsingPreferences(core: $0.settings.browsingPreferences) },
-            .default
-        )
+        XCTAssertEqual(store.spaceModel(selectedSpaceID)?.settings.browsingPreferences, preferences)
+        XCTAssertEqual(store.spaceModel(otherSpace.id)?.settings.browsingPreferences, untouched)
         XCTAssertTrue(try harness.storedJournal().isPending(.space, selectedSpaceID))
     }
 
@@ -762,10 +756,7 @@ final class BrowserStoreTests: XCTestCase {
             accent: .indigo,
             folders: [],
             tabs: [pinned, selected, startPage, expired],
-            browsingPreferences: BrowserSpaceBrowsingPreferences(
-                searchProvider: .google,
-                currentTabCleanupPolicy: .after12Hours
-            ).core
+            browsingPreferences: .seeded(engine: .google, cleanup: .after12Hours)
         )
         let neverSelected = TabState.Seed(
             title: "Personal",
@@ -785,10 +776,7 @@ final class BrowserStoreTests: XCTestCase {
             accent: .teal,
             folders: [],
             tabs: [neverSelected, neverPolicyTab],
-            browsingPreferences: BrowserSpaceBrowsingPreferences(
-                searchProvider: .duckDuckGo,
-                currentTabCleanupPolicy: .never
-            ).core
+            browsingPreferences: .seeded(engine: .duckDuckGo, cleanup: .never)
         )
         return CleanupSweepFixture(
             session: SessionState.Seed(spaces: [sweepingSpace, neverSpace]),

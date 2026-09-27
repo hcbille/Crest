@@ -154,7 +154,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
             placement: .current,
             lastActivatedAt: fixedDate
         )
-        var preferences = BrowserSpaceBrowsingPreferences.default
+        var preferences = BrowsingPreferences.seeded
         preferences.searchSuggestionsEnabled = searchSuggestionsEnabled
         let space = SpaceState.Seed(
             id: uuid(0x51),
@@ -164,7 +164,7 @@ final class BrowserCommandPaletteModelActivationTests: XCTestCase {
             accent: .indigo,
             folders: [],
             tabs: [sourceTab, localTab],
-            browsingPreferences: preferences.core
+            browsingPreferences: preferences
         )
         return (space, sourceTab)
     }

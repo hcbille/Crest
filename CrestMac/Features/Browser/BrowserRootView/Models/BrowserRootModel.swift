@@ -14,7 +14,7 @@ final class BrowserRootModel {
     let spaceAccess: BrowserSpaceAccessController
     let windowState: BrowserWindowStateStore?
     private let layoutPersistence: BrowserWindowLayoutPersistence
-    let startupBehavior: BrowserStartupBehavior
+    let startupBehavior: StartupBehavior
 
     var address = ""
     var isAddressEditing = false
@@ -84,7 +84,7 @@ final class BrowserRootModel {
         chrome: BrowserChromeState,
         spaceAccess: BrowserSpaceAccessController,
         windowState: BrowserWindowStateStore?,
-        startupBehavior: BrowserStartupBehavior,
+        startupBehavior: StartupBehavior,
         persistedSidebarWidth: CGFloat
     ) {
         self.browser = browser

@@ -27,6 +27,17 @@ final class BrowserTranslationLanguageCatalog {
 
     static func name(_ id: String) -> String { Locale.current.localizedString(forIdentifier: id) ?? id }
 
+    /// Whether the core reads `lhs` and `rhs` as one language.
+    nonisolated static func matches(_ lhs: String, _ rhs: String) -> Bool {
+        matches(lhs, in: [rhs]).first ?? false
+    }
+
+    /// `matches(language, candidate)` for each candidate, in one core call.
+    nonisolated static func matches(_ language: String, in candidates: [String]) -> [Bool] {
+        (try? CrestCore.answer(LanguagesMatching(language: language, candidates: candidates)))?.matches
+            ?? Array(repeating: false, count: candidates.count)
+    }
+
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
@@ -42,7 +53,7 @@ final class BrowserTranslationLanguageCatalog {
         let languages = supported.isEmpty ? await LanguageAvailability().supportedLanguages : supported
         let ids = languages.map(\.minimalIdentifier)
         let candidates = ids.flatMap { source in
-            zip(ids, BrowserAutomaticTranslationRules.matches(source, in: ids))
+            zip(ids, matches(source, in: ids))
                 .filter { !$0.1 }
                 .map { Pair(source: source, target: $0.0) }
         }

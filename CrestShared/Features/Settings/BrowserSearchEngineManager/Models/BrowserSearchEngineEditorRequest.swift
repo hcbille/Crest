@@ -17,7 +17,7 @@ struct BrowserSearchEngineEditorRequest: Hashable, Identifiable {
         )
     }
 
-    static func edit(_ provider: BrowserCustomSearchProvider) -> Self {
+    static func edit(_ provider: CustomSearchProvider) -> Self {
         Self(
             id: provider.id,
             name: provider.name,

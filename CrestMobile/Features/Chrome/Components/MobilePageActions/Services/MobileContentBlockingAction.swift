@@ -28,8 +28,8 @@ struct MobileContentBlockingAction {
         guard let assignment = pageAssignment(), browser.shownTabAssignment == assignment,
             let space = browser.shownSpace
         else { return false }
-        var preferences = BrowserSpaceBrowsingPreferences(core: space.settings.browsingPreferences)
-        preferences.contentBlockingPolicy = preferences.contentBlockingPolicy.switched
+        var preferences = space.settings.browsingPreferences
+        preferences.contentBlocking = preferences.contentBlocking.switched
         browser.updateBrowsingPreferences(preferences, in: space.id)
         await reconcile()
         return true

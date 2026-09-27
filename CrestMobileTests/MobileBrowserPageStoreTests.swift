@@ -286,7 +286,7 @@ final class MobileBrowserPageStoreTests: XCTestCase {
             id: fixedUUID(index * 10 + 1),
             placement: .current
         )
-        var credentialPreferences = BrowserCredentialPreferences.default
+        var credentialPreferences = CredentialPreferences.seeded
         credentialPreferences.isEnabled = savesCredentials
         return SpaceState.Seed(
             id: fixedUUID(index * 10 + 2),
@@ -296,7 +296,7 @@ final class MobileBrowserPageStoreTests: XCTestCase {
             accent: .indigo,
             folders: [],
             tabs: [tab],
-            credentialPreferences: credentialPreferences.core
+            credentialPreferences: credentialPreferences
         )
     }
 
@@ -352,7 +352,7 @@ final class MobileBrowserPageStoreTests: XCTestCase {
     }
 
     /// Crest Passwords turned off for a Space.
-    private static let savingOff = BrowserCredentialPreferences(
+    private static let savingOff = CredentialPreferences(
         isEnabled: false, syncsCrestPasswordsWithICloud: false, alsoOffersSaveToSystemPasswords: false)
 
     private func fixedUUID(_ value: Int) -> UUID {

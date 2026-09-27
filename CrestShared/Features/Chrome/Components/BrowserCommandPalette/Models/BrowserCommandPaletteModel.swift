@@ -282,15 +282,6 @@ final class BrowserCommandPaletteModel {
     }
 }
 
-extension BrowsingPreferences {
-    /// The engine `builtIn` or `customID` names among this Space's engines.
-    func searchProvider(builtIn: BuiltInSearchEngine?, customID: UUID?) -> SearchProvider? {
-        if let builtIn { return SearchProvider.named(builtIn.name) }
-        guard let customID, let custom = customSearchProviders.first(where: { $0.id == customID }) else { return nil }
-        return SearchProvider(custom: custom)
-    }
-}
-
 enum BrowserSearchSuggestionResponseParser {
     static func suggestions(from data: Data) -> [String] {
         guard data.count <= BrowserSearchSuggestionClient.maximumResponseByteCount else {

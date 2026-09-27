@@ -147,7 +147,7 @@ final class BrowserSettingsPaneTests: XCTestCase {
         let provider = browser.browsingPreferenceBinding(\.searchProvider, in: space)
         let otherProvider = try XCTUnwrap(SearchProvider.all.first { $0 != provider.wrappedValue })
         provider.wrappedValue = otherProvider
-        XCTAssertEqual(space.settings.editableBrowsingPreferences.searchProvider, otherProvider)
+        XCTAssertEqual(space.settings.browsingPreferences.searchProvider, otherProvider)
 
         let offersCopy = browser.credentialPreferenceBinding(\.alsoOffersSaveToSystemPasswords, in: space)
         offersCopy.wrappedValue = !offersCopy.wrappedValue

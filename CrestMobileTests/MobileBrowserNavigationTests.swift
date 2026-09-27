@@ -660,9 +660,8 @@ final class MobileBrowserNavigationTests: XCTestCase {
         )
         XCTAssertEqual(transientLease.page?.isContentBlockingActive, true)
 
-        var preferences = BrowserSpaceBrowsingPreferences(
-            core: try XCTUnwrap(browser.spaceModel(space.id)).settings.browsingPreferences)
-        preferences.contentBlockingPolicy = .off
+        var preferences = try XCTUnwrap(browser.spaceModel(space.id)).settings.browsingPreferences
+        preferences.contentBlocking = .off
         browser.updateBrowsingPreferences(preferences, in: space.id)
         await pages.reconcileContentBlocking()
 
@@ -780,9 +779,8 @@ final class MobileBrowserNavigationTests: XCTestCase {
         let activeNavigationCount = activePage.completedNavigationCount
         let backgroundNavigationCount = backgroundPage.completedNavigationCount
 
-        var preferences = BrowserSpaceBrowsingPreferences(
-            core: try XCTUnwrap(browser.spaceModel(space.id)).settings.browsingPreferences)
-        preferences.contentBlockingPolicy = .off
+        var preferences = try XCTUnwrap(browser.spaceModel(space.id)).settings.browsingPreferences
+        preferences.contentBlocking = .off
         browser.updateBrowsingPreferences(preferences, in: space.id)
         await pages.reconcileContentBlocking()
 

@@ -262,6 +262,10 @@ internal sealed class ContractSchema {
     /// sends holds that hold [Resolved] values, themselves or in a record a
     /// field holds.
     private readonly HashSet<Type> seeded = [];
+    /// The records a platform builds field by field to send: those a message
+    /// it sends holds that have no seed, are no message themselves and are not
+    /// normalized on construction.
+    private readonly HashSet<Type> built = [];
     /// The abstract records a field narrows a root to, with their root.
     private readonly Dictionary<Type, ContractRoot> bases = [];
     private readonly NullabilityInfoContext nullability = new();
@@ -822,6 +826,7 @@ internal sealed class ContractSchema {
                 case OptionalField optional: pending.Push(optional.Value); break;
             }
         seeded.IntersectWith(sent);
+        built.UnionWith(sent.Where(type => !seeded.Contains(type) && !records[type].IsNormalizedOnConstruction && !IsSent(records[type])));
     }
 
     /// Whether a field of this type holds a record that has a seed.
@@ -926,6 +931,12 @@ internal sealed class ContractSchema {
     /// values, itself or in a record a field holds. The core resolves the rest
     /// when it reads it, so no platform works a resolved value out.
     public bool HasSeed(Type type) => seeded.Contains(type);
+
+    /// Whether a platform builds `type` field by field to send, as a record a
+    /// message it sends holds: one with no seed, no message itself and not
+    /// normalized on construction, such as a Space's branding or the app's
+    /// preferences, which a settings pane edits in place before it sends them.
+    public bool IsBuilt(Type type) => built.Contains(type);
 
     /// The abstract records `type` derives from below `root`, nearest first.
     private static IEnumerable<Type> Ancestors(Type type, Type root) {

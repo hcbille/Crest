@@ -20,7 +20,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
 
     func testColdStartupLeavesTabsUnselectedRegardlessOfLegacyPreference() {
         for behavior in [
-            BrowserStartupBehavior.showStartPage,
+            StartupBehavior.showStartPage,
             .lastActiveTab,
         ] {
             let rootBrowser = BrowserStore.hostingPages(

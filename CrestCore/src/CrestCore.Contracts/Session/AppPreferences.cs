@@ -10,6 +10,16 @@ namespace CrestCore.Contracts;
 public sealed record AppPreferences(StartupBehavior Startup, bool OffersTranslation, bool AutomaticallyTranslates,
     IReadOnlyList<TranslationRule> TranslationRules, bool ChecksSpelling, bool AutomaticallyEntersPictureInPicture,
     SavedTabClosePolicy SavedTabClose, bool SavedTabFaviconReturnsToSavedUrl, bool SplitFocusFollowsMouse) {
+    #region Static Variables
+
+    /// The documented defaults for a person who never chose, which a platform
+    /// shows and applies until its session holds the record.
+    public static AppPreferences Default { get; } = new(StartupBehavior.ShowStartPage, OffersTranslation: true,
+        AutomaticallyTranslates: false, TranslationRules: [], ChecksSpelling: false, AutomaticallyEntersPictureInPicture: true,
+        SavedTabClosePolicy.ResumeLastLocation, SavedTabFaviconReturnsToSavedUrl: false, SplitFocusFollowsMouse: false);
+
+    #endregion
+
     #region Actions - Equality
 
     public bool Equals(AppPreferences? other) => other is not null

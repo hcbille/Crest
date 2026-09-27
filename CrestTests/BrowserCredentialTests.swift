@@ -603,7 +603,7 @@ final class BrowserCredentialTests: XCTestCase {
             let otherWindow = store.makeWindowStore()
             let original = try XCTUnwrap(store.shownSpace)
             vault.duringSynchronization = {
-                var preferences = original.settings.editableCredentialPreferences
+                var preferences = original.settings.credentialPreferences
                 preferences.isEnabled = false
                 if replacesProfile { otherWindow.replaceProfileForTesting(of: original.id) }
                 otherWindow.updateCredentialPreferences(preferences, in: original.id)

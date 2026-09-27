@@ -57,7 +57,7 @@ public sealed partial class BrowserContractsTests {
         var authority = device.Authority;
         device.Send(new ImportAppPreferences(device.Workspace, new("retiredChoice", null, null, "not json", null, null, null, null, null)));
         var stored = authority.Current.AppPreferences!;
-        Assert.Equal(AppPreferencesPolicy.Default, stored);
+        Assert.Equal(AppPreferences.Default, stored);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed partial class BrowserContractsTests {
         var session = SavedSession().Document["session"]!;
         using var device = new TestDevice(session);
         var owner = device.Authority;
-        var preferences = AppPreferencesPolicy.Default with { ChecksSpelling = true };
+        var preferences = AppPreferences.Default with { ChecksSpelling = true };
         device.Send(new SetAppPreferences(device.Workspace, preferences));
         Assert.Equal(preferences, owner.Current.AppPreferences);
 

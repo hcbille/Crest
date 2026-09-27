@@ -22,7 +22,7 @@ struct BrowserGeneralSettingsPane: View {
             Section("Startup", systemImage: "power") {
                 #if os(macOS)
                     Picker("When Crest opens", selection: $appPreferences.startupBehavior) {
-                        ForEach(BrowserStartupBehavior.allCases) { behavior in
+                        ForEach(StartupBehavior.settingsOrder, id: \.self) { behavior in
                             Text(behavior.title).tag(behavior)
                         }
                     }

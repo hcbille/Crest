@@ -51,9 +51,7 @@ extension MobileBrowserRootModel {
                 && pageActions?.readerModeState.isActive != true,
             isTranslationToolbarVisible: pageActions?.activePage?.translation.showsToolbar == true,
             contentBlockingActionTitle: ContentBlockingPolicy.switchTitle(
-                for: browser.shownSpace.map {
-                    BrowserSpaceBrowsingPreferences(core: $0.settings.browsingPreferences).contentBlockingPolicy
-                }),
+                for: browser.shownSpace?.settings.browsingPreferences.contentBlocking),
             openNewTab: openNewTab,
             togglePrivateBrowsing: togglePrivateBrowsing,
             openLocation: openLocation,

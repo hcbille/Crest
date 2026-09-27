@@ -1,12 +1,13 @@
 import Foundation
 import Observation
 
-/// The Swift projection of the core's app-wide behavior preferences.
+/// The core's app-wide behavior preferences, as the settings bind them.
 ///
 /// Once bound to the persistent store, every value reads the core's accepted
-/// record and every edit is an intent that sets the whole record; an edit the
-/// core refuses leaves the current value in place. Before binding, and in
-/// previews and tests that never bind, the store holds its own values.
+/// `AppPreferences` and every edit is an intent that sets the whole record,
+/// filled from the read model; an edit the core refuses leaves the current
+/// value in place. Before binding, and in previews and tests that never bind,
+/// the store holds its own record.
 @Observable
 @MainActor
 final class BrowserAppPreferenceStore {
@@ -17,17 +18,18 @@ final class BrowserAppPreferenceStore {
     // MARK: - Variables
 
     private var browser: BrowserStore?
-    /// The unbound value, and the bound fallback while the session has no
-    /// record because the legacy import could not commit.
-    private var detached: BrowserAppPreferences
+    /// The unbound record, and the bound fallback, the documented defaults,
+    /// while the session has no record because the legacy import could not
+    /// commit.
+    private var detached: AppPreferences
 
-    var preferences: BrowserAppPreferences {
-        browser?.workspaceModel?.appPreferences.map(BrowserAppPreferences.init(core:)) ?? detached
+    var preferences: AppPreferences {
+        browser?.workspaceModel?.appPreferences ?? detached
     }
 
-    var startupBehavior: BrowserStartupBehavior {
-        get { preferences.startupBehavior }
-        set { set { $0.startupBehavior = newValue } }
+    var startupBehavior: StartupBehavior {
+        get { preferences.startup }
+        set { set { $0.startup = newValue } }
     }
 
     var offersTranslation: Bool {
@@ -52,9 +54,9 @@ final class BrowserAppPreferenceStore {
         }
     }
 
-    var savedTabClosePolicy: BrowserDurableTabClosePolicy {
-        get { preferences.savedTabClosePolicy }
-        set { set { $0.savedTabClosePolicy = newValue } }
+    var savedTabClosePolicy: SavedTabClosePolicy {
+        get { preferences.savedTabClose }
+        set { set { $0.savedTabClose = newValue } }
     }
 
     var returnsToSavedURLOnFaviconClick: Bool {
@@ -71,7 +73,7 @@ final class BrowserAppPreferenceStore {
 
     // MARK: - Initializers
 
-    init(preferences: BrowserAppPreferences = .defaults) {
+    init(preferences: AppPreferences = .default) {
         detached = preferences
     }
 
@@ -80,11 +82,11 @@ final class BrowserAppPreferenceStore {
     /// Binds the projection to the persistent store and, the first time a
     /// session has no record, imports the values the settings stored before
     /// the core owned them. Later launches find the record and import nothing.
-    func bind(to browser: BrowserStore, legacy: BrowserLegacyAppPreferences) {
-        detached = legacy.preferences
+    func bind(to browser: BrowserStore, legacy: LegacyAppPreferences) {
+        detached = .default
         self.browser = browser
         guard browser.workspaceModel?.appPreferences == nil else { return }
-        browser.sendAppPreferences(ImportAppPreferences(workspaceID: browser.family.workspaceID, legacy: legacy.core))
+        browser.sendAppPreferences(ImportAppPreferences(workspaceID: browser.family.workspaceID, legacy: legacy))
     }
 
     // MARK: - Actions - Translation
@@ -103,13 +105,13 @@ final class BrowserAppPreferenceStore {
 
     /// Applies `edit` to the unbound value, or sends the record it makes of
     /// the current one to the core.
-    private func set(_ edit: (inout BrowserAppPreferences) -> Void) {
+    private func set(_ edit: (inout AppPreferences) -> Void) {
         guard let browser else {
             edit(&detached)
             return
         }
         var next = preferences
         edit(&next)
-        browser.sendAppPreferences(SetAppPreferences(workspaceID: browser.family.workspaceID, preferences: next.core))
+        browser.sendAppPreferences(SetAppPreferences(workspaceID: browser.family.workspaceID, preferences: next))
     }
 }

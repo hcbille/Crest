@@ -12,7 +12,7 @@ final class MobileBrowserRootModel {
     let spaceAccess: BrowserSpaceAccessController
     let windowState: BrowserWindowStateStore?
     private let layoutPersistence: BrowserWindowLayoutPersistence
-    let startupBehavior: BrowserStartupBehavior
+    let startupBehavior: StartupBehavior
 
     var address = ""
     var hasPreparedBrowser = false
@@ -34,7 +34,7 @@ final class MobileBrowserRootModel {
         navigation: MobileBrowserNavigationState,
         spaceAccess: BrowserSpaceAccessController,
         windowState: BrowserWindowStateStore?,
-        startupBehavior: BrowserStartupBehavior,
+        startupBehavior: StartupBehavior,
         persistedSidebarWidth: CGFloat
     ) {
         self.browser = browser

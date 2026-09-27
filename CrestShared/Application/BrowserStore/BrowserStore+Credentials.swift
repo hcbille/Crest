@@ -126,7 +126,7 @@ extension BrowserStore {
     /// Whether a save prompt in a Space with these preferences goes on to
     /// offer the password to the system's Passwords app. A core that cannot
     /// answer does not offer it.
-    func offersSystemPasswordWriteThrough(for preferences: BrowserCredentialPreferences) -> Bool {
+    func offersSystemPasswordWriteThrough(for preferences: CredentialPreferences) -> Bool {
         let offer = SystemPasswordOffer(
             spaceOffersSystemPasswords: preferences.alsoOffersSaveToSystemPasswords,
             availability: systemPasswordWriteThroughAvailability, isPrivateBrowsing: isPrivateBrowsing)
@@ -138,13 +138,12 @@ extension BrowserStore {
 
 extension BrowserStore {
     func updateCredentialPreferences(
-        _ preferences: BrowserCredentialPreferences,
+        _ preferences: CredentialPreferences,
         in spaceID: SpaceID
     ) {
         sendSpaceSettings(
             SetCredentialPreferences(
-                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID,
-                preferences: preferences.core))
+                workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID, preferences: preferences))
     }
 
     func setCrestPasswordSynchronization(

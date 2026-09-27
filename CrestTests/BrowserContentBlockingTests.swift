@@ -65,9 +65,8 @@ final class BrowserContentBlockingTests: XCTestCase {
         )
         XCTAssertEqual(transientLease.page?.isContentBlockingActive, true)
 
-        var preferences = BrowserSpaceBrowsingPreferences(
-            core: try XCTUnwrap(browser.spaceModel(firstSpace.id)).settings.browsingPreferences)
-        preferences.contentBlockingPolicy = .off
+        var preferences = try XCTUnwrap(browser.spaceModel(firstSpace.id)).settings.browsingPreferences
+        preferences.contentBlocking = .off
         browser.updateBrowsingPreferences(preferences, in: firstSpace.id)
         await pool.reconcileContentBlocking()
 

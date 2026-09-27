@@ -27,7 +27,7 @@ final class MobileBrowserWindowSceneModel {
     let windowState: BrowserWindowStateStore
     let pageStoreRegistry: MobileBrowserPageStoreRegistry
     let spaceAccess: BrowserSpaceAccessController
-    let startupBehavior: BrowserStartupBehavior
+    let startupBehavior: StartupBehavior
 
     @ObservationIgnored private let privateDownloads: MobileBrowserDownloads?
     /// Whether the window closed, taking its private workspace with it.
@@ -48,7 +48,7 @@ final class MobileBrowserWindowSceneModel {
         spaceAccess: BrowserSpaceAccessController,
         tabStateArchive: (any BrowserTabStateArchiving)?,
         windowLayouts: BrowserWindowLayouts,
-        startupBehavior: BrowserStartupBehavior,
+        startupBehavior: StartupBehavior,
         monitorsMemoryPressure: Bool,
         usesEphemeralWebsiteDataStores: Bool = false,
         mediaSessionStore: BrowserMediaSessionStore? = nil,

@@ -115,7 +115,7 @@ internal static partial class StoredSessionCodec {
     /// translates.
     internal static AppPreferences DecodeAppPreferences(JsonNode? node) {
         var value = Object(node);
-        var defaults = AppPreferencesPolicy.Default;
+        var defaults = AppPreferences.Default;
         return new(StartupBehaviors.Parse(TolerantText(value[Key.StartupBehavior])) ?? defaults.Startup,
             TolerantFlag(value[Key.OffersTranslation]) ?? defaults.OffersTranslation,
             TolerantFlag(value[Key.AutomaticallyTranslates]) ?? defaults.AutomaticallyTranslates,

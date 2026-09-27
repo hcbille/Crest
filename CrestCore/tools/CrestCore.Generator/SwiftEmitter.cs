@@ -4,7 +4,8 @@ using System.Text.RegularExpressions;
 
 namespace CrestCore.Generator;
 
-/// Emits the Swift read model and its codec. Records become structs, enums
+/// Emits the Swift read model and its codec. Records become structs, whose
+/// fields are variables only in a record a platform builds to send, enums
 /// become `Int` enums or option sets, fixed sets become structs of `static let`
 /// members, messages Swift sends (intents, queries, engine events) conform to
 /// their root's protocol, and messages it receives (changes, rejections,
@@ -85,8 +86,10 @@ internal static class SwiftEmitter {
                 code.Append($"    static let {Local(constant.Name)}{(constant.Type is PrimitiveField ? $": {TypeName(constant.Type)}" : "")} = "
                     + $"{Literal(constant.Type, constant.Value, StaticIndent)}\n");
             if (record.Statics.Count > 0 && record.Wire.Count > 0) code.Append('\n');
+            // A record a platform builds to send is edited in place, so its fields are variables.
+            string binding = schema.IsBuilt(record.Type) ? "var" : "let";
             foreach (var field in record.Wire)
-                code.Append($"    let {Naming.SwiftIdentifier(Naming.SwiftMember(field.Name))}: {TypeName(field.Type, schema, isSent)}\n");
+                code.Append($"    {binding} {Naming.SwiftIdentifier(Naming.SwiftMember(field.Name))}: {TypeName(field.Type, schema, isSent)}\n");
             if (record.IsNormalizedOnConstruction) EmitWireInitializer(code, record);
             foreach (var (text, index) in record.Texts.Select((text, index) => (text, index))) {
                 if (record.Fields.Count > 0 || index > 0) code.Append('\n');

@@ -48,13 +48,13 @@ extension BrowserStore {
     /// One field of a Space's browsing preferences — its search provider, its
     /// current-tab cleanup policy, its content-blocking policy.
     func browsingPreferenceBinding<Value>(
-        _ keyPath: WritableKeyPath<BrowserSpaceBrowsingPreferences, Value>,
+        _ keyPath: WritableKeyPath<BrowsingPreferences, Value>,
         in space: SpaceModel
     ) -> Binding<Value> {
         Binding {
-            space.settings.editableBrowsingPreferences[keyPath: keyPath]
+            space.settings.browsingPreferences[keyPath: keyPath]
         } set: { [self] value in
-            var preferences = space.settings.editableBrowsingPreferences
+            var preferences = space.settings.browsingPreferences
             preferences[keyPath: keyPath] = value
             updateBrowsingPreferences(preferences, in: space.id)
         }
@@ -64,16 +64,16 @@ extension BrowserStore {
     /// optional they resolve per read — Privacy asks for a policy before it is sure
     /// it has a Space.
     func browsingPreferenceBinding<Value>(
-        _ keyPath: WritableKeyPath<BrowserSpaceBrowsingPreferences, Value>,
+        _ keyPath: WritableKeyPath<BrowsingPreferences, Value>,
         in spaceID: SpaceID?,
         default defaultValue: Value
     ) -> Binding<Value> {
         Binding { [self] in
             guard let spaceID, let space = spaceModel(spaceID) else { return defaultValue }
-            return space.settings.editableBrowsingPreferences[keyPath: keyPath]
+            return space.settings.browsingPreferences[keyPath: keyPath]
         } set: { [self] value in
             guard let spaceID, let space = spaceModel(spaceID) else { return }
-            var preferences = space.settings.editableBrowsingPreferences
+            var preferences = space.settings.browsingPreferences
             preferences[keyPath: keyPath] = value
             updateBrowsingPreferences(preferences, in: spaceID)
         }
@@ -83,13 +83,13 @@ extension BrowserStore {
     /// written through here: turning iCloud Keychain on or off rewrites existing
     /// items and can fail, so it goes through ``BrowserCredentialSpaceStore``.
     func credentialPreferenceBinding<Value>(
-        _ keyPath: WritableKeyPath<BrowserCredentialPreferences, Value>,
+        _ keyPath: WritableKeyPath<CredentialPreferences, Value>,
         in space: SpaceModel
     ) -> Binding<Value> {
         Binding {
-            space.settings.editableCredentialPreferences[keyPath: keyPath]
+            space.settings.credentialPreferences[keyPath: keyPath]
         } set: { [self] value in
-            var preferences = space.settings.editableCredentialPreferences
+            var preferences = space.settings.credentialPreferences
             preferences[keyPath: keyPath] = value
             updateCredentialPreferences(preferences, in: space.id)
         }

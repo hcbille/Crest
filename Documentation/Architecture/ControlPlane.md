@@ -110,6 +110,11 @@ instance. The core resolves the rest when it reads it. A published record
 gives its seed back as `.seed`. No stored or synced format holds a resolved
 value, because the stored and synced formats have hand-written codecs.
 
+Every other record a message the platform sends holds is one the platform
+builds, such as a Space's branding or the app's preferences, so its Swift
+fields are variables, as a seed's are. A settings pane reads the record from
+the read model, edits a copy in place and sends the whole record back.
+
 ### The C ABI
 
 The ABI is synchronous and handle-based. `crest_app.h` is the typed

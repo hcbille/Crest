@@ -110,7 +110,7 @@ internal static class RecordedIntents {
             "space.create" => Created(workspace, window ?? Guid.Empty, StoredSessionCodec.DecodeSpace(arguments["template"]), current),
             "space.deletion.begin" => [new BeginDeletingSpace(workspace, window ?? Guid.Empty, Id("spaceId"), Argument("operationID"))],
             "space.remove" => [new FinishDeletingSpace(workspace, window ?? Guid.Empty, Id("spaceId"), Argument("operationID"))],
-            "preferences.set" => [new SetAppPreferences(workspace, Preferred(current.AppPreferences ?? AppPreferencesPolicy.Default,
+            "preferences.set" => [new SetAppPreferences(workspace, Preferred(current.AppPreferences ?? AppPreferences.Default,
                 Text("preference"), arguments["value"]!))],
             "preferences.translation_rule" => [new SetTranslationRule(workspace, Text("sourceID"), Text("targetID"),
                 arguments["isEnabled"]!.GetValue<bool>())],

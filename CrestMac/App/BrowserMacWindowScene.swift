@@ -18,7 +18,7 @@ struct BrowserMacWindowScene: View {
     private let pagePoolRegistry: BrowserPagePoolRegistry
     private let spaceAccess: BrowserSpaceAccessController
     private let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
-    private let startupBehavior: BrowserStartupBehavior
+    private let startupBehavior: StartupBehavior
     private let shortcuts: BrowserShortcutStore?
     private let sidebarWidgets: BrowserSidebarWidgetRuntime
     private let softwareUpdates: BrowserSoftwareUpdateService
@@ -29,7 +29,7 @@ struct BrowserMacWindowScene: View {
         pagePoolRegistry: BrowserPagePoolRegistry,
         spaceAccess: BrowserSpaceAccessController,
         spaceSettingsPresentation: BrowserSpaceSettingsPresentationState,
-        startupBehavior: BrowserStartupBehavior,
+        startupBehavior: StartupBehavior,
         shortcuts: BrowserShortcutStore? = nil,
         sidebarWidgets: BrowserSidebarWidgetRuntime,
         softwareUpdates: BrowserSoftwareUpdateService

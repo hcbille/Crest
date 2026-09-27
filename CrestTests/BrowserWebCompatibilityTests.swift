@@ -545,11 +545,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             accent: .teal,
             folders: [],
             tabs: [openerTab],
-            browsingPreferences: BrowserSpaceBrowsingPreferences(
-                searchProvider: .google,
-                currentTabCleanupPolicy: .never,
-                contentBlockingPolicy: .off
-            ).core
+            browsingPreferences: BrowsingPreferences.seeded(cleanup: .never, blocking: .off)
         )
         let store = BrowserStore.hostingPages(
             SessionState.Seed(spaces: [space])
@@ -679,11 +675,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             accent: .teal,
             folders: [],
             tabs: tabs,
-            browsingPreferences: BrowserSpaceBrowsingPreferences(
-                searchProvider: .google,
-                currentTabCleanupPolicy: .never,
-                contentBlockingPolicy: .off
-            ).core
+            browsingPreferences: BrowsingPreferences.seeded(cleanup: .never, blocking: .off)
         )
     }
 

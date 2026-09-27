@@ -6,12 +6,12 @@ import XCTest
 final class MobileDurableTabCloseTests: XCTestCase {
     func testCommandsApplyClosePolicyToPinnedAndSavedTabsWithoutReloadingThem() throws {
         for placement: TabPlacement in [.pinned, .saved] {
-            for policy in BrowserDurableTabClosePolicy.allCases {
+            for policy in SavedTabClosePolicy.allCases {
                 let context = try makeContext(placement: placement)
                 defer { context.pages.reconcile(validTabIDs: []) }
                 // The core puts the page away as the session's preferences say.
                 let preferences = BrowserAppPreferenceStore()
-                preferences.bind(to: context.browser, legacy: BrowserLegacyAppPreferences())
+                preferences.bind(to: context.browser, legacy: .unsaved)
                 preferences.savedTabClosePolicy = policy
                 context.pages.select()
                 let commands = MobileBrowserCommandController(

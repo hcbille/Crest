@@ -717,7 +717,7 @@ final class MobileBrowserRootModelTests: XCTestCase {
         spaces: [SpaceState.Seed],
         selectedSpaceID: SpaceID,
         browsingMode: BrowserBrowsingMode = .standard,
-        startupBehavior: BrowserStartupBehavior,
+        startupBehavior: StartupBehavior,
         spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController()
     ) -> MobileBrowserRootFixture {
         let browser = BrowserStore.hostingPages(

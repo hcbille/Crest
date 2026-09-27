@@ -7,12 +7,12 @@ struct BrowserTranslationSettingsSection: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
-    private var rules: BrowserAutomaticTranslationRules { preferences.preferences.translationRules }
+    private var rules: [TranslationRule] { preferences.preferences.translationRules }
     private var automaticallyTranslates: Bool { preferences.automaticallyTranslates }
     private var sourceIDs: [String] {
         let installed = catalog.installedIDs
-        let saved = rules.sources.keys.filter { saved in
-            !BrowserAutomaticTranslationRules.matches(saved, in: installed).contains(true)
+        let saved = rules.map(\.sourceLanguage).filter { saved in
+            !BrowserTranslationLanguageCatalog.matches(saved, in: installed).contains(true)
         }
         return (installed + saved).sorted {
             BrowserTranslationLanguageCatalog.name($0).localizedStandardCompare(
@@ -95,11 +95,11 @@ struct BrowserTranslationSettingsSection: View {
 
     private func languageRow(_ source: String) -> some View {
         let targets = catalog.targets(for: source)
-        let saved = rules.rule(for: source)
+        let saved = rules.decision(for: source)?.rule
         let preferred = Locale.preferredLanguages.first ?? "en"
         let target =
             saved?.targetID
-            ?? zip(targets, BrowserAutomaticTranslationRules.matches(preferred, in: targets)).first { $0.1 }?.0 ?? ""
+            ?? zip(targets, BrowserTranslationLanguageCatalog.matches(preferred, in: targets)).first { $0.1 }?.0 ?? ""
         let enabled = saved?.isEnabled ?? false
         let available = targets.contains(target)
         return ViewThatFits(in: .horizontal) {

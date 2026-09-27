@@ -23,7 +23,7 @@ struct MobileBrowserWindowScene: View {
         spaceAccess: BrowserSpaceAccessController,
         tabStateArchive: (any BrowserTabStateArchiving)?,
         windowLayouts: BrowserWindowLayouts,
-        startupBehavior: BrowserStartupBehavior,
+        startupBehavior: StartupBehavior,
         monitorsMemoryPressure: Bool,
         usesEphemeralWebsiteDataStores: Bool,
         onboardingProgress: BrowserOnboardingProgressStore,

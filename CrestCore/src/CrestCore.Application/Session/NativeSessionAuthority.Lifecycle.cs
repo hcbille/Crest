@@ -149,7 +149,7 @@ public sealed partial class NativeSessionAuthority {
     /// app's preferences live in the persistent session, which every other
     /// workspace follows.
     private SavedTabClosePolicy ClosePolicy(SessionState basis) =>
-        (basis.AppPreferences ?? device?.PersistentPreferences() ?? AppPreferencesPolicy.Default).SavedTabClose;
+        (basis.AppPreferences ?? device?.PersistentPreferences() ?? AppPreferences.Default).SavedTabClose;
 
     #endregion
 

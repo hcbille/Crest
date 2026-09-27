@@ -6,11 +6,11 @@ import XCTest
 final class BrowserDurableTabCloseTests: XCTestCase {
     func testCloseResumesByDefaultAndResetPersistsWithoutChangingDurableIdentity() throws {
         for placement: TabPlacement in [.pinned, .saved] {
-            for policy in BrowserDurableTabClosePolicy.allCases {
+            for policy in SavedTabClosePolicy.allCases {
                 let context = try makeContext(placement: placement)
                 // The core puts the page away as the session's preferences say.
                 let preferences = BrowserAppPreferenceStore()
-                preferences.bind(to: context.browser, legacy: BrowserLegacyAppPreferences())
+                preferences.bind(to: context.browser, legacy: .unsaved)
                 preferences.savedTabClosePolicy = policy
                 var discardedState: Bool?
                 let action = BrowserDurableTabCloseAction(

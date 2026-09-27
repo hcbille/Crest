@@ -40,7 +40,7 @@ final class BrowserMacApplication {
     /// an isolated launch, which leaves its pages alone.
     let memoryPressure: BrowserMemoryPressureMonitor?
     let systemNowPlaying: BrowserSystemNowPlayingCoordinator?
-    let startupBehavior: BrowserStartupBehavior
+    let startupBehavior: StartupBehavior
     let presentsInstalledApplicationUI: Bool
     /// The view an engine anchors its popups to behind Site Controls.
     let siteControlAnchor: BrowserSiteControlAnchor?
@@ -97,7 +97,7 @@ final class BrowserMacApplication {
             BrowserLinkPreferenceStore(core: core, legacyPreferences: legacyDevice.linkPreferences))
         let browser = try BrowserStore.production(core: core, launchEnvironment: launchEnvironment)
         BrowserAppPreferenceStore.shared.bind(
-            to: browser, legacy: BrowserLegacyAppPreferences.read(for: launchEnvironment))
+            to: browser, legacy: LegacyAppPreferences.read(for: launchEnvironment))
         BrowserAppPreferenceStore.shared.reconcileWebKitSpellChecking()
         let privateBrowser = BrowserStore.privateBrowsing(core: core)
         let passkeyAccess = BrowserPasskeyAccessController(core: core)

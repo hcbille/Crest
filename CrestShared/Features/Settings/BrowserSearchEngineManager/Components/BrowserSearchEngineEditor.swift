@@ -10,7 +10,7 @@ struct BrowserSearchEngineEditor: View {
     let request: BrowserSearchEngineEditorRequest
     let dismissKeyboard: @MainActor () -> Void
     let keyboardDismissal: BrowserSearchEngineKeyboardDismissal
-    let save: (BrowserCustomSearchProvider) throws -> Void
+    let save: (CustomSearchEngine) throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: Field?
@@ -23,7 +23,7 @@ struct BrowserSearchEngineEditor: View {
         request: BrowserSearchEngineEditorRequest,
         dismissKeyboard: @escaping @MainActor () -> Void,
         keyboardDismissal: BrowserSearchEngineKeyboardDismissal,
-        save: @escaping (BrowserCustomSearchProvider) throws -> Void
+        save: @escaping (CustomSearchEngine) throws -> Void
     ) {
         self.request = request
         self.dismissKeyboard = dismissKeyboard
@@ -98,13 +98,13 @@ struct BrowserSearchEngineEditor: View {
 
     private func saveProvider() {
         do {
-            let custom = BrowserCustomSearchProvider(
+            let engine = CustomSearchEngine(
                 id: request.id,
                 name: name,
-                searchURLTemplate: searchURLTemplate,
-                suggestionURLTemplate: suggestionURLTemplate
+                searchTemplate: searchURLTemplate,
+                suggestionTemplate: suggestionURLTemplate
             )
-            try save(custom)
+            try save(engine)
             dismissEditor()
         } catch {
             errorMessage =

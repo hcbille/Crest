@@ -626,15 +626,27 @@ struct AppConfiguration: Equatable, Sendable {
 }
 
 struct AppPreferences: Equatable, Sendable {
-    let startup: StartupBehavior
-    let offersTranslation: Bool
-    let automaticallyTranslates: Bool
-    let translationRules: [TranslationRule]
-    let checksSpelling: Bool
-    let automaticallyEntersPictureInPicture: Bool
-    let savedTabClose: SavedTabClosePolicy
-    let savedTabFaviconReturnsToSavedURL: Bool
-    let splitFocusFollowsMouse: Bool
+    static let `default` = AppPreferences(
+        startup: .showStartPage,
+        offersTranslation: true,
+        automaticallyTranslates: false,
+        translationRules: [],
+        checksSpelling: false,
+        automaticallyEntersPictureInPicture: true,
+        savedTabClose: .resumeLastLocation,
+        savedTabFaviconReturnsToSavedURL: false,
+        splitFocusFollowsMouse: false
+    )
+
+    var startup: StartupBehavior
+    var offersTranslation: Bool
+    var automaticallyTranslates: Bool
+    var translationRules: [TranslationRule]
+    var checksSpelling: Bool
+    var automaticallyEntersPictureInPicture: Bool
+    var savedTabClose: SavedTabClosePolicy
+    var savedTabFaviconReturnsToSavedURL: Bool
+    var splitFocusFollowsMouse: Bool
 }
 
 struct AppPreferencesChanged: Equatable, Sendable {
@@ -724,18 +736,18 @@ struct AuthenticationChallenged: EngineEvent, Equatable, Sendable {
 }
 
 struct AuthenticationCredential: Equatable, Sendable {
-    let username: String
-    let password: String
+    var username: String
+    var password: String
 }
 
 struct AuthenticationQuestion: Equatable, Sendable {
-    let url: String
-    let host: String
-    let port: Int
-    let realm: String?
-    let scheme: AuthenticationScheme
-    let isProxy: Bool
-    let previousFailures: Int
+    var url: String
+    var host: String
+    var port: Int
+    var realm: String?
+    var scheme: AuthenticationScheme
+    var isProxy: Bool
+    var previousFailures: Int
 }
 
 struct AuthenticationSource: Query, Equatable, Sendable {
@@ -813,10 +825,10 @@ struct BlockedPopupPageState: Equatable, Sendable {
     static let maximumDocumentIdentifierLength: Int = 128
     static let empty = BlockedPopupPageState(status: nil, origin: nil, documentIdentifier: nil, indicationRevision: 0)
 
-    let status: BlockedPopupStatus?
-    let origin: SiteOrigin?
-    let documentIdentifier: String?
-    let indicationRevision: Int
+    var status: BlockedPopupStatus?
+    var origin: SiteOrigin?
+    var documentIdentifier: String?
+    var indicationRevision: Int
 }
 
 struct BlockedPopupTransition: Query, Equatable, Sendable {
@@ -871,20 +883,20 @@ struct BorrowedWorkspaceRequiresSpace: Equatable, Sendable {
 }
 
 struct BrandColor: Equatable, Sendable {
-    let red: Double
-    let green: Double
-    let blue: Double
-    let alpha: Double
+    var red: Double
+    var green: Double
+    var blue: Double
+    var alpha: Double
 }
 
 struct BrowsingPreferences: Equatable, Sendable {
-    let selectedBuiltInEngine: BuiltInSearchEngine?
-    let selectedCustomEngineID: UUID?
-    let customSearchProviders: [CustomSearchProvider]
-    let searchSuggestionsEnabled: Bool
-    let currentTabCleanup: CurrentTabCleanup
-    let contentBlocking: ContentBlockingPolicy
-    let dataRetention: DataRetentionPreferences
+    var selectedBuiltInEngine: BuiltInSearchEngine?
+    var selectedCustomEngineID: UUID?
+    var customSearchProviders: [CustomSearchProvider]
+    var searchSuggestionsEnabled: Bool
+    var currentTabCleanup: CurrentTabCleanup
+    var contentBlocking: ContentBlockingPolicy
+    var dataRetention: DataRetentionPreferences
 }
 
 struct CanReturnToSavedAddress: Query, Equatable, Sendable {
@@ -1128,11 +1140,11 @@ struct CloudContentCompared: Intent, CloudSyncControlIntent, Equatable, Sendable
 }
 
 struct CloudContentComparison: Equatable, Sendable {
-    let matches: Bool
-    let deviceRecords: Int
-    let cloudRecords: Int
-    let deviceSpaces: Int
-    let cloudSpaces: Int
+    var matches: Bool
+    var deviceRecords: Int
+    var cloudRecords: Int
+    var deviceSpaces: Int
+    var cloudSpaces: Int
 }
 
 struct CloudContentTaken: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -1165,9 +1177,9 @@ struct CloudRecordFieldList: Equatable, Sendable {
 }
 
 struct CloudRecordFields: Equatable, Sendable {
-    let recordName: String
-    let fields: Data
-    let schemaVersion: Int?
+    var recordName: String
+    var fields: Data
+    var schemaVersion: Int?
 }
 
 struct CloudSeedReplaced: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -1263,7 +1275,7 @@ struct CollapseFolder: Intent, SessionIntent, Equatable, Sendable {
 }
 
 struct ColorPalette: Equatable, Sendable {
-    let colors: [BrandColor]
+    var colors: [BrandColor]
 }
 
 struct ConfigureCloudSync: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -1380,16 +1392,16 @@ struct CredentialFillDecision: Equatable, Sendable {
 }
 
 struct CredentialFormFacts: Equatable, Sendable {
-    let event: CredentialCaptureEvent
-    let frameOrigin: CredentialOrigin
-    let topLevelOrigin: CredentialOrigin
-    let isMainFrame: Bool
-    let hasFormID: Bool
-    let hasUsername: Bool
-    let hasPassword: Bool
-    let passwordKind: CredentialPasswordKind?
-    let hasVisiblePasswordField: Bool?
-    let hasFillTarget: Bool
+    var event: CredentialCaptureEvent
+    var frameOrigin: CredentialOrigin
+    var topLevelOrigin: CredentialOrigin
+    var isMainFrame: Bool
+    var hasFormID: Bool
+    var hasUsername: Bool
+    var hasPassword: Bool
+    var passwordKind: CredentialPasswordKind?
+    var hasVisiblePasswordField: Bool?
+    var hasFillTarget: Bool
 }
 
 struct CredentialImportCandidate: Equatable, Sendable {
@@ -1428,27 +1440,27 @@ struct CredentialImportPreview: Query, Equatable, Sendable {
 struct CredentialOrigin: Equatable, Sendable {
     static let maximumHostLength: Int = 1024
 
-    let scheme: String
-    let host: String
-    let port: Int
+    var scheme: String
+    var host: String
+    var port: Int
 }
 
 struct CredentialPendingCandidate: Equatable, Sendable {
-    let origin: CredentialOrigin
-    let submittedAt: Double
+    var origin: CredentialOrigin
+    var submittedAt: Double
 }
 
 struct CredentialPreferences: Equatable, Sendable {
-    let isEnabled: Bool
-    let syncsCrestPasswordsWithICloud: Bool
-    let alsoOffersSaveToSystemPasswords: Bool
+    var isEnabled: Bool
+    var syncsCrestPasswordsWithICloud: Bool
+    var alsoOffersSaveToSystemPasswords: Bool
 }
 
 struct CredentialRecord: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let username: String?
-    let updatedAt: Double
-    let lastUsedAt: Double?
+    var id: UUID
+    var username: String?
+    var updatedAt: Double
+    var lastUsedAt: Double?
 }
 
 struct CredentialRecordLimitReached: Equatable, Sendable {
@@ -1498,21 +1510,21 @@ struct CredentialSaveVerdict: Equatable, Sendable {
 }
 
 struct CredentialStoredComparison: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let passwordMatches: Bool
+    var id: UUID
+    var passwordMatches: Bool
 }
 
 struct CredentialUsernameHint: Equatable, Sendable {
-    let origin: CredentialOrigin
-    let topLevelOrigin: CredentialOrigin
-    let capturedAt: Double
+    var origin: CredentialOrigin
+    var topLevelOrigin: CredentialOrigin
+    var capturedAt: Double
 }
 
 struct CrestCharge: Equatable, Sendable {
-    let kind: CrestChargeKind
-    let symbol: CrestSymbol?
-    let text: String?
-    let style: CrestMonogramStyle?
+    var kind: CrestChargeKind
+    var symbol: CrestSymbol?
+    var text: String?
+    var style: CrestMonogramStyle?
 }
 
 struct CurrentTabsOnly: Equatable, Sendable {
@@ -1524,17 +1536,17 @@ struct CurrentTabsOnly: Equatable, Sendable {
 }
 
 struct CustomSearchEngine: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let name: String
-    let searchTemplate: String
-    let suggestionTemplate: String?
+    var id: UUID
+    var name: String
+    var searchTemplate: String
+    var suggestionTemplate: String?
 }
 
 struct CustomSearchProvider: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let name: String
-    let searchURLTemplate: String
-    let suggestionURLTemplate: String?
+    var id: UUID
+    var name: String
+    var searchURLTemplate: String
+    var suggestionURLTemplate: String?
 }
 
 struct CustomizeImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
@@ -1558,9 +1570,9 @@ struct DataErased: EngineEvent, Equatable, Sendable {
 }
 
 struct DataRetentionPreferences: Equatable, Sendable {
-    let history: DataRetention
-    let archive: DataRetention
-    let downloads: DataRetention
+    var history: DataRetention
+    var archive: DataRetention
+    var downloads: DataRetention
 }
 
 struct DecideSitePermission: Intent, SitePermissionIntent, Equatable, Sendable {
@@ -1671,8 +1683,8 @@ struct DownloadProgressReading: Equatable, Sendable {
 }
 
 struct DownloadRetention: Equatable, Sendable {
-    let profileID: UUID
-    let lifetime: TimeInterval?
+    var profileID: UUID
+    var lifetime: TimeInterval?
 }
 
 struct DownloadRisk: Query, Equatable, Sendable {
@@ -1683,19 +1695,19 @@ struct DownloadRisk: Query, Equatable, Sendable {
 }
 
 struct DownloadRiskAssessment: Equatable, Sendable {
-    let sanitizedFilename: String
-    let reasons: [DownloadRiskReason]
+    var sanitizedFilename: String
+    var reasons: [DownloadRiskReason]
 }
 
 struct DownloadRiskFacts: Equatable, Sendable {
     static let maximumSuggestedFilenameLength: Int = 4096
 
-    let suggestedFilename: String
-    let sanitizedFilename: String
-    let mimeType: String?
-    let extensionRunsCode: Bool
-    let mimeTypeRunsCode: Bool
-    let typesRelated: Bool?
+    var suggestedFilename: String
+    var sanitizedFilename: String
+    var mimeType: String?
+    var extensionRunsCode: Bool
+    var mimeTypeRunsCode: Bool
+    var typesRelated: Bool?
 }
 
 struct DownloadRiskVerdict: Equatable, Sendable {
@@ -1727,11 +1739,11 @@ struct DownloadTelemetry: Equatable, Sendable {
         isPaused: false
     )
 
-    let bytesReceived: Int64
-    let totalBytes: Int64?
-    let bytesPerSecond: Double?
-    let estimatedTimeRemaining: Double?
-    let isPaused: Bool
+    var bytesReceived: Int64
+    var totalBytes: Int64?
+    var bytesPerSecond: Double?
+    var estimatedTimeRemaining: Double?
+    var isPaused: Bool
 }
 
 struct DownloadTransferEstimator: Equatable, Sendable {
@@ -1748,12 +1760,12 @@ struct DownloadTransferEstimator: Equatable, Sendable {
         smoothedBytesPerSecond: nil
     )
 
-    let publishedBytes: Int64
-    let knownTotalBytes: Int64?
-    let totalIsUnreliable: Bool
-    let measurementBytes: Int64?
-    let measurementUptime: Double?
-    let smoothedBytesPerSecond: Double?
+    var publishedBytes: Int64
+    var knownTotalBytes: Int64?
+    var totalIsUnreliable: Bool
+    var measurementBytes: Int64?
+    var measurementUptime: Double?
+    var smoothedBytesPerSecond: Double?
 }
 
 struct DownloadUpdated: Equatable, Sendable {
@@ -1879,21 +1891,21 @@ struct EngineAlreadyRegistered: Equatable, Sendable {
 }
 
 struct EngineDownload: Equatable, Sendable {
-    let downloadID: String
-    let profileID: UUID
-    let sourcePageID: UUID?
-    let filename: String
-    let path: String?
-    let received: Int64
-    let total: Int64
-    let startedAt: Date
-    let restored: Bool
-    let paused: Bool
-    let state: EngineDownloadState
-    let warning: EngineDownloadWarning?
-    let interruption: EngineDownloadInterruption?
-    let failureDetail: String?
-    let approvalToken: String
+    var downloadID: String
+    var profileID: UUID
+    var sourcePageID: UUID?
+    var filename: String
+    var path: String?
+    var received: Int64
+    var total: Int64
+    var startedAt: Date
+    var restored: Bool
+    var paused: Bool
+    var state: EngineDownloadState
+    var warning: EngineDownloadWarning?
+    var interruption: EngineDownloadInterruption?
+    var failureDetail: String?
+    var approvalToken: String
 }
 
 struct EngineDownloadChanged: EngineEvent, Equatable, Sendable {
@@ -2002,13 +2014,13 @@ struct EvaluateContentScript: PageRequest, Equatable, Sendable {
 }
 
 struct ExistingCredential: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let origin: CredentialOrigin
-    let username: String
-    let isWebForm: Bool
-    let updatedAt: Double
-    let lastUsedAt: Double?
-    let password: String
+    var id: UUID
+    var origin: CredentialOrigin
+    var username: String
+    var isWebForm: Bool
+    var updatedAt: Double
+    var lastUsedAt: Double?
+    var password: String
 }
 
 struct ExpandSavedTabs: Intent, SessionIntent, Equatable, Sendable {
@@ -2039,12 +2051,12 @@ struct ExportWorkspace: Query, Equatable, Sendable {
 }
 
 struct ExportedCredential: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let origin: CredentialOrigin
-    let username: String
-    let displayName: String?
-    let password: String
-    let note: String
+    var id: UUID
+    var origin: CredentialOrigin
+    var username: String
+    var displayName: String?
+    var password: String
+    var note: String
 }
 
 struct ExportedDocument: Equatable, Sendable {
@@ -2072,14 +2084,14 @@ struct ExtensionInstallAsked: Equatable, Sendable {
 }
 
 struct ExtensionInstallQuestion: Equatable, Sendable {
-    let extensionID: String
-    let name: String
-    let version: String
-    let summary: String
-    let permissions: [String]
-    let icon: Data?
-    let canWithholdSiteAccess: Bool
-    let withholdsSiteAccess: Bool
+    var extensionID: String
+    var name: String
+    var version: String
+    var summary: String
+    var permissions: [String]
+    var icon: Data?
+    var canWithholdSiteAccess: Bool
+    var withholdsSiteAccess: Bool
 }
 
 struct ExtensionInstallRequested: EngineEvent, Equatable, Sendable {
@@ -2364,12 +2376,12 @@ struct HistoryChanged: Equatable, Sendable {
 }
 
 struct HistoryEntryState: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let url: String
-    let title: String
-    let firstVisitedAt: Date
-    let lastVisitedAt: Date
-    let visitCount: Int
+    var id: UUID
+    var url: String
+    var title: String
+    var firstVisitedAt: Date
+    var lastVisitedAt: Date
+    var visitCount: Int
 }
 
 struct ImportAppPreferences: Intent, SessionIntent, Equatable, Sendable {
@@ -2398,8 +2410,8 @@ struct ImportPasswordRoutes: Equatable, Sendable {
 }
 
 struct ImportPasswordSource: Equatable, Sendable {
-    let profileName: String
-    let host: String
+    var profileName: String
+    var host: String
 }
 
 struct ImportPasswordStore: Equatable, Sendable, Identifiable {
@@ -2415,10 +2427,10 @@ struct ImportPreview: Query, Sendable {
 }
 
 struct ImportProfile: Equatable, Sendable, Identifiable {
-    let id: String
-    let name: String
-    let bookmarksPath: String?
-    let sessionPath: String?
+    var id: String
+    var name: String
+    var bookmarksPath: String?
+    var sessionPath: String?
 }
 
 struct ImportReviewedSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable {
@@ -2439,11 +2451,11 @@ struct ImportSpaces: Intent, ImportWorkspace, SessionIntent, Equatable, Sendable
 }
 
 struct ImportedCredential: Equatable, Sendable {
-    let rowNumber: Int
-    let displayName: String?
-    let origin: CredentialOrigin
-    let username: String
-    let password: String
+    var rowNumber: Int
+    var displayName: String?
+    var origin: CredentialOrigin
+    var username: String
+    var password: String
 }
 
 struct ImportedSpaces: Equatable, Sendable {
@@ -2680,9 +2692,9 @@ struct KeepTabsLoaded: Intent, SessionIntent, Equatable, Sendable {
 }
 
 struct KeyCombination: Equatable, Sendable {
-    let key: String
-    let isSpecialKey: Bool
-    let modifiers: ShortcutModifiers
+    var key: String
+    var isSpecialKey: Bool
+    var modifiers: ShortcutModifiers
 }
 
 struct LanguageMatches: Equatable, Sendable {
@@ -2728,19 +2740,19 @@ struct LaunchEnvironment: Equatable, Sendable {
         usesUpdateTestFeed: false
     )
 
-    let isTestRuntime: Bool
-    let isPreviewRuntime: Bool
-    let requestsIsolatedSession: Bool
-    let hasNamedProfile: Bool
-    let requestsIsolatedCloudSync: Bool
-    let resetsSession: Bool
-    let presentsShowcase: Bool
-    let usesInMemoryCredentials: Bool
-    let forcesOnboardingWelcome: Bool
-    let forcesDesktopSetup: Bool
-    let forcesMobileSetup: Bool
-    let runsPerformanceHarness: Bool
-    let usesUpdateTestFeed: Bool
+    var isTestRuntime: Bool
+    var isPreviewRuntime: Bool
+    var requestsIsolatedSession: Bool
+    var hasNamedProfile: Bool
+    var requestsIsolatedCloudSync: Bool
+    var resetsSession: Bool
+    var presentsShowcase: Bool
+    var usesInMemoryCredentials: Bool
+    var forcesOnboardingWelcome: Bool
+    var forcesDesktopSetup: Bool
+    var forcesMobileSetup: Bool
+    var runsPerformanceHarness: Bool
+    var usesUpdateTestFeed: Bool
 }
 
 struct LaunchIsolation: Query, Equatable, Sendable {
@@ -2778,15 +2790,15 @@ struct LeaveSplit: Intent, SessionIntent, Equatable, Sendable {
 }
 
 struct LegacyAppPreferences: Equatable, Sendable {
-    let startupBehavior: String?
-    let offersTranslation: Bool?
-    let automaticallyTranslates: Bool?
-    let translationRules: String?
-    let checksSpelling: Bool?
-    let automaticallyEntersPictureInPicture: Bool?
-    let savedTabClosePolicy: String?
-    let savedTabFaviconReturnsToSavedURL: Bool?
-    let splitFocusFollowsMouse: Bool?
+    var startupBehavior: String?
+    var offersTranslation: Bool?
+    var automaticallyTranslates: Bool?
+    var translationRules: String?
+    var checksSpelling: Bool?
+    var automaticallyEntersPictureInPicture: Bool?
+    var savedTabClosePolicy: String?
+    var savedTabFaviconReturnsToSavedURL: Bool?
+    var splitFocusFollowsMouse: Bool?
 }
 
 struct LegacyCloudStateUnreadable: Equatable, Sendable {
@@ -2796,15 +2808,15 @@ struct LegacyCloudStateUnreadable: Equatable, Sendable {
 }
 
 struct LegacyHistory: Equatable, Sendable {
-    let spaceID: UUID
-    let entries: Data
+    var spaceID: UUID
+    var entries: Data
 }
 
 struct LegacySession: Equatable, Sendable {
-    let core: Data?
-    let wholeGraph: Data?
-    let history: [LegacyHistory]
-    let journal: Data?
+    var core: Data?
+    var wholeGraph: Data?
+    var history: [LegacyHistory]
+    var journal: Data?
 }
 
 struct LinkActivation: EngineQuestion, Equatable, Sendable {
@@ -2816,10 +2828,10 @@ struct LinkActivation: EngineQuestion, Equatable, Sendable {
 }
 
 struct LinkGesture: Equatable, Sendable {
-    let userActivated: Bool
-    let topLevel: Bool
-    let modifiers: ShortcutModifiers
-    let middleClick: Bool
+    var userActivated: Bool
+    var topLevel: Bool
+    var modifiers: ShortcutModifiers
+    var middleClick: Bool
 }
 
 struct LinkHovered: Equatable, Sendable {
@@ -2888,10 +2900,10 @@ struct LoadPage: Equatable, Sendable {
 }
 
 struct LocalDocumentFacts: Equatable, Sendable {
-    let isFile: Bool
-    let hasUser: Bool
-    let hasPath: Bool
-    let host: String?
+    var isFile: Bool
+    var hasUser: Bool
+    var hasPath: Bool
+    var host: String?
 }
 
 struct LockAllSpaces: Intent, SpaceAccessIntent, Equatable, Sendable {
@@ -2923,17 +2935,17 @@ struct MediaSessionChanged: Equatable, Sendable {
 }
 
 struct MediaSessionEntry: Equatable, Sendable, Identifiable {
-    let id: String
-    let ordinal: UInt64
-    let playback: MediaPlaybackState
-    let isAudible: Bool
+    var id: String
+    var ordinal: UInt64
+    var playback: MediaPlaybackState
+    var isAudible: Bool
 }
 
 struct MediaSessionEvent: Equatable, Sendable {
-    let sequence: UInt64
-    let isInvalidated: Bool
-    let hasActiveSession: Bool
-    let playback: MediaPlaybackState
+    var sequence: UInt64
+    var isInvalidated: Bool
+    var hasActiveSession: Bool
+    var playback: MediaPlaybackState
 }
 
 struct MediaSessionEventDecision: Equatable, Sendable {
@@ -2947,11 +2959,11 @@ struct MediaSessionEventDecision: Equatable, Sendable {
 }
 
 struct MediaSessionIdentity: Equatable, Sendable {
-    let isRetired: Bool
-    let lastSequence: UInt64?
-    let ordinal: UInt64?
-    let isDismissed: Bool
-    let previousPlayback: MediaPlaybackState?
+    var isRetired: Bool
+    var lastSequence: UInt64?
+    var ordinal: UInt64?
+    var isDismissed: Bool
+    var previousPlayback: MediaPlaybackState?
 }
 
 struct MediaSessionLimitReached: Equatable, Sendable {
@@ -3095,8 +3107,8 @@ struct NameSplit: Intent, SessionIntent, Equatable, Sendable {
 }
 
 struct NativeTabContent: Equatable, Sendable {
-    let kind: String
-    let resourceID: UUID?
+    var kind: String
+    var resourceID: UUID?
 }
 
 struct Navigate: Intent, PageIntent, Equatable, Sendable {
@@ -3340,10 +3352,10 @@ struct OverwriteCloud: Intent, CloudSyncIntent, Equatable, Sendable {
 }
 
 struct PageArea: Equatable, Sendable {
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
+    var x: Double
+    var y: Double
+    var width: Double
+    var height: Double
 }
 
 struct PageCaptured: Equatable, Sendable {
@@ -3395,11 +3407,11 @@ struct PageExtensions: PageRequest, Equatable, Sendable {
 }
 
 struct PageFailure: Equatable, Sendable {
-    let error: NavigationError
-    let url: String?
-    let replacedDocument: Bool
-    let domain: String
-    let code: Int64
+    var error: NavigationError
+    var url: String?
+    var replacedDocument: Bool
+    var domain: String
+    var code: Int64
 }
 
 struct PageHistoryChanged: Equatable, Sendable {
@@ -3543,8 +3555,8 @@ struct PageRendererGone: Equatable, Sendable {
 }
 
 struct PageRestoreState: Equatable, Sendable {
-    let url: String
-    let state: Data
+    var url: String
+    var state: Data
 }
 
 struct PageSnapshot: Equatable, Sendable {
@@ -3559,14 +3571,14 @@ struct PageSnapshot: Equatable, Sendable {
         media: []
     )
 
-    let url: String?
-    let pendingURL: String?
-    let title: String
-    let isLoading: Bool
-    let canGoBack: Bool
-    let canGoForward: Bool
-    let security: PageSecurity
-    let media: PageMediaActivity
+    var url: String?
+    var pendingURL: String?
+    var title: String
+    var isLoading: Bool
+    var canGoBack: Bool
+    var canGoForward: Bool
+    var security: PageSecurity
+    var media: PageMediaActivity
 }
 
 struct PageState: Equatable, Sendable, Identifiable {
@@ -3614,9 +3626,9 @@ struct PaletteAnswer: Equatable, Sendable {
 }
 
 struct PaletteCommand: Equatable, Sendable {
-    let command: ShortcutCommand
-    let title: String
-    let sectionTitle: String
+    var command: ShortcutCommand
+    var title: String
+    var sectionTitle: String
 }
 
 struct PaletteGroup: Equatable, Sendable {
@@ -3705,9 +3717,9 @@ struct PermissionAsked: Equatable, Sendable {
 }
 
 struct PermissionQuestion: Equatable, Sendable {
-    let permission: SitePermission
-    let origin: SiteOrigin
-    let topLevelOrigin: SiteOrigin
+    var permission: SitePermission
+    var origin: SiteOrigin
+    var topLevelOrigin: SiteOrigin
 }
 
 struct PermissionRequested: EngineEvent, Equatable, Sendable {
@@ -4169,10 +4181,10 @@ struct ScriptDialogOpened: EngineEvent, Equatable, Sendable {
 }
 
 struct ScriptDialogQuestion: Equatable, Sendable {
-    let kind: JavaScriptDialogKind
-    let message: String
-    let defaultText: String
-    let sourceURL: String
+    var kind: JavaScriptDialogKind
+    var message: String
+    var defaultText: String
+    var sourceURL: String
 }
 
 struct SearchEngineLimitReached: Equatable, Sendable {
@@ -4637,8 +4649,8 @@ struct ShownCards: Equatable, Sendable {
 }
 
 struct ShownTab: Equatable, Sendable {
-    let spaceID: UUID
-    let tabID: UUID?
+    var spaceID: UUID
+    var tabID: UUID?
 }
 
 struct SidePanelRequested: Equatable, Sendable {
@@ -4753,62 +4765,62 @@ struct SpaceBranding: Equatable, Sendable {
     static let baselineRenderingVersion: Int = 2
     static let legacyReadabilityFade: Double = 0.25
 
-    let colors: ColorPalette
-    let bannerPattern: SpaceBannerPattern
-    let bannerStrength: Double
-    let readabilityFade: Double
-    let keepsControlsReadable: Bool
-    let themeMode: SpaceThemeMode
-    let gradientAngle: Double
-    let showsTexture: Bool
-    let iconStyle: SpaceIconStyle
-    let symbolColor: BrandColor?
-    let crest: SpaceCrest
-    let renderingVersion: Int
-    let folderColorIntensity: Double
-    let textColorMode: SpaceTextColorMode
-    let hasCustomAppearance: Bool?
+    var colors: ColorPalette
+    var bannerPattern: SpaceBannerPattern
+    var bannerStrength: Double
+    var readabilityFade: Double
+    var keepsControlsReadable: Bool
+    var themeMode: SpaceThemeMode
+    var gradientAngle: Double
+    var showsTexture: Bool
+    var iconStyle: SpaceIconStyle
+    var symbolColor: BrandColor?
+    var crest: SpaceCrest
+    var renderingVersion: Int
+    var folderColorIntensity: Double
+    var textColorMode: SpaceTextColorMode
+    var hasCustomAppearance: Bool?
 }
 
 struct SpaceCrest: Equatable, Sendable {
-    let backplate: CrestBackplate
-    let fieldDivision: CrestFieldDivision
-    let ordinary: CrestOrdinary
-    let trim: CrestTrim
-    let symbol: CrestSymbol
-    let chargeLayout: CrestChargeLayout
-    let backplateColorIndex: Int
-    let secondaryFieldColorIndex: Int
-    let ordinaryColorIndex: Int
-    let trimColorIndex: Int
-    let symbolColorIndex: Int
-    let startingPresetID: String?
-    let edgeColorIndex: Int
-    let palette: ColorPalette?
-    let charge: CrestCharge?
-    let plateScale: Double
-    let edgeWidth: Double
-    let divisionCount: Int
-    let finish: CrestFinish
-    let ordinaryWidth: Double
-    let trimWeight: Double
-    let trimDetail: Int
-    let chargeScale: Double
-    let chargeOffset: Double
-    let chargeWeight: CrestChargeWeight
-    let sheenAngle: Double
-    let sealTeeth: Int
-    let showsOutline: Bool
-    let depth: CrestDepth
+    var backplate: CrestBackplate
+    var fieldDivision: CrestFieldDivision
+    var ordinary: CrestOrdinary
+    var trim: CrestTrim
+    var symbol: CrestSymbol
+    var chargeLayout: CrestChargeLayout
+    var backplateColorIndex: Int
+    var secondaryFieldColorIndex: Int
+    var ordinaryColorIndex: Int
+    var trimColorIndex: Int
+    var symbolColorIndex: Int
+    var startingPresetID: String?
+    var edgeColorIndex: Int
+    var palette: ColorPalette?
+    var charge: CrestCharge?
+    var plateScale: Double
+    var edgeWidth: Double
+    var divisionCount: Int
+    var finish: CrestFinish
+    var ordinaryWidth: Double
+    var trimWeight: Double
+    var trimDetail: Int
+    var chargeScale: Double
+    var chargeOffset: Double
+    var chargeWeight: CrestChargeWeight
+    var sheenAngle: Double
+    var sealTeeth: Int
+    var showsOutline: Bool
+    var depth: CrestDepth
 }
 
 struct SpaceCustomization: Equatable, Sendable {
     static let untitledName: String = "Untitled Space"
 
-    let name: String
-    let symbol: String
-    let accent: SpaceAccent
-    let branding: SpaceBranding
+    var name: String
+    var symbol: String
+    var accent: SpaceAccent
+    var branding: SpaceBranding
 }
 
 struct SpaceDataNotErased: Equatable, Sendable {
@@ -4816,9 +4828,9 @@ struct SpaceDataNotErased: Equatable, Sendable {
 }
 
 struct SpaceDeletionState: Equatable, Sendable, Identifiable {
-    let id: UUID
-    let spaceID: UUID
-    let profileID: UUID
+    var id: UUID
+    var spaceID: UUID
+    var profileID: UUID
 }
 
 struct SpaceLimitReached: Equatable, Sendable {
@@ -5154,18 +5166,18 @@ struct SyncJournalChanged: Equatable, Sendable {
 }
 
 struct SyncRecord: Equatable, Sendable, Identifiable {
-    let kind: SyncRecordKind
-    let id: UUID
-    let spaceID: UUID
-    let version: SyncVersion
-    let schema: Int
-    let body: Data
-    let isTombstone: Bool
+    var kind: SyncRecordKind
+    var id: UUID
+    var spaceID: UUID
+    var version: SyncVersion
+    var schema: Int
+    var body: Data
+    var isTombstone: Bool
 }
 
 struct SyncRecordReference: Equatable, Sendable, Identifiable {
-    let kind: SyncRecordKind
-    let id: UUID
+    var kind: SyncRecordKind
+    var id: UUID
 }
 
 struct SyncRecordsSkipped: Equatable, Sendable {
@@ -5183,8 +5195,8 @@ struct SyncStagingRefused: Equatable, Sendable {
 }
 
 struct SyncVersion: Equatable, Sendable {
-    let clock: UInt64
-    let deviceID: UUID
+    var clock: UInt64
+    var deviceID: UUID
 }
 
 struct SystemPasswordOffer: Query, Equatable, Sendable {
@@ -5222,10 +5234,10 @@ struct TabAlreadyHasPage: Equatable, Sendable {
 }
 
 struct TabContent: Equatable, Sendable {
-    let address: String?
-    let view: NativeTabContent?
-    let title: String?
-    let symbol: String?
+    var address: String?
+    var view: NativeTabContent?
+    var title: String?
+    var symbol: String?
 }
 
 struct TabCopied: Equatable, Sendable {
@@ -5247,9 +5259,9 @@ struct TabFaviconAssigned: Equatable, Sendable {
 }
 
 struct TabIconAccent: Equatable, Sendable {
-    let red: Double
-    let green: Double
-    let blue: Double
+    var red: Double
+    var green: Double
+    var blue: Double
 }
 
 struct TabLimitReached: Equatable, Sendable {
@@ -5262,9 +5274,9 @@ struct TabPlacementChoice: Equatable, Sendable {
 }
 
 struct TabSelection: Equatable, Sendable {
-    let tabIDs: [UUID]
-    let folderIDs: [UUID]
-    let memberTabIDs: [UUID]
+    var tabIDs: [UUID]
+    var folderIDs: [UUID]
+    var memberTabIDs: [UUID]
 }
 
 struct TabState: Equatable, Sendable, Identifiable {
@@ -5396,9 +5408,9 @@ struct TranslationDecision: Equatable, Sendable {
 }
 
 struct TranslationRule: Equatable, Sendable {
-    let sourceLanguage: String
-    let targetID: String
-    let isEnabled: Bool
+    var sourceLanguage: String
+    var targetID: String
+    var isEnabled: Bool
 }
 
 struct TranslationRuleLimitReached: Equatable, Sendable {
@@ -5493,8 +5505,8 @@ struct UploadBatch: Equatable, Sendable {
 }
 
 struct UploadedRecord: Equatable, Sendable {
-    let record: SyncRecordReference
-    let version: SyncVersion
+    var record: SyncRecordReference
+    var version: SyncVersion
 }
 
 struct WatchPage: PageRequest, Equatable, Sendable {

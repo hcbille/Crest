@@ -40,15 +40,9 @@ extension SearchProvider: Identifiable {
 
     // MARK: - Initializers
 
-    /// A Space's custom engine, named as the core names one: the core's
-    /// custom prefix and the engine's identity in the core's spelling.
-    init(custom: BrowserCustomSearchProvider) {
-        self.init(
-            name: Self.customPrefix + custom.id.coreIdentifier, title: custom.name, logo: nil,
-            searchTemplate: custom.searchURLTemplate, suggestionTemplate: custom.suggestionURLTemplate)
-    }
-
-    /// A Space's custom engine as the core publishes it.
+    /// A Space's custom engine as the core publishes it, named as the core
+    /// names one: the core's custom prefix and the engine's identity in the
+    /// core's spelling.
     init(custom: CustomSearchProvider) {
         self.init(
             name: Self.customPrefix + custom.id.coreIdentifier, title: custom.name, logo: nil,
