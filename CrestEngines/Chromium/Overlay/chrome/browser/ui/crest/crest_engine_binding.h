@@ -9,6 +9,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
@@ -24,6 +25,7 @@ class GURL;
 class Profile;
 
 namespace content {
+class NavigationHandle;
 class NavigationThrottle;
 class NavigationThrottleRegistry;
 class WebContents;
@@ -142,6 +144,15 @@ class EngineBinding {
   // whether it opens Peek instead, as the core decides for a link leaving a
   // saved tab's site, which the platform then hears.
   bool KeepsLinkForPeek(content::WebContents* contents, const GURL& url);
+  // A person's plain click on a link that opens in a window of its own, such
+  // as one with target="_blank", whose WebContents the engine made for
+  // `navigation`: answers whether it opens Peek instead, as the core decides
+  // for the page the link was in. The window is then withheld from the core
+  // and closes.
+  bool KeepsWindowLinkForPeek(content::NavigationHandle& navigation);
+  // Whether `contents` is a window whose link opened in Peek, which the core
+  // is never offered.
+  bool Withholds(content::WebContents* contents) const;
   // The throttle that asks, for each plain click on a link in a page.
   static std::unique_ptr<content::NavigationThrottle> LinkThrottle(content::NavigationThrottleRegistry& registry);
 
@@ -304,6 +315,11 @@ class EngineBinding {
   void PresentPeek(const std::string& page, uint64_t revision, uint64_t generation, engine::PeekRequested request);
   // Drops the links followed in `page`, which is going.
   void DropStagedLinksFrom(const std::string& page);
+  // Closes a withheld window once its Browser holds it; one not in a Browser
+  // yet closes when it is offered.
+  void CloseWithheld(base::WeakPtr<content::WebContents> contents);
+  // Forgets the links modified clicks sent to new tabs this turn.
+  void ForgetRoutedTabs();
   void CreateNow(const std::string& page);
   void ProfileLoaded(const std::string& page, Profile* profile);
   void Created(const std::string& page, content::WebContents* contents);
@@ -336,6 +352,11 @@ class EngineBinding {
   // The pages the engine offered, by offer, and the links staged, by link.
   std::map<std::string, OfferedPage> offers_;
   std::map<std::string, std::unique_ptr<StagedLink>> staged_links_;
+  // The windows whose link opened in Peek, until they close.
+  std::vector<base::WeakPtr<content::WebContents>> withheld_;
+  // The links modified clicks sent to the new tabs the engine opens next,
+  // with the pages they were followed in, until the turn ends.
+  std::vector<std::pair<std::string, std::string>> routed_tabs_;
   std::unique_ptr<EngineProfiles> profiles_;
   std::unique_ptr<EngineBrowsers> browsers_;
   std::unique_ptr<EngineExtensions> extensions_;

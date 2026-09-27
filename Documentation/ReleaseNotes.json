@@ -3145,6 +3145,10 @@
     "open-page-in-other-engine": {
       "category": "fixed",
       "message": "In the Chromium build, the Page menu has Open Page in WebKit, so you can move a page to WebKit even before any page has opened there."
+    },
+    "chromium-new-window-links-open-peek": {
+      "category": "fixed",
+      "message": "In the Chromium build, a link that would open a new tab from a pinned or saved tab and leaves that tab's site opens in Peek, as it does in the WebKit build."
     }
   }
 }
