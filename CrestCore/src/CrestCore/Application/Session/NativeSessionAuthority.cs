@@ -22,6 +22,7 @@ public sealed partial class NativeSessionAuthority {
     public const int MaximumBytes = 64 * 1024 * 1024;
     internal static readonly object Gate = new();
     private SessionState session;
+    internal SessionState AcceptedSession => session;
     /// The identities `session` holds, which each edit's state is checked against.
     private readonly SessionIdentities identities = new();
     private NativeSessionReplacement? replacement;

@@ -9,26 +9,10 @@ public sealed record UploadedRecord(SyncRecordReference Record, SyncVersion Vers
 
 #region Queries
 
-/// How the stored session's journal compares with `Cloud`, every record the
-/// cloud holds, which the transport asks before it syncs with an account it has
-/// not synced with yet. Refused as a `CloudSyncIntent` is, with
-/// `NoStoredSession` or `StoredSessionClosed`.
-[MessageLimit(64 * 1024 * 1024)]
-public sealed record CloudComparison(IReadOnlyList<SyncRecord> Cloud) : Query<CloudContentComparison>;
-
-/// Which records of the stored session's journal wait to upload. Refused as a
-/// `CloudSyncIntent` is, with `NoStoredSession` or `StoredSessionClosed`.
-public sealed record PendingUploads : Query<PendingUploadList>;
-
 /// The records that wait to upload, in the order of their record names. None
 /// while the stored session is the disposable seed a first launch made, which
 /// never syncs.
 public sealed record PendingUploadList(IReadOnlyList<SyncRecordReference> Records);
-
-/// The journal's current record for each of `Records`, as the cloud transport
-/// uploads it. Refused as a `CloudSyncIntent` is, with `NoStoredSession` or
-/// `StoredSessionClosed`.
-public sealed record RecordsToUpload(IReadOnlyList<SyncRecordReference> Records) : Query<UploadBatch>;
 
 /// What the journal holds of the records a transport asked for: `Records`, each
 /// one it holds and sends, in the order asked, and `Gone`, each one it no

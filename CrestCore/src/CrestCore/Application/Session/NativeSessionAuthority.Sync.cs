@@ -283,35 +283,10 @@ public sealed partial class NativeSessionAuthority {
         return new(uploadsNothing ? [] : journal.PendingReferences());
     }
 
-    /// The journal's current record for each reference `query` names, and the
-    /// references it no longer holds, which is every one while this session is
-    /// a disposable seed. Throws `Rejected` as `AttachedSync` does.
-    internal UploadBatch Answer(RecordsToUpload query) {
-        ArgumentNullException.ThrowIfNull(query);
-        var (journal, uploadsNothing) = SyncedJournal();
-        var held = new List<SyncRecord>(query.Records.Count);
-        var gone = new List<SyncRecordReference>();
-        foreach (var reference in query.Records) {
-            if (uploadsNothing || !journal.Holds(reference)) gone.Add(reference);
-            else if (journal.Uploading(reference) is { } record) held.Add(record);
-        }
-        return new(held, gone);
-    }
-
-    /// How this session's journal compares with the cloud's records, holding
-    /// nothing while this session is a disposable seed. Throws `Rejected` as
-    /// `AttachedSync` does, and with `InvalidSyncRecords` for a cloud record
-    /// whose body cannot be read.
-    internal CloudContentComparison Answer(CloudComparison query) {
-        ArgumentNullException.ThrowIfNull(query);
-        var (journal, holdsNothing) = SyncedJournal();
-        return journal.Comparing(query.Cloud, holdsNothing);
-    }
-
     /// The journal this session's sync accepted last, and whether this session
     /// is a disposable seed, which uploads nothing. Throws `Rejected` as
     /// `AttachedSync` does.
-    private (NativeSyncJournal Journal, bool UploadsNothing) SyncedJournal() {
+    internal (NativeSyncJournal Journal, bool UploadsNothing) SyncedJournal() {
         lock (Gate) return (AttachedSync().Snapshot, session.DisposableSeedMarker is not null);
     }
 

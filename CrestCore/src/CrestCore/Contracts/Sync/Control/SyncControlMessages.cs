@@ -1,12 +1,5 @@
 namespace CrestCore.Contracts;
 
-#region Queries
-
-/// iCloud sync's status on this device.
-public sealed record CloudSync : Query<CloudSyncStatus>;
-
-#endregion
-
 #region Changes
 
 /// The status iCloud sync is in, and the steps the platform takes next, in

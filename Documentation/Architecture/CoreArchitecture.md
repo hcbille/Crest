@@ -117,8 +117,9 @@ for `EnginePage` lists every direct engine call.
    A case without its logic does not compile. A fact that only tells cases
    apart, such as the page an event names, is a property of the family.
    Intents route themselves to the area that owns their family
-   (`Intent.Route`), and engine events likewise. Capability sets are flags. No
-   capability is a string.
+   (`Intent.Route`), engine events likewise, and queries and engine questions
+   answer themselves (`Answer`). Capability sets are flags. No capability is a
+   string.
 4. Identifiers are plain `Guid` in C# and `UUID` in Swift, and they appear only
    at boundaries. Inside the core, methods take the objects themselves
    (`window.Show(space, tab)`), not their identifiers. Crest does not wrap a

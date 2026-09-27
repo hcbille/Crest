@@ -12,10 +12,12 @@ internal sealed class CloudTransportStore {
     #region Variables
 
     private readonly Lock gate = new();
+    internal Lock Gate => gate;
     internal SessionStorage? Storage { get; }
     internal Device Device { get; }
     /// Each record's server fields, when no file keeps them.
     private readonly Dictionary<string, CloudRecordFields> memoryFields = new(StringComparer.Ordinal);
+    internal Dictionary<string, CloudRecordFields> MemoryFields => memoryFields;
     /// The failures counted when each merge under way began.
     internal Dictionary<long, int> Merges { get; } = [];
 
@@ -150,30 +152,6 @@ internal sealed class CloudTransportStore {
     }
 
     private CloudTransportChanged Changed() => new(Record.Published(Adopted));
-
-    #endregion
-
-    #region Actions - Queries
-
-    public CloudTransportState Answer(CloudTransport query) {
-        ArgumentNullException.ThrowIfNull(query);
-        lock (gate) return Record.Published(Adopted);
-    }
-
-    /// The server fields kept of the records asked for. Throws `Rejected`
-    /// with `StorageUnreadable` when the file cannot be read.
-    public CloudRecordFieldList Answer(CloudFieldsOf query) {
-        ArgumentNullException.ThrowIfNull(query);
-        lock (gate) {
-            if (Storage is not { } source)
-                return new([.. query.RecordNames.Where(memoryFields.ContainsKey).Select(name => memoryFields[name])]);
-            try {
-                return new(source.CloudFields(query.RecordNames));
-            } catch (StorageException error) {
-                throw new Rejected(new StorageUnreadable(error.Reason));
-            }
-        }
-    }
 
     #endregion
 }

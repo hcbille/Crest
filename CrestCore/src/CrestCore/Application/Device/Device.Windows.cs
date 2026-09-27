@@ -17,44 +17,6 @@ internal sealed partial class Device {
 
     #region Actions - Queries
 
-    /// Whether a dragged tab may leave its window: the window still shows the
-    /// Space the drag started in, with the profile it had and not being
-    /// deleted, the Space is unlocked and holds the tab, and the drag carries
-    /// that tab alone.
-    public TearOffPermission Answer(CanTearOff question) {
-        ArgumentNullException.ThrowIfNull(question);
-        var window = Opened(question.WindowId);
-        var authority = Workspace(window.WorkspaceId);
-        var space = Available(authority.Current, question.SpaceId);
-        if (space is null || space.ProfileId != question.ProfileId) return Refused(TearOffRefusal.SpaceChanged);
-        if (authority.IsLocked(space)) return Refused(TearOffRefusal.SpaceLocked);
-        if (space.Tabs.All(tab => tab.Id != question.TabId)) return Refused(TearOffRefusal.TabGone);
-        if (question.DraggedTabs is { } dragged && (dragged.Count != 1 || dragged[0] != question.TabId))
-            return Refused(TearOffRefusal.SeveralTabs);
-        return new(Allowed: true, Reason: null);
-
-        static TearOffPermission Refused(TearOffRefusal reason) => new(Allowed: false, reason);
-    }
-
-    /// The tab "Split With Next Tab" adds to the split of the tab a window
-    /// shows: the next free tab row in its sidebar list, when the core would
-    /// join it.
-    public SplitJoinCandidateTab Answer(SplitJoinCandidate question, DateTimeOffset now, Pages pages) {
-        ArgumentNullException.ThrowIfNull(question);
-        var window = Opened(question.WindowId);
-        var authority = Workspace(window.WorkspaceId);
-        Guid spaceId;
-        Guid? shown;
-        lock (gate) {
-            spaceId = window.ShownSpaceId;
-            shown = window.Tab(spaceId);
-        }
-        if (Available(authority.Current, spaceId) is not { } space || shown is not { } tabId
-            || space.SplitCandidate(tabId) is not { } candidate) return new(TabId: null);
-        var joining = new JoinSplit(window.WorkspaceId, question.WindowId, space.Id, candidate, tabId, Index: null);
-        return new(Refusal(authority, joining, now, pages) is null ? candidate : null);
-    }
-
     /// The palette of a window: over the Space it shows, unless that Space is
     /// locked or being deleted, leaving out the tab it shows there.
     public Palette Palette(Guid windowId, bool allowsInternalPages) {
@@ -71,65 +33,15 @@ internal sealed partial class Device {
         return new(space, shown, authority.Kind.IsPrivate, allowsInternalPages);
     }
 
-    /// Where a lift in a window's sidebar may drop: the lists and Spaces it
-    /// may reach, and the cards on show, whose join is checked now. The lists
-    /// and Spaces are checked as the lift reaches them.
-    public DropTargetList Answer(DropTargets question, DateTimeOffset now, Pages pages) {
-        ArgumentNullException.ThrowIfNull(question);
-        var window = Opened(question.WindowId);
-        var authority = Workspace(question.WorkspaceId);
-        try {
-            authority.CheckLift(question.WindowId, question.SpaceId, question.Selection);
-        } catch (Rejected refused) {
-            return new(refused.Rejection, [], [], Split: null, []);
-        }
-        var session = authority.Current;
-        var space = session.Spaces.First(candidate => candidate.Id == question.SpaceId);
-        var (workspaceId, windowId, spaceId, selection) = (question.WorkspaceId, question.WindowId, question.SpaceId, question.Selection);
-        ListDropTarget[] lists = [.. space.Sidebar.Lists.Select(list => new ListDropTarget(list.Section, list.FolderId))];
-        Guid[] spaces = [.. Window.Showable(session).Where(other => other.Id != spaceId).Select(other => other.Id)];
-        Guid? shown;
-        lock (gate) shown = window.Tab(spaceId);
-        var split = shown is { } target
-            ? new SplitDropTarget(target, Refusal(authority, new DropIntoSplit(workspaceId, windowId, spaceId, selection, target, Index: null),
-                now, pages))
-            : null;
-        // Every candidate passes the rule a drop checks of its tab, so the first
-        // answers for all of them what the lift allows.
-        var lifted = selection.MemberTabIds.ToHashSet();
-        var tabs = space.Tabs.ToDictionary(tab => tab.Id);
-        Guid[] around = [.. space.Sidebar.Lists.Where(list => list.FolderId is null && !list.Section.IsDurable)
-            .SelectMany(list => list.Rows)
-            .Where(row => row.Kind == SidebarRowKind.Tab && tabs[row.Id].SplitGroupId is null && !lifted.Contains(row.Id))
-            .Select(row => row.Id)];
-        if (around.Length > 0
-            && Refusal(authority, new DropAroundTab(workspaceId, windowId, spaceId, selection, around[0]), now, pages) is not null)
-            around = [];
-        return new(Refusal: null, lists, spaces, split, around);
-    }
-
     /// The rule that would refuse `intent` in `authority` now, or null when it
     /// would be accepted. The identities a check draws are never used.
-    private static Rejection? Refusal(NativeSessionAuthority authority, SessionIntent intent, DateTimeOffset now, Pages pages) {
+    internal static Rejection? Refusal(NativeSessionAuthority authority, SessionIntent intent, DateTimeOffset now, Pages pages) {
         try {
             authority.Check(intent, now, new SystemIdSource(), pages);
             return null;
         } catch (Rejected refused) {
             return refused.Rejection;
         }
-    }
-
-    /// Where each numbered command leads in a window: to the stops of the Space
-    /// it shows, each to its first tab, and to the Spaces it may show.
-    public NumberedSelectionList Answer(NumberedSelections question) {
-        ArgumentNullException.ThrowIfNull(question);
-        var window = Opened(question.WindowId);
-        var session = Workspace(window.WorkspaceId).Current;
-        Guid spaceId;
-        lock (gate) spaceId = window.ShownSpaceId;
-        var choices = new NumberedChoices(spaceId, Available(session, spaceId) is { } space ? [.. space.Stops().Select(stop => stop.Members[0])] : [],
-            [.. Window.Showable(session).Select(showable => showable.Id)]);
-        return new([.. ShortcutCommand.All.Select(command => command.Selecting(choices)).OfType<NumberedSelection>()]);
     }
 
     #endregion

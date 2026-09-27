@@ -21,20 +21,8 @@ public sealed record LegacyAppPreferences(
 
 #region Queries
 
-/// Whether each of `Candidates` names the same translation language as
-/// `Language`. It reads no state, so a host may ask it without an app.
-public sealed record LanguagesMatching(string Language, IReadOnlyList<string> Candidates) : StandaloneQuery<LanguageMatches>;
-
 /// For each candidate, in order, whether it names the asked language.
 public sealed record LanguageMatches(IReadOnlyList<bool> Matches);
-
-/// How this launch treats the person's data, decided before any session
-/// exists: whether it stays out of the installed profile, whether page and
-/// extension storage forget, and whether it shows the installed app's UI. Its
-/// startup answer is the one for a person who never chose; `LaunchPlan` reads
-/// the saved choice once a workspace keeps one. It reads no state, so the host
-/// asks it before it makes an app.
-public sealed record LaunchIsolation(DevicePlatform Platform, LaunchEnvironment Environment) : StandaloneQuery<LaunchDecision>;
 
 /// How one launch treats the person's data and what its first window opens.
 /// An isolated launch never reads or writes the installed profile.
@@ -43,17 +31,6 @@ public sealed record LaunchIsolation(DevicePlatform Platform, LaunchEnvironment 
 /// both. `PresentsInstalledApplicationUI` is false only under the test runtime.
 public sealed record LaunchDecision(bool RequiresIsolation, bool UsesEphemeralProfileStorage, bool PresentsInstalledApplicationUI,
     StartupBehavior Startup);
-
-/// How this launch treats the person's data and what its first window opens,
-/// with the startup choice the persistent workspace keeps. First-run setup
-/// that owns the first window is an active launch gate.
-public sealed record LaunchPlan(Guid WorkspaceId, DevicePlatform Platform, LaunchEnvironment Environment, bool HasActiveLaunchGate)
-    : Query<LaunchDecision>;
-
-/// The rule among `Rules` that applies to pages in `SourceLanguage`, whose
-/// region aliases share it, and the language such pages are translated into.
-/// It reads no state, so a host may ask it without an app.
-public sealed record TranslationChoice(IReadOnlyList<TranslationRule> Rules, string SourceLanguage) : StandaloneQuery<TranslationDecision>;
 
 /// The rule that applies to a source language, or null, and the language its
 /// pages are translated into, or null when they are not.

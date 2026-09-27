@@ -2,20 +2,9 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// What `Input`, as a person typed it, loads: an address as it is, or a
-/// search with the search engine of `SpaceId` in `WorkspaceId`. Without a
-/// workspace, as a setup draft whose Spaces do not exist yet, it searches with
-/// Google, opens no internal page and reads no state, so a host may ask it
-/// without an app.
-public sealed record ResolveAddress(Guid? WorkspaceId, Guid? SpaceId, string Input) : Query<ResolvedAddress>;
-
 /// The address typed input loads, or null when it names nothing a page can
 /// load. `SearchQuery` is the text searched for when the address is a search.
 public sealed record ResolvedAddress(string? Url, string? SearchQuery);
-
-/// The search for text a person selected on a page of `SpaceId`, with the
-/// Space's search engine.
-public sealed record SelectionSearch(Guid WorkspaceId, Guid SpaceId, string Text) : Query<SelectionSearchAnswer>;
 
 /// The results address of a selection search, or null when the selection is
 /// blank or the address is one Crest does not open, and the title of the

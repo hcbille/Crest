@@ -9,31 +9,24 @@ namespace CrestCore.Application;
 /// it reads reach a workspace only through `ImportSpaces` and the other
 /// imports, which check them again.
 internal sealed class Portability(IReadOnlyList<ImportSpaceNames>? names, IClock clock, IIdSource ids) {
+    #region Variables
+
+    /// The time an import stamps what it reads with.
+    internal IClock Clock => clock;
+
+    /// Where the identities an import gives what it reads come from.
+    internal IIdSource Ids => ids;
+
+    #endregion
+
     #region Actions - Queries
-
-    public ImportData Answer(FindImportData query) {
-        ArgumentNullException.ThrowIfNull(query);
-        return InstalledBrowser.Of(query.Source).Find(query.Folder);
-    }
-
-    public ImportedSpaces Answer(ReadImport query) {
-        ArgumentNullException.ThrowIfNull(query);
-        return new(InstalledBrowser.Of(query.Source).Read(query.Profiles, Names(query.Source), ids, clock.Now));
-    }
-
-    public ImportedSpaces Answer(ReadArchive query) {
-        ArgumentNullException.ThrowIfNull(query);
-        var contents = ImportFile.Read(query.Path, BrowserDataFile.MaximumBytes, new ArchiveTooLarge(), new FileUnreadable());
-        var now = clock.Now;
-        return new([.. BrowserDataFile.Read(contents).Select(space => space.Materialize(ids, now))]);
-    }
 
     /// The file `format` writes of `session`, exported now.
     public ExportedDocument Export(SessionState session, ExportFormat format) => ExportWriter.Of(format).Write(session, clock.Now);
 
     /// The names `source`'s Spaces take in the person's language, or its
     /// English names when the platform gave none.
-    private ImportSpaceNames Names(ImportSource source) =>
+    internal ImportSpaceNames Names(ImportSource source) =>
         names?.FirstOrDefault(entry => entry.Source == source)
         ?? new(source, source.SpaceName ?? source.Title, source.NumberedSpaceName ?? source.Title);
 

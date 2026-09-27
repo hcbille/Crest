@@ -63,26 +63,4 @@ public sealed partial class NativeSessionAuthority {
     }
 
     #endregion
-
-    #region Actions - Previews
-
-    /// What the picks `preview` names hold in its Space, as a window shows it
-    /// before it acts on them. A locked Space is read as a person sees it.
-    internal SelectedTabs Answer(SelectionPreview preview) {
-        ArgumentNullException.ThrowIfNull(preview);
-        SpaceState space;
-        lock (Gate) space = session.Spaces.FirstOrDefault(candidate => candidate.Id == preview.SpaceId)
-            ?? throw new Rejected(new UnknownSpace(preview.SpaceId));
-        var resolved = BrowserTabCollection.Restore(space).Preview(preview.TabIds, preview.FolderIds);
-        var positions = space.Sidebar.Positions();
-        int Place(Guid id) => positions.GetValueOrDefault(id, int.MaxValue);
-        SelectedRoot[] roots = [.. resolved.Roots.Select(root => new SelectedRoot(root.Id, root.Kind))];
-        SelectedTab[] members = [.. resolved.Members.OrderBy(tab => Place(tab.Id))
-            .Select(tab => new SelectedTab(tab.Id, tab.Placement, tab.FolderId, tab.SplitGroupId))];
-        var selection = new TabSelection([.. roots.Where(root => !root.Kind.OpensList).Select(root => root.Id)],
-            [.. roots.Where(root => root.Kind.OpensList).Select(root => root.Id)], [.. members.Select(member => member.Id)]);
-        return new(selection, roots, members, [.. resolved.Folders.OrderBy(Place)]);
-    }
-
-    #endregion
 }

@@ -2,46 +2,18 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// A page's blocked-popup notice after one popup event from `State`. Refused
-/// with `InvalidBlockedPopup` for a state or event the notice cannot hold.
-public sealed record BlockedPopupTransition(BlockedPopupPageState State, BlockedPopupEvent Event, string? DocumentIdentifier,
-    SiteOrigin? Origin) : StandaloneQuery<BlockedPopupTransitioned>;
-
 /// The page's popup state after the event, or null when the event changed
 /// nothing and the page keeps its state and shows no new indication.
 public sealed record BlockedPopupTransitioned(BlockedPopupPageState? State);
 
-/// The choice that answers a request to capture `Media` at `Origin` in a
-/// Space. Combined capture respects a block on any of its devices, and a
-/// combined grant still answers a request for one of them; a capability that
-/// stands alone answers as `SiteDecision` does. A locked Space, and an origin
-/// the rules cannot read, answer Ask.
-public sealed record CaptureDecision(Guid SpaceId, SiteOrigin Origin, SitePermission Media) : Query<SitePermissionAnswer>;
-
 /// The choice that answers a site permission question.
 public sealed record SitePermissionAnswer(SitePermissionDecision Decision);
-
-/// What a page's request to post notifications leads to, given the saved
-/// decision for its site and whether a person's gesture started it.
-public sealed record NotificationPermissionRequest(SitePermissionDecision Decision, bool HasUserActivation)
-    : StandaloneQuery<NotificationRequestAnswer>;
 
 /// What the notification request leads to.
 public sealed record NotificationRequestAnswer(HostedNotificationRequestAction Action);
 
-/// Whether a site may use a capability that needs a secure origin, such as
-/// location or hosted notifications, at all.
-public sealed record SecureOriginCheck(SiteOrigin Origin) : StandaloneQuery<SecureOriginVerdict>;
-
 /// Whether the origin is secure enough for the capability.
 public sealed record SecureOriginVerdict(bool Allowed);
-
-/// The choice that answers one request for `Permission` at `Origin` in a
-/// Space: the session choice, then the saved one, for `Detail` first and then
-/// for the whole site. A locked Space, and an origin or detail the rules
-/// cannot read, answer Ask.
-public sealed record SiteDecision(Guid SpaceId, SiteOrigin Origin, SitePermission Permission, string? Detail)
-    : Query<SitePermissionAnswer>;
 
 #endregion
 

@@ -27,4 +27,11 @@ public sealed record Resign : Intent {
 }
 
 /// Whether the move is legal.
-public sealed record MoveCheck(Move Move) : Query<bool>;
+public sealed record MoveCheck(Move Move) : Query<bool> {
+    #region Actions - Answering
+
+    /// A schema fixture is never asked.
+    internal override bool Answer(CrestApp app) => throw new NotSupportedException();
+
+    #endregion
+}

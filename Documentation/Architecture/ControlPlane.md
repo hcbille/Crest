@@ -68,7 +68,7 @@ with its domain and application, which keep folders and namespaces of their own
 - **Intents** change state (`OpenTab`, `ChooseSiteEngine`).
 - **Queries** answer without changing it (`PaletteSuggestions`, `SiteDecision`).
   A query that needs no session, such as `LaunchIsolation` or `NormalizeBranding`,
-  is answered by `crest_core_answer` without an app.
+  is a `StandaloneQuery`, which `crest_core_answer` answers without an app.
 - **Changes** carry the state an intent or the core's own work produced
   (`TabsChanged`, `EnginesChanged`), or name an event the UI reacts to
   (`PageRehosted`).
@@ -88,9 +88,15 @@ its family's own method with its logic: `SessionIntent.Edit`,
 preparations, data deletion, Space access and cloud sync
 (`CloudSyncControlIntent.Steps`, for one). A prompt's answer knows which area
 asked it. An engine event routes itself the same way (`EngineEvent.Route`),
-and the page, prompt and download events each apply themselves to their area. The records keep the `CrestCore.Contracts` namespace and
-live beside the area that receives them, and a new case without its logic does
-not compile.
+and the page, prompt and download events each apply themselves to their area.
+A query answers itself (`Query.Answer(CrestApp)`), under the app's lock unless
+it says it reads nothing the app holds (`AnsweredUnderLock`); a
+`StandaloneQuery` answers from the question alone
+(`Answer(StandaloneContext)`), which is how `StandaloneAnswers` answers a host
+without an app. An engine's question answers itself the same way
+(`EngineQuestion.Answer`). The records keep the `CrestCore.Contracts`
+namespace and live beside the area that receives them, and a new case without
+its logic does not compile.
 
 `CrestCore.Generator` reads the records, the types the core exports in that
 namespace, and writes the core's codec, the Swift
@@ -113,7 +119,10 @@ the generated files are stale.
 - A record that holds a password is `[HoldsSecrets]`: its text names no
   secret, and a containment test proves no change, intent, stored session,
   device record or sync journal reaches it. An answer buffer is cleared when
-  it is freed.
+  it is freed. The credential questions keep no state: capture, fill and save
+  take only identities and metadata, and importing or exporting a password
+  file are the only questions that carry passwords, which the core answers
+  from the question alone.
 
 ### Resolved values and seeds
 

@@ -2,22 +2,9 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// Whether returning a saved or pinned tab to the address it belongs to would
-/// change anything: the tab is away from that page, or its page in `WindowId`
-/// is heading to another. Not for a tab that belongs nowhere or is not there.
-public sealed record CanReturnToSavedAddress(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId)
-    : Query<SavedAddressReturn>;
-
 /// Whether returning a tab to its saved address would take it or its page
 /// somewhere else.
 public sealed record SavedAddressReturn(bool ChangesPage);
-
-/// What a page surface shows for a tab whose surface is `Surface`, or for no
-/// tab: whether its engine holds a page for it, whether that page's navigation
-/// or its process failed, and whether the surface restores an unloaded page by
-/// itself. It reads no state, so a view may ask it without an app.
-public sealed record PresentPage(TabSurface? Surface, bool HasPage, bool HasNavigationFailure, bool HasProcessFailure,
-    bool RestoresUnloaded) : StandaloneQuery<PagePresented>;
 
 /// What a page surface shows.
 public sealed record PagePresented(PagePresentation Presentation);

@@ -21,9 +21,8 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
     #region Variables
 
     private readonly Lock gate = new();
+    internal Lock Gate => gate;
     private readonly Downloads downloads = new();
-    private readonly Credentials credentials = new();
-    private readonly ContentBlocking contentBlocking = new();
     /// This device's windows and what each shows.
     private readonly Device device;
     /// The pages this device hosts, and the engines that host them.
@@ -63,6 +62,7 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
     internal CloudSyncControl CloudSync => cloudSync;
     internal IClock Clock => clock;
     internal IIdSource Ids => ids;
+    internal Portability Portability => portability;
 
     #endregion
 
@@ -164,98 +164,12 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
 
     #region Actions - Queries
 
+    /// The answer, or `Rejected` naming the rule that refuses the question.
+    /// A question that reads what the app holds is answered under its lock.
     public TAnswer Query<TAnswer>(Query<TAnswer> query) {
         ArgumentNullException.ThrowIfNull(query);
-        object? transport = query switch {
-            PendingUploads pending => Answer(pending),
-            RecordsToUpload upload => Answer(upload),
-            CloudComparison comparison => Answer(comparison),
-            CloudTransport state => cloudTransport.Answer(state),
-            CloudFieldsOf fields => cloudTransport.Answer(fields),
-            CloudSync status => cloudSync.Answer(status),
-            _ => null
-        };
-        if (transport is not null) return (TAnswer)transport;
-        if (query is PaletteSuggestions palette) return (TAnswer)(object)Suggesting(palette);
-        object? read = query switch {
-            FindImportData find => portability.Answer(find),
-            ReadImport import => portability.Answer(import),
-            ReadArchive archive => portability.Answer(archive),
-            CredentialImportPreview preview => credentials.Answer(preview),
-            PasswordImportPreview imported => credentials.Answer(imported),
-            CredentialExport passwords => credentials.Answer(passwords),
-            _ => null
-        };
-        if (read is not null) return (TAnswer)read;
-        if (query is ExportWorkspace export) return (TAnswer)(object)Exporting(export);
-        lock (gate) {
-            object answer = query switch {
-                DownloadProgress progress => downloads.Answer(progress),
-                DownloadRisk risk => downloads.Answer(risk),
-                CredentialCapture capture => credentials.Answer(capture),
-                CredentialFill fill => credentials.Answer(fill),
-                CredentialSaveCheck check => credentials.Answer(check),
-                MostRecentCredential recency => credentials.Answer(recency),
-                CredentialSaveMatch match => credentials.Answer(match),
-                CredentialSave save => credentials.Answer(save),
-                StrongPassword password => credentials.Answer(password),
-                PasskeyAccess access => credentials.Answer(access),
-                SystemPasswordWriteThrough writeThrough => credentials.Answer(writeThrough),
-                SystemPasswordOffer offer => credentials.Answer(offer),
-                BalancedProtectionRules rules => contentBlocking.Answer(rules),
-                RouteExternalLink route => device.Answer(route),
-                LinkNavigation navigation => device.Answer(navigation, pages),
-                OpenedWindowSelection selection => device.Answer(selection),
-                CanTearOff tearOff => device.Answer(tearOff),
-                SiteDecision decision => device.Answer(decision),
-                ImportPasswordDestinations destinations => device.Answer(destinations),
-                CaptureDecision capture => device.Answer(capture),
-                NumberedSelections numbered => device.Answer(numbered),
-                SplitJoinCandidate candidate => device.Answer(candidate, clock.Now, pages),
-                DropTargets targets => device.Answer(targets, clock.Now, pages),
-                SelectionPreview preview => device.Workspace(preview.WorkspaceId).Answer(preview),
-                CanReturnToSavedAddress savedAddress => pages.Answer(savedAddress),
-                FallbackTab fallback => Window.Answer(fallback),
-                PendingSave => new PendingSaveRevision(storage?.PendingRevision is { } revision ? checked((long)revision) : null),
-                CanSend check => Permission(check.Intent),
-                LaunchPlan plan => device.Workspace(plan.WorkspaceId).Plan(plan),
-                ImportPreview preview => device.Workspace(preview.Import.WorkspaceId).Preview(preview.Import, clock.Now),
-                ResolveAddress { WorkspaceId: { } workspace } address => device.Workspace(workspace).Answer(address, pages.OpensInternalPages),
-                SelectionSearch search => device.Workspace(search.WorkspaceId).Answer(search),
-                _ => StandaloneAnswers.Answer(query)
-            };
-            return (TAnswer)answer;
-        }
-    }
-
-    /// The file an export writes. Only reading the session holds the lock;
-    /// writing the file reads immutable records outside it.
-    private ExportedDocument Exporting(ExportWorkspace export) {
-        SessionState session;
-        lock (gate) session = device.Workspace(export.WorkspaceId).Exported();
-        return portability.Export(session, export.Format);
-    }
-
-    /// What a window's palette offers. Only reading what the window shows
-    /// holds the lock; ranking reads immutable records outside it, so a
-    /// palette answering on another thread never holds up the window.
-    private PaletteAnswer Suggesting(PaletteSuggestions question) {
-        Palette palette;
-        lock (gate) palette = device.Palette(question.WindowId, pages.OpensInternalPages);
-        return palette.Answer(question.Text, question.Commands, question.Remote);
-    }
-
-    /// Whether the core would accept a session intent now: the rule that would
-    /// refuse it, or none. The identities a check draws are never used.
-    private SendPermission Permission(Intent intent) {
-        if (intent is not SessionIntent session)
-            throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Only a session intent can be checked.");
-        try {
-            device.Workspace(session.WorkspaceId).Check(session, clock.Now, new SystemIdSource(), pages);
-            return new(Refusal: null);
-        } catch (Rejected refused) {
-            return new(refused.Rejection);
-        }
+        if (!query.AnsweredUnderLock) return query.Answer(this);
+        lock (gate) return query.Answer(this);
     }
 
     #endregion

@@ -1,3 +1,7 @@
+using System.Text;
+
+using CrestCore.Application;
+
 namespace CrestCore.Contracts;
 
 /// What importing `Credentials`, the passwords another browser keeps, into a
@@ -19,6 +23,23 @@ public sealed record PasswordImportPreview(IReadOnlyList<ImportedCredential> Cre
     protected override bool PrintMembers(System.Text.StringBuilder builder) {
         builder.Append($"Credentials = {Credentials.Count}, Existing = {Existing.Count}");
         return true;
+    }
+
+    #endregion
+
+    #region Variables
+
+    /// It reads the passwords it holds, not what the app holds.
+    internal override bool AnsweredUnderLock => false;
+
+    #endregion
+
+    #region Actions - Answering
+
+    /// What importing another browser's passwords means, as its own password
+    /// file would.
+    internal override CredentialImportPlan Answer(CrestApp app) {
+        return CredentialImportPlanning.Plan(CredentialFileFormat.Browser, Credentials, [], Existing);
     }
 
     #endregion

@@ -211,12 +211,6 @@ internal sealed class Window {
 
     #region Actions - Rules
 
-    /// A draft Space's fallback tab, by its tabs' placements.
-    public static FallbackTabIndex Answer(FallbackTab question) {
-        ArgumentNullException.ThrowIfNull(question);
-        return new(TabPlacement.Fallback(question.Placements));
-    }
-
     /// The tab a Space shows when no window chose one: the first open tab,
     /// else the first pinned one, else the first tab.
     public static Guid? FallbackTab(SpaceState space) =>

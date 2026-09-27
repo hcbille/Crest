@@ -1,3 +1,7 @@
+using System.Text;
+
+using CrestCore.Application;
+
 namespace CrestCore.Contracts;
 
 /// The password file of the Space named `SpaceName`, holding `Credentials`.
@@ -20,6 +24,20 @@ public sealed record CredentialExport(IReadOnlyList<ExportedCredential> Credenti
         builder.Append($"Credentials = {Credentials.Count}, SpaceName = {SpaceName}");
         return true;
     }
+
+    #endregion
+
+    #region Variables
+
+    /// It writes the passwords it holds, not what the app holds.
+    internal override bool AnsweredUnderLock => false;
+
+    #endregion
+
+    #region Actions - Answering
+
+    /// The Space's password file.
+    internal override CredentialExportFile Answer(CrestApp app) => CredentialExporting.File(this);
 
     #endregion
 }

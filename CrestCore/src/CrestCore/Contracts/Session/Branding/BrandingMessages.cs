@@ -2,10 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// `Branding` with the core's range rules applied, as a Space keeps it. It
-/// reads no state, so a host may ask it without an app.
-public sealed record NormalizeBranding(SpaceBranding Branding) : StandaloneQuery<NormalizedBranding>;
-
 /// Branding as a Space keeps it once the core's range rules apply.
 public sealed record NormalizedBranding(SpaceBranding Branding);
 

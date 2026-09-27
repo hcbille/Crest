@@ -2,12 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// Whether a tab dragged out of a window may leave it for a window of its
-/// own. `DraggedTabs` is the multi-selection the drag carries, or null when
-/// it carries the one tab.
-public sealed record CanTearOff(Guid WindowId, Guid SpaceId, Guid ProfileId, Guid TabId, IReadOnlyList<Guid>? DraggedTabs)
-    : Query<TearOffPermission>;
-
 /// Whether a dragged tab may leave its window, and when it may not, why.
 public sealed record TearOffPermission(bool Allowed, TearOffRefusal? Reason);
 
@@ -24,20 +18,9 @@ public enum TearOffRefusal {
     SeveralTabs
 }
 
-/// Which tab a Space shows when no window chose one, for a draft Space the
-/// session does not hold yet, given its tabs' placements in Space order: the
-/// first open tab, else the first pinned one, else the first tab.
-public sealed record FallbackTab(IReadOnlyList<TabPlacement> Placements) : Query<FallbackTabIndex>;
-
 /// The index of a draft Space's fallback tab among the placements asked
 /// about, or null for a Space without tabs.
 public sealed record FallbackTabIndex(int? Index);
-
-/// The tab "Split With Next Tab" adds to the split of the tab a window shows:
-/// the first tab row after the row that holds it, in the same list of its
-/// Space's sidebar (its section's top level, or its folder's inside), whose tab
-/// is in no split, when the core would join it; or none.
-public sealed record SplitJoinCandidate(Guid WindowId) : Query<SplitJoinCandidateTab>;
 
 /// The tab "Split With Next Tab" would add, or null when it would add none.
 public sealed record SplitJoinCandidateTab(Guid? TabId);

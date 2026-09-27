@@ -1,3 +1,7 @@
+using System.Text;
+
+using CrestCore.Application;
+
 namespace CrestCore.Contracts;
 
 /// What importing the password file `Document` into a Space that keeps
@@ -18,6 +22,24 @@ public sealed record CredentialImportPreview(byte[] Document, IReadOnlyList<Exis
     protected override bool PrintMembers(System.Text.StringBuilder builder) {
         builder.Append($"Document = <{Document.Length} bytes redacted>, Existing = {Existing.Count}");
         return true;
+    }
+
+    #endregion
+
+    #region Variables
+
+    /// It reads the file it holds, not what the app holds.
+    internal override bool AnsweredUnderLock => false;
+
+    #endregion
+
+    #region Actions - Answering
+
+    /// What importing the password file the query holds means. Throws
+    /// `Rejected` with `InvalidCredentialFile` for a file that cannot import.
+    internal override CredentialImportPlan Answer(CrestApp app) {
+        var file = CredentialFile.Read(Document);
+        return CredentialImportPlanning.Plan(file.Format, file.Credentials, file.Rejections, Existing);
     }
 
     #endregion

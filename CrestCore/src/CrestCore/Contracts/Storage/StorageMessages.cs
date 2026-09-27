@@ -16,11 +16,6 @@ public sealed record LegacyHistory(Guid SpaceId, byte[] Entries);
 
 #region Queries
 
-/// <summary>Which file revision the core has handed its session file and not yet
-/// written, so a caller can wait until it is on disk. The stored session's edits
-/// and this device's saved windows each take one.</summary>
-public sealed record PendingSave : Query<PendingSaveRevision>;
-
 /// <summary>The newest file revision not yet on disk, which a later <c>Saved</c>
 /// names; null when everything accepted is saved or the core keeps nothing.</summary>
 public sealed record PendingSaveRevision(long? Revision);

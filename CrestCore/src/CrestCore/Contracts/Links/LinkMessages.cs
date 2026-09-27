@@ -2,28 +2,8 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// What following `Url` from a page does: load in the page, open in Peek, or
-/// open in a new tab in front or behind. The page's tab, how a page with no
-/// tab presents, the gesture and this device's link preferences decide it. A
-/// page the core does not host loads the link itself.
-public sealed record LinkNavigation(Guid PageId, string? Url, LinkGesture Gesture) : Query<LinkNavigationAnswer>;
-
-/// Whether a window a page opens, once its engine accepted the request, comes
-/// to the front as the selected tab: an ordinary new-window request does, and
-/// one made with the new-tab gesture follows this device's link preferences,
-/// which Shift reverses.
-public sealed record OpenedWindowSelection(LinkGesture Gesture) : Query<OpenedWindowSelected>;
-
 /// Whether the window a page opened comes to the front.
 public sealed record OpenedWindowSelected(bool Selects);
-
-/// Where a link another app hands a window opens: the first enabled route that
-/// matches and whose Space can open, else the external-link destination, both
-/// read from this device's preferences. A link never opens in a locked Space
-/// on another app's behalf: it opens in a Quick Window on the window's Space
-/// when that one is unlocked, else on the first unlocked Space, and nowhere
-/// when every Space is locked.
-public sealed record RouteExternalLink(Guid WindowId, string Url) : Query<ExternalLinkPlacement>;
 
 /// The Space an external link opens in and whether it opens as a Quick Window
 /// there. `SubstitutesForLockedSpace` says the routed Space was locked and this

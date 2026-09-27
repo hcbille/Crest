@@ -24,12 +24,6 @@ public sealed partial class CrestApp {
         }
     }
 
-    private PendingUploadList Answer(PendingUploads query) => StoredSyncSession().Answer(query);
-
-    private UploadBatch Answer(RecordsToUpload query) => StoredSyncSession().Answer(query);
-
-    private CloudContentComparison Answer(CloudComparison query) => StoredSyncSession().Answer(query);
-
     /// Whether the session this core keeps in its file is still the disposable
     /// seed a first launch made.
     private bool StoredSessionIsDisposableSeed() => storedSession is { IsReleased: false, IsDisposableSeed: true };
@@ -52,7 +46,7 @@ public sealed partial class CrestApp {
     /// The session this core keeps in its file, which the cloud transport
     /// syncs. Throws `Rejected` with `NoStoredSession` while the file holds
     /// none, and `StoredSessionClosed` once it closed.
-    private NativeSessionAuthority StoredSyncSession() {
+    internal NativeSessionAuthority StoredSyncSession() {
         if (storedSession is not { } session) throw new Rejected(new NoStoredSession());
         if (session.IsReleased) throw new Rejected(new StoredSessionClosed());
         return session;

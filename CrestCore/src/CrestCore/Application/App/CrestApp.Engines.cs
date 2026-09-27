@@ -93,21 +93,11 @@ public sealed partial class CrestApp {
     }
 
     /// Answers what an engine asks about one of its pages while the engine
-    /// waits, from the state as it stands, changing nothing. A question about
-    /// a page the core does not host on that engine leaves the page to the
-    /// engine: its link loads in the page.
+    /// waits, from the state as it stands, changing nothing.
     public TAnswer Ask<TAnswer>(Engine engine, EngineQuestion<TAnswer> question) {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(question);
-        lock (gate) {
-            object answer = question switch {
-                LinkActivation activation => ReferenceEquals(pages.Hosted(activation.PageId)?.Engine, engine)
-                    ? device.Answer(new LinkNavigation(activation.PageId, activation.Url, activation.Gesture), pages)
-                    : new LinkNavigationAnswer(LinkNavigationDecision.Navigate),
-                _ => throw new ArgumentOutOfRangeException(nameof(question), question.GetType().Name, "No area answers this question.")
-            };
-            return (TAnswer)answer;
-        }
+        lock (gate) return question.Answer(this, engine);
     }
 
     #endregion

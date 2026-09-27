@@ -10,7 +10,7 @@ namespace CrestCore.Tests;
 /// Writing a Space's password file: its columns and quoting, the order of
 /// its rows, and the file name cleaned from the Space's name.
 public sealed class CredentialExportTests {
-    private static readonly Credentials Area = new();
+    private static readonly CrestApp Area = new();
 
     private static ExportedCredential Credential(string host, string username, string password, string? name = null, int port = 443,
         string note = "", Guid? id = null) =>
@@ -18,7 +18,7 @@ public sealed class CredentialExportTests {
 
     [Fact]
     public void EveryFieldIsQuotedAndARowWithoutANameTakesItsHost() {
-        var file = Area.Answer(new CredentialExport([
+        var file = Area.Query(new CredentialExport([
             Credential("accounts.crest.test", "work,person@example.com", "line one\n\"line two\"", name: "Crest, Account"),
             Credential("realm.crest.test", "ada", "secret", port: 8443, note: "HTTP Basic authentication")
         ], "Work", "Space"));
@@ -33,7 +33,7 @@ public sealed class CredentialExportTests {
     [Fact]
     public void RowsRunBySiteThenUsernameAsAPersonSortsThemThenIdentity() {
         Guid first = Guid.Parse("00000000-0000-0000-0000-000000000001"), second = Guid.Parse("00000000-0000-0000-0000-000000000002");
-        var file = Area.Answer(new CredentialExport([
+        var file = Area.Query(new CredentialExport([
             Credential("b.example", "user10", "s"),
             Credential("b.example", "User2", "s"),
             Credential("a.example", "zed", "s"),

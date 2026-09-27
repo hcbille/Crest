@@ -44,28 +44,6 @@ internal sealed partial class Device {
 
     #region Actions - Routing
 
-    /// Where a link another app hands a window opens, under this device's
-    /// preferences and the Spaces of the window's workspace: none being
-    /// deleted, and never a locked one.
-    public ExternalLinkPlacement Answer(RouteExternalLink question) {
-        ArgumentNullException.ThrowIfNull(question);
-        var window = Opened(question.WindowId);
-        var authority = Workspace(window.WorkspaceId);
-        var spaces = authority.Current.Spaces;
-        Guid shown;
-        LinkPreferences preferences;
-        lock (gate) {
-            shown = window.ShownSpaceId;
-            preferences = links;
-        }
-        var context = new LinkRoutingContext([.. spaces.Select(space => space.Id)], shown,
-            [.. spaces.Where(space => authority.IsDeleting(space.Id)).Select(space => space.Id)]);
-        var locked = spaces.Where(authority.IsLocked).Select(space => space.Id).ToHashSet();
-        return LinkRoutingPolicy.DecideExternal(question.Url, preferences, context, locked) is { } placed
-            ? new(placed.SpaceId, placed.OpensQuickWindow, placed.SubstitutesForLockedSpace)
-            : new(null, false, false);
-    }
-
     /// What following a link from a page does: a page for a tab reads the
     /// tab's place and saved address, a Peek brings the tabs it opens to the
     /// front, and the rest follows this device's link preferences.
@@ -85,18 +63,6 @@ internal sealed partial class Device {
         return new(LinkNavigationPolicy.Decide(question.Url, gesture.UserActivated, gesture.TopLevel, peek, newTab,
             gesture.Modifiers.HasFlag(ShortcutModifiers.Shift), focuses, hasContext: tab is not null, tab?.Placement,
             tab?.SavedAddress, preferences.OpensPeekAutomatically));
-    }
-
-    /// Whether a window a page opened comes to the front, as the gesture and
-    /// this device's link preferences decide.
-    public OpenedWindowSelected Answer(OpenedWindowSelection question) {
-        ArgumentNullException.ThrowIfNull(question);
-        LinkPreferences preferences;
-        lock (gate) preferences = links;
-        var gesture = question.Gesture;
-        var (_, newTab) = preferences.PeekModifier.Intent(gesture.Modifiers, gesture.MiddleClick);
-        return new(LinkNavigationPolicy.SelectsOpenedWindow(newTab, gesture.Modifiers.HasFlag(ShortcutModifiers.Shift),
-            preferences.FocusesNewTabs));
     }
 
     #endregion

@@ -10,27 +10,9 @@ public sealed record DownloadRetention(Guid ProfileId, TimeSpan? Lifetime);
 
 #region Queries
 
-/// Whether a download a page starts goes ahead, is refused or asks first:
-/// whether a person's gesture started it or approved a retry, the site's saved
-/// decision, and whether the page has already had its one automatic download
-/// while that decision is Ask.
-public sealed record AutomaticDownloadCheck(bool UserInitiated, bool UserApprovedRetry, SitePermissionDecision SavedDecision,
-    bool HasAllowedAutomaticDownload) : StandaloneQuery<AutomaticDownloadVerdict>;
-
 /// The action for one download and the throttle state its page and origin
 /// carry into the next automatic download.
 public sealed record AutomaticDownloadVerdict(AutomaticDownloadAction Action, bool HasAllowedAutomaticDownload);
-
-/// One engine progress sample for a transfer. `Estimator` is the state the
-/// previous reading returned, or null for the first sample. `Uptime` is a
-/// monotonic clock in seconds; `FractionCompleted` is used only while no total
-/// is known.
-public sealed record DownloadProgress(DownloadTransferEstimator? Estimator, long CompletedUnitCount, long TotalUnitCount,
-    double FractionCompleted, bool IsPaused, double Uptime) : Query<DownloadProgressReading>;
-
-/// Why a download looks dangerous and whether, given how it started, the
-/// person must confirm it before it continues.
-public sealed record DownloadRisk(DownloadRiskFacts Facts, bool IsUserInitiated) : Query<DownloadRiskVerdict>;
 
 /// A download's risk assessment and whether the person must confirm it.
 public sealed record DownloadRiskVerdict(DownloadRiskAssessment Assessment, bool RequiresConfirmation);

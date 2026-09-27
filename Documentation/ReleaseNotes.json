@@ -3089,6 +3089,10 @@
     "area-messages-carry-their-logic": {
       "category": "internal",
       "message": "Downloads, prompts, close preparations, data deletion, Space access and cloud sync intents, and the prompt and download events engines report, now carry their own logic, so a new one that lacks it fails to build; nothing changes in behavior."
+    },
+    "queries-answer-themselves": {
+      "category": "internal",
+      "message": "Every question the core answers, and the one an engine asks while it waits, now carries its own answer, so a new one that lacks it fails to build; nothing changes in behavior."
     }
   }
 }

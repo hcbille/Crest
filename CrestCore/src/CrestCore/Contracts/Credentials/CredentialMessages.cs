@@ -2,13 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// What one credential form observation does to the page's credential state.
-/// `Hint` is the page's remembered username from an earlier login step and
-/// `Pending` the submitted credential still waiting for a sign-in; neither
-/// carries the username or the password. `Now` is in seconds since 1970.
-public sealed record CredentialCapture(CredentialFormFacts Facts, CredentialUsernameHint? Hint,
-    CredentialPendingCandidate? Pending, double Now) : Query<CredentialCaptureDecision>;
-
 /// The capture policy's answer for one observation. `ClearsUsernameHint` asks
 /// the caller to forget a remembered username that no longer applies.
 /// `AnchorsToField` says whether a fill prompt may point at the reported field.
@@ -52,11 +45,6 @@ public sealed record CredentialPendingCandidate(CredentialOrigin Origin, double 
 /// without the username itself. `CapturedAt` is in seconds since 1970.
 public sealed record CredentialUsernameHint(CredentialOrigin Origin, CredentialOrigin TopLevelOrigin, double CapturedAt);
 
-/// Whether a fill request may put a saved credential or a generated password
-/// into a password field of this kind.
-public sealed record CredentialFill(CredentialFillSource Source, CredentialPasswordKind PasswordKind)
-    : Query<CredentialFillDecision>;
-
 /// Whether a fill may go ahead.
 public sealed record CredentialFillDecision(bool IsAllowed);
 
@@ -67,20 +55,9 @@ public enum CredentialFillSource { Saved, Generated }
 /// new one, as the form classifier reported it.
 public enum CredentialPasswordKind { Current, New }
 
-/// What saving a candidate means for the vault. `MatchId` is the record
-/// `CredentialSaveMatch` chose. `Stored` is the platform's comparison of the
-/// candidate against that record's secret, or null when there was no match or
-/// the secret could not be read.
-public sealed record CredentialSave(Guid? MatchId, CredentialStoredComparison? Stored) : Query<CredentialSavePlan>;
-
 /// The platform's comparison of a candidate against the stored secret of the
 /// matched record. The core never receives either password, only this answer.
 public sealed record CredentialStoredComparison(Guid Id, bool PasswordMatches);
-
-/// Whether a save candidate submitted at `SubmittedAt` may still be planned or
-/// committed at `Now`. Both are in seconds since 1970.
-public sealed record CredentialSaveCheck(CredentialOrigin Origin, CredentialOrigin TopLevelOrigin, double SubmittedAt,
-    double Now) : Query<CredentialSaveVerdict>;
 
 /// Whether a save candidate is still accepted, or why it is not.
 public sealed record CredentialSaveVerdict(CredentialSaveValidity Validity);
@@ -88,22 +65,8 @@ public sealed record CredentialSaveVerdict(CredentialSaveValidity Validity);
 /// Whether a save candidate may still be planned or committed.
 public enum CredentialSaveValidity { Accepted, InsecureOrigin, Stale }
 
-/// The most recent record for the same account as `Username`, compared after
-/// canonical composition and ignoring case. Every record carries its username;
-/// no password crosses.
-public sealed record CredentialSaveMatch(string Username, IReadOnlyList<CredentialRecord> Records) : Query<CredentialChoice>;
-
 /// The record a credential rule chose, or null when none qualifies.
 public sealed record CredentialChoice(Guid? CredentialId);
-
-/// The most recent of a batch of saved credentials. The records need no
-/// usernames. Winners of separate batches reduce to the same answer as one
-/// batch, so a caller may split a list longer than the batch limit.
-public sealed record MostRecentCredential(IReadOnlyList<CredentialRecord> Records) : Query<CredentialChoice>;
-
-/// How to compose a generated password of `Length` characters, or of the
-/// default length when it is null. The password itself never exists in the core.
-public sealed record StrongPassword(int? Length) : Query<StrongPasswordRecipe>;
 
 /// How a strong password is composed: its length and the character groups it
 /// draws from. The platform draws one character from every group, fills the

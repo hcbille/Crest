@@ -1,23 +1,5 @@
 namespace CrestCore.Contracts;
 
-#region Queries
-
-/// The session `Seed` opens as, repaired as a stored session is when it loads
-/// and resolved, for a view that shows Spaces no workspace holds: a preview,
-/// or a draft before it is saved. Nothing opens, so no change of it is ever
-/// published. It reads no state, so a host may ask it without an app.
-public sealed record DetachedSession(SessionState Seed) : StandaloneQuery<SessionState>;
-
-/// The session a first launch starts with when nothing is carried to it: one
-/// Personal Space wearing the Winter house look, showing a Start Page, marked
-/// as the disposable first-install seed. A file that holds no session takes it
-/// from `AdoptLegacySession` without a seed; a launch without a file opens it
-/// as the seed of an `OpenWorkspace`. It reads no state, so a host may ask it
-/// without an app.
-public sealed record FirstInstallSession() : StandaloneQuery<SessionState>;
-
-#endregion
-
 #region Rejections
 
 /// A workspace of this kind opens only by borrowing a Space of the workspace

@@ -1,10 +1,5 @@
 namespace CrestCore.Contracts;
 
-/// The capacities the core enforces. Native surfaces read them to shape what
-/// they offer, such as a pin action or a nested folder; the core still refuses
-/// anything past them.
-public sealed record EnforcedLimits() : StandaloneQuery<CapacityLimits>;
-
 /// How many of each thing the core keeps: folders in a Space and how deep
 /// they nest, history entries per Space, members of a split, colors in a
 /// Space's branding and its crest palette, Spaces in a workspace, tabs in a

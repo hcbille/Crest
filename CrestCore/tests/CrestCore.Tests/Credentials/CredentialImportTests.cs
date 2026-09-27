@@ -12,15 +12,15 @@ namespace CrestCore.Tests;
 /// or warns about, and what each account means against the passwords the
 /// Space keeps.
 public sealed class CredentialImportTests {
-    private static readonly Credentials Area = new();
+    private static readonly CrestApp Area = new();
     private static readonly CredentialOrigin Accounts = new("https", "accounts.example", 443);
 
     private static CredentialImportPlan Preview(string text, params ExistingCredential[] existing) =>
-        Area.Answer(new CredentialImportPreview(Encoding.UTF8.GetBytes(text), existing));
+        Area.Query(new CredentialImportPreview(Encoding.UTF8.GetBytes(text), existing));
 
     private static CredentialFileFlaw Flaw(byte[] document) =>
         Assert.IsType<InvalidCredentialFile>(Assert.Throws<Rejected>(() =>
-            Area.Answer(new CredentialImportPreview(document, []))).Rejection).Flaw;
+            Area.Query(new CredentialImportPreview(document, []))).Rejection).Flaw;
 
     private static CredentialFileFlaw Flaw(string text) => Flaw(Encoding.UTF8.GetBytes(text));
 
@@ -134,7 +134,7 @@ public sealed class CredentialImportTests {
 
     [Fact]
     public void AnotherBrowsersPasswordsImportAsABrowsersOwnFileWould() {
-        var plan = Area.Answer(new PasswordImportPreview([
+        var plan = Area.Query(new PasswordImportPreview([
             new(2, "accounts.example", Accounts, "ada", "secret"),
             new(3, null, new CredentialOrigin("ftp", "files.example", 21), "ada", "secret"),
             new(4, null, Accounts, "grace", "")

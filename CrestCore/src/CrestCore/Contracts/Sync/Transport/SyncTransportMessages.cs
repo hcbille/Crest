@@ -2,15 +2,9 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// The server fields the device store keeps of `RecordNames`.
-public sealed record CloudFieldsOf(IReadOnlyList<string> RecordNames) : Query<CloudRecordFieldList>;
-
 /// The fields the device store keeps of the records asked for; a record it
 /// keeps none of is left out.
 public sealed record CloudRecordFieldList(IReadOnlyList<CloudRecordFields> Records);
-
-/// The cloud transport's state on this device.
-public sealed record CloudTransport : Query<CloudTransportState>;
 
 #endregion
 

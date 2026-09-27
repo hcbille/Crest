@@ -2,13 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// What the media-session store does with one page report, given what it
-/// remembers of the reporting document, how many identities it remembers and
-/// the next ordinal it would give. Refused with `InvalidMediaSessionCount` for
-/// a negative count.
-public sealed record MediaSessionReport(MediaSessionEvent Event, MediaSessionIdentity Identity, int RetainedIdentities,
-    ulong NextOrdinal) : StandaloneQuery<MediaSessionEventDecision>;
-
 /// The ordering and lifecycle facts of one page media-session report. Engines
 /// sequence reports per document; metadata and artwork stay native.
 public sealed record MediaSessionEvent(ulong Sequence, bool IsInvalidated, bool HasActiveSession, MediaPlaybackState Playback);

@@ -2,12 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// Whether the core would accept a session intent now, and when it would not,
-/// the rule that would refuse it. Nothing changes, so a menu can ask the
-/// core's own rules, such as a folder's depth or a split's size, before it
-/// offers an action.
-public sealed record CanSend(Intent Intent) : Query<SendPermission>;
-
 /// Whether an intent would be accepted: `Refusal` names the rule that would
 /// refuse it, or is null when the core would accept it.
 public sealed record SendPermission(Rejection? Refusal);

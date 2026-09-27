@@ -23,6 +23,7 @@ internal sealed class CloudSyncControl {
     #region Variables
 
     private readonly Lock gate = new();
+    internal Lock Gate => gate;
     internal CloudTransportStore Transport { get; }
     internal IClock Clock { get; }
     /// Whether the session the core keeps in its file is still the disposable
@@ -224,12 +225,7 @@ internal sealed class CloudSyncControl {
 
     #region Actions - Queries
 
-    public CloudSyncStatus Answer(CloudSync query) {
-        ArgumentNullException.ThrowIfNull(query);
-        lock (gate) return Status();
-    }
-
-    private CloudSyncStatus Status() => new(IsEnabled, Account, Phase, Problem, FailureMessage, LastAttemptAt, LastSuccessAt, LastFetched,
+    internal CloudSyncStatus Status() => new(IsEnabled, Account, Phase, Problem, FailureMessage, LastAttemptAt, LastSuccessAt, LastFetched,
         LastUploaded, ObservedCloud, Conflict, Skipped, RequiresAppUpdate, CloudDataRemoved);
 
     #endregion

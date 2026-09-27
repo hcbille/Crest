@@ -1,12 +1,5 @@
 namespace CrestCore.Contracts;
 
-/// A question the core answers with a `TAnswer` without changing any state.
-public abstract record Query<TAnswer>;
-
-/// A question the core answers from the question alone, reading no state, so
-/// a host may ask it before it has an app or from code that holds none.
-public abstract record StandaloneQuery<TAnswer> : Query<TAnswer>;
-
 /// What an intent changed. A change carries the resulting values, never an
 /// instruction the caller has to work out again.
 public abstract record Change;
