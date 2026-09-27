@@ -3149,6 +3149,10 @@
     "chromium-new-window-links-open-peek": {
       "category": "fixed",
       "message": "In the Chromium build, a link that would open a new tab from a pinned or saved tab and leaves that tab's site opens in Peek, as it does in the WebKit build."
+    },
+    "context-menu-row-test-keeps-its-page-view": {
+      "category": "internal",
+      "message": "The context-menu row test keeps its page view alive, as the window does."
     }
   }
 }

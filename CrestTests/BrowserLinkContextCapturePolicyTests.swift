@@ -254,9 +254,12 @@ final class BrowserLinkContextCapturePolicyTests: XCTestCase {
         let peek = BrowserPageContextMenuAction(
             kind: .peek, title: "Open Link in Peek", symbolName: "rectangle.on.rectangle", linkURL: link,
             selectionText: nil)
+        // The page's view outlives the menu, as the window keeps it; the rows
+        // hold it weakly.
+        let pageView = NSView()
         let menu = NSMenu()
         menu.addItem(withTitle: "Engine row", action: nil, keyEquivalent: "")
-        BrowserPageContextMenu(actions: [space, peek], host: host, view: NSView()).insert(into: menu)
+        BrowserPageContextMenu(actions: [space, peek], host: host, view: pageView).insert(into: menu)
         let ran = expectation(description: "Both rows ran")
         ran.expectedFulfillmentCount = 2
         host.performed = { _ in ran.fulfill() }
@@ -268,6 +271,7 @@ final class BrowserLinkContextCapturePolicyTests: XCTestCase {
         await fulfillment(of: [ran], timeout: 2)
 
         XCTAssertEqual(host.ran.map(\.kind), [space.kind, peek.kind])
+        withExtendedLifetime(pageView) {}
     }
 
     private func makeBody(
