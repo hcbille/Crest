@@ -1,5 +1,11 @@
 import SwiftUI
 
+// MARK: - Types
+
+enum BrowserFindBarField: Hashable {
+    case query
+}
+
 /// Find in page, on every shell.
 ///
 /// Everything the bar needs from the page arrives through `BrowserFindPort`,

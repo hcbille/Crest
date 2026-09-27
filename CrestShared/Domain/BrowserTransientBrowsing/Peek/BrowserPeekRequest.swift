@@ -1,5 +1,15 @@
 import Foundation
 
+// MARK: - Types
+
+enum BrowserPeekTrigger: String, Codable, Equatable, Sendable {
+    case protectedSavedSite
+    case modifierClick
+    case linkDrag
+    case longPress
+    case contextMenu
+}
+
 struct BrowserPeekRequest: Identifiable, Equatable, Sendable {
     let id: UUID
     let url: URL

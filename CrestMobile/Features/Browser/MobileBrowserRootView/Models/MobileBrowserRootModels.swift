@@ -1,3 +1,7 @@
+import Foundation
+
+// MARK: - Presentation
+
 enum MobileBrowserPresentation: Equatable, Sendable {
     case compact
     case regular
@@ -71,4 +75,21 @@ enum MobileToolbarSwipeMode: CaseIterable, Equatable, Sendable {
     /// because the choice is a product decision that may be revisited, and the
     /// routing that would carry it already exists.
     case contextual
+}
+
+// MARK: - Snapshots
+
+struct MobileBrowserRootLockSnapshot: Equatable, Sendable {
+    let sessionRevision: BrowserSessionRevision
+    let selectedSpaceID: SpaceID
+    let selectedProfileID: UUID?
+    let isLocked: Bool
+    let presentation: MobileBrowserPresentation
+}
+
+struct MobileBrowserRootSelectionSnapshot: Equatable, Sendable {
+    let sessionRevision: BrowserSessionRevision
+    let selectedSpaceID: SpaceID
+    let selectedProfileID: UUID?
+    let assignment: BrowserTabRuntimeAssignment?
 }

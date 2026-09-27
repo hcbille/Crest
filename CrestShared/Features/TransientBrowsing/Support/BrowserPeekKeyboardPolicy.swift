@@ -1,3 +1,9 @@
+// MARK: - Types
+
+enum BrowserPeekKeyboardAction: Equatable {
+    case dismiss
+}
+
 enum BrowserPeekKeyboardPolicy {
     static func action(
         forKeyCode keyCode: UInt16,

@@ -1,3 +1,11 @@
+// MARK: - Types
+
+enum BrowserPageReloadAction: Equatable, Sendable {
+    case stop
+    case reload
+    case reloadFromOrigin
+}
+
 enum BrowserPageReloadPolicy {
     static func action(
         isLoading: Bool,

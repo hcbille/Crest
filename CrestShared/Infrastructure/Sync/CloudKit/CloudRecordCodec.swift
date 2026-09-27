@@ -1,6 +1,16 @@
 import CloudKit
 import Foundation
 
+// MARK: - Types
+
+enum BrowserCloudRecordCodecError: Error, Equatable {
+    /// The server's last copy of a record is another record's.
+    case mismatchedBaseRecord(String)
+    /// A newer build wrote the server's last copy for a schema this build
+    /// does not know, so this build must not write over it.
+    case newerSchema(Int)
+}
+
 /// Maps the core's synced records to CloudKit records and back. It writes and
 /// reads the envelope, the fields every client places a record by, and copies
 /// the payload or tombstone the core spelled into the encrypted values as
@@ -52,7 +62,8 @@ struct BrowserCloudRecordCodec: Sendable {
             guard baseRecord.recordID == recordID, baseRecord.recordType == source.kind.cloudRecordType else {
                 throw BrowserCloudRecordCodecError.mismatchedBaseRecord(recordID.recordName)
             }
-            if let schema = (baseRecord[Field.schemaVersion] as? NSNumber)?.intValue, schema > Self.currentSchemaVersion {
+            if let schema = (baseRecord[Field.schemaVersion] as? NSNumber)?.intValue, schema > Self.currentSchemaVersion
+            {
                 throw BrowserCloudRecordCodecError.newerSchema(schema)
             }
             record = baseRecord
@@ -88,7 +99,8 @@ struct BrowserCloudRecordCodec: Sendable {
         let tombstone = record.encryptedValues[Field.tombstone] as? Data
         guard let body = payload ?? tombstone, (payload == nil) != (tombstone == nil) else { return nil }
         return SyncRecord(
-            kind: reference.kind, id: reference.id, spaceID: space, version: SyncVersion(clock: clock, deviceID: device),
+            kind: reference.kind, id: reference.id, spaceID: space,
+            version: SyncVersion(clock: clock, deviceID: device),
             schema: schema, body: body, isTombstone: tombstone != nil)
     }
 

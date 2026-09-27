@@ -1,3 +1,5 @@
+import Foundation
+
 enum BrowserCloudSyncActivity: Equatable, Sendable {
     case fetched(recordCount: Int)
     case uploaded(recordCount: Int)
@@ -7,4 +9,19 @@ enum BrowserCloudSyncActivity: Equatable, Sendable {
     case skippedRecords(count: Int, requiresAppUpdate: Bool)
     /// Crest's iCloud zone stopped existing because somebody removed it.
     case cloudDataRemoved
+}
+
+/// Why the cloud transport stopped a step.
+enum BrowserCloudSyncError: Error, Equatable {
+    /// A change that arrived from another device could not be applied. Sync
+    /// reports this instead of finishing a cycle that dropped records.
+    case remoteChangeNotApplied(String)
+}
+
+enum BrowserCloudSyncStatus: Equatable, Sendable {
+    case stopped
+    case syncing
+    case idle
+    case pausedForAccountConfirmation
+    case failed(String)
 }

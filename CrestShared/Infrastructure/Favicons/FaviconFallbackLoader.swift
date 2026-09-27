@@ -1,5 +1,17 @@
 import Foundation
 
+// MARK: - Types
+
+struct BrowserFaviconFallbackCacheKey: Hashable, Sendable {
+    let profileID: UUID
+    let iconURL: URL
+}
+
+struct BrowserFaviconFallbackRequestLease: Sendable {
+    let token: BrowserFaviconFallbackRequestToken
+    let task: Task<Data?, Never>
+}
+
 actor BrowserFaviconFallbackLoader {
     static let shared = BrowserFaviconFallbackLoader()
     private static let maximumCachedByteCount = 4 * 1_024 * 1_024

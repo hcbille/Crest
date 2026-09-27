@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// The words one transient overlay uses for itself.
@@ -51,4 +52,12 @@ struct BrowserTransientCardActions {
 
     /// Rebuilds a page released under memory pressure.
     let restore: () -> Void
+}
+
+struct BrowserTransientPageSnapshot: Equatable, Sendable {
+    let assignment: BrowserSpaceRuntimeAssignment
+    let url: URL
+    let title: String?
+    /// The core page that last showed it, which may be gone.
+    let pageID: UUID
 }

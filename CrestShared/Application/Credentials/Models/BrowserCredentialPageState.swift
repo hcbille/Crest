@@ -1,6 +1,15 @@
 import Foundation
 import Observation
 
+// MARK: - Types
+
+struct BrowserCredentialUsernameHint: Equatable, Sendable {
+    let origin: CredentialOrigin
+    let topLevelOrigin: CredentialOrigin
+    let username: String
+    let capturedAt: Date
+}
+
 /// Owns the short-lived credential state for one retained browser page.
 ///
 /// The generic fill target is intentionally opaque here. WebKit pages use a

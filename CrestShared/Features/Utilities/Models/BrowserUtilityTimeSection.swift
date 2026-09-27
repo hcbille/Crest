@@ -1,5 +1,14 @@
 import Foundation
 
+// MARK: - Types
+
+enum BrowserUtilityTimePeriod: Hashable, Sendable {
+    case today
+    case daysAgo(Int)
+    case weeksAgo(Int)
+    case month(Date)
+}
+
 struct BrowserUtilityTimeSection: Hashable, Identifiable, Sendable {
     let id: String
     let sortDate: Date
@@ -10,11 +19,11 @@ struct BrowserUtilityTimeSection: Hashable, Identifiable, Sendable {
         switch period {
         case .today:
             "Today"
-        case let .daysAgo(count):
+        case .daysAgo(let count):
             "\(count) days ago"
-        case let .weeksAgo(count):
+        case .weeksAgo(let count):
             "\(count) weeks ago"
-        case let .month(date):
+        case .month(let date):
             "\(date, format: .dateTime.month(.wide).year())"
         }
     }
@@ -40,20 +49,22 @@ struct BrowserUtilityTimeSection: Hashable, Identifiable, Sendable {
 
         if daysAgo < 42 {
             let weeksAgo = max(daysAgo / 7, 1)
-            sortDate = calendar.date(
-                byAdding: .day,
-                value: -(weeksAgo * 7),
-                to: today
-            ) ?? itemDay
+            sortDate =
+                calendar.date(
+                    byAdding: .day,
+                    value: -(weeksAgo * 7),
+                    to: today
+                ) ?? itemDay
             id = "week-\(weeksAgo)"
             period = .weeksAgo(weeksAgo)
             return
         }
 
-        let monthStart = calendar.dateInterval(
-            of: .month,
-            for: itemDay
-        )?.start ?? itemDay
+        let monthStart =
+            calendar.dateInterval(
+                of: .month,
+                for: itemDay
+            )?.start ?? itemDay
         sortDate = monthStart
         id = "month-\(monthStart.timeIntervalSinceReferenceDate)"
         period = .month(itemDay)

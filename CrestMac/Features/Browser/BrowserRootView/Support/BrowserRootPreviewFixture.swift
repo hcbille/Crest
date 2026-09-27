@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Types
+
+enum BrowserRootPreviewState: Equatable {
+    case docked
+    case collapsed
+    case commandPalette
+}
+
 enum BrowserRootPreviewFixture {
     static let spaceID = uuid(0x21)
     static let startTabID = uuid(0x41)

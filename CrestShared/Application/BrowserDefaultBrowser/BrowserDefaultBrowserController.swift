@@ -1,6 +1,15 @@
 import Foundation
 import Observation
 
+// MARK: - Types
+
+enum BrowserDefaultBrowserStatus: Equatable, Sendable {
+    case unknown
+    case isDefault
+    case notDefault
+    case unavailable(String)
+}
+
 @Observable
 @MainActor
 final class BrowserDefaultBrowserController {
@@ -61,7 +70,8 @@ final class BrowserDefaultBrowserController {
         if let platformDescription =
             BrowserPlatformDefaultBrowserErrorPolicy.userFacingDescription(
                 for: error
-            ) {
+            )
+        {
             return platformDescription
         }
 

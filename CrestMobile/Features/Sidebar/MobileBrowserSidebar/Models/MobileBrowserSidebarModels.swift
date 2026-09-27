@@ -1,3 +1,4 @@
+import CoreGraphics
 import SwiftUI
 
 /// The compact shell's half of the sidebar: its layout choices, its namespaces,
@@ -35,4 +36,27 @@ struct MobileBrowserSidebarContentConfiguration {
     let showsSidebarToggle: Bool
     let sidebarIsPresented: Bool
     let sidebarIsDocked: Bool
+}
+
+/// The sidebar's utility sheets and Space foreground.
+struct MobileBrowserSidebarPresentationConfiguration {
+    let browser: BrowserStore
+    let pages: MobileBrowserPageStore
+    let spaceAccess: BrowserSpaceAccessController
+    let selectedColorScheme: ColorScheme
+    let showsPasswords: Binding<Bool>
+    let presentedSpaceSheet: Binding<MobileBrowserSidebarSpaceSheet?>
+    let selectedSpaceAssignment: BrowserSpaceRuntimeAssignment?
+    let selectTab: (TabID) -> Void
+    let openURL: (URL) -> Void
+}
+
+struct MobileSpaceActionsConfiguration {
+    let showSettings: () -> Void
+    let showArchive: () -> Void
+    let showDownloads: () -> Void
+    let commonListsAreExpanded: Bool
+    let toggleCommonLists: () -> Void
+    let recordCommonListsTriggerFrame: (CGRect) -> Void
+    let togglePrivateBrowsing: () -> Void
 }

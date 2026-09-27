@@ -3021,6 +3021,10 @@
     "core-domain-data-types-grouped": {
       "category": "internal",
       "message": "The core's plain data types now sit beside the code that uses them instead of in files of their own."
+    },
+    "swift-data-types-grouped": {
+      "category": "internal",
+      "message": "The apps' plain data types now sit beside the code that uses them or in one file per concept."
     }
   }
 }

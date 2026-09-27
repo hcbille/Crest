@@ -1,4 +1,14 @@
+import Foundation
 import SwiftUI
+
+// MARK: - Types
+
+struct MobileBrowserTransientRenderIdentity: Hashable {
+    let requestID: UUID
+    let url: URL
+    let assignment: BrowserSpaceRuntimeAssignment
+    let isQuickWindow: Bool
+}
 
 enum MobileBrowserTransientRequest: Identifiable, Equatable {
     case peek(BrowserPeekRequest)

@@ -1,6 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// MARK: - Types
+
+struct BrowserSettingsSpaceDataRequest: Equatable {
+    let assignment: BrowserSpaceRuntimeAssignment?
+    let canRevealSpaceData: Bool
+}
+
 /// Shared Space password preferences and manager, configured by each platform's layout.
 struct BrowserPasswordSettingsPane: View {
     let browser: BrowserStore

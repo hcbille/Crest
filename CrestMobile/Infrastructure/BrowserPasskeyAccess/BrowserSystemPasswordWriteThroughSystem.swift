@@ -1,6 +1,14 @@
 import AuthenticationServices
 import Foundation
 
+// MARK: - Types
+
+enum BrowserSystemPasswordWriteThroughError: Error, Equatable {
+    case unavailable
+    case invalidScope
+    case missingPresentationAnchor
+}
+
 @MainActor
 enum BrowserSystemPasswordWriteThroughSystem {
     private static let buildManifestKey =

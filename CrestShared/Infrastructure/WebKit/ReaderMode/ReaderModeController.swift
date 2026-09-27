@@ -1,6 +1,15 @@
 import Foundation
 import WebKit
 
+// MARK: - Types
+
+enum BrowserReaderModeAction: String, CaseIterable, Sendable {
+    case availability
+    case activate
+    case deactivate
+    case snapshot
+}
+
 @MainActor
 enum BrowserReaderModeController {
     static let contentWorld = WKContentWorld.world(name: "Crest.ReaderMode")

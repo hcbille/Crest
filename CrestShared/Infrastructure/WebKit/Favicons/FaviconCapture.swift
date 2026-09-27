@@ -1,6 +1,14 @@
 import Foundation
 import WebKit
 
+// MARK: - Types
+
+struct BrowserFaviconDiscovery: Equatable, Sendable {
+    let iconURLs: [URL]
+    let manifestURLs: [URL]
+    let userAgent: String?
+}
+
 @MainActor
 enum BrowserFaviconCapture {
     nonisolated static let maximumByteCount = 128 * 1_024

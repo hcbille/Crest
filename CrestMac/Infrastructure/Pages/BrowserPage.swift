@@ -1,9 +1,19 @@
 import AppKit
+import Combine
 import Foundation
 import Observation
 import PDFKit
 import UniformTypeIdentifiers
+import WebKit
 import os
+
+// MARK: - Types
+
+enum BrowserDeveloperCaptureError: Error {
+    case pageUnavailable
+    case dimensionsUnavailable
+    case encodingFailed
+}
 
 @Observable
 @MainActor
