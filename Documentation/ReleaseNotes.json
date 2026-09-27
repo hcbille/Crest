@@ -2961,6 +2961,10 @@
     "page-hosts-read-read-model": {
       "category": "internal",
       "message": "Page hosts and engine glue read Spaces and tabs from the read model"
+    },
+    "shared-page-owner": {
+      "category": "internal",
+      "message": "iPhone, iPad and Mac page owners share one implementation of their common page work"
     }
   }
 }

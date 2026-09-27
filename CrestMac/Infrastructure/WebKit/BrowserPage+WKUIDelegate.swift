@@ -78,7 +78,14 @@ extension BrowserPage: WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         recordAcceptedPopup()
-        return popupCoordinator.resolveOpen(
+        // Only a WebKit page asks for a window, so only it resolves popups.
+        let externalSchemeCoordinator = externalSchemeCoordinator
+        let popups = BrowserPopupCoordinator(
+            openNewTab: openNewTab,
+            handOffExternalScheme: { destinationURL, trigger, origin in
+                externalSchemeCoordinator.handOff(destinationURL: destinationURL, trigger: trigger, origin: origin)
+            })
+        return popups.resolveOpen(
             for: navigationAction,
             currentURL: webView.url,
             navigateCurrent: { [weak self] request in

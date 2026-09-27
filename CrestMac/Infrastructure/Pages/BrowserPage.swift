@@ -120,7 +120,8 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored let profileID: UUID
     @ObservationIgnored let spaceName: String
     @ObservationIgnored let navigationDecider: BrowserNavigationDecider
-    @ObservationIgnored let popupCoordinator: BrowserPopupCoordinator
+    /// Opens a URL in a new tab of the page's window.
+    @ObservationIgnored let openNewTab: (URL) -> Void
     @ObservationIgnored let externalSchemeCoordinator: BrowserExternalSchemeCoordinator
     /// The URL Crest asked this page to load, as opposed to one web content
     /// asked for. Only an app-initiated load may reach a `file:` URL.
@@ -278,9 +279,9 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             httpAuthentication: httpAuthenticationSession
         )
         navigationDecider = BrowserNavigationDecider()
-        // Built before the popup coordinator so a popup whose destination belongs
-        // to another application can be routed into the same consent path an
-        // ordinary external-scheme navigation takes.
+        // A popup whose destination belongs to another application is routed
+        // into the same consent path an ordinary external-scheme navigation
+        // takes.
         let externalSchemeCoordinator = BrowserExternalSchemeCoordinator(
             spaceID: spaceID,
             spaceName: spaceName,
@@ -295,16 +296,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             opensExternalURL: opensExternalURL
         )
         self.externalSchemeCoordinator = externalSchemeCoordinator
-        popupCoordinator = BrowserPopupCoordinator(
-            openNewTab: openNewTab,
-            handOffExternalScheme: { destinationURL, trigger, origin in
-                externalSchemeCoordinator.handOff(
-                    destinationURL: destinationURL,
-                    trigger: trigger,
-                    origin: origin
-                )
-            }
-        )
+        self.openNewTab = openNewTab
         super.init()
         corePage.appLoad = { [weak self] in self?.load($0) }
         corePage.engineMoved = { [weak self] in self?.moveToNewEngine() }

@@ -163,19 +163,3 @@ final class BrowserPageWindowRouting {
 
     init(pool: BrowserPagePool) { self.pool = pool }
 }
-
-@MainActor
-final class BrowserPageProfileDataStores {
-    let serverTrustOverrides = BrowserServerTrustOverrideStore()
-    /// Each private profile's WebKit website data store, by profile.
-    var ephemeral: [UUID: WKWebsiteDataStore] = [:]
-
-    /// Drops a private profile's website data along with its store.
-    func releaseEphemeralStore(for profileID: UUID) {
-        ephemeral.removeValue(forKey: profileID)
-    }
-
-    func releaseAllEphemeralStores() {
-        ephemeral.removeAll()
-    }
-}

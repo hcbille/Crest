@@ -6,7 +6,7 @@ import os
 @Observable
 @MainActor
 final class BrowserPagePool:
-    BrowserSpaceDataDeleting,
+    BrowserPageOwner,
     BrowserPageHosting,
     BrowserDefaultPageZoomObserving
 {
@@ -70,12 +70,10 @@ final class BrowserPagePool:
     @ObservationIgnored private weak var presentationWindow: NSWindow?
     private(set) var isWindowFocused = true
     var publishesPageMetadataCentrally: Bool { runtimeStore.publishesPageMetadataCentrally }
-    var contentBlockingErrorDescription: String? { contentBlocking.errorDescription }
     let downloadCenter: BrowserDownloadCenter
     /// Mirrors the runtime's console capture: web pages then report their
     /// calls into an installed extension to the diagnostics log.
     let permissionCenter: BrowserSitePermissionCenter
-    var serverTrustOverrides: BrowserServerTrustOverrideStore { profileDataStores.serverTrustOverrides }
 
     /// Each tab owns its current and suspended configurations, including the
     /// history links that bridge ordinary pages and extension origins.
@@ -198,6 +196,9 @@ final class BrowserPagePool:
     }
 
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
+
+    /// Every tab whose page some window over the workspace presents now.
+    var presentedTabIDsAcrossWindows: Set<TabID> { runtimeStore.presentedTabIDs }
 
     func bindNativeWindow(_ window: NSWindow?) {
         presentationWindow = window
@@ -378,35 +379,12 @@ final class BrowserPagePool:
         return Set(tabRuntimes.keys)
     }
 
-    func containsResidentPage(for tabID: TabID) -> Bool {
-        _ = residencyRevision
-        return tabRuntimes[tabID]?.page != nil
-    }
-
-    func containsResidentPage(
-        matching assignment: BrowserTabRuntimeAssignment
-    ) -> Bool {
-        residentPage(matching: assignment) != nil
-    }
-
     /// Reads an already-resident page for its own Space's chrome without
     /// selecting or loading it. Web content hosts must use presentedPage.
     func residentPage(matching assignment: BrowserTabRuntimeAssignment) -> BrowserPage? {
         _ = residencyRevision
         return host.page(matching: assignment)
     }
-
-    func siteThemeIconAccent(for tabID: TabID) -> BrowserTabIconAccent? {
-        host.page(for: tabID)?.siteThemeIconAccent
-    }
-
-    func siteThemeIconAccent(
-        matching assignment: BrowserTabRuntimeAssignment
-    ) -> BrowserTabIconAccent? {
-        host.page(matching: assignment)?.siteThemeIconAccent
-    }
-
-    var retainedTransientPageCount: Int { host.retainedTransientPageCount }
 
     /// Every page this window's host keeps, including retained transient
     /// leases. Used to answer "what is under the pointer" without recognising
@@ -437,29 +415,12 @@ final class BrowserPagePool:
         return runtime.page
     }
 
-    var canGoBack: Bool { activePage?.live.canGoBack == true }
-    var canGoForward: Bool { activePage?.live.canGoForward == true }
-    var backHistory: [BrowserNavigationHistoryItem] { activePage?.backHistory ?? [] }
-    var forwardHistory: [BrowserNavigationHistoryItem] { activePage?.forwardHistory ?? [] }
-
     var hasActivePage: Bool {
         activePage?.live.documentURL != nil
     }
 
     var isLoading: Bool {
         activePage?.live.isLoading == true
-    }
-
-    var pageZoomLabel: String {
-        BrowserPageZoomPolicy.percentageLabel(for: activePage?.pageZoom ?? 1)
-    }
-
-    var readerModeState: BrowserReaderModeState {
-        activePage?.readerModeState ?? .unavailable
-    }
-
-    var readerModeActionTitle: LocalizedStringResource {
-        readerModeState.isActive ? "Hide Reader" : "Show Reader"
     }
 
     /// Presents what the window shows: the tab it shows and the cards beside
@@ -583,24 +544,6 @@ final class BrowserPagePool:
         presentedTabIDs = presentedTabIDs.filter { validTabIDs.contains($0) }
     }
 
-    /// Releases the pages of tabs the window's workspace no longer holds and
-    /// keeps the rest current.
-    func reconcile() {
-        host.reconcile(workspace: browser.workspaceModel, images: browser.core.state.favicons)
-    }
-
-    /// Gives every page its Space's password preference.
-    func reconcileCredentialAccess() {
-        host.reconcileCredentialAccess(in: browser.workspaceModel)
-    }
-
-    /// What the pool's runtime state follows in the window's workspace: tab
-    /// icons, content blocking and credential access, compared between
-    /// changes so each is reconciled only when it moved.
-    var runtimeProjection: BrowserRuntimeSessionProjection {
-        BrowserRuntimeSessionProjection(workspace: browser.workspaceModel, images: browser.core.state.favicons)
-    }
-
     /// Writes out the engine session state of every resident page this window
     /// routes. The app calls this when a scene stops being active, so state
     /// survives a quit before an inactive page is unloaded.
@@ -610,49 +553,11 @@ final class BrowserPagePool:
         }
     }
 
-    func flushPendingTabStateWrites() async {
-        await host.flushPendingTabStateWrites()
-    }
-
-    /// Gives each resident page its tab's current context, such as its icon.
-    func reconcileTabIcons() {
-        host.reconcileTabIcons(in: browser.workspaceModel, images: browser.core.state.favicons)
-    }
-
-    func deleteData(for space: BrowserSpaceRuntimeAssignment) async throws {
-        try await host.deleteData(for: space, on: browser.core, ephemeral: usesEphemeralWebsiteDataStores) {
-            await releaseWindowRuntime(for: space)
-            serverTrustOverrides.removeApprovals(for: space.profileID)
-        }
-        permissionCenter.reset(spaceID: space.spaceID)
-    }
-
-    func releaseWindowRuntime(for space: BrowserSpaceRuntimeAssignment) async {
-        guard host.spacesReleasingData.insert(space.spaceID).inserted else {
-            nativeTabs.remove(in: space.spaceID)
-            return
-        }
-        defer { host.spacesReleasingData.remove(space.spaceID) }
-        await host.releasePages(of: space)
-        downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
-        if usesEphemeralWebsiteDataStores {
-            profileDataStores.releaseEphemeralStore(for: space.profileID)
-        }
-    }
-
     /// Lets go of everything the private workspace kept, in each of the
     /// Spaces `spaces` names, as its last window closes.
     func closePrivateBrowsingSession(_ spaces: [BrowserSpaceRuntimeAssignment]) {
         guard browsingMode.isPrivate else { return }
-        host.closePrivateBrowsingSession()
-        for space in spaces {
-            downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
-            permissionCenter.reset(spaceID: space.spaceID)
-            Task {
-                await BrowserFaviconFallbackLoader.shared.removeAll(for: space.profileID)
-            }
-        }
-        profileDataStores.releaseAllEphemeralStores()
+        releasePrivateBrowsingData(in: spaces)
     }
 
     /// Asks the core to load what the person typed or chose in the page the
@@ -699,24 +604,6 @@ final class BrowserPagePool:
             guard let space = browser.spaceModel(spaceID) else { continue }
             Task { @MainActor [weak self] in await self?.styleVisitedLinks(in: space) }
         }
-    }
-
-    func makePeekPageLease(
-        request: BrowserPeekRequest,
-        in space: SpaceModel,
-        onDownloadOnlyNavigation: @escaping () -> Void
-    ) -> BrowserTransientPageLease? {
-        guard request.assignment == BrowserSpaceRuntimeAssignment(space: space) else { return nil }
-        return host.peekPageLease(for: request) {
-            makeTransientPageLease(
-                url: request.url, in: space, presentation: .peek,
-                engineNavigation: request.engineNavigation,
-                onDownloadOnlyNavigation: onDownloadOnlyNavigation)
-        }
-    }
-
-    func retainPeekPages(for requests: [BrowserPeekRequest]) {
-        host.retainPeekPages(for: requests)
     }
 
     func makeTransientPageLease(
@@ -863,42 +750,6 @@ final class BrowserPagePool:
         activateHostedNotificationSource(page.spaceID, tabID)
     }
 
-    /// Every page resident in this pool's tabs.
-    var residentPages: [BrowserPage] { host.residentPages }
-
-    func goBack() { activePage?.goBack() }
-    func goForward() { activePage?.goForward() }
-    func goBack(to item: BrowserNavigationHistoryItem) { activePage?.goBack(toDepth: item.depth) }
-    func goForward(to item: BrowserNavigationHistoryItem) { activePage?.goForward(toDepth: item.depth) }
-
-    /// Explicit durable close differs from residency eviction only when the
-    /// person chose to return to the saved URL on the next open.
-    func closeDurablePage(_ assignment: BrowserTabRuntimeAssignment, discardState: Bool) -> Bool {
-        host.closeDurablePage(assignment, discardState: discardState)
-    }
-
-    func discardArchivedTabState(matching assignment: BrowserTabRuntimeAssignment) {
-        host.discardArchivedTabState(matching: assignment)
-    }
-
-    func unloadPage(for tabID: TabID) {
-        host.unloadPage(for: tabID)
-    }
-
-    @discardableResult
-    func unloadPage(
-        for tabID: TabID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> Bool {
-        host.unloadPage(for: tabID, matching: assignment)
-    }
-
-    /// Releases a Space's resident pages without archiving them. Normal Space
-    /// switching and locking preserve residency and do not call this teardown.
-    func unloadPages(in spaceID: SpaceID) {
-        host.unloadPages(in: spaceID)
-    }
-
     /// Hides a protected Space without unloading its tabs. Unlocking can reuse
     /// the same WebKit pages, including scroll position and unsaved form state.
     /// Resident pages remain subject to normal idle and memory-pressure limits.
@@ -931,28 +782,12 @@ final class BrowserPagePool:
         activePage?.reload()
     }
 
-    func stopLoading() {
-        activePage?.stopLoading()
-    }
-
     func reloadFromOrigin() {
         reload(.fromOrigin)
     }
 
-    func clearSiteDataAndReload() async {
-        await activePage?.clearSiteDataAndReload()
-    }
-
-    func presentFind() {
-        activePage?.presentFind()
-    }
-
     func showWebInspector() {
         activePage?.showWebInspector()
-    }
-
-    func toggleReaderMode() {
-        activePage?.toggleReaderMode()
     }
 
     @discardableResult
@@ -970,39 +805,13 @@ final class BrowserPagePool:
         activePage?.resetZoom() == true
     }
 
-    func defaultPageZoomDidChange(to zoom: CGFloat) {
-        host.defaultPageZoomDidChange(to: zoom)
-    }
-
     @discardableResult
     func copyPageLink() -> Bool {
         activePage?.copyPageLink() == true
     }
 
-    @discardableResult
-    func copyPageLinkAsMarkdown() -> Bool {
-        activePage?.copyPageLinkAsMarkdown() == true
-    }
-
-    func pullFavicon(
-        for tabID: TabID
-    ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
-        await host.pullFavicon(for: tabID)
-    }
-
-    func pullFavicon(
-        for tabID: TabID,
-        matching assignment: BrowserSpaceRuntimeAssignment
-    ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
-        await host.pullFavicon(for: tabID, matching: assignment)
-    }
-
     func sharePage() {
         activePage?.sharePage()
-    }
-
-    func printPage() {
-        activePage?.printPage()
     }
 
     func exportPDF() {
@@ -1266,20 +1075,4 @@ final class BrowserPagePool:
         )
     }
 
-    func pruneTransientLeases() {
-        host.pruneTransientLeases()
-    }
-
-}
-
-extension BrowserPagePool: BrowserTabCopying {
-    func prepareTabCopy(from source: TabState, copyID: TabID, in space: BrowserSpaceRuntimeAssignment) {
-        host.prepareTabCopy(from: source, copyID: copyID, in: space)
-    }
-}
-
-extension BrowserPagePool: BrowserTabLinkProviding {
-    func liveLinkURL(for assignment: BrowserTabRuntimeAssignment) -> URL? {
-        host.liveLinkURL(for: assignment)
-    }
 }
