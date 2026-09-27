@@ -19,7 +19,7 @@ struct MobileBrowserDetailSurface: View {
     let hideCompactToolbar: () -> Void
     let showCompactToolbar: () -> Void
     let handleToolbarSwipe: (BrowserSpaceSwipeDirection) -> Void
-    let selectSplitCard: (TabID) -> Void
+    let selectSplitCard: (UUID) -> Void
     let compactTransitionEnded: (CGSize) -> Void
     var transientBrowsing: BrowserTransientBrowsingCoordinator?
     var didPromoteTransientPage: () -> Void = {}

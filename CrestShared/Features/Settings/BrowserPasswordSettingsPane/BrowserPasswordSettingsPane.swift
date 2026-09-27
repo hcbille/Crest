@@ -20,14 +20,14 @@ struct BrowserPasswordSettingsPane: View {
 
     @State private var credentials: BrowserCredentialSpaceStore
     @Environment(\.browserSettingsSelections) private var selections
-    @State private var localSelectedSpaceID: SpaceID?
-    private var selectedSpaceID: SpaceID? {
+    @State private var localSelectedSpaceID: UUID?
+    private var selectedSpaceID: UUID? {
         get { if let selections { selections.passwordSpaceID } else { localSelectedSpaceID } }
         nonmutating set {
             if let selections { selections.passwordSpaceID = newValue } else { localSelectedSpaceID = newValue }
         }
     }
-    private var selectedSpaceBinding: Binding<SpaceID?> {
+    private var selectedSpaceBinding: Binding<UUID?> {
         Binding(get: { selectedSpaceID }, set: { selectedSpaceID = $0 })
     }
     @State private var credentialPendingDeletion: CredentialDescriptor?
@@ -36,7 +36,7 @@ struct BrowserPasswordSettingsPane: View {
     @State private var isExporting = false
     @State private var isChoosingImportFile = false
     @State private var isSelectingCredentials = false
-    @State private var selectedCredentialIDs: Set<CredentialID> = []
+    @State private var selectedCredentialIDs: Set<UUID> = []
     @State private var confirmsSelectionDeletion = false
 
     init(

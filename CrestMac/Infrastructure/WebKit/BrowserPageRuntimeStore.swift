@@ -14,13 +14,13 @@ final class BrowserPageRuntimeStore {
 
     /// The pages every window over the workspace shares.
     let host: BrowserPageHost
-    @ObservationIgnored private var pools: [BrowserWindowID: WeakPool] = [:]
-    @ObservationIgnored private var presentations: [BrowserWindowID: [TabID]] = [:]
-    @ObservationIgnored private var focusOrder: [BrowserWindowID: Int] = [:]
+    @ObservationIgnored private var pools: [UUID: WeakPool] = [:]
+    @ObservationIgnored private var presentations: [UUID: [UUID]] = [:]
+    @ObservationIgnored private var focusOrder: [UUID: Int] = [:]
     @ObservationIgnored private var focusSequence = 0
     var publishesPageMetadataCentrally = false
 
-    var runtimes: [TabID: BrowserTabRuntime] {
+    var runtimes: [UUID: BrowserTabRuntime] {
         get { host.runtimes }
         set { host.runtimes = newValue }
     }
@@ -38,11 +38,11 @@ final class BrowserPageRuntimeStore {
 
     var registeredPools: [BrowserPagePool] { pools.values.compactMap(\.value) }
 
-    var presentedTabIDs: Set<TabID> {
+    var presentedTabIDs: Set<UUID> {
         Set(presentations.values.joined())
     }
 
-    func isPresented(_ tabID: TabID, outside windowID: BrowserWindowID) -> Bool {
+    func isPresented(_ tabID: UUID, outside windowID: UUID) -> Bool {
         presentations.contains { $0.key != windowID && $0.value.contains(tabID) }
     }
 
@@ -75,7 +75,7 @@ final class BrowserPageRuntimeStore {
         updatePresentation(of: pool)
     }
 
-    func claim(_ tabID: TabID, for pool: BrowserPagePool) {
+    func claim(_ tabID: UUID, for pool: BrowserPagePool) {
         guard pool.presentedTabIDs.contains(tabID), let runtime = runtimes[tabID] else { return }
         guard runtime.presentationWindowID != pool.windowID else {
             pool.bindRuntimeRouting(runtime, tabID: tabID)
@@ -108,7 +108,7 @@ final class BrowserPageRuntimeStore {
         revision &+= 1
     }
 
-    func install(_ runtime: BrowserTabRuntime, for tabID: TabID, from pool: BrowserPagePool) {
+    func install(_ runtime: BrowserTabRuntime, for tabID: UUID, from pool: BrowserPagePool) {
         runtimes[tabID] = runtime
         runtime.store = self
         runtime.routingWindowID = pool.windowID
@@ -116,13 +116,13 @@ final class BrowserPageRuntimeStore {
         updatePresentation(of: pool)
     }
 
-    func removePresentation(of tabID: TabID) {
+    func removePresentation(of tabID: UUID) {
         for pool in registeredPools {
             pool.removeTransferredPresentation(tabID)
         }
     }
 
-    private func reassignPresentation(_ tabID: TabID, excluding windowID: BrowserWindowID) {
+    private func reassignPresentation(_ tabID: UUID, excluding windowID: UUID) {
         guard let runtime = runtimes[tabID] else { return }
         let candidates = Set(
             presentations.compactMap { id, tabs in
@@ -136,7 +136,7 @@ final class BrowserPageRuntimeStore {
         }
     }
 
-    private func mostRecentPool(among ids: Set<BrowserWindowID>) -> BrowserPagePool? {
+    private func mostRecentPool(among ids: Set<UUID>) -> BrowserPagePool? {
         ids.compactMap { pools[$0]?.value }.max {
             (focusOrder[$0.windowID] ?? 0) < (focusOrder[$1.windowID] ?? 0)
         }

@@ -119,8 +119,8 @@ final class BrowserCommandPaletteActionPolicyTests: XCTestCase {
 
     private func makeBrowser(
         spaces: [SpaceState.Seed],
-        showing spaceID: SpaceID,
-        tabs: [SpaceID: TabID] = [:]
+        showing spaceID: UUID,
+        tabs: [UUID: UUID] = [:]
     ) -> BrowserStore {
         BrowserStore(seed: SessionState.Seed(spaces: spaces), showing: spaceID, tabs: tabs)
     }

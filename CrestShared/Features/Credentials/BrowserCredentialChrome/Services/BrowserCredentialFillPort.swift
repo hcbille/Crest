@@ -23,7 +23,7 @@ import Foundation
 struct BrowserCredentialFillPort {
     /// The Space this page belongs to — the vault a prompt reads and the
     /// identity it names.
-    let spaceID: SpaceID
+    let spaceID: UUID
 
     /// How one of the page's CSS pixels maps to a point in this shell — the
     /// page's zoom, and the only thing standing between a rect the page

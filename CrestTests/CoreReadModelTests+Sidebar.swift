@@ -421,7 +421,7 @@ enum SidebarReads {
     /// A split row's container and header: which member the window shows,
     /// what a person chose for the split, and whether any member is selected.
     static func splitRow(
-        _ groupID: SplitGroupID, members: [TabStateModel], in context: BrowserSidebarListContext,
+        _ groupID: UUID, members: [TabStateModel], in context: BrowserSidebarListContext,
         interaction: BrowserSidebarInteractionState
     ) {
         let configuration = BrowserSidebarSplitGroupRowConfiguration(

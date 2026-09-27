@@ -48,7 +48,7 @@ final class BrowserCredentialSavePromptModel {
 
     func prepare(
         candidate: BrowserCredentialSaveCandidate,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         browser: BrowserStore,
         now: Date = .now
     ) async {
@@ -78,7 +78,7 @@ final class BrowserCredentialSavePromptModel {
 
     func commit(
         candidate: BrowserCredentialSaveCandidate,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         browser: BrowserStore,
         now: Date = .now
     ) async {

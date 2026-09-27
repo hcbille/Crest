@@ -50,7 +50,7 @@ struct BrowserPinnedExtensionStrip: View {
     /// Preparation is per Space and per engine profile, and is idempotent: the
     /// store keeps the profile it loaded and answers a repeat immediately.
     private struct PreparationKey: Equatable {
-        let space: SpaceID
+        let space: UUID
         let profile: UUID
     }
 

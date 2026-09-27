@@ -4,11 +4,11 @@ import Foundation
 // window, which the core's device moves when the command commits.
 extension BrowserStore {
     func createSessionTabFolder(
-        _ tabIDs: [TabID], in spaceID: SpaceID,
+        _ tabIDs: [UUID], in spaceID: UUID,
         detachesSplitMembers: Bool
-    ) -> FolderID? {
+    ) -> UUID? {
         guard !tabIDs.isEmpty else { return nil }
-        let id = FolderID()
+        let id = UUID()
         let creation = CreateFolder(
             workspaceID: family.workspaceID, spaceID: spaceID, folderID: id, placement: .current,
             parentID: nil, title: nil, color: BrandColor.folderDefault, symbol: "folder",
@@ -22,7 +22,7 @@ extension BrowserStore {
     /// platform holds for the page, so it needs one.
     func setSessionTabIcon(
         _ mode: TabIconMode, emoji: String? = nil, faviconData: Data? = nil,
-        iconAccent: BrowserTabIconAccent? = nil, tabID: TabID, in spaceID: SpaceID
+        iconAccent: BrowserTabIconAccent? = nil, tabID: UUID, in spaceID: UUID
     ) -> Bool {
         guard !mode.requiresFavicon || faviconData?.isEmpty == false else { return false }
         let choice = ChooseTabIcon(
@@ -33,7 +33,7 @@ extension BrowserStore {
 
     /// Makes the page a saved or pinned tab shows the one it belongs to, and
     /// answers whether that changed its saved address.
-    func replaceSessionSavedAddress(tabID: TabID, in spaceID: SpaceID) -> Bool {
+    func replaceSessionSavedAddress(tabID: UUID, in spaceID: UUID) -> Bool {
         family.send(
             ReplaceSavedAddress(workspaceID: family.workspaceID, spaceID: spaceID, tabID: tabID),
             from: self)
@@ -41,7 +41,7 @@ extension BrowserStore {
 
     /// Returns a saved or pinned tab to the address it belongs to, and answers
     /// whether the core accepted it, including for a tab already there.
-    func returnSessionTabToSavedAddress(tabID: TabID, in spaceID: SpaceID) -> Bool {
+    func returnSessionTabToSavedAddress(tabID: UUID, in spaceID: UUID) -> Bool {
         family.perform(
             ReturnToSavedAddress(workspaceID: family.workspaceID, spaceID: spaceID, tabID: tabID),
             from: self) != nil
@@ -52,7 +52,7 @@ extension BrowserStore {
     /// core's promotion: the tab's identity and whether the tab may take the
     /// live page. Nil when a rule refused it, such as a locked Space or a page
     /// already kept.
-    func promoteTransientPage(_ page: CorePage, into spaceID: SpaceID) -> TransientPagePromoted? {
+    func promoteTransientPage(_ page: CorePage, into spaceID: UUID) -> TransientPagePromoted? {
         let promotion = PromoteTransientPage(
             workspaceID: family.workspaceID, windowID: windowID, pageID: page.id, spaceID: spaceID,
             placement: .current)
@@ -68,10 +68,10 @@ extension BrowserStore {
     /// address and names a page it was given no title for.
     @discardableResult
     func openSessionTab(
-        _ content: TabContent, in spaceID: SpaceID, placement: TabPlacement = .current,
-        insertingAfter origin: TabID? = nil, shouldSelect: Bool = true
-    ) -> TabID? {
-        let id = TabID()
+        _ content: TabContent, in spaceID: UUID, placement: TabPlacement = .current,
+        insertingAfter origin: UUID? = nil, shouldSelect: Bool = true
+    ) -> UUID? {
+        let id = UUID()
         let opening = OpenTab(
             workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID, tabID: id,
             content: content, placement: placement, afterTabID: origin, shows: shouldSelect)
@@ -82,7 +82,7 @@ extension BrowserStore {
     /// tab and puts a saved or pinned tab's page away. A window that showed it
     /// returns to the tab it showed before, which the core's device chooses.
     @discardableResult
-    func closeSessionTab(_ id: TabID, in spaceID: SpaceID) -> Bool {
+    func closeSessionTab(_ id: UUID, in spaceID: UUID) -> Bool {
         family.perform(
             CloseTab(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID,
@@ -92,7 +92,7 @@ extension BrowserStore {
 
     /// Whether closing `id` leaves only its window to close: the core keeps
     /// the Start Page that is its Space's only tab.
-    func closingLeavesOnlyTheWindow(_ id: TabID, in spaceID: SpaceID) -> Bool {
+    func closingLeavesOnlyTheWindow(_ id: UUID, in spaceID: UUID) -> Bool {
         let closing = CloseTab(
             workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID, tabID: id)
         guard case .lastStartPage = family.refusal(of: closing, from: self) else { return false }
@@ -100,7 +100,7 @@ extension BrowserStore {
     }
 
     @discardableResult
-    func deleteSessionTab(_ id: TabID, in spaceID: SpaceID) -> Bool {
+    func deleteSessionTab(_ id: UUID, in spaceID: UUID) -> Bool {
         family.perform(
             DeleteTab(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID,
@@ -108,33 +108,33 @@ extension BrowserStore {
             from: self) != nil
     }
 
-    func clearSessionTabs(in spaceID: SpaceID) -> Bool {
+    func clearSessionTabs(in spaceID: UUID) -> Bool {
         family.perform(
             ClearCurrentTabs(workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID),
             from: self) != nil
     }
 
-    func renameSessionTab(_ title: String?, tabID: TabID, in spaceID: SpaceID) -> Bool {
+    func renameSessionTab(_ title: String?, tabID: UUID, in spaceID: UUID) -> Bool {
         family.send(
             RenameTab(workspaceID: family.workspaceID, spaceID: spaceID, tabID: tabID, title: title),
             from: self)
     }
 
-    func setSessionTabResidency(_ keep: Bool, tabID: TabID, in spaceID: SpaceID) -> Bool {
+    func setSessionTabResidency(_ keep: Bool, tabID: UUID, in spaceID: UUID) -> Bool {
         family.send(
             KeepPageLoaded(
                 workspaceID: family.workspaceID, spaceID: spaceID, tabID: tabID, keeps: keep),
             from: self)
     }
 
-    func renameSessionFolder(_ id: FolderID, in spaceID: SpaceID, title: String) -> Bool {
+    func renameSessionFolder(_ id: UUID, in spaceID: UUID, title: String) -> Bool {
         family.send(
             RenameFolder(
                 workspaceID: family.workspaceID, spaceID: spaceID, folderID: id, title: title),
             from: self)
     }
 
-    func collapseSessionFolder(_ id: FolderID, in spaceID: SpaceID, isCollapsed: Bool) -> Bool {
+    func collapseSessionFolder(_ id: UUID, in spaceID: UUID, isCollapsed: Bool) -> Bool {
         family.send(
             CollapseFolder(
                 workspaceID: family.workspaceID, spaceID: spaceID, folderID: id,
@@ -142,15 +142,15 @@ extension BrowserStore {
             from: self)
     }
 
-    func deleteSessionFolder(_ id: FolderID, in spaceID: SpaceID) -> Bool {
+    func deleteSessionFolder(_ id: UUID, in spaceID: UUID) -> Bool {
         family.send(
             DeleteFolder(workspaceID: family.workspaceID, spaceID: spaceID, folderID: id),
             from: self)
     }
 
     func moveSessionFolder(
-        _ id: FolderID, in spaceID: SpaceID, into parentID: FolderID?,
-        before siblingID: FolderID? = nil, location: BrowserFolderLocation? = nil, beforeTabID: TabID? = nil
+        _ id: UUID, in spaceID: UUID, into parentID: UUID?,
+        before siblingID: UUID? = nil, location: BrowserFolderLocation? = nil, beforeTabID: UUID? = nil
     ) -> Bool {
         family.send(
             MoveFolder(
@@ -161,8 +161,8 @@ extension BrowserStore {
     }
 
     func fileSessionTabs(
-        _ ids: [TabID], in spaceID: SpaceID, into folderID: FolderID?,
-        location: BrowserFolderLocation, before anchor: TabID? = nil, beforeFolderID: FolderID? = nil,
+        _ ids: [UUID], in spaceID: UUID, into folderID: UUID?,
+        location: BrowserFolderLocation, before anchor: UUID? = nil, beforeFolderID: UUID? = nil,
         detachesSplitMembers: Bool = false
     ) -> Bool {
         family.send(

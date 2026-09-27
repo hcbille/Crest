@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// One window's layout: its sidebar, which this device keeps in `layouts`,
@@ -9,11 +10,11 @@ final class BrowserWindowStateStore {
     @ObservationIgnored private let layouts: BrowserWindowLayouts
     @ObservationIgnored private let browser: BrowserStore
 
-    var id: BrowserWindowID { state.id }
+    var id: UUID { state.id }
     var sidebarWidth: Double? { state.sidebarWidth }
     var sidebarIsPresented: Bool? { state.sidebarIsPresented }
 
-    init(id: BrowserWindowID, browser: BrowserStore, layouts: BrowserWindowLayouts) {
+    init(id: UUID, browser: BrowserStore, layouts: BrowserWindowLayouts) {
         self.layouts = layouts
         self.browser = browser
         state = layouts.layout(for: id) ?? BrowserWindowState(id: id)
@@ -26,11 +27,11 @@ final class BrowserWindowStateStore {
         layouts.save(state)
     }
 
-    func splitColumnFractions(for groupID: SplitGroupID) -> [Double]? {
+    func splitColumnFractions(for groupID: UUID) -> [Double]? {
         browser.window.splitColumnFractions(for: groupID)
     }
 
-    func captureSplitLayout(fractions: [Double], for groupID: SplitGroupID) {
+    func captureSplitLayout(fractions: [Double], for groupID: UUID) {
         browser.resizeSplitColumns(fractions, for: groupID)
     }
 

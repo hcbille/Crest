@@ -5,10 +5,10 @@ extension View {
         tab: TabStateModel,
         favicons: FaviconAssets,
         profileID: UUID,
-        spaceID: SpaceID,
+        spaceID: UUID,
         dragState: BrowserTabDragState,
         reorder: BrowserSidebarReorderContext? = nil,
-        parentSplitGroupID: SplitGroupID? = nil,
+        parentSplitGroupID: UUID? = nil,
         isEnabled: Bool = true,
         requiresSelectedSpace: Bool = false
     ) -> some View {
@@ -34,7 +34,7 @@ extension View {
         members: [TabStateModel] = [],
         favicons: FaviconAssets? = nil,
         placement: TabPlacement,
-        folderID: FolderID?,
+        folderID: UUID?,
         reorder: BrowserSidebarReorderContext? = nil,
         isEnabled: Bool = true,
         requiresSelectedSpace: Bool = false
@@ -56,9 +56,9 @@ extension View {
     func browserFolderDraggable(
         folder: FolderStateModel,
         profileID: UUID,
-        spaceID: SpaceID,
+        spaceID: UUID,
         dragState: BrowserFolderDragState,
-        memberTabIDs: [TabID]? = nil,
+        memberTabIDs: [UUID]? = nil,
         reorder: BrowserSidebarReorderContext? = nil,
         isEnabled: Bool = true,
         requiresSelectedSpace: Bool = false

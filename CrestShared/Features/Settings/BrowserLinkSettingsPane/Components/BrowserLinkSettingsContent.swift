@@ -54,7 +54,7 @@ struct BrowserLinkSettingsContent: View {
         browser.spaceModels.filter { !browser.isDeleting($0.id) }
     }
 
-    private var resolvedSelectedSpaceID: SpaceID {
+    private var resolvedSelectedSpaceID: UUID {
         BrowserLinkSettingsSpacePolicy.resolvedExternalSpaceID(
             preferredSpaceID: browser.selectedSpaceID,
             spaces: availableSpaces,
@@ -85,7 +85,7 @@ struct BrowserLinkSettingsContent: View {
         }
     }
 
-    private var externalSpaceBinding: Binding<SpaceID?> {
+    private var externalSpaceBinding: Binding<UUID?> {
         Binding {
             BrowserLinkSettingsSpacePolicy.resolvedExternalSpaceID(
                 preferredSpaceID: links.preferences.destinationSpaceID,

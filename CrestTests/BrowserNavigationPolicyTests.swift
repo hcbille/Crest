@@ -401,7 +401,7 @@ final class BrowserExternalSchemeCoordinatorTests: XCTestCase {
 
     @MainActor
     private final class Harness {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let origin = SiteOrigin(scheme: "https", host: "mail.example", port: 443)
         let permissionCenter = BrowserSitePermissionCenter()
         let coordinator: BrowserExternalSchemeCoordinator

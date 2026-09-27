@@ -348,7 +348,7 @@ final class BrowserSidebarUtilityCoordinatorTests: XCTestCase {
     /// it lets through rather than by what a particular shell does next.
     @MainActor
     private final class RecordedPlatformActions {
-        var restoredTabs: [TabID] = []
+        var restoredTabs: [UUID] = []
         var openedURLs: [URL] = []
         var openedDownloads: [(item: DownloadState, destination: BrowserUtilityDownloadDestination)] = []
         var canceledDownloads: [UUID] = []

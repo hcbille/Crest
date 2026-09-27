@@ -15,8 +15,8 @@
 
         @State private var placement: CrestControlsGalleryPlacement = .saved
         @State private var selectedCard = 0
-        @State private var chipSelection: SpaceID? = SessionState.Seed.preview.spaces.first?.id
-        @State private var menuSelection: SpaceID? = SessionState.Seed.preview.spaces.first?.id
+        @State private var chipSelection: UUID? = SessionState.Seed.preview.spaces.first?.id
+        @State private var menuSelection: UUID? = SessionState.Seed.preview.spaces.first?.id
         @State private var address = "example.com"
         @State private var name = ""
 

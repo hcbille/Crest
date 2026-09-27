@@ -5,10 +5,10 @@ import SwiftUI
 /// without ending this lifetime; unloading or changing the assignment ends it.
 @Observable @MainActor
 final class BrowserNativeTabStore {
-    @ObservationIgnored private var runtimes: [TabID: BrowserNativeTabRuntime] = [:]
+    @ObservationIgnored private var runtimes: [UUID: BrowserNativeTabRuntime] = [:]
     private(set) var residencyRevision = 0
 
-    var tabIDs: Set<TabID> {
+    var tabIDs: Set<UUID> {
         _ = residencyRevision
         return Set(runtimes.keys)
     }
@@ -64,12 +64,12 @@ final class BrowserNativeTabStore {
         return true
     }
 
-    func remove(_ tabID: TabID) {
+    func remove(_ tabID: UUID) {
         if runtimes.removeValue(forKey: tabID) != nil { residencyRevision &+= 1 }
     }
 
     @discardableResult
-    func remove(tabID: TabID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
+    func remove(tabID: UUID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
         guard
             contains(
                 BrowserTabRuntimeAssignment(
@@ -79,16 +79,16 @@ final class BrowserNativeTabStore {
         return true
     }
 
-    func remove(in spaceID: SpaceID) {
+    func remove(in spaceID: UUID) {
         for id in tabIDs(in: spaceID) { remove(id) }
     }
 
-    func tabIDs(in spaceID: SpaceID) -> Set<TabID> {
+    func tabIDs(in spaceID: UUID) -> Set<UUID> {
         _ = residencyRevision
         return Set(runtimes.keys.filter { runtimes[$0]?.assignment.spaceID == spaceID })
     }
 
-    func reconcile(validTabIDs: Set<TabID>) {
+    func reconcile(validTabIDs: Set<UUID>) {
         for id in runtimes.keys.filter({ !validTabIDs.contains($0) }) { remove(id) }
     }
 
@@ -113,7 +113,7 @@ final class BrowserNativeTabStore {
         for id in removed { remove(id) }
     }
 
-    func inactiveTabIDs(excluding presented: [TabID]) -> [TabID] {
+    func inactiveTabIDs(excluding presented: [UUID]) -> [UUID] {
         runtimes.values.filter { !presented.contains($0.assignment.tabID) }
             .sorted {
                 if $0.lastPresented != $1.lastPresented { return $0.lastPresented < $1.lastPresented }

@@ -561,8 +561,8 @@ final class BrowserStoreTests: XCTestCase {
     func testWindowStateStorePersistsChromeOnlyForItsOwningWindow() {
         let browser = BrowserStore(seed: .preview)
         let layouts = BrowserWindowLayouts(defaults: nil)
-        let firstWindow = BrowserWindowStateStore(id: BrowserWindowID(), browser: browser, layouts: layouts)
-        let secondWindow = BrowserWindowStateStore(id: BrowserWindowID(), browser: browser, layouts: layouts)
+        let firstWindow = BrowserWindowStateStore(id: UUID(), browser: browser, layouts: layouts)
+        let secondWindow = BrowserWindowStateStore(id: UUID(), browser: browser, layouts: layouts)
 
         firstWindow.captureSidebar(width: 364, isPresented: false)
         secondWindow.captureSidebar(width: 278, isPresented: true)
@@ -719,12 +719,12 @@ final class BrowserStoreTests: XCTestCase {
 
     private struct CleanupSweepFixture {
         let session: SessionState.Seed
-        let sweepingSpaceID: SpaceID
-        let neverSpaceID: SpaceID
-        let expiredTabID: TabID
-        let selectedTabID: TabID
-        let startPageID: TabID
-        let neverPolicyTabID: TabID
+        let sweepingSpaceID: UUID
+        let neverSpaceID: UUID
+        let expiredTabID: UUID
+        let selectedTabID: UUID
+        let startPageID: UUID
+        let neverPolicyTabID: UUID
     }
 
     /// A session that has been running long enough for cleanup to matter: one
@@ -792,7 +792,7 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     private func credential(
-        spaceID: SpaceID,
+        spaceID: UUID,
         username: String
     ) throws -> BrowserCredential {
         let origin = try XCTUnwrap(

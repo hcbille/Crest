@@ -8,7 +8,7 @@ struct BrowserSplitGroupDragSourceModifier: ViewModifier {
     var members: [TabStateModel] = []
     var favicons: FaviconAssets? = nil
     let placement: TabPlacement
-    let folderID: FolderID?
+    let folderID: UUID?
     var reorder: BrowserSidebarReorderContext?
     var isEnabled = true
     var requiresSelectedSpace = false

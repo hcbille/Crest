@@ -144,7 +144,7 @@ struct BrowserCredentialImportReview:
 
     /// The saved password the account would change, for the person to compare.
     func existingPassword(for group: CredentialImportGroup) -> String? {
-        existingCredentials.first { $0.descriptor.id.rawValue == group.existingID }?.password
+        existingCredentials.first { $0.descriptor.id == group.existingID }?.password
     }
 
     /// The accounts whose site, username or row names match `query`.
@@ -163,7 +163,7 @@ struct BrowserCredentialImportReview:
     /// Whether the Space still keeps the passwords the plan was made against.
     func matchesExistingInventory(_ credentials: [BrowserCredential]) -> Bool {
         let order: (BrowserCredential, BrowserCredential) -> Bool = {
-            $0.descriptor.id.rawValue.uuidString < $1.descriptor.id.rawValue.uuidString
+            $0.descriptor.id.uuidString < $1.descriptor.id.uuidString
         }
         return existingCredentials.sorted(by: order) == credentials.sorted(by: order)
     }
@@ -180,7 +180,7 @@ struct BrowserCredentialImportReview:
                 candidate.effect.changesPasswords
             else { continue }
             if let existingID = group.existingID {
-                guard let index = resolved.firstIndex(where: { $0.descriptor.id.rawValue == existingID }) else {
+                guard let index = resolved.firstIndex(where: { $0.descriptor.id == existingID }) else {
                     throw BrowserCredentialSensitiveAccessError.malformedCredentialInventory
                 }
                 var descriptor = resolved[index].descriptor

@@ -24,7 +24,7 @@ struct BrowserCredentialSaveOperation {
 @MainActor
 final class BrowserStore {
     /// This window in the core's device, which owns what it shows.
-    let windowID: BrowserWindowID
+    let windowID: UUID
     /// Advances each time this window shows another Space or tab by an
     /// intent of its own, or a tab moves into or out of it.
     private var windowRevision = 0
@@ -64,10 +64,10 @@ final class BrowserStore {
         BrowserSessionRevision(session: workspaceModel?.sessionRevision, window: windowRevision)
     }
 
-    var selectedSpaceID: SpaceID { window.shownSpace }
+    var selectedSpaceID: UUID { window.shownSpace }
 
     /// The tab this window shows in a Space, if any.
-    func selectedTabID(in spaceID: SpaceID) -> TabID? {
+    func selectedTabID(in spaceID: UUID) -> UUID? {
         window.shownTabID(in: spaceID)
     }
 
@@ -77,7 +77,7 @@ final class BrowserStore {
 
     /// Shows a Space in this window, on the tab it last showed there or the
     /// Space's fallback.
-    func selectPresentedSpace(_ id: SpaceID) {
+    func selectPresentedSpace(_ id: UUID) {
         guard !isDeleting(id), spaceModel(id) != nil else { return }
         guard sendWindowIntent(ShowSpace(windowID: windowID, spaceID: id)) else { return }
         tabMultiSelection.clear()
@@ -87,7 +87,7 @@ final class BrowserStore {
     /// Shows the Space before or after this window's, wrapping, among the
     /// Spaces it may show, and answers it; nil when the core showed no other.
     @discardableResult
-    func selectAdjacentSpace(_ direction: BrowserSpaceSwipeDirection) -> SpaceID? {
+    func selectAdjacentSpace(_ direction: BrowserSpaceSwipeDirection) -> UUID? {
         let shown = selectedSpaceID
         guard sendWindowIntent(ShowAdjacentSpace(windowID: windowID, direction: direction.core)),
             selectedSpaceID != shown
@@ -100,7 +100,7 @@ final class BrowserStore {
     /// Shows the tab one stop from this window's in the order its sidebar
     /// shows them, wrapping, and answers it; nil when the core showed no other.
     @discardableResult
-    func selectAdjacentTab(_ direction: AdjacentDirection) -> TabID? {
+    func selectAdjacentTab(_ direction: AdjacentDirection) -> UUID? {
         let shown = shownTab?.id
         guard sendWindowIntent(ShowAdjacentTab(windowID: windowID, direction: direction)),
             let next = shownTab?.id, next != shown
@@ -119,7 +119,7 @@ final class BrowserStore {
         return true
     }
 
-    func clearPresentedTabSelection(in spaceID: SpaceID) {
+    func clearPresentedTabSelection(in spaceID: UUID) {
         guard sendWindowIntent(ShowTab(windowID: windowID, spaceID: spaceID, tabID: nil)) else {
             return
         }
@@ -129,7 +129,7 @@ final class BrowserStore {
     /// Shows a tab in this window and records when it was last used, which
     /// current-tab cleanup reads. Answers false when the core would not show it.
     @discardableResult
-    func activateSessionTab(_ id: TabID, in spaceID: SpaceID) -> Bool {
+    func activateSessionTab(_ id: UUID, in spaceID: UUID) -> Bool {
         guard !isDeleting(spaceID), spaceModel(spaceID)?.tabs.contains(id) == true,
             sendWindowIntent(ShowTab(windowID: windowID, spaceID: spaceID, tabID: id))
         else { return false }
@@ -139,7 +139,7 @@ final class BrowserStore {
 
     /// Stops showing a tab the session keeps: the window returns to the tab it
     /// showed before in that Space, or shows nothing there.
-    func dismissShownTab(_ id: TabID, in spaceID: SpaceID) {
+    func dismissShownTab(_ id: UUID, in spaceID: UUID) {
         guard
             sendWindowIntent(
                 DismissShownTab(windowID: windowID, spaceID: spaceID, tabID: id))
@@ -148,7 +148,7 @@ final class BrowserStore {
     }
 
     /// The column shares this window keeps for a split group it resized.
-    func resizeSplitColumns(_ fractions: [Double], for groupID: SplitGroupID) {
+    func resizeSplitColumns(_ fractions: [Double], for groupID: UUID) {
         sendWindowIntent(ResizeSplitColumns(windowID: windowID, groupID: groupID, shares: fractions))
     }
 
@@ -175,8 +175,8 @@ final class BrowserStore {
     convenience init(
         seed: SessionState.Seed,
         images: [UUID: Data] = [:],
-        showing spaceID: SpaceID? = nil,
-        tabs: [SpaceID: TabID] = [:],
+        showing spaceID: UUID? = nil,
+        tabs: [UUID: UUID] = [:],
         credentialVault: any CredentialVault = InMemoryCredentialVault(),
         browsingMode: BrowserBrowsingMode = .standard,
         linkPreferences: BrowserLinkPreferenceStore? = nil,

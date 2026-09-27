@@ -126,7 +126,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         location: { [weak self] in await self?.systemAuthorizesLocation() ?? false },
         notifications: { [weak self] in await self?.authorizedForSystemNotifications(requestIfNeeded: true) ?? false })
     @ObservationIgnored let serverTrustOverrides: BrowserServerTrustOverrideStore
-    @ObservationIgnored let spaceID: SpaceID
+    @ObservationIgnored let spaceID: UUID
     @ObservationIgnored let profileID: UUID
     @ObservationIgnored let spaceName: String
     @ObservationIgnored let navigationDecider: BrowserNavigationDecider
@@ -136,7 +136,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// The URL Crest asked this page to load, as opposed to one web content
     /// asked for. Only an app-initiated load may reach a `file:` URL.
     @ObservationIgnored var appInitiatedURL: URL?
-    @ObservationIgnored let openModifiedLink: (URLRequest, SpaceID, Bool) -> Void
+    @ObservationIgnored let openModifiedLink: (URLRequest, UUID, Bool) -> Void
     @ObservationIgnored let openPeek: (BrowserPeekRequest) -> Void
     @ObservationIgnored let handleLinkDrag: (BrowserPeekInteractionEvent) -> Void
     @ObservationIgnored var navigationContext: BrowserPageNavigationContext?
@@ -219,7 +219,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             (@MainActor () async -> Void)? = nil,
         serverTrustOverrides: BrowserServerTrustOverrideStore = BrowserServerTrustOverrideStore(),
         mediaSessionStore: BrowserMediaSessionStore? = nil,
-        spaceID: SpaceID,
+        spaceID: UUID,
         profileID: UUID,
         spaceName: String,
         allowsCredentialAccess: Bool = true,
@@ -230,7 +230,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         saveHTTPAuthenticationCredential:
             @escaping BrowserHTTPAuthenticationSession.SaveCredential = { _ in },
         openNewTab: @escaping (URL) -> Void,
-        openModifiedLink: @escaping (URLRequest, SpaceID, Bool) -> Void = { _, _, _ in },
+        openModifiedLink: @escaping (URLRequest, UUID, Bool) -> Void = { _, _, _ in },
         openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
         handleLinkDrag: @escaping (BrowserPeekInteractionEvent) -> Void = { _ in },
         splitLinkHost: BrowserSplitLinkHost = .unavailable,

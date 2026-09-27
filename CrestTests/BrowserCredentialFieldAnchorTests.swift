@@ -65,7 +65,7 @@ final class BrowserCredentialFieldAnchorTests: XCTestCase {
     }
 
     func testOnlyAMainFrameFieldAnchorsItsPromptAndOnlyItsOwnFormMovesIt() throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let loginOrigin = try origin("https://accounts.example.com/login")
         let framedOrigin = try origin("https://embedded.example.com/login")
         let state = BrowserCredentialPageState<String>(spaceID: spaceID, core: CrestCore())
@@ -133,7 +133,7 @@ final class BrowserCredentialFieldAnchorTests: XCTestCase {
 
     func testDismissingAPromptStopsItsFieldFromBeingFollowed() throws {
         let loginOrigin = try origin("https://accounts.example.com/login")
-        let state = BrowserCredentialPageState<String>(spaceID: SpaceID(), core: CrestCore())
+        let state = BrowserCredentialPageState<String>(spaceID: UUID(), core: CrestCore())
         state.receive(
             try focusMessage(formID: "login-form", x: 40, y: 300),
             frameOrigin: loginOrigin,

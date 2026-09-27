@@ -35,33 +35,33 @@ final class BrowserManualSetupModel {
 
     /// Adds a new Space and answers it, or nil when the core refused it.
     @discardableResult
-    func addSpace() -> SpaceID? {
+    func addSpace() -> UUID? {
         guard send(AddSetupSpace()) else { return nil }
         return spaces.last?.spaceID
     }
 
-    func removeSpace(_ spaceID: SpaceID) {
+    func removeSpace(_ spaceID: UUID) {
         send(RemoveSetupSpace(spaceID: spaceID))
     }
 
-    func moveSpace(_ spaceID: SpaceID, to targetID: SpaceID) {
+    func moveSpace(_ spaceID: UUID, to targetID: UUID) {
         send(MoveSetupSpace(spaceID: spaceID, targetSpaceID: targetID))
     }
 
     /// The setup's Space `spaceID`, or nil when the setup no longer holds it.
-    func space(_ spaceID: SpaceID?) -> SetupDraftSpace? {
+    func space(_ spaceID: UUID?) -> SetupDraftSpace? {
         spaces.first { $0.spaceID == spaceID }
     }
 
     /// `selectedSpaceID` when the setup holds it, otherwise its first Space.
-    func repairSelection(_ selectedSpaceID: Binding<SpaceID?>) {
+    func repairSelection(_ selectedSpaceID: Binding<UUID?>) {
         guard space(selectedSpaceID.wrappedValue) == nil else { return }
         selectedSpaceID.wrappedValue = spaces.first?.spaceID
     }
 
     // MARK: - Actions - Bindings
 
-    func nameBinding(for spaceID: SpaceID) -> Binding<String> {
+    func nameBinding(for spaceID: UUID) -> Binding<String> {
         Binding(
             get: { self.space(spaceID)?.customization.name ?? "" },
             set: { name in
@@ -72,7 +72,7 @@ final class BrowserManualSetupModel {
         )
     }
 
-    func symbolBinding(for spaceID: SpaceID) -> Binding<String> {
+    func symbolBinding(for spaceID: UUID) -> Binding<String> {
         Binding(
             get: { self.space(spaceID)?.customization.symbol ?? "" },
             set: { symbol in
@@ -83,7 +83,7 @@ final class BrowserManualSetupModel {
         )
     }
 
-    func brandingBinding(for spaceID: SpaceID) -> Binding<SpaceBranding> {
+    func brandingBinding(for spaceID: UUID) -> Binding<SpaceBranding> {
         Binding(
             get: {
                 self.space(spaceID).map(\.customization.branding)
@@ -97,7 +97,7 @@ final class BrowserManualSetupModel {
         )
     }
 
-    private func customize(_ spaceID: SpaceID, _ edit: (SpaceCustomization) -> SpaceCustomization) {
+    private func customize(_ spaceID: UUID, _ edit: (SpaceCustomization) -> SpaceCustomization) {
         guard let space = space(spaceID) else { return }
         send(CustomizeSetupSpace(spaceID: spaceID, customization: edit(space.customization)))
     }

@@ -12,8 +12,8 @@ import SwiftUI
 struct BrowserFolderNestDropHighlight: View {
     /// What the outline marks.
     enum Target: Equatable {
-        case currentTab(TabID)
-        case folder(FolderID)
+        case currentTab(UUID)
+        case folder(UUID)
     }
 
     let state: BrowserSidebarReorderState

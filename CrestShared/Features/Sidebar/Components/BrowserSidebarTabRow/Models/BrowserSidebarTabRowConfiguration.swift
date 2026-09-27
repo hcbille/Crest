@@ -23,10 +23,10 @@ struct BrowserSidebarTabRowConfiguration {
     /// gives up is the sidebar's edge inset, which the container already
     /// provides.
     let isSplitGroupMember: Bool
-    let followingTabID: TabID?
+    let followingTabID: UUID?
     var spacePresentation: SidebarSpacePresentation? = nil
 
-    var spaceID: SpaceID { assignment.spaceID }
+    var spaceID: UUID { assignment.spaceID }
     var profileID: UUID { assignment.profileID }
     var browser: BrowserStore { context.browser }
     var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
@@ -43,7 +43,7 @@ struct BrowserSidebarTabRowConfiguration {
         context.promotionNamespace(for: tab.placement)
     }
 
-    var unload: ((TabID) -> Void)? {
+    var unload: ((UUID) -> Void)? {
         let context = context
         return { context.unload($0) }
     }
@@ -60,7 +60,7 @@ struct BrowserSidebarTabRowConfiguration {
         return { restore(tabID) }
     }
 
-    var select: (TabID) -> Void { context.select }
+    var select: (UUID) -> Void { context.select }
 
     var metrics: BrowserSidebarTabRowMetrics {
         BrowserSidebarInteractionPolicy.tabRowMetrics(capabilities)
@@ -140,7 +140,7 @@ struct BrowserSidebarTabRowConfiguration {
 
     init(
         tab: TabStateModel, context: BrowserSidebarListContext, isSelected: Bool, isLoaded: Bool,
-        isSplitGroupMember: Bool = false, followingTabID: TabID? = nil,
+        isSplitGroupMember: Bool = false, followingTabID: UUID? = nil,
         spacePresentation: SidebarSpacePresentation? = nil
     ) {
         self.tab = tab

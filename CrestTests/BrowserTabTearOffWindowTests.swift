@@ -75,7 +75,7 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
             id: measuredRow.id, space: measuredRow.space, section: measuredRow.section,
             frame: measuredRow.frame.offsetBy(dx: 33, dy: 22))
         let unrelatedRow = BrowserSidebarReorderRow(
-            id: .tab(TabID()), space: measuredRow.space, section: measuredRow.section, frame: lateRow.frame)
+            id: .tab(UUID()), space: measuredRow.space, section: measuredRow.section, frame: lateRow.frame)
         let destinationFrame = fixture.destinationWindow.frame
         let sourceFrame = sourceWindow.frame
         fixture.destinationWindow.orderOut(nil)
@@ -117,7 +117,7 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
         let source: BrowserMacWindowModel
         let root: BrowserRootModel
         let input: BrowserNativeMouseInput
-        let tabID: TabID
+        let tabID: UUID
         let destinationWindow: NSWindow
         private(set) var outside = CGPoint(x: 1_320, y: -120)
         var request: BrowserMacWindowRequest?

@@ -45,7 +45,7 @@ struct BrowserSettingsDestinationPage: View {
                 spaceID: tabAssignment.spaceID, profileID: tabAssignment.profileID)
     }
 
-    private var requestedSpaceID: SpaceID? {
+    private var requestedSpaceID: UUID? {
         acceptsExternalRoute ? spaceSettingsPresentation.requestedSpaceID(in: browser) : nil
     }
 

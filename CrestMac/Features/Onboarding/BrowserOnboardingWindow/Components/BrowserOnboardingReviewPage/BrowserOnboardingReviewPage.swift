@@ -6,7 +6,7 @@ struct BrowserOnboardingReviewPage: View {
 
     let flow: BrowserOnboardingFlow
     let sources: [BrowserInstalledImportSource]
-    @Binding var customizationSpaceID: SpaceID?
+    @Binding var customizationSpaceID: UUID?
     let back: BrowserOnboardingBackAction
 
     var body: some View {
@@ -80,7 +80,7 @@ struct BrowserOnboardingReviewPage: View {
     }
 
     /// The Space the person is looking at, which setup holds.
-    private var shownSpaceID: Binding<SpaceID?> {
+    private var shownSpaceID: Binding<UUID?> {
         Binding(
             get: { flow.shownReviewSpaceID },
             set: { flow.shownReviewSpaceID = $0 }
@@ -162,7 +162,7 @@ private struct BrowserOnboardingReviewSpaceStepper: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let spaces: [BrowserImportSpaceReview]
-    let selectedSpaceID: SpaceID?
+    let selectedSpaceID: UUID?
 
     var body: some View {
         ZStack {

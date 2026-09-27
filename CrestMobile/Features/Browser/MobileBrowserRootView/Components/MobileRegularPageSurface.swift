@@ -32,7 +32,7 @@ struct MobileRegularPageSurface: View {
     let hideCompactToolbar: () -> Void
     let showCompactToolbar: () -> Void
     let handleToolbarSwipe: (BrowserSpaceSwipeDirection) -> Void
-    let selectSplitCard: (TabID) -> Void
+    let selectSplitCard: (UUID) -> Void
     let compactTransitionEnded: (CGSize) -> Void
 
     private var pageSurfacePresentation: BrowserPageSurfacePresentation {

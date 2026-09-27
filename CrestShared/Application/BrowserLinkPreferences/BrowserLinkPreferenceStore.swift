@@ -64,7 +64,7 @@ final class BrowserLinkPreferenceStore {
     /// Where a link from another app opens when no route takes it; `spaceID`
     /// names the Space a destination that asks for one opens, and nil keeps
     /// the one chosen before.
-    func chooseExternalDestination(_ destination: ExternalLinkDestination, spaceID: SpaceID? = nil) {
+    func chooseExternalDestination(_ destination: ExternalLinkDestination, spaceID: UUID? = nil) {
         send(ChooseExternalLinkDestination(destination: destination, spaceID: spaceID))
     }
 
@@ -76,7 +76,7 @@ final class BrowserLinkPreferenceStore {
         send(ChooseQuickWindowArchivePolicy(policy: policy))
     }
 
-    func addRoute(destinationSpaceID: SpaceID) {
+    func addRoute(destinationSpaceID: UUID) {
         send(AddLinkRoute(routeID: UUID(), destinationSpaceID: destinationSpaceID))
     }
 

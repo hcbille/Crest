@@ -19,7 +19,7 @@ struct MobileBrowserDetailView: View {
     let hideCompactToolbar: () -> Void
     let showCompactToolbar: () -> Void
     let handleToolbarSwipe: (BrowserSpaceSwipeDirection) -> Void
-    let selectSplitCard: (TabID) -> Void
+    let selectSplitCard: (UUID) -> Void
     let compactTransitionEnded: (CGSize) -> Void
     var transientBrowsing: BrowserTransientBrowsingCoordinator?
     var didPromoteTransientPage: () -> Void = {}
@@ -388,7 +388,7 @@ struct MobileBrowserDetailView: View {
 
     /// Builds the page a carousel cell is about to show. Called as the cell
     /// materializes, so a group only ever holds the cards near the viewport.
-    private func prepareSplitCardPage(_ tabID: TabID) {
+    private func prepareSplitCardPage(_ tabID: UUID) {
         pages.prepareResidentPage(for: tabID)
     }
 

@@ -8,7 +8,7 @@ struct BrowserFolderSectionSurface: ViewModifier {
     var leadingInset: CGFloat = CrestSpacing.small
     var hasVisibleContents = false
     var isSelected = false
-    let folderID: FolderID
+    let folderID: UUID
     let reorder: BrowserSidebarReorderState
     private var isTargeted: Bool { reorder.isTargetedFolder(folderID) }
 

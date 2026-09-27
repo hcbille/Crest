@@ -16,7 +16,7 @@ final class BrowserCredentialSession {
     @ObservationIgnored private let httpAuthentication: BrowserHTTPAuthenticationSession
 
     init(
-        spaceID: SpaceID,
+        spaceID: UUID,
         core: CrestCore,
         supportsAccess: Bool,
         isEnabled: Bool,

@@ -16,7 +16,7 @@ struct MobileBrowserWindowScene: View {
     @State private var hasPresentedAutomaticOnboarding = false
 
     init(
-        id: BrowserWindowID,
+        id: UUID,
         rootBrowser: BrowserStore,
         permissionCenter: BrowserSitePermissionCenter,
         pageStoreRegistry: MobileBrowserPageStoreRegistry,

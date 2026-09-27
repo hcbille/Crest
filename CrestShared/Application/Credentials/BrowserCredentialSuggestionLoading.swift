@@ -4,6 +4,6 @@ import Foundation
 protocol BrowserCredentialSuggestionLoading: AnyObject {
     func credentialSuggestions(
         for origin: CredentialOrigin,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws -> [CredentialDescriptor]
 }

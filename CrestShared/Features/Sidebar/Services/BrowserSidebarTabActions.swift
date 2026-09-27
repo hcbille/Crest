@@ -25,7 +25,7 @@ struct BrowserSidebarTabActions {
     /// page, has moved, or the page cannot produce one.
     private let pullFavicon:
         @MainActor (
-            TabID,
+            UUID,
             BrowserSpaceRuntimeAssignment
         ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)?
 
@@ -37,7 +37,7 @@ struct BrowserSidebarTabActions {
         syncPagesAfterMutation: @escaping @MainActor () -> Void,
         pullFavicon:
             @escaping @MainActor (
-                TabID,
+                UUID,
                 BrowserSpaceRuntimeAssignment
             ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)?
     ) {
@@ -56,7 +56,7 @@ struct BrowserSidebarTabActions {
     /// request is in flight, and an icon written after that would land on a tab
     /// this sidebar no longer speaks for.
     @discardableResult
-    func pullNewIcon(for tabID: TabID) async -> Bool {
+    func pullNewIcon(for tabID: UUID) async -> Bool {
         guard ownsUnlockedTab(tabID),
             let pulled = await pullFavicon(tabID, assignment),
             ownsUnlockedTab(tabID)
@@ -99,7 +99,7 @@ struct BrowserSidebarTabActions {
         return true
     }
 
-    private func ownsUnlockedTab(_ tabID: TabID) -> Bool {
+    private func ownsUnlockedTab(_ tabID: UUID) -> Bool {
         guard
             let space = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
                 matching: assignment,

@@ -16,7 +16,7 @@ struct MobileSplitCardPage: View {
     let space: SpaceModel
     let pages: MobileBrowserPageStore
     let viewport: MobileBrowserPageViewport
-    let prepareMember: (TabID) -> Void
+    let prepareMember: (UUID) -> Void
     let handleInteraction: () -> Void
 
     var body: some View {

@@ -12,8 +12,8 @@ struct BrowserOnboardingWindow: View {
     private var hostOpenBrowser: (() -> Void)?
 
     @State private var flow: BrowserOnboardingFlow
-    @State private var selectedManualSpaceID: SpaceID?
-    @State private var customizationSpaceID: SpaceID?
+    @State private var selectedManualSpaceID: UUID?
+    @State private var customizationSpaceID: UUID?
 
     init(
         request: BrowserOnboardingRequest,

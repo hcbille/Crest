@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -6,7 +7,7 @@ import XCTest
 final class BrowserTransientBrowsingTests: XCTestCase {
     func testLinkPullCancelsWhenTheSourceRuntimeAssignmentChanges() throws {
         let tab = BrowserPageTab.transient(showing: try XCTUnwrap(URL(string: "https://example.com/source"))).state
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         var source: BrowserPageNavigationContext? = BrowserPageNavigationContext(
             tab: tab, spaceID: spaceID, profileID: UUID())
         let coordinator = BrowserTransientBrowsingCoordinator()
@@ -31,7 +32,7 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     func testLinkPullReleaseCommitsOnlyInsideItsSourceWindow() throws {
         let source = BrowserPageNavigationContext(
             tab: BrowserPageTab.transient(showing: try XCTUnwrap(URL(string: "https://example.com/source"))).state,
-            spaceID: SpaceID(), profileID: UUID())
+            spaceID: UUID(), profileID: UUID())
         let coordinator = BrowserTransientBrowsingCoordinator()
         let handler = BrowserLinkPullHandler(context: { source }, handle: coordinator.handleLinkDrag)
         let url = try XCTUnwrap(URL(string: "https://example.com/destination"))
@@ -75,8 +76,8 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     func testReturningPullStaysStagedAndLateUpdatesCannotReplaceAnotherPeek() throws {
         let request = BrowserPeekRequest(
             url: try XCTUnwrap(URL(string: "https://example.com/pull")),
-            sourceTabID: TabID(), sourceTitle: "Source",
-            spaceAssignment: BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID()),
+            sourceTabID: UUID(), sourceTitle: "Source",
+            spaceAssignment: BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID()),
             trigger: .linkDrag)
         let coordinator = BrowserTransientBrowsingCoordinator()
         var state = BrowserPeekMotionState(
@@ -111,7 +112,7 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     func testEmptyQuickWindowRequestStartsWithoutNavigating() {
         let request = BrowserQuickWindowRequest.empty(
             spaceAssignment: BrowserSpaceRuntimeAssignment(
-                spaceID: SpaceID(),
+                spaceID: UUID(),
                 profileID: UUID()
             )
         )
@@ -123,7 +124,7 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         let request = BrowserQuickWindowRequest(
             url: try XCTUnwrap(URL(string: "https://example.com/reference")),
             spaceAssignment: BrowserSpaceRuntimeAssignment(
-                spaceID: SpaceID(),
+                spaceID: UUID(),
                 profileID: UUID()
             ),
             targetWindowID: BrowserMacWindowRequest.initial.id
@@ -142,8 +143,8 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     /// window and Space keep the spelling an earlier build restores, and a
     /// bare identity reads too.
     func testQuickWindowRequestKeepsTheStoredIdentitySpellingAndReadsABareOne() throws {
-        let spaceID = SpaceID()
-        let windowID = BrowserWindowID()
+        let spaceID = UUID()
+        let windowID = UUID()
         let request = BrowserQuickWindowRequest(
             url: try XCTUnwrap(URL(string: "https://example.com/reference")),
             spaceAssignment: BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: UUID()),
@@ -162,7 +163,7 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     }
 
     func testQuickWindowPresentationIdentityFocusesAnExactURLInTheSameSpace() throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let profileID = UUID()
         let assignment = BrowserSpaceRuntimeAssignment(
             spaceID: spaceID,
@@ -205,9 +206,9 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     }
 
     func testQuickWindowCarriesPresentationOriginWithoutChangingWindowIdentity() throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let url = try XCTUnwrap(URL(string: "https://example.com/reference"))
-        let targetWindowID = BrowserWindowID()
+        let targetWindowID = UUID()
         let source = BrowserPeekSourcePresentation(
             normalizedMinX: 0.12,
             normalizedMinY: 0.28,
@@ -246,14 +247,14 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     func testCoordinatorMatchesTheFullQuickWindowRequestBeyondPublicEquality() throws {
         let url = try XCTUnwrap(URL(string: "https://example.com/reference"))
         let assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
         let first = BrowserQuickWindowRequest(
             id: UUID(),
             url: url,
             spaceAssignment: assignment,
-            targetWindowID: BrowserWindowID(),
+            targetWindowID: UUID(),
             sourcePresentation: BrowserPeekSourcePresentation(
                 normalizedMinX: 0.1,
                 normalizedMinY: 0.2,
@@ -266,7 +267,7 @@ final class BrowserTransientBrowsingTests: XCTestCase {
             id: UUID(),
             url: url,
             spaceAssignment: assignment,
-            targetWindowID: BrowserWindowID(),
+            targetWindowID: UUID(),
             sourcePresentation: nil
         )
         let coordinator = BrowserTransientBrowsingCoordinator()
@@ -285,19 +286,19 @@ final class BrowserTransientBrowsingTests: XCTestCase {
 
     func testDelayedPeekCommitCannotReplaceANewerTransientPresentation() throws {
         let assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
         let first = BrowserPeekRequest(
             url: try XCTUnwrap(URL(string: "https://example.com/first")),
-            sourceTabID: TabID(),
+            sourceTabID: UUID(),
             sourceTitle: "First",
             spaceAssignment: assignment,
             trigger: .longPress
         )
         let second = BrowserPeekRequest(
             url: try XCTUnwrap(URL(string: "https://example.com/second")),
-            sourceTabID: TabID(),
+            sourceTabID: UUID(),
             sourceTitle: "Second",
             spaceAssignment: assignment,
             trigger: .longPress
@@ -333,19 +334,19 @@ final class BrowserTransientBrowsingTests: XCTestCase {
             normalizedTouchY: 0.31,
             label: "External link"
         )
-        let targetWindowID = BrowserWindowID()
+        let targetWindowID = UUID()
         let request = BrowserQuickWindowRequest(
             id: UUID(),
             url: try XCTUnwrap(URL(string: "https://example.com/original")),
             spaceAssignment: BrowserSpaceRuntimeAssignment(
-                spaceID: SpaceID(),
+                spaceID: UUID(),
                 profileID: UUID()
             ),
             targetWindowID: targetWindowID,
             sourcePresentation: source
         )
         let replacementAssignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
 

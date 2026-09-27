@@ -5,7 +5,7 @@ import Foundation
 extension SplitGroupState {
     /// A split no one made a choice for yet, such as one whose choices have
     /// not arrived.
-    static func unchosen(_ id: SplitGroupID) -> SplitGroupState {
+    static func unchosen(_ id: UUID) -> SplitGroupState {
         SplitGroupState(
             id: id, customTitle: nil, titleModifiedAt: nil, customIconSymbol: nil, iconModifiedAt: nil, tint: nil,
             tintModifiedAt: nil, displayTitle: nil, displayEmojiIcon: nil)

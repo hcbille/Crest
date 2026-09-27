@@ -86,7 +86,7 @@ final class BrowserMobileDragSourceTests: XCTestCase, UIContextMenuInteractionDe
         anchor.frame = CGRect(x: 10, y: 20, width: 280, height: 44)
         anchor.begin = {
             state.stage(
-                item: .tab(.init(tabID: TabID(), spaceID: SpaceID(), profileID: UUID())),
+                item: .tab(.init(tabID: UUID(), spaceID: UUID(), profileID: UUID())),
                 section: .tabs(placement: .current, folderID: nil))
             let token = state.sessionToken!
             return BrowserMobileDragSession(provider: NSItemProvider()) { state.cancel(session: token) }
@@ -208,10 +208,10 @@ final class BrowserMobileDragSourceTests: XCTestCase, UIContextMenuInteractionDe
 
     func testMobileDropImmediatelyRevealsAndEnablesTheDroppedTab() throws {
         let state = BrowserSidebarReorderState()
-        let space = BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID())
+        let space = BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID())
         let section = BrowserSidebarReorderSection.tabs(placement: .current, folderID: nil)
         let item = BrowserSidebarReorderItem.tab(
-            .init(tabID: TabID(), spaceID: space.spaceID, profileID: space.profileID))
+            .init(tabID: UUID(), spaceID: space.spaceID, profileID: space.profileID))
         let frame = CGRect(x: 10, y: 100, width: 280, height: 44)
         state.register(row: .init(id: item.id, space: space, section: section, frame: frame), owner: UUID())
         state.register(zone: .init(target: .section(section), frame: frame), for: UUID())
@@ -239,7 +239,7 @@ final class BrowserMobileDragSourceTests: XCTestCase, UIContextMenuInteractionDe
         anchor.frame = CGRect(x: 10, y: 20, width: 280, height: 44)
         anchor.begin = {
             state.stage(
-                item: .tab(.init(tabID: TabID(), spaceID: SpaceID(), profileID: UUID())),
+                item: .tab(.init(tabID: UUID(), spaceID: UUID(), profileID: UUID())),
                 section: .tabs(placement: .current, folderID: nil))
             return BrowserMobileDragSession(provider: NSItemProvider(), completion: {})
         }

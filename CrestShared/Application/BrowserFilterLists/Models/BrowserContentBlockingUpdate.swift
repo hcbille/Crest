@@ -1,6 +1,8 @@
+import Foundation
+
 struct BrowserContentBlockingUpdate {
     let state: BrowserContentBlockingSessionState
-    private let changedSpaceIDs: Set<SpaceID>
+    private let changedSpaceIDs: Set<UUID>
 
     init(
         state: BrowserContentBlockingSessionState,
@@ -17,11 +19,11 @@ struct BrowserContentBlockingUpdate {
         )
     }
 
-    func policy(for spaceID: SpaceID) -> ContentBlockingPolicy {
+    func policy(for spaceID: UUID) -> ContentBlockingPolicy {
         state.policiesBySpaceID[spaceID] ?? .off
     }
 
-    func activation(for spaceID: SpaceID, isPresented: Bool) -> BrowserContentRuleListActivation {
+    func activation(for spaceID: UUID, isPresented: Bool) -> BrowserContentRuleListActivation {
         isPresented && changedSpaceIDs.contains(spaceID) ? .immediately : .onNextNavigation
     }
 }

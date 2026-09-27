@@ -8,10 +8,10 @@ struct BrowserPageReconciliation {
     // MARK: - Variables
 
     let validAssignments: Set<BrowserTabRuntimeAssignment>
-    let invalidTabIDs: Set<TabID>
-    let tabIDsToArchive: Set<TabID>
+    let invalidTabIDs: Set<UUID>
+    let tabIDsToArchive: Set<UUID>
     let navigationContexts: [(page: BrowserPlatformPage, tab: BrowserPageTab)]
-    let retainedTabIDsByProfileID: [UUID: Set<TabID>]
+    let retainedTabIDsByProfileID: [UUID: Set<UUID>]
 
     // MARK: - Initializers
 
@@ -20,11 +20,11 @@ struct BrowserPageReconciliation {
     init(
         workspace: WorkspaceModel?,
         images: FaviconAssets,
-        residentPages: some Sequence<(TabID, BrowserPlatformPage)>
+        residentPages: some Sequence<(UUID, BrowserPlatformPage)>
     ) {
-        var tabsByID: [TabID: (tab: TabStateModel, assignment: BrowserTabRuntimeAssignment)] = [:]
-        var archivedAssignments: [TabID: BrowserSpaceRuntimeAssignment] = [:]
-        var keptTabIDsByProfileID: [UUID: Set<TabID>] = [:]
+        var tabsByID: [UUID: (tab: TabStateModel, assignment: BrowserTabRuntimeAssignment)] = [:]
+        var archivedAssignments: [UUID: BrowserSpaceRuntimeAssignment] = [:]
+        var keptTabIDsByProfileID: [UUID: Set<UUID>] = [:]
         for space in workspace?.spaces.models ?? [] {
             let spaceAssignment = BrowserSpaceRuntimeAssignment(space: space)
             for tab in space.tabs.models {
@@ -41,8 +41,8 @@ struct BrowserPageReconciliation {
         validAssignments = Set(tabsByID.values.map(\.assignment))
         retainedTabIDsByProfileID = keptTabIDsByProfileID
 
-        var invalid: Set<TabID> = []
-        var toArchive: Set<TabID> = []
+        var invalid: Set<UUID> = []
+        var toArchive: Set<UUID> = []
         var contexts: [(page: BrowserPlatformPage, tab: BrowserPageTab)] = []
         for (tabID, page) in residentPages {
             if let entry = tabsByID[tabID], entry.tab.nativeContent == nil,

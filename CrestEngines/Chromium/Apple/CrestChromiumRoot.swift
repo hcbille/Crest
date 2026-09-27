@@ -38,7 +38,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// the engine gives it.
     private let chromium: ChromiumEngine
     private let application: BrowserMacApplication
-    private var windows: [BrowserWindowID: NSWindow] = [:]
+    private var windows: [UUID: NSWindow] = [:]
     private var quickWindows: [UUID: QuickWindow] = [:]
     private final class QuickWindow {
         let window: CrestChromiumWindow
@@ -75,7 +75,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// own autosave records; this list only records how many windows the
     /// SwiftUI `WindowGroup` would have restored, which AppKit cannot tell a
     /// framework-hosted window itself.
-    private var restorableWindowIDs: [BrowserWindowID] = []
+    private var restorableWindowIDs: [UUID] = []
     private let restorationDefaults: UserDefaults?
     private static let restorableWindowsKey = "crest.chromium.windows.v1"
 
@@ -382,7 +382,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         return UserDefaults(suiteName: BrowserLaunchEnvironment.isolatedDefaultsSuiteName(isolationID: isolationID))
     }
 
-    private static func storedRestorableWindowIDs(in defaults: UserDefaults?) -> [BrowserWindowID] {
+    private static func storedRestorableWindowIDs(in defaults: UserDefaults?) -> [UUID] {
         guard let stored = defaults?.array(forKey: restorableWindowsKey) as? [String] else { return [] }
         return stored.compactMap(UUID.init(uuidString:))
     }
@@ -594,7 +594,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         return application.windowCoordinator.existingModel(for: id)
     }
 
-    private var activeContext: (browser: BrowserStore, pages: BrowserPagePool, chrome: BrowserChromeState, id: BrowserWindowID)? {
+    private var activeContext: (browser: BrowserStore, pages: BrowserPagePool, chrome: BrowserChromeState, id: UUID)? {
         if let window = privateWindow, NSApp.keyWindow === window {
             return (application.privateBrowser, application.privatePages, application.privateChrome, application.privatePages.windowID)
         }
@@ -705,13 +705,13 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         }
         guard let space = host(in: instance.application.browser) else { return nil }
         if !ownWindow, let window = instance.engineWindowTarget { return (window, space.id) }
-        return (BrowserWindowID(), space.id)
+        return (UUID(), space.id)
     }
 
     /// The open window an engine-created Browser's tabs join: the normal
     /// window in front, or else the one opened last. A tear-off window owns a
     /// disposable workspace, so it never receives them.
-    private var engineWindowTarget: BrowserWindowID? {
+    private var engineWindowTarget: UUID? {
         if let active = activeModel, !active.isTemporary { return active.id }
         return restorableWindowIDs.last { windows[$0] != nil }
     }

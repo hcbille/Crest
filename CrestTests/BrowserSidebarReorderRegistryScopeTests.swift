@@ -97,15 +97,15 @@ final class BrowserSidebarReorderRegistryScopeTests: XCTestCase {
     /// instead of losing its registration until something moves it again.
     func testARowKeepsItsFrameWhenTheViewItLeftMeasuresLast() {
         let state = BrowserSidebarReorderState()
-        let space = BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID())
-        let id = BrowserSidebarReorderItemID.tab(TabID())
+        let space = BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID())
+        let id = BrowserSidebarReorderItemID.tab(UUID())
         let (leaving, arriving) = (UUID(), UUID())
-        func row(y: CGFloat, folderID: FolderID? = nil) -> BrowserSidebarReorderRow {
+        func row(y: CGFloat, folderID: UUID? = nil) -> BrowserSidebarReorderRow {
             BrowserSidebarReorderRow(
                 id: id, space: space, section: .tabs(placement: .current, folderID: folderID),
                 frame: CGRect(x: 0, y: y, width: 240, height: 40))
         }
-        let folder = FolderID()
+        let folder = UUID()
         state.register(row: row(y: 200, folderID: folder), owner: leaving)
         state.register(row: row(y: 40), owner: arriving)
         state.register(row: row(y: 190, folderID: folder), owner: leaving)
@@ -505,7 +505,7 @@ private struct SplitCardRegistryFixture {
 }
 
 private func makeSpace(
-    id: SpaceID,
+    id: UUID,
     profileID: UUID,
     name: String,
     tabs: [TabState.Seed]
@@ -522,8 +522,8 @@ private func makeSpace(
 }
 
 /// Each Space shows its first tab, as the sidebar fixtures always have.
-private func firstTabs(of spaces: [SpaceState.Seed]) -> [SpaceID: TabID] {
-    var tabs: [SpaceID: TabID] = [:]
+private func firstTabs(of spaces: [SpaceState.Seed]) -> [UUID: UUID] {
+    var tabs: [UUID: UUID] = [:]
     for space in spaces {
         tabs[space.id] = space.tabs.first?.id
     }
@@ -531,7 +531,7 @@ private func firstTabs(of spaces: [SpaceState.Seed]) -> [SpaceID: TabID] {
 }
 
 private func makeTab(
-    id: TabID,
+    id: UUID,
     title: String,
     placement: TabPlacement
 ) -> TabState.Seed {

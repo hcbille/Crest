@@ -15,8 +15,8 @@ final class BrowserCredentialSensitiveAccess {
     }
 
     func revealCredential(
-        id: CredentialID,
-        in spaceID: SpaceID,
+        id: UUID,
+        in spaceID: UUID,
         reason: String = String(localized: "Authenticate to view this Crest password.")
     ) async throws -> BrowserCredential {
         guard try await authenticator.authenticate(reason: reason) else {
@@ -32,7 +32,7 @@ final class BrowserCredentialSensitiveAccess {
     }
 
     func revealCredential(
-        id: CredentialID,
+        id: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
         reason: String = String(localized: "Authenticate to view this Crest password.")
     ) async throws -> BrowserCredential {
@@ -60,7 +60,7 @@ final class BrowserCredentialSensitiveAccess {
 
     /// Authenticates, reads every password the Space keeps, and has the core
     /// write the Space's password file from them.
-    func exportCredentials(in spaceID: SpaceID) async throws -> CredentialExportFile {
+    func exportCredentials(in spaceID: UUID) async throws -> CredentialExportFile {
         guard let space = browser.spaceModel(spaceID) else {
             throw CredentialVaultError.missingSpace
         }

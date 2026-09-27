@@ -34,17 +34,17 @@ final class BrowserSplitCardFrameRegistry {
         .named(coordinateSpaceName)
     }
 
-    private var framesByTabID: [TabID: CGRect] = [:]
+    private var framesByTabID: [UUID: CGRect] = [:]
 
-    func register(_ frame: CGRect, for tabID: TabID) {
+    func register(_ frame: CGRect, for tabID: UUID) {
         framesByTabID[tabID] = frame
     }
 
-    func removeFrame(for tabID: TabID) {
+    func removeFrame(for tabID: UUID) {
         framesByTabID[tabID] = nil
     }
 
-    func frame(for tabID: TabID) -> CGRect? {
+    func frame(for tabID: UUID) -> CGRect? {
         framesByTabID[tabID]
     }
 
@@ -59,13 +59,13 @@ final class BrowserSplitCardFrameRegistry {
     /// members, so every geometric question the carry asks is asked of the
     /// members — see `BrowserSplitCardLiftPolicy.card(at:members:cardFrames:)`
     /// and `orderedMemberFrames(members:cardFrames:)`.
-    var frames: [TabID: CGRect] {
+    var frames: [UUID: CGRect] {
         framesByTabID
     }
 
     /// The card `point` falls inside. Cards never overlap, so the first hit is
     /// the only hit.
-    func tabID(containing point: CGPoint) -> TabID? {
+    func tabID(containing point: CGPoint) -> UUID? {
         framesByTabID.first { $0.value.contains(point) }?.key
     }
 }

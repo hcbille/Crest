@@ -237,7 +237,7 @@ enum BrowserMediaSessionAction: String, CaseIterable, Hashable, Sendable {
 }
 
 struct BrowserMediaSessionID: Hashable, Identifiable, Sendable {
-    let tabID: TabID
+    let tabID: UUID
     let documentIdentifier: String
 
     var id: String {

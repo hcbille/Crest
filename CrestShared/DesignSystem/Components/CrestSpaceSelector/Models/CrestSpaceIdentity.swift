@@ -12,7 +12,7 @@ struct CrestSpaceIdentity: Identifiable, Equatable {
     var displayName: String?
     var tintOverride: Color?
 
-    var id: SpaceID { space.id }
+    var id: UUID { space.id }
     var name: String { displayName ?? space.name }
     var tint: Color { tintOverride ?? space.accent.tint.color }
 

@@ -1,13 +1,13 @@
 import Foundation
 
 struct BrowserCredentialSaveKey: Hashable {
-    let spaceID: SpaceID
+    let spaceID: UUID
     let origin: CredentialOrigin
     let normalizedUsername: String
 
     init(
         candidate: BrowserCredentialSaveCandidate,
-        spaceID: SpaceID
+        spaceID: UUID
     ) {
         self.spaceID = spaceID
         origin = candidate.origin

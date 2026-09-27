@@ -27,7 +27,7 @@ import SwiftUI
 /// entrance just made, the cards would read as empty, and the drop target would
 /// vanish under the pointer.
 struct BrowserSplitDropCardFrameModifier: ViewModifier {
-    let tabID: TabID?
+    let tabID: UUID?
     let assignment: BrowserSpaceRuntimeAssignment?
     let state: BrowserSidebarReorderState
 
@@ -35,7 +35,7 @@ struct BrowserSplitDropCardFrameModifier: ViewModifier {
     @State private var frame = CGRect.zero
     /// What this view last registered, so a changed tab — a new selection under
     /// an unchanged surface — takes its predecessor's entry with it.
-    @State private var registeredTabID: TabID?
+    @State private var registeredTabID: UUID?
 
     func body(content: Content) -> some View {
         content

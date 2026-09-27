@@ -132,7 +132,7 @@ struct BrowserDownloadFeedbackSource: Equatable, @unchecked Sendable {
 struct BrowserDownloadFeedbackEvent: Identifiable, Equatable, @unchecked Sendable {
     let id: UUID
     let profileID: UUID
-    let spaceID: SpaceID
+    let spaceID: UUID
     let filename: String
     let source: BrowserDownloadFeedbackSource
 }

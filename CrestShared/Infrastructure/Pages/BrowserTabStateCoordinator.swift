@@ -6,7 +6,7 @@ import Foundation
 final class BrowserTabStateCoordinator {
     private let archive: (any BrowserTabStateArchiving)?
     private var pendingCopies: [BrowserTabRuntimeAssignment: BrowserTabStateEnvelope] = [:]
-    private var lastPrunedTabIDsByProfileID: [UUID: Set<TabID>] = [:]
+    private var lastPrunedTabIDsByProfileID: [UUID: Set<UUID>] = [:]
 
     var archivesResidentPages: Bool { archive != nil }
 
@@ -14,7 +14,7 @@ final class BrowserTabStateCoordinator {
         self.archive = archive
     }
 
-    func retainCopies(for tabIDs: Set<TabID>) {
+    func retainCopies(for tabIDs: Set<UUID>) {
         pendingCopies = pendingCopies.filter { tabIDs.contains($0.key.tabID) }
     }
 
@@ -26,13 +26,13 @@ final class BrowserTabStateCoordinator {
         pendingCopies[assignment] = BrowserTabStateEnvelope(interactionState: state, url: url)
     }
 
-    func archivePage(_ page: BrowserPlatformPage, for tabID: TabID) {
+    func archivePage(_ page: BrowserPlatformPage, for tabID: UUID) {
         archivePage(page, showing: page.live.documentURL, for: tabID)
     }
 
     /// Archives the page's state as showing `url`, for a page whose live state
     /// the core no longer holds.
-    func archivePage(_ page: BrowserPlatformPage, showing url: URL?, for tabID: TabID) {
+    func archivePage(_ page: BrowserPlatformPage, showing url: URL?, for tabID: UUID) {
         // WebKit drives adopted popups; they are never persisted as user tabs.
         guard let archive, !page.wasOpenedAsPopup, let state = page.interactionState else { return }
         archive.archive(
@@ -66,7 +66,7 @@ final class BrowserTabStateCoordinator {
 
     /// Only membership changes warrant another directory sweep. Closed tabs
     /// retain state until they leave both the live and archived tab collections.
-    func prune(keeping tabIDsByProfileID: [UUID: Set<TabID>]) {
+    func prune(keeping tabIDsByProfileID: [UUID: Set<UUID>]) {
         guard let archive, !tabIDsByProfileID.isEmpty,
             tabIDsByProfileID != lastPrunedTabIDsByProfileID
         else { return }
@@ -79,7 +79,7 @@ final class BrowserTabStateCoordinator {
         removeState(profileID: assignment.profileID, tabID: assignment.tabID)
     }
 
-    func removeState(profileID: UUID, tabID: TabID) {
+    func removeState(profileID: UUID, tabID: UUID) {
         archive?.removeState(profileID: profileID, tabID: tabID)
     }
 

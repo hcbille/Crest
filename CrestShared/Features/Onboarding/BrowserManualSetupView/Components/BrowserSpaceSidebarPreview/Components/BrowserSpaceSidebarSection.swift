@@ -5,7 +5,7 @@ struct BrowserSpaceSidebarSection: View {
     let tabs: [TabStateModel]
     let favicons: FaviconAssets
     let profileID: UUID
-    let selectedTabID: TabID?
+    let selectedTabID: UUID?
 
     var body: some View {
         if !tabs.isEmpty {

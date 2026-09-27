@@ -42,7 +42,7 @@ enum MobileStartPageSearchDestination: Equatable, Sendable {
 }
 
 struct MobileTabPromotionTarget: Equatable {
-    let tabID: TabID
+    let tabID: UUID
     let placement: TabPlacement
 }
 
@@ -81,7 +81,7 @@ enum MobileToolbarSwipeMode: CaseIterable, Equatable, Sendable {
 
 struct MobileBrowserRootLockSnapshot: Equatable, Sendable {
     let sessionRevision: BrowserSessionRevision
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let selectedProfileID: UUID?
     let isLocked: Bool
     let presentation: MobileBrowserPresentation
@@ -89,7 +89,7 @@ struct MobileBrowserRootLockSnapshot: Equatable, Sendable {
 
 struct MobileBrowserRootSelectionSnapshot: Equatable, Sendable {
     let sessionRevision: BrowserSessionRevision
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let selectedProfileID: UUID?
     let assignment: BrowserTabRuntimeAssignment?
 }

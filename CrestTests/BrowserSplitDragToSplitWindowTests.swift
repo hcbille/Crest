@@ -200,7 +200,7 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
         )
         var tabs = [presented, joiner]
         if groupsJoiner {
-            let group = SplitGroupID()
+            let group = UUID()
             joiner.splitGroupID = group
             tabs = [presented, joiner]
             for index in 0..<2 {

@@ -7,9 +7,9 @@ extension BrowserStore {
     /// builds them, over no page layer: every tab holds a page, and nothing
     /// unloads or pulls an icon.
     func sidebarListContext(
-        for spaceID: SpaceID, spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
+        for spaceID: UUID, spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
         capabilities: BrowserInteractionCapabilities = BrowserInteractionCapabilities(),
-        select: @escaping (TabID) -> Void = { _ in }
+        select: @escaping (UUID) -> Void = { _ in }
     ) -> BrowserSidebarListContext? {
         guard let space = spaceModel(spaceID), let window = windowModel else { return nil }
         let assignment = BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID)

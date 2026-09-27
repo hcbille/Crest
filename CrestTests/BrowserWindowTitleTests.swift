@@ -50,7 +50,7 @@ final class BrowserWindowTitleTests: XCTestCase {
     }
 
     func testBackgroundMetadataDoesNotOverwriteFocusedSplitMember() {
-        let group = SplitGroupID()
+        let group = UUID()
         let model = makeModel { tabs in
             tabs[0].splitGroupID = group
             tabs[1].splitGroupID = group

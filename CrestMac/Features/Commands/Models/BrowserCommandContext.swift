@@ -5,6 +5,6 @@ struct BrowserCommandContext {
     let browser: BrowserStore
     let pages: BrowserPagePool
     let chrome: BrowserChromeState
-    let windowID: BrowserWindowID?
+    let windowID: UUID?
     let spaceAccess: BrowserSpaceAccessController
 }

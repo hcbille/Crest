@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import CrestMobile
@@ -30,7 +31,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
                 primary: MobileBrowserPageStore(browser: rootBrowser)
             )
             let model = MobileBrowserWindowSceneModel(
-                id: BrowserWindowID(),
+                id: UUID(),
                 rootBrowser: rootBrowser,
                 permissionCenter: BrowserSitePermissionCenter(),
                 pageStoreRegistry: registry,
@@ -57,7 +58,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         let registry = MobileBrowserPageStoreRegistry(
             primary: MobileBrowserPageStore(browser: rootBrowser, usesEphemeralWebsiteDataStores: true))
         let model = MobileBrowserWindowSceneModel(
-            id: BrowserWindowID(), rootBrowser: rootBrowser, permissionCenter: BrowserSitePermissionCenter(),
+            id: UUID(), rootBrowser: rootBrowser, permissionCenter: BrowserSitePermissionCenter(),
             pageStoreRegistry: registry, spaceAccess: BrowserSpaceAccessController(), tabStateArchive: nil,
             windowLayouts: BrowserWindowLayouts(defaults: nil), startupBehavior: .showStartPage,
             monitorsMemoryPressure: false, usesEphemeralWebsiteDataStores: true)
@@ -89,7 +90,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         let registry = MobileBrowserPageStoreRegistry(
             primary: MobileBrowserPageStore(browser: rootBrowser, usesEphemeralWebsiteDataStores: true))
         let model = MobileBrowserWindowSceneModel(
-            id: BrowserWindowID(), rootBrowser: rootBrowser, permissionCenter: BrowserSitePermissionCenter(),
+            id: UUID(), rootBrowser: rootBrowser, permissionCenter: BrowserSitePermissionCenter(),
             pageStoreRegistry: registry, spaceAccess: BrowserSpaceAccessController(), tabStateArchive: nil,
             windowLayouts: BrowserWindowLayouts(defaults: nil), startupBehavior: .lastActiveTab,
             monitorsMemoryPressure: false, usesEphemeralWebsiteDataStores: true)
@@ -121,7 +122,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
             )
         )
         let model = MobileBrowserWindowSceneModel(
-            id: BrowserWindowID(),
+            id: UUID(),
             rootBrowser: rootBrowser,
             permissionCenter: BrowserSitePermissionCenter(),
             pageStoreRegistry: registry,
@@ -161,7 +162,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         let windowLayouts = BrowserWindowLayouts(defaults: nil)
         func makeScene() -> MobileBrowserWindowSceneModel {
             MobileBrowserWindowSceneModel(
-                id: BrowserWindowID(), rootBrowser: root, permissionCenter: permissionCenter,
+                id: UUID(), rootBrowser: root, permissionCenter: permissionCenter,
                 pageStoreRegistry: registry, spaceAccess: spaceAccess, tabStateArchive: nil,
                 windowLayouts: windowLayouts, startupBehavior: .lastActiveTab,
                 monitorsMemoryPressure: false, usesEphemeralWebsiteDataStores: true)

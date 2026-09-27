@@ -1,3 +1,5 @@
+import Foundation
+
 /// Where a lifted sidebar item will land when released.
 struct BrowserSidebarReorderTarget: Equatable, Sendable {
     enum Kind: Equatable, Sendable {
@@ -9,8 +11,8 @@ struct BrowserSidebarReorderTarget: Equatable, Sendable {
             index: Int
         )
         /// Land inside a collapsed folder.
-        case intoFolder(FolderID)
-        case createCurrentFolder(TabID)
+        case intoFolder(UUID)
+        case createCurrentFolder(UUID)
         /// Move to another space.
         case space(BrowserSpaceRuntimeAssignment)
         /// Join the cards the content area is presenting, as the card at

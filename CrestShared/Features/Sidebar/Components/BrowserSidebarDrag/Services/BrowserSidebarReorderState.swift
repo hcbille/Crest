@@ -267,14 +267,14 @@ final class BrowserSidebarReorderState {
 
     func register(
         splitCardFrame frame: CGRect,
-        for tabID: TabID,
+        for tabID: UUID,
         in space: BrowserSpaceRuntimeAssignment,
         owner: UUID
     ) {
         geometry.register(splitCardFrame: frame, for: tabID, in: space, owner: owner)
     }
 
-    func removeSplitCardFrame(for tabID: TabID, owner: UUID) {
+    func removeSplitCardFrame(for tabID: UUID, owner: UUID) {
         geometry.removeSplitCardFrame(for: tabID, owner: owner)
     }
 
@@ -551,7 +551,7 @@ final class BrowserSidebarReorderState {
         )
     }
 
-    func isTargetedFolder(_ folderID: FolderID) -> Bool {
+    func isTargetedFolder(_ folderID: UUID) -> Bool {
         resolvedTarget?.kind == .intoFolder(folderID)
     }
 
@@ -780,7 +780,7 @@ final class BrowserSidebarReorderState {
                 if next != layout { layout = next }
                 return
             }
-            var parents: Set<FolderID> = []
+            var parents: Set<UUID> = []
             var parent = section.parentFolderID
             while let id = parent, parents.insert(id).inserted {
                 parent = geometry.rows[.folder(id)]?.row.section.parentFolderID

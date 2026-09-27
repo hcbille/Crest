@@ -521,7 +521,7 @@ final class MobileBrowserInteropTests: XCTestCase {
     }
 
     private func makeStateSpace(
-        id: SpaceID = SpaceID(),
+        id: UUID = UUID(),
         profileID: UUID = UUID(),
         tabs: [TabState.Seed],
         accessPolicy: SpaceAccessPolicy = .open

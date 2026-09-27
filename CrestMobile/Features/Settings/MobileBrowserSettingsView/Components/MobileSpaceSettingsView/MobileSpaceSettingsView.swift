@@ -8,7 +8,7 @@ struct MobileSpaceSettingsView: View {
     let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
 
-    @State private var selectedSpaceID: SpaceID?
+    @State private var selectedSpaceID: UUID?
     @State private var editorSection = BrowserSpaceEditorSection.appearance
     @State private var managedSearchEngineSpace: SpaceModel?
     @State private var editingAppearanceSpace: SpaceModel?
@@ -115,7 +115,7 @@ struct MobileSpaceSettingsView: View {
             dismissKeyboard: dismissKeyboard)
     }
 
-    private func selectEditedSpace(_ id: SpaceID?) {
+    private func selectEditedSpace(_ id: UUID?) {
         selectedSpaceID = id
         if usesLiveSidebar, let id, id != browser.shownSpace?.id { liveSpaceSelection?.select(id) }
     }
@@ -132,7 +132,7 @@ struct MobileSpaceSettingsView: View {
         }
     }
 
-    private var editedSpaceID: SpaceID? {
+    private var editedSpaceID: UUID? {
         usesLiveSidebar ? browser.selectedSpaceID : selectedSpaceID
     }
 

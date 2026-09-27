@@ -1,7 +1,7 @@
 import Foundation
 
 struct BrowserPageNavigationContext: Equatable, Sendable {
-    let tabID: TabID
+    let tabID: UUID
     let title: String
     let customTitle: String?
     let placement: TabPlacement
@@ -10,7 +10,7 @@ struct BrowserPageNavigationContext: Equatable, Sendable {
     let spaceAssignment: BrowserSpaceRuntimeAssignment
     let keepsPageLoaded: Bool
 
-    var spaceID: SpaceID { spaceAssignment.spaceID }
+    var spaceID: UUID { spaceAssignment.spaceID }
 
     var assignment: BrowserSpaceRuntimeAssignment { spaceAssignment }
 
@@ -19,7 +19,7 @@ struct BrowserPageNavigationContext: Equatable, Sendable {
     /// return to keeps the one it shows.
     init(
         tab: TabState,
-        spaceID: SpaceID,
+        spaceID: UUID,
         profileID: UUID
     ) {
         tabID = tab.id

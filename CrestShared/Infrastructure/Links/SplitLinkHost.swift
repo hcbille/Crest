@@ -5,12 +5,12 @@ import Foundation
 /// when it asks, and a menu cannot wait for an answer.
 @MainActor
 struct BrowserSplitLinkHost {
-    var canOpenLink: (TabID, BrowserSpaceRuntimeAssignment) -> Bool
-    var openLink: (URL, TabID, BrowserSpaceRuntimeAssignment) -> Void
+    var canOpenLink: (UUID, BrowserSpaceRuntimeAssignment) -> Bool
+    var openLink: (URL, UUID, BrowserSpaceRuntimeAssignment) -> Void
 
     init(
-        canOpenLink: @escaping (TabID, BrowserSpaceRuntimeAssignment) -> Bool,
-        openLink: @escaping (URL, TabID, BrowserSpaceRuntimeAssignment) -> Void
+        canOpenLink: @escaping (UUID, BrowserSpaceRuntimeAssignment) -> Bool,
+        openLink: @escaping (URL, UUID, BrowserSpaceRuntimeAssignment) -> Void
     ) {
         self.canOpenLink = canOpenLink
         self.openLink = openLink

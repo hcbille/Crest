@@ -4,10 +4,10 @@ import SwiftUI
 /// and clear overflow controls as the compact desktop lane.
 struct BrowserSpaceSwitcherScrollingSegments: View {
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let reorderState: BrowserSidebarReorderState
     let metrics: BrowserSpacePickerMetrics
-    let selectSpace: (SpaceID) -> Void
+    let selectSpace: (UUID) -> Void
 
     var body: some View {
         GeometryReader { geometry in

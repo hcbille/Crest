@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class BrowserTabMultiSelectionTests: XCTestCase {
     func testCommandShiftAddsRangeFromCommandClickAndKeepsOtherSelections() {
-        let ids = (0..<7).map { _ in TabID() }
+        let ids = (0..<7).map { _ in UUID() }
         let selection = BrowserTabMultiSelection()
         selection.click(ids[0], units: ids.map { [$0] }, command: true)
         selection.click(ids[3], units: ids.map { [$0] }, command: true)
@@ -19,7 +19,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
     }
 
     func testShiftRangeShrinksReversesAndTreatsSplitAsOneUnit() {
-        let ids = (0..<6).map { _ in TabID() }
+        let ids = (0..<6).map { _ in UUID() }
         let units = [[ids[0]], [ids[1], ids[2]], [ids[3]], [ids[4]], [ids[5]]]
         let selection = BrowserTabMultiSelection()
         selection.click(ids[3], units: units)
@@ -32,7 +32,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
     }
 
     func testHiddenRowsArePrunedAndLostAnchorStartsANewRange() {
-        let ids = (0..<4).map { _ in TabID() }
+        let ids = (0..<4).map { _ in UUID() }
         let selection = BrowserTabMultiSelection()
         selection.click(ids[0], units: ids.map { [$0] }, command: true)
         selection.click(ids[3], units: ids.map { [$0] }, shift: true)
@@ -227,8 +227,8 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
 
     func testSelectedAncestorCarriesDescendantsOnlyOnceAndEmptyFoldersRemainMovable() throws {
         var session = makeSession(count: 1)
-        let parent = FolderID()
-        let child = FolderID()
+        let parent = UUID()
+        let child = UUID()
         session.spaces[0].folders = [
             FolderState.Seed(id: parent, title: "Parent"),
             FolderState.Seed(id: child, title: "Empty child", parentID: parent),
@@ -246,7 +246,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
     func testFolderAndWholeSplitCanBeWrappedWithoutFlatteningAndPinsAreExcluded() throws {
         var session = makeSession(count: 4)
         let ids = session.spaces[0].tabs.map(\.id)
-        var created: FolderID?
+        var created: UUID?
         session = try organized(session) { browser, space in
             created = browser.addFolder(title: "Empty", in: space.id)
             XCTAssertTrue(
@@ -324,7 +324,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
         session.spaces[0].tabs[0].placement = .pinned
         for index in 1...4 { session.spaces[0].tabs[index].placement = .saved }
         for index in 2...3 { session.spaces[0].tabs[index].folderID = child.id }
-        let group = SplitGroupID()
+        let group = UUID()
         for index in 2...3 { session.spaces[0].tabs[index].splitGroupID = group }
         session.spaces[0].tabs[4].folderID = parent.id
         session.spaces[0].tabs[7] = .startPage()
@@ -417,7 +417,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
     /// first tab when empty). `fallbackTabID` is the tab shown just before, so
     /// dismissing the shown tab returns to it.
     private func makeBatchStore(
-        _ session: SessionState.Seed, showing tabs: [SpaceID: TabID] = [:], fallbackTabID: TabID? = nil
+        _ session: SessionState.Seed, showing tabs: [UUID: UUID] = [:], fallbackTabID: UUID? = nil
     ) -> BrowserStore {
         let preferences = BrowserLinkPreferenceStore()
         preferences.setBehavior(.followsMovedTabs, isOn: false)
@@ -439,7 +439,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
         return browser.sessionSeed
     }
 
-    private func dragItem(_ tabID: TabID, in space: SpaceState.Seed) -> BrowserTabDragItem {
+    private func dragItem(_ tabID: UUID, in space: SpaceState.Seed) -> BrowserTabDragItem {
         BrowserTabDragItem(tabID: tabID, spaceID: space.id, profileID: space.profileID)
     }
 

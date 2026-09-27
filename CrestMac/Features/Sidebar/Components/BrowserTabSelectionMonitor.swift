@@ -7,7 +7,7 @@ struct BrowserTabSelectionMonitor: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
     let assignment: BrowserSpaceRuntimeAssignment
-    let activate: (TabID) -> Void
+    let activate: (UUID) -> Void
     var ownsFocus = false
 
     var body: some View {
@@ -24,7 +24,7 @@ struct BrowserTabSelectionMonitor: View {
         let sidebarInteraction: BrowserSidebarInteractionState
         let spaceAccess: BrowserSpaceAccessController
         let assignment: BrowserSpaceRuntimeAssignment
-        let activate: (TabID) -> Void
+        let activate: (UUID) -> Void
         let ownsFocus: Bool
         let globalFrame: CGRect
 
@@ -53,7 +53,7 @@ struct BrowserTabSelectionMonitor: View {
         weak var sidebarInteraction: BrowserSidebarInteractionState?
         weak var spaceAccess: BrowserSpaceAccessController?
         var assignment: BrowserSpaceRuntimeAssignment?
-        var activate: ((TabID) -> Void)?
+        var activate: ((UUID) -> Void)?
         var globalFrame: CGRect = .zero
         private var monitor: Any?
         private var windowObservers: [NSObjectProtocol] = []

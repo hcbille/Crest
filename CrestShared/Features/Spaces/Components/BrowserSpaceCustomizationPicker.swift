@@ -7,9 +7,9 @@ struct BrowserSpaceCustomizationPicker: View {
     // MARK: - Variables
 
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
-    let selectSpace: (SpaceID) -> Void
-    let moveSpace: (SpaceID, SpaceID) -> Void
+    let selectedSpaceID: UUID
+    let selectSpace: (UUID) -> Void
+    let moveSpace: (UUID, UUID) -> Void
     let addSpace: () -> Void
 
     private var usesTouch: Bool {
@@ -24,9 +24,9 @@ struct BrowserSpaceCustomizationPicker: View {
 
     init(
         spaces: [some BrowserSpaceIdentifying],
-        selectedSpaceID: SpaceID,
-        selectSpace: @escaping (SpaceID) -> Void,
-        moveSpace: @escaping (SpaceID, SpaceID) -> Void,
+        selectedSpaceID: UUID,
+        selectSpace: @escaping (UUID) -> Void,
+        moveSpace: @escaping (UUID, UUID) -> Void,
         addSpace: @escaping () -> Void
     ) {
         self.spaces = spaces.map(\.identity)

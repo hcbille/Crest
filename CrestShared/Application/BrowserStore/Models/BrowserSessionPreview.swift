@@ -32,7 +32,7 @@ struct BrowserSessionPreview {
     // MARK: - Actions - Reading
 
     /// The Space the session holds with this identity.
-    func space(id: SpaceID) -> SpaceModel? {
+    func space(id: UUID) -> SpaceModel? {
         spaces.first { $0.id == id }
     }
 }

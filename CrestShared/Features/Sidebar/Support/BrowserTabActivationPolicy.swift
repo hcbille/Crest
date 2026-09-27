@@ -25,8 +25,8 @@ enum BrowserTabActivationPolicy {
     }
 
     static func activate(
-        _ tabID: TabID,
-        selectTab: (TabID) -> Void,
+        _ tabID: UUID,
+        selectTab: (UUID) -> Void,
         presentPage: () -> Void
     ) {
         selectTab(tabID)

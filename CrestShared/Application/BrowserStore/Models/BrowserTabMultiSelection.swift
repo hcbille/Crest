@@ -28,19 +28,19 @@ final class BrowserTabMultiSelection {
         _ = revision
         return members.members
     }
-    var selectedIDs: Set<TabID> { Set(selectedItems.compactMap(\.tabID)) }
+    var selectedIDs: Set<UUID> { Set(selectedItems.compactMap(\.tabID)) }
     private(set) var anchorItem: BrowserSelectionItemID? {
         get { observed(\.anchorItemStorage, as: \.anchorItem) }
         set { publish(newValue, into: \.anchorItemStorage, as: \.anchorItem) }
     }
     @ObservationIgnored private var anchorItemStorage: BrowserSelectionItemID?
-    var anchorID: TabID? { anchorItem?.tabID }
+    var anchorID: UUID? { anchorItem?.tabID }
     private(set) var focusedItem: BrowserSelectionItemID? {
         get { observed(\.focusedItemStorage, as: \.focusedItem) }
         set { publish(newValue, into: \.focusedItemStorage, as: \.focusedItem) }
     }
     @ObservationIgnored private var focusedItemStorage: BrowserSelectionItemID?
-    var focusedID: TabID? { focusedItem?.tabID }
+    var focusedID: UUID? { focusedItem?.tabID }
     private(set) var isEngaged: Bool {
         get { observed(\.isEngagedStorage, as: \.isEngaged) }
         set { publish(newValue, into: \.isEngagedStorage, as: \.isEngaged) }
@@ -57,11 +57,11 @@ final class BrowserTabMultiSelection {
         set { publish(newValue, into: \.messageStorage, as: \.message) }
     }
     @ObservationIgnored private var messageStorage: String?
-    private(set) var rejectedPinnedIDs: Set<TabID> {
+    private(set) var rejectedPinnedIDs: Set<UUID> {
         get { observed(\.rejectedPinnedIDsStorage, as: \.rejectedPinnedIDs) }
         set { publish(newValue, into: \.rejectedPinnedIDsStorage, as: \.rejectedPinnedIDs) }
     }
-    @ObservationIgnored private var rejectedPinnedIDsStorage: Set<TabID> = []
+    @ObservationIgnored private var rejectedPinnedIDsStorage: Set<UUID> = []
     private(set) var pinnedRejectionGeneration: Int {
         get { observed(\.pinnedRejectionGenerationStorage, as: \.pinnedRejectionGeneration) }
         set { publish(newValue, into: \.pinnedRejectionGenerationStorage, as: \.pinnedRejectionGeneration) }
@@ -76,7 +76,7 @@ final class BrowserTabMultiSelection {
     /// engaged only while the item is a member.
     func contains(_ id: BrowserSelectionItemID) -> Bool { members.contains(id) && isEngaged }
 
-    func contains(_ id: TabID) -> Bool { contains(.tab(id)) }
+    func contains(_ id: UUID) -> Bool { contains(.tab(id)) }
 
     // MARK: - Actions - Selecting
 
@@ -158,17 +158,17 @@ final class BrowserTabMultiSelection {
         return captured.rootItems.filter { $0.tabID.map(pins.contains) != true }
     }
 
-    func click(_ id: TabID, units: [[BrowserSelectionItemID]], command: Bool = false, shift: Bool = false) {
+    func click(_ id: UUID, units: [[BrowserSelectionItemID]], command: Bool = false, shift: Bool = false) {
         click(.tab(id), units: units, command: command, shift: shift)
     }
 
-    func click(_ id: TabID, units: [[TabID]], command: Bool = false, shift: Bool = false) {
+    func click(_ id: UUID, units: [[UUID]], command: Bool = false, shift: Bool = false) {
         click(.tab(id), units: units.map { $0.map(BrowserSelectionItemID.tab) }, command: command, shift: shift)
     }
 
-    func selectAll(units: [[TabID]]) { selectAll(units: units.map { $0.map(BrowserSelectionItemID.tab) }) }
-    func reconcile(units: [[TabID]]) { reconcile(units: units.map { $0.map(BrowserSelectionItemID.tab) }) }
-    func selectForKeyboard(_ id: TabID, units: [[TabID]]) {
+    func selectAll(units: [[UUID]]) { selectAll(units: units.map { $0.map(BrowserSelectionItemID.tab) }) }
+    func reconcile(units: [[UUID]]) { reconcile(units: units.map { $0.map(BrowserSelectionItemID.tab) }) }
+    func selectForKeyboard(_ id: UUID, units: [[UUID]]) {
         selectForKeyboard(.tab(id), units: units.map { $0.map(BrowserSelectionItemID.tab) })
     }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserExternalLinkDestinationSection: View {
     @Binding var destination: ExternalLinkDestination
-    @Binding var spaceID: SpaceID?
+    @Binding var spaceID: UUID?
     let spaces: [SpaceModel]
 
     var body: some View {

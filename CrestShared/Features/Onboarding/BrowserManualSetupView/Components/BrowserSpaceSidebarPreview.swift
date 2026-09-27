@@ -11,7 +11,7 @@ struct BrowserSpaceSidebarPreview: View {
 
     /// No window shows a previewed Space, so it highlights the tab the core
     /// would show first.
-    private var selectedTabID: TabID? { core?.fallbackTabID(in: space) }
+    private var selectedTabID: UUID? { core?.fallbackTabID(in: space) }
 
     private var branding: SpaceBranding { space.settings.look }
 

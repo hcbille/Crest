@@ -238,9 +238,9 @@ enum BrowserSidebarSplitGroupIconDeck {
 
     static func orderedMembers<Member: Identifiable>(
         _ members: [Member],
-        focusedMemberID: TabID?,
+        focusedMemberID: UUID?,
         limit: Int = visibleLimit
-    ) -> [Member] where Member.ID == TabID {
+    ) -> [Member] where Member.ID == UUID {
         guard limit > 0 else { return [] }
 
         var visible = Array(members.prefix(limit))

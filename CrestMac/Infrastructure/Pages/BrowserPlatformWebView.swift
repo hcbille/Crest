@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    @Entry var browserPagePresentationWindowID: BrowserWindowID? = nil
+    @Entry var browserPagePresentationWindowID: UUID? = nil
     @Entry var browserWebFocusRestorationGate =
         BrowserWebFocusRestorationGate.suppressed
 }

@@ -15,8 +15,8 @@ import WebKit
 final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// The core's page, which `release(keepingState:)` ends.
     @ObservationIgnored let corePage: CorePage
-    private(set) var tabID: TabID
-    let spaceID: SpaceID
+    private(set) var tabID: UUID
+    let spaceID: UUID
     let profileID: UUID
     /// What WebKit's binding built for the page, which it keeps while it
     /// lives.
@@ -477,7 +477,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         userActivityHandler = nil
     }
 
-    func adopt(tabID: TabID, tab: BrowserPageTab) {
+    func adopt(tabID: UUID, tab: BrowserPageTab) {
         self.tabID = tabID
         updateNavigationContext(tab: tab)
     }

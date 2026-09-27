@@ -55,7 +55,7 @@ enum SidebarChangeFixture {
     private static func folders(in index: Int) -> [FolderState.Seed] {
         var folders: [FolderState.Seed] = []
         for chain in [3, 3, 2] {
-            var parentID: FolderID?
+            var parentID: UUID?
             for depth in 0..<chain {
                 let folder = FolderState.Seed(
                     title: "Folder \(index)-\(folders.count) depth \(depth)", parentID: parentID)
@@ -66,12 +66,12 @@ enum SidebarChangeFixture {
         return folders
     }
 
-    private static func splitGroupIDs(in index: Int) -> [SplitGroupID] {
+    private static func splitGroupIDs(in index: Int) -> [UUID] {
         (0..<splitCount).map { UUID(uuidString: String(format: "5B11D000-0000-4000-8000-%012d", index * 10 + $0))! }
     }
 
     private static func tab(
-        _ title: String, placement: TabPlacement, folderID: FolderID? = nil, splitGroupID: SplitGroupID? = nil
+        _ title: String, placement: TabPlacement, folderID: UUID? = nil, splitGroupID: UUID? = nil
     ) -> TabState.Seed {
         let slug = title.lowercased().replacingOccurrences(of: " ", with: "-")
         return TabState.Seed(

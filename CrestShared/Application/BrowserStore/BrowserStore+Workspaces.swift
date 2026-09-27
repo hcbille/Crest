@@ -7,7 +7,7 @@ extension BrowserStore {
     /// closes the family's workspace once the owner no longer lends the Space;
     /// whoever closes the window closes the workspace too.
     func makeTemporaryWindowStore(
-        in assignment: BrowserSpaceRuntimeAssignment, id: BrowserWindowID = BrowserWindowID()
+        in assignment: BrowserSpaceRuntimeAssignment, id: UUID = UUID()
     ) -> BrowserStore? {
         guard spaceModel(matching: assignment) != nil else { return nil }
         let settingsBrowser = profileSettingsBrowser.makeWindowStore(
@@ -37,7 +37,7 @@ extension BrowserStore {
     /// over this workspace shows it, and one over a workspace that borrows
     /// this one's Space, or lends its own, takes it.
     func canTransferTab(
-        _ id: TabID,
+        _ id: UUID,
         matching sourceAssignment: BrowserSpaceRuntimeAssignment,
         to destination: BrowserStore,
         in destinationAssignment: BrowserSpaceRuntimeAssignment
@@ -53,7 +53,7 @@ extension BrowserStore {
     /// separately.
     @discardableResult
     func transferTab(
-        _ id: TabID,
+        _ id: UUID,
         matching sourceAssignment: BrowserSpaceRuntimeAssignment,
         to destination: BrowserStore,
         in destinationAssignment: BrowserSpaceRuntimeAssignment
@@ -72,7 +72,7 @@ extension BrowserStore {
         return true
     }
 
-    private func movingTab(_ id: TabID, in assignment: BrowserSpaceRuntimeAssignment, to destination: BrowserStore)
+    private func movingTab(_ id: UUID, in assignment: BrowserSpaceRuntimeAssignment, to destination: BrowserStore)
         -> MoveTabToWindow
     {
         MoveTabToWindow(

@@ -12,7 +12,7 @@ struct BrowserSplitCardPointerMonitor: NSViewRepresentable {
     let cardFrames: BrowserSplitCardFrameRegistry
     /// Called with the card a mouse-down landed in. The event is delivered to the
     /// page either way, so this is a notification and never a veto.
-    let handleMouseDown: @MainActor @Sendable (TabID) -> Void
+    let handleMouseDown: @MainActor @Sendable (UUID) -> Void
     /// What the monitor may do to a carry. Unlike the focus notification, a
     /// pickup *is* a veto: the events that carry a card belong to the carry.
     let lift: BrowserSplitCardLiftGesture

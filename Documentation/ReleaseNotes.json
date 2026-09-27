@@ -3025,6 +3025,10 @@
     "swift-data-types-grouped": {
       "category": "internal",
       "message": "The apps' plain data types now sit beside the code that uses them or in one file per concept."
+    },
+    "identities-named-by-uuid": {
+      "category": "internal",
+      "message": "Space, tab, folder, window, split and credential identities are plain UUIDs named by their role, with no aliases or wrapper types."
     }
   }
 }

@@ -8,7 +8,7 @@ extension SessionState.Seed {
     /// relaunch opens it.
     @MainActor
     func sidebarRowIDs(
-        in spaceID: SpaceID, location: BrowserFolderLocation, parentID: FolderID? = nil
+        in spaceID: UUID, location: BrowserFolderLocation, parentID: UUID? = nil
     ) -> [BrowserSidebarReorderItemID] {
         BrowserStore(seed: self).sidebarRowIDs(in: spaceID, location: location, parentID: parentID)
     }
@@ -19,7 +19,7 @@ extension BrowserStore {
     /// `spaceID`: the top level of `location`'s section, or the inside of
     /// `parentID`.
     func sidebarRowIDs(
-        in spaceID: SpaceID, location: BrowserFolderLocation, parentID: FolderID? = nil
+        in spaceID: UUID, location: BrowserFolderLocation, parentID: UUID? = nil
     ) -> [BrowserSidebarReorderItemID] {
         guard let space = spaceModel(spaceID) else { return [] }
         let list = parentID.map { space.sidebar.inside($0) } ?? space.sidebar.section(location.tabPlacement)

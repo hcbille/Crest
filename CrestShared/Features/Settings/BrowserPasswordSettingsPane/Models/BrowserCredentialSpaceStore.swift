@@ -21,7 +21,7 @@ final class BrowserCredentialSpaceStore {
     private(set) var isDeletingSelection = false
     /// Which rows are mid-delete, so a row can show its own progress rather than
     /// blanking the whole list.
-    private(set) var deletingCredentialIDs: Set<CredentialID> = []
+    private(set) var deletingCredentialIDs: Set<UUID> = []
     var errorMessage: String?
     var exportDocument: BrowserCredentialCSVDocument?
     var exportFilename = "Crest Passwords.csv"
@@ -44,7 +44,7 @@ final class BrowserCredentialSpaceStore {
     }
 
     func load(
-        in spaceID: SpaceID?,
+        in spaceID: UUID?,
         accessController: BrowserSpaceAccessController
     ) async {
         guard let spaceID,
@@ -88,7 +88,7 @@ final class BrowserCredentialSpaceStore {
 
     func delete(
         _ descriptor: CredentialDescriptor,
-        reloading spaceID: SpaceID?,
+        reloading spaceID: UUID?,
         accessController: BrowserSpaceAccessController
     ) {
         guard unlockedSpace(descriptor.spaceID, accessController: accessController) != nil else { return }
@@ -113,7 +113,7 @@ final class BrowserCredentialSpaceStore {
     /// why it is here rather than among the plain preference bindings.
     func setSynchronization(
         _ enabled: Bool,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         accessController: BrowserSpaceAccessController
     ) {
         guard unlockedSpace(spaceID, accessController: accessController) != nil else { return }
@@ -149,7 +149,7 @@ final class BrowserCredentialSpaceStore {
     /// The Space is re-checked afterwards because authentication can outlive the
     /// reader's interest in that Space.
     func prepareExport(
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         accessController: BrowserSpaceAccessController,
         isStillSelected: () -> Bool
     ) async -> Bool {
@@ -178,7 +178,7 @@ final class BrowserCredentialSpaceStore {
 
     func prepareImport(
         from url: URL,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         accessController: BrowserSpaceAccessController,
         isStillSelected: () -> Bool
     ) async {
@@ -318,8 +318,8 @@ final class BrowserCredentialSpaceStore {
     }
 
     func deleteSelection(
-        _ ids: Set<CredentialID>,
-        in spaceID: SpaceID,
+        _ ids: Set<UUID>,
+        in spaceID: UUID,
         accessController: BrowserSpaceAccessController,
         isStillSelected: () -> Bool
     ) async -> Bool {
@@ -371,7 +371,7 @@ final class BrowserCredentialSpaceStore {
     /// The Space of the read model the store may reveal and change, while
     /// this process holds it unlocked.
     private func unlockedSpace(
-        _ spaceID: SpaceID,
+        _ spaceID: UUID,
         accessController: BrowserSpaceAccessController
     ) -> SpaceModel? {
         guard let space = browser.spaceModel(spaceID), !accessController.isLocked(space) else { return nil }

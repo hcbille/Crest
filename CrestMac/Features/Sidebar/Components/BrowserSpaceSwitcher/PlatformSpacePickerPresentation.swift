@@ -8,8 +8,8 @@ struct PlatformSpacePickerPresentation: NSViewRepresentable {
     let presentation: SpacePagerPresentation
     let style: CrestSpaceIconPickerStyle
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID?
-    let frames: [SpaceID: CGRect]
+    let selectedSpaceID: UUID?
+    let frames: [UUID: CGRect]
     let selectionTint: Color?
 
     func makeNSView(context: Context) -> SpacePickerPresentationView {
@@ -34,9 +34,9 @@ final class SpacePickerPresentationView: NSView {
     private var presentation: SpacePagerPresentation?
     private var style = CrestSpaceIconPickerStyle.compact
     private weak var clipView: NSClipView?
-    private var spaceIDs: [SpaceID] = []
-    private var frames: [SpaceID: CGRect] = [:]
-    private var colors: [SpaceID: NSColor] = [:]
+    private var spaceIDs: [UUID] = []
+    private var frames: [UUID: CGRect] = [:]
+    private var colors: [UUID: NSColor] = [:]
     private var lastSnapshot: SpacePagerPresentation.Snapshot?
     private var scrollSegment: SpacePickerScrollProgress?
     private var activeTransition: SpacePagerSettlement?
@@ -79,7 +79,7 @@ final class SpacePickerPresentationView: NSView {
 
     func update(
         presentation: SpacePagerPresentation, style: CrestSpaceIconPickerStyle, spaces: [BrowserSpaceIdentity],
-        selectedSpaceID: SpaceID?, frames: [SpaceID: CGRect], selectionTint: Color?
+        selectedSpaceID: UUID?, frames: [UUID: CGRect], selectionTint: Color?
     ) {
         if self.presentation !== presentation {
             disconnect()
@@ -251,7 +251,7 @@ final class SpacePickerPresentationView: NSView {
         highlight.lineWidth = stroke
     }
 
-    private func interpolation(at position: CGFloat) -> (SpaceID, SpaceID, CGFloat)? {
+    private func interpolation(at position: CGFloat) -> (UUID, UUID, CGFloat)? {
         guard let sample = SpacePagerInterpolation(position: position, count: spaceIDs.count) else { return nil }
         return (spaceIDs[sample.lower], spaceIDs[sample.upper], sample.fraction)
     }

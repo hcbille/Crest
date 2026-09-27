@@ -78,7 +78,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
     }
 
     func testSavedHTTPSCredentialIsReusedOnceAndMarkedUsedOnlyAfterSuccess() async throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let protectionSpace = makeProtectionSpace()
         let scope = try XCTUnwrap(BrowserHTTPAuthenticationProtectionSpace(protectionSpace))
         let stored = makeCredential(
@@ -116,7 +116,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
     }
 
     func testRejectedSavedCredentialPromptsAndReplacesOnlyAfterAcceptedNavigation() async throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let protectionSpace = makeProtectionSpace()
         let scope = try XCTUnwrap(BrowserHTTPAuthenticationProtectionSpace(protectionSpace))
         let stored = makeCredential(
@@ -167,7 +167,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
     }
 
     func testPlainHTTPCanSignInOnceButCannotLoadOrSaveACredential() async throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let protectionSpace = makeProtectionSpace(protocol: "http", port: 80)
         var loadCount = 0
         var saves: [BrowserHTTPAuthenticationSaveRequest] = []
@@ -199,7 +199,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
     }
 
     func testPrivateBrowsingHTTPSAuthenticationIsAlwaysOneTimeOnly() async throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let protectionSpace = makeProtectionSpace()
         var loadCount = 0
         var saves: [BrowserHTTPAuthenticationSaveRequest] = []
@@ -236,7 +236,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
     func testAuthenticationFailureClearsAPendingSaveRequest() async {
         var saves: [BrowserHTTPAuthenticationSaveRequest] = []
         let session = BrowserHTTPAuthenticationSession(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             saveCredential: { saves.append($0) }
         )
 
@@ -256,7 +256,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
     }
 
     func testReplacementRequiresTheRejectedStoredUsernameToMatch() async throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let protectionSpace = makeProtectionSpace()
         let typedProtectionSpace = try XCTUnwrap(
             BrowserHTTPAuthenticationProtectionSpace(protectionSpace)
@@ -329,7 +329,7 @@ final class BrowserAuthenticationPolicyTests: XCTestCase {
     }
 
     private func makeCredential(
-        spaceID: SpaceID,
+        spaceID: UUID,
         protectionSpace: BrowserHTTPAuthenticationProtectionSpace,
         username: String,
         password: String

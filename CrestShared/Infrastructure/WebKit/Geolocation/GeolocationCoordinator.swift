@@ -19,7 +19,7 @@ final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
     private let webView: WKWebView
     private let permissionCenter: BrowserSitePermissionCenter
     private let service: any BrowserGeolocationServicing
-    private let spaceID: SpaceID
+    private let spaceID: UUID
     private let askSite: AskSite
     private let recoverSystemAuthorization: RecoverSystemAuthorization
 
@@ -56,7 +56,7 @@ final class BrowserGeolocationCoordinator: BrowserSitePermissionObserver {
         webView: WKWebView,
         permissionCenter: BrowserSitePermissionCenter,
         service: any BrowserGeolocationServicing,
-        spaceID: SpaceID,
+        spaceID: UUID,
         askSite: @escaping AskSite,
         recoverSystemAuthorization: @escaping RecoverSystemAuthorization
     ) {

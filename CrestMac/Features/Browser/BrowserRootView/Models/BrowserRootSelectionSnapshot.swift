@@ -1,4 +1,6 @@
+import Foundation
+
 struct BrowserRootSelectionSnapshot: Equatable {
-    let tabID: TabID?
-    let spaceID: SpaceID
+    let tabID: UUID?
+    let spaceID: UUID
 }

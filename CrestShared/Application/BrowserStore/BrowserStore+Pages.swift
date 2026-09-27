@@ -9,7 +9,7 @@ extension BrowserStore {
     /// WebKit made it. Nil when a rule refuses it, such as a locked Space, one
     /// being deleted, or a tab that already has a page.
     func openPage(
-        in spaceID: SpaceID, for tabID: TabID?, presenting transient: TransientPresentation? = nil,
+        in spaceID: UUID, for tabID: UUID?, presenting transient: TransientPresentation? = nil,
         popup: WebKitPopup? = nil
     ) -> Engines.OpenedPage? {
         core.engines.open(
@@ -22,14 +22,14 @@ extension BrowserStore {
     /// Gives `page` to `tabID` in `spaceID` of this window's workspace, or to
     /// a transient request when `tabID` is nil, hosted by this window. False
     /// when a rule refuses it.
-    func adoptPage(_ page: CorePage, in spaceID: SpaceID, as tabID: TabID?) -> Bool {
+    func adoptPage(_ page: CorePage, in spaceID: UUID, as tabID: UUID?) -> Bool {
         page.move(to: window.workspaceID, spaceID: spaceID, tabID: tabID, windowID: windowID)
     }
 
     /// Whether returning `tabID` to its saved address would change anything,
     /// as the core answers it for this window: the tab is away from that
     /// page, or its page here is heading to another.
-    func returnsToSavedAddress(_ tabID: TabID, in spaceID: SpaceID) -> Bool {
+    func returnsToSavedAddress(_ tabID: UUID, in spaceID: UUID) -> Bool {
         let question = CanReturnToSavedAddress(
             workspaceID: window.workspaceID, windowID: windowID, spaceID: spaceID,
             tabID: tabID)

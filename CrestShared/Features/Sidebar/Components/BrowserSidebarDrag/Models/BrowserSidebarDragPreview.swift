@@ -46,7 +46,7 @@ struct BrowserSidebarFloatingLift: Equatable, Sendable {
     }
 
     /// The lifted tab, when a tab is what was lifted.
-    var tabID: TabID? {
+    var tabID: UUID? {
         item.id.tabID
     }
 

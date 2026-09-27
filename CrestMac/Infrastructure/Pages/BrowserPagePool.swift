@@ -19,22 +19,22 @@ final class BrowserPagePool:
     typealias HTTPAuthenticationCredentialLoader =
         @MainActor (
             BrowserHTTPAuthenticationProtectionSpace,
-            SpaceID
+            UUID
         ) async throws -> BrowserCredential?
 
     typealias HTTPAuthenticationCredentialSaver =
         @MainActor (
             BrowserHTTPAuthenticationSaveRequest,
-            SpaceID
+            UUID
         ) async throws -> Void
 
     typealias ModifiedLinkOpener =
-        @MainActor (URL, SpaceID, Bool) -> BrowserModifiedLinkRegistration?
+        @MainActor (URL, UUID, Bool) -> BrowserModifiedLinkRegistration?
 
     /// The focused card: the one tab the URL bar, navigation controls, find,
     /// zoom, sharing, and every lifecycle observer speak for. Split View adds
     /// cards beside it without adding a second focus.
-    private(set) var activeTabID: TabID? {
+    private(set) var activeTabID: UUID? {
         willSet {
             if let activeTabID, activeTabID != newValue,
                 tabRuntimes[activeTabID]?.presentationWindowID == windowID,
@@ -55,7 +55,7 @@ final class BrowserPagePool:
     ///
     /// Deliberately observable: a card mount reads it through
     /// `presentedPage(for:)` and has to re-render when membership changes.
-    private(set) var presentedTabIDs: [TabID] = [] {
+    private(set) var presentedTabIDs: [UUID] = [] {
         didSet { runtimeStore.updatePresentation(of: self) }
     }
     private(set) var residencyRevision: Int {
@@ -66,7 +66,7 @@ final class BrowserPagePool:
     /// The window this pool hosts pages for. Its pages open through the core
     /// from this window, in its workspace.
     @ObservationIgnored let browser: BrowserStore
-    var windowID: BrowserWindowID { browser.windowID }
+    var windowID: UUID { browser.windowID }
     @ObservationIgnored private weak var presentationWindow: NSWindow?
     private(set) var isWindowFocused = true
     var publishesPageMetadataCentrally: Bool { runtimeStore.publishesPageMetadataCentrally }
@@ -77,7 +77,7 @@ final class BrowserPagePool:
 
     /// Each tab owns its current and suspended configurations, including the
     /// history links that bridge ordinary pages and extension origins.
-    private var tabRuntimes: [TabID: BrowserTabRuntime] {
+    private var tabRuntimes: [UUID: BrowserTabRuntime] {
         get { runtimeStore.runtimes }
         set { runtimeStore.runtimes = newValue }
     }
@@ -103,7 +103,7 @@ final class BrowserPagePool:
     /// Shows the tab a Picture in Picture source page belongs to in this
     /// window, answering whether it could.
     @ObservationIgnored private var selectPictureInPictureSource: (BrowserTabRuntimeAssignment) -> Bool = { _ in false }
-    @ObservationIgnored private let activateHostedNotificationSource: (SpaceID, TabID) -> Void
+    @ObservationIgnored private let activateHostedNotificationSource: (UUID, UUID) -> Void
     @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
     @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
     /// Built-in content blocking, which only the WebKit engine applies.
@@ -139,7 +139,7 @@ final class BrowserPagePool:
         splitLinkHost: BrowserSplitLinkHost = .unavailable,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         activateHostedNotificationSource:
-            @escaping (SpaceID, TabID) -> Void = { _, _ in }
+            @escaping (UUID, UUID) -> Void = { _, _ in }
     ) {
         let dialogPresenter = BrowserDialogPresenter()
         let core = browser.core
@@ -195,7 +195,7 @@ final class BrowserPagePool:
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
 
     /// Every tab whose page some window over the workspace presents now.
-    var presentedTabIDsAcrossWindows: Set<TabID> { runtimeStore.presentedTabIDs }
+    var presentedTabIDsAcrossWindows: Set<UUID> { runtimeStore.presentedTabIDs }
 
     func bindNativeWindow(_ window: NSWindow?) {
         presentationWindow = window
@@ -213,22 +213,22 @@ final class BrowserPagePool:
         runtimeStore.unregister(self)
     }
 
-    func isMirroringPage(for tabID: TabID) -> Bool {
+    func isMirroringPage(for tabID: UUID) -> Bool {
         _ = residencyRevision
         guard presentedTabIDs.contains(tabID), let runtime = tabRuntimes[tabID] else { return false }
         return runtime.presentationWindowID != nil && runtime.presentationWindowID != windowID
     }
 
-    func mirroredPageSnapshot(for tabID: TabID) -> NSImage? {
+    func mirroredPageSnapshot(for tabID: UUID) -> NSImage? {
         _ = residencyRevision
         return tabRuntimes[tabID]?.snapshot
     }
 
-    func claimPresentedPage(for tabID: TabID) {
+    func claimPresentedPage(for tabID: UUID) {
         runtimeStore.claim(tabID, for: self)
     }
 
-    func removeTransferredPresentation(_ tabID: TabID) {
+    func removeTransferredPresentation(_ tabID: UUID) {
         presentedTabIDs.removeAll { $0 == tabID }
         if activeTabID == tabID { activeTabID = nil }
     }
@@ -297,7 +297,7 @@ final class BrowserPagePool:
         host.releaseAllTransientPages()
     }
 
-    func bindRuntimeRouting(_ runtime: BrowserTabRuntime, tabID: TabID) {
+    func bindRuntimeRouting(_ runtime: BrowserTabRuntime, tabID: UUID) {
         for page in runtime.allPages {
             page.setPrivateBrowsing(browsingMode.isPrivate)
             page.host = self
@@ -371,7 +371,7 @@ final class BrowserPagePool:
         }
     }
 
-    var retainedTabIDs: Set<TabID> {
+    var retainedTabIDs: Set<UUID> {
         _ = residencyRevision
         return Set(tabRuntimes.keys)
     }
@@ -403,7 +403,7 @@ final class BrowserPagePool:
     /// Membership is checked rather than residency alone: a background tab can
     /// keep a resident page for as long as memory allows, and handing one to a
     /// card would put a second host on a web view that already has one.
-    func presentedPage(for tabID: TabID) -> BrowserPage? {
+    func presentedPage(for tabID: UUID) -> BrowserPage? {
         _ = residencyRevision
         guard presentedTabIDs.contains(tabID),
             let runtime = tabRuntimes[tabID],
@@ -476,7 +476,7 @@ final class BrowserPagePool:
 
     private func openModifiedLink(
         _ request: URLRequest,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         selecting: Bool
     ) {
         guard let url = request.url,
@@ -524,7 +524,7 @@ final class BrowserPagePool:
         presentedTabIDs = []
     }
 
-    func reconcile(validTabIDs: Set<TabID>) {
+    func reconcile(validTabIDs: Set<UUID>) {
         host.reconcile(validTabIDs: validTabIDs)
         if let activeTabID, !validTabIDs.contains(activeTabID) {
             self.activeTabID = nil
@@ -535,7 +535,7 @@ final class BrowserPagePool:
     /// Drops cards for tabs that no longer exist. A split whose member was
     /// closed keeps presenting the rest; presentation is derived per selection,
     /// so a run that is no longer renderable collapses on the next one.
-    private func pruneCards(keeping validTabIDs: Set<TabID>) {
+    private func pruneCards(keeping validTabIDs: Set<UUID>) {
         guard presentedTabIDs.contains(where: { !validTabIDs.contains($0) })
         else { return }
         presentedTabIDs = presentedTabIDs.filter { validTabIDs.contains($0) }
@@ -573,9 +573,9 @@ final class BrowserPagePool:
     /// where popup adoption has activated a tab the presented list has not caught
     /// up with, and pages belonging to another Space or profile are excluded — the
     /// history being applied is this Space's.
-    func visitedLinkStylingTabIDs(in space: SpaceModel) -> [TabID] {
+    func visitedLinkStylingTabIDs(in space: SpaceModel) -> [UUID] {
         _ = residencyRevision
-        var seen: Set<TabID> = []
+        var seen: Set<UUID> = []
         return (presentedTabIDs + [activeTabID].compactMap { $0 }).filter { tabID in
             guard seen.insert(tabID).inserted, let page = tabRuntimes[tabID]?.page else {
                 return false
@@ -623,7 +623,7 @@ final class BrowserPagePool:
     @discardableResult
     func adoptTransientPage(
         _ lease: BrowserTransientPageLease,
-        as tabID: TabID,
+        as tabID: UUID,
         in space: SpaceModel
     ) -> Bool {
         // Move the renderer before Quick Window dismissal destroys its old
@@ -869,7 +869,7 @@ final class BrowserPagePool:
     /// refuses it.
     private func makePage(
         space: SpaceModel,
-        tabID: TabID? = nil,
+        tabID: UUID? = nil,
         presentation: TransientPresentation? = nil,
         popup: WebKitPopup? = nil,
         opened alreadyOpened: Engines.OpenedPage? = nil
@@ -930,11 +930,11 @@ final class BrowserPagePool:
         return page
     }
 
-    private func tabID(for page: BrowserPage) -> TabID? {
+    private func tabID(for page: BrowserPage) -> UUID? {
         host.tabID(for: page)
     }
 
-    private func retainResidentPage(_ page: BrowserPage, for tabID: TabID) {
+    private func retainResidentPage(_ page: BrowserPage, for tabID: UUID) {
         if let runtime = tabRuntimes[tabID] {
             runtime.page = page
         } else {
@@ -992,7 +992,7 @@ final class BrowserPagePool:
     /// `select`, one frame ahead of the store-driven reselection that settles
     /// the presented set properly. Adding the tab here rather than replacing
     /// the set is what keeps that frame from rendering a card with no page.
-    private func activate(_ tabID: TabID) {
+    private func activate(_ tabID: UUID) {
         var presented = presentedTabIDs
         if !presented.contains(tabID) {
             presented.append(tabID)
@@ -1001,7 +1001,7 @@ final class BrowserPagePool:
     }
 
     /// Puts `presentedTabIDs` on screen in order with `tabID` focused.
-    private func activate(_ tabID: TabID?, presenting presentedTabIDs: [TabID]) {
+    private func activate(_ tabID: UUID?, presenting presentedTabIDs: [UUID]) {
         prepareFocusTransition(to: tabID.flatMap { tabRuntimes[$0]?.page })
         requestAutomaticPictureInPicture(forDeparturesBefore: presentedTabIDs)
         for arrivingTabID in presentedTabIDs where !self.presentedTabIDs.contains(arrivingTabID) {
@@ -1011,13 +1011,13 @@ final class BrowserPagePool:
         self.presentedTabIDs = presentedTabIDs
     }
 
-    private func requestAutomaticPictureInPicture(forDeparturesBefore arriving: [TabID]) {
+    private func requestAutomaticPictureInPicture(forDeparturesBefore arriving: [UUID]) {
         let departed = Set(presentedTabIDs).subtracting(arriving)
         // Only pages leaving the visible set qualify. Moving focus within a
         // split must not float a video that is still visible beside the tab.
         let departures = ([activeTabID].compactMap { $0 } + presentedTabIDs)
             .filter { departed.contains($0) }
-        var requested: Set<TabID> = []
+        var requested: Set<UUID> = []
         for tabID in departures
         where requested.insert(tabID).inserted
             && !runtimeStore.isPresented(tabID, outside: windowID)

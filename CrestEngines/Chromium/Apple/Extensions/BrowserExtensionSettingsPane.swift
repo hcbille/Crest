@@ -3,9 +3,9 @@ import SwiftUI
 struct BrowserExtensionSettingsPane: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
-    var requestedSpaceID: SpaceID?
+    var requestedSpaceID: UUID?
     var requestRevision = 0
-    @State private var selectedSpaceID: SpaceID?
+    @State private var selectedSpaceID: UUID?
     private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
     private var space: BrowserSpaceIdentity? {
         browser.spaceModel(selectedSpaceID ?? browser.selectedSpaceID)?.identity
@@ -138,7 +138,7 @@ struct BrowserExtensionCopySheet: View {
     let space: BrowserSpaceIdentity
     let store: ChromiumExtensionStore
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedSpaces: Set<SpaceID> = []
+    @State private var selectedSpaces: Set<UUID> = []
     @State private var loading = true
     private var destinations: [BrowserSpaceIdentity] {
         store.spaces.filter { $0.id != space.id && !(store.installed[$0.profileID] ?? []).contains { $0.id == item.id } }

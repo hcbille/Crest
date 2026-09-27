@@ -22,7 +22,7 @@ extension EnvironmentValues {
 }
 
 struct BrowserSettingsLiveSpaceSelection {
-    let select: @MainActor (SpaceID) -> Void
+    let select: @MainActor (UUID) -> Void
 }
 
 private struct BrowserSettingsLiveSpaceSelectionKey: EnvironmentKey {

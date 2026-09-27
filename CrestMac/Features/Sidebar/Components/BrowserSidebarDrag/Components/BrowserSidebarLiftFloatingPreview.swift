@@ -25,8 +25,8 @@ struct BrowserSidebarLiftFloatingPreview: View {
     var reduceMotion = false
     var onLandingComplete: (UUID) -> Void = { _ in }
     var onLandingArrived: (UUID) -> Void = { _ in }
-    var selectedTabID: TabID?
-    var loadedTabIDs: Set<TabID> = []
+    var selectedTabID: UUID?
+    var loadedTabIDs: Set<UUID> = []
     @State private var landedFrame: CGRect?
     @State private var previewOpacity = 1.0
     @State private var stackHasGathered = false

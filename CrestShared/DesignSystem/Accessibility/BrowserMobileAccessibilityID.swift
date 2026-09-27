@@ -13,7 +13,7 @@ enum BrowserMobileAccessibilityID {
     static let syncFeatureList = "mobile-onboarding-feature-sync"
     static let macImportContent = "mobile-onboarding-macos-import"
 
-    static func removeSpace(_ id: SpaceID) -> String {
+    static func removeSpace(_ id: UUID) -> String {
         BrowserAccessibilityID.identifier(
             prefix: "mobile-space-remove",
             id: id

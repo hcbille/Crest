@@ -6,7 +6,7 @@ extension CrestCore {
     /// Space no window shows, such as a draft, a preview or an import under
     /// review.
     @MainActor
-    func fallbackTabID(in space: SpaceModel) -> TabID? {
+    func fallbackTabID(in space: SpaceModel) -> UUID? {
         let tabs = space.tabs.models
         guard let index = (try? query(FallbackTab(placements: tabs.map(\.placement))))?.index,
             tabs.indices.contains(index)

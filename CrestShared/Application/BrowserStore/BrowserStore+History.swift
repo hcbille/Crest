@@ -20,7 +20,7 @@ extension BrowserStore {
         clearHistory(in: selectedSpaceID)
     }
 
-    func clearHistory(in spaceID: SpaceID) {
+    func clearHistory(in spaceID: UUID) {
         sendRecords(ClearHistory(workspaceID: family.workspaceID, spaceID: spaceID))
     }
 
@@ -69,12 +69,12 @@ extension BrowserStore {
         }
     }
 
-    func cleanupCurrentTabs(in spaceID: SpaceID) {
+    func cleanupCurrentTabs(in spaceID: UUID) {
         guard spaceModel(spaceID) != nil else { return }
         sendRecords(CleanUpCurrentTabs(workspaceID: family.workspaceID, spaceID: spaceID))
     }
 
-    func restoreArchivedTab(_ id: TabID) {
+    func restoreArchivedTab(_ id: UUID) {
         guard shownSpace != nil else { return }
         sendRecords(
             RestoreArchivedTab(
@@ -84,7 +84,7 @@ extension BrowserStore {
 
     @discardableResult
     func restoreArchivedTab(
-        _ id: TabID,
+        _ id: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard let space = spaceModel(matching: assignment),
@@ -121,7 +121,7 @@ extension BrowserStore {
     /// never held back by the last sweep.
     func updateDataRetentionPreferences(
         _ retention: DataRetentionPreferences,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) {
         guard var preferences = spaceModel(spaceID)?.settings.browsingPreferences,
             preferences.dataRetention != retention

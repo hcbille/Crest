@@ -5,7 +5,7 @@
         /// Deletes the Space `spaceID` whole, as the app does once every engine
         /// erased its profile's data, for tests of what an assignment captured
         /// before it may still do.
-        func removeSpaceForTesting(_ spaceID: SpaceID) {
+        func removeSpaceForTesting(_ spaceID: UUID) {
             let operation = UUID()
             let window = windowID
             guard let profileID = spaceModel(spaceID)?.profileID else {
@@ -51,7 +51,7 @@
         /// showed. For tests of what an assignment captured before the
         /// replacement may still do. The workspace takes imports, so it is a
         /// persistent one.
-        func replaceProfileForTesting(of spaceID: SpaceID, with profileID: UUID = UUID()) {
+        func replaceProfileForTesting(of spaceID: UUID, with profileID: UUID = UUID()) {
             guard let space = spaceModel(spaceID)?.value else {
                 preconditionFailure("A test replaced the profile of a Space the session does not hold.")
             }
@@ -63,7 +63,7 @@
                 id: seed.id, profileID: profileID, settings: seed.settings, folders: seed.folders, tabs: seed.tabs,
                 splitGroups: seed.splitGroups, archivedTabs: seed.archivedTabs, history: seed.history)
             // A Space is never the last one while it goes.
-            let placeholder = SpaceID()
+            let placeholder = UUID()
             if spaceModels.count == 1 {
                 _ = family.send(
                     CreateSpace(

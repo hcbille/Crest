@@ -408,7 +408,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
     func testPresentationIdentityChangesWhenTheTargetWindowRuntimeIsReplaced() throws {
         let request = BrowserQuickWindowRequest.empty(
             spaceAssignment: BrowserSpaceRuntimeAssignment(
-                spaceID: SpaceID(),
+                spaceID: UUID(),
                 profileID: UUID()
             )
         )
@@ -453,7 +453,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
             id: UUID(),
             url: context.model.presentedRequest.url,
             spaceAssignment: context.model.presentedRequest.assignment,
-            targetWindowID: BrowserWindowID(),
+            targetWindowID: UUID(),
             sourcePresentation: BrowserPeekSourcePresentation(
                 normalizedMinX: 0.1,
                 normalizedMinY: 0.2,

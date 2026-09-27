@@ -1,8 +1,8 @@
 import Foundation
 
 struct BrowserFolderRuntimeAssignment: Equatable, Hashable, Sendable {
-    let folderID: FolderID
-    let spaceID: SpaceID
+    let folderID: UUID
+    let spaceID: UUID
     let profileID: UUID
 
     var spaceAssignment: BrowserSpaceRuntimeAssignment {

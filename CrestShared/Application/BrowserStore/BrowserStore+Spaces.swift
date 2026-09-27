@@ -22,7 +22,7 @@ extension BrowserStore {
     /// began, with the operation it recorded. Throws the rule the core applied
     /// or why erasing failed; the Space is then kept.
     func deleteSpace(
-        _ id: SpaceID,
+        _ id: UUID,
         dataDeleter: any BrowserSpaceDataDeleting
     ) async throws {
         guard let space = spaceModel(id).map(BrowserSpaceRuntimeAssignment.init(space:)) else {
@@ -51,7 +51,7 @@ extension BrowserStore {
     }
 
     func resumePendingSpaceDeletions(dataDeleter: any BrowserSpaceDataDeleting) async {
-        var attempted: Set<SpaceID> = []
+        var attempted: Set<UUID> = []
         while let intent = (workspaceModel?.spaceDeletions ?? []).first(where: {
             !attempted.contains($0.spaceID) && !family.isActivelyDeletingSpace($0.spaceID)
         }) {
@@ -90,7 +90,7 @@ extension BrowserStore {
     }
 
     func updateSpaceIdentity(
-        _ spaceID: SpaceID,
+        _ spaceID: UUID,
         name: String,
         symbol: String,
         accent: SpaceAccent
@@ -104,7 +104,7 @@ extension BrowserStore {
     /// The core applies its branding rules to the look before it keeps it.
     func updateSpaceBranding(
         _ branding: SpaceBranding,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) {
         sendSpaceSettings(
             SetSpaceBranding(
@@ -112,14 +112,14 @@ extension BrowserStore {
                 branding: branding))
     }
 
-    func setDefaultSpace(_ spaceID: SpaceID) {
+    func setDefaultSpace(_ spaceID: UUID) {
         sendSpaceSettings(
             SetDefaultSpace(workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID))
     }
 
     func updateSpaceAccessPolicy(
         _ accessPolicy: SpaceAccessPolicy,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) {
         sendSpaceSettings(
             SetSpaceAccess(
@@ -148,7 +148,7 @@ extension BrowserStore {
     /// when it differs from what the read model holds.
     func updateBrowsingPreferences(
         _ preferences: BrowsingPreferences,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) {
         let owner = profileSettingsBrowser
         guard let current = owner.spaceModel(spaceID)?.settings.browsingPreferences else { return }
@@ -181,7 +181,7 @@ extension BrowserStore {
     func upsertCustomSearchProvider(
         _ engine: CustomSearchEngine,
         selects: Bool,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) throws {
         let owner = profileSettingsBrowser
         guard let space = owner.spaceModel(spaceID) else { return }
@@ -215,7 +215,7 @@ extension BrowserStore {
     }
 
     /// Removes a custom search engine; the core selects Google if it was chosen.
-    func removeCustomSearchProvider(id: UUID, in spaceID: SpaceID) {
+    func removeCustomSearchProvider(id: UUID, in spaceID: UUID) {
         sendSpaceSettings(
             RemoveSearchEngine(
                 workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID, engineID: id))
@@ -228,7 +228,7 @@ extension BrowserStore {
     @discardableResult
     func setSavedTabsExpanded(
         _ isExpanded: Bool,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) -> Bool {
         sendSpaceSettings(
             ExpandSavedTabs(
@@ -249,10 +249,10 @@ extension BrowserStore {
     func addFolder(
         title: String = "New Folder",
         color: BrandColor = .folderDefault,
-        parentID: FolderID? = nil,
-        in spaceID: SpaceID
-    ) -> FolderID? {
-        let folderID = FolderID()
+        parentID: UUID? = nil,
+        in spaceID: UUID
+    ) -> UUID? {
+        let folderID = UUID()
         guard
             family.send(
                 CreateFolder(
@@ -266,7 +266,7 @@ extension BrowserStore {
 
     /// Whether a folder may be created inside `parentID`. The core answers
     /// with its folder count and depth limits.
-    func canAddFolder(inside parentID: FolderID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
+    func canAddFolder(inside parentID: UUID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
         guard spaceModel(matching: assignment) != nil else { return false }
         return family.canSend(
             CreateFolder(
@@ -280,9 +280,9 @@ extension BrowserStore {
     func addFolder(
         title: String = "New Folder",
         color: BrandColor = .folderDefault,
-        parentID: FolderID? = nil,
+        parentID: UUID? = nil,
         matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> FolderID? {
+    ) -> UUID? {
         guard spaceModel(matching: assignment) != nil else { return nil }
         return addFolder(
             title: title,
@@ -293,14 +293,14 @@ extension BrowserStore {
     }
 
     @discardableResult
-    func renameFolder(_ folderID: FolderID, in spaceID: SpaceID, title: String) -> Bool {
+    func renameFolder(_ folderID: UUID, in spaceID: UUID, title: String) -> Bool {
         guard renameSessionFolder(folderID, in: spaceID, title: title) else { return false }
         return true
     }
 
     @discardableResult
     func renameFolder(
-        _ folderID: FolderID,
+        _ folderID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
         title: String
     ) -> Bool {
@@ -311,8 +311,8 @@ extension BrowserStore {
 
     @discardableResult
     func setFolderColor(
-        _ folderID: FolderID,
-        in spaceID: SpaceID,
+        _ folderID: UUID,
+        in spaceID: UUID,
         color: BrandColor
     ) -> Bool {
         family.send(
@@ -324,7 +324,7 @@ extension BrowserStore {
 
     @discardableResult
     func setFolderColor(
-        _ folderID: FolderID,
+        _ folderID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
         color: BrandColor
     ) -> Bool {
@@ -339,8 +339,8 @@ extension BrowserStore {
 
     @discardableResult
     func setFolderSymbol(
-        _ folderID: FolderID,
-        in spaceID: SpaceID,
+        _ folderID: UUID,
+        in spaceID: UUID,
         symbol: String
     ) -> Bool {
         family.send(
@@ -352,7 +352,7 @@ extension BrowserStore {
 
     @discardableResult
     func setFolderSymbol(
-        _ folderID: FolderID,
+        _ folderID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
         symbol: String
     ) -> Bool {
@@ -367,8 +367,8 @@ extension BrowserStore {
 
     @discardableResult
     func setFolderCollapsed(
-        _ folderID: FolderID,
-        in spaceID: SpaceID,
+        _ folderID: UUID,
+        in spaceID: UUID,
         isCollapsed: Bool
     ) -> Bool {
         guard
@@ -383,7 +383,7 @@ extension BrowserStore {
 
     @discardableResult
     func setFolderCollapsed(
-        _ folderID: FolderID,
+        _ folderID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
         isCollapsed: Bool
     ) -> Bool {
@@ -399,9 +399,9 @@ extension BrowserStore {
     /// Whether a folder may move under `parentID`. The core's folder rules
     /// answer (no cycles, the depth limit including the moving subtree).
     func canMoveFolder(
-        _ folderID: FolderID,
-        in spaceID: SpaceID,
-        into parentID: FolderID?
+        _ folderID: UUID,
+        in spaceID: UUID,
+        into parentID: UUID?
     ) -> Bool {
         guard !isDeleting(spaceID) else { return false }
         return family.canSend(
@@ -412,9 +412,9 @@ extension BrowserStore {
     }
 
     func canMoveFolder(
-        _ folderID: FolderID,
+        _ folderID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
-        into parentID: FolderID?
+        into parentID: UUID?
     ) -> Bool {
         guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }
@@ -427,10 +427,10 @@ extension BrowserStore {
 
     @discardableResult
     func moveFolder(
-        _ folderID: FolderID,
-        in spaceID: SpaceID,
-        into parentID: FolderID?,
-        before siblingID: FolderID? = nil
+        _ folderID: UUID,
+        in spaceID: UUID,
+        into parentID: UUID?,
+        before siblingID: UUID? = nil
     ) -> Bool {
         guard
             moveSessionFolder(
@@ -445,10 +445,10 @@ extension BrowserStore {
 
     @discardableResult
     func moveFolder(
-        _ folderID: FolderID,
+        _ folderID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
-        into parentID: FolderID?,
-        before siblingID: FolderID? = nil
+        into parentID: UUID?,
+        before siblingID: UUID? = nil
     ) -> Bool {
         guard let space = spaceModel(matching: assignment),
             siblingID == nil
@@ -473,8 +473,8 @@ extension BrowserStore {
     func moveFolder(
         _ item: BrowserFolderDragItem,
         matching destinationAssignment: BrowserSpaceRuntimeAssignment,
-        into parentID: FolderID?,
-        before siblingID: FolderID? = nil
+        into parentID: UUID?,
+        before siblingID: UUID? = nil
     ) -> Bool {
         let sourceAssignment = BrowserSpaceRuntimeAssignment(
             spaceID: item.spaceID,
@@ -490,14 +490,14 @@ extension BrowserStore {
     }
 
     @discardableResult
-    func deleteFolder(_ folderID: FolderID, in spaceID: SpaceID) -> Bool {
+    func deleteFolder(_ folderID: UUID, in spaceID: UUID) -> Bool {
         guard deleteSessionFolder(folderID, in: spaceID) else { return false }
         return true
     }
 
     @discardableResult
     func deleteFolder(
-        _ folderID: FolderID,
+        _ folderID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)

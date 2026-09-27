@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserQuickWindowGeometryBridge: NSViewRepresentable {
     let pagePoolRegistry: BrowserPagePoolRegistry?
-    let targetWindowID: BrowserWindowID?
+    let targetWindowID: UUID?
 
     func makeNSView(context: Context) -> BrowserQuickWindowGeometryHostView {
         BrowserQuickWindowGeometryHostView(

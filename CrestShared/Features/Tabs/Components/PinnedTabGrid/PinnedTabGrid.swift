@@ -13,7 +13,7 @@ struct PinnedTabGrid: View {
     /// The window whose shown tab a tile marks, or nil for a preview, which
     /// marks `selectedTabID`.
     var window: WindowStateModel? = nil
-    var selectedTabID: TabID? = nil
+    var selectedTabID: UUID? = nil
     let select: (BrowserTabRuntimeAssignment) -> Void
     /// The live sidebar's lists, which organize, drag and unload tiles; nil
     /// for a preview that is only for looking at.

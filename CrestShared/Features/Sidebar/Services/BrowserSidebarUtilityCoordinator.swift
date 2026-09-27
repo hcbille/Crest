@@ -36,7 +36,7 @@ struct BrowserSidebarUtilityCoordinator {
     }
 
     private func restoreArchivedTab(
-        _ tabID: TabID,
+        _ tabID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) {
         guard

@@ -25,9 +25,9 @@ final class BrowserGettingStartedPractice {
         permissionCenter: BrowserSitePermissionCenter())
     let sidebarScroll = BrowserNativeScrollState()
     var splitWidths = BrowserSplitWidthTransaction(persistedFractions: [1])
-    private var splitWidthMembers: [TabID] = []
+    private var splitWidthMembers: [UUID] = []
     /// Each practice tab's identity in the practice the store holds.
-    private var practiceTabIDs: [PracticeTab: TabID]
+    private var practiceTabIDs: [PracticeTab: UUID]
 
     /// The practice Space as the read model holds it.
     var space: SpaceModel {
@@ -38,7 +38,7 @@ final class BrowserGettingStartedPractice {
     }
 
     var assignment: BrowserSpaceRuntimeAssignment { BrowserSpaceRuntimeAssignment(space: space) }
-    var selectedTabID: TabID? { browser.selectedTabID(in: space.id) }
+    var selectedTabID: UUID? { browser.selectedTabID(in: space.id) }
     /// The cards the practice shows: the members of the split the selected
     /// tab shows in, or the selected tab alone, or none.
     var members: [TabStateModel] {
@@ -59,7 +59,7 @@ final class BrowserGettingStartedPractice {
     // MARK: - Actions - Practice
 
     /// The identity `tab` has in this practice.
-    func tabID(_ tab: PracticeTab) -> TabID? {
+    func tabID(_ tab: PracticeTab) -> UUID? {
         practiceTabIDs[tab]
     }
 
@@ -77,12 +77,12 @@ final class BrowserGettingStartedPractice {
     /// A window over a new practice workspace, with each practice tab wearing
     /// its icon as a loaded page would leave it, and the practice tabs'
     /// identities in it.
-    private static func opened() -> (browser: BrowserStore, tabIDs: [PracticeTab: TabID]) {
+    private static func opened() -> (browser: BrowserStore, tabIDs: [PracticeTab: UUID]) {
         let core = CrestCore()
         let browser = BrowserStore(
             credentialVault: InMemoryCredentialVault(), browsingMode: .standard,
             family: BrowserStoreFamily(startingAs: .practice, in: core), core: core)
-        var identities: [PracticeTab: TabID] = [:]
+        var identities: [PracticeTab: UUID] = [:]
         guard let space = browser.workspaceModel?.spaces.models.first else { return (browser, identities) }
         for tab in space.tabs.models {
             guard let practiceTab = PracticeTab.all.first(where: { $0.url == tab.url }) else { continue }
@@ -135,7 +135,7 @@ final class BrowserGettingStartedPractice {
         _ = browser.setTabFavicon(favicon, iconAccent: nil, for: id, matching: assignment)
     }
 
-    func move(_ id: TabID, by offset: Int) {
+    func move(_ id: UUID, by offset: Int) {
         browser.selectTab(id)
         _ = browser.moveSplitMember(id, by: offset, matching: assignment)
     }

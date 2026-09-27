@@ -7,7 +7,7 @@ struct BrowserFolderDragPreview: View {
     var sourceHeight: CGFloat = BrowserFolderDragPreviewLayout.height
     var rows: [BrowserFolderDragPreviewRow] = []
     var profileID: UUID?
-    var loadedTabIDs: Set<TabID>?
+    var loadedTabIDs: Set<UUID>?
 
     var body: some View {
         let shape = RoundedRectangle(

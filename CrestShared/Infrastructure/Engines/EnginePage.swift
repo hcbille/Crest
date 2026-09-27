@@ -248,7 +248,7 @@ final class EnginePage: BrowserFindExecuting {
 
     /// Moves the page into window `windowID`, keeping its history and
     /// renderer, before the window shows it.
-    func move(to windowID: BrowserWindowID) -> Bool {
+    func move(to windowID: UUID) -> Bool {
         pages.request(MovePageToWindow(pageID: id, windowID: windowID))
     }
 

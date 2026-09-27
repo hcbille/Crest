@@ -18,7 +18,7 @@ struct BrowserSpaceSwitcher: View {
     /// commands, it only needs to know what the profile has downloaded.
     let downloadCenter: BrowserDownloadCenter
     let capabilities: BrowserInteractionCapabilities
-    let selectSpace: (SpaceID) -> Void
+    let selectSpace: (UUID) -> Void
     var accessories = BrowserSpaceSwitcherAccessories()
 
     var body: some View {
@@ -63,7 +63,7 @@ struct BrowserSpaceSwitcher: View {
         BrowserSidebarAccessPolicy.availableSpaces(in: browser).map(BrowserSpaceIdentity.init(space:))
     }
 
-    private var selectedSpaceID: SpaceID {
+    private var selectedSpaceID: UUID {
         browser.selectedSpaceID
     }
 

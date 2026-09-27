@@ -21,15 +21,15 @@ final class BrowserSystemPermissionService: BrowserSystemPermissionServicing {
         self.readPasskeyStatus = readPasskeyStatus ?? { Self.passkeyStatus(asking: core) }
     }
 
-    func status(for permission: BrowserSystemPermission, spaceID: SpaceID?) async -> BrowserSystemPermissionStatus {
+    func status(for permission: BrowserSystemPermission, spaceID: UUID?) async -> BrowserSystemPermissionStatus {
         await access(permission, spaceID: spaceID).status()
     }
 
-    func request(_ permission: BrowserSystemPermission, spaceID: SpaceID?) async throws {
+    func request(_ permission: BrowserSystemPermission, spaceID: UUID?) async throws {
         try await access(permission, spaceID: spaceID).request()
     }
 
-    func chooseFolder(spaceID: SpaceID) async throws {
+    func chooseFolder(spaceID: UUID) async throws {
         try await folderAccess.chooseFolder(spaceID: spaceID)
     }
 
@@ -46,7 +46,7 @@ final class BrowserSystemPermissionService: BrowserSystemPermissionServicing {
 
     /// The one place each permission meets the system API that reads and
     /// requests it.
-    private func access(_ permission: BrowserSystemPermission, spaceID: SpaceID?) -> SystemAccess {
+    private func access(_ permission: BrowserSystemPermission, spaceID: UUID?) -> SystemAccess {
         switch permission.kind {
         case .camera:
             SystemAccess(

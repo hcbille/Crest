@@ -3,7 +3,7 @@ import SwiftUI
 struct MobileArchiveList: View {
     let space: SpaceModel?
     let favicons: FaviconAssets
-    let restoreArchivedTab: (TabID) -> Void
+    let restoreArchivedTab: (UUID) -> Void
 
     var body: some View {
         Group {

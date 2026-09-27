@@ -12,7 +12,7 @@ struct BrowserPlatformSpaceSettingsPane: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
-    let requestedSpaceID: SpaceID?
+    let requestedSpaceID: UUID?
     let requestRevision: Int
 
     var body: some View {

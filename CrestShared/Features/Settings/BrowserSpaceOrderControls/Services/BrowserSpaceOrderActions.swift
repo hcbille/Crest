@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 struct BrowserSpaceOrderActions {
     let browser: BrowserStore
-    let spaceID: SpaceID?
+    let spaceID: UUID?
 
     var canMoveUp: Bool {
         guard let index else { return false }

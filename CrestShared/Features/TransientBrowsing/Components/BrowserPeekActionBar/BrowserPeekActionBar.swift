@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserPeekActionBar: View {
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let closeAccessibilityLabel: LocalizedStringKey
     let closeHelp: LocalizedStringKey
     let dismiss: () -> Void

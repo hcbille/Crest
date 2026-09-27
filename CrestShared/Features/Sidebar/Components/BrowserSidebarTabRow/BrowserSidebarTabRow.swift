@@ -18,7 +18,7 @@ struct BrowserSidebarTabRow: View {
     var isSplitGroupMember = false
     /// The row a drop below this one would land in front of. Only read where
     /// the shell draws its insertion line on the rows themselves.
-    var followingTabID: TabID? = nil
+    var followingTabID: UUID? = nil
 
     @Environment(\.sidebarSpacePresentation) private var spacePresentation
     @State private var isHovering = false

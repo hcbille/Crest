@@ -9,7 +9,7 @@ struct BrowserMacWindowScene: View {
     let coordinator: BrowserMacWindowCoordinator
     @State private var registered = false
     @State private var closed = false
-    var id: BrowserWindowID { model.id }
+    var id: UUID { model.id }
     var browser: BrowserStore { model.browser }
     var pages: BrowserPagePool { model.pages }
     var chrome: BrowserChromeState { model.chrome }

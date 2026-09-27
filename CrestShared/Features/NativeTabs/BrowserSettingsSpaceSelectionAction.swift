@@ -1,10 +1,12 @@
+import Foundation
+
 @MainActor
 struct BrowserSettingsSpaceSelectionAction {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
 
     @discardableResult
-    func select(_ id: SpaceID, matching source: BrowserTabRuntimeAssignment) -> BrowserTabRuntimeAssignment? {
+    func select(_ id: UUID, matching source: BrowserTabRuntimeAssignment) -> BrowserTabRuntimeAssignment? {
         guard
             let sourceSpace = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
                 matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID),

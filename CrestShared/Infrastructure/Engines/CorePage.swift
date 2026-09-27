@@ -63,7 +63,7 @@ final class CorePage {
     /// request when `tabID` is nil, hosted by `windowID`. False when a rule
     /// refuses it, such as a window that already hosts a page for the tab or a
     /// Space with another profile.
-    func move(to workspaceID: UUID, spaceID: SpaceID, tabID: TabID?, windowID: BrowserWindowID) -> Bool {
+    func move(to workspaceID: UUID, spaceID: UUID, tabID: UUID?, windowID: UUID) -> Bool {
         guard !isReleased, let core else { return false }
         do {
             try core.send(
@@ -158,7 +158,7 @@ final class CorePage {
     /// `spaceID`, and moves this page there, which loads what it showed.
     /// False when a rule refuses either, such as a locked Space.
     @discardableResult
-    func open(_ origin: SiteOrigin, in spaceID: SpaceID, on engine: EngineKind) -> Bool {
+    func open(_ origin: SiteOrigin, in spaceID: UUID, on engine: EngineKind) -> Bool {
         guard !isReleased, let core else { return false }
         return core.open(origin, in: spaceID, on: engine, moving: id)
     }

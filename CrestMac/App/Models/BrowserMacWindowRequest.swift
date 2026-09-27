@@ -24,25 +24,25 @@ struct BrowserMacWindowRequest: Hashable, Identifiable {
 
     // MARK: - Variables
 
-    let id: BrowserWindowID
+    let id: UUID
     let kind: Kind
-    var sourceWindowID: BrowserWindowID?
+    var sourceWindowID: UUID?
     var sourceAssignment: BrowserSpaceRuntimeAssignment?
 
     // MARK: - Initializers
 
-    static func normal(sourceWindowID: BrowserWindowID?) -> Self {
-        Self(id: BrowserWindowID(), kind: .normal, sourceWindowID: sourceWindowID)
+    static func normal(sourceWindowID: UUID?) -> Self {
+        Self(id: UUID(), kind: .normal, sourceWindowID: sourceWindowID)
     }
 
-    static func temporary(sourceWindowID: BrowserWindowID?, assignment: BrowserSpaceRuntimeAssignment) -> Self {
+    static func temporary(sourceWindowID: UUID?, assignment: BrowserSpaceRuntimeAssignment) -> Self {
         Self(
-            id: BrowserWindowID(), kind: .temporary,
+            id: UUID(), kind: .temporary,
             sourceWindowID: sourceWindowID, sourceAssignment: assignment)
     }
 
     /// The request a normal window kept under `id` reopens with.
-    static func reopening(_ id: BrowserWindowID) -> Self {
+    static func reopening(_ id: UUID) -> Self {
         id == initial.id ? initial : Self(id: id, kind: .normal)
     }
 }

@@ -7,7 +7,7 @@ final class BrowserDownloadDestinationTests: XCTestCase {
     @MainActor
     func testUnavailableSavedFolderIsRetainedForRecoveryInsteadOfFallingBackToDownloads() async {
         let preferences = BrowserPlatformDownloadPreferences.shared
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         defer { preferences.clearDirectory(for: spaceID) }
         preferences.setDirectoryMetadata(bookmark: Data([1, 2, 3]), displayName: "Work Files", for: spaceID)
         let resolution = await BrowserPlatformDownloadDirectory.resolve(
@@ -85,8 +85,8 @@ final class BrowserDownloadDestinationTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let preferences = BrowserPlatformDownloadPreferences(defaults: defaults)
-        let work = SpaceID()
-        let personal = SpaceID()
+        let work = UUID()
+        let personal = UUID()
 
         preferences.setAsksWhereToSave(true, for: work)
         preferences.setDirectoryMetadata(

@@ -4,12 +4,12 @@ struct BrowserSourceImportSavedTabs: View {
     let title: LocalizedStringResource
     let review: BrowserImportSpaceReview
     let sections: BrowserSourceImportPreviewSections
-    let overflowTabIDs: Set<TabID>
-    let duplicateTabIDs: Set<TabID>
+    let overflowTabIDs: Set<UUID>
+    let duplicateTabIDs: Set<UUID>
     let duplicateDestinationName: String?
-    let setIncluded: (TabID, Bool) -> Void
-    let setSectionIncluded: (Set<TabID>, Bool) -> Void
-    let setPlacement: (TabID, TabPlacement) -> Void
+    let setIncluded: (UUID, Bool) -> Void
+    let setSectionIncluded: (Set<UUID>, Bool) -> Void
+    let setPlacement: (UUID, TabPlacement) -> Void
 
     @ViewBuilder
     var body: some View {

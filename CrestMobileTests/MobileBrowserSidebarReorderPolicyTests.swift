@@ -4,7 +4,7 @@ import XCTest
 
 @testable import CrestMobile
 
-private func padTab(id: TabID, title: String) -> TabState.Seed {
+private func padTab(id: UUID, title: String) -> TabState.Seed {
     TabState.Seed(
         id: id,
         title: title,
@@ -352,11 +352,11 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
             state = BrowserSidebarReorderState(
                 stagedLiftExpiration: stagedLiftExpiration, clock: clock
             )
-            let spaceID = SpaceID()
+            let spaceID = UUID()
             let profileID = UUID()
             item = .tab(
                 BrowserTabDragItem(
-                    tabID: TabID(),
+                    tabID: UUID(),
                     spaceID: spaceID,
                     profileID: profileID
                 )
@@ -370,7 +370,7 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
                 ),
                 owner: UUID()
             )
-            neighbourID = .tab(TabID())
+            neighbourID = .tab(UUID())
             state.register(
                 row: BrowserSidebarReorderRow(
                     id: neighbourID,
@@ -432,7 +432,7 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
     private struct PinnedOriginFixture {
         let state = BrowserSidebarReorderState()
         let space = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
         let pinnedSection = BrowserSidebarReorderSection.tabs(
@@ -458,14 +458,14 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
 
         init(tileCount: Int = 4) {
             let liftItem = BrowserTabDragItem(
-                tabID: TabID(),
+                tabID: UUID(),
                 spaceID: space.spaceID,
                 profileID: space.profileID
             )
             lift = .tab(liftItem)
 
             tileIDs = (0..<tileCount).map { index in
-                index == 0 ? lift.id : .tab(TabID())
+                index == 0 ? lift.id : .tab(UUID())
             }
             let grid = BrowserPinnedTabReorderLayout(ids: tileIDs)
             for id in tileIDs {
@@ -483,7 +483,7 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
             for index in 0..<2 {
                 state.register(
                     row: BrowserSidebarReorderRow(
-                        id: .tab(TabID()),
+                        id: .tab(UUID()),
                         space: space,
                         section: savedSection,
                         frame: CGRect(
@@ -498,7 +498,7 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
             }
 
             for index in 0..<2 {
-                let id = BrowserSidebarReorderItemID.tab(TabID())
+                let id = BrowserSidebarReorderItemID.tab(UUID())
                 currentRowIDs.append(id)
                 state.register(
                     row: BrowserSidebarReorderRow(
@@ -532,13 +532,13 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
         /// the very same section identities.
         func registerForeignSpaceRun() {
             let foreign = BrowserSpaceRuntimeAssignment(
-                spaceID: SpaceID(),
+                spaceID: UUID(),
                 profileID: space.profileID
             )
             for index in 0..<3 {
                 state.register(
                     row: BrowserSidebarReorderRow(
-                        id: .tab(TabID()),
+                        id: .tab(UUID()),
                         space: foreign,
                         section: currentSection,
                         frame: CGRect(

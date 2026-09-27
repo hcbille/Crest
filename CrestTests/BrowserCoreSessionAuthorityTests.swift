@@ -207,7 +207,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
 
     private enum DeletionFailure: Error { case interrupted }
     private final class DeletionAdapter: BrowserSpaceDataDeleting {
-        var calls: [SpaceID] = []
+        var calls: [UUID] = []
         let core: CrestCore
         let action: (BrowserSpaceRuntimeAssignment) throws -> Void
         init(core: CrestCore, action: @escaping (BrowserSpaceRuntimeAssignment) throws -> Void) {
@@ -382,7 +382,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         core["spaces"] = spaces
         defaults.set(try JSONSerialization.data(withJSONObject: core), forKey: BrowserLegacySessionDefaults.coreKey)
         // A window record written before windows remembered their Spaces.
-        let recorded = BrowserWindowID()
+        let recorded = UUID()
         let record: [String: Any] = [
             "id": ["rawValue": recorded.uuidString],
             "selectedSpaceID": ["rawValue": space.id.uuidString],
@@ -466,7 +466,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
     // MARK: - Fixtures
 
     /// The tab the core would show first in `space`, as a window's tabs.
-    private func fallbackTabs(_ space: SpaceState.Seed) -> [SpaceID: TabID] {
+    private func fallbackTabs(_ space: SpaceState.Seed) -> [UUID: UUID] {
         guard let index = (try? CrestCore().query(FallbackTab(placements: space.tabs.map(\.placement))))?.index,
             space.tabs.indices.contains(index)
         else { return [:] }

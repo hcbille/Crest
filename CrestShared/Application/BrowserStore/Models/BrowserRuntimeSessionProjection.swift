@@ -1,3 +1,5 @@
+import Foundation
+
 /// What a window's page runtime follows in its workspace: tab icons, content
 /// blocking and credential access, compared between changes so each is
 /// reconciled only when it moved.
@@ -6,7 +8,7 @@ struct BrowserRuntimeSessionProjection: Equatable, Sendable {
 
     let tabIconState: BrowserTabIconSessionState
     let contentBlockingState: BrowserContentBlockingSessionState
-    let credentialAccessState: [SpaceID: Bool]
+    let credentialAccessState: [UUID: Bool]
 
     // MARK: - Initializers
 

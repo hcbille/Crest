@@ -14,7 +14,7 @@ protocol BrowserPageOwner: AnyObject, BrowserTabCopying, BrowserTabLinkProviding
     /// The focused card's page, which the page commands act on.
     var activePage: BrowserPlatformPage? { get }
     /// Every tab whose page some window over the host presents now.
-    var presentedTabIDsAcrossWindows: Set<TabID> { get }
+    var presentedTabIDsAcrossWindows: Set<UUID> { get }
     /// The built-in content blocking the owner applies to its pages.
     var contentBlocking: BrowserContentBlockingController { get }
     /// The certificate exceptions people accepted for the owner's pages, by
@@ -202,7 +202,7 @@ extension BrowserPageOwner {
 
     var retainedTransientPageCount: Int { host.retainedTransientPageCount }
 
-    func containsResidentPage(for tabID: TabID) -> Bool {
+    func containsResidentPage(for tabID: UUID) -> Bool {
         _ = host.revision
         return host.page(for: tabID) != nil
     }
@@ -212,7 +212,7 @@ extension BrowserPageOwner {
         return host.page(matching: assignment) != nil
     }
 
-    func siteThemeIconAccent(for tabID: TabID) -> BrowserTabIconAccent? {
+    func siteThemeIconAccent(for tabID: UUID) -> BrowserTabIconAccent? {
         host.page(for: tabID)?.siteThemeIconAccent
     }
 
@@ -224,18 +224,18 @@ extension BrowserPageOwner {
         host.discardArchivedTabState(matching: assignment)
     }
 
-    func unloadPage(for tabID: TabID) {
+    func unloadPage(for tabID: UUID) {
         host.unloadPage(for: tabID)
     }
 
     @discardableResult
-    func unloadPage(for tabID: TabID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
+    func unloadPage(for tabID: UUID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
         host.unloadPage(for: tabID, matching: assignment)
     }
 
     /// Releases a Space's resident pages without archiving them. Normal Space
     /// switching and locking preserve residency and do not call this teardown.
-    func unloadPages(in spaceID: SpaceID) {
+    func unloadPages(in spaceID: UUID) {
         host.unloadPages(in: spaceID)
     }
 
@@ -243,17 +243,17 @@ extension BrowserPageOwner {
         await host.flushPendingTabStateWrites()
     }
 
-    func pullFavicon(for tabID: TabID) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
+    func pullFavicon(for tabID: UUID) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
         await host.pullFavicon(for: tabID)
     }
 
     func pullFavicon(
-        for tabID: TabID, matching assignment: BrowserSpaceRuntimeAssignment
+        for tabID: UUID, matching assignment: BrowserSpaceRuntimeAssignment
     ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)? {
         await host.pullFavicon(for: tabID, matching: assignment)
     }
 
-    func prepareTabCopy(from source: TabState, copyID: TabID, in space: BrowserSpaceRuntimeAssignment) {
+    func prepareTabCopy(from source: TabState, copyID: UUID, in space: BrowserSpaceRuntimeAssignment) {
         host.prepareTabCopy(from: source, copyID: copyID, in: space)
     }
 

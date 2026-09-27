@@ -42,12 +42,12 @@ final class BrowserPageSitePermissionSession: BrowserSitePermissionObserver {
 
     private let page: EnginePage
     private let permissionCenter: BrowserSitePermissionCenter
-    private let spaceID: SpaceID
+    private let spaceID: UUID
     private var mediaGrants: [MediaGrant: SitePermissionDecision] = [:]
 
     // MARK: - Initializers
 
-    init(page: EnginePage, permissionCenter: BrowserSitePermissionCenter, spaceID: SpaceID) {
+    init(page: EnginePage, permissionCenter: BrowserSitePermissionCenter, spaceID: UUID) {
         self.page = page
         self.permissionCenter = permissionCenter
         self.spaceID = spaceID

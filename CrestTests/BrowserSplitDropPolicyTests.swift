@@ -45,7 +45,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
                 at: point,
                 in: zones,
                 accepting: Self.groupItem(in: assignment),
-                plan: Self.plan(splitRefusal: .alreadyInSplit(AlreadyInSplit(tabID: TabID())))
+                plan: Self.plan(splitRefusal: .alreadyInSplit(AlreadyInSplit(tabID: UUID())))
             )
         )
     }
@@ -66,7 +66,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
                 in: zones,
                 accepting: Self.tabItem(
                     in: BrowserSpaceRuntimeAssignment(
-                        spaceID: SpaceID(),
+                        spaceID: UUID(),
                         profileID: UUID()
                     )
                 )
@@ -230,7 +230,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
     /// That covers the lone tab in an unsplit window dropped onto itself as much
     /// as a member of a live split.
     func testAPresentedTabIsRefusedByItsOwnContentArea() {
-        let presented = TabID()
+        let presented = UUID()
         let state = Self.stateWithCards(count: 2, firstTabID: presented)
 
         state.begin(
@@ -285,7 +285,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
         for frame in Self.presentedCardFrames(count: 2) {
             state.register(
                 splitCardFrame: frame,
-                for: TabID(),
+                for: UUID(),
                 in: Self.otherAssignment,
                 owner: UUID()
             )
@@ -310,7 +310,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
     /// replacement's registration with it.
     func testAStaleCardRemovalCannotClearItsReplacement() {
         let state = BrowserSidebarReorderState()
-        let tabID = TabID()
+        let tabID = UUID()
         let departing = UUID()
         let arriving = UUID()
         let frame = CGRect(x: 0, y: 0, width: 900, height: 600)
@@ -427,7 +427,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
     /// of equal width inside it.
     private static func stateWithCards(
         count: Int,
-        firstTabID: TabID? = nil
+        firstTabID: UUID? = nil
     ) -> BrowserSidebarReorderState {
         let state = BrowserSidebarReorderState()
         state.register(
@@ -440,7 +440,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
         for (index, frame) in presentedCardFrames(count: count).enumerated() {
             state.register(
                 splitCardFrame: frame,
-                for: index == 0 ? (firstTabID ?? TabID()) : TabID(),
+                for: index == 0 ? (firstTabID ?? UUID()) : UUID(),
                 in: assignment,
                 owner: UUID()
             )
@@ -455,12 +455,12 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
             selection: TabSelection(tabIDs: [], folderIDs: [], memberTabIDs: []),
             targets: DropTargetList(
                 refusal: nil, lists: [ListDropTarget(section: .current, folderID: nil)], spaceIDs: [],
-                split: SplitDropTarget(tabID: TabID(), refusal: splitRefusal), folderAroundTabIDs: []))
+                split: SplitDropTarget(tabID: UUID(), refusal: splitRefusal), folderAroundTabIDs: []))
     }
 
     private static func tabItem(
         in assignment: BrowserSpaceRuntimeAssignment,
-        tabID: TabID = TabID()
+        tabID: UUID = UUID()
     ) -> BrowserSidebarReorderItem {
         .tab(
             BrowserTabDragItem(
@@ -476,7 +476,7 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
     ) -> BrowserSidebarReorderItem {
         .folder(
             BrowserFolderDragItem(
-                folderID: FolderID(),
+                folderID: UUID(),
                 spaceID: assignment.spaceID,
                 profileID: assignment.profileID
             )
@@ -488,10 +488,10 @@ final class BrowserSplitDropPolicyTests: XCTestCase {
     ) -> BrowserSidebarReorderItem {
         .splitGroup(
             BrowserSplitGroupDragItem(
-                groupID: SplitGroupID(),
+                groupID: UUID(),
                 spaceID: assignment.spaceID,
                 profileID: assignment.profileID,
-                memberTabIDs: [TabID(), TabID()]
+                memberTabIDs: [UUID(), UUID()]
             )
         )
     }

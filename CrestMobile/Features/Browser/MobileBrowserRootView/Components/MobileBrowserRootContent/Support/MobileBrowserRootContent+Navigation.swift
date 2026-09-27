@@ -1,7 +1,7 @@
 import SwiftUI
 
 extension MobileBrowserRootContent {
-    func selectTab(_ id: TabID) {
+    func selectTab(_ id: UUID) {
         dismissAddressFocus()
         let dismissesFloatingPhoneSidebar =
             MobileSidebarTabSelectionPolicy.dismissesSidebar(
@@ -135,7 +135,7 @@ extension MobileBrowserRootContent {
 
     /// The carousel's own selection commits: an accessibility adjustment, or a
     /// programmatic page that settled somewhere the selection did not expect.
-    func selectSplitCard(_ tabID: TabID) {
+    func selectSplitCard(_ tabID: UUID) {
         model.focusSplitCard(tabID)
     }
 

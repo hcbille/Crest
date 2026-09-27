@@ -83,7 +83,7 @@ enum BrowserDownloadFileIconPolicy {
 struct BrowserDownloadFeedbackLayer: View {
     let events: [BrowserDownloadFeedbackEvent]
     let profileID: UUID?
-    let spaceID: SpaceID?
+    let spaceID: UUID?
     let destinationFrameInGlobal: CGRect?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// Resolves a pointer against one lift's projected rows and visible drop zones.
 @MainActor
@@ -10,7 +11,7 @@ struct BrowserSidebarReorderTargetResolver {
     let pinned: (layout: BrowserPinnedTabReorderLayout, frame: CGRect, emptyHeight: CGFloat)?
     let zones: [BrowserSidebarReorderZone]
     let rows: [BrowserSidebarReorderItemID: BrowserSidebarReorderGeometry.RegisteredRow]
-    let splitCards: [TabID: BrowserSidebarReorderGeometry.SplitCard]
+    let splitCards: [UUID: BrowserSidebarReorderGeometry.SplitCard]
 
     func resolve(previousTarget: BrowserSidebarReorderTarget?) -> BrowserSidebarReorderTarget? {
         let available = zones.filter { !$0.frame.isEmpty && allowsNesting(in: $0) }
@@ -93,7 +94,7 @@ struct BrowserSidebarReorderTargetResolver {
     }
 
     private func folderDepth(of section: BrowserSidebarReorderSection) -> Int {
-        var ancestors: Set<FolderID> = []
+        var ancestors: Set<UUID> = []
         var parent = section.parentFolderID
         while let id = parent, ancestors.insert(id).inserted {
             parent = rows[.folder(id)]?.row.section.parentFolderID

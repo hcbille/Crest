@@ -12,7 +12,7 @@ struct BrowserTransientBrowsingPreferences {
     // MARK: - Variables
 
     private let lifetime: () -> TimeInterval?
-    private let rememberSpaceHandler: (SpaceID, URL) -> Void
+    private let rememberSpaceHandler: (UUID, URL) -> Void
 
     /// How long an inactive Quick Window stays open, read each time it is
     /// asked, so a changed preference reaches windows already open.
@@ -22,7 +22,7 @@ struct BrowserTransientBrowsingPreferences {
 
     init(
         archiveLifetime: @escaping () -> TimeInterval?,
-        rememberSpace: @escaping (SpaceID, URL) -> Void
+        rememberSpace: @escaping (UUID, URL) -> Void
     ) {
         lifetime = archiveLifetime
         rememberSpaceHandler = rememberSpace
@@ -30,14 +30,14 @@ struct BrowserTransientBrowsingPreferences {
 
     init(
         archiveLifetime: TimeInterval?,
-        rememberSpace: @escaping (SpaceID, URL) -> Void
+        rememberSpace: @escaping (UUID, URL) -> Void
     ) {
         self.init(archiveLifetime: { archiveLifetime }, rememberSpace: rememberSpace)
     }
 
     // MARK: - Actions - Spaces
 
-    func rememberSpace(_ spaceID: SpaceID, for url: URL) {
+    func rememberSpace(_ spaceID: UUID, for url: URL) {
         rememberSpaceHandler(spaceID, url)
     }
 }

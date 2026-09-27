@@ -1,9 +1,9 @@
 import Foundation
 
 actor InMemoryCredentialVault: CredentialVault {
-    private var credentialsBySpace: [SpaceID: [CredentialID: BrowserCredential]] = [:]
+    private var credentialsBySpace: [UUID: [UUID: BrowserCredential]] = [:]
 
-    func descriptors(in spaceID: SpaceID) -> [CredentialDescriptor] {
+    func descriptors(in spaceID: UUID) -> [CredentialDescriptor] {
         sortedDescriptors(
             credentialsBySpace[spaceID, default: [:]].values.map(\.descriptor)
         )
@@ -11,7 +11,7 @@ actor InMemoryCredentialVault: CredentialVault {
 
     func descriptors(
         matching origin: CredentialOrigin,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) -> [CredentialDescriptor] {
         sortedDescriptors(
             credentialsBySpace[spaceID, default: [:]].values
@@ -25,7 +25,7 @@ actor InMemoryCredentialVault: CredentialVault {
 
     func descriptors(
         matching protectionSpace: BrowserHTTPAuthenticationProtectionSpace,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) -> [CredentialDescriptor] {
         sortedDescriptors(
             credentialsBySpace[spaceID, default: [:]].values
@@ -37,11 +37,11 @@ actor InMemoryCredentialVault: CredentialVault {
         )
     }
 
-    func credential(id: CredentialID, in spaceID: SpaceID) -> BrowserCredential? {
+    func credential(id: UUID, in spaceID: UUID) -> BrowserCredential? {
         credentialsBySpace[spaceID]?[id]
     }
 
-    func save(_ credential: BrowserCredential, in spaceID: SpaceID) throws {
+    func save(_ credential: BrowserCredential, in spaceID: UUID) throws {
         guard credential.descriptor.spaceID == spaceID else {
             throw CredentialVaultError.spaceMismatch(
                 expected: spaceID,
@@ -51,7 +51,7 @@ actor InMemoryCredentialVault: CredentialVault {
         credentialsBySpace[spaceID, default: [:]][credential.descriptor.id] = credential
     }
 
-    func replaceAll(_ credentials: [BrowserCredential], in spaceID: SpaceID) throws {
+    func replaceAll(_ credentials: [BrowserCredential], in spaceID: UUID) throws {
         for credential in credentials where credential.descriptor.spaceID != spaceID {
             throw CredentialVaultError.spaceMismatch(
                 expected: spaceID,
@@ -63,7 +63,7 @@ actor InMemoryCredentialVault: CredentialVault {
         )
     }
 
-    func setSynchronizable(_ isSynchronizable: Bool, in spaceID: SpaceID) {
+    func setSynchronizable(_ isSynchronizable: Bool, in spaceID: UUID) {
         guard var credentials = credentialsBySpace[spaceID] else { return }
         for id in credentials.keys {
             credentials[id]?.descriptor.isSynchronizable = isSynchronizable
@@ -71,14 +71,14 @@ actor InMemoryCredentialVault: CredentialVault {
         credentialsBySpace[spaceID] = credentials
     }
 
-    func delete(id: CredentialID, in spaceID: SpaceID) {
+    func delete(id: UUID, in spaceID: UUID) {
         credentialsBySpace[spaceID]?[id] = nil
         if credentialsBySpace[spaceID]?.isEmpty == true {
             credentialsBySpace[spaceID] = nil
         }
     }
 
-    func deleteAll(in spaceID: SpaceID) {
+    func deleteAll(in spaceID: UUID) {
         credentialsBySpace[spaceID] = nil
     }
 
@@ -88,7 +88,7 @@ actor InMemoryCredentialVault: CredentialVault {
             if usernameOrder != .orderedSame {
                 return usernameOrder == .orderedAscending
             }
-            return $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
+            return $0.id.uuidString < $1.id.uuidString
         }
     }
 }

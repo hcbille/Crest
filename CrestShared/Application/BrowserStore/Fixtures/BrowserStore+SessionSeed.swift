@@ -11,7 +11,7 @@
         }
 
         /// Every tab this window's workspace holds open, Space by Space.
-        var openTabIDs: [TabID] {
+        var openTabIDs: [UUID] {
             spaceModels.flatMap { $0.tabs.models.map(\.id) }
         }
     }

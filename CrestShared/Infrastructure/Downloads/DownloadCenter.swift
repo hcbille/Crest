@@ -24,7 +24,7 @@ final class BrowserDownloadCenter: NSObject {
     typealias DownloadDestinationResolver =
         @MainActor (
             String,
-            SpaceID,
+            UUID,
             Bool
         ) async -> BrowserPlatformDownloadResolution
 
@@ -181,7 +181,7 @@ final class BrowserDownloadCenter: NSObject {
 
     /// Deletes a Space's records. The core cancels and removes the downloads
     /// its profile's engines still run.
-    func deleteRecords(profileID: UUID, spaceID: SpaceID) {
+    func deleteRecords(profileID: UUID, spaceID: UUID) {
         let assignment = BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: profileID)
         dataSaveAssignments = dataSaveAssignments.filter { $0.value != assignment }
         send(RemoveProfileDownloads(profileID: profileID))

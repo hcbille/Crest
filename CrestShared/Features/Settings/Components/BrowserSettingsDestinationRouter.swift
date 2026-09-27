@@ -32,7 +32,7 @@ struct BrowserSettingsDestinationRouter: View {
     var managePasswords: (() -> Void)? = nil
     /// Absent where the shell has no rebindable command table.
     var shortcuts: BrowserShortcutStore? = nil
-    var requestedSpaceID: SpaceID? = nil
+    var requestedSpaceID: UUID? = nil
     var requestRevision = 0
     /// The Space whose engine pages the feature flags pane shows, or nil
     /// while it is locked.

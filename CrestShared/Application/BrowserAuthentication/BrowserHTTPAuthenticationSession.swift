@@ -1,3 +1,5 @@
+import Foundation
+
 @MainActor
 final class BrowserHTTPAuthenticationSession {
     typealias LoadCredential =
@@ -18,13 +20,13 @@ final class BrowserHTTPAuthenticationSession {
     private let loadCredential: LoadCredential
     private let saveCredential: SaveCredential
     private var allowsCredentialSaving: Bool
-    let spaceID: SpaceID
+    let spaceID: UUID
     private var attemptedStoredCredential: BrowserCredential?
     private var attemptedProtectionSpace: BrowserHTTPAuthenticationProtectionSpace?
     private var pendingSaveRequest: BrowserHTTPAuthenticationSaveRequest?
 
     init(
-        spaceID: SpaceID,
+        spaceID: UUID,
         allowsCredentialSaving: Bool = true,
         loadCredential: @escaping LoadCredential = { _ in nil },
         saveCredential: @escaping SaveCredential = { _ in }

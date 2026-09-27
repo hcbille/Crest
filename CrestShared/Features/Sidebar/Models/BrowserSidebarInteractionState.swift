@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// Owns the interaction state shared by one window's sidebar and page surfaces.
@@ -47,7 +48,7 @@ final class BrowserSidebarInteractionState: BrowserStoreInteractionObserving {
     /// Brings every folder's kept row in step with the Space as the read
     /// model holds it: the tabs each folder holds directly, the shown tab and
     /// which tabs hold a page.
-    func reconcileCollapsedFolders(in space: SpaceModel, selectedTabID: TabID?, residentTabIDs: Set<TabID>) {
+    func reconcileCollapsedFolders(in space: SpaceModel, selectedTabID: UUID?, residentTabIDs: Set<UUID>) {
         for folder in space.folders.models {
             let assignment = BrowserFolderRuntimeAssignment(
                 folderID: folder.id, spaceID: space.id, profileID: space.profileID)
@@ -60,8 +61,8 @@ final class BrowserSidebarInteractionState: BrowserStoreInteractionObserving {
     }
 
     func reconcileCollapsedFolder(
-        _ assignment: BrowserFolderRuntimeAssignment, isExpanded: Bool, selectedTabID: TabID?,
-        folderTabIDs: [TabID], residentFolderTabIDs: [TabID]
+        _ assignment: BrowserFolderRuntimeAssignment, isExpanded: Bool, selectedTabID: UUID?,
+        folderTabIDs: [UUID], residentFolderTabIDs: [UUID]
     ) {
         let visibility = collapsedFolderVisibility(for: assignment)
         var next = visibility.state

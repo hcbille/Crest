@@ -14,7 +14,7 @@ final class BrowserWindowLayoutsTests: XCTestCase {
         let harness = try BrowserStoredSessionHarness(seed: session)
         let space = try XCTUnwrap(harness.store.spaceModels.last)
         let tab = try XCTUnwrap(space.tabs.models.last)
-        let id = BrowserWindowID()
+        let id = UUID()
         let window = harness.store.makeWindowStore(BrowserWindowOpening(id: id, saved: true))
         XCTAssertTrue(window.activateSessionTab(tab.id, in: space.id))
 
@@ -31,7 +31,7 @@ final class BrowserWindowLayoutsTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let layouts = BrowserWindowLayouts(defaults: defaults)
-        let ids = (0...BrowserWindowLayouts.maximumCount).map { _ in BrowserWindowID() }
+        let ids = (0...BrowserWindowLayouts.maximumCount).map { _ in UUID() }
         for (index, id) in ids.dropLast().enumerated() {
             layouts.save(BrowserWindowState(id: id, sidebarWidth: Double(200 + index), sidebarIsPresented: true))
         }
@@ -54,8 +54,8 @@ final class BrowserWindowLayoutsTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let key = "crest.windowLayouts.v1"
-        let earlier = BrowserWindowID()
-        let bare = BrowserWindowID()
+        let earlier = UUID()
+        let bare = UUID()
         defaults.set(
             Data(
                 """

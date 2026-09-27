@@ -22,8 +22,8 @@ final class BrowserChromeLayoutTests: XCTestCase {
     @MainActor
     func testSettingsPresentationKeepsTheLatestDestinationAndSpace() {
         let presentation = BrowserSpaceSettingsPresentationState()
-        let first = SpaceID()
-        let second = SpaceID()
+        let first = UUID()
+        let second = UUID()
         let firstAssignment = BrowserSpaceRuntimeAssignment(
             spaceID: first,
             profileID: UUID()
@@ -45,7 +45,7 @@ final class BrowserChromeLayoutTests: XCTestCase {
     @MainActor
     func testRepeatedSettingsPresentationStillPublishesANewRequest() {
         let presentation = BrowserSpaceSettingsPresentationState()
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let assignment = BrowserSpaceRuntimeAssignment(
             spaceID: spaceID,
             profileID: UUID()

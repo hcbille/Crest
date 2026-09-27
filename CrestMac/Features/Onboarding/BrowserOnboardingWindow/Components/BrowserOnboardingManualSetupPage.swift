@@ -3,7 +3,7 @@ import SwiftUI
 struct BrowserOnboardingManualSetupPage: View {
     let flow: BrowserOnboardingFlow
     let opensGettingStarted: Bool
-    @Binding var selectedSpaceID: SpaceID?
+    @Binding var selectedSpaceID: UUID?
     let back: () -> Void
     let openCrest: () -> Void
 

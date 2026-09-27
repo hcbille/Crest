@@ -2,11 +2,11 @@ import SwiftUI
 
 /// Selection uses the live control bounds, not the resting frames frozen by a drag.
 struct BrowserTabSelectionTarget: ViewModifier {
-    let tabID: TabID?
+    let tabID: UUID?
     let browser: BrowserStore?
     let assignment: BrowserSpaceRuntimeAssignment
     var isEnabled = true
-    var folderID: FolderID? = nil
+    var folderID: UUID? = nil
     @Environment(\.browserInteractionCapabilities) private var capabilities
 
     func body(content: Content) -> some View {
@@ -23,8 +23,8 @@ struct BrowserTabSelectionTarget: ViewModifier {
 
 /// Selection belongs to the activation button, never its close control.
 struct BrowserTabSelectionAccessibility: ViewModifier {
-    let tabID: TabID
-    let spaceID: SpaceID
+    let tabID: UUID
+    let spaceID: UUID
     let browser: BrowserStore?
     let isActive: Bool
     let isLoaded: Bool
@@ -47,7 +47,7 @@ struct BrowserTabSelectionAccessibility: ViewModifier {
 }
 
 struct BrowserFolderSelectionAccessibility: ViewModifier {
-    let folderID: FolderID
+    let folderID: UUID
     let browser: BrowserStore
     private var selected: Bool { browser.tabMultiSelection.contains(.folder(folderID)) }
     func body(content: Content) -> some View {

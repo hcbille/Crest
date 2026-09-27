@@ -30,14 +30,14 @@ extension BrowserMacApplication: BrowserEngineHostCommands {
         extensionSpaces.first { $0.profileID == profileID }
     }
 
-    func selectSpace(_ spaceID: SpaceID, in window: BrowserWindowID) {
+    func selectSpace(_ spaceID: UUID, in window: UUID) {
         hostWindow(window)?.browser.selectSpace(spaceID)
     }
 
     // MARK: - Actions - Tabs
 
     @discardableResult
-    func openTab(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: BrowserWindowID) -> Bool {
+    func openTab(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: UUID) -> Bool {
         guard let host = hostWindow(window), let target = host.browser.spaceModel(matching: space),
             !spaceAccess.isLocked(target)
         else { return false }
@@ -48,7 +48,7 @@ extension BrowserMacApplication: BrowserEngineHostCommands {
     }
 
     @discardableResult
-    func openExternalLink(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: BrowserWindowID) -> Bool {
+    func openExternalLink(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: UUID) -> Bool {
         guard let host = hostWindow(window), host.browser.openNewTab(url: url, matching: space) != nil
         else { return false }
         host.pages.select()
@@ -57,20 +57,20 @@ extension BrowserMacApplication: BrowserEngineHostCommands {
         return true
     }
 
-    func openSettings(in window: BrowserWindowID) {
+    func openSettings(in window: UUID) {
         guard let host = hostWindow(window) else { return }
         host.browser.openSettings()
         host.pages.select()
     }
 
-    func openExtensionSettings(for space: BrowserSpaceRuntimeAssignment, in window: BrowserWindowID) {
+    func openExtensionSettings(for space: BrowserSpaceRuntimeAssignment, in window: UUID) {
         guard let host = hostWindow(window) else { return }
         host.settings.present(.extensions, assignment: space)
         host.browser.openSettings()
         host.pages.select()
     }
 
-    func openGettingStarted(in window: BrowserWindowID) {
+    func openGettingStarted(in window: UUID) {
         guard let host = hostWindow(window) else { return }
         host.browser.openGettingStarted()
         host.pages.select()
@@ -97,7 +97,7 @@ extension BrowserMacApplication: BrowserEngineHostCommands {
 
     // MARK: - Mutators
 
-    private func hostWindow(_ id: BrowserWindowID) -> HostWindow? {
+    private func hostWindow(_ id: UUID) -> HostWindow? {
         if id == privatePages.windowID {
             return HostWindow(
                 browser: privateBrowser, pages: privatePages, chrome: privateChrome,

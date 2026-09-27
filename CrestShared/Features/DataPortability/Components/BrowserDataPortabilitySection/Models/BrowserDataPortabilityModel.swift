@@ -26,7 +26,7 @@ final class BrowserDataPortabilityModel {
         (browser.workspaceModel?.spaces.models ?? []).filter(spaceAccess.isLocked)
     }
 
-    var lockedSpaceIDs: [SpaceID] {
+    var lockedSpaceIDs: [UUID] {
         lockedSpaces.map(\.id)
     }
 

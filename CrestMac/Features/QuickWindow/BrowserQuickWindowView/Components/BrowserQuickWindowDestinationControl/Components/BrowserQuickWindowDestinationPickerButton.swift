@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserQuickWindowDestinationPickerButton: View {
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     @Binding var isPresented: Bool
     let promote: (BrowserSpaceRuntimeAssignment) -> Void
 

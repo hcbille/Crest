@@ -33,21 +33,21 @@ struct MobileBrowserCommandController {
     // MARK: - Actions - Tabs
 
     @discardableResult
-    func toggleSelectedTabPinned() -> TabID? {
+    func toggleSelectedTabPinned() -> UUID? {
         guard let tab = browser.shownTab, browser.togglePin(tab.id) else { return nil }
         synchronizePages()
         return tab.id
     }
 
     @discardableResult
-    func archiveSelectedTab() -> TabID? {
+    func archiveSelectedTab() -> UUID? {
         guard let tabID = browser.archiveSelectedTab() else { return nil }
         synchronizePages()
         return tabID
     }
 
     @discardableResult
-    func dismissSelectedTab() -> TabID? {
+    func dismissSelectedTab() -> UUID? {
         guard let selectedTab = browser.shownTab, canDismissSelectedTab else { return nil }
         // A saved or pinned tab puts its page away, which the page host
         // follows once the core records it.
@@ -70,14 +70,14 @@ struct MobileBrowserCommandController {
     }
 
     @discardableResult
-    func duplicateSelectedTab() -> TabID? {
+    func duplicateSelectedTab() -> UUID? {
         guard let tabID = browser.duplicateSelectedTab() else { return nil }
         synchronizePages()
         return tabID
     }
 
     @discardableResult
-    func reopenClosedTab() -> TabID? {
+    func reopenClosedTab() -> UUID? {
         guard browser.reopenClosedTab() else { return nil }
         synchronizePages()
         return browser.shownTab?.id
@@ -89,17 +89,17 @@ struct MobileBrowserCommandController {
     }
 
     @discardableResult
-    func selectPreviousTab() -> TabID? {
+    func selectPreviousTab() -> UUID? {
         selectAdjacentTab(.previous)
     }
 
     @discardableResult
-    func selectNextTab() -> TabID? {
+    func selectNextTab() -> UUID? {
         selectAdjacentTab(.next)
     }
 
     @discardableResult
-    func selectMostRecentTab() -> TabID? {
+    func selectMostRecentTab() -> UUID? {
         guard browser.showMostRecentTab() else { return nil }
         synchronizePages()
         return browser.shownTab?.id
@@ -107,43 +107,43 @@ struct MobileBrowserCommandController {
 
     /// Shows the tab a numbered command leads to, in the Space this window shows.
     @discardableResult
-    func selectNumberedTab(_ tabID: TabID) -> TabID? {
+    func selectNumberedTab(_ tabID: UUID) -> UUID? {
         guard browser.shownSpace?.tabs.model(tabID) != nil else { return nil }
         return selectTab(tabID)
     }
 
     @discardableResult
-    func selectPreviousSpace() -> SpaceID? {
+    func selectPreviousSpace() -> UUID? {
         selectSpace(.previous)
     }
 
     @discardableResult
-    func selectNextSpace() -> SpaceID? {
+    func selectNextSpace() -> UUID? {
         selectSpace(.next)
     }
 
     /// Shows the Space a numbered command leads to.
     @discardableResult
-    func selectNumberedSpace(_ spaceID: SpaceID) -> SpaceID? {
+    func selectNumberedSpace(_ spaceID: UUID) -> UUID? {
         browser.selectSpace(spaceID)
         guard browser.selectedSpaceID == spaceID else { return nil }
         synchronizePages()
         return spaceID
     }
 
-    private func selectAdjacentTab(_ direction: AdjacentDirection) -> TabID? {
+    private func selectAdjacentTab(_ direction: AdjacentDirection) -> UUID? {
         guard let id = browser.selectAdjacentTab(direction) else { return nil }
         synchronizePages()
         return id
     }
 
-    private func selectTab(_ id: TabID) -> TabID? {
+    private func selectTab(_ id: UUID) -> UUID? {
         browser.selectTab(id)
         synchronizePages()
         return id
     }
 
-    private func selectSpace(_ direction: BrowserSpaceSwipeDirection) -> SpaceID? {
+    private func selectSpace(_ direction: BrowserSpaceSwipeDirection) -> UUID? {
         guard let id = browser.selectAdjacentSpace(direction) else { return nil }
         synchronizePages()
         return id
@@ -173,7 +173,7 @@ struct MobileBrowserCommandController {
     /// find bar, and every page command follow the pipeline they already followed
     /// before splits existed.
     @discardableResult
-    func focusAdjacentSplitCard(offset: Int) -> TabID? {
+    func focusAdjacentSplitCard(offset: Int) -> UUID? {
         let members = presentedSplitMembers
         guard members.count > 1,
             let selectedTabID = browser.shownTab?.id,
@@ -187,7 +187,7 @@ struct MobileBrowserCommandController {
     /// Adds the next eligible tab in the selected tab's own section to its split,
     /// creating the group when there is none yet.
     @discardableResult
-    func splitWithNextTab() -> TabID? {
+    func splitWithNextTab() -> UUID? {
         guard let space = browser.shownSpace,
             let selectedTabID = browser.selectedTabID(in: space.id),
             let candidate = browser.nextSplitJoinCandidate,
@@ -219,7 +219,7 @@ struct MobileBrowserCommandController {
     /// unchanged, so there is nothing for the pool to reconcile — only the
     /// column order the carousel reads back out of the session.
     @discardableResult
-    func moveFocusedSplitCard(offset: Int) -> TabID? {
+    func moveFocusedSplitCard(offset: Int) -> UUID? {
         guard let space = browser.shownSpace,
             let selectedTabID = browser.selectedTabID(in: space.id),
             browser.moveSplitMember(
@@ -233,7 +233,7 @@ struct MobileBrowserCommandController {
 
     /// Drops the focused card out of its split and leaves it an ordinary tab.
     @discardableResult
-    func removeSelectedTabFromSplit() -> TabID? {
+    func removeSelectedTabFromSplit() -> UUID? {
         guard let space = browser.shownSpace,
             let selectedTabID = browser.selectedTabID(in: space.id),
             browser.removeTabFromSplit(
@@ -247,7 +247,7 @@ struct MobileBrowserCommandController {
 
     /// "Separate All Tabs": every card in the presented split becomes a tab.
     @discardableResult
-    func separateSplitTabs() -> TabID? {
+    func separateSplitTabs() -> UUID? {
         guard let space = browser.shownSpace,
             let selectedTabID = browser.selectedTabID(in: space.id),
             browser.dissolveSplit(

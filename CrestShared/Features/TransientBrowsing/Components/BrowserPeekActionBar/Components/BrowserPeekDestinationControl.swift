@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserPeekDestinationControl: View {
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let openInSpace: (BrowserSpaceRuntimeAssignment) -> Void
 
     private var selectedSpace: BrowserSpaceIdentity? {

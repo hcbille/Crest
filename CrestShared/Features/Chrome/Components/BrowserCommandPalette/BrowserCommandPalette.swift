@@ -16,7 +16,7 @@ struct BrowserCommandPalette: View {
     init(
         browser: BrowserStore,
         space: SpaceModel?,
-        selectedTabID: TabID?,
+        selectedTabID: UUID?,
         initialQuery: String = "",
         commands: BrowserCommandPaletteCommandRegistry? = nil,
         isSourceAvailable: @escaping (BrowserTabRuntimeAssignment) -> Bool,

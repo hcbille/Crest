@@ -109,7 +109,7 @@ final class SpaceScrollGestureTests: XCTestCase {
 
     func testNativePagingTracksPointsAndSettlesBeforeCommitting() async throws {
         var spaces = nativeSpaces()
-        var selections: [SpaceID] = []
+        var selections: [UUID] = []
         var actualSelection = spaces[0].id
         var acceptsSelection = true
         let (window, viewport) = makeNativeViewport()
@@ -131,7 +131,7 @@ final class SpaceScrollGestureTests: XCTestCase {
             window.contentView = nil
             window.close()
         }
-        func update(selected: SpaceID) {
+        func update(selected: UUID) {
             actualSelection = selected
             viewport.update(
                 spaces: spaces, selectedSpaceID: selected, isInteractionLocked: false,
@@ -274,8 +274,8 @@ final class SpaceScrollGestureTests: XCTestCase {
     func testNativePagingPreservesInterruptedPositionAndRejectsInvalidatedGestures() async throws {
         let store = nativeStore()
         var spaces: [SpaceModel] { store.spaceModels }
-        var selections: [SpaceID] = []
-        var renderedRoots: [SpaceID: (isSelected: Bool, name: String, accessPolicy: SpaceAccessPolicy)] = [:]
+        var selections: [UUID] = []
+        var renderedRoots: [UUID: (isSelected: Bool, name: String, accessPolicy: SpaceAccessPolicy)] = [:]
         let (window, viewport) = makeNativeViewport()
         let presentation = SpacePagerPresentation()
         defer {
@@ -283,7 +283,7 @@ final class SpaceScrollGestureTests: XCTestCase {
             window.contentView = nil
             window.close()
         }
-        func update(selected: SpaceID, locked: Bool = false) {
+        func update(selected: UUID, locked: Bool = false) {
             viewport.update(
                 spaces: spaces, selectedSpaceID: selected, isInteractionLocked: locked,
                 reduceMotion: false, layoutDirection: .leftToRight,

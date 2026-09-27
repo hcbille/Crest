@@ -7,8 +7,8 @@ struct BrowserOnboardingWindowContent: View {
     let cloudSync: BrowserCloudSyncController
     let progress: BrowserOnboardingProgressStore
     let flow: BrowserOnboardingFlow
-    @Binding var selectedManualSpaceID: SpaceID?
-    @Binding var customizationSpaceID: SpaceID?
+    @Binding var selectedManualSpaceID: UUID?
+    @Binding var customizationSpaceID: UUID?
     let close: () -> Void
     let openCrest: () -> Void
 

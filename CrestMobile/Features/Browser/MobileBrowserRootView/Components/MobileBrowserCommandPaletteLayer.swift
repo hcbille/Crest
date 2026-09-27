@@ -4,7 +4,7 @@ struct MobileBrowserCommandPaletteLayer: View {
     let mode: BrowserCommandPaletteMode?
     let browser: BrowserStore
     let space: SpaceModel?
-    let selectedTabID: TabID?
+    let selectedTabID: UUID?
     let commands: BrowserCommandPaletteCommandRegistry
     let isSourceAvailable: (BrowserTabRuntimeAssignment) -> Bool
     let selectTab:

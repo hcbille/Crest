@@ -17,7 +17,7 @@ extension View {
     /// Reports this region as one presented card of `assignment`'s Space, so a
     /// drop resolves against it and against no other Space's cards.
     func browserSplitDropCardFrame(
-        tabID: TabID?,
+        tabID: UUID?,
         assignment: BrowserSpaceRuntimeAssignment?,
         state: BrowserSidebarReorderState
     ) -> some View {

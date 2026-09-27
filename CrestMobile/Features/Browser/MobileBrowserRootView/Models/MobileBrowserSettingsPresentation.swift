@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// Routes settings through the measured layout while retaining its native-tab state.
@@ -9,7 +10,7 @@ final class MobileBrowserSettingsPresentation {
     private let spaceAccess: BrowserSpaceAccessController
     private var presentation: BrowserTabActivationPolicy.SettingsPresentation?
     private var sheetAssignment: BrowserSpaceRuntimeAssignment?
-    private var sheetTabID: TabID?
+    private var sheetTabID: UUID?
     private(set) var state = MobileBrowserSettingsState()
     private(set) var showsSheet = false
 
@@ -103,7 +104,7 @@ final class MobileBrowserSettingsPresentation {
     }
 
     @discardableResult
-    func selectLiveSpace(_ id: SpaceID, matching source: BrowserTabRuntimeAssignment) -> Bool {
+    func selectLiveSpace(_ id: UUID, matching source: BrowserTabRuntimeAssignment) -> Bool {
         guard presentation == .embedded,
             BrowserSettingsSpaceSelectionAction(browser: browser, spaceAccess: spaceAccess)
                 .select(id, matching: source) != nil
@@ -132,7 +133,7 @@ final class MobileBrowserSettingsPresentation {
         state = MobileBrowserSettingsState()
     }
 
-    private func presentSheet(in space: SpaceModel, tabID: TabID?) {
+    private func presentSheet(in space: SpaceModel, tabID: UUID?) {
         state.prepareForSheetPresentation()
         sheetAssignment = BrowserSpaceRuntimeAssignment(space: space)
         sheetTabID = tabID

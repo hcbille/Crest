@@ -197,7 +197,7 @@ private final class BrowserMobileApplication {
         usesEphemeralWebsiteDataStores = usesIsolatedLaunch
     }
 
-    func windowContent(id windowID: BrowserWindowID) -> some View {
+    func windowContent(id windowID: UUID) -> some View {
         MobileBrowserWindowScene(
             id: windowID,
             rootBrowser: browser,

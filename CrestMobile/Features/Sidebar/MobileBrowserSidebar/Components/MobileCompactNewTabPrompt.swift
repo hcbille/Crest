@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MobileCompactNewTabPrompt: View {
     let namespace: Namespace.ID
-    let geometryID: SpaceID
+    let geometryID: UUID
     let transitionEnded: (CGSize) -> Void
     let openNewTab: () -> Void
 

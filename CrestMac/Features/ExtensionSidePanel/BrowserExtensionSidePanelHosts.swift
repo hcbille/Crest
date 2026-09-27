@@ -10,15 +10,15 @@ import SwiftUI
 enum BrowserExtensionSidePanelHosts {
     /// Weak by construction: the window's own root model owns its panel host.
     private final class Reference { weak var host: BrowserExtensionSidePanelHost? }
-    private static var hosts: [BrowserWindowID: Reference] = [:]
+    private static var hosts: [UUID: Reference] = [:]
 
-    static func register(_ host: BrowserExtensionSidePanelHost, for window: BrowserWindowID) {
+    static func register(_ host: BrowserExtensionSidePanelHost, for window: UUID) {
         let reference = Reference()
         reference.host = host
         hosts[window] = reference
     }
-    static func forget(_ window: BrowserWindowID) { hosts[window] = nil }
-    static func host(for window: BrowserWindowID) -> BrowserExtensionSidePanelHost? {
+    static func forget(_ window: UUID) { hosts[window] = nil }
+    static func host(for window: UUID) -> BrowserExtensionSidePanelHost? {
         guard let host = hosts[window]?.host else {
             hosts[window] = nil
             return nil
@@ -30,7 +30,7 @@ enum BrowserExtensionSidePanelHosts {
 /// Publishes a window's panel host for the engine's own side-panel requests.
 struct BrowserExtensionSidePanelRegistration: ViewModifier {
     let host: BrowserExtensionSidePanelHost
-    let window: BrowserWindowID
+    let window: UUID
 
     func body(content: Content) -> some View {
         content

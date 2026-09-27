@@ -160,7 +160,7 @@ extension BrowserRootModel {
         Task { await pages.reloadContentBlocking() }
     }
 
-    func relockProtectedSpaces(_ spaceIDs: Set<SpaceID>) {
+    func relockProtectedSpaces(_ spaceIDs: Set<UUID>) {
         // The Space itself, not just its ID: relocking has to reach the
         // profile its archived tab state is filed under, and that state
         // outlives the resident pages an ID alone can find.
@@ -229,7 +229,7 @@ extension BrowserRootModel {
         return spaceAccess.isLocked(space)
     }
 
-    var lockedSpaceIDs: Set<SpaceID> {
+    var lockedSpaceIDs: Set<UUID> {
         Set(browser.spaceModels.filter(spaceAccess.isLocked).map(\.id))
     }
 
@@ -534,7 +534,7 @@ extension BrowserRootModel {
     /// The group the presented cards belong to, or `nil` when one tab presents
     /// alone. Column fractions are stored per group, so a lone tab has no
     /// layout to store.
-    var presentedSplitGroupID: SplitGroupID? {
+    var presentedSplitGroupID: UUID? {
         browser.shownSpace.flatMap(browser.shownSplitGroupID(in:))
     }
 
@@ -556,7 +556,7 @@ extension BrowserRootModel {
         layoutPersistence.commitSplitLayout(fractions, groupID: presentedSplitGroupID)
     }
 
-    func focusSplitCard(_ tabID: TabID) {
+    func focusSplitCard(_ tabID: UUID) {
         guard tabID != browser.shownTab?.id,
             presentedSplitMembers.contains(where: { $0.id == tabID })
         else { return }

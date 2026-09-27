@@ -90,7 +90,7 @@ final class BrowserSettingsPaneTests: XCTestCase {
     /// The pane's search runs over four fields, and both shells had written their own
     /// copy of the predicate.
     func testCredentialSearchMatchesAccountSiteLabelAndScope() {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let origin = CredentialOrigin(url: URL(string: "https://mail.example")!)!
         let other = CredentialOrigin(url: URL(string: "https://intranet.example")!)!
         let webForm = CredentialDescriptor(

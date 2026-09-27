@@ -1,3 +1,5 @@
+import Foundation
+
 /// Shared drag state and the collaborators authorized to commit its result.
 @MainActor
 struct BrowserSidebarReorderContext {
@@ -27,7 +29,7 @@ struct BrowserSidebarReorderContext {
         if let captured = item.selection {
             selection = captured.selection
         } else {
-            let (tabIDs, folderIDs): ([TabID], [FolderID]) =
+            let (tabIDs, folderIDs): ([UUID], [UUID]) =
                 switch item {
                 case .tab(let tab): ([tab.tabID], [])
                 case .splitGroup(let group): (group.memberTabIDs, [])

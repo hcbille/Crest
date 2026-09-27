@@ -180,7 +180,7 @@ struct BrowserSplitPageSurface: View {
     /// row is animating out keeps its frame until SwiftUI runs its disappearance
     /// — so every geometric question the carry asks is asked of the members
     /// rather than of the registry alone.
-    private var memberCardFrames: [TabID: CGRect] {
+    private var memberCardFrames: [UUID: CGRect] {
         let frames = cardFrames.frames
         return members.reduce(into: [:]) { result, member in
             result[member.id] = frames[member.id]
@@ -319,7 +319,7 @@ struct BrowserSplitPageSurface: View {
         }
     }
 
-    private func focusesOnHover(_ tabID: TabID) -> Bool {
+    private func focusesOnHover(_ tabID: UUID) -> Bool {
         isSelectedSpace
             && BrowserSplitFocusPolicy.focusesOnHover(
                 followsMouse: appPreferences.splitFocusFollowsMouse,
@@ -331,7 +331,7 @@ struct BrowserSplitPageSurface: View {
             )
     }
 
-    private func handleMouseDown(_ tabID: TabID) {
+    private func handleMouseDown(_ tabID: UUID) {
         guard
             isSelectedSpace,
             BrowserSplitFocusPolicy.focusesOnClick(

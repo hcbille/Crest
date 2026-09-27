@@ -19,7 +19,7 @@ struct MobileBrowserOnboardingView: View {
     /// The manual setup the core holds, which it keeps for the next launch
     /// until setup finishes.
     @State private var setup: BrowserManualSetupModel
-    @State private var selectedSpaceID: SpaceID?
+    @State private var selectedSpaceID: UUID?
     @State private var errorMessage: String?
     @State private var completionTask: Task<Void, Never>?
     /// The step shown while finishing, which stays as the sheet goes.

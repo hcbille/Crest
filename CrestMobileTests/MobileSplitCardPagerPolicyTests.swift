@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import CrestMobile
@@ -64,7 +65,7 @@ final class MobileSplitCardPagerPolicyTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func memberIDs(count: Int) -> [TabID] {
+    private func memberIDs(count: Int) -> [UUID] {
         (0..<count).map { fixedUUID($0 + 1) }
     }
 

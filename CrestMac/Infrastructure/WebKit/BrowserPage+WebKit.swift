@@ -23,7 +23,7 @@ extension BrowserPage {
             (@MainActor () async -> Void)? = nil,
         serverTrustOverrides: BrowserServerTrustOverrideStore = BrowserServerTrustOverrideStore(),
         mediaSessionStore: BrowserMediaSessionStore? = nil,
-        spaceID: SpaceID,
+        spaceID: UUID,
         profileID: UUID,
         spaceName: String,
         contentRuleList: WKContentRuleList? = nil,
@@ -35,7 +35,7 @@ extension BrowserPage {
         saveHTTPAuthenticationCredential:
             @escaping BrowserHTTPAuthenticationSession.SaveCredential = { _ in },
         openNewTab: @escaping (URL) -> Void,
-        openModifiedLink: @escaping (URLRequest, SpaceID, Bool) -> Void = { _, _, _ in },
+        openModifiedLink: @escaping (URLRequest, UUID, Bool) -> Void = { _, _, _ in },
         openPeek: @escaping (BrowserPeekRequest) -> Void = { _ in },
         handleLinkDrag: @escaping (BrowserPeekInteractionEvent) -> Void = { _ in },
         splitLinkHost: BrowserSplitLinkHost = .unavailable,

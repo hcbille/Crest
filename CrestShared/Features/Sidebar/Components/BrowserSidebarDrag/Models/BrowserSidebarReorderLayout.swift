@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// A temporary layout for one lift. The session remains unchanged until drop.
 /// Removing the source interval and inserting one destination interval moves
@@ -15,7 +16,7 @@ struct BrowserSidebarReorderLayout: Equatable {
         let anchor: Anchor
         /// Position in the resting layout, before removing the source.
         let frame: CGRect
-        let containingFolders: Set<FolderID>
+        let containingFolders: Set<UUID>
     }
 
     var sourceID: BrowserSidebarReorderItemID?
@@ -109,7 +110,7 @@ struct BrowserSidebarReorderLayout: Equatable {
 }
 
 extension BrowserSidebarReorderSection {
-    var parentFolderID: FolderID? {
+    var parentFolderID: UUID? {
         switch self {
         case .tabs(_, let folderID): folderID
         case .folders(let parentID): parentID

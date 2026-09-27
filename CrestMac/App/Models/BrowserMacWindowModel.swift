@@ -14,7 +14,7 @@ final class BrowserMacWindowModel {
     @ObservationIgnored weak var window: NSWindow?
     @ObservationIgnored var tearOffPlacement: BrowserMacTabTearOffPlacement?
 
-    var id: BrowserWindowID { request.id }
+    var id: UUID { request.id }
     var isTemporary: Bool { request.kind == .temporary }
 
     init(

@@ -35,7 +35,7 @@ struct BrowserSplitCardLiftGesture {
 /// card, as one comparable value.
 ///
 /// Resolved where the Space is already in hand, the way the sidebar's own lift
-/// subject is: the carry holds a `TabID` and a picture, and the preview shows a
+/// subject is: the carry holds a `UUID` and a picture, and the preview shows a
 /// real tab's title and favicon while the picture is still on its way. One value
 /// rather than a handful of properties so the window host can tell a frame that
 /// changed something from a frame that changed nothing.
@@ -70,7 +70,7 @@ struct BrowserSplitCardLiftPreviewContent: Equatable {
 /// against the carry's own token rather than against the tab it pictures.
 ///
 /// A tab is not enough on its own. Picking the same card up twice in quick
-/// succession produces two requests for one `TabID`, and the first answer must
+/// succession produces two requests for one `UUID`, and the first answer must
 /// not be crossfaded into the second carry — it is a picture of a row that has
 /// already moved on. Identity per carry says so; identity per tab cannot.
 struct BrowserSplitCardLiftToken: Hashable, Sendable {

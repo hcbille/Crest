@@ -4,12 +4,12 @@ struct BrowserShortcutSettingsView: View {
     @Environment(\.browserSettingsTabState) private var tabState
     @State private var model: BrowserShortcutSettingsModel
 
-    private let requestedSpaceID: SpaceID?
+    private let requestedSpaceID: UUID?
     private let requestRevision: Int
 
     init(
         shortcuts: BrowserShortcutStore,
-        requestedSpaceID: SpaceID? = nil,
+        requestedSpaceID: UUID? = nil,
         requestRevision: Int = 0
     ) {
         self.init(
@@ -24,7 +24,7 @@ struct BrowserShortcutSettingsView: View {
 
     init(
         model: BrowserShortcutSettingsModel,
-        requestedSpaceID: SpaceID? = nil,
+        requestedSpaceID: UUID? = nil,
         requestRevision: Int = 0
     ) {
         _model = State(initialValue: model)
@@ -46,7 +46,7 @@ private struct BrowserShortcutSettingsContent: View {
     @Bindable var model: BrowserShortcutSettingsModel
     @State private var showsResetConfirmation = false
 
-    let requestedSpaceID: SpaceID?
+    let requestedSpaceID: UUID?
     let requestRevision: Int
 
     var body: some View {

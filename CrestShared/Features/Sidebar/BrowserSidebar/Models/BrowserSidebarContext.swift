@@ -33,7 +33,7 @@ struct BrowserSidebarContext {
     let chromeActions: BrowserSidebarChromeActions
 
     /// Moves the selection, and whatever page presentation follows from it.
-    let selectSpace: (SpaceID) -> Void
+    let selectSpace: (UUID) -> Void
 
     /// Tells the root that the pager came to rest on a Space, which is what
     /// releases a deferred page selection.

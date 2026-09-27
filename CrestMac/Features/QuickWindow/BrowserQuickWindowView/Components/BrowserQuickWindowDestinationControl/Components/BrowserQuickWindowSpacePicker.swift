@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserQuickWindowSpacePicker: View {
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let selectSpace: (BrowserSpaceIdentity) -> Void
 
     var body: some View {

@@ -8,7 +8,7 @@ struct SpaceSidebarAddressBand: View {
     /// is being deleted.
     let offersSiteControls: Bool
     /// The tab this window shows in `space`.
-    let selectedTabID: TabID?
+    let selectedTabID: UUID?
     let pages: BrowserPagePool
     let capabilities: BrowserInteractionCapabilities
     let address: Binding<String>

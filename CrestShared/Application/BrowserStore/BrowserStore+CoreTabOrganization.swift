@@ -4,8 +4,8 @@ extension BrowserStore {
     /// Moves a tab within its Space, and answers whether it moved. The core
     /// takes a split member out of its split for a section that holds none.
     func moveSessionTab(
-        _ id: TabID, in spaceID: SpaceID, to placement: TabPlacement,
-        folderID: FolderID? = nil, before anchor: TabID? = nil
+        _ id: UUID, in spaceID: UUID, to placement: TabPlacement,
+        folderID: UUID? = nil, before anchor: UUID? = nil
     ) -> Bool {
         family.send(
             MoveTab(
@@ -28,7 +28,7 @@ extension BrowserStore {
     /// prepares the pages of the copies it made from their sources as they
     /// were. Answers the copies, or nil when the core refused it.
     @discardableResult
-    func sendCopying(_ intent: some Intent, in spaceID: SpaceID) -> [TabCopied]? {
+    func sendCopying(_ intent: some Intent, in spaceID: UUID) -> [TabCopied]? {
         guard let space = spaceModel(spaceID) else { return nil }
         let sources = BrowserTabCopySources(space)
         guard let sent = family.perform(intent, from: self) else { return nil }

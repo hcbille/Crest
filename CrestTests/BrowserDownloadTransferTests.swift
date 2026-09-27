@@ -13,7 +13,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
     func testNativeSavePreservesDisplayedPDFBytesDestinationConsentAndProfileOwnership() async throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "crest-native-save-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
-        let assignment = BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID())
+        let assignment = BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID())
         let source = URL(string: "https://pdf.crest.test/authenticated/redirected")!
         let destination = root.appending(path: "chosen.pdf")
         let data = try nativeSavePDFFixture()
@@ -59,7 +59,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
             await center.saveData(
                 try nativeSavePDFFixture(), suggestedFilename: "displayed.pdf", mimeType: "application/pdf",
                 originatingURL: URL(string: "https://pdf.crest.test/")!,
-                assignment: BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID()), spaceName: "Work")
+                assignment: BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID()), spaceName: "Work")
             let item = try XCTUnwrap(center.items.first)
             if index == 0 {
                 guard item.phase == .canceled else { return XCTFail("Destination cancellation must remain canceled") }
@@ -90,7 +90,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
         await center.saveData(
             try nativeSavePDFFixture(), suggestedFilename: "invoice\u{202E}fdp.sh", mimeType: "application/pdf",
             originatingURL: URL(string: "https://pdf.crest.test/")!,
-            assignment: BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID()), spaceName: "Work")
+            assignment: BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID()), spaceName: "Work")
         XCTAssertEqual(approvalRequests, 1)
         XCTAssertEqual(destinationRequests, 0)
         guard case .canceled = center.items.first?.phase else { return XCTFail("Rejected save must be canceled") }
@@ -105,7 +105,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
             let center = BrowserDownloadCenter(resolveDownloadDestination: { _, _, _ in
                 await withCheckedContinuation { reply = $0 }
             })
-            let assignment = BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID())
+            let assignment = BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID())
             let data = try nativeSavePDFFixture()
             let saving = Task {
                 await center.saveData(
@@ -116,7 +116,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
             try await waitForDownloadCondition { reply != nil }
             let item = try XCTUnwrap(center.items.first)
             // Another Space's cleanup must not cancel or reassign this save.
-            center.deleteRecords(profileID: UUID(), spaceID: SpaceID())
+            center.deleteRecords(profileID: UUID(), spaceID: UUID())
             XCTAssertEqual(center.items.first?.id, item.id)
             if removesSpace {
                 center.deleteRecords(profileID: assignment.profileID, spaceID: assignment.spaceID)

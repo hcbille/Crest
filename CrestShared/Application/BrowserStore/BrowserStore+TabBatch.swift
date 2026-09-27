@@ -35,7 +35,7 @@ extension BrowserStore {
 
     /// Combines the selected tabs in the split of `target`, or of the first
     /// selected tab, from member `index` on.
-    func splitting(_ request: BrowserCapturedSelection, joining target: TabID? = nil, at index: Int? = nil)
+    func splitting(_ request: BrowserCapturedSelection, joining target: UUID? = nil, at index: Int? = nil)
         -> BrowserTabBatch
     {
         BrowserTabBatch(
@@ -80,8 +80,8 @@ extension BrowserStore {
     /// Files the selection into `folder` or at the top level of `placement`'s
     /// section, before the tab `before` or the folder `beforeFolder`.
     func filing(
-        _ request: BrowserCapturedSelection, _ placement: TabPlacement, folder: FolderID? = nil, before: TabID? = nil,
-        beforeFolder: FolderID? = nil
+        _ request: BrowserCapturedSelection, _ placement: TabPlacement, folder: UUID? = nil, before: UUID? = nil,
+        beforeFolder: UUID? = nil
     ) -> BrowserTabBatch {
         BrowserTabBatch(
             FileTabs(
@@ -104,7 +104,7 @@ extension BrowserStore {
 
     /// Files the open tab `tabID` and then the selection into a new folder in
     /// that tab's place.
-    func filingInNewFolder(_ request: BrowserCapturedSelection, around tabID: TabID) -> BrowserTabBatch {
+    func filingInNewFolder(_ request: BrowserCapturedSelection, around tabID: UUID) -> BrowserTabBatch {
         BrowserTabBatch(
             FolderTabsAround(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: request.spaceID,

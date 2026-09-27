@@ -8,7 +8,7 @@ final class BrowserUtilityListTests: XCTestCase {
         let id = UUID()
         let profileID = UUID()
         let assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: profileID
         )
         let createdAt = Date.now
@@ -372,7 +372,7 @@ final class BrowserUtilityListTests: XCTestCase {
         let request = BrowserUtilityListRequest(
             surface: .history,
             assignment: BrowserSpaceRuntimeAssignment(
-                spaceID: SpaceID(),
+                spaceID: UUID(),
                 profileID: UUID()
             ),
             archivedTabs: [],
@@ -508,7 +508,7 @@ final class BrowserUtilityListTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            sections.flatMap(\.items).compactMap { item -> TabID? in
+            sections.flatMap(\.items).compactMap { item -> UUID? in
                 guard case .archive(let archived) = item else { return nil }
                 return archived.tab.id
             },

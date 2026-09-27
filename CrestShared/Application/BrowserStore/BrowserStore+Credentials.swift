@@ -5,7 +5,7 @@ import Foundation
 extension BrowserStore: BrowserCredentialSuggestionLoading {
     func credentialSuggestions(
         for origin: CredentialOrigin,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws -> [CredentialDescriptor] {
         guard let url = URL(string: origin.description) else {
             throw CredentialVaultError.invalidOrigin
@@ -24,7 +24,7 @@ extension BrowserStore {
         return try await credentialSuggestions(for: url, in: spaceID)
     }
 
-    func savedCredentialDescriptors(in spaceID: SpaceID) async throws -> [CredentialDescriptor] {
+    func savedCredentialDescriptors(in spaceID: UUID) async throws -> [CredentialDescriptor] {
         guard spaceModel(spaceID) != nil else {
             throw CredentialVaultError.missingSpace
         }
@@ -33,7 +33,7 @@ extension BrowserStore {
 
     func credentialSuggestions(
         for url: URL,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws -> [CredentialDescriptor] {
         guard let space = spaceModel(spaceID) else {
             throw CredentialVaultError.missingSpace
@@ -46,21 +46,21 @@ extension BrowserStore {
         return try await credentialVault.descriptors(matching: origin, in: spaceID)
     }
 
-    func credential(id: CredentialID) async throws -> BrowserCredential? {
+    func credential(id: UUID) async throws -> BrowserCredential? {
         guard let spaceID = shownSpace?.id else {
             throw CredentialVaultError.missingSpace
         }
         return try await credential(id: id, in: spaceID)
     }
 
-    func credential(id: CredentialID, in spaceID: SpaceID) async throws -> BrowserCredential? {
+    func credential(id: UUID, in spaceID: UUID) async throws -> BrowserCredential? {
         guard spaceModel(spaceID) != nil else {
             throw CredentialVaultError.missingSpace
         }
         return try await credentialVault.credential(id: id, in: spaceID)
     }
 
-    func credentialInventory(in spaceID: SpaceID) async throws -> [BrowserCredential] {
+    func credentialInventory(in spaceID: UUID) async throws -> [BrowserCredential] {
         guard spaceModel(spaceID) != nil else {
             throw CredentialVaultError.missingSpace
         }
@@ -85,7 +85,7 @@ extension BrowserStore {
 
     func httpAuthenticationCredential(
         for protectionSpace: BrowserHTTPAuthenticationProtectionSpace,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws -> BrowserCredential? {
         guard let space = spaceModel(spaceID) else {
             throw CredentialVaultError.missingSpace
@@ -139,7 +139,7 @@ extension BrowserStore {
 extension BrowserStore {
     func updateCredentialPreferences(
         _ preferences: CredentialPreferences,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) {
         sendSpaceSettings(
             SetCredentialPreferences(
@@ -148,7 +148,7 @@ extension BrowserStore {
 
     func setCrestPasswordSynchronization(
         _ isSynchronizable: Bool,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws {
         // The vault write and its preference belong to the store that owns
         // the Space's credential settings, which may be a borrowed source.
@@ -192,7 +192,7 @@ extension BrowserStore {
     /// passed on. A core that cannot answer fails the plan: nothing is saved.
     func credentialSavePlan(
         for candidate: BrowserCredentialSaveCandidate,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         now: Date = .now
     ) async throws -> BrowserCredentialSavePlan {
         try validateCredentialSaveCandidate(candidate, in: spaceID, now: now)
@@ -218,11 +218,11 @@ extension BrowserStore {
         }
         let stored = descriptor.flatMap { descriptor in
             storedPasswordMatches.map {
-                CredentialStoredComparison(id: descriptor.id.rawValue, passwordMatches: $0)
+                CredentialStoredComparison(id: descriptor.id, passwordMatches: $0)
             }
         }
-        guard let plan = try? core.query(CredentialSave(matchID: descriptor?.id.rawValue, stored: stored)),
-            plan.kind == .create || plan.id == descriptor?.id.rawValue
+        guard let plan = try? core.query(CredentialSave(matchID: descriptor?.id, stored: stored)),
+            plan.kind == .create || plan.id == descriptor?.id
         else { throw CredentialVaultError.saveDecisionUnavailable }
         switch (plan.kind, descriptor) {
         case (.create, _): return .create
@@ -234,7 +234,7 @@ extension BrowserStore {
 
     func commitCredentialSave(
         _ candidate: BrowserCredentialSaveCandidate,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         now: Date = .now
     ) async throws -> BrowserCredentialSaveResult {
         try validateCredentialSaveCandidate(candidate, in: spaceID, now: now)
@@ -295,7 +295,7 @@ extension BrowserStore {
         username: String,
         password: String,
         for url: URL,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         displayName: String? = nil,
         replacing existing: CredentialDescriptor? = nil,
         isSynchronizable: Bool? = nil,
@@ -358,7 +358,7 @@ extension BrowserStore {
         username: String,
         password: String,
         protectionSpace: BrowserHTTPAuthenticationProtectionSpace,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         replacing existing: CredentialDescriptor? = nil,
         now: Date = Date()
     ) async throws -> CredentialDescriptor {
@@ -413,14 +413,14 @@ extension BrowserStore {
         return descriptor
     }
 
-    func deleteCredential(id: CredentialID) async throws {
+    func deleteCredential(id: UUID) async throws {
         guard let spaceID = shownSpace?.id else {
             throw CredentialVaultError.missingSpace
         }
         try await deleteCredential(id: id, in: spaceID)
     }
 
-    func deleteCredential(id: CredentialID, in spaceID: SpaceID) async throws {
+    func deleteCredential(id: UUID, in spaceID: UUID) async throws {
         guard spaceModel(spaceID) != nil else {
             throw CredentialVaultError.missingSpace
         }
@@ -429,7 +429,7 @@ extension BrowserStore {
 
     func replaceCredentialInventory(
         _ credentials: [BrowserCredential],
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws {
         guard spaceModel(spaceID) != nil else {
             throw CredentialVaultError.missingSpace
@@ -450,7 +450,7 @@ extension BrowserStore {
 
     private func performCredentialSave(
         _ candidate: BrowserCredentialSaveCandidate,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         now: Date
     ) async throws -> BrowserCredentialSaveResult {
         let plan = try await credentialSavePlan(
@@ -491,7 +491,7 @@ extension BrowserStore {
 
     private func saveCredential(
         _ candidate: BrowserCredentialSaveCandidate,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         replacing existing: CredentialDescriptor?,
         now: Date
     ) async throws -> CredentialDescriptor {
@@ -510,7 +510,7 @@ extension BrowserStore {
 
     private func validateCredentialSaveCandidate(
         _ candidate: BrowserCredentialSaveCandidate,
-        in spaceID: SpaceID,
+        in spaceID: UUID,
         now: Date
     ) throws {
         guard let space = spaceModel(spaceID) else {

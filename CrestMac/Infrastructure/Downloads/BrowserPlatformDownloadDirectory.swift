@@ -5,7 +5,7 @@ import Foundation
 enum BrowserPlatformDownloadDirectory {
     static func resolve(
         suggestedFilename: String,
-        spaceID: SpaceID,
+        spaceID: UUID,
         forcesPrompt: Bool = false,
         fileManager: FileManager = .default
     ) async -> BrowserPlatformDownloadResolution {
@@ -74,7 +74,7 @@ final class BrowserPlatformDownloadPreferences {
 
     private static let keyPrefix = "browser.download.space."
     private let defaults: UserDefaults?
-    private var volatileRecords: [SpaceID: VolatileRecord] = [:]
+    private var volatileRecords: [UUID: VolatileRecord] = [:]
 
     init(defaults: UserDefaults? = nil) {
         if let defaults {
@@ -86,14 +86,14 @@ final class BrowserPlatformDownloadPreferences {
         }
     }
 
-    func asksWhereToSave(for spaceID: SpaceID) -> Bool {
+    func asksWhereToSave(for spaceID: UUID) -> Bool {
         guard let defaults else {
             return volatileRecords[spaceID]?.asksWhereToSave ?? false
         }
         return defaults.bool(forKey: key("asksWhere", for: spaceID))
     }
 
-    func setAsksWhereToSave(_ enabled: Bool, for spaceID: SpaceID) {
+    func setAsksWhereToSave(_ enabled: Bool, for spaceID: UUID) {
         guard let defaults else {
             var record = volatileRecords[spaceID] ?? VolatileRecord()
             record.asksWhereToSave = enabled
@@ -103,7 +103,7 @@ final class BrowserPlatformDownloadPreferences {
         defaults.set(enabled, forKey: key("asksWhere", for: spaceID))
     }
 
-    func directoryDisplayName(for spaceID: SpaceID) -> String? {
+    func directoryDisplayName(for spaceID: UUID) -> String? {
         guard let defaults else {
             return volatileRecords[spaceID]?.displayName
         }
@@ -113,7 +113,7 @@ final class BrowserPlatformDownloadPreferences {
     func setDirectoryMetadata(
         bookmark: Data,
         displayName: String,
-        for spaceID: SpaceID
+        for spaceID: UUID
     ) {
         guard let defaults else {
             var record = volatileRecords[spaceID] ?? VolatileRecord()
@@ -126,7 +126,7 @@ final class BrowserPlatformDownloadPreferences {
         defaults.set(displayName, forKey: key("directoryName", for: spaceID))
     }
 
-    func rememberDirectory(_ url: URL, for spaceID: SpaceID) throws {
+    func rememberDirectory(_ url: URL, for spaceID: UUID) throws {
         let bookmark = try url.bookmarkData(
             options: .withSecurityScope,
             includingResourceValuesForKeys: nil,
@@ -139,7 +139,7 @@ final class BrowserPlatformDownloadPreferences {
         )
     }
 
-    func directoryURL(for spaceID: SpaceID) -> URL? {
+    func directoryURL(for spaceID: UUID) -> URL? {
         let bookmark: Data?
         if let defaults {
             bookmark = defaults.data(
@@ -177,7 +177,7 @@ final class BrowserPlatformDownloadPreferences {
         }
     }
 
-    func clearDirectory(for spaceID: SpaceID) {
+    func clearDirectory(for spaceID: UUID) {
         guard let defaults else {
             var record = volatileRecords[spaceID] ?? VolatileRecord()
             record.bookmark = nil
@@ -189,7 +189,7 @@ final class BrowserPlatformDownloadPreferences {
         defaults.removeObject(forKey: key("directoryName", for: spaceID))
     }
 
-    private func key(_ suffix: String, for spaceID: SpaceID) -> String {
+    private func key(_ suffix: String, for spaceID: UUID) -> String {
         Self.keyPrefix
             + spaceID.uuidString.lowercased()
             + "."

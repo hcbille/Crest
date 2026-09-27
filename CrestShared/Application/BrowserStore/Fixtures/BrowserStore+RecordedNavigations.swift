@@ -6,7 +6,7 @@
         /// unless named, as the core records one when a page finishes loading,
         /// for tests that need history without a page. The core must host
         /// pages, as `CrestCore.hostingPages()` does.
-        func seedVisit(to url: URL, titled title: String, in spaceID: SpaceID? = nil) {
+        func seedVisit(to url: URL, titled title: String, in spaceID: UUID? = nil) {
             guard let page = openReportingPage(for: nil, in: spaceID) else {
                 preconditionFailure("A test recorded a visit on a core that hosts no pages.")
             }
@@ -30,7 +30,7 @@
         /// Quick Window or Peek request when `tabID` is nil, on a core whose
         /// default engine is WebKit. The page loads nothing: a test reports
         /// what its engine would see with `finishNavigation(of:to:titled:icon:)`.
-        func openReportingPage(for tabID: TabID?, in spaceID: SpaceID? = nil) -> CorePage? {
+        func openReportingPage(for tabID: UUID?, in spaceID: UUID? = nil) -> CorePage? {
             openPage(in: spaceID ?? selectedSpaceID, for: tabID)?.page
         }
 

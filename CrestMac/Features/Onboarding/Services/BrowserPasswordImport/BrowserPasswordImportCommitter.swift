@@ -24,7 +24,7 @@ enum BrowserPasswordImportCommitter {
         } catch {
             return BrowserPasswordImportResult(importedCount: 0, skippedCount: passwords.count)
         }
-        var credentialsBySpace: [SpaceID: [ImportedCredential]] = [:]
+        var credentialsBySpace: [UUID: [ImportedCredential]] = [:]
         var skippedCount = 0
         for (index, (password, route)) in zip(passwords, routes.routes).enumerated() {
             guard !route.spaceIDs.isEmpty else {

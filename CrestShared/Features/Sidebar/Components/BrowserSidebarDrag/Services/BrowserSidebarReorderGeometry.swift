@@ -40,7 +40,7 @@ final class BrowserSidebarReorderGeometry {
     @ObservationIgnored private(set) var zones: [UUID: RegisteredZone] = [:]
     @ObservationIgnored private(set) var scrollRegions: [UUID: CGRect] = [:]
     @ObservationIgnored private(set) var sidebarViewports: [UUID: CGRect] = [:]
-    @ObservationIgnored private(set) var splitCards: [TabID: SplitCard] = [:]
+    @ObservationIgnored private(set) var splitCards: [UUID: SplitCard] = [:]
 
     func register(row: BrowserSidebarReorderRow, owner: UUID, scrollRegionID: UUID?) {
         if let current = rows[row.id] {
@@ -140,13 +140,13 @@ final class BrowserSidebarReorderGeometry {
     }
 
     func register(
-        splitCardFrame frame: CGRect, for tabID: TabID, in space: BrowserSpaceRuntimeAssignment,
+        splitCardFrame frame: CGRect, for tabID: UUID, in space: BrowserSpaceRuntimeAssignment,
         owner: UUID
     ) {
         splitCards[tabID] = SplitCard(owner: owner, space: space, frame: frame)
     }
 
-    func removeSplitCardFrame(for tabID: TabID, owner: UUID) {
+    func removeSplitCardFrame(for tabID: UUID, owner: UUID) {
         guard splitCards[tabID]?.owner == owner else { return }
         splitCards[tabID] = nil
     }

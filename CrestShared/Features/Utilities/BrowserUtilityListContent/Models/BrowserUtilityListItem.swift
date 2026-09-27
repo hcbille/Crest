@@ -23,7 +23,7 @@ enum BrowserUtilityListItem: Identifiable, Sendable {
 }
 
 enum BrowserUtilityListItemID: Hashable, Sendable {
-    case archive(TabID)
+    case archive(UUID)
     case history(UUID)
     case download(UUID)
 }

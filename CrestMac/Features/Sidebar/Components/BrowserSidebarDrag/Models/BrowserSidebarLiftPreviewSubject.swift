@@ -47,7 +47,7 @@ struct BrowserSidebarSelectionPreviewRow: Equatable, Identifiable {
     @MainActor
     static func resolve(
         _ rows: [BrowserSidebarReorderRow], in space: SpaceModel,
-        folderRows: (FolderID) -> [BrowserSidebarReorderRow]
+        folderRows: (UUID) -> [BrowserSidebarReorderRow]
     ) -> [Self] {
         rows.compactMap { row in
             let tabs: [TabStateModel]

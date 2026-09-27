@@ -14,7 +14,7 @@ struct BrowserSplitGroupDragPreview: View {
     let profileID: UUID
     var rowWidth = BrowserTabDragPreviewLayout.rowSize.width
     var sourceHeight: CGFloat?
-    var loadedTabIDs: Set<TabID>?
+    var loadedTabIDs: Set<UUID>?
 
     private static let containerPadding: CGFloat = CrestSpacing.extraSmall
     private static let lineSpacing: CGFloat = CrestSpacing.extraExtraSmall

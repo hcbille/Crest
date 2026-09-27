@@ -229,7 +229,7 @@ final class BrowserStoredSessionHarness {
 
     /// The Space the device table the file holds records `window` showing,
     /// or nil when it keeps no record of that window.
-    func storedShownSpace(of window: BrowserWindowID) throws -> UUID? {
+    func storedShownSpace(of window: UUID) throws -> UUID? {
         try withConnection { connection in
             var statement: OpaquePointer?
             let prepared = sqlite3_prepare_v2(

@@ -62,6 +62,6 @@ enum BrowserCredentialSettingsPolicy {
         if usernameOrder != .orderedSame {
             return usernameOrder == .orderedAscending
         }
-        return lhs.id.rawValue.uuidString < rhs.id.rawValue.uuidString
+        return lhs.id.uuidString < rhs.id.uuidString
     }
 }

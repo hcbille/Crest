@@ -11,7 +11,7 @@ extension BrowserSidebarUtilityCoordinator {
         browser: BrowserStore,
         pages: MobileBrowserPageStore,
         spaceAccess: BrowserSpaceAccessController,
-        selectTab: @escaping (TabID) -> Void,
+        selectTab: @escaping (UUID) -> Void,
         openURL: @escaping (URL) -> Void
     ) {
         self.init(

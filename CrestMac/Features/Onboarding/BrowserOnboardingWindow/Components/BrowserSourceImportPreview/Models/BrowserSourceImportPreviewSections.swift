@@ -1,17 +1,19 @@
+import Foundation
+
 /// The reviewed Space's tabs by the placement each comes in with.
 @MainActor
 struct BrowserSourceImportPreviewSections {
     let pinnedTabs: [TabStateModel]
     let savedTabs: [TabStateModel]
     let currentTabs: [TabStateModel]
-    let savedTabsByFolderID: [FolderID: [TabStateModel]]
+    let savedTabsByFolderID: [UUID: [TabStateModel]]
     let unfiledSavedTabs: [TabStateModel]
 
     init(review: BrowserImportSpaceReview) {
         var pinnedTabs: [TabStateModel] = []
         var savedTabs: [TabStateModel] = []
         var currentTabs: [TabStateModel] = []
-        var savedTabsByFolderID: [FolderID: [TabStateModel]] = [:]
+        var savedTabsByFolderID: [UUID: [TabStateModel]] = [:]
         var unfiledSavedTabs: [TabStateModel] = []
 
         for tab in review.sourceSpace.tabs.models {

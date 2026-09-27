@@ -26,7 +26,7 @@ private struct BrowserSystemPermissionSettingsContent: View {
         _controller = State(initialValue: BrowserSystemPermissionController(service: service))
     }
 
-    private var spaceID: SpaceID? {
+    private var spaceID: UUID? {
         guard let space = browser.shownSpace, !spaceAccess.isLocked(space) else { return nil }
         return space.id
     }

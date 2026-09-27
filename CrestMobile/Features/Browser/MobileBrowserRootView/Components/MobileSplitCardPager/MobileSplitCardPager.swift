@@ -15,25 +15,25 @@ import SwiftUI
 struct MobileSplitCardPager: View {
     let members: [TabStateModel]
     let space: SpaceModel
-    let focusedTabID: TabID
+    let focusedTabID: UUID
     let pages: MobileBrowserPageStore
     let viewport: MobileBrowserPageViewport
-    let selectTab: (TabID) -> Void
-    let prepareMember: (TabID) -> Void
+    let selectTab: (UUID) -> Void
+    let prepareMember: (UUID) -> Void
     let handleInteraction: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var visibleTabID: TabID?
+    @State private var visibleTabID: UUID?
     @State private var recenterRevision: UInt = 0
 
     init(
         members: [TabStateModel],
         space: SpaceModel,
-        focusedTabID: TabID,
+        focusedTabID: UUID,
         pages: MobileBrowserPageStore,
         viewport: MobileBrowserPageViewport,
-        selectTab: @escaping (TabID) -> Void,
-        prepareMember: @escaping (TabID) -> Void,
+        selectTab: @escaping (UUID) -> Void,
+        prepareMember: @escaping (UUID) -> Void,
         handleInteraction: @escaping () -> Void
     ) {
         self.members = members

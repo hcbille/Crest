@@ -3,8 +3,8 @@ import SwiftUI
 /// A temporary horizontal layout, committed only when the pointer is released.
 /// This keeps the lifted button alive while its neighbors move into the gap.
 struct CrestSpacePickerReordering {
-    private(set) var sourceID: SpaceID?
-    private(set) var targetID: SpaceID?
+    private(set) var sourceID: UUID?
+    private(set) var targetID: UUID?
     private(set) var translation = CGSize.zero
     private(set) var pointer = CGPoint.zero
     private var startLocation = CGPoint.zero
@@ -13,7 +13,7 @@ struct CrestSpacePickerReordering {
     private var canDrop = false
 
     mutating func update(
-        source: SpaceID, ids: [SpaceID], frames: [SpaceID: CGRect],
+        source: UUID, ids: [UUID], frames: [UUID: CGRect],
         start: CGPoint, pointer: CGPoint, viewport: CGRect = .zero
     ) {
         guard sourceID == nil || sourceID == source,
@@ -43,7 +43,7 @@ struct CrestSpacePickerReordering {
 
     /// Frames have already been translated by the scroll view's actual bounds
     /// movement. Compensate the lifted icon and re-evaluate the stationary pointer.
-    mutating func contentMoved(by offset: CGFloat, ids: [SpaceID], frames: [SpaceID: CGRect]) {
+    mutating func contentMoved(by offset: CGFloat, ids: [UUID], frames: [UUID: CGRect]) {
         guard let sourceID else { return }
         scrollTranslation += offset
         update(source: sourceID, ids: ids, frames: frames, start: startLocation, pointer: pointer, viewport: viewport)
@@ -63,7 +63,7 @@ struct CrestSpacePickerReordering {
         return 0
     }
 
-    func offset(for id: SpaceID, ids: [SpaceID], frames: [SpaceID: CGRect]) -> CGSize {
+    func offset(for id: UUID, ids: [UUID], frames: [UUID: CGRect]) -> CGSize {
         guard let sourceID, let targetID,
             let source = ids.firstIndex(of: sourceID), let target = ids.firstIndex(of: targetID),
             let index = ids.firstIndex(of: id)
@@ -81,7 +81,7 @@ struct CrestSpacePickerReordering {
         return CGSize(width: destination.minX - frame.minX, height: 0)
     }
 
-    mutating func end() -> (source: SpaceID, target: SpaceID)? {
+    mutating func end() -> (source: UUID, target: UUID)? {
         defer { self = Self() }
         guard canDrop, let sourceID, let targetID, sourceID != targetID else { return nil }
         return (sourceID, targetID)

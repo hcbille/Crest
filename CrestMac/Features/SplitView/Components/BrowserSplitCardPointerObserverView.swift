@@ -37,7 +37,7 @@ import AppKit
 @MainActor
 final class BrowserSplitCardPointerObserverView: NSView {
     var cardFrames: BrowserSplitCardFrameRegistry
-    var handleMouseDown: @MainActor @Sendable (TabID) -> Void
+    var handleMouseDown: @MainActor @Sendable (UUID) -> Void
     var lift: BrowserSplitCardLiftGesture
 
     private static let escapeKeyCode: UInt16 = 53
@@ -47,7 +47,7 @@ final class BrowserSplitCardPointerObserverView: NSView {
 
     init(
         cardFrames: BrowserSplitCardFrameRegistry,
-        handleMouseDown: @escaping @MainActor @Sendable (TabID) -> Void,
+        handleMouseDown: @escaping @MainActor @Sendable (UUID) -> Void,
         lift: BrowserSplitCardLiftGesture
     ) {
         self.cardFrames = cardFrames

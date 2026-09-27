@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// Shared Space picker sizing and the lane reserved between sidebar utilities.
 enum BrowserSpaceSwitcherLayout {
@@ -67,9 +68,9 @@ enum BrowserSpaceSwitcherLayout {
     /// first surviving identity keeps a transient removal repair navigable
     /// without introducing a second selection model in the view.
     static func compactScrollTarget(
-        spaceIDs: [SpaceID],
-        selectedSpaceID: SpaceID
-    ) -> SpaceID? {
+        spaceIDs: [UUID],
+        selectedSpaceID: UUID
+    ) -> UUID? {
         guard !spaceIDs.isEmpty else { return nil }
         return spaceIDs.contains(selectedSpaceID)
             ? selectedSpaceID

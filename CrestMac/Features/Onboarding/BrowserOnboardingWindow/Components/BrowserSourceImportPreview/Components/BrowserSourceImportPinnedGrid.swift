@@ -3,10 +3,10 @@ import SwiftUI
 struct BrowserSourceImportPinnedGrid: View {
     let review: BrowserImportSpaceReview
     let tabs: [TabStateModel]
-    let overflowTabIDs: Set<TabID>
-    let duplicateTabIDs: Set<TabID>
+    let overflowTabIDs: Set<UUID>
+    let duplicateTabIDs: Set<UUID>
     let duplicateDestinationName: String?
-    let setIncluded: (TabID, Bool) -> Void
+    let setIncluded: (UUID, Bool) -> Void
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {

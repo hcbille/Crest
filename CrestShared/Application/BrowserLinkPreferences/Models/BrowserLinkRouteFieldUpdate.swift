@@ -5,7 +5,7 @@ enum BrowserLinkRouteFieldUpdate: Equatable, Sendable {
     case isEnabled(Bool)
     case match(LinkRouteMatch)
     case pattern(String)
-    case destinationSpaceID(SpaceID)
+    case destinationSpaceID(UUID)
 
     /// The intent that changes this field of route `id`.
     func edit(of id: UUID) -> EditLinkRoute {

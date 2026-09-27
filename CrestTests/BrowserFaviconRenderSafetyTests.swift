@@ -106,7 +106,7 @@ final class BrowserFaviconRenderSafetyTests: XCTestCase {
     private let epoch = Date(timeIntervalSince1970: 0)
 
     private func makeSubject(
-        id: TabID,
+        id: UUID,
         url: URL?,
         data: Data?,
         iconMode: TabIconMode
@@ -123,7 +123,7 @@ final class BrowserFaviconRenderSafetyTests: XCTestCase {
         return BrowserTabFaviconSubject(tab: model, image: image.map(FaviconAssets.Image.init))
     }
 
-    private func tabID(tail: UInt8) -> TabID {
+    private func tabID(tail: UInt8) -> UUID {
         fixedUUID(tail: tail)
     }
 

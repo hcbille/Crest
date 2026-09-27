@@ -13,7 +13,7 @@ actor KeychainCredentialVault: CredentialVault {
         self.servicePrefix = servicePrefix
     }
 
-    func descriptors(in spaceID: SpaceID) async throws -> [CredentialDescriptor] {
+    func descriptors(in spaceID: UUID) async throws -> [CredentialDescriptor] {
         let items = try await store.descriptorItems(in: service(for: spaceID))
         return
             try items
@@ -23,7 +23,7 @@ actor KeychainCredentialVault: CredentialVault {
 
     func descriptors(
         matching origin: CredentialOrigin,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws -> [CredentialDescriptor] {
         let items = try await store.descriptorItems(in: service(for: spaceID))
         return
@@ -35,7 +35,7 @@ actor KeychainCredentialVault: CredentialVault {
 
     func descriptors(
         matching protectionSpace: BrowserHTTPAuthenticationProtectionSpace,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws -> [CredentialDescriptor] {
         let items = try await store.descriptorItems(in: service(for: spaceID))
         return
@@ -49,10 +49,10 @@ actor KeychainCredentialVault: CredentialVault {
     }
 
     func credential(
-        id: CredentialID,
-        in spaceID: SpaceID
+        id: UUID,
+        in spaceID: UUID
     ) async throws -> BrowserCredential? {
-        let account = id.rawValue.uuidString.lowercased()
+        let account = id.uuidString.lowercased()
         guard
             let item = try await store.item(
                 account: account,
@@ -68,7 +68,7 @@ actor KeychainCredentialVault: CredentialVault {
         )
     }
 
-    func save(_ credential: BrowserCredential, in spaceID: SpaceID) async throws {
+    func save(_ credential: BrowserCredential, in spaceID: UUID) async throws {
         let item = try codec.item(
             for: credential,
             expectedSpaceID: spaceID
@@ -78,7 +78,7 @@ actor KeychainCredentialVault: CredentialVault {
 
     func replaceAll(
         _ credentials: [BrowserCredential],
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws {
         let service = service(for: spaceID)
         let replacementItems = try credentials.map {
@@ -109,7 +109,7 @@ actor KeychainCredentialVault: CredentialVault {
 
     func setSynchronizable(
         _ isSynchronizable: Bool,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws {
         let service = service(for: spaceID)
         let originalItems = try await store.items(in: service)
@@ -133,18 +133,18 @@ actor KeychainCredentialVault: CredentialVault {
         }
     }
 
-    func delete(id: CredentialID, in spaceID: SpaceID) async throws {
+    func delete(id: UUID, in spaceID: UUID) async throws {
         try await store.delete(
-            account: id.rawValue.uuidString.lowercased(),
+            account: id.uuidString.lowercased(),
             in: service(for: spaceID)
         )
     }
 
-    func deleteAll(in spaceID: SpaceID) async throws {
+    func deleteAll(in spaceID: UUID) async throws {
         try await store.deleteAll(in: service(for: spaceID))
     }
 
-    private func service(for spaceID: SpaceID) -> String {
+    private func service(for spaceID: UUID) -> String {
         CredentialKeychainNamespace.service(for: spaceID, prefix: servicePrefix)
     }
 
@@ -156,6 +156,6 @@ actor KeychainCredentialVault: CredentialVault {
         if usernameOrder != .orderedSame {
             return usernameOrder == .orderedAscending
         }
-        return lhs.id.rawValue.uuidString < rhs.id.rawValue.uuidString
+        return lhs.id.uuidString < rhs.id.uuidString
     }
 }

@@ -68,7 +68,7 @@ struct BrowserEngineSidebarAccessory: View {
 struct BrowserEngineExtensionSettingsPane: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
-    var requestedSpaceID: SpaceID?
+    var requestedSpaceID: UUID?
     var requestRevision = 0
 
     var body: some View {

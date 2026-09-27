@@ -3,7 +3,7 @@ import SwiftUI
 struct MobileArchiveContent: View {
     let space: SpaceModel?
     let favicons: FaviconAssets
-    let restoreArchivedTab: (TabID) -> Void
+    let restoreArchivedTab: (UUID) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -23,7 +23,7 @@ struct MobileArchiveContent: View {
         }
     }
 
-    private func restoreAndDismiss(_ tabID: TabID) {
+    private func restoreAndDismiss(_ tabID: UUID) {
         restoreArchivedTab(tabID)
         dismiss()
     }

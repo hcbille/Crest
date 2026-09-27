@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import CrestMobile
@@ -111,8 +112,8 @@ final class MobileContentBlockingActionTests: XCTestCase {
 
     private struct ContentBlockingFixture {
         let browser: BrowserStore
-        let firstSpaceID: SpaceID
-        let secondSpaceID: SpaceID
+        let firstSpaceID: UUID
+        let secondSpaceID: UUID
         let firstAssignment: BrowserTabRuntimeAssignment
     }
 

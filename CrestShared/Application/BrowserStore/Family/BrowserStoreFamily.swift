@@ -12,12 +12,12 @@ final class BrowserStoreFamily {
     private let core: BrowserCoreSessionAuthority
     let temporarySourceAssignment: BrowserSpaceRuntimeAssignment?
     let temporarySettingsBrowser: BrowserStore?
-    private var activeSpaceDeletions: Set<SpaceID> = []
+    private var activeSpaceDeletions: Set<UUID> = []
     /// The Spaces this device began deleting before the core records it. A
     /// borrowed workspace's windows read its source's deletions too: a Space's
     /// profile and privacy always read through to the workspace that lends it,
     /// including while it goes.
-    var locallyDeletingSpaceIDs: Set<SpaceID> {
+    var locallyDeletingSpaceIDs: Set<UUID> {
         activeSpaceDeletions.union(temporarySettingsBrowser?.deletingSpaceIDs ?? [])
     }
     @ObservationIgnored private weak var spaceDataDeleter: (any BrowserSpaceDataDeleting)?
@@ -245,13 +245,13 @@ final class BrowserStoreFamily {
         core.device?.followCloudDeliveries(self) { [weak self] in self?.scheduleSpaceDataCleanup() }
     }
 
-    func beginDeletingSpace(_ id: SpaceID) -> Bool {
+    func beginDeletingSpace(_ id: UUID) -> Bool {
         activeSpaceDeletions.insert(id).inserted
     }
 
-    func isActivelyDeletingSpace(_ id: SpaceID) -> Bool { activeSpaceDeletions.contains(id) }
+    func isActivelyDeletingSpace(_ id: UUID) -> Bool { activeSpaceDeletions.contains(id) }
 
-    func finishDeletingSpace(_ id: SpaceID) {
+    func finishDeletingSpace(_ id: UUID) {
         activeSpaceDeletions.remove(id)
     }
 

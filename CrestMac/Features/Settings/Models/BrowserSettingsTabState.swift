@@ -6,14 +6,14 @@ final class BrowserSettingsTabState {
     var navigation = BrowserSettingsNavigationState()
     let selections = BrowserSettingsSelections()
     var featureFilter = BrowserWebKitFeatureFlagFilter()
-    var selectedSpaceID: SpaceID?
+    var selectedSpaceID: UUID?
     var spaceEditorSection = BrowserSpaceEditorSection.appearance
     var spaceRouteRevision = 0
     let sidebarScroll = BrowserNativeScrollState()
     private(set) var consumedRouteRevision = 0
     @ObservationIgnored private var paneScrollStates: [BrowserSettingsDestination: BrowserNativeScrollState] = [:]
-    @ObservationIgnored private var spaceScrollStates:
-        [SpaceID: [BrowserSpaceEditorSection: BrowserNativeScrollState]] = [:]
+    @ObservationIgnored private var spaceScrollStates: [UUID: [BrowserSpaceEditorSection: BrowserNativeScrollState]] =
+        [:]
     @ObservationIgnored private var shortcuts: BrowserShortcutSettingsModel?
 
     func retainShortcuts(_ initial: BrowserShortcutSettingsModel) -> BrowserShortcutSettingsModel {
@@ -22,7 +22,7 @@ final class BrowserSettingsTabState {
         return initial
     }
 
-    func scroll(for spaceID: SpaceID, section: BrowserSpaceEditorSection) -> BrowserNativeScrollState {
+    func scroll(for spaceID: UUID, section: BrowserSpaceEditorSection) -> BrowserNativeScrollState {
         if let state = spaceScrollStates[spaceID]?[section] { return state }
         let state = BrowserNativeScrollState()
         spaceScrollStates[spaceID, default: [:]][section] = state

@@ -4,7 +4,7 @@ import Foundation
 struct MobileSavedLocationRestoreAction {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
-    let selectTab: (TabID) -> Void
+    let selectTab: (UUID) -> Void
     var spaceAccess = BrowserSpaceAccessController()
 
     @discardableResult

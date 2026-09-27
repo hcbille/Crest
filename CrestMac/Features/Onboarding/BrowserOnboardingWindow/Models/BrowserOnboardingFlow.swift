@@ -64,7 +64,7 @@ final class BrowserOnboardingFlow {
     }
 
     /// The Space the person is looking at in the review.
-    var shownReviewSpaceID: SpaceID? {
+    var shownReviewSpaceID: UUID? {
         get { review?.shownSpaceID }
         set {
             guard let newValue, newValue != review?.shownSpaceID else { return }
@@ -299,37 +299,37 @@ final class BrowserOnboardingFlow {
 
     // MARK: - Actions - Reviewing
 
-    func setDestination(_ destination: BrowserImportDestination, for sourceSpaceID: SpaceID) {
+    func setDestination(_ destination: BrowserImportDestination, for sourceSpaceID: UUID) {
         send(ChooseImportDestination(sourceSpaceID: sourceSpaceID, destinationSpaceID: destination.spaceID))
     }
 
-    func setIncluded(_ tabID: TabID, _ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+    func setIncluded(_ tabID: UUID, _ isIncluded: Bool, in sourceSpaceID: UUID) {
         setIncluded([tabID], isIncluded, in: sourceSpaceID)
     }
 
-    func setIncluded(_ tabIDs: Set<TabID>, _ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+    func setIncluded(_ tabIDs: Set<UUID>, _ isIncluded: Bool, in sourceSpaceID: UUID) {
         send(IncludeImportTabs(sourceSpaceID: sourceSpaceID, tabIDs: Array(tabIDs), included: isIncluded))
     }
 
-    func setPlacement(_ placement: TabPlacement, for tabID: TabID, in sourceSpaceID: SpaceID) {
+    func setPlacement(_ placement: TabPlacement, for tabID: UUID, in sourceSpaceID: UUID) {
         send(PlaceImportTab(sourceSpaceID: sourceSpaceID, tabID: tabID, placement: placement))
     }
 
-    func setSpaceIncluded(_ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+    func setSpaceIncluded(_ isIncluded: Bool, in sourceSpaceID: UUID) {
         send(IncludeImportSpace(sourceSpaceID: sourceSpaceID, included: isIncluded))
     }
 
-    func setPasswordsIncluded(_ isIncluded: Bool, in sourceSpaceID: SpaceID) {
+    func setPasswordsIncluded(_ isIncluded: Bool, in sourceSpaceID: UUID) {
         send(IncludeImportPasswords(sourceSpaceID: sourceSpaceID, included: isIncluded))
     }
 
     /// Gives the reviewed Space `sourceSpaceID` `customization`, which the
     /// core keeps with its branding rules applied.
-    func customize(_ sourceSpaceID: SpaceID, as customization: SpaceCustomization) {
+    func customize(_ sourceSpaceID: UUID, as customization: SpaceCustomization) {
         send(CustomizeImportSpace(sourceSpaceID: sourceSpaceID, customization: customization))
     }
 
-    func selectedReview(id: SpaceID?) -> BrowserImportSpaceReview? {
+    func selectedReview(id: UUID?) -> BrowserImportSpaceReview? {
         reviewSpaces.first { $0.id == id } ?? reviewSpaces.first
     }
 
@@ -368,7 +368,7 @@ final class BrowserOnboardingFlow {
         reviewPreview()?.space(id: review.destination.spaceID ?? review.id)
     }
 
-    func customizationPreviewSpace(_ spaceID: SpaceID) -> SpaceModel? {
+    func customizationPreviewSpace(_ spaceID: UUID) -> SpaceModel? {
         reviewSpaces.first { $0.id == spaceID }.flatMap(previewDestinationSpace)
     }
 

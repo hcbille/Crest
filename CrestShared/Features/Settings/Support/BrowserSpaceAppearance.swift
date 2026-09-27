@@ -11,7 +11,7 @@ struct BrowserSpaceAppearance: Equatable, Identifiable {
     /// The Space's first folder, or nil for a Space that holds none.
     let leadingFolder: FolderState?
 
-    var id: SpaceID { identity.id }
+    var id: UUID { identity.id }
     var branding: SpaceBranding { identity.branding }
 
     // MARK: - Initializers

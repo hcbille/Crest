@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -48,7 +49,7 @@ final class BrowserCurrentTabFolderTests: XCTestCase {
         var space = SpaceState.Seed.blank(number: 1)
         space.tabs = (0..<5).map { i in
             TabState.Seed(
-                id: TabID(), title: "Tab \(i)", url: URL(string: "https://example.com/\(i)"),
+                id: UUID(), title: "Tab \(i)", url: URL(string: "https://example.com/\(i)"),
                 symbol: "globe", placement: i == 0 ? .saved : .current)
         }
         configure(&space)
@@ -56,7 +57,7 @@ final class BrowserCurrentTabFolderTests: XCTestCase {
     }
 
     /// A window showing `tabID` in the only Space.
-    private func makeStore(_ space: SpaceState.Seed, showing tabID: TabID) -> BrowserStore {
+    private func makeStore(_ space: SpaceState.Seed, showing tabID: UUID) -> BrowserStore {
         BrowserStore(
             seed: SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: tabID])

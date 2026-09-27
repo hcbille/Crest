@@ -100,7 +100,7 @@ extension MobileBrowserRootModel {
         Task { await pages.reloadContentBlocking() }
     }
 
-    func relockProtectedSpaces(_ spaceIDs: Set<SpaceID>) {
+    func relockProtectedSpaces(_ spaceIDs: Set<UUID>) {
         // The Space itself, not just its ID: relocking has to reach the
         // profile its archived tab state is filed under, and that state
         // outlives the resident pages an ID alone can find.
@@ -148,7 +148,7 @@ extension MobileBrowserRootModel {
 // MARK: - Navigation
 
 extension MobileBrowserRootModel {
-    func selectTab(_ id: TabID) {
+    func selectTab(_ id: UUID) {
         guard let space = browser.shownSpace, !spaceAccess.isLocked(space), let tab = space.tabs.model(id) else {
             return
         }
@@ -272,7 +272,7 @@ extension MobileBrowserRootModel {
         return spaceAccess.isLocked(space)
     }
 
-    var lockedSpaceIDs: Set<SpaceID> {
+    var lockedSpaceIDs: Set<UUID> {
         Set(browser.spaceModels.filter(spaceAccess.isLocked).map(\.id))
     }
 
@@ -409,7 +409,7 @@ extension MobileBrowserRootModel {
     /// The group the presented cards belong to, or `nil` when one tab presents
     /// alone. Column fractions are stored per group, so a lone tab has no layout
     /// to store.
-    var presentedSplitGroupID: SplitGroupID? {
+    var presentedSplitGroupID: UUID? {
         browser.shownSpace.flatMap(browser.shownSplitGroupID(in:))
     }
 
@@ -431,7 +431,7 @@ extension MobileBrowserRootModel {
         layoutPersistence.commitSplitLayout(fractions, groupID: presentedSplitGroupID)
     }
 
-    func focusSplitCard(_ tabID: TabID) {
+    func focusSplitCard(_ tabID: UUID) {
         guard tabID != browser.shownTab?.id,
             let member = presentedSplitMembers.first(where: { $0.id == tabID }),
             let space = browser.shownSpace, !spaceAccess.isLocked(space)
@@ -466,7 +466,7 @@ extension MobileBrowserRootModel {
     @discardableResult
     func selectAdjacentSplitCard(
         _ direction: BrowserSpaceSwipeDirection
-    ) -> TabID? {
+    ) -> UUID? {
         guard let selectedTabID = browser.shownTab?.id, presentedSplitGroupID != nil,
             let target = MobileSplitCardPagerPolicy.adjacentMember(
                 of: selectedTabID, in: presentedSplitMembers.map(\.id), direction: direction)

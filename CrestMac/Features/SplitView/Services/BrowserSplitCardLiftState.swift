@@ -60,7 +60,7 @@ final class BrowserSplitCardLiftState {
 
     /// The card the row must draw as a gap: one that is genuinely away, not one
     /// whose preview is still fading onto the slot it has already returned to.
-    var carriedTabID: TabID? {
+    var carriedTabID: UUID? {
         guard let lift, !lift.isSettling else { return nil }
         return lift.tabID
     }
@@ -95,7 +95,7 @@ final class BrowserSplitCardLiftState {
     @discardableResult
     func begin(
         token: BrowserSplitCardLiftToken,
-        tabID: TabID,
+        tabID: UUID,
         originIndex: Int,
         cardFrame: CGRect,
         pointer: CGPoint,
@@ -166,7 +166,7 @@ final class BrowserSplitCardLiftState {
     /// The move is the caller's to make. This only stops the carry — the row
     /// puts the card back on show in the slot the gap was already holding, and
     /// the preview fades off it.
-    func drop() -> (tabID: TabID, memberIndex: Int)? {
+    func drop() -> (tabID: UUID, memberIndex: Int)? {
         guard let lift, !lift.isSettling else { return nil }
         beginSettling()
         return (lift.tabID, lift.gapIndex)

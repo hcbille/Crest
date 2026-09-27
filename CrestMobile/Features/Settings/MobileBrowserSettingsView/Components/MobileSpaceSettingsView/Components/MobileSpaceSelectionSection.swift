@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MobileSpaceSelectionSection: View {
     let browser: BrowserStore
-    @Binding var selectedSpaceID: SpaceID?
+    @Binding var selectedSpaceID: UUID?
 
     var body: some View {
         Section("Space", systemImage: "square.grid.2x2") {

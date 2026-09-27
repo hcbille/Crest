@@ -6,7 +6,7 @@ struct BrowserCrestImportPreview: View {
     let favicons: FaviconAssets
     let sourceName: String
     var isSpaceIncluded = true
-    var matchedTabIDs: Set<TabID> = []
+    var matchedTabIDs: Set<UUID> = []
 
     var body: some View {
         if !isSpaceIncluded {

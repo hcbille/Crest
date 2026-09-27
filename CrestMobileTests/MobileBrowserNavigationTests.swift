@@ -1309,7 +1309,7 @@ final class MobileBrowserNavigationTests: XCTestCase {
 
     /// Records that `spaceID`'s deletion began, as deleting a Space does before
     /// any window releases it, so the core refuses the Space new pages.
-    private func beginDeleting(_ spaceID: SpaceID, in browser: BrowserStore) throws {
+    private func beginDeleting(_ spaceID: UUID, in browser: BrowserStore) throws {
         try browser.family.commit(
             BeginDeletingSpace(
                 workspaceID: browser.family.workspaceID, windowID: browser.windowID, spaceID: spaceID,
@@ -1336,8 +1336,8 @@ final class MobileBrowserNavigationTests: XCTestCase {
 
     /// The tab a window shows in each of `spaces`: the one `tabs` names for
     /// it, or else its first tab.
-    private func shownTabs(in spaces: [SpaceState.Seed], tabs: [SpaceID: TabID] = [:]) -> [SpaceID: TabID] {
-        var shown: [SpaceID: TabID] = [:]
+    private func shownTabs(in spaces: [SpaceState.Seed], tabs: [UUID: UUID] = [:]) -> [UUID: UUID] {
+        var shown: [UUID: UUID] = [:]
         for space in spaces {
             shown[space.id] = tabs[space.id] ?? space.tabs.first?.id
         }

@@ -12,11 +12,11 @@ import Foundation
 /// "which favicons are still referenced" is exactly "which live tabs still
 /// exist", so there is no reference count to keep honest.
 protocol BrowserFaviconStoring: AnyObject, Sendable {
-    func favicon(tabID: TabID) -> Data?
+    func favicon(tabID: UUID) -> Data?
     /// Updates one live tab's last known favicon. Missing or invalid bytes leave
     /// the cached file alone; pruning is the only operation that removes it.
-    func reconcile(_ faviconData: Data?, tabID: TabID)
+    func reconcile(_ faviconData: Data?, tabID: UUID)
     /// Drops favicons for tabs the live session no longer has.
-    func pruneFavicons(keeping tabIDs: Set<TabID>)
+    func pruneFavicons(keeping tabIDs: Set<UUID>)
     func flushPendingWrites() async
 }

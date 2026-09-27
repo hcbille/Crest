@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import CrestMobile
@@ -14,13 +15,13 @@ final class MobileBrowserColdStartTests: XCTestCase {
 
     func testFloatingColdLaunchPreservesSplitMembershipAndWarmUserSelection() throws {
         var session = SessionState.Seed.preview
-        let group = SplitGroupID()
+        let group = UUID()
         session.spaces[0].tabs[0].placement = .current
         session.spaces[0].tabs[1].placement = .current
         session.spaces[0].tabs[0].splitGroupID = group
         session.spaces[0].tabs[1].splitGroupID = group
         let root = BrowserStore.hostingPages(session)
-        let id = BrowserWindowID()
+        let id = UUID()
         let layouts = BrowserWindowLayouts(defaults: nil)
         layouts.save(BrowserWindowState(id: id, sidebarIsPresented: false))
         let model = MobileBrowserWindowSceneModel(

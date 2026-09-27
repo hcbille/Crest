@@ -24,8 +24,8 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
     private weak var spaceAccess: BrowserSpaceAccessController?
     private let primary: BrowserPagePool
     private var pools: [ObjectIdentifier: WeakPool] = [:]
-    private var windowRuntimes: [BrowserWindowID: WeakWindowRuntime] = [:]
-    private var spacesDeletingData: Set<SpaceID> = []
+    private var windowRuntimes: [UUID: WeakWindowRuntime] = [:]
+    private var spacesDeletingData: Set<UUID> = []
 
     init(primary: BrowserPagePool, spaceAccess: BrowserSpaceAccessController? = nil) {
         self.primary = primary
@@ -39,7 +39,7 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
     func register(
         _ pool: BrowserPagePool,
         browser: BrowserStore,
-        for windowID: BrowserWindowID
+        for windowID: UUID
     ) {
         register(pool)
         browser.family.pageDismissalAuthorizer = self
@@ -53,7 +53,7 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
         pools.removeValue(forKey: ObjectIdentifier(pool))
     }
 
-    func unregister(_ pool: BrowserPagePool, for windowID: BrowserWindowID) {
+    func unregister(_ pool: BrowserPagePool, for windowID: UUID) {
         unregister(pool)
         windowRuntimes.removeValue(forKey: windowID)
     }
@@ -64,7 +64,7 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
         return [primary] + pools.values.compactMap(\.value).filter { $0 !== primary }
     }
 
-    func runtime(for windowID: BrowserWindowID) -> BrowserPagePoolWindowRuntime? {
+    func runtime(for windowID: UUID) -> BrowserPagePoolWindowRuntime? {
         guard let runtime = windowRuntimes[windowID],
             let browser = runtime.browser,
             let pages = runtime.pages

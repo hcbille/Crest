@@ -19,11 +19,11 @@ final class SpacePagerPresentation {
 
     struct Snapshot: Equatable {
         let generation: UInt
-        let spaceIDs: [SpaceID]
+        let spaceIDs: [UUID]
         /// Fractional index in semantic Space order, independent of layout direction.
         let position: CGFloat
         let phase: Phase
-        let destinationID: SpaceID?
+        let destinationID: UUID?
         var transition: SpacePagerSettlement? = nil
     }
 

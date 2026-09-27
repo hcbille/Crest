@@ -1,3 +1,5 @@
+import Foundation
+
 /// Something the sidebar can reorder in place. Tabs, folders, and split groups
 /// share the same lift, displacement, and drop-indicator machinery; only the
 /// committed move differs.
@@ -62,7 +64,7 @@ enum BrowserSidebarReorderItem: Equatable, Sendable {
                 })
     }
 
-    private static func folderRowID(_ id: FolderID) -> BrowserSidebarReorderItemID { .folder(id) }
+    private static func folderRowID(_ id: UUID) -> BrowserSidebarReorderItemID { .folder(id) }
 
     var spaceAssignment: BrowserSpaceRuntimeAssignment {
         switch self {
@@ -76,16 +78,16 @@ enum BrowserSidebarReorderItem: Equatable, Sendable {
 /// Identity for a reorderable row, so one registry can hold tabs, folders, and
 /// split groups.
 enum BrowserSidebarReorderItemID: Hashable, Sendable {
-    case tab(TabID)
-    case folder(FolderID)
-    case splitGroup(SplitGroupID)
+    case tab(UUID)
+    case folder(UUID)
+    case splitGroup(UUID)
 
-    var folderID: FolderID? {
+    var folderID: UUID? {
         guard case .folder(let id) = self else { return nil }
         return id
     }
 
-    var tabID: TabID? {
+    var tabID: UUID? {
         guard case .tab(let id) = self else { return nil }
         return id
     }

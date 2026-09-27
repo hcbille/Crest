@@ -14,7 +14,7 @@ extension CrestCore {
     /// False when a rule refuses either, such as a locked Space or a page
     /// that is gone.
     @discardableResult
-    func open(_ origin: SiteOrigin, in spaceID: SpaceID, on engine: EngineKind, moving pageID: UUID) -> Bool {
+    func open(_ origin: SiteOrigin, in spaceID: UUID, on engine: EngineKind, moving pageID: UUID) -> Bool {
         do {
             try send(ChooseSiteEngine(spaceID: spaceID, origin: origin, engine: engine))
             try send(RehostPage(pageID: pageID, engine: engine))

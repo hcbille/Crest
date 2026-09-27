@@ -40,11 +40,11 @@ import SwiftUI
 /// A resize also writes without an implicit animation — the settle animation
 /// below belongs to a column opening or closing, not to pointer tracking, which
 /// has to land on the frame it was measured for.
-struct BrowserSplitColumnsView<Member: Identifiable, Content: View, Panel: View>: View where Member.ID == TabID {
+struct BrowserSplitColumnsView<Member: Identifiable, Content: View, Panel: View>: View where Member.ID == UUID {
     /// The presented cards, in session member order.
     let members: [Member]
     /// The one card browser chrome speaks for.
-    let focusedTabID: TabID?
+    let focusedTabID: UUID?
     /// The page insets the whole row sits inside, leading-zeroed when the row
     /// adjoins a docked sidebar.
     let frameInsets: EdgeInsets
@@ -57,12 +57,12 @@ struct BrowserSplitColumnsView<Member: Identifiable, Content: View, Panel: View>
     /// holds it at the slot the gap has reached; this is what makes that slot
     /// read as the gap — an empty column of exactly the size and position the
     /// card will drop back into.
-    let liftedTabID: TabID?
+    let liftedTabID: UUID?
     @Binding var widthTransaction: BrowserSplitWidthTransaction
     /// The fractions a completed divider drag settled on, worth persisting.
     let onResizeCommit: ([Double]) -> Void
     /// A request to make one card the focused one.
-    let onFocus: (TabID) -> Void
+    let onFocus: (UUID) -> Void
     let usesTransparentInnerSurface: (Member) -> Bool
     @ViewBuilder let content: (Member, Bool) -> Content
     let panel: BrowserSplitPanelColumn?
@@ -377,11 +377,11 @@ struct BrowserSplitColumnsView<Member: Identifiable, Content: View, Panel: View>
 
 extension BrowserSplitColumnsView where Panel == EmptyView {
     init(
-        members: [Member], focusedTabID: TabID?, frameInsets: EdgeInsets,
-        accent: Color, placeholderIndex: Int?, liftedTabID: TabID?,
+        members: [Member], focusedTabID: UUID?, frameInsets: EdgeInsets,
+        accent: Color, placeholderIndex: Int?, liftedTabID: UUID?,
         widthTransaction: Binding<BrowserSplitWidthTransaction>,
         onResizeCommit: @escaping ([Double]) -> Void,
-        onFocus: @escaping (TabID) -> Void,
+        onFocus: @escaping (UUID) -> Void,
         usesTransparentInnerSurface: @escaping (Member) -> Bool,
         @ViewBuilder content: @escaping (Member, Bool) -> Content
     ) {

@@ -14,7 +14,7 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
     func testSplitGroupCustomizationPersistsEveryFieldAndFullEmojiCluster()
         throws
     {
-        let group = SplitGroupID()
+        let group = UUID()
         let head = makeTab("Head", group: group)
         let tail = makeTab("Tail", group: group)
         let space = makeSpace(tabs: [head, tail])
@@ -41,7 +41,7 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
     }
 
     func testDissolvingAGroupRemovesItsDurableCustomization() throws {
-        let group = SplitGroupID()
+        let group = UUID()
         let head = makeTab("Head", group: group)
         let tail = makeTab("Tail", group: group)
         let space = makeSpace(tabs: [head, tail])
@@ -57,7 +57,7 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
     }
 
     func testRepairRetainsMetadataWhileOnlyOneSyncedMemberHasArrived() throws {
-        let group = SplitGroupID()
+        let group = UUID()
         let lone = makeTab("First Arrival", group: group)
         let metadata = SplitGroupState.Seed(id: group, customTitle: "Synced Pair", titleModifiedAt: mutationDate)
         let space = SpaceState.Seed(
@@ -81,20 +81,20 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
     private func makeStore(
         folders: [FolderState.Seed] = [],
         tabs: [TabState.Seed],
-        selectedTabID: TabID?
+        selectedTabID: UUID?
     ) -> BrowserStore {
         makeStore(space: makeSpace(folders: folders, tabs: tabs), selectedTabID: selectedTabID)
     }
 
     /// A window showing `space` on `selectedTabID`.
-    private func makeStore(space: SpaceState.Seed, selectedTabID: TabID?) -> BrowserStore {
+    private func makeStore(space: SpaceState.Seed, selectedTabID: UUID?) -> BrowserStore {
         BrowserStore(
             seed: SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: selectedTabID.map { [space.id: $0] } ?? [:]
         )
     }
 
-    private func dragItem(_ tabID: TabID, in store: BrowserStore) throws -> BrowserTabDragItem {
+    private func dragItem(_ tabID: UUID, in store: BrowserStore) throws -> BrowserTabDragItem {
         let space = try XCTUnwrap(store.shownSpace)
         return BrowserTabDragItem(tabID: tabID, spaceID: space.id, profileID: space.profileID)
     }
@@ -116,8 +116,8 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
     private func makeTab(
         _ title: String,
         placement: TabPlacement = .current,
-        folderID: FolderID? = nil,
-        group: SplitGroupID? = nil
+        folderID: UUID? = nil,
+        group: UUID? = nil
     ) -> TabState.Seed {
         TabState.Seed(
             title: title,

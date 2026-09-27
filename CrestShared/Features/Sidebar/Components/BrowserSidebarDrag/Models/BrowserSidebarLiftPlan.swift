@@ -79,20 +79,20 @@ final class BrowserSidebarDropRefusals {
     // MARK: - Types
 
     private enum Target: Hashable {
-        case list(TabPlacement, FolderID?)
-        case space(SpaceID)
+        case list(TabPlacement, UUID?)
+        case space(UUID)
     }
 
     // MARK: - Variables
 
     private weak var browser: BrowserStore?
-    private let spaceID: SpaceID
+    private let spaceID: UUID
     private var answers: [Target: Rejection?] = [:]
 
     // MARK: - Initializers
 
     /// Answers for a lift in the sidebar of `browser`'s window, over `spaceID`.
-    init(browser: BrowserStore, spaceID: SpaceID) {
+    init(browser: BrowserStore, spaceID: UUID) {
         self.browser = browser
         self.spaceID = spaceID
     }
@@ -108,7 +108,7 @@ final class BrowserSidebarDropRefusals {
         }
     }
 
-    func refusal(onSpace destinationID: SpaceID, selection: TabSelection) -> Rejection? {
+    func refusal(onSpace destinationID: UUID, selection: TabSelection) -> Rejection? {
         answer(.space(destinationID)) { browser in
             DropOnSpace(
                 workspaceID: browser.family.workspaceID, windowID: browser.windowID, spaceID: spaceID,

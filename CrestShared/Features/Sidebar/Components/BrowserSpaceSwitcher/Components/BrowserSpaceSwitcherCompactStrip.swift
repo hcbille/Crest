@@ -8,10 +8,10 @@ import SwiftUI
 /// identity, so overflow scrolls and the active Space can always be revealed.
 struct BrowserSpaceSwitcherCompactStrip: View {
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let reorderState: BrowserSidebarReorderState
     let metrics: BrowserSpacePickerMetrics
-    let selectSpace: (SpaceID) -> Void
+    let selectSpace: (UUID) -> Void
     let accessories: BrowserSpaceSwitcherAccessories
     let downloads: BrowserSpaceSwitcherDownloads
 

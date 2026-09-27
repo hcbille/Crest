@@ -4,12 +4,12 @@ import SwiftUI
 /// pickers, over Spaces of the read model's identities or draft values.
 struct CrestSpaceIconPicker<Space: BrowserSpaceIdentifying, SegmentContent: View>: View {
     let spaces: [Space]
-    let selectedSpaceID: SpaceID?
-    let selectSpace: (SpaceID) -> Void
+    let selectedSpaceID: UUID?
+    let selectSpace: (UUID) -> Void
     var style: CrestSpaceIconPickerStyle = .compact
     var selectionTint: Color? = nil
     var accessibilityIdentifier: String?
-    var moveSpace: ((SpaceID, SpaceID) -> Void)? = nil
+    var moveSpace: ((UUID, UUID) -> Void)? = nil
     var reorderViewport = CGRect.zero
     var selectionPresentation: SpacePagerPresentation? = nil
     var segmentSize = CGSize(
@@ -18,7 +18,7 @@ struct CrestSpaceIconPicker<Space: BrowserSpaceIdentifying, SegmentContent: View
     @ViewBuilder let segmentContent: (Space) -> SegmentContent
 
     @State private var reorder = CrestSpacePickerReordering()
-    @State private var frames: [SpaceID: CGRect] = [:]
+    @State private var frames: [UUID: CGRect] = [:]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -197,11 +197,11 @@ struct CrestSpaceIconPicker<Space: BrowserSpaceIdentifying, SegmentContent: View
 
 /// These anchors change with icon layout, not with native scroll or page motion.
 private struct CrestSpaceIconFramePreference: PreferenceKey {
-    static var defaultValue: [SpaceID: Anchor<CGRect>] { [:] }
+    static var defaultValue: [UUID: Anchor<CGRect>] { [:] }
 
     static func reduce(
-        value: inout [SpaceID: Anchor<CGRect>],
-        nextValue: () -> [SpaceID: Anchor<CGRect>]
+        value: inout [UUID: Anchor<CGRect>],
+        nextValue: () -> [UUID: Anchor<CGRect>]
     ) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }

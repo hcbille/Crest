@@ -7,8 +7,8 @@ struct PlatformSpacePickerPresentation: UIViewRepresentable {
     let presentation: SpacePagerPresentation
     let style: CrestSpaceIconPickerStyle
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID?
-    let frames: [SpaceID: CGRect]
+    let selectedSpaceID: UUID?
+    let frames: [UUID: CGRect]
     let selectionTint: Color?
 
     func makeUIView(context: Context) -> SpacePickerPresentationView { SpacePickerPresentationView() }
@@ -28,10 +28,10 @@ final class SpacePickerPresentationView: UIView {
     private weak var presentation: SpacePagerPresentation?
     private var style = CrestSpaceIconPickerStyle.touch
     private weak var scrollView: UIScrollView?
-    private var ids: [SpaceID] = []
+    private var ids: [UUID] = []
     private var tint: UIColor?
     private var tones: [SpaceForegroundPresentation.Tone] = []
-    private var frames: [SpaceID: CGRect] = [:]
+    private var frames: [UUID: CGRect] = [:]
     private var lastSnapshot: SpacePagerPresentation.Snapshot?
     private var scrollSegment: SpacePickerScrollProgress?
     private var lastPosition: CGFloat?
@@ -52,7 +52,7 @@ final class SpacePickerPresentationView: UIView {
 
     func update(
         presentation: SpacePagerPresentation, style: CrestSpaceIconPickerStyle, spaces: [BrowserSpaceIdentity],
-        selectedSpaceID: SpaceID?, frames: [SpaceID: CGRect], tint: Color?
+        selectedSpaceID: UUID?, frames: [UUID: CGRect], tint: Color?
     ) {
         if self.presentation !== presentation {
             disconnect()

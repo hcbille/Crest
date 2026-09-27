@@ -46,7 +46,7 @@ struct MobileBrowserCommandContext {
     let selectPreviousTab: () -> Void
     let selectNextTab: () -> Void
     let selectMostRecentTab: () -> Void
-    let selectTab: (TabID) -> Void
+    let selectTab: (UUID) -> Void
     let splitWithNextTab: () -> Void
     let focusNextSplitCard: () -> Void
     let focusPreviousSplitCard: () -> Void
@@ -56,7 +56,7 @@ struct MobileBrowserCommandContext {
     let moveFocusedSplitCard: (Int) -> Void
     let selectPreviousSpace: () -> Void
     let selectNextSpace: () -> Void
-    let selectSpace: (SpaceID) -> Void
+    let selectSpace: (UUID) -> Void
     let toggleReaderMode: () -> Void
     let setTranslationToolbarVisible: (Bool) -> Void
     let toggleContentBlocking: () async -> Void

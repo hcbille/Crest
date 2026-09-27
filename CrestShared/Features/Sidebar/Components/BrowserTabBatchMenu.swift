@@ -6,7 +6,7 @@ struct BrowserTabBatchMenu: View {
     let request: BrowserCapturedSelection
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
-    var unload: ((TabID) -> Void)? = nil
+    var unload: ((UUID) -> Void)? = nil
 
     private var actions: BrowserTabBatchActions { BrowserTabBatchActions(browser: browser, spaceAccess: spaceAccess) }
     private var count: Int { request.ids.count }

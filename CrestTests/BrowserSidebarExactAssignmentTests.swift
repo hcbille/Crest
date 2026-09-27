@@ -455,9 +455,9 @@ final class BrowserSidebarExactAssignmentTests: XCTestCase {
     }
 
     private func assertTab(
-        _ tabID: TabID,
-        staysIn sourceID: SpaceID,
-        outside destinationID: SpaceID,
+        _ tabID: UUID,
+        staysIn sourceID: UUID,
+        outside destinationID: UUID,
         store: BrowserStore,
         file: StaticString = #filePath,
         line: UInt = #line

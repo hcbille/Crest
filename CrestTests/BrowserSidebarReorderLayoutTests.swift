@@ -1,17 +1,18 @@
+import Foundation
 import XCTest
 
 @testable import Crest
 
 final class BrowserSidebarReorderLayoutTests: XCTestCase {
-    private let space = BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: UUID())
-    private let source = BrowserSidebarReorderItemID.folder(FolderID())
+    private let space = BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: UUID())
+    private let source = BrowserSidebarReorderItemID.folder(UUID())
     private let current = BrowserSidebarReorderSection.tabs(placement: .current, folderID: nil)
 
     @MainActor
     func testNativeDragCompletionClearsTheMatchingLiftButNotANewerSession() throws {
         let state = BrowserSidebarReorderState()
         let item = BrowserSidebarReorderItem.tab(
-            .init(tabID: TabID(), spaceID: space.spaceID, profileID: space.profileID))
+            .init(tabID: UUID(), spaceID: space.spaceID, profileID: space.profileID))
         state.stage(item: item, section: current)
         let first = try XCTUnwrap(state.sessionToken)
         state.update(pointer: CGPoint(x: 50, y: 100))
@@ -35,14 +36,14 @@ final class BrowserSidebarReorderLayoutTests: XCTestCase {
 
     @MainActor
     func testExplicitSpaceDropOverridesALargeGapAndTheMovingEdgeProbe() throws {
-        let destination = BrowserSpaceRuntimeAssignment(spaceID: SpaceID(), profileID: space.profileID)
+        let destination = BrowserSpaceRuntimeAssignment(spaceID: UUID(), profileID: space.profileID)
         let spaceZone = BrowserSidebarReorderZone(
             target: .space(destination), frame: CGRect(x: 104, y: 988, width: 40, height: 30))
         let sectionZone = BrowserSidebarReorderZone(
             target: .section(current), frame: CGRect(x: 8, y: 100, width: 240, height: 1800))
-        let previous = BrowserSidebarReorderTarget(kind: .insert(section: current, beforeID: .tab(TabID()), index: 1))
+        let previous = BrowserSidebarReorderTarget(kind: .insert(section: current, beforeID: .tab(UUID()), index: 1))
         let tab = BrowserSidebarReorderItem.tab(
-            .init(tabID: TabID(), spaceID: space.spaceID, profileID: space.profileID))
+            .init(tabID: UUID(), spaceID: space.spaceID, profileID: space.profileID))
         var tallGap = BrowserSidebarReorderLayout(
             sourceID: tab.id, sourceFrame: CGRect(x: 8, y: 100, width: 240, height: 44), hiddenIDs: [tab.id],
             gap: .init(
@@ -70,7 +71,7 @@ final class BrowserSidebarReorderLayoutTests: XCTestCase {
             resolve(lift, layout: tallGap, pointer: insideList, insertionPoint: insideList), previous,
             "Ordinary list movement still preserves the existing gap.")
         let folderLift = BrowserSidebarReorderState.Lift(
-            item: .folder(.init(folderID: FolderID(), spaceID: space.spaceID, profileID: space.profileID)),
+            item: .folder(.init(folderID: UUID(), spaceID: space.spaceID, profileID: space.profileID)),
             section: current, rowSize: CGSize(width: 240, height: 1600), grabOffset: .zero)
         XCTAssertEqual(
             resolve(
@@ -82,8 +83,8 @@ final class BrowserSidebarReorderLayoutTests: XCTestCase {
     func testAdjacentFolderEdgesOfferTheirParentSectionForTabs() {
         for placement in [TabPlacement.saved, .current] {
             let parent = BrowserSidebarReorderSection.tabs(placement: placement, folderID: nil)
-            let first = FolderID()
-            let second = FolderID()
+            let first = UUID()
+            let second = UUID()
             let zones = [
                 BrowserSidebarReorderZone(
                     target: .section(parent), frame: CGRect(x: 8, y: 100, width: 240, height: 240)),
@@ -95,7 +96,7 @@ final class BrowserSidebarReorderLayoutTests: XCTestCase {
                     frame: CGRect(x: 8, y: 180, width: 240, height: 80)),
             ]
             let item = BrowserSidebarReorderItem.tab(
-                .init(tabID: TabID(), spaceID: space.spaceID, profileID: space.profileID))
+                .init(tabID: UUID(), spaceID: space.spaceID, profileID: space.profileID))
             for y in [CGFloat(176), 180, 184] {
                 XCTAssertEqual(
                     BrowserSidebarReorderPolicy.zone(at: CGPoint(x: 100, y: y), in: zones, accepting: item)?.target,
@@ -128,9 +129,9 @@ final class BrowserSidebarReorderLayoutTests: XCTestCase {
     @MainActor
     func testExpandedFolderPassesItsSiblingWithoutDraggingAnEntireFolderHeight() throws {
         let state = BrowserSidebarReorderState()
-        let siblingID = FolderID()
+        let siblingID = UUID()
         let sibling = row(.folder(siblingID), y: 260, height: 80)
-        let following = row(.tab(TabID()), y: 340, height: 40)
+        let following = row(.tab(UUID()), y: 340, height: 40)
         for row in [row(source, y: 100, height: 160), sibling, following] {
             state.register(row: row, owner: UUID())
         }

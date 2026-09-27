@@ -138,7 +138,7 @@ struct BrowserSidebar<Content: View>: View {
     /// A shell that has no page beside the sidebar takes the outgoing page down
     /// before the session moves, so nothing is briefly showing one Space's page
     /// under another Space's tabs.
-    private func selectSpace(_ spaceID: SpaceID) {
+    private func selectSpace(_ spaceID: UUID) {
         guard spaceID != browser.selectedSpaceID else { return }
         if !presentsSelectedSpacePage {
             pageAccess.deactivatePagePresentation()

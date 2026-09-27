@@ -3,12 +3,12 @@ import SwiftUI
 struct BrowserCrestImportContent: View {
     let space: SpaceModel
     let favicons: FaviconAssets
-    let matchedTabIDs: Set<TabID>
+    let matchedTabIDs: Set<UUID>
     @Environment(CrestCore.self) private var core: CrestCore?
 
     /// No window shows an imported Space yet, so it highlights the tab the
     /// core would show first.
-    private var highlightedTabID: TabID? { core?.fallbackTabID(in: space) }
+    private var highlightedTabID: UUID? { core?.fallbackTabID(in: space) }
 
     var body: some View {
         VStack(spacing: 0) {

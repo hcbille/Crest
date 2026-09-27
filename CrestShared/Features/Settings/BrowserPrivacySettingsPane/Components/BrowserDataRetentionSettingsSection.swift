@@ -3,7 +3,7 @@ import SwiftUI
 struct BrowserDataRetentionSettingsSection: View {
     let browser: BrowserStore
     let downloadCenter: BrowserDownloadCenter
-    let spaceID: SpaceID
+    let spaceID: UUID
 
     @State private var pendingChange: BrowserDataRetentionChange?
 

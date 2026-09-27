@@ -9,7 +9,7 @@ extension View {
     /// that only repairs on appear shows an empty editor after a Space is deleted —
     /// so it is stated once here rather than reassembled per pane.
     func crestRepairsSpaceSelection(
-        _ selection: Binding<SpaceID?>,
+        _ selection: Binding<UUID?>,
         in browser: BrowserStore
     ) -> some View {
         modifier(CrestSpaceSelectionRepair(browser: browser, selection: selection))

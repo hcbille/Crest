@@ -87,11 +87,11 @@ final class BrowserInteractionModelTests: XCTestCase {
     }
 
     func testFallbackTouchReleaseClearsAHeldTabAfterDropResolution() async {
-        let tabID = TabID()
+        let tabID = UUID()
         let dragState = BrowserTabDragState()
         let item = BrowserTabDragItem(
             tabID: tabID,
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
 
@@ -107,11 +107,11 @@ final class BrowserInteractionModelTests: XCTestCase {
     }
 
     func testFallbackTouchReleaseClearsAHeldFolderAfterDropResolution() async {
-        let folderID = FolderID()
+        let folderID = UUID()
         let dragState = BrowserFolderDragState()
         let item = BrowserFolderDragItem(
             folderID: folderID,
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
 
@@ -127,11 +127,11 @@ final class BrowserInteractionModelTests: XCTestCase {
     }
 
     func testOpeningATabContextMenuCancelsItsFalseDragLift() {
-        let tabID = TabID()
+        let tabID = UUID()
         let dragState = BrowserTabDragState()
         let firstItem = BrowserTabDragItem(
             tabID: tabID,
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
 
@@ -139,7 +139,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         dragState.contextMenuDidOpen(for: firstItem.runtimeAssignment)
         let secondItem = BrowserTabDragItem(
             tabID: tabID,
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
         dragState.begin(item: secondItem, placement: .current)
@@ -150,11 +150,11 @@ final class BrowserInteractionModelTests: XCTestCase {
     }
 
     func testOpeningAFolderContextMenuCancelsItsFalseDragLift() {
-        let folderID = FolderID()
+        let folderID = UUID()
         let dragState = BrowserFolderDragState()
         let firstItem = BrowserFolderDragItem(
             folderID: folderID,
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
 
@@ -162,7 +162,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         dragState.contextMenuDidOpen(for: firstItem)
         let secondItem = BrowserFolderDragItem(
             folderID: folderID,
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
         dragState.begin(item: secondItem)
@@ -287,17 +287,17 @@ final class BrowserInteractionModelTests: XCTestCase {
     func testALiftCrossingIntoAFolderScopedSectionResolvesItsRows() {
         let state = BrowserSidebarReorderState()
         let assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
-        let folderID = FolderID()
+        let folderID = UUID()
         let folderSection = BrowserSidebarReorderSection.tabs(
             placement: .saved,
             folderID: folderID
         )
-        let filed = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(TabID()) }
-        let unfiled = BrowserSidebarReorderItemID.tab(TabID())
-        let lifted = BrowserSidebarReorderItemID.tab(TabID())
+        let filed = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(UUID()) }
+        let unfiled = BrowserSidebarReorderItemID.tab(UUID())
+        let lifted = BrowserSidebarReorderItemID.tab(UUID())
 
         for (index, id) in filed.enumerated() {
             state.register(
@@ -352,7 +352,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         state.begin(
             item: .tab(
                 BrowserTabDragItem(
-                    tabID: lifted.tabID ?? TabID(),
+                    tabID: lifted.tabID ?? UUID(),
                     spaceID: assignment.spaceID,
                     profileID: assignment.profileID
                 )
@@ -418,14 +418,14 @@ final class BrowserInteractionModelTests: XCTestCase {
     @MainActor
     private struct StackedSidebar {
         let state = BrowserSidebarReorderState()
-        let pinned = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(TabID()) }
-        let saved = (0..<3).map { _ in BrowserSidebarReorderItemID.tab(TabID()) }
-        let current = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(TabID()) }
+        let pinned = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(UUID()) }
+        let saved = (0..<3).map { _ in BrowserSidebarReorderItemID.tab(UUID()) }
+        let current = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(UUID()) }
 
         /// The Space every row here belongs to. Readable from outside because a
         /// row registration has to say which Space's run it stands in.
         let assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
 
@@ -476,7 +476,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         ) -> BrowserSidebarReorderItem {
             .tab(
                 BrowserTabDragItem(
-                    tabID: id.tabID ?? TabID(),
+                    tabID: id.tabID ?? UUID(),
                     spaceID: assignment.spaceID,
                     profileID: assignment.profileID
                 )
@@ -559,9 +559,9 @@ final class BrowserInteractionModelTests: XCTestCase {
     @MainActor
     private struct FolderHeldSavedSidebar {
         let state = BrowserSidebarReorderState()
-        let folderID = FolderID()
-        let filed = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(TabID()) }
-        let current = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(TabID()) }
+        let folderID = UUID()
+        let filed = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(UUID()) }
+        let current = (0..<2).map { _ in BrowserSidebarReorderItemID.tab(UUID()) }
 
         /// Header row plus the two filed rows under it.
         private static let folderGroup = CGRect(
@@ -576,7 +576,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         private let savedList: CGRect
 
         private let assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
 
@@ -649,7 +649,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         ) -> BrowserSidebarReorderItem {
             .tab(
                 BrowserTabDragItem(
-                    tabID: id.tabID ?? TabID(),
+                    tabID: id.tabID ?? UUID(),
                     spaceID: assignment.spaceID,
                     profileID: assignment.profileID
                 )
@@ -690,12 +690,12 @@ final class BrowserInteractionModelTests: XCTestCase {
     /// sections in a folder group cannot capture the wrong item.
     func testSectionsOnlyAcceptTheirOwnKindOfItem() {
         let tab = BrowserSidebarReorderItem.tab(
-            BrowserTabDragItem(tabID: TabID(), spaceID: SpaceID(), profileID: UUID())
+            BrowserTabDragItem(tabID: UUID(), spaceID: UUID(), profileID: UUID())
         )
         let folder = BrowserSidebarReorderItem.folder(
             BrowserFolderDragItem(
-                folderID: FolderID(),
-                spaceID: SpaceID(),
+                folderID: UUID(),
+                spaceID: UUID(),
                 profileID: UUID()
             )
         )
@@ -731,10 +731,10 @@ final class BrowserInteractionModelTests: XCTestCase {
     func testSplitGroupsAreAcceptedOnlyByNonPinnedTabSections() {
         let group = BrowserSidebarReorderItem.splitGroup(
             BrowserSplitGroupDragItem(
-                groupID: SplitGroupID(),
-                spaceID: SpaceID(),
+                groupID: UUID(),
+                spaceID: UUID(),
                 profileID: UUID(),
-                memberTabIDs: [TabID(), TabID()]
+                memberTabIDs: [UUID(), UUID()]
             )
         )
 
@@ -747,7 +747,7 @@ final class BrowserInteractionModelTests: XCTestCase {
         XCTAssertTrue(
             BrowserSidebarReorderPolicy.accepts(
                 item: group,
-                in: .tabs(placement: .saved, folderID: FolderID())
+                in: .tabs(placement: .saved, folderID: UUID())
             )
         )
         XCTAssertFalse(
@@ -775,25 +775,25 @@ final class BrowserInteractionModelTests: XCTestCase {
             folderID: nil
         )
         let assignment = BrowserSpaceRuntimeAssignment(
-            spaceID: SpaceID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
         let zones = [
             BrowserSidebarReorderZone(target: .section(section), frame: frame),
-            BrowserSidebarReorderZone(target: .folder(FolderID()), frame: frame),
+            BrowserSidebarReorderZone(target: .folder(UUID()), frame: frame),
             BrowserSidebarReorderZone(target: .space(assignment), frame: frame),
         ]
         let group = BrowserSidebarReorderItem.splitGroup(
             BrowserSplitGroupDragItem(
-                groupID: SplitGroupID(),
+                groupID: UUID(),
                 spaceID: assignment.spaceID,
                 profileID: assignment.profileID,
-                memberTabIDs: [TabID(), TabID()]
+                memberTabIDs: [UUID(), UUID()]
             )
         )
         let tab = BrowserSidebarReorderItem.tab(
             BrowserTabDragItem(
-                tabID: TabID(),
+                tabID: UUID(),
                 spaceID: assignment.spaceID,
                 profileID: assignment.profileID
             )
@@ -837,13 +837,13 @@ final class BrowserInteractionModelTests: XCTestCase {
             placement: .current,
             folderID: nil
         )
-        let groupID = SplitGroupID()
+        let groupID = UUID()
         let item = BrowserSidebarReorderItem.splitGroup(
             BrowserSplitGroupDragItem(
                 groupID: groupID,
-                spaceID: SpaceID(),
+                spaceID: UUID(),
                 profileID: UUID(),
-                memberTabIDs: [TabID(), TabID()]
+                memberTabIDs: [UUID(), UUID()]
             )
         )
         state.register(
@@ -887,10 +887,10 @@ final class BrowserInteractionModelTests: XCTestCase {
         )
         let item = BrowserSidebarReorderItem.splitGroup(
             BrowserSplitGroupDragItem(
-                groupID: SplitGroupID(),
-                spaceID: SpaceID(),
+                groupID: UUID(),
+                spaceID: UUID(),
                 profileID: UUID(),
-                memberTabIDs: [TabID(), TabID()]
+                memberTabIDs: [UUID(), UUID()]
             )
         )
 
@@ -903,9 +903,9 @@ final class BrowserInteractionModelTests: XCTestCase {
     }
 
     func testFolderDragUsesSavedInsertionLocationsAndCannotEnterPinnedTabs() {
-        let folderID = FolderID()
-        let siblingID = FolderID()
-        let spaceID = SpaceID()
+        let folderID = UUID()
+        let siblingID = UUID()
+        let spaceID = UUID()
         let dragState = BrowserFolderDragState()
         let item = BrowserFolderDragItem(
             folderID: folderID,

@@ -17,11 +17,11 @@ struct BrowserSessionRevision: Equatable, Sendable {
 /// and what it shows first. Only a window over the session the core keeps in
 /// its file keeps a record; elsewhere `saved` has no effect.
 struct BrowserWindowOpening {
-    var id = BrowserWindowID()
+    var id = UUID()
     var saved = false
-    var copying: BrowserWindowID?
-    var showingSpaceID: SpaceID?
-    var showingTabs: [SpaceID: TabID] = [:]
+    var copying: UUID?
+    var showingSpaceID: UUID?
+    var showingTabs: [UUID: UUID] = [:]
     /// False keeps only the Space the window starts on, showing no tab.
     var restoresTabs = true
 }

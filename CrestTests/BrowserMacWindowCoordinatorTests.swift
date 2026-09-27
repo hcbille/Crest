@@ -280,7 +280,7 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
     /// build saved restores here, a bare identity reads too, and this build
     /// saves the spelling an earlier build restores.
     func testAWindowRequestKeepsTheStoredIdentitySpellingAndReadsABareOne() throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let request = BrowserMacWindowRequest.temporary(
             sourceWindowID: BrowserMacWindowRequest.initial.id,
             assignment: BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: UUID()))
@@ -308,10 +308,10 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
         var tab = BrowserTabDragItem(
             tabID: tabs[0], spaceID: space.id, profileID: space.profileID, selection: selection)
         var folder = BrowserFolderDragItem(
-            folderID: FolderID(), spaceID: space.id, profileID: space.profileID, memberTabIDs: tabs,
+            folderID: UUID(), spaceID: space.id, profileID: space.profileID, memberTabIDs: tabs,
             selection: selection)
         var split = BrowserSplitGroupDragItem(
-            groupID: SplitGroupID(), spaceID: space.id, profileID: space.profileID, memberTabIDs: tabs,
+            groupID: UUID(), spaceID: space.id, profileID: space.profileID, memberTabIDs: tabs,
             selection: selection)
         let decodedTab = try JSONDecoder().decode(BrowserTabDragItem.self, from: JSONEncoder().encode(tab))
         let decodedFolder = try JSONDecoder().decode(BrowserFolderDragItem.self, from: JSONEncoder().encode(folder))

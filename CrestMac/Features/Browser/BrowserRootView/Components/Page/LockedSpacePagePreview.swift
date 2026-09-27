@@ -8,7 +8,7 @@ struct LockedSpacePagePreview: View {
     /// The tabs the window shows side by side in `space`.
     let cards: [TabStateModel]
     let pages: BrowserPagePool
-    @State private var images: [TabID: CGImage] = [:]
+    @State private var images: [UUID: CGImage] = [:]
 
     var body: some View {
         HStack(spacing: BrowserChromeLayout.pageBrandSeamWidth) {
@@ -27,7 +27,7 @@ struct LockedSpacePagePreview: View {
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .task(id: BrowserSpaceRuntimeAssignment(space: space)) {
-            var obscured: [TabID: CGImage] = [:]
+            var obscured: [UUID: CGImage] = [:]
             for tab in cards {
                 guard !Task.isCancelled else { return }
                 guard

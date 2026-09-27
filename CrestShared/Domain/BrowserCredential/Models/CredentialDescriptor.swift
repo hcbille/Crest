@@ -1,8 +1,8 @@
 import Foundation
 
 struct CredentialDescriptor: Codable, Equatable, Identifiable, Sendable {
-    let id: CredentialID
-    let spaceID: SpaceID
+    let id: UUID
+    let spaceID: UUID
     let origin: CredentialOrigin
     var scope: BrowserCredentialScope
     var username: String
@@ -13,8 +13,8 @@ struct CredentialDescriptor: Codable, Equatable, Identifiable, Sendable {
     var isSynchronizable: Bool
 
     init(
-        id: CredentialID = CredentialID(),
-        spaceID: SpaceID,
+        id: UUID = UUID(),
+        spaceID: UUID,
         origin: CredentialOrigin,
         scope: BrowserCredentialScope = .webForm,
         username: String,
@@ -51,7 +51,7 @@ struct CredentialDescriptor: Codable, Equatable, Identifiable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(CredentialID.self, forKey: .id)
+        id = try container.decodeIdentity(forKey: .id)
         spaceID = try container.decodeIdentity(forKey: .spaceID)
         origin = try container.decode(CredentialOrigin.self, forKey: .origin)
         scope = try container.decodeIfPresent(BrowserCredentialScope.self, forKey: .scope)
@@ -66,7 +66,8 @@ struct CredentialDescriptor: Codable, Equatable, Identifiable, Sendable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
+        // Descriptors keep the identity spelling every earlier build wrote.
+        try container.encodeStoredIdentity(id, forKey: .id)
         // Synchronizable descriptors reach older builds on other devices,
         // which read only the stored spelling, so it stays for good.
         try container.encodeStoredIdentity(spaceID, forKey: .spaceID)

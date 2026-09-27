@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -10,23 +11,23 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
         )
         let profileID = UUID()
         let otherProfileID = UUID()
-        let firstSpace = SpaceID()
-        let secondSpace = SpaceID()
-        let foreignSpace = SpaceID()
+        let firstSpace = UUID()
+        let secondSpace = UUID()
+        let foreignSpace = UUID()
         let first = nowPlayingInstance(
-            tabID: TabID(),
+            tabID: UUID(),
             spaceID: firstSpace,
             profileID: profileID,
             ordinal: 2
         )
         let second = nowPlayingInstance(
-            tabID: TabID(),
+            tabID: UUID(),
             spaceID: secondSpace,
             profileID: profileID,
             ordinal: 1
         )
         let foreign = nowPlayingInstance(
-            tabID: TabID(),
+            tabID: UUID(),
             spaceID: foreignSpace,
             profileID: otherProfileID,
             ordinal: 0
@@ -45,7 +46,7 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
             "Kind order first, then insertion ordinal, with no profile filtering."
         )
         XCTAssertEqual(
-            visible.compactMap { instance -> SpaceID? in
+            visible.compactMap { instance -> UUID? in
                 guard case .nowPlaying(let session) = instance.presentation
                 else { return nil }
                 return session.owner.spaceID
@@ -87,19 +88,19 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
             sources: [source]
         )
         let home = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: UUID(),
             ordinal: 1
         )
         let work = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: UUID(),
             ordinal: 2
         )
 
-        runtime.activateHost(id: BrowserWindowID(), capabilities: [.mediaSessions])
+        runtime.activateHost(id: UUID(), capabilities: [.mediaSessions])
         await settle()
         source.send([home, work])
         await settle()
@@ -117,8 +118,8 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
             registrations: [.nowPlaying],
             sources: [source]
         )
-        let firstWindow = BrowserWindowID()
-        let secondWindow = BrowserWindowID()
+        let firstWindow = UUID()
+        let secondWindow = UUID()
 
         runtime.activateHost(id: firstWindow, capabilities: [.mediaSessions])
         await settle()
@@ -151,19 +152,19 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
         )
         let profileID = UUID()
         let first = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: profileID,
             ordinal: 1
         )
         let second = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: profileID,
             ordinal: 2
         )
 
-        runtime.activateHost(id: BrowserWindowID(), capabilities: [.mediaSessions])
+        runtime.activateHost(id: UUID(), capabilities: [.mediaSessions])
         await settle()
         source.send([first, second])
         await settle()
@@ -195,19 +196,19 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
         )
         let profileID = UUID()
         let first = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: profileID,
             ordinal: 1
         )
         let newest = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: profileID,
             ordinal: 2
         )
 
-        runtime.activateHost(id: BrowserWindowID(), capabilities: [.mediaSessions])
+        runtime.activateHost(id: UUID(), capabilities: [.mediaSessions])
         await settle()
         source.send([first])
         await settle()
@@ -245,19 +246,19 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
         )
         let profileID = UUID()
         let first = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: profileID,
             ordinal: 1
         )
         let second = nowPlayingInstance(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: profileID,
             ordinal: 2
         )
 
-        runtime.activateHost(id: BrowserWindowID(), capabilities: [.mediaSessions])
+        runtime.activateHost(id: UUID(), capabilities: [.mediaSessions])
         await settle()
         source.send([first, second])
         await settle()
@@ -286,8 +287,8 @@ final class BrowserSidebarWidgetRuntimeTests: XCTestCase {
     }
 
     private func nowPlayingInstance(
-        tabID: TabID,
-        spaceID: SpaceID,
+        tabID: UUID,
+        spaceID: UUID,
         profileID: UUID,
         ordinal: UInt64
     ) -> BrowserSidebarWidgetInstance {

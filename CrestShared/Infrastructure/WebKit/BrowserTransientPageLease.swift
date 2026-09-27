@@ -7,7 +7,7 @@ import WebKit
 final class BrowserTransientPageLease {
     let id = UUID()
     /// The Space and profile that own this transient page.
-    let spaceID: SpaceID
+    let spaceID: UUID
     let profileID: UUID
     var assignment: BrowserSpaceRuntimeAssignment {
         BrowserSpaceRuntimeAssignment(

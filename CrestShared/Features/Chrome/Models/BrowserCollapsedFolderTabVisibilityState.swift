@@ -1,10 +1,12 @@
+import Foundation
+
 struct BrowserCollapsedFolderTabVisibilityState: Equatable {
-    private(set) var keptTabID: TabID?
+    private(set) var keptTabID: UUID?
 
     mutating func expansionDidChange(
         isExpanded: Bool,
-        selectedTabID: TabID?,
-        folderTabIDs: [TabID]
+        selectedTabID: UUID?,
+        folderTabIDs: [UUID]
     ) {
         guard !isExpanded else {
             keptTabID = nil
@@ -17,8 +19,8 @@ struct BrowserCollapsedFolderTabVisibilityState: Equatable {
 
     mutating func selectionDidChange(
         isExpanded: Bool,
-        selectedTabID: TabID?,
-        folderTabIDs: [TabID]
+        selectedTabID: UUID?,
+        folderTabIDs: [UUID]
     ) {
         guard !isExpanded,
             let selectedTabID,
@@ -29,8 +31,8 @@ struct BrowserCollapsedFolderTabVisibilityState: Equatable {
 
     mutating func residencyDidChange(
         isExpanded: Bool,
-        selectedTabID: TabID?,
-        residentFolderTabIDs: [TabID]
+        selectedTabID: UUID?,
+        residentFolderTabIDs: [UUID]
     ) {
         if let keptTabID,
             !residentFolderTabIDs.contains(keptTabID)
@@ -44,7 +46,7 @@ struct BrowserCollapsedFolderTabVisibilityState: Equatable {
         keptTabID = selectedTabID
     }
 
-    mutating func tabDidUnload(_ tabID: TabID) {
+    mutating func tabDidUnload(_ tabID: UUID) {
         guard keptTabID == tabID else { return }
         keptTabID = nil
     }

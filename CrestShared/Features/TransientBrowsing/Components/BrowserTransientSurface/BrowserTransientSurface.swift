@@ -12,7 +12,7 @@ struct BrowserTransientSurface<WebContent: View>: View {
     let state: BrowserTransientPresentationState
     let pageStatus: BrowserTransientPageStatus
     let spaces: [BrowserSpaceIdentity]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let vocabulary: BrowserTransientOverlayVocabulary
     let actions: BrowserTransientCardActions
     @ViewBuilder let webContent: () -> WebContent

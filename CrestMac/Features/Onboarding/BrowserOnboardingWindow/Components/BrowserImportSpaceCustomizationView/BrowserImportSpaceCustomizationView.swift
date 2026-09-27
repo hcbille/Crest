@@ -4,7 +4,7 @@ import SwiftUI
 /// Setup holds each choice.
 struct BrowserImportSpaceCustomizationView: View {
     let flow: BrowserOnboardingFlow
-    let spaceID: SpaceID
+    let spaceID: UUID
     let previewSpace: SpaceModel?
     let done: () -> Void
 

@@ -16,7 +16,7 @@ struct BrowserCommandActions {
     var spaceAccess = BrowserSpaceAccessController()
     /// The window a Quick Window should hand its result back to, when the
     /// command was issued from a focused browser window.
-    var targetWindowID: BrowserWindowID?
+    var targetWindowID: UUID?
     /// Which way the cards are laid out, for the commands that name a side of
     /// the screen. Only the split-card moves read it; see
     /// `BrowserSplitCardMoveDirection`.
@@ -449,7 +449,7 @@ struct BrowserCommandActions {
     }
 
     /// Shows the tab a numbered command leads to, in the Space this window shows.
-    func selectTab(_ tabID: TabID?, in spaceID: SpaceID) {
+    func selectTab(_ tabID: UUID?, in spaceID: UUID) {
         guard let tabID, spaceID == browser.selectedSpaceID else { return }
         browser.selectTab(tabID)
         pages.select()
@@ -579,7 +579,7 @@ struct BrowserCommandActions {
         pages.selectSpace(in: browser)
     }
 
-    func selectSpace(_ spaceID: SpaceID) {
+    func selectSpace(_ spaceID: UUID) {
         browser.selectSpace(spaceID)
         pages.selectSpace(in: browser)
     }

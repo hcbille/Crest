@@ -3,12 +3,12 @@ import AppKit
 @MainActor
 final class BrowserQuickWindowGeometryHostView: NSView {
     private weak var pagePoolRegistry: BrowserPagePoolRegistry?
-    private var targetWindowID: BrowserWindowID?
+    private var targetWindowID: UUID?
     private weak var positionedWindow: NSWindow?
 
     init(
         pagePoolRegistry: BrowserPagePoolRegistry?,
-        targetWindowID: BrowserWindowID?
+        targetWindowID: UUID?
     ) {
         self.pagePoolRegistry = pagePoolRegistry
         self.targetWindowID = targetWindowID
@@ -31,7 +31,7 @@ final class BrowserQuickWindowGeometryHostView: NSView {
 
     func configure(
         pagePoolRegistry: BrowserPagePoolRegistry?,
-        targetWindowID: BrowserWindowID?
+        targetWindowID: UUID?
     ) {
         guard
             self.pagePoolRegistry !== pagePoolRegistry

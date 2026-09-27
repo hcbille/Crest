@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserSpaceOrderControls: View {
     let browser: BrowserStore
-    let spaceID: SpaceID?
+    let spaceID: UUID?
 
     var body: some View {
         let actions = BrowserSpaceOrderActions(browser: browser, spaceID: spaceID)

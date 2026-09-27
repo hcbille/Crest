@@ -15,16 +15,16 @@ protocol BrowserEngineHostCommands: AnyObject {
 
     /// Shows `space` in `window` and opens `url` there as its selected tab.
     @discardableResult
-    func openTab(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: BrowserWindowID) -> Bool
+    func openTab(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: UUID) -> Bool
     /// Opens a link another app sent in `space`, as Crest's own external-link
     /// handling does for a link routed to a Space.
     @discardableResult
-    func openExternalLink(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: BrowserWindowID) -> Bool
-    func openSettings(in window: BrowserWindowID)
+    func openExternalLink(_ url: URL, in space: BrowserSpaceRuntimeAssignment, window: UUID) -> Bool
+    func openSettings(in window: UUID)
     /// Opens Settings on the Extensions pane for `space`.
-    func openExtensionSettings(for space: BrowserSpaceRuntimeAssignment, in window: BrowserWindowID)
-    func openGettingStarted(in window: BrowserWindowID)
-    func selectSpace(_ spaceID: SpaceID, in window: BrowserWindowID)
+    func openExtensionSettings(for space: BrowserSpaceRuntimeAssignment, in window: UUID)
+    func openGettingStarted(in window: UUID)
+    func selectSpace(_ spaceID: UUID, in window: UUID)
 
     /// Returns once every edit the app accepted is on disk and staged for
     /// sync and every window's resident page state is written, or once a few

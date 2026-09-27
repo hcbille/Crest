@@ -6,7 +6,7 @@ import Foundation
 struct BrowserSpaceIdentity: Equatable, Identifiable {
     // MARK: - Variables
 
-    let id: SpaceID
+    let id: UUID
     let profileID: UUID
     private(set) var name: String
     private(set) var symbol: String
@@ -64,7 +64,7 @@ struct BrowserSpaceIdentity: Equatable, Identifiable {
 /// holds it in: the read model's Space, or the identity of one no session
 /// holds yet, such as a setup draft.
 @MainActor
-protocol BrowserSpaceIdentifying: Identifiable where ID == SpaceID {
+protocol BrowserSpaceIdentifying: Identifiable where ID == UUID {
     var identity: BrowserSpaceIdentity { get }
 }
 

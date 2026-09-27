@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import CrestMobile
@@ -284,7 +285,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
     }
 
     func testQuickWindowRetargetChangesTheRenderedRuntimeIdentity() throws {
-        var rememberedSpaceID: SpaceID?
+        var rememberedSpaceID: UUID?
         var rememberedURL: URL?
         let source = makeSpace(name: "Source")
         let destination = makeSpace(name: "Destination")

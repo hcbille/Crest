@@ -3,11 +3,11 @@ import SwiftUI
 struct BrowserSourceImportTabRow: View {
     let review: BrowserImportSpaceReview
     let tab: TabStateModel
-    let overflowTabIDs: Set<TabID>
-    let duplicateTabIDs: Set<TabID>
+    let overflowTabIDs: Set<UUID>
+    let duplicateTabIDs: Set<UUID>
     let duplicateDestinationName: String?
-    let setIncluded: (TabID, Bool) -> Void
-    let setPlacement: (TabID, TabPlacement) -> Void
+    let setIncluded: (UUID, Bool) -> Void
+    let setPlacement: (UUID, TabPlacement) -> Void
 
     var body: some View {
         HStack(spacing: 8) {

@@ -41,7 +41,7 @@ final class MobileBrowserWindowSceneModel {
     // MARK: - Initializers
 
     init(
-        id: BrowserWindowID,
+        id: UUID,
         rootBrowser: BrowserStore,
         permissionCenter: BrowserSitePermissionCenter,
         pageStoreRegistry: MobileBrowserPageStoreRegistry,

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserMirroredPageContent: View {
-    let tabID: TabID
+    let tabID: UUID
     let pages: BrowserPagePool
 
     var body: some View {

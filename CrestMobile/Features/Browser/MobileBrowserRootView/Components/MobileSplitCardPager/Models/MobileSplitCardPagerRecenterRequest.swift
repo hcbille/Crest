@@ -1,3 +1,5 @@
+import Foundation
+
 /// A deferred request to put the carousel back on the focused card.
 ///
 /// Membership changing — a member closed, a group dissolved remotely, a fourth
@@ -8,9 +10,9 @@
 /// the late work recognize that it is stale and do nothing.
 struct MobileSplitCardPagerRecenterRequest: Equatable, Sendable {
     let revision: UInt
-    let tabID: TabID
+    let tabID: UUID
 
-    func isCurrent(revision: UInt, focusedTabID: TabID?) -> Bool {
+    func isCurrent(revision: UInt, focusedTabID: UUID?) -> Bool {
         self.revision == revision && tabID == focusedTabID
     }
 }

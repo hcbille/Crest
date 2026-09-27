@@ -157,7 +157,7 @@ struct PinnedTabGridContent: View {
     }
 
     private func runtimeAssignment(
-        for tabID: TabID
+        for tabID: UUID
     ) -> BrowserTabRuntimeAssignment {
         BrowserTabRuntimeAssignment(
             tabID: tabID,

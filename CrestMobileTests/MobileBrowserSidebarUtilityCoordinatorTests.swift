@@ -12,7 +12,7 @@ final class MobileBrowserSidebarUtilityCoordinatorTests: XCTestCase {
     /// rather than opened as a second tab in place.
     func testHistoryIsRoutedThroughTheShellInsteadOfOpeningATab() throws {
         let context = makeContext()
-        var selectedTabs: [TabID] = []
+        var selectedTabs: [UUID] = []
         var openedURLs: [URL] = []
         let coordinator = makeCoordinator(
             context,
@@ -70,7 +70,7 @@ final class MobileBrowserSidebarUtilityCoordinatorTests: XCTestCase {
 
     private func makeCoordinator(
         _ context: Context,
-        selectTab: @escaping (TabID) -> Void,
+        selectTab: @escaping (UUID) -> Void,
         openURL: @escaping (URL) -> Void
     ) -> BrowserSidebarUtilityCoordinator {
         BrowserSidebarUtilityCoordinator(

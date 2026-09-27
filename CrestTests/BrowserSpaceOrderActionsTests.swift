@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -32,7 +33,7 @@ final class BrowserSpaceOrderActionsTests: XCTestCase {
         XCTAssertFalse(actions.canMoveDown)
         let revision = browser.sessionRevision
         actions.moveDown()
-        let missing = BrowserSpaceOrderActions(browser: browser, spaceID: SpaceID())
+        let missing = BrowserSpaceOrderActions(browser: browser, spaceID: UUID())
         XCTAssertFalse(missing.canMoveUp)
         XCTAssertFalse(missing.canMoveDown)
         missing.moveUp()

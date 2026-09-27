@@ -4,21 +4,21 @@ import SwiftUI
 /// owns selection and page activation; neither is changed for every drag frame.
 struct PlatformSpacePager<Content: View>: View {
     let spaces: [SpaceModel]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let isInteractionLocked: Bool
-    let selectSpace: (SpaceID) -> SpaceID
+    let selectSpace: (UUID) -> UUID
     @ViewBuilder let content: (SpaceModel, Bool) -> Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.spacePagerPresentation) private var presentation
     @State private var progress = TouchSpacePagerProgress()
-    @State private var visibleSpaceID: SpaceID?
+    @State private var visibleSpaceID: UUID?
 
     init(
         spaces: [SpaceModel],
-        selectedSpaceID: SpaceID,
+        selectedSpaceID: UUID,
         isInteractionLocked: Bool = false,
-        selectSpace: @escaping (SpaceID) -> SpaceID,
+        selectSpace: @escaping (UUID) -> UUID,
         @ViewBuilder content: @escaping (SpaceModel, Bool) -> Content
     ) {
         self.spaces = spaces

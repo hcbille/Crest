@@ -167,9 +167,9 @@ final class SidebarOutlineRowTests: XCTestCase {
     private func makeTab(
         _ finalByte: UInt8,
         _ title: String,
-        group: SplitGroupID? = nil,
+        group: UUID? = nil,
         placement: TabPlacement = .current,
-        folderID: FolderID? = nil
+        folderID: UUID? = nil
     ) -> TabState.Seed {
         TabState.Seed(
             id: Self.uuid(finalByte),

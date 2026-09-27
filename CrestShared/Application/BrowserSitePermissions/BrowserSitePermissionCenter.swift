@@ -2,13 +2,13 @@ import Foundation
 import os
 
 struct BrowserSitePermissionChange {
-    var spaceID: SpaceID?
+    var spaceID: UUID?
     var origin: SiteOrigin?
     var permission: SitePermission?
     var detail: String?
     var revokesAuthorization: Bool
 
-    func affects(_ permission: SitePermission, origin: SiteOrigin, in spaceID: SpaceID) -> Bool {
+    func affects(_ permission: SitePermission, origin: SiteOrigin, in spaceID: UUID) -> Bool {
         (self.spaceID == nil || self.spaceID == spaceID)
             && (self.origin == nil || self.origin == origin)
             && (self.permission == nil || self.permission == permission)
@@ -83,7 +83,7 @@ final class BrowserSitePermissionCenter {
         for permission: SitePermission,
         origin: SiteOrigin,
         detail: String? = nil,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) -> SitePermissionDecision {
         _ = core.state.sitePermissionRevision
         let question = SiteDecision(
@@ -95,7 +95,7 @@ final class BrowserSitePermissionCenter {
     func mediaDecision(
         for media: SitePermission,
         origin: SiteOrigin,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) -> SitePermissionDecision {
         _ = core.state.sitePermissionRevision
         let question = CaptureDecision(spaceID: spaceID, origin: origin, media: media)
@@ -103,7 +103,7 @@ final class BrowserSitePermissionCenter {
     }
 
     /// The choices a Space keeps, in the order the settings list them.
-    func records(in spaceID: SpaceID) -> [SitePermissionRecordState] {
+    func records(in spaceID: UUID) -> [SitePermissionRecordState] {
         core.state.sitePermissions[spaceID] ?? []
     }
 
@@ -135,7 +135,7 @@ final class BrowserSitePermissionCenter {
         for permission: SitePermission,
         origin: SiteOrigin,
         detail: String? = nil,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) {
         send(
             DecideSitePermission(
@@ -147,7 +147,7 @@ final class BrowserSitePermissionCenter {
         send(ResetSitePermission(recordID: recordID))
     }
 
-    func reset(spaceID: SpaceID) {
+    func reset(spaceID: UUID) {
         send(ResetSpacePermissions(spaceID: spaceID))
     }
 

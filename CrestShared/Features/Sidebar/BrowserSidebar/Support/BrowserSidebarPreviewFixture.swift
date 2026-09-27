@@ -139,7 +139,7 @@ enum BrowserSidebarPreviewFixture {
         path: String,
         symbol: String,
         placement: TabPlacement,
-        folderID: FolderID? = nil
+        folderID: UUID? = nil
     ) -> TabState.Seed {
         TabState.Seed(
             id: uuid(idByte),

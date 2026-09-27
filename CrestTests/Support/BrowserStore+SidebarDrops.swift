@@ -11,7 +11,7 @@ extension BrowserStore {
 
     /// What the sidebar captures of the tabs `ids`, picked in the Space the
     /// window shows.
-    func capturedSelection(ids: [TabID]) -> BrowserCapturedSelection? {
+    func capturedSelection(ids: [UUID]) -> BrowserCapturedSelection? {
         capturedSelection(ids.map(BrowserSelectionItemID.tab))
     }
 

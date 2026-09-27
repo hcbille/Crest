@@ -363,8 +363,8 @@ final class MobileBrowserPageStoreTests: XCTestCase {
 /// One split run, its members in order, and the background tab that follows it.
 private struct SplitFixture {
     var session: SessionState.Seed
-    let spaceID: SpaceID
-    let selectedID: TabID
-    let memberIDs: [TabID]
-    let nonMemberID: TabID
+    let spaceID: UUID
+    let selectedID: UUID
+    let memberIDs: [UUID]
+    let nonMemberID: UUID
 }

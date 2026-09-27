@@ -1,10 +1,10 @@
 import SwiftUI
 
-extension CrestSpaceMenuPicker where Tag == SpaceID? {
+extension CrestSpaceMenuPicker where Tag == UUID? {
     /// No Space is a legitimate state while a pane is loading.
     init(
         _ label: LocalizedStringKey,
-        selection: Binding<SpaceID?>,
+        selection: Binding<UUID?>,
         spaces: [CrestSpaceIdentity],
         labelsHidden: Bool = false,
         accessibilityIdentifier: String? = nil

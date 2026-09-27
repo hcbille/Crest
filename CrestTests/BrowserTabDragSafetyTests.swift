@@ -268,7 +268,7 @@ final class BrowserTabDragSafetyTests: XCTestCase {
 
     /// Begins deleting a Space in the core, as the first step of deleting it
     /// does, without erasing anything.
-    private func beginDeleting(_ spaceID: SpaceID, in browser: BrowserStore) throws {
+    private func beginDeleting(_ spaceID: UUID, in browser: BrowserStore) throws {
         try browser.family.commit(
             BeginDeletingSpace(
                 workspaceID: browser.family.workspaceID, windowID: browser.windowID, spaceID: spaceID,
@@ -660,7 +660,7 @@ final class BrowserTabDragSafetyTests: XCTestCase {
     func testACollapsedFolderReportsItselfAsTheNestingTargetWhileLifted() {
         let context = makeSplitContext()
         let state = context.sidebarInteraction.sidebarReorderState
-        let folderID = FolderID()
+        let folderID = UUID()
         let section = BrowserSidebarReorderSection.tabs(
             placement: .current,
             folderID: nil
@@ -825,11 +825,11 @@ final class BrowserTabDragSafetyTests: XCTestCase {
         let commit = BrowserSidebarTestDrops(browser: context.browser, spaceAccess: context.spaceAccess)
         let before = context.browser.sessionSeed
 
-        XCTAssertFalse(commit.apply(BrowserSidebarReorderTarget(kind: .intoFolder(FolderID())), for: .tab(item)))
+        XCTAssertFalse(commit.apply(BrowserSidebarReorderTarget(kind: .intoFolder(UUID())), for: .tab(item)))
         XCTAssertFalse(
             commit.apply(
                 BrowserSidebarReorderTarget(
-                    kind: .insert(section: .tabs(placement: .saved, folderID: nil), beforeID: .tab(TabID()), index: 0)),
+                    kind: .insert(section: .tabs(placement: .saved, folderID: nil), beforeID: .tab(UUID()), index: 0)),
                 for: .tab(item)))
         XCTAssertEqual(context.browser.sessionSeed, before)
     }
@@ -865,7 +865,7 @@ final class BrowserTabDragSafetyTests: XCTestCase {
         )
         XCTAssertFalse(
             commit.apply(
-                BrowserSidebarReorderTarget(kind: .intoFolder(FolderID())),
+                BrowserSidebarReorderTarget(kind: .intoFolder(UUID())),
                 for: .splitGroup(context.item)
             )
         )
@@ -1021,7 +1021,7 @@ final class BrowserTabDragSafetyTests: XCTestCase {
                 target,
                 for: .folder(
                     BrowserFolderDragItem(
-                        folderID: FolderID(),
+                        folderID: UUID(),
                         spaceID: context.assignment.spaceID,
                         profileID: context.assignment.profileID
                     )
@@ -1094,7 +1094,7 @@ final class BrowserTabDragSafetyTests: XCTestCase {
         )
         state.register(
             zone: BrowserSidebarReorderZone(
-                target: .folder(FolderID()),
+                target: .folder(UUID()),
                 frame: CGRect(x: 8, y: 64, width: 374, height: 44)
             ),
             for: UUID(),
@@ -1368,20 +1368,20 @@ final class BrowserTabDragSafetyTests: XCTestCase {
     /// Space showing its first tab.
     private static func makeBrowser(
         spaces: [SpaceState.Seed],
-        selectedSpaceID: SpaceID? = nil
+        selectedSpaceID: UUID? = nil
     ) -> BrowserStore {
-        var tabs: [SpaceID: TabID] = [:]
+        var tabs: [UUID: UUID] = [:]
         for space in spaces {
             tabs[space.id] = space.tabs.first?.id
         }
         return BrowserStore(
             seed: SessionState.Seed(spaces: spaces),
-            showing: selectedSpaceID ?? spaces.first?.id ?? SpaceID(), tabs: tabs
+            showing: selectedSpaceID ?? spaces.first?.id ?? UUID(), tabs: tabs
         )
     }
 
     private static func makeSpace(
-        id: SpaceID,
+        id: UUID,
         profileID: UUID,
         name: String,
         tabs: [TabState.Seed],
@@ -1400,10 +1400,10 @@ final class BrowserTabDragSafetyTests: XCTestCase {
     }
 
     private static func makeTab(
-        id: TabID,
+        id: UUID,
         title: String,
         placement: TabPlacement,
-        splitGroupID: SplitGroupID? = nil
+        splitGroupID: UUID? = nil
     ) -> TabState.Seed {
         TabState.Seed(
             id: id,
@@ -1415,11 +1415,11 @@ final class BrowserTabDragSafetyTests: XCTestCase {
         )
     }
 
-    private static func tabID(_ finalByte: UInt8) -> TabID {
+    private static func tabID(_ finalByte: UInt8) -> UUID {
         uuid(finalByte)
     }
 
-    private static func spaceID(_ finalByte: UInt8) -> SpaceID {
+    private static func spaceID(_ finalByte: UInt8) -> UUID {
         uuid(finalByte)
     }
 
@@ -1476,13 +1476,13 @@ final class BrowserTabDragSafetyTests: XCTestCase {
         let browser: BrowserStore
         let spaceAccess: BrowserSpaceAccessController
         let space: SpaceState.Seed
-        let groupID: SplitGroupID
+        let groupID: UUID
         let members: [TabState.Seed]
         let outsider: TabState.Seed
 
         init(
             browser: BrowserStore, spaceAccess: BrowserSpaceAccessController, space: SpaceState.Seed,
-            groupID: SplitGroupID, members: [TabState.Seed], outsider: TabState.Seed
+            groupID: UUID, members: [TabState.Seed], outsider: TabState.Seed
         ) {
             self.browser = browser
             self.spaceAccess = spaceAccess

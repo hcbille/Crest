@@ -12,14 +12,14 @@ final class BrowserExternalSchemeCoordinator {
             String
         ) async -> BrowserExternalSchemePromptResponse
 
-    private let spaceID: SpaceID
+    private let spaceID: UUID
     private let spaceName: String
     private let permissionCenter: BrowserSitePermissionCenter
     private let prompt: Prompt
     private let opensExternalURL: (URL) -> Void
 
     init(
-        spaceID: SpaceID,
+        spaceID: UUID,
         spaceName: String,
         permissionCenter: BrowserSitePermissionCenter,
         prompt: @escaping Prompt,

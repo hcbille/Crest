@@ -6,7 +6,7 @@ struct CredentialKeychainCodec {
 
     func item(
         for credential: BrowserCredential,
-        expectedSpaceID: SpaceID
+        expectedSpaceID: UUID
     ) throws -> CredentialKeychainItem {
         guard credential.descriptor.spaceID == expectedSpaceID else {
             throw CredentialVaultError.spaceMismatch(
@@ -24,7 +24,7 @@ struct CredentialKeychainCodec {
 
     func descriptor(
         from item: CredentialKeychainItem,
-        expectedSpaceID: SpaceID
+        expectedSpaceID: UUID
     ) throws -> CredentialDescriptor {
         try descriptor(
             account: item.account,
@@ -36,7 +36,7 @@ struct CredentialKeychainCodec {
 
     func descriptor(
         from item: CredentialKeychainDescriptorItem,
-        expectedSpaceID: SpaceID
+        expectedSpaceID: UUID
     ) throws -> CredentialDescriptor {
         try descriptor(
             account: item.account,
@@ -48,8 +48,8 @@ struct CredentialKeychainCodec {
 
     func credential(
         from item: CredentialKeychainItem,
-        expectedID: CredentialID,
-        expectedSpaceID: SpaceID
+        expectedID: UUID,
+        expectedSpaceID: UUID
     ) throws -> BrowserCredential {
         let descriptor = try descriptor(
             from: item,
@@ -66,7 +66,7 @@ struct CredentialKeychainCodec {
     func migratedItem(
         from item: CredentialKeychainItem,
         isSynchronizable: Bool,
-        expectedSpaceID: SpaceID
+        expectedSpaceID: UUID
     ) throws -> CredentialKeychainItem {
         var descriptor = try descriptor(
             from: item,
@@ -85,7 +85,7 @@ struct CredentialKeychainCodec {
         account: String,
         metadata: Data,
         isSynchronizable: Bool,
-        expectedSpaceID: SpaceID
+        expectedSpaceID: UUID
     ) throws -> CredentialDescriptor {
         guard
             let descriptor = try? decoder.decode(
@@ -100,7 +100,7 @@ struct CredentialKeychainCodec {
         return descriptor
     }
 
-    private func account(for id: CredentialID) -> String {
-        id.rawValue.uuidString.lowercased()
+    private func account(for id: UUID) -> String {
+        id.uuidString.lowercased()
     }
 }

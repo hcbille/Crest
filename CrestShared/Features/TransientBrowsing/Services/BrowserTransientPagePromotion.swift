@@ -24,7 +24,7 @@ struct BrowserTransientPagePromotion {
     func perform(
         in browser: BrowserStore,
         isLocked: @MainActor (SpaceModel) -> Bool,
-        adoptPage: (TabID, SpaceModel) -> Bool
+        adoptPage: (UUID, SpaceModel) -> Bool
     ) -> Outcome? {
         guard let destination = browser.spaceModel(matching: destinationAssignment) else { return nil }
         guard let url else {

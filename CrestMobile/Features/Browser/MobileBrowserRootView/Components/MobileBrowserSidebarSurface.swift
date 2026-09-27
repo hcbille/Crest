@@ -46,7 +46,7 @@ struct MobileBrowserSidebarSurface: View {
     @Binding var address: String
     @Binding var isAddressEditing: Bool
     let activateAddress: (() -> Void)?
-    let selectTab: (TabID) -> Void
+    let selectTab: (UUID) -> Void
     let presentSettings: () -> Void
     let submitAddress: () -> Void
     let openURL: (URL) -> Void

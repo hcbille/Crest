@@ -11,10 +11,10 @@ struct BrowserQuickWindowRequest: Hashable, Identifiable, Sendable {
     let id: UUID
     var url: URL
     let spaceAssignment: BrowserSpaceRuntimeAssignment
-    let targetWindowID: BrowserWindowID?
+    let targetWindowID: UUID?
     let sourcePresentation: BrowserPeekSourcePresentation?
 
-    var spaceID: SpaceID { spaceAssignment.spaceID }
+    var spaceID: UUID { spaceAssignment.spaceID }
 
     var assignment: BrowserSpaceRuntimeAssignment {
         spaceAssignment
@@ -24,7 +24,7 @@ struct BrowserQuickWindowRequest: Hashable, Identifiable, Sendable {
         id: UUID = UUID(),
         url: URL,
         spaceAssignment: BrowserSpaceRuntimeAssignment,
-        targetWindowID: BrowserWindowID? = nil,
+        targetWindowID: UUID? = nil,
         sourcePresentation: BrowserPeekSourcePresentation? = nil
     ) {
         self.id = id
@@ -37,7 +37,7 @@ struct BrowserQuickWindowRequest: Hashable, Identifiable, Sendable {
     static func empty(
         id: UUID = UUID(),
         spaceAssignment: BrowserSpaceRuntimeAssignment,
-        targetWindowID: BrowserWindowID? = nil
+        targetWindowID: UUID? = nil
     ) -> BrowserQuickWindowRequest {
         BrowserQuickWindowRequest(
             id: id,

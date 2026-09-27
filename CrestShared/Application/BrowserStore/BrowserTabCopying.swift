@@ -6,7 +6,7 @@ import Foundation
 protocol BrowserTabCopying: AnyObject {
     /// Gives the copy `copyID` of `source`, a tab of the Space `space` names,
     /// the engine state its first page starts from.
-    func prepareTabCopy(from source: TabState, copyID: TabID, in space: BrowserSpaceRuntimeAssignment)
+    func prepareTabCopy(from source: TabState, copyID: UUID, in space: BrowserSpaceRuntimeAssignment)
 }
 
 /// The tabs of a Space as they were before an intent that copies some of
@@ -15,7 +15,7 @@ struct BrowserTabCopySources {
     // MARK: - Variables
 
     let space: BrowserSpaceRuntimeAssignment
-    let tabs: [TabID: TabState]
+    let tabs: [UUID: TabState]
 
     // MARK: - Initializers
 

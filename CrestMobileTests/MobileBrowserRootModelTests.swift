@@ -22,7 +22,7 @@ final class MobileBrowserRootModelTests: XCTestCase {
 
     func testRegularSettingsActivationsSelectTheirNativeTabAndRejectStaleAssignments() throws {
         var space = makeSpace(index: 20)
-        let group = SplitGroupID()
+        let group = UUID()
         // A Start Page lists in no sidebar row, so the split pairs Settings
         // with a web page.
         var page = TabState.Seed(title: "Page", url: URL(string: "https://example.com/"), placement: .current)
@@ -220,7 +220,7 @@ final class MobileBrowserRootModelTests: XCTestCase {
     func testLiveSettingsSpaceSelectionAcceptsAnUnfocusedSplitAndRejectsItsStaleCallback() throws {
         var source = makeSpace(index: 10)
         let destination = makeSpace(index: 20)
-        let group = SplitGroupID()
+        let group = UUID()
         source.tabs[0].splitGroupID = group
         var settings = TabState.Seed(title: "Settings", url: nil, nativeContent: .settings, placement: .current)
         settings.splitGroupID = group
@@ -479,7 +479,7 @@ final class MobileBrowserRootModelTests: XCTestCase {
         fixture.model.presentationChanged(to: .regular)
         await fixture.model.prepareBrowser()
         var addressBeforeSynchronization: String?
-        var selectedTabBeforeSynchronization: TabID?
+        var selectedTabBeforeSynchronization: UUID?
 
         let selected = fixture.model.selectNextTabFromCommand {
             addressBeforeSynchronization = fixture.model.address
@@ -715,7 +715,7 @@ final class MobileBrowserRootModelTests: XCTestCase {
 
     private func makeFixture(
         spaces: [SpaceState.Seed],
-        selectedSpaceID: SpaceID,
+        selectedSpaceID: UUID,
         browsingMode: BrowserBrowsingMode = .standard,
         startupBehavior: StartupBehavior,
         spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController()
@@ -771,8 +771,8 @@ final class MobileBrowserRootModelTests: XCTestCase {
 
     private func selectionSnapshot(
         revision: Int,
-        tabID: TabID,
-        spaceID: SpaceID,
+        tabID: UUID,
+        spaceID: UUID,
         profileID: UUID
     ) -> MobileBrowserRootSelectionSnapshot {
         MobileBrowserRootSelectionSnapshot(

@@ -26,11 +26,11 @@ enum BrowserTabDragSessionLifecyclePhase: Equatable, Sendable {
 }
 
 struct BrowserFolderDragItem: Codable, Equatable, Transferable, Sendable {
-    let folderID: FolderID
-    let spaceID: SpaceID
+    let folderID: UUID
+    let spaceID: UUID
     let profileID: UUID
     /// Snapshot of the whole subtree; detects membership changes during a lift.
-    var memberTabIDs: [TabID]? = nil
+    var memberTabIDs: [UUID]? = nil
     var selection: BrowserCapturedSelection? = nil
 
     var spaceAssignment: BrowserSpaceRuntimeAssignment {
@@ -61,10 +61,10 @@ struct BrowserFolderDragItem: Codable, Equatable, Transferable, Sendable {
 /// payload still never leaves Crest — nothing outside the sidebar's own drop
 /// delegate reads it.
 struct BrowserSplitGroupDragItem: Codable, Equatable, Transferable, Sendable {
-    let groupID: SplitGroupID
-    let spaceID: SpaceID
+    let groupID: UUID
+    let spaceID: UUID
     let profileID: UUID
-    let memberTabIDs: [TabID]
+    let memberTabIDs: [UUID]
     var selection: BrowserCapturedSelection? = nil
 
     var spaceAssignment: BrowserSpaceRuntimeAssignment {
@@ -88,8 +88,8 @@ struct BrowserSplitGroupDragItem: Codable, Equatable, Transferable, Sendable {
 }
 
 struct BrowserTabDragItem: Codable, Equatable, Transferable, Sendable {
-    let tabID: TabID
-    let spaceID: SpaceID
+    let tabID: UUID
+    let spaceID: UUID
     let profileID: UUID
     var selection: BrowserCapturedSelection? = nil
 

@@ -13,7 +13,7 @@ struct BrowserSplitCardLift: Equatable {
     /// asked for by an earlier carry cannot match it, so nothing this carry did
     /// not request can ever be shown on it.
     let token: BrowserSplitCardLiftToken
-    let tabID: TabID
+    let tabID: UUID
     /// The slot the card came from, so a cancelled carry has somewhere to be put
     /// back.
     let originIndex: Int

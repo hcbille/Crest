@@ -4,7 +4,7 @@ struct MobileArchiveView: View {
     let browser: BrowserStore
     let assignment: BrowserSpaceRuntimeAssignment
     let spaceAccess: BrowserSpaceAccessController
-    let selectTab: (TabID) -> Void
+    let selectTab: (UUID) -> Void
 
     var body: some View {
         MobileArchiveContent(
@@ -15,7 +15,7 @@ struct MobileArchiveView: View {
         .presentationDetents([.medium, .large])
     }
 
-    private func restoreArchivedTab(_ tabID: TabID) {
+    private func restoreArchivedTab(_ tabID: UUID) {
         guard space != nil,
             browser.restoreArchivedTab(tabID, matching: assignment)
         else { return }

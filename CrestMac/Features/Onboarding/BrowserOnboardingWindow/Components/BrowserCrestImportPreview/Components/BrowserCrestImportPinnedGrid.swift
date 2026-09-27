@@ -3,8 +3,8 @@ import SwiftUI
 struct BrowserCrestImportPinnedGrid: View {
     let space: SpaceModel
     let favicons: FaviconAssets
-    let matchedTabIDs: Set<TabID>
-    let highlightedTabID: TabID?
+    let matchedTabIDs: Set<UUID>
+    let highlightedTabID: UUID?
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {

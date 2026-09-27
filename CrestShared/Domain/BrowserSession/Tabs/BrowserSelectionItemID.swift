@@ -2,14 +2,14 @@ import Foundation
 
 /// A tab or folder a window's sidebar can select.
 enum BrowserSelectionItemID: Codable, Hashable, Sendable {
-    case tab(TabID)
-    case folder(FolderID)
+    case tab(UUID)
+    case folder(UUID)
 
-    var tabID: TabID? {
+    var tabID: UUID? {
         if case .tab(let id) = self { return id }
         return nil
     }
-    var folderID: FolderID? {
+    var folderID: UUID? {
         if case .folder(let id) = self { return id }
         return nil
     }

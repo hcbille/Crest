@@ -124,7 +124,7 @@ final class BrowserSplitCardFrameRegistryTests: XCTestCase {
 
     func testACardThatLeavesTheRowStopsClaimingItsOldFrame() {
         let registry = BrowserSplitCardFrameRegistry()
-        let tabID = TabID()
+        let tabID = UUID()
         registry.register(CGRect(x: 0, y: 0, width: 400, height: 600), for: tabID)
 
         registry.removeFrame(for: tabID)

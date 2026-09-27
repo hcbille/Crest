@@ -64,7 +64,7 @@ struct BrowserSidebarDropCommit {
         switch target.kind {
         case .insert(let section, let beforeID, _):
             let placement: TabPlacement
-            let folderID: FolderID?
+            let folderID: UUID?
             switch section {
             case .tabs(let tabs, let folder):
                 (placement, folderID) = (tabs, folder)
@@ -124,7 +124,7 @@ struct BrowserSidebarDropCommit {
     /// member the lift does not hold, and a folder before its first tab.
     private func anchorTabID(
         _ beforeID: BrowserSidebarReorderItemID?, in space: SpaceModel, lifting selection: TabSelection
-    ) -> TabID? {
+    ) -> UUID? {
         let lifted = Set(selection.memberTabIDs)
         switch beforeID {
         case .tab(let tabID):

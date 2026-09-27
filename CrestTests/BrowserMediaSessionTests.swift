@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -431,8 +432,8 @@ final class BrowserMediaSessionTests: XCTestCase {
 
     private func assignment(profileID: UUID = UUID()) -> BrowserTabRuntimeAssignment {
         BrowserTabRuntimeAssignment(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: profileID
         )
     }

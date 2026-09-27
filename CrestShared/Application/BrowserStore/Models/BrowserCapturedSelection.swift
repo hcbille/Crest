@@ -15,7 +15,7 @@ struct BrowserCapturedSelection: Equatable, Sendable {
     var selection: TabSelection { selected.selection }
 
     /// Every tab the selection holds, in sidebar order.
-    var ids: [TabID] { selected.members.map(\.id) }
+    var ids: [UUID] { selected.members.map(\.id) }
 
     /// The tabs the selection holds, with where each stands.
     var members: [SelectedTab] { selected.members }
@@ -26,9 +26,9 @@ struct BrowserCapturedSelection: Equatable, Sendable {
     }
 
     /// The picked folders and every folder inside them.
-    var folderIDs: Set<FolderID> { Set(selected.folderIDs) }
+    var folderIDs: Set<UUID> { Set(selected.folderIDs) }
 
     var hasFolders: Bool { !selected.folderIDs.isEmpty }
 
-    var spaceID: SpaceID { assignment.spaceID }
+    var spaceID: UUID { assignment.spaceID }
 }

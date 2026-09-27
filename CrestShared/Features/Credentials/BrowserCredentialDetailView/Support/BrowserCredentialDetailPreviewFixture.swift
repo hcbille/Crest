@@ -27,10 +27,8 @@ enum BrowserCredentialDetailPreviewFixture {
         profileID: profileID
     )
     static let descriptor = CredentialDescriptor(
-        id: CredentialID(
-            rawValue: UUID(
-                uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3)
-            )
+        id: UUID(
+            uuid: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3)
         ),
         spaceID: spaceID,
         origin: origin,

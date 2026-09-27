@@ -1,3 +1,5 @@
+import Foundation
+
 struct BrowserCredentialDetailRequest: Equatable, Identifiable, Sendable {
     let descriptor: CredentialDescriptor
     let spaceAssignment: BrowserSpaceRuntimeAssignment
@@ -32,6 +34,6 @@ struct BrowserCredentialDetailRequest: Equatable, Identifiable, Sendable {
 }
 
 struct BrowserCredentialDetailPresentationIdentity: Equatable, Hashable, Sendable {
-    let credentialID: CredentialID
+    let credentialID: UUID
     let spaceAssignment: BrowserSpaceRuntimeAssignment
 }

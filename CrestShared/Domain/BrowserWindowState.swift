@@ -4,11 +4,11 @@ import Foundation
 /// whether it is shown. Only the platform reads it. What the window shows,
 /// and its split columns, are the core's window state.
 struct BrowserWindowState: Equatable, Identifiable, Sendable {
-    let id: BrowserWindowID
+    let id: UUID
     private(set) var sidebarWidth: Double?
     private(set) var sidebarIsPresented: Bool?
 
-    init(id: BrowserWindowID, sidebarWidth: Double? = nil, sidebarIsPresented: Bool? = nil) {
+    init(id: UUID, sidebarWidth: Double? = nil, sidebarIsPresented: Bool? = nil) {
         self.id = id
         self.sidebarWidth = sidebarWidth
         self.sidebarIsPresented = sidebarIsPresented

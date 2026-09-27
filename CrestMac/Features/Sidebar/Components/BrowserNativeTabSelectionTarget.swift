@@ -18,7 +18,7 @@ struct BrowserNativeTabSelectionTarget: NSViewRepresentable {
         private static let targets = NSHashTable<TargetView>.weakObjects()
         weak var browser: BrowserStore?
         var itemID: BrowserSelectionItemID?
-        var tabID: TabID? {
+        var tabID: UUID? {
             get { itemID?.tabID }
             set { itemID = newValue.map(BrowserSelectionItemID.tab) }
         }
@@ -48,7 +48,7 @@ struct BrowserNativeTabSelectionTarget: NSViewRepresentable {
         static func tab(
             at point: NSPoint, in window: NSWindow, browser: BrowserStore,
             assignment: BrowserSpaceRuntimeAssignment
-        ) -> TabID? {
+        ) -> UUID? {
             item(at: point, in: window, browser: browser, assignment: assignment)?.tabID
         }
 

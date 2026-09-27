@@ -21,7 +21,7 @@ import Foundation
 struct BrowserCredentialSavePort {
     /// The Space the submitted form belongs to — the vault the password is
     /// written to and the identity the prompt names.
-    let spaceID: SpaceID
+    let spaceID: UUID
 
     /// The candidate the page is presenting right now.
     ///

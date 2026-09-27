@@ -12,10 +12,10 @@ extension BrowserStore {
 
     /// The Space a pane should be showing, given what it is showing now.
     ///
-    /// A pane holds its own `SpaceID?` because "no Space yet" is a real state while a
+    /// A pane holds its own `UUID?` because "no Space yet" is a real state while a
     /// pane is appearing. This answers the only question a pane asks about it: is
     /// that still a Space, and if not, which one now?
-    func repairedSpaceSelection(_ selection: SpaceID?) -> SpaceID? {
+    func repairedSpaceSelection(_ selection: UUID?) -> UUID? {
         guard let selection, spaceModel(selection) != nil else {
             return selectedSpaceID
         }
@@ -65,7 +65,7 @@ extension BrowserStore {
     /// it has a Space.
     func browsingPreferenceBinding<Value>(
         _ keyPath: WritableKeyPath<BrowsingPreferences, Value>,
-        in spaceID: SpaceID?,
+        in spaceID: UUID?,
         default defaultValue: Value
     ) -> Binding<Value> {
         Binding { [self] in
@@ -106,7 +106,7 @@ extension BrowserStore {
     }
 
     /// The Space a pane defaults to, for preferences that always resolve to one.
-    func defaultSpaceBinding() -> Binding<SpaceID> {
+    func defaultSpaceBinding() -> Binding<UUID> {
         Binding { [self] in
             workspaceModel?.defaultSpaceID ?? selectedSpaceID
         } set: { [self] spaceID in

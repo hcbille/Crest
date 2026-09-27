@@ -2,15 +2,15 @@ import AppKit
 import SwiftUI
 
 extension EnvironmentValues {
-    @Entry var spacePagerContentTopInsets: [SpaceID: CGFloat] = [:]
+    @Entry var spacePagerContentTopInsets: [UUID: CGFloat] = [:]
 }
 
 /// SwiftUI supplies semantic state and content. AppKit owns only sidebar motion.
 struct PlatformSpacePager<Content: View>: NSViewRepresentable {
     let spaces: [SpaceModel]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     let isInteractionLocked: Bool
-    let selectSpace: (SpaceID) -> SpaceID
+    let selectSpace: (UUID) -> UUID
     @ViewBuilder let content: (SpaceModel, Bool) -> Content
 
     func makeNSView(context: Context) -> SpacePagerViewport<Content> {

@@ -4,7 +4,7 @@ import SwiftUI
 struct SpacePickerScrollProgress {
     let generation: UInt
     let phase: SpacePagerPresentation.Phase
-    let destinationID: SpaceID
+    let destinationID: UUID
     let startPosition: CGFloat
     let destinationPosition: CGFloat
     let startOffset: CGFloat

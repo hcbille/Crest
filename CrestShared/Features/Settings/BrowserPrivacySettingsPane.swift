@@ -9,14 +9,14 @@ struct BrowserPrivacySettingsPane: View {
     let contentBlockingErrorDescription: String?
 
     @Environment(\.browserSettingsSelections) private var selections
-    @State private var localSelectedSpaceID: SpaceID?
-    private var selectedSpaceID: SpaceID? {
+    @State private var localSelectedSpaceID: UUID?
+    private var selectedSpaceID: UUID? {
         get { if let selections { selections.privacySpaceID } else { localSelectedSpaceID } }
         nonmutating set {
             if let selections { selections.privacySpaceID = newValue } else { localSelectedSpaceID = newValue }
         }
     }
-    private var selectedSpaceBinding: Binding<SpaceID?> {
+    private var selectedSpaceBinding: Binding<UUID?> {
         Binding(get: { selectedSpaceID }, set: { selectedSpaceID = $0 })
     }
     @State private var confirmsReset = false

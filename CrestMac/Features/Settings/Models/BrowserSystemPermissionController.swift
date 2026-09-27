@@ -3,9 +3,9 @@ import Observation
 
 @MainActor
 protocol BrowserSystemPermissionServicing {
-    func status(for permission: BrowserSystemPermission, spaceID: SpaceID?) async -> BrowserSystemPermissionStatus
-    func request(_ permission: BrowserSystemPermission, spaceID: SpaceID?) async throws
-    func chooseFolder(spaceID: SpaceID) async throws
+    func status(for permission: BrowserSystemPermission, spaceID: UUID?) async -> BrowserSystemPermissionStatus
+    func request(_ permission: BrowserSystemPermission, spaceID: UUID?) async throws
+    func chooseFolder(spaceID: UUID) async throws
     func openSettings(for permission: BrowserSystemPermission) -> Bool
 }
 
@@ -16,7 +16,7 @@ final class BrowserSystemPermissionController {
     private(set) var working: Set<BrowserSystemPermission> = []
     @ObservationIgnored private let service: any BrowserSystemPermissionServicing
     @ObservationIgnored private var refreshID = UUID()
-    @ObservationIgnored private var currentSpaceID: SpaceID?
+    @ObservationIgnored private var currentSpaceID: UUID?
 
     init(service: any BrowserSystemPermissionServicing) {
         self.service = service
@@ -26,7 +26,7 @@ final class BrowserSystemPermissionController {
         statuses[permission] ?? .init(state: .checking)
     }
 
-    func refresh(spaceID: SpaceID?, recheckFiles: Bool = false) async {
+    func refresh(spaceID: UUID?, recheckFiles: Bool = false) async {
         let revision = UUID()
         refreshID = revision
         if currentSpaceID != spaceID {
@@ -49,7 +49,7 @@ final class BrowserSystemPermissionController {
         }
     }
 
-    func request(_ permission: BrowserSystemPermission, spaceID: SpaceID?) async {
+    func request(_ permission: BrowserSystemPermission, spaceID: UUID?) async {
         guard !working.contains(permission) else { return }
         working.insert(permission)
         defer { working.remove(permission) }
@@ -65,7 +65,7 @@ final class BrowserSystemPermissionController {
         await refresh(spaceID: spaceID)
     }
 
-    func chooseFolder(spaceID: SpaceID) async {
+    func chooseFolder(spaceID: UUID) async {
         guard !working.contains(.files) else { return }
         working.insert(.files)
         errors[.files] = nil

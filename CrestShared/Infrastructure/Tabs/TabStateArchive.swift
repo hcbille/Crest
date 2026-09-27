@@ -72,7 +72,7 @@ final class BrowserTabStateArchive: BrowserTabStateArchiving, @unchecked Sendabl
         rootDirectory.appendingPathComponent(profileID.uuidString, isDirectory: true)
     }
 
-    func stateFileURL(profileID: UUID, tabID: TabID) -> URL {
+    func stateFileURL(profileID: UUID, tabID: UUID) -> URL {
         directory(profileID: profileID)
             .appendingPathComponent(tabID.uuidString)
             .appendingPathExtension(Self.fileExtension)
@@ -80,12 +80,12 @@ final class BrowserTabStateArchive: BrowserTabStateArchiving, @unchecked Sendabl
 
     /// Reads on the write queue so a state archived a moment ago is visible, and
     /// so a read never races a half-written file.
-    func archivedState(profileID: UUID, tabID: TabID) -> Data? {
+    func archivedState(profileID: UUID, tabID: UUID) -> Data? {
         let url = stateFileURL(profileID: profileID, tabID: tabID)
         return writeQueue.sync { try? Data(contentsOf: url) }
     }
 
-    func archive(interactionState: Data, url: URL?, profileID: UUID, tabID: TabID) {
+    func archive(interactionState: Data, url: URL?, profileID: UUID, tabID: UUID) {
         guard !interactionState.isEmpty else { return }
         let encoded = BrowserTabStateEnvelope(
             interactionState: interactionState,
@@ -109,7 +109,7 @@ final class BrowserTabStateArchive: BrowserTabStateArchiving, @unchecked Sendabl
         }
     }
 
-    func removeState(profileID: UUID, tabID: TabID) {
+    func removeState(profileID: UUID, tabID: UUID) {
         let url = stateFileURL(profileID: profileID, tabID: tabID)
         writeQueue.async { [self] in
             try? fileManager.removeItem(at: url)
@@ -123,7 +123,7 @@ final class BrowserTabStateArchive: BrowserTabStateArchiving, @unchecked Sendabl
         }
     }
 
-    func pruneStates(keeping tabIDsByProfileID: [UUID: Set<TabID>]) {
+    func pruneStates(keeping tabIDsByProfileID: [UUID: Set<UUID>]) {
         writeQueue.async { [self] in
             for (profileID, tabIDs) in tabIDsByProfileID {
                 let directory = directory(profileID: profileID)

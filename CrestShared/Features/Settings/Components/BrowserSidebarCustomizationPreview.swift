@@ -84,7 +84,7 @@ private final class BrowserAppearancePreviewState {
         permissionCenter: BrowserSitePermissionCenter())
     /// The color each sample site would hand its pin, keyed the way the shipping
     /// sidebar asks for it.
-    private let siteAccents: [TabID: BrowserTabIconAccent]
+    private let siteAccents: [UUID: BrowserTabIconAccent]
 
     init() {
         let folder = FolderState.Seed(title: String(localized: "Example folder"), symbol: "book.closed")

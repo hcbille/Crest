@@ -3,7 +3,7 @@ import Foundation
 /// What a tab's page icon follows: the tab's address and icon choices, and
 /// the icon this platform keeps for it.
 struct BrowserTabIconSessionItem: Equatable, Sendable {
-    let id: TabID
+    let id: UUID
     let url: String?
     let faviconData: Data?
     let faviconURL: String?

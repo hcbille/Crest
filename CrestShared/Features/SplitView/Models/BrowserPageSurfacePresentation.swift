@@ -16,7 +16,7 @@ enum BrowserPageSurfacePresentation {
     /// The single rounded surface, presenting `space`. `cardTabID` is the lone
     /// tab a drag can drop beside — what a dropped tab would join, and the side
     /// of it the pointer is on is which side the new card lands.
-    case single(space: SpaceModel, cardTabID: TabID?)
+    case single(space: SpaceModel, cardTabID: UUID?)
 
     /// A row of cards. `placeholderIndex` is the slot a drag in flight would
     /// drop into, or `nil` when no drop is resolved against this row.
@@ -42,7 +42,7 @@ enum BrowserPageSurfacePresentation {
     }
 
     /// The tab the single surface is showing, when there is one to drop beside.
-    var singleCardTabID: TabID? {
+    var singleCardTabID: UUID? {
         guard case .single(_, let cardTabID) = self else { return nil }
         return cardTabID
     }

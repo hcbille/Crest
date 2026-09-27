@@ -1,3 +1,5 @@
+import Foundation
+
 extension BrowserPagePool {
     // MARK: - Actions - Space Selection
 
@@ -41,7 +43,7 @@ extension BrowserPagePool {
     /// page may be drawn there before activation, but it cannot own focus or
     /// input until selection commits. Locked surfaces never mount live pages.
     func surfacePage(
-        for tabID: TabID, in space: SpaceModel, accessController: BrowserSpaceAccessController
+        for tabID: UUID, in space: SpaceModel, accessController: BrowserSpaceAccessController
     ) -> BrowserPage? {
         guard !accessController.isLocked(space), browser.cards(in: space).contains(where: { $0.id == tabID }) else {
             return nil

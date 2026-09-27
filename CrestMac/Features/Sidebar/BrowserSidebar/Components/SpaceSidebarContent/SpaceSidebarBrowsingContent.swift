@@ -124,7 +124,7 @@ struct SpaceSidebarBrowsingContent: View {
 
     /// Selection and presentation in the one order that works: the page a
     /// shell brings on screen is whichever one the session now points at.
-    private func activate(_ tabID: TabID) {
+    private func activate(_ tabID: UUID) {
         browser.tabMultiSelection.click(
             tabID,
             units: BrowserSidebarSelection.itemUnits(in: browser))
@@ -135,7 +135,7 @@ struct SpaceSidebarBrowsingContent: View {
         )
     }
 
-    private func restoreSavedLocation(_ tabID: TabID) {
+    private func restoreSavedLocation(_ tabID: UUID) {
         BrowserSavedLocationRestoreAction(
             browser: browser,
             pages: pages,
@@ -215,18 +215,18 @@ private struct BrowserSidebarSelectionReconciler: View {
 
     private struct Snapshot: Equatable {
         struct Folder: Equatable {
-            let id: FolderID
+            let id: UUID
             let isCollapsed: Bool
         }
         let lists: [[SidebarRow]]
         let folders: [Folder]
-        let shownTabIDs: [TabID]
+        let shownTabIDs: [UUID]
         let isSavedTabsExpanded: Bool
         let isSelected: Bool
         let isUnlocked: Bool
         let residencyRevision: Int
         /// Evicted Space hosts still need their retained visibility pruned when
         /// Spaces disappear or access is revoked.
-        let spaceIDs: [SpaceID]
+        let spaceIDs: [UUID]
     }
 }

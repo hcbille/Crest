@@ -4,7 +4,7 @@ import SwiftUI
 /// final action applies it.
 struct BrowserSpaceSetupWizard: View {
     let setup: BrowserManualSetupModel
-    @Binding var selectedSpaceID: SpaceID?
+    @Binding var selectedSpaceID: UUID?
     var errorMessage: String?
     var opensGettingStarted = true
     let back: () -> Void
@@ -246,7 +246,7 @@ struct BrowserSpaceSetupWizard: View {
         step = .appearance
     }
 
-    private func spacePicker(for spaceID: SpaceID) -> BrowserSpaceCustomizationPicker {
+    private func spacePicker(for spaceID: UUID) -> BrowserSpaceCustomizationPicker {
         BrowserSpaceCustomizationPicker(
             spaces: setup.previewSpaces,
             selectedSpaceID: spaceID,

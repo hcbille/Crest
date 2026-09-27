@@ -1,3 +1,4 @@
+import Foundation
 @preconcurrency import MediaPlayer
 import XCTest
 
@@ -15,8 +16,8 @@ final class BrowserSystemNowPlayingTests: XCTestCase {
             driver: driver
         )
         let owner = BrowserTabRuntimeAssignment(
-            tabID: TabID(),
-            spaceID: SpaceID(),
+            tabID: UUID(),
+            spaceID: UUID(),
             profileID: UUID()
         )
         let artwork = Data(repeating: 7, count: 32)

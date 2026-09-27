@@ -1,8 +1,10 @@
+import Foundation
+
 /// The content blocking each Space of a workspace chose.
 struct BrowserContentBlockingSessionState: Equatable, Sendable {
-    let policiesBySpaceID: [SpaceID: ContentBlockingPolicy]
+    let policiesBySpaceID: [UUID: ContentBlockingPolicy]
 
-    init(policiesBySpaceID: [SpaceID: ContentBlockingPolicy]) {
+    init(policiesBySpaceID: [UUID: ContentBlockingPolicy]) {
         self.policiesBySpaceID = policiesBySpaceID
     }
 

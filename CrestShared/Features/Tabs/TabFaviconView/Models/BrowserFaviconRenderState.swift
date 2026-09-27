@@ -47,7 +47,7 @@ struct BrowserFaviconRenderedImage {
 }
 
 struct BrowserFaviconTaskIdentity: Hashable, Sendable {
-    let tabID: TabID
+    let tabID: UUID
     let profileID: UUID?
     let pageURL: URL?
     let iconMode: String

@@ -3,13 +3,13 @@ import AppKit
 @MainActor
 final class BrowserSystemFolderAccess {
     private let preferences: BrowserPlatformDownloadPreferences
-    private var checkedFolders: [SpaceID: (name: String, status: BrowserSystemPermissionStatus)] = [:]
+    private var checkedFolders: [UUID: (name: String, status: BrowserSystemPermissionStatus)] = [:]
 
     init(preferences: BrowserPlatformDownloadPreferences = .shared) {
         self.preferences = preferences
     }
 
-    func status(spaceID: SpaceID?) -> BrowserSystemPermissionStatus {
+    func status(spaceID: UUID?) -> BrowserSystemPermissionStatus {
         guard let spaceID else { return .init(state: .unavailable) }
         if preferences.asksWhereToSave(for: spaceID) {
             return .init(
@@ -25,7 +25,7 @@ final class BrowserSystemFolderAccess {
         return checked.status
     }
 
-    func check(spaceID: SpaceID) async throws {
+    func check(spaceID: UUID) async throws {
         let name = preferences.directoryDisplayName(for: spaceID) ?? String(localized: "Downloads")
         do {
             try await validate(spaceID: spaceID)
@@ -46,7 +46,7 @@ final class BrowserSystemFolderAccess {
         }
     }
 
-    func chooseFolder(spaceID: SpaceID) async throws {
+    func chooseFolder(spaceID: UUID) async throws {
         let panel = NSOpenPanel()
         panel.title = String(localized: "Allow Access to a Download Folder")
         panel.prompt = String(localized: "Use Folder")
@@ -64,7 +64,7 @@ final class BrowserSystemFolderAccess {
         try await check(spaceID: spaceID)
     }
 
-    private func validate(spaceID: SpaceID) async throws {
+    private func validate(spaceID: UUID) async throws {
         let hasCustomFolder = preferences.directoryDisplayName(for: spaceID) != nil
         let customFolder = preferences.directoryURL(for: spaceID)
         guard !hasCustomFolder || customFolder != nil else {

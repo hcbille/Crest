@@ -51,7 +51,7 @@ enum BrowserSidebarSelection {
     }
 
     /// The same units, of tabs alone.
-    static func units(in browser: BrowserStore) -> [[TabID]] {
+    static func units(in browser: BrowserStore) -> [[UUID]] {
         itemUnits(in: browser).map { $0.compactMap(\.tabID) }.filter { !$0.isEmpty }
     }
 
@@ -99,12 +99,12 @@ enum BrowserSidebarSelection {
         _ item: BrowserSelectionItemID, in space: SpaceModel, selection: BrowserTabMultiSelection
     ) -> Bool {
         guard selection.isEngaged else { return false }
-        var parent: FolderID? =
+        var parent: UUID? =
             switch item {
             case .tab(let id): space.tabs.model(id)?.folderID
             case .folder(let id): space.folders.model(id)?.parentID
             }
-        var visited: Set<FolderID> = []
+        var visited: Set<UUID> = []
         while let id = parent, visited.insert(id).inserted {
             if selection.contains(.folder(id)) { return true }
             parent = space.folders.model(id)?.parentID

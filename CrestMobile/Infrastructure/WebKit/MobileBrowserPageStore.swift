@@ -14,17 +14,17 @@ final class MobileBrowserPageStore:
     typealias HTTPAuthenticationCredentialLoader =
         @MainActor (
             BrowserHTTPAuthenticationProtectionSpace,
-            SpaceID
+            UUID
         ) async throws -> BrowserCredential?
 
     typealias HTTPAuthenticationCredentialSaver =
         @MainActor (
             BrowserHTTPAuthenticationSaveRequest,
-            SpaceID
+            UUID
         ) async throws -> Void
 
     typealias ModifiedLinkOpener =
-        @MainActor (URL, SpaceID, Bool) -> BrowserModifiedLinkRegistration?
+        @MainActor (URL, UUID, Bool) -> BrowserModifiedLinkRegistration?
 
     /// The focused card: the one page the toolbar, find bar, navigation
     /// controls, and every lifecycle observer speak for. Split View adds cards
@@ -44,13 +44,13 @@ final class MobileBrowserPageStore:
     /// Deliberately observable: a carousel cell and an iPad column both read it
     /// through `residentPage(matching:)` and have to re-render when membership
     /// changes.
-    private(set) var presentedTabIDs: [TabID] = []
+    private(set) var presentedTabIDs: [UUID] = []
     /// The pages this window hosts: its tabs', its leases' and the state its
     /// tabs leave when their pages go.
     let host: BrowserPageHost
     var nativeTabs: BrowserNativeTabStore { host.nativeTabs }
     /// Every tab whose page this scene presents now.
-    var presentedTabIDsAcrossWindows: Set<TabID> { Set(presentedTabIDs) }
+    var presentedTabIDsAcrossWindows: Set<UUID> { Set(presentedTabIDs) }
     var residencyRevision: Int { host.revision }
     private(set) var urlCopyFeedbackRevision = 0
     private(set) var pageZoomFeedbackLabel = "100%"
@@ -239,7 +239,7 @@ final class MobileBrowserPageStore:
 
     /// Lets go of the page a tab kept in another Space: the state archived
     /// under its old profile describes a runtime it no longer belongs to.
-    private func releaseMismatchedPage(of tabID: TabID) {
+    private func releaseMismatchedPage(of tabID: UUID) {
         guard let mismatched = host.runtimes.removeValue(forKey: tabID) else { return }
         host.tabState.removeState(profileID: mismatched.page.profileID, tabID: tabID)
         mismatched.release(keepingState: false)
@@ -248,7 +248,7 @@ final class MobileBrowserPageStore:
 
     /// The cards `tab` brings on screen: the ones the core shows beside it in
     /// this scene, or the tab alone when the scene shows it in none.
-    private func presentedMemberIDs(for tab: TabStateModel, in space: SpaceModel) -> [TabID] {
+    private func presentedMemberIDs(for tab: TabStateModel, in space: SpaceModel) -> [UUID] {
         let members = browser.cards(in: space).map(\.id)
         return members.contains(tab.id) ? members : [tab.id]
     }
@@ -260,7 +260,7 @@ final class MobileBrowserPageStore:
     /// where the session put it. Answers the page a card can bind, or `nil` when
     /// the tab is not a live member of the selected Space right now.
     @discardableResult
-    func prepareResidentPage(for tabID: TabID, at time: Date = .now) -> MobileBrowserPage? {
+    func prepareResidentPage(for tabID: UUID, at time: Date = .now) -> MobileBrowserPage? {
         guard let space = browser.shownSpace,
             let tab = space.tabs.model(tabID)
         else { return nil }
@@ -319,12 +319,12 @@ final class MobileBrowserPageStore:
     }
 
     /// Takes a tab's card off screen once its page or native content went.
-    private func dropPresentation(of tabID: TabID) {
+    private func dropPresentation(of tabID: UUID) {
         if activePage?.tabID == tabID { activePage = nil }
         if presentedTabIDs.contains(tabID) { presentedTabIDs.removeAll { $0 == tabID } }
     }
 
-    func reconcile(validTabIDs: Set<TabID>) {
+    func reconcile(validTabIDs: Set<UUID>) {
         host.reconcile(validTabIDs: validTabIDs)
         if let activePage, !validTabIDs.contains(activePage.tabID) {
             self.activePage = nil
@@ -431,7 +431,7 @@ final class MobileBrowserPageStore:
     @discardableResult
     func adoptTransientPage(
         _ lease: MobileBrowserTransientPageLease,
-        as tabID: TabID,
+        as tabID: UUID,
         in space: SpaceModel
     ) -> Bool {
         guard let tab = space.tabs.model(tabID),
@@ -716,7 +716,7 @@ final class MobileBrowserPageStore:
     }
 
     /// Puts `presented` on screen in order with `page` focused.
-    private func activate(_ page: MobileBrowserPage, presenting presented: [TabID]) {
+    private func activate(_ page: MobileBrowserPage, presenting presented: [UUID]) {
         // Guarded: `select` runs on every selection synchronization, and an
         // unconditional write would remount a card's host on changes that left
         // membership exactly as it was.

@@ -231,7 +231,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         syncPagesAfterMutation: @escaping @MainActor () -> Void = {},
         pullFavicon:
             @escaping @MainActor (
-                TabID,
+                UUID,
                 BrowserSpaceRuntimeAssignment
             ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)?
     ) -> BrowserSidebarTabActions {

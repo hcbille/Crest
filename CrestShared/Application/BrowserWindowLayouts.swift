@@ -33,7 +33,7 @@ final class BrowserWindowLayouts {
 
     // MARK: - Actions - Layouts
 
-    func layout(for id: BrowserWindowID) -> BrowserWindowState? {
+    func layout(for id: UUID) -> BrowserWindowState? {
         layouts.first { $0.id == id }
     }
 
@@ -45,7 +45,7 @@ final class BrowserWindowLayouts {
         write()
     }
 
-    func remove(id: BrowserWindowID) {
+    func remove(id: UUID) {
         guard layouts.contains(where: { $0.id == id }) else { return }
         layouts.removeAll { $0.id == id }
         write()

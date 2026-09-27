@@ -3,10 +3,10 @@ import Foundation
 /// Where a reviewed Space goes: a new Space, or the existing Space it joins.
 enum BrowserImportDestination: Equatable, Hashable, Sendable {
     case newSpace
-    case existing(SpaceID)
+    case existing(UUID)
 
     /// The existing Space it joins, or nil for a new Space.
-    var spaceID: SpaceID? {
+    var spaceID: UUID? {
         switch self {
         case .newSpace: nil
         case .existing(let id): id
@@ -25,11 +25,11 @@ struct BrowserImportSpaceReview: Identifiable, Equatable {
     /// The Space the browser brought, as the review views draw it.
     let sourceSpace: SpaceModel
 
-    var id: SpaceID { record.source.id }
+    var id: UUID { record.source.id }
     var isIncluded: Bool { record.included }
     var includesPasswords: Bool { record.includesPasswords }
-    var includedTabIDs: Set<TabID> { Set(record.includedTabIDs) }
-    var duplicateTabIDs: Set<TabID> { Set(record.duplicateTabIDs) }
+    var includedTabIDs: Set<UUID> { Set(record.includedTabIDs) }
+    var duplicateTabIDs: Set<UUID> { Set(record.duplicateTabIDs) }
     var destination: BrowserImportDestination {
         record.destinationID.map(BrowserImportDestination.existing) ?? .newSpace
     }
@@ -65,9 +65,9 @@ struct BrowserImportSpaceReview: Identifiable, Equatable {
 struct BrowserImportReviewAnalysis: Equatable {
     // MARK: - Variables
 
-    let duplicateTabIDs: Set<TabID>
-    let overflowTabIDs: Set<TabID>
-    private let matchedTabIDsBySourceSpace: [SpaceID: Set<TabID>]
+    let duplicateTabIDs: Set<UUID>
+    let overflowTabIDs: Set<UUID>
+    private let matchedTabIDsBySourceSpace: [UUID: Set<UUID>]
 
     // MARK: - Initializers
 
@@ -81,7 +81,7 @@ struct BrowserImportReviewAnalysis: Equatable {
 
     // MARK: - Actions - Tabs
 
-    func matchedTabIDs(for sourceSpaceID: SpaceID) -> Set<TabID> {
+    func matchedTabIDs(for sourceSpaceID: UUID) -> Set<UUID> {
         matchedTabIDsBySourceSpace[sourceSpaceID] ?? []
     }
 }

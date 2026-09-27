@@ -28,7 +28,7 @@ enum MobileBrowserTransientRequest: Identifiable, Equatable {
         }
     }
 
-    var spaceID: SpaceID {
+    var spaceID: UUID {
         spaceAssignment.spaceID
     }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserCrestImportChrome: View {
     let space: SpaceModel
-    let highlightedTabID: TabID?
+    let highlightedTabID: UUID?
 
     var body: some View {
         VStack(spacing: 7) {

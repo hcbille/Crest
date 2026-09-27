@@ -1,3 +1,5 @@
+import Foundation
+
 enum MobileBrowserRootSelectionChange: Equatable, Sendable {
     case unchanged
     case tab
@@ -35,12 +37,12 @@ enum MobileBrowserSpaceSwitchPolicy {
 enum MobileTabPromotionPolicy {
     static let usesNativeNavigationTransition = true
 
-    static func destinationID(for tabID: TabID) -> String {
+    static func destinationID(for tabID: UUID) -> String {
         BrowserTabPromotionID.value(for: tabID)
     }
 
     @MainActor
-    static func isTransitionSource(_ tab: TabStateModel, selectedTabID: TabID?) -> Bool {
+    static func isTransitionSource(_ tab: TabStateModel, selectedTabID: UUID?) -> Bool {
         BrowserTabPromotionSourcePolicy.isPromotionSource(tab, isSelected: tab.id == selectedTabID)
     }
 

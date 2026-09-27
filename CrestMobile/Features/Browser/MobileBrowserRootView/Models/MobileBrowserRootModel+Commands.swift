@@ -275,7 +275,7 @@ extension MobileBrowserRootModel {
 
     @discardableResult
     func selectTabFromCommand(
-        _ tabID: TabID,
+        _ tabID: UUID,
         beforeSynchronization: () -> Void = {}
     ) -> Bool {
         guard commandController.selectNumberedTab(tabID) != nil else { return false }
@@ -306,7 +306,7 @@ extension MobileBrowserRootModel {
 
     @discardableResult
     func selectSpaceFromCommand(
-        _ spaceID: SpaceID,
+        _ spaceID: UUID,
         beforeSynchronization: () -> Void = {}
     ) -> Bool {
         guard commandController.selectNumberedSpace(spaceID) != nil else { return false }

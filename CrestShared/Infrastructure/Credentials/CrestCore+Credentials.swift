@@ -43,7 +43,7 @@ extension CrestCore {
     ) throws(Rejection) -> CredentialDescriptor? {
         func winner(of batch: [CredentialDescriptor]) throws(Rejection) -> CredentialDescriptor? {
             guard let id = try choose(batch).credentialID else { return nil }
-            guard let descriptor = batch.first(where: { $0.id.rawValue == id }) else {
+            guard let descriptor = batch.first(where: { $0.id == id }) else {
                 preconditionFailure("The core chose a credential it was not asked about.")
             }
             return descriptor
@@ -66,7 +66,7 @@ extension CredentialRecord {
     /// an account is matched.
     init(_ descriptor: CredentialDescriptor, includesUsername: Bool) {
         self.init(
-            id: descriptor.id.rawValue,
+            id: descriptor.id,
             username: includesUsername ? descriptor.username : nil,
             updatedAt: descriptor.updatedAt.timeIntervalSince1970,
             lastUsedAt: descriptor.lastUsedAt?.timeIntervalSince1970)
@@ -79,7 +79,7 @@ extension ExistingCredential {
     init(_ credential: BrowserCredential) {
         let descriptor = credential.descriptor
         self.init(
-            id: descriptor.id.rawValue, origin: descriptor.origin, username: descriptor.username,
+            id: descriptor.id, origin: descriptor.origin, username: descriptor.username,
             isWebForm: descriptor.scope == .webForm, updatedAt: descriptor.updatedAt.timeIntervalSince1970,
             lastUsedAt: descriptor.lastUsedAt?.timeIntervalSince1970, password: credential.password)
     }
@@ -91,7 +91,7 @@ extension ExportedCredential {
     init(_ credential: BrowserCredential) {
         let descriptor = credential.descriptor
         self.init(
-            id: descriptor.id.rawValue, origin: descriptor.origin, username: descriptor.username,
+            id: descriptor.id, origin: descriptor.origin, username: descriptor.username,
             displayName: descriptor.displayName, password: credential.password,
             note: descriptor.scope.settingsLabel ?? "")
     }

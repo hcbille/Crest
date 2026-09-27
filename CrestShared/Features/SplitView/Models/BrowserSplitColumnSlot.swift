@@ -1,3 +1,5 @@
+import Foundation
+
 /// One column of the split-view row.
 ///
 /// A drag in flight adds a column rather than decorating the row with one. The
@@ -7,13 +9,13 @@
 /// it was standing in for.
 ///
 /// Identity is what makes that replacement read as a replacement. A member keeps
-/// its `TabID` for the life of the row, so the cards a drag never touched are
+/// its `UUID` for the life of the row, so the cards a drag never touched are
 /// never remounted — which matters more here than in an ordinary list, because a
 /// remounted card would hand a live `WKWebView` to a second superview. The
 /// placeholder and extension panel have distinct identities without tabs:
 /// on release the placeholder leaves and the joining member arrives in the same
 /// position at the same width, and every other column holds still.
-enum BrowserSplitColumnSlot<Member: Identifiable>: Identifiable where Member.ID == TabID {
+enum BrowserSplitColumnSlot<Member: Identifiable>: Identifiable where Member.ID == UUID {
     case member(Member)
     /// The column a drag in flight would drop into.
     case placeholder
@@ -57,7 +59,7 @@ enum BrowserSplitColumnSlot<Member: Identifiable>: Identifiable where Member.ID 
 }
 
 enum BrowserSplitColumnSlotID: Hashable {
-    case member(TabID)
+    case member(UUID)
     case placeholder
     case panel
 }

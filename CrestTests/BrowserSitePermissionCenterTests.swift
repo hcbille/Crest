@@ -47,7 +47,7 @@ final class BrowserSitePermissionCenterTests: XCTestCase {
         let center = BrowserSitePermissionCenter()
         let changes = ChangeRecorder()
         center.addObserver(changes)
-        let spaceID = SpaceID()
+        let spaceID = UUID()
 
         center.setDecision(.denyPersistently, for: .camera, origin: pageOrigin, in: spaceID)
 

@@ -37,7 +37,7 @@ enum BrowserTransientSessionPolicy {
     @MainActor
     static func availableSpaces(
         in browser: BrowserStore,
-        requestSpaceID: SpaceID,
+        requestSpaceID: UUID,
         isLocked: @MainActor (SpaceModel) -> Bool
     ) -> [SpaceModel] {
         BrowserSidebarAccessPolicy.availableSpaces(in: browser).filter {

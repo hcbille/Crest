@@ -6,17 +6,17 @@ extension BrowserStore {
     /// Pins a tab of the Space this window shows, or returns a pinned one to
     /// the open tabs, as the core places each. False when the core refused it.
     @discardableResult
-    func togglePin(_ id: TabID) -> Bool {
+    func togglePin(_ id: UUID) -> Bool {
         guard let space = shownSpace else { return false }
         return family.send(TogglePin(workspaceID: family.workspaceID, spaceID: space.id, tabID: id), from: self)
     }
 
-    func pinTab(_ id: TabID) {
+    func pinTab(_ id: UUID) {
         guard let tab = shownSpace?.tabs.model(id), tab.placement != .pinned else { return }
         togglePin(id)
     }
 
-    func saveTab(_ id: TabID) {
+    func saveTab(_ id: UUID) {
         let folderID = shownSpace?.folders.models.first { $0.location == .saved }?.id
         guard let tab = shownSpace?.tabs.model(id), tab.placement != .saved || tab.folderID != folderID else { return }
         moveTab(id, to: .saved, folderID: folderID)
@@ -24,11 +24,11 @@ extension BrowserStore {
 
     @discardableResult
     func moveTab(
-        _ id: TabID,
-        from sourceSpaceID: SpaceID? = nil,
+        _ id: UUID,
+        from sourceSpaceID: UUID? = nil,
         to placement: TabPlacement,
-        folderID: FolderID? = nil,
-        before destinationTabID: TabID? = nil
+        folderID: UUID? = nil,
+        before destinationTabID: UUID? = nil
     ) -> Bool {
         guard let actualSourceSpace = spaceModels.first(where: { $0.tabs.model(id) != nil }),
             !isDeleting(actualSourceSpace.id), !isDeleting(selectedSpaceID),
@@ -67,11 +67,11 @@ extension BrowserStore {
 
     @discardableResult
     func moveTab(
-        _ id: TabID,
+        _ id: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment,
         to placement: TabPlacement,
-        folderID: FolderID? = nil,
-        before destinationTabID: TabID? = nil
+        folderID: UUID? = nil,
+        before destinationTabID: UUID? = nil
     ) -> Bool {
         guard let space = spaceModel(matching: assignment), selectedSpaceID == assignment.spaceID,
             space.tabs.model(id) != nil
@@ -83,8 +83,8 @@ extension BrowserStore {
     func moveTab(
         _ item: BrowserTabDragItem,
         to placement: TabPlacement,
-        folderID: FolderID? = nil,
-        before destinationTabID: TabID? = nil
+        folderID: UUID? = nil,
+        before destinationTabID: UUID? = nil
     ) -> Bool {
         guard let destination = shownSpace else { return false }
         return moveTab(
@@ -96,8 +96,8 @@ extension BrowserStore {
     func moveTab(
         _ item: BrowserTabDragItem,
         to placement: TabPlacement,
-        folderID: FolderID? = nil,
-        before destinationTabID: TabID? = nil,
+        folderID: UUID? = nil,
+        before destinationTabID: UUID? = nil,
         matching destinationAssignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         let sourceAssignment = item.spaceAssignment
@@ -126,7 +126,7 @@ extension BrowserStore {
         return true
     }
 
-    func canMoveTab(_ id: TabID, from sourceSpaceID: SpaceID, into destinationSpaceID: SpaceID) -> Bool {
+    func canMoveTab(_ id: UUID, from sourceSpaceID: UUID, into destinationSpaceID: UUID) -> Bool {
         guard !isDeleting(sourceSpaceID), !isDeleting(destinationSpaceID), sourceSpaceID != destinationSpaceID,
             spaceModel(sourceSpaceID)?.tabs.contains(id) == true, spaceModel(destinationSpaceID) != nil
         else { return false }
@@ -139,7 +139,7 @@ extension BrowserStore {
     }
 
     func canMoveTab(
-        _ id: TabID,
+        _ id: UUID,
         matching sourceAssignment: BrowserSpaceRuntimeAssignment,
         into destinationAssignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
@@ -155,9 +155,9 @@ extension BrowserStore {
 
     @discardableResult
     func moveTab(
-        _ id: TabID,
-        from sourceSpaceID: SpaceID,
-        into destinationSpaceID: SpaceID
+        _ id: UUID,
+        from sourceSpaceID: UUID,
+        into destinationSpaceID: UUID
     ) -> Bool {
         guard !isDeleting(sourceSpaceID), !isDeleting(destinationSpaceID),
             let sourceSpace = spaceModel(sourceSpaceID), sourceSpace.tabs.contains(id)
@@ -180,12 +180,12 @@ extension BrowserStore {
     }
 
     private func moveTabBetweenSpaces(
-        _ id: TabID,
-        from sourceSpaceID: SpaceID,
-        into destinationSpaceID: SpaceID,
+        _ id: UUID,
+        from sourceSpaceID: UUID,
+        into destinationSpaceID: UUID,
         to placement: TabPlacement? = nil,
-        folderID: FolderID? = nil,
-        before destinationTabID: TabID? = nil
+        folderID: UUID? = nil,
+        before destinationTabID: UUID? = nil
     ) -> Bool {
         guard spaceModel(sourceSpaceID) != nil, let destination = spaceModel(destinationSpaceID) else { return false }
         let follows = linkPreferences.preferences.followsMovedTabs
@@ -209,7 +209,7 @@ extension BrowserStore {
 
     @discardableResult
     func moveTab(
-        _ id: TabID,
+        _ id: UUID,
         matching sourceAssignment: BrowserSpaceRuntimeAssignment,
         into destinationAssignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
@@ -245,7 +245,7 @@ extension BrowserStore {
     /// Copies a tab among the open tabs, under an identity the core gives it,
     /// and shows the copy. Answers the copy, or nil when the core refused it.
     @discardableResult
-    func duplicateTab(_ id: TabID, in spaceID: SpaceID) -> TabID? {
+    func duplicateTab(_ id: UUID, in spaceID: UUID) -> UUID? {
         sendCopying(
             DuplicateTab(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID, tabID: id, placement: nil,
@@ -255,15 +255,15 @@ extension BrowserStore {
 
     @discardableResult
     func duplicateTab(
-        _ id: TabID,
+        _ id: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> TabID? {
+    ) -> UUID? {
         guard spaceModel(matching: assignment)?.tabs.model(id) != nil else { return nil }
         return duplicateTab(id, in: assignment.spaceID)
     }
 
     @discardableResult
-    func duplicateSelectedTab() -> TabID? {
+    func duplicateSelectedTab() -> UUID? {
         guard let space = shownSpace, let tab = shownTab else { return nil }
         return duplicateTab(tab.id, in: space.id)
     }
@@ -281,7 +281,7 @@ extension BrowserStore {
     @discardableResult
     func addTabToSplit(
         _ item: BrowserTabDragItem,
-        joining targetTabID: TabID,
+        joining targetTabID: UUID,
         at memberIndex: Int?
     ) -> Bool {
         guard item.spaceID == selectedSpaceID, let space = spaceModel(matching: item.spaceAssignment) else {
@@ -298,7 +298,7 @@ extension BrowserStore {
     /// same selected-Space requirement every other placement move has.
     @discardableResult
     func removeTabFromSplit(
-        _ tabID: TabID,
+        _ tabID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard spaceModel(matching: assignment) != nil, selectedSpaceID == assignment.spaceID else { return false }
@@ -312,7 +312,7 @@ extension BrowserStore {
     /// gap the pointer is nearest without checking the ends first.
     @discardableResult
     func moveSplitMember(
-        _ tabID: TabID,
+        _ tabID: UUID,
         toMemberIndex memberIndex: Int,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
@@ -327,7 +327,7 @@ extension BrowserStore {
     /// the card the person is moving is the card they keep looking at.
     @discardableResult
     func moveSplitMember(
-        _ tabID: TabID,
+        _ tabID: UUID,
         by offset: Int,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
@@ -341,7 +341,7 @@ extension BrowserStore {
     /// One predicate for every surface that offers the move: the menu-bar items,
     /// the iPad chords, and both context menus dim themselves with this.
     func canMoveSplitMember(
-        _ tabID: TabID,
+        _ tabID: UUID,
         by offset: Int,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
@@ -349,13 +349,13 @@ extension BrowserStore {
         return family.canSend(stepping(tabID, by: offset, in: assignment.spaceID), from: self)
     }
 
-    private func stepping(_ tabID: TabID, by offset: Int, in spaceID: SpaceID) -> StepSplitMember {
+    private func stepping(_ tabID: UUID, by offset: Int, in spaceID: UUID) -> StepSplitMember {
         StepSplitMember(workspaceID: family.workspaceID, spaceID: spaceID, tabID: tabID, offset: offset)
     }
 
     @discardableResult
     func dissolveSplit(
-        containing tabID: TabID,
+        containing tabID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard let space = spaceModel(matching: assignment), let groupID = space.tabs.model(tabID)?.splitGroupID else {
@@ -369,7 +369,7 @@ extension BrowserStore {
     @discardableResult
     func setSplitGroupTitle(
         _ title: String?,
-        groupID: SplitGroupID,
+        groupID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard spaceModel(matching: assignment) != nil else { return false }
@@ -383,7 +383,7 @@ extension BrowserStore {
     @discardableResult
     func setSplitGroupEmojiIcon(
         _ emoji: String?,
-        groupID: SplitGroupID,
+        groupID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard spaceModel(matching: assignment) != nil else { return false }
@@ -395,7 +395,7 @@ extension BrowserStore {
     @discardableResult
     func setSplitGroupTint(
         _ tint: BrandColor?,
-        groupID: SplitGroupID,
+        groupID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard spaceModel(matching: assignment) != nil else { return false }
@@ -409,7 +409,7 @@ extension BrowserStore {
     /// Whether the core would join `tabID` to the split of `targetTabID`: no
     /// Start Page on either side, not already one group, and room for another
     /// card. Asked without committing, so menus reflect the core's own rule.
-    private func acceptsSplitJoin(_ tabID: TabID, joining targetTabID: TabID, in spaceID: SpaceID) -> Bool {
+    private func acceptsSplitJoin(_ tabID: UUID, joining targetTabID: UUID, in spaceID: UUID) -> Bool {
         family.canSend(
             JoinSplit(
                 workspaceID: family.workspaceID, windowID: windowID, spaceID: spaceID,
@@ -420,7 +420,7 @@ extension BrowserStore {
     /// The tab "Split With Next Tab" would add to the split of the tab this
     /// window shows, as the core answers it: the next tab row in the shown
     /// tab's own sidebar list that is in no split, when the core would join it.
-    var nextSplitJoinCandidate: TabID? {
+    var nextSplitJoinCandidate: UUID? {
         (try? core.query(SplitJoinCandidate(windowID: windowID)))?.tabID
     }
 
@@ -428,7 +428,7 @@ extension BrowserStore {
     /// the core accepts joining the menu's subject to the selected tab's group
     /// in the Space this window shows.
     func canSplitTabWithSelectedTab(
-        _ tabID: TabID,
+        _ tabID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard spaceModel(matching: assignment) != nil, assignment.spaceID == selectedSpaceID,
@@ -441,7 +441,7 @@ extension BrowserStore {
     /// group and takes focus, the same way a dropped tab does.
     @discardableResult
     func splitTabWithSelectedTab(
-        _ tabID: TabID,
+        _ tabID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard canSplitTabWithSelectedTab(tabID, matching: assignment),
@@ -466,11 +466,11 @@ extension BrowserStore {
     @discardableResult
     func openLinkInSplit(
         url: URL,
-        joining targetTabID: TabID,
+        joining targetTabID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
-    ) -> TabID? {
+    ) -> UUID? {
         guard canOpenLinkInSplit(joining: targetTabID, matching: assignment) else { return nil }
-        let openedID = TabID()
+        let openedID = UUID()
         guard
             sendCopying(
                 OpenLinkInSplit(
@@ -492,7 +492,7 @@ extension BrowserStore {
     /// rather than dimming it — a menu that is rarely relevant reads better
     /// without a permanently disabled row.
     func canOpenLinkInSplit(
-        joining tabID: TabID,
+        joining tabID: UUID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
         guard let space = spaceModel(matching: assignment), space.id == selectedSpaceID, space.tabs.model(tabID) != nil
@@ -529,18 +529,18 @@ extension BrowserStore {
 extension BrowserStore {
     /// Shows another Space in this window. What a window shows is the core
     /// device's, and never part of the session.
-    func selectSpace(_ id: SpaceID) {
+    func selectSpace(_ id: UUID) {
         guard id != selectedSpaceID, !isDeleting(id), spaceModel(id) != nil else { return }
         selectPresentedSpace(id)
     }
 
-    func selectTab(_ id: TabID) {
+    func selectTab(_ id: UUID) {
         guard let space = shownSpace, activateSessionTab(id, in: space.id) else { return }
     }
 
     /// Stops showing a tab without closing it: the window returns to the tab
     /// it showed before in the shown Space, or shows nothing there.
-    func selectDismissalFallback(afterDismissing id: TabID) {
+    func selectDismissalFallback(afterDismissing id: UUID) {
         guard let space = shownSpace else { return }
         dismissShownTab(id, in: space.id)
     }

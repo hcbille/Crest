@@ -15,7 +15,7 @@ struct MobileBrowserSpacePage: View {
     let spaceAccess: BrowserSpaceAccessController
     let capabilities: BrowserInteractionCapabilities
     let tabPromotionNamespace: Namespace.ID
-    let selectTab: (TabID) -> Void
+    let selectTab: (UUID) -> Void
     let openNewTab: () -> Void
     let showHistory: () -> Void
     let showPasswords: () -> Void
@@ -112,7 +112,7 @@ struct MobileBrowserSpacePage: View {
         openNewTab()
     }
 
-    private func restoreSavedLocation(_ tabID: TabID) {
+    private func restoreSavedLocation(_ tabID: UUID) {
         guard isCurrentAndUnlocked else { return }
         MobileSavedLocationRestoreAction(
             browser: browser,

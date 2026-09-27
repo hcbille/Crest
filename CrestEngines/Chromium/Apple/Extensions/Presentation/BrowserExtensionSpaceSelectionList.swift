@@ -2,9 +2,9 @@ import SwiftUI
 
 struct BrowserExtensionSpaceSelectionList: View {
     let spaces: [BrowserSpaceIdentity]
-    @Binding var selection: Set<SpaceID>
+    @Binding var selection: Set<UUID>
 
-    private var availableIDs: Set<SpaceID> { Set(spaces.map(\.id)) }
+    private var availableIDs: Set<UUID> { Set(spaces.map(\.id)) }
     private var selectedCount: Int { selection.intersection(availableIDs).count }
     private var allSelected: Bool { !spaces.isEmpty && selectedCount == spaces.count }
 

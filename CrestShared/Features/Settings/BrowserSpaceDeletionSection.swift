@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserSpaceDeletionSection: View {
     let browser: BrowserStore
-    let spaceID: SpaceID
+    let spaceID: UUID
     let dataDeleter: any BrowserSpaceDataDeleting
 
     @State private var isConfirmingDeletion = false

@@ -14,7 +14,7 @@ final class BrowserCommandPaletteModel {
     let browser: BrowserStore
     /// The Space the palette speaks for, or nil when the window shows none.
     let space: SpaceModel?
-    let selectedTabID: TabID?
+    let selectedTabID: UUID?
     let commands: BrowserCommandPaletteCommandRegistry?
 
     var query: String {
@@ -79,7 +79,7 @@ final class BrowserCommandPaletteModel {
     init(
         browser: BrowserStore,
         space: SpaceModel?,
-        selectedTabID: TabID?,
+        selectedTabID: UUID?,
         initialQuery: String,
         commands: BrowserCommandPaletteCommandRegistry?,
         suggestionDebounce: Duration = .milliseconds(250),

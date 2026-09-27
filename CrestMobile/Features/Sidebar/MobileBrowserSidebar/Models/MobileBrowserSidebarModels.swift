@@ -24,7 +24,7 @@ struct MobileBrowserSidebarContentConfiguration {
     let reservesBottomChromeInset: Bool
     let sidebarToggleUndocks: Bool
     let activateAddress: (() -> Void)?
-    let selectTab: (TabID) -> Void
+    let selectTab: (UUID) -> Void
     let submitAddress: () -> Void
     let openNewTab: () -> Void
     let showsCompactAddressBar: Bool
@@ -47,7 +47,7 @@ struct MobileBrowserSidebarPresentationConfiguration {
     let showsPasswords: Binding<Bool>
     let presentedSpaceSheet: Binding<MobileBrowserSidebarSpaceSheet?>
     let selectedSpaceAssignment: BrowserSpaceRuntimeAssignment?
-    let selectTab: (TabID) -> Void
+    let selectTab: (UUID) -> Void
     let openURL: (URL) -> Void
 }
 

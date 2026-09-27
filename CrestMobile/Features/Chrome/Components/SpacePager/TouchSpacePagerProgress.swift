@@ -9,7 +9,7 @@ final class TouchSpacePagerProgress {
     private var position: CGFloat?
     private var destinationIndex: Int?
 
-    func update(position: CGFloat, ids: [SpaceID], presentation: SpacePagerPresentation?) {
+    func update(position: CGFloat, ids: [UUID], presentation: SpacePagerPresentation?) {
         guard position.isFinite, !ids.isEmpty else { return }
         if let previous = self.position, abs(position - previous) > 0.000_001 {
             destinationIndex = Int(position.rounded(position > previous ? .up : .down))
@@ -18,7 +18,7 @@ final class TouchSpacePagerProgress {
         publish(ids: ids, presentation: presentation)
     }
 
-    func update(phase: ScrollPhase, ids: [SpaceID], presentation: SpacePagerPresentation?) {
+    func update(phase: ScrollPhase, ids: [UUID], presentation: SpacePagerPresentation?) {
         let next: SpacePagerPresentation.Phase =
             switch phase {
             case .idle: .idle
@@ -31,7 +31,7 @@ final class TouchSpacePagerProgress {
         publish(ids: ids, presentation: presentation)
     }
 
-    private func publish(ids: [SpaceID], presentation: SpacePagerPresentation?) {
+    private func publish(ids: [UUID], presentation: SpacePagerPresentation?) {
         guard let position, !ids.isEmpty else { return }
         let nearest = min(
             ids.count - 1,

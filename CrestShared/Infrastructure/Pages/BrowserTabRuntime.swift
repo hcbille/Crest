@@ -10,8 +10,8 @@ final class BrowserTabRuntime {
     var page: BrowserPlatformPage
     #if os(macOS)
         weak var store: BrowserPageRuntimeStore?
-        var presentationWindowID: BrowserWindowID?
-        var routingWindowID: BrowserWindowID?
+        var presentationWindowID: UUID?
+        var routingWindowID: UUID?
         var snapshotGeneration = 0
         var snapshot: NSImage?
     #endif

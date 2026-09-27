@@ -18,7 +18,7 @@ extension SpaceModel {
 
     /// The members of the split the sidebar shows as one row, in order, or
     /// none when it shows no such row.
-    func splitMembers(of groupID: SplitGroupID) -> [TabStateModel] {
+    func splitMembers(of groupID: UUID) -> [TabStateModel] {
         for list in sidebar.lists {
             if let row = list.rows.first(where: { $0.id == groupID && $0.kind.groupsTabs }) {
                 return row.members.compactMap { tabs.model($0) }
@@ -29,7 +29,7 @@ extension SpaceModel {
 
     /// The split the sidebar shows the tab in as one row, or nil when it shows
     /// the tab alone.
-    func shownSplit(containing tabID: TabID) -> SplitGroupID? {
+    func shownSplit(containing tabID: UUID) -> UUID? {
         guard let groupID = tabs.model(tabID)?.splitGroupID else { return nil }
         return splitMembers(of: groupID).contains { $0.id == tabID } ? groupID : nil
     }
@@ -52,9 +52,9 @@ extension SpaceModel {
 
     /// The folders inside the folder, however deep, in the order the sidebar
     /// lists them.
-    func folderChoices(inside folderID: FolderID) -> [FolderChoice] {
+    func folderChoices(inside folderID: UUID) -> [FolderChoice] {
         var choices: [FolderChoice] = []
-        var visited: Set<FolderID> = [folderID]
+        var visited: Set<UUID> = [folderID]
         func walk(_ list: SidebarListModel, path: String) {
             for row in list.rows where row.kind.opensList && visited.insert(row.id).inserted {
                 guard let folder = folders.model(row.id) else { continue }
@@ -69,10 +69,10 @@ extension SpaceModel {
 
     /// Every tab the folder holds, however deep, in the order the sidebar
     /// lists them.
-    func tabIDs(inFolder folderID: FolderID) -> [TabID] {
-        var result: [TabID] = []
-        var visited: Set<FolderID> = []
-        func walk(_ folderID: FolderID) {
+    func tabIDs(inFolder folderID: UUID) -> [UUID] {
+        var result: [UUID] = []
+        var visited: Set<UUID> = []
+        func walk(_ folderID: UUID) {
             guard visited.insert(folderID).inserted else { return }
             for row in sidebar.inside(folderID).rows {
                 if row.kind.opensList { walk(row.id) } else { result.append(contentsOf: row.members) }

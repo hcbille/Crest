@@ -9,7 +9,7 @@ typealias BrowserCredentialClipboardWriter =
 
 typealias BrowserCredentialRevealer =
     @MainActor (
-        CredentialID,
+        UUID,
         BrowserSpaceRuntimeAssignment,
         String
     ) async throws -> BrowserCredential

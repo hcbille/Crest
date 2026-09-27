@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -41,7 +42,7 @@ final class BrowserPagePermissionControllerTests: XCTestCase {
     func testMediaRevocationStopsOnlyTheRevokedCapture() {
         let pages = RecordingEnginePages()
         let center = BrowserSitePermissionCenter()
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let origin = SiteOrigin(scheme: "https", host: "media.example", port: 443)
         center.setDecision(.grantPersistently, for: .camera, origin: origin, in: spaceID)
         center.setDecision(.grantPersistently, for: .microphone, origin: origin, in: spaceID)
@@ -57,7 +58,7 @@ final class BrowserPagePermissionControllerTests: XCTestCase {
     func testDecisionChangedElsewhereReachesAnEngineThatEnforcesItAtOnce() {
         let pages = RecordingEnginePages()
         let center = BrowserSitePermissionCenter()
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let page = URL(string: "https://maps.example/route")!
         let origin = SiteOrigin(scheme: "https", host: "maps.example", port: 443)
         let other = SiteOrigin(scheme: "https", host: "other.example", port: 443)
@@ -67,7 +68,7 @@ final class BrowserPagePermissionControllerTests: XCTestCase {
         session.siteDecisionDidChange = { refreshed.append($0) }
 
         center.setDecision(.grantPersistently, for: .location, origin: other, in: spaceID)
-        center.setDecision(.grantPersistently, for: .location, origin: origin, in: SpaceID())
+        center.setDecision(.grantPersistently, for: .location, origin: origin, in: UUID())
         XCTAssertTrue(pages.applied.isEmpty)
 
         center.setDecision(.denyPersistently, for: .location, origin: origin, in: spaceID)

@@ -1,11 +1,13 @@
+import Foundation
+
 /// An ordered run of sidebar rows that a lifted item can be inserted into.
 ///
 /// Folders and tabs are separate sections even where they render in the same
 /// visual column, because a folder reorders among its siblings while a tab
 /// reorders among the tabs of a placement.
 enum BrowserSidebarReorderSection: Hashable, Sendable {
-    case tabs(placement: TabPlacement, folderID: FolderID?)
-    case folders(parentID: FolderID?)
+    case tabs(placement: TabPlacement, folderID: UUID?)
+    case folders(parentID: UUID?)
 
     /// How deeply this run is nested inside the sidebar's own runs.
     ///

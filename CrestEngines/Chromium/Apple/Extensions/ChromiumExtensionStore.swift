@@ -291,7 +291,7 @@ final class ChromiumExtensionStore {
             message: String(localized: "Couldn’t complete that extension action. Check its details for policy or permission requirements."),
             systemImage: "exclamationmark.triangle"))
     }
-    func install(_ id: String, in space: BrowserSpaceIdentity, anchor: NSView?, copies: Set<SpaceID> = [],
+    func install(_ id: String, in space: BrowserSpaceIdentity, anchor: NSView?, copies: Set<UUID> = [],
                  completion: (@MainActor () -> Void)? = nil) {
         guard installation == nil, authorized(space),
               let window = anchor?.window ?? CrestChromiumRoot.activeNativeWindow else {
@@ -385,7 +385,7 @@ final class ChromiumExtensionInstallation {
     /// it names none.
     var questionName: String? { question.map { $0.name.isEmpty ? $0.extensionID : $0.name } }
     var questionIcon: NSImage? { question?.icon.flatMap(NSImage.init(data:)) }
-    var selectedSpaces: Set<SpaceID> = []
+    var selectedSpaces: Set<UUID> = []
     var withhold = false
     var canWithhold = false
     var preparing = true

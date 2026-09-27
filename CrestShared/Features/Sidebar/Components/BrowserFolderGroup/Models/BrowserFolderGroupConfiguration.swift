@@ -22,7 +22,7 @@ struct BrowserFolderGroupConfiguration {
     let assignment: BrowserSpaceRuntimeAssignment
     var spacePresentation: SidebarSpacePresentation? = nil
 
-    var spaceID: SpaceID { assignment.spaceID }
+    var spaceID: UUID { assignment.spaceID }
     var profileID: UUID { assignment.profileID }
     var browser: BrowserStore { context.browser }
     var pageAccess: BrowserSidebarPageAccess { context.pageAccess }
@@ -98,17 +98,17 @@ struct BrowserFolderGroupConfiguration {
 
     /// The tabs the folder holds directly, the ones its own list shows, in
     /// order. Reading it observes the folder's list.
-    var folderTabIDs: [TabID] {
+    var folderTabIDs: [UUID] {
         inside.rows.filter { !$0.kind.opensList }.flatMap(\.members)
     }
 
     /// The tab the window shows, when the folder holds it directly. Reading it
     /// observes only this folder's tabs' slots of the window's shown tabs.
-    var shownFolderTabID: TabID? {
+    var shownFolderTabID: UUID? {
         folderTabIDs.first { context.window.shownTabIDs.contains($0) }
     }
 
-    var residentFolderTabIDs: [TabID] {
+    var residentFolderTabIDs: [UUID] {
         folderTabIDs.filter { pageAccess.containsResidentPage($0) }
     }
 

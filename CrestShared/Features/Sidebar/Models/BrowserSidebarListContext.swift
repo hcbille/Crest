@@ -26,10 +26,10 @@ struct BrowserSidebarListContext {
     var promotionNamespaces: [TabPlacement: Namespace.ID] = [:]
     /// What opening a tab means to the host. The rows decide *whether*; the
     /// host decides what appears.
-    let select: (TabID) -> Void
+    let select: (UUID) -> Void
     /// How a saved or pinned tab gets back to the page it was saved from, where
     /// the host offers it.
-    var restoreSavedLocation: ((TabID) -> Void)? = nil
+    var restoreSavedLocation: ((UUID) -> Void)? = nil
 
     /// The Space as the actions name it. A Space keeps its profile while it is
     /// on screen; a new profile is a new page.
@@ -48,7 +48,7 @@ struct BrowserSidebarListContext {
 
     /// Whether the tab holds a resident page in this window. Reading it
     /// observes the page layer's residency.
-    @MainActor func isLoaded(_ tabID: TabID) -> Bool {
+    @MainActor func isLoaded(_ tabID: UUID) -> Bool {
         pageAccess.containsResidentPage(tabID)
     }
 
@@ -78,11 +78,11 @@ struct BrowserSidebarListContext {
 
     // MARK: - Actions - Tabs
 
-    @MainActor func unload(_ tabID: TabID) {
+    @MainActor func unload(_ tabID: UUID) {
         pageAccess.unloadPage(tabID, assignment)
     }
 
-    @MainActor func pullNewIcon(_ tabID: TabID) {
+    @MainActor func pullNewIcon(_ tabID: UUID) {
         let actions = tabActions
         Task { await actions.pullNewIcon(for: tabID) }
     }

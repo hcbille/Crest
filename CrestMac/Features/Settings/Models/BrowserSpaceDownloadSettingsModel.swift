@@ -45,7 +45,7 @@ final class BrowserSpaceDownloadSettingsModel {
         )
     }
 
-    func refresh(for spaceID: SpaceID) {
+    func refresh(for spaceID: UUID) {
         asksWhereToSave = preferences.asksWhereToSave(for: spaceID)
         if let customName = preferences.directoryDisplayName(for: spaceID) {
             directoryName = customName
@@ -56,7 +56,7 @@ final class BrowserSpaceDownloadSettingsModel {
         }
     }
 
-    private func setAsksWhereToSave(_ enabled: Bool, for spaceID: SpaceID) {
+    private func setAsksWhereToSave(_ enabled: Bool, for spaceID: UUID) {
         asksWhereToSave = enabled
         preferences.setAsksWhereToSave(enabled, for: spaceID)
     }
@@ -86,7 +86,7 @@ final class BrowserSpaceDownloadSettingsModel {
         }
     }
 
-    private func resetDirectory(for spaceID: SpaceID) {
+    private func resetDirectory(for spaceID: UUID) {
         preferences.clearDirectory(for: spaceID)
         errorMessage = nil
         refresh(for: spaceID)

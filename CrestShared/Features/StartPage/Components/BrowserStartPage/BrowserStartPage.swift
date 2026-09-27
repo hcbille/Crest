@@ -19,7 +19,7 @@ struct BrowserStartPage: View {
     let browser: BrowserStore
     let space: SpaceModel?
     let isPrivateBrowsing: Bool
-    let selectedTabID: TabID?
+    let selectedTabID: UUID?
     let isSourceAvailable: (BrowserTabRuntimeAssignment) -> Bool
     let selectTab:
         (

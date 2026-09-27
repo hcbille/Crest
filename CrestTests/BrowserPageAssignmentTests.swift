@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -18,7 +19,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
     }
 
     func testCurrentSelectionRejectsChangedSplitMembershipAndFocus() {
-        let group = SplitGroupID()
+        let group = UUID()
         // Web pages, which the sidebar lists and the core shows as split cards.
         let blank = URL(string: "about:blank")
         let first = TabState.Seed(title: "First", url: blank, placement: .current, splitGroupID: group)
@@ -59,7 +60,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
         XCTAssertNil(
             pool.activePage(
                 matching: BrowserTabRuntimeAssignment(
-                    tabID: TabID(),
+                    tabID: UUID(),
                     spaceID: space.id,
                     profileID: space.profileID
                 )
@@ -69,7 +70,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
             pool.activePage(
                 matching: BrowserTabRuntimeAssignment(
                     tabID: tab.id,
-                    spaceID: SpaceID(),
+                    spaceID: UUID(),
                     profileID: space.profileID
                 )
             )
@@ -89,7 +90,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
     /// focused path uses has to hold for every member — including the unfocused
     /// ones, which is the case `activePage(matching:)` cannot answer at all.
     func testPresentedPageMatchingGuardsEveryCardsSpaceAndProfile() throws {
-        let groupID = SplitGroupID()
+        let groupID = UUID()
         let members = try (1...2).map { index in
             TabState.Seed(
                 title: "Member \(index)",
@@ -125,7 +126,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
                 pool.presentedPage(
                     matching: BrowserTabRuntimeAssignment(
                         tabID: member.id,
-                        spaceID: SpaceID(),
+                        spaceID: UUID(),
                         profileID: space.profileID
                     )
                 )

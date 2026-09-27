@@ -35,7 +35,7 @@ final class BrowserSidebarWidgetRuntime: BrowserSidebarWidgetPreferenceObserving
 
     @ObservationIgnored private let sourcesByKindID: [BrowserSidebarWidgetKindID: any BrowserSidebarWidgetEventSource]
     @ObservationIgnored private let preferences: BrowserSidebarWidgetPreferenceStore
-    @ObservationIgnored private var hosts: [BrowserWindowID: BrowserSidebarWidgetHostRegistration] = [:]
+    @ObservationIgnored private var hosts: [UUID: BrowserSidebarWidgetHostRegistration] = [:]
     @ObservationIgnored private var workerTasks: [BrowserSidebarWidgetKindID: Task<Void, Never>] = [:]
     @ObservationIgnored private var instancesByKindID: [BrowserSidebarWidgetKindID: [BrowserSidebarWidgetInstance]] =
         [:]
@@ -72,7 +72,7 @@ final class BrowserSidebarWidgetRuntime: BrowserSidebarWidgetPreferenceObserving
     }
 
     func activateHost(
-        id: BrowserWindowID,
+        id: UUID,
         platform: BrowserSidebarWidgetPlatform = .current,
         capabilities: BrowserSidebarWidgetCapabilities
     ) {
@@ -86,7 +86,7 @@ final class BrowserSidebarWidgetRuntime: BrowserSidebarWidgetPreferenceObserving
         reconcileWorkers()
     }
 
-    func suspendHost(id: BrowserWindowID) {
+    func suspendHost(id: UUID) {
         guard let current = hosts[id], current.isActive else { return }
         hosts[id] = BrowserSidebarWidgetHostRegistration(
             platform: current.platform,
@@ -96,7 +96,7 @@ final class BrowserSidebarWidgetRuntime: BrowserSidebarWidgetPreferenceObserving
         reconcileWorkers()
     }
 
-    func removeHost(id: BrowserWindowID) {
+    func removeHost(id: UUID) {
         guard hosts.removeValue(forKey: id) != nil else { return }
         reconcileWorkers()
     }

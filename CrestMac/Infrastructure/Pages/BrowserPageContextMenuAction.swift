@@ -12,7 +12,7 @@ struct BrowserPageContextMenuAction {
         case search
         case peek
         case split
-        case space(SpaceID)
+        case space(UUID)
     }
 
     // MARK: - Variables

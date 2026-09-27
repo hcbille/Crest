@@ -3,7 +3,7 @@ import AppKit
 @MainActor
 struct BrowserMacWindowDropAction {
     let coordinator: BrowserMacWindowCoordinator
-    let sourceWindowID: BrowserWindowID
+    let sourceWindowID: UUID
     let open: (BrowserMacWindowRequest) -> Void
 
     func perform(

@@ -11,7 +11,7 @@ struct MobileOnboardingPageContext {
     let featureCloseTitle: String?
     let featureCloseAction: (() -> Void)?
     let setup: BrowserManualSetupModel
-    let selectedSpaceID: Binding<SpaceID?>
+    let selectedSpaceID: Binding<UUID?>
     let errorMessage: String?
     var opensGettingStarted = false
     let welcomePrimaryAction: () -> Void

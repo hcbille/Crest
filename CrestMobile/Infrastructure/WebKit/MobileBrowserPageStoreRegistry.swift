@@ -12,7 +12,7 @@ final class MobileBrowserPageStoreRegistry: BrowserSpaceDataDeleting {
 
     private let primary: MobileBrowserPageStore
     private var stores: [ObjectIdentifier: WeakStore] = [:]
-    private var spacesDeletingData: Set<SpaceID> = []
+    private var spacesDeletingData: Set<UUID> = []
 
     init(primary: MobileBrowserPageStore) {
         self.primary = primary

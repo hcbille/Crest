@@ -3,17 +3,17 @@ import SwiftUI
 @MainActor @Observable
 final class SpaceForegroundPresentation {
     struct Tone: Equatable {
-        let id: SpaceID
+        let id: UUID
         let white: Double
     }
 
     private(set) var position: CGFloat?
     @ObservationIgnored private var presentation: SpacePagerPresentation?
     @ObservationIgnored private var tones: [Tone] = []
-    @ObservationIgnored private var selectedSpaceID: SpaceID?
+    @ObservationIgnored private var selectedSpaceID: UUID?
     @ObservationIgnored private var activeTransition: SpacePagerSettlement?
 
-    func connect(_ presentation: SpacePagerPresentation?, tones: [Tone], selectedSpaceID: SpaceID?) {
+    func connect(_ presentation: SpacePagerPresentation?, tones: [Tone], selectedSpaceID: UUID?) {
         if self.presentation !== presentation { disconnect() }
         self.presentation = presentation
         self.tones = tones

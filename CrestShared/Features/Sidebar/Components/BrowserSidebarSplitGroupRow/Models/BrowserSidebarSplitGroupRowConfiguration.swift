@@ -12,7 +12,7 @@ struct BrowserSidebarSplitGroupRowConfiguration {
     // MARK: - Variables
 
     let sidebarInteraction: BrowserSidebarInteractionState
-    let groupID: SplitGroupID
+    let groupID: UUID
     let members: [TabStateModel]
     let context: BrowserSidebarListContext
     /// The Space the row was drawn for, as it stood then. An action checks it
@@ -21,14 +21,14 @@ struct BrowserSidebarSplitGroupRowConfiguration {
     let assignment: BrowserSpaceRuntimeAssignment
     /// The member the window shows, and the only row that takes the selection
     /// accent. `nil` while the group is not presented at all.
-    let focusedMemberID: TabID?
+    let focusedMemberID: UUID?
     /// The tab following the group's *last* member, or `nil` at the end of the
     /// section. The group is one row, so its trailing drop anchor skips past
     /// every member rather than landing between two of them.
-    let followingTabID: TabID?
+    let followingTabID: UUID?
     var spacePresentation: SidebarSpacePresentation? = nil
 
-    var spaceID: SpaceID { assignment.spaceID }
+    var spaceID: UUID { assignment.spaceID }
     var profileID: UUID { assignment.profileID }
     var browser: BrowserStore { context.browser }
     var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
@@ -92,7 +92,7 @@ struct BrowserSidebarSplitGroupRowConfiguration {
         members.first?.placement ?? .current
     }
 
-    var folderID: FolderID? {
+    var folderID: UUID? {
         members.first?.folderID
     }
 
@@ -158,8 +158,8 @@ struct BrowserSidebarSplitGroupRowConfiguration {
     // MARK: - Initializers
 
     init(
-        sidebarInteraction: BrowserSidebarInteractionState, groupID: SplitGroupID, members: [TabStateModel],
-        context: BrowserSidebarListContext, followingTabID: TabID?, spacePresentation: SidebarSpacePresentation?
+        sidebarInteraction: BrowserSidebarInteractionState, groupID: UUID, members: [TabStateModel],
+        context: BrowserSidebarListContext, followingTabID: UUID?, spacePresentation: SidebarSpacePresentation?
     ) {
         self.sidebarInteraction = sidebarInteraction
         self.groupID = groupID
@@ -173,8 +173,8 @@ struct BrowserSidebarSplitGroupRowConfiguration {
 }
 
 struct BrowserSplitGroupRuntimeAssignment: Equatable, Sendable {
-    let groupID: SplitGroupID
-    let spaceID: SpaceID
+    let groupID: UUID
+    let spaceID: UUID
     let profileID: UUID
 
     var spaceAssignment: BrowserSpaceRuntimeAssignment {

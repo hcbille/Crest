@@ -4,12 +4,12 @@ import Foundation
 /// synchronous because WebKit demands the popup's web view before it returns.
 @MainActor
 struct BrowserPopupTabHost {
-    var openTab: (URL?, SpaceID, Bool) -> BrowserPopupTabRegistration?
-    var closeTab: (TabID, SpaceID) -> Void
+    var openTab: (URL?, UUID, Bool) -> BrowserPopupTabRegistration?
+    var closeTab: (UUID, UUID) -> Void
 
     init(
-        openTab: @escaping (URL?, SpaceID, Bool) -> BrowserPopupTabRegistration?,
-        closeTab: @escaping (TabID, SpaceID) -> Void
+        openTab: @escaping (URL?, UUID, Bool) -> BrowserPopupTabRegistration?,
+        closeTab: @escaping (UUID, UUID) -> Void
     ) {
         self.openTab = openTab
         self.closeTab = closeTab

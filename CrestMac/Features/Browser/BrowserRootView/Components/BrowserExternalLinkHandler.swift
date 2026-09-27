@@ -5,7 +5,7 @@ struct BrowserExternalLinkHandler: ViewModifier {
     let pages: BrowserPagePool
     let chrome: BrowserChromeState
     let spaceAccess: BrowserSpaceAccessController
-    let targetWindowID: BrowserWindowID
+    let targetWindowID: UUID
 
     @Environment(\.openWindow) private var openWindow
 
@@ -74,7 +74,7 @@ struct BrowserExternalLinkHandler: ViewModifier {
     }
 
     private func accessibleAssignment(
-        for spaceID: SpaceID
+        for spaceID: UUID
     ) async -> BrowserSpaceRuntimeAssignment? {
         guard !browser.isDeleting(spaceID), let space = browser.spaceModel(spaceID) else { return nil }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)

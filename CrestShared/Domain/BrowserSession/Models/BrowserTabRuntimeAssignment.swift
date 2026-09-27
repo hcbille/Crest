@@ -1,8 +1,8 @@
 import Foundation
 
 struct BrowserTabRuntimeAssignment: Equatable, Hashable, Sendable {
-    let tabID: TabID
-    let spaceID: SpaceID
+    let tabID: UUID
+    let spaceID: UUID
     let profileID: UUID
 
     /// Where the tab's Space lives: its identity and profile.

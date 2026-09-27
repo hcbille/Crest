@@ -4,11 +4,11 @@ import SwiftUI
 /// viewport motion without publishing a browsing-state change for every frame.
 struct BrowserSpacePager<Content: View>: View {
     let spaces: [SpaceModel]
-    let selectedSpaceID: SpaceID
+    let selectedSpaceID: UUID
     var isInteractionLocked = false
     /// Returns the actual selection so a refused request cannot leave native
     /// presentation waiting for a state change that will never arrive.
-    let selectSpace: (SpaceID) -> SpaceID
+    let selectSpace: (UUID) -> UUID
     @ViewBuilder let content: (SpaceModel, Bool) -> Content
 
     var body: some View {

@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 @MainActor
 struct BrowserWindowLayoutPersistence {
@@ -19,7 +20,7 @@ struct BrowserWindowLayoutPersistence {
     }
 
     func seedSplitLayout(
-        groupID: SplitGroupID?, memberCount: Int, transaction: inout BrowserSplitWidthTransaction
+        groupID: UUID?, memberCount: Int, transaction: inout BrowserSplitWidthTransaction
     ) {
         guard memberCount > 0 else { return }
         let persisted = groupID.flatMap { windowState?.splitColumnFractions(for: $0) }
@@ -28,7 +29,7 @@ struct BrowserWindowLayoutPersistence {
         )
     }
 
-    func commitSplitLayout(_ fractions: [Double], groupID: SplitGroupID?) {
+    func commitSplitLayout(_ fractions: [Double], groupID: UUID?) {
         guard let windowState, let groupID else { return }
         windowState.captureSplitLayout(fractions: fractions, for: groupID)
     }

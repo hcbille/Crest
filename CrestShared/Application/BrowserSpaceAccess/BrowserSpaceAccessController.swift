@@ -148,7 +148,7 @@ final class BrowserSpaceAccessController {
         }
     }
 
-    func lock(_ spaceID: SpaceID) {
+    func lock(_ spaceID: UUID) {
         _ = try? core?.send(LockSpace(spaceID: spaceID))
     }
 
@@ -164,7 +164,7 @@ final class BrowserSpaceAccessController {
 
     /// Answers the core's waiting request, and whether it was still the one
     /// waiting.
-    private func finish(_ request: UUID, for spaceID: SpaceID, authenticated: Bool) -> Bool {
+    private func finish(_ request: UUID, for spaceID: UUID, authenticated: Bool) -> Bool {
         (try? core?.send(
             FinishUnlockingSpace(spaceID: spaceID, requestID: request, authenticated: authenticated))) != nil
     }

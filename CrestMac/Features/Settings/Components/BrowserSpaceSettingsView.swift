@@ -7,13 +7,13 @@ struct BrowserSpaceSettingsView: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
-    let requestedSpaceID: SpaceID?
+    let requestedSpaceID: UUID?
     let requestRevision: Int
 
     @Environment(\.browserSettingsTabState) private var tabState
-    @State private var localSelectedSpaceID: SpaceID?
+    @State private var localSelectedSpaceID: UUID?
     @State private var localEditorSection = BrowserSpaceEditorSection.appearance
-    private var selectedSpaceID: SpaceID? {
+    private var selectedSpaceID: UUID? {
         get { if let tabState { tabState.selectedSpaceID } else { localSelectedSpaceID } }
         nonmutating set {
             if let tabState { tabState.selectedSpaceID = newValue } else { localSelectedSpaceID = newValue }
@@ -71,7 +71,7 @@ struct BrowserSpaceSettingsView: View {
         }
     }
 
-    private func selectEditedSpace(_ id: SpaceID?) {
+    private func selectEditedSpace(_ id: UUID?) {
         selectedSpaceID = id
         if let id, id != browser.shownSpace?.id { liveSpaceSelection?.select(id) }
     }
@@ -203,7 +203,7 @@ struct BrowserSpaceSettingsView: View {
         selectedSpaceID = browser.selectedSpaceID
     }
 
-    private func moveSpace(_ sourceID: SpaceID, to targetID: SpaceID) {
+    private func moveSpace(_ sourceID: UUID, to targetID: UUID) {
         let spaces = browser.spaceModels
         guard let source = spaces.firstIndex(where: { $0.id == sourceID }),
             let target = spaces.firstIndex(where: { $0.id == targetID }), source != target
@@ -211,7 +211,7 @@ struct BrowserSpaceSettingsView: View {
         browser.moveSpaces(from: IndexSet(integer: source), to: target > source ? target + 1 : target)
     }
 
-    private var editedSpaceID: SpaceID? {
+    private var editedSpaceID: UUID? {
         usesLiveSidebar ? browser.selectedSpaceID : selectedSpaceID
     }
 

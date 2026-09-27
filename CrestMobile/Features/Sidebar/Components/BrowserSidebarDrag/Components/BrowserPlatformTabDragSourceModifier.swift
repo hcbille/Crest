@@ -5,10 +5,10 @@ struct BrowserPlatformTabDragSourceModifier: ViewModifier {
     let tab: TabStateModel
     let favicons: FaviconAssets
     let profileID: UUID
-    let spaceID: SpaceID
+    let spaceID: UUID
     let dragState: BrowserTabDragState
     var reorder: BrowserSidebarReorderContext?
-    var parentSplitGroupID: SplitGroupID?
+    var parentSplitGroupID: UUID?
     var isEnabled = true
 
     @State private var sessionToken: BrowserDragSessionToken?

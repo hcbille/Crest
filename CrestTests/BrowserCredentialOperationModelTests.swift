@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class BrowserCredentialOperationModelTests: XCTestCase {
     func testNewerSuggestionRequestWinsWhenCancelledLoaderFinishesLast() async throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let firstOrigin = try origin("https://first.example.com/login")
         let secondOrigin = try origin("https://second.example.com/login")
         let firstRequest = makeRequest(origin: firstOrigin)
@@ -45,7 +45,7 @@ final class BrowserCredentialOperationModelTests: XCTestCase {
     }
 
     func testCancellingSuggestionLoadPreventsLatePublication() async throws {
-        let spaceID = SpaceID()
+        let spaceID = UUID()
         let requestOrigin = try origin("https://cancelled.example.com/login")
         let request = makeRequest(origin: requestOrigin)
         let suggestion = descriptor(
@@ -124,7 +124,7 @@ final class BrowserCredentialOperationModelTests: XCTestCase {
     private func descriptor(
         username: String,
         origin: CredentialOrigin,
-        spaceID: SpaceID
+        spaceID: UUID
     ) -> CredentialDescriptor {
         CredentialDescriptor(
             spaceID: spaceID,
@@ -144,7 +144,7 @@ private final class SuspendedCredentialSuggestionLoader: BrowserCredentialSugges
 
     func credentialSuggestions(
         for origin: CredentialOrigin,
-        in spaceID: SpaceID
+        in spaceID: UUID
     ) async throws -> [CredentialDescriptor] {
         requestedOrigins.append(origin)
         let suggestions = try await withCheckedThrowingContinuation { continuation in

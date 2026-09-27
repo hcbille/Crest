@@ -15,7 +15,7 @@ import Foundation
 @MainActor
 struct BrowserSidebarPageAccess {
     /// Whether a tab is holding a resident page, wherever it lives.
-    let containsResidentPage: @MainActor (TabID) -> Bool
+    let containsResidentPage: @MainActor (UUID) -> Bool
 
     /// Whether the resident page a tab holds is the one this Space and profile
     /// own. A stale row asking about a tab that moved gets `false`.
@@ -36,13 +36,13 @@ struct BrowserSidebarPageAccess {
     let deactivatePagePresentation: @MainActor () -> Void
 
     /// Releases one tab's resident page, if the Space and profile still own it.
-    let unloadPage: @MainActor (TabID, BrowserSpaceRuntimeAssignment) -> Void
+    let unloadPage: @MainActor (UUID, BrowserSpaceRuntimeAssignment) -> Void
 
     /// Asks a resident page for a fresh favicon. Returns `nil` when the tab has
     /// no page, has moved, or the page cannot produce one.
     let pullFavicon:
         @MainActor (
-            TabID,
+            UUID,
             BrowserSpaceRuntimeAssignment
         ) async -> (data: Data, iconAccent: BrowserTabIconAccent?)?
 

@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -144,8 +145,8 @@ final class BrowserTabStateArchiveTests: XCTestCase {
     func testArchivedStateIsReadableBackAndDeletablePerTab() async throws {
         let archive = try makeArchive()
         let profileID = UUID()
-        let first = TabID()
-        let second = TabID()
+        let first = UUID()
+        let second = UUID()
         let url = try XCTUnwrap(URL(string: "https://example.com/one"))
 
         archive.archive(
@@ -179,7 +180,7 @@ final class BrowserTabStateArchiveTests: XCTestCase {
     func testAnEmptyStateIsNeverWritten() async throws {
         let archive = try makeArchive()
         let profileID = UUID()
-        let tabID = TabID()
+        let tabID = UUID()
 
         archive.archive(
             interactionState: Data(),
@@ -195,7 +196,7 @@ final class BrowserTabStateArchiveTests: XCTestCase {
     func testAnOversizedStateIsDroppedAndTakesAnyStaleStateWithIt() async throws {
         let archive = try makeArchive(maximumStateByteCount: 512)
         let profileID = UUID()
-        let tabID = TabID()
+        let tabID = UUID()
         let url = try XCTUnwrap(URL(string: "https://example.com/one"))
 
         archive.archive(
@@ -225,10 +226,10 @@ final class BrowserTabStateArchiveTests: XCTestCase {
         let archive = try makeArchive(maximumStatesPerProfile: 3)
         let profileID = UUID()
         let url = try XCTUnwrap(URL(string: "https://example.com/one"))
-        var tabIDs: [TabID] = []
+        var tabIDs: [UUID] = []
 
         for index in 0..<5 {
-            let tabID = TabID()
+            let tabID = UUID()
             tabIDs.append(tabID)
             archive.archive(
                 interactionState: Data("state-\(index)".utf8),
@@ -252,8 +253,8 @@ final class BrowserTabStateArchiveTests: XCTestCase {
         let archive = try makeArchive()
         let deleted = UUID()
         let kept = UUID()
-        let deletedTab = TabID()
-        let keptTab = TabID()
+        let deletedTab = UUID()
+        let keptTab = UUID()
         let url = try XCTUnwrap(URL(string: "https://example.com/one"))
 
         archive.archive(
@@ -281,9 +282,9 @@ final class BrowserTabStateArchiveTests: XCTestCase {
         let archive = try makeArchive()
         let swept = UUID()
         let untouched = UUID()
-        let keptTab = TabID()
-        let deletedTab = TabID()
-        let otherProfileTab = TabID()
+        let keptTab = UUID()
+        let deletedTab = UUID()
+        let otherProfileTab = UUID()
         let url = try XCTUnwrap(URL(string: "https://example.com/one"))
 
         for (profileID, tabID) in [
@@ -332,19 +333,19 @@ final class BrowserTabStateArchiveTests: XCTestCase {
 final class BrowserFaviconFileStoreTests: XCTestCase {
     func testAnIconRoundTripsForItsOwnTab() async throws {
         let store = try makeStore()
-        let tabID = TabID()
+        let tabID = UUID()
         let icon = Data("icon".utf8)
 
         store.reconcile(icon, tabID: tabID)
         await store.flushPendingWrites()
 
         XCTAssertEqual(store.favicon(tabID: tabID), icon)
-        XCTAssertNil(store.favicon(tabID: TabID()))
+        XCTAssertNil(store.favicon(tabID: UUID()))
     }
 
     func testIdenticalBytesAreNotRewritten() async throws {
         let store = try makeStore()
-        let tabID = TabID()
+        let tabID = UUID()
         let icon = Data("steady".utf8)
         store.reconcile(icon, tabID: tabID)
         await store.flushPendingWrites()
@@ -371,7 +372,7 @@ final class BrowserFaviconFileStoreTests: XCTestCase {
 
     func testATabWithoutANewIconKeepsTheOneItHad() async throws {
         let store = try makeStore()
-        let tabID = TabID()
+        let tabID = UUID()
         let icon = Data("cached".utf8)
         store.reconcile(icon, tabID: tabID)
         await store.flushPendingWrites()
@@ -384,7 +385,7 @@ final class BrowserFaviconFileStoreTests: XCTestCase {
 
     func testAnOversizedIconIsIgnoredAndKeepsTheLastValidIcon() async throws {
         let store = try makeStore(maximumFaviconByteCount: 8)
-        let tabID = TabID()
+        let tabID = UUID()
         let icon = Data("small".utf8)
         store.reconcile(icon, tabID: tabID)
         await store.flushPendingWrites()
@@ -401,8 +402,8 @@ final class BrowserFaviconFileStoreTests: XCTestCase {
 
     func testPruningKeepsOnlyTheTabsTheSessionStillHas() async throws {
         let store = try makeStore()
-        let kept = TabID()
-        let dropped = TabID()
+        let kept = UUID()
+        let dropped = UUID()
         store.reconcile(Data("kept".utf8), tabID: kept)
         store.reconcile(Data("dropped".utf8), tabID: dropped)
         await store.flushPendingWrites()

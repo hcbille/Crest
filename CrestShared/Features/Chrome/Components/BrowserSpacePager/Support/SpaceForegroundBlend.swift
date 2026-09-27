@@ -9,12 +9,12 @@ extension EnvironmentValues {
 struct SpaceForegroundBlend: ViewModifier {
     let tones: [SpaceForegroundPresentation.Tone]
     let accents: [Color]
-    let selectedSpaceID: SpaceID?
+    let selectedSpaceID: UUID?
 
     @Environment(\.spacePagerPresentation) private var presentation
     @State private var foreground = SpaceForegroundPresentation()
 
-    init(spaces: [SpaceModel], selectedSpaceID: SpaceID?) {
+    init(spaces: [SpaceModel], selectedSpaceID: UUID?) {
         let brandings = spaces.map(\.settings.look)
         tones = zip(spaces, brandings).map { space, branding in
             SpaceForegroundPresentation.Tone(

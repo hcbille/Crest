@@ -173,7 +173,7 @@ struct BrowserFolderGroup: View {
         )
     }
 
-    private func unloadKeptCollapsedTab(_ tabID: TabID) {
+    private func unloadKeptCollapsedTab(_ tabID: UUID) {
         guard configuration.isCurrentAndUnlocked else { return }
         collapsedTabVisibility.tabDidUnload(tabID)
         context.unload(tabID)

@@ -29,8 +29,8 @@
         static func hostingPages(
             _ seed: SessionState.Seed = .preview,
             images: [UUID: Data] = [:],
-            showing spaceID: SpaceID? = nil,
-            tabs: [SpaceID: TabID] = [:],
+            showing spaceID: UUID? = nil,
+            tabs: [UUID: UUID] = [:],
             browsingMode: BrowserBrowsingMode = .standard,
             core: CrestCore = .hostingPages()
         ) -> BrowserStore {
@@ -40,7 +40,7 @@
 
         /// Tab `tabID` of Space `spaceID` as its page takes it, for a test that
         /// builds a page itself.
-        func pageTab(_ tabID: TabID, in spaceID: SpaceID) -> BrowserPageTab {
+        func pageTab(_ tabID: UUID, in spaceID: UUID) -> BrowserPageTab {
             guard let tab = spaceModel(spaceID)?.tabs.model(tabID) else {
                 preconditionFailure("A test built a page for a tab its window does not hold.")
             }
@@ -49,7 +49,7 @@
 
         /// Space `spaceID` of this window's workspace, for a test that builds a
         /// page itself.
-        func hostedSpace(_ spaceID: SpaceID) -> SpaceModel {
+        func hostedSpace(_ spaceID: UUID) -> SpaceModel {
             guard let space = spaceModel(spaceID) else {
                 preconditionFailure("A test built a page for a Space its window does not hold.")
             }
@@ -60,7 +60,7 @@
         /// it with the page WebKit built, as a popup `popup` names when given,
         /// for a test that hosts the page itself. Nil when a rule refuses it.
         func openWebKitPage(
-            in spaceID: SpaceID, for tabID: TabID?, popup: WebKitPopup? = nil
+            in spaceID: UUID, for tabID: UUID?, popup: WebKitPopup? = nil
         ) -> (core: CorePage, webKit: WebKitEnginePage)? {
             guard let opened = openPage(in: spaceID, for: tabID, popup: popup) else { return nil }
             guard let page = opened.built as? WebKitEnginePage else {

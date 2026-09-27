@@ -112,9 +112,9 @@ struct BrowserOnboardingReviewSpaceControls: View {
 private struct BrowserOnboardingReviewSourcePicker: View {
     let applicationName: String
     let spaces: [BrowserImportSpaceReview]
-    let currentSpaceID: SpaceID
+    let currentSpaceID: UUID
     let sourceSpaceName: String
-    let show: (SpaceID) -> Void
+    let show: (UUID) -> Void
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -136,7 +136,7 @@ private struct BrowserOnboardingReviewSourcePicker: View {
         }
     }
 
-    private var selection: Binding<SpaceID> {
+    private var selection: Binding<UUID> {
         Binding(
             get: { currentSpaceID },
             set: { show($0) }

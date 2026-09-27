@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 
 @testable import Crest
@@ -32,8 +33,8 @@ final class BrowserSystemPermissionTests: XCTestCase {
 
     func testChangingSpacesRejectsLateFolderStatus() async throws {
         let service = TestSystemPermissionService()
-        let firstSpace = SpaceID()
-        let nextSpace = SpaceID()
+        let firstSpace = UUID()
+        let nextSpace = UUID()
         service.delayedSpaceID = firstSpace
         let controller = BrowserSystemPermissionController(service: service)
         let first = Task { await controller.refresh(spaceID: firstSpace) }
@@ -102,22 +103,22 @@ private final class TestSystemPermissionService: BrowserSystemPermissionServicin
     var currentState = BrowserSystemPermissionState.notRequested
     var requests: [BrowserSystemPermission] = []
     var requestError: Error?
-    var delayedSpaceID: SpaceID?
+    var delayedSpaceID: UUID?
     var delayedStatus: CheckedContinuation<BrowserSystemPermissionStatus, Never>?
 
-    func status(for permission: BrowserSystemPermission, spaceID: SpaceID?) async -> BrowserSystemPermissionStatus {
+    func status(for permission: BrowserSystemPermission, spaceID: UUID?) async -> BrowserSystemPermissionStatus {
         if permission == .files, let spaceID, spaceID == delayedSpaceID {
             return await withCheckedContinuation { delayedStatus = $0 }
         }
         return .init(state: currentState)
     }
 
-    func request(_ permission: BrowserSystemPermission, spaceID: SpaceID?) async throws {
+    func request(_ permission: BrowserSystemPermission, spaceID: UUID?) async throws {
         requests.append(permission)
         if let requestError { throw requestError }
         currentState = .blocked
     }
 
-    func chooseFolder(spaceID: SpaceID) async throws {}
+    func chooseFolder(spaceID: UUID) async throws {}
     func openSettings(for permission: BrowserSystemPermission) -> Bool { false }
 }

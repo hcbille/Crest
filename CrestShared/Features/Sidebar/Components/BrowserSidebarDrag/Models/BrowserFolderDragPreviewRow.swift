@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// A visible part of a lifted folder, kept at its measured position.
 struct BrowserFolderDragPreviewRow: Identifiable {
@@ -16,7 +17,7 @@ struct BrowserFolderDragPreviewRow: Identifiable {
     /// measured, with the objects each stands for in `space`.
     @MainActor
     static func resolve(
-        _ rows: [BrowserSidebarReorderRow], in space: SpaceModel, rootFolderID: FolderID
+        _ rows: [BrowserSidebarReorderRow], in space: SpaceModel, rootFolderID: UUID
     ) -> [Self] {
         let rootDepth = depth(of: rootFolderID, in: space)
         return rows.compactMap { row in
@@ -38,9 +39,9 @@ struct BrowserFolderDragPreviewRow: Identifiable {
 
     /// How many folders hold the folder.
     @MainActor
-    private static func depth(of folderID: FolderID, in space: SpaceModel) -> Int {
+    private static func depth(of folderID: UUID, in space: SpaceModel) -> Int {
         var depth = 0
-        var visited: Set<FolderID> = [folderID]
+        var visited: Set<UUID> = [folderID]
         var parent = space.folders.model(folderID)?.parentID
         while let id = parent, visited.insert(id).inserted {
             depth += 1

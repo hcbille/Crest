@@ -18,7 +18,7 @@ struct BrowserCredentialUsernameHint: Equatable, Sendable {
 @Observable
 @MainActor
 final class BrowserCredentialPageState<FillTarget> {
-    let spaceID: SpaceID
+    let spaceID: UUID
     @ObservationIgnored private let core: CrestCore
 
     private(set) var fillRequest: BrowserCredentialFillRequest?
@@ -36,7 +36,7 @@ final class BrowserCredentialPageState<FillTarget> {
     @ObservationIgnored private var pendingSaveCandidate: BrowserCredentialSaveCandidate?
     @ObservationIgnored private var candidateExpirationTask: Task<Void, Never>?
 
-    init(spaceID: SpaceID, core: CrestCore) {
+    init(spaceID: UUID, core: CrestCore) {
         self.spaceID = spaceID
         self.core = core
     }

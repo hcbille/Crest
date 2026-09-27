@@ -16,14 +16,14 @@ import SwiftUI
 /// file, so the two shells share this row instead of a resemblance.
 struct BrowserSidebarSplitGroupRow: View {
     @Environment(BrowserSidebarInteractionState.self) private var sidebarInteraction
-    let groupID: SplitGroupID
+    let groupID: UUID
     /// The members the sidebar shows in the row, in order.
     let members: [TabStateModel]
     let context: BrowserSidebarListContext
     /// The row a drop below this group would land in front of, skipping past
     /// the whole run. Only read where the shell draws its insertion line on the
     /// rows themselves.
-    var followingTabID: TabID? = nil
+    var followingTabID: UUID? = nil
 
     @Environment(\.sidebarSpacePresentation) private var spacePresentation
     @State private var renameRequest: BrowserSplitGroupRuntimeAssignment?

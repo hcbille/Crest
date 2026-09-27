@@ -3,7 +3,7 @@ import Foundation
 enum BrowserPlatformDownloadDirectory {
     static func resolve(
         suggestedFilename: String,
-        spaceID _: SpaceID,
+        spaceID _: UUID,
         forcesPrompt _: Bool = false,
         fileManager: FileManager = .default
     ) async -> BrowserPlatformDownloadResolution {

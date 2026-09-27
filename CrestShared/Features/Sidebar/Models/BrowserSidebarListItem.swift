@@ -10,7 +10,7 @@ struct BrowserSidebarListItem: Identifiable, Equatable {
     enum Content: Equatable {
         case tab(TabStateModel)
         case folder(FolderStateModel)
-        case split(SplitGroupID, members: [TabStateModel])
+        case split(UUID, members: [TabStateModel])
 
         static func == (lhs: Content, rhs: Content) -> Bool {
             switch (lhs, rhs) {
@@ -33,14 +33,14 @@ struct BrowserSidebarListItem: Identifiable, Equatable {
     let depth: Int
     /// The first tab of the row after this one in its list, which a shell that
     /// draws insertion lines on the rows aims a drop below this row at.
-    let followingTabID: TabID?
+    let followingTabID: UUID?
 
     /// The identity collection motion animates this row's arrival and
     /// departure under, spelled as the sidebar always spelled it.
     var collectionMotionID: String { id.collectionMotionID }
 
     /// The first tab the row stands for, or nil for a folder.
-    var firstTabID: TabID? {
+    var firstTabID: UUID? {
         switch content {
         case .tab(let tab): tab.id
         case .split(_, let members): members.first?.id
@@ -76,7 +76,7 @@ struct BrowserSidebarListItem: Identifiable, Equatable {
                     id: BrowserSidebarReorderItemID(row), content: content, depth: row.depth, followingTabID: nil))
         }
         guard namesFollowingTabs else { return items }
-        var following: TabID?
+        var following: UUID?
         for index in items.indices.reversed() {
             let item = items[index]
             items[index] = BrowserSidebarListItem(

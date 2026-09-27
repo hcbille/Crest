@@ -8,7 +8,7 @@ import SwiftUI
 /// both shells.
 struct BrowserPlatformShortcutSettingsPane: View {
     let shortcuts: BrowserShortcutStore
-    let requestedSpaceID: SpaceID?
+    let requestedSpaceID: UUID?
     let requestRevision: Int
 
     var body: some View {

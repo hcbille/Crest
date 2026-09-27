@@ -59,7 +59,7 @@ final class BrowserPagePoolTests: XCTestCase {
             try await load(root, in: page)
             try await load(child, in: page)
             browser.navigateSelectedTab(to: child.absoluteString)
-            let unrelatedID = TabID()
+            let unrelatedID = UUID()
             archive.archive(
                 interactionState: Data("unrelated archive".utf8), url: child,
                 profileID: space.profileID, tabID: unrelatedID)
@@ -731,7 +731,7 @@ final class BrowserPagePoolTests: XCTestCase {
             ),
             password: "stored-secret"
         )
-        var savedRequests: [(BrowserHTTPAuthenticationSaveRequest, SpaceID)] = []
+        var savedRequests: [(BrowserHTTPAuthenticationSaveRequest, UUID)] = []
         let saved = expectation(description: "Accepted credential is marked used")
         let pool = BrowserPagePool(
             browser: hosting(space),
@@ -887,7 +887,7 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testSplitCardFocusReturnKeepsEveryMemberMounted() throws {
-        let groupID = SplitGroupID()
+        let groupID = UUID()
         let first = TabState.Seed(
             title: "First",
             url: URL(string: "about:blank"),
@@ -986,7 +986,7 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testRelockingASpaceHidesEveryCardOfAnOpenSplitWithoutUnloading() throws {
-        let groupID = SplitGroupID()
+        let groupID = UUID()
         let first = TabState.Seed(
             title: "First secret",
             url: URL(string: "about:blank"),
@@ -1274,7 +1274,7 @@ final class BrowserPagePoolTests: XCTestCase {
         let tab = TabState.Seed(title: "Deleted", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab], selectedTabID: tab.id)
         let survivingProfileID = UUID()
-        let survivingTabID = TabID()
+        let survivingTabID = UUID()
         archive.archive(
             interactionState: Data("other space".utf8),
             url: url,
@@ -1614,7 +1614,7 @@ final class BrowserPagePoolTests: XCTestCase {
 
     private func makeSpace(
         tabs: [TabState.Seed],
-        selectedTabID: TabID,
+        selectedTabID: UUID,
         accessPolicy: SpaceAccessPolicy = .open
     ) -> SpaceState.Seed {
         showing(
@@ -1625,16 +1625,16 @@ final class BrowserPagePoolTests: XCTestCase {
 
     /// Which tab each fixture Space shows. Selection is window state, so the
     /// fixtures keep it beside the session rather than inside it.
-    private var fixtureSelections: [SpaceID: TabID] = [:]
+    private var fixtureSelections: [UUID: UUID] = [:]
 
-    private func showing(_ tabID: TabID, in space: SpaceState.Seed) -> SpaceState.Seed {
+    private func showing(_ tabID: UUID, in space: SpaceState.Seed) -> SpaceState.Seed {
         fixtureSelections[space.id] = tabID
         return space
     }
 
     /// Shows tab `tabID` of Space `spaceID` in `pool`'s window, then presents
     /// what the window shows.
-    private func present(_ pool: BrowserPagePool, tab tabID: TabID, in spaceID: SpaceID, at time: Date = .now) {
+    private func present(_ pool: BrowserPagePool, tab tabID: UUID, in spaceID: UUID, at time: Date = .now) {
         pool.browser.selectSpace(spaceID)
         pool.browser.selectTab(tabID)
         pool.select(at: time)
@@ -1642,7 +1642,7 @@ final class BrowserPagePoolTests: XCTestCase {
 
     /// Shows Space `spaceID` in `pool`'s window on the tab the fixture names
     /// for it, then presents what the window shows.
-    private func present(_ pool: BrowserPagePool, showing spaceID: SpaceID) {
+    private func present(_ pool: BrowserPagePool, showing spaceID: UUID) {
         pool.browser.selectSpace(spaceID)
         if let tabID = fixtureSelections[spaceID] { pool.browser.selectTab(tabID) }
         pool.select()
@@ -1778,8 +1778,8 @@ private struct ModifiedLinkContext {
     let store: BrowserStore
     let pool: BrowserPagePool
     let sourcePage: BrowserPage
-    let sourceTabID: TabID
-    let spaceID: SpaceID
+    let sourceTabID: UUID
+    let spaceID: UUID
 
     var openedTabs: [TabStateModel] {
         store.shownSpace?.tabs.models.filter { $0.id != sourceTabID } ?? []
