@@ -191,7 +191,7 @@ final class BrowserPageNavigationMarkerTests: XCTestCase {
     private func makePage() throws -> BrowserPage {
         let tab = TabState.Seed.startPage()
         let space = SpaceState.Seed(
-                        name: "Marker",
+            name: "Marker",
             symbol: "circle",
             accent: .indigo,
             folders: [],

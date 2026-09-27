@@ -33,8 +33,7 @@ struct BrowserShortcutList: View {
             .background(BrowserSettingsCanvas.card, in: .rect(cornerRadius: 12))
             .clipShape(.rect(cornerRadius: 12))
             .overlay {
-                if model.commandGroups.isEmpty
-                {
+                if model.commandGroups.isEmpty {
                     ContentUnavailableView.search(text: model.searchText)
                 }
             }
@@ -43,7 +42,6 @@ struct BrowserShortcutList: View {
             )
         }
     }
-
 
 }
 

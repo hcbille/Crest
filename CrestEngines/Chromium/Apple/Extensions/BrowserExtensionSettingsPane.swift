@@ -14,13 +14,15 @@ struct BrowserExtensionSettingsPane: View {
     var body: some View {
         BrowserSettingsPane(.extensions) {
             Section("Space", systemImage: "square.grid.2x2") {
-                CrestSpaceMenuPicker("Manage extensions for", selection: $selectedSpaceID,
+                CrestSpaceMenuPicker(
+                    "Manage extensions for", selection: $selectedSpaceID,
                     spaces: CrestSpaceIdentity.list(browser.spaceModels))
             }
             if let space, !spaceAccess.isLocked(space) {
                 BrowserExtensionsView(space: space, store: store).id(space.profileID)
             } else if let space {
-                BrowserSettingsPrivateSpaceAccessSection(space: space, accessController: spaceAccess,
+                BrowserSettingsPrivateSpaceAccessSection(
+                    space: space, accessController: spaceAccess,
                     detail: "Unlock this Space before viewing or changing its installed extensions.")
             }
         }
@@ -42,15 +44,19 @@ struct BrowserExtensionsView: View {
     @State private var pendingCopy: ChromiumExtensionStore.Installed?
     @Environment(\.browserSettingsUsesLiveSidebar) private var usesLiveSidebar
     private var extensions: [ChromiumExtensionStore.Installed] {
-        (store.installed[space.profileID] ?? []).sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        (store.installed[space.profileID] ?? []).sorted {
+            $0.name.localizedStandardCompare($1.name) == .orderedAscending
+        }
     }
     var body: some View {
         Group {
             if !usesLiveSidebar { installedExtensions }
             Section("Add Extensions", systemImage: "plus.app") {
                 Button("Open Chrome Web Store", systemImage: "arrow.up.right.square") { run("store") }
-                Text("Choose an extension, then use Install Extension in Site Controls to review its permissions and select Spaces.")
-                    .font(.callout).foregroundStyle(.secondary)
+                Text(
+                    "Choose an extension, then use Install Extension in Site Controls to review its permissions and select Spaces."
+                )
+                .font(.callout).foregroundStyle(.secondary)
                 Button("Open Chromium Extension Manager", systemImage: "arrow.up.right.square") { run("manage") }
                 // Extension shortcuts are the engine's own bindings: Crest routes an
                 // unclaimed key equivalent to them but does not own their list.
@@ -59,24 +65,43 @@ struct BrowserExtensionsView: View {
             if usesLiveSidebar { installedExtensions }
         }
         .task(id: space.profileID) { await store.load(space) }
-        .alert("Couldn’t Complete Extension Action", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+        .alert(
+            "Couldn’t Complete Extension Action",
+            isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
+        ) {
             Button("OK") { failure = nil }
-        } message: { Text(failure ?? "") }
-        .confirmationDialog("Remove Extension?", isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }), presenting: pendingRemoval) { item in
-            Button("Remove from \(space.name)", role: .destructive) { run("remove", item.id); pendingRemoval = nil }
+        } message: {
+            Text(failure ?? "")
+        }
+        .confirmationDialog(
+            "Remove Extension?",
+            isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
+            presenting: pendingRemoval
+        ) { item in
+            Button("Remove from \(space.name)", role: .destructive) {
+                run("remove", item.id)
+                pendingRemoval = nil
+            }
             Button("Cancel", role: .cancel) { pendingRemoval = nil }
-        } message: { item in Text("\(item.name) and its Space-local data will be removed. Other Spaces are unchanged.") }
+        } message: { item in
+            Text("\(item.name) and its Space-local data will be removed. Other Spaces are unchanged.")
+        }
         .sheet(item: $pendingCopy) { item in BrowserExtensionCopySheet(item: item, space: space, store: store) }
     }
     private var installedExtensions: some View {
         Section("Installed in this Space", systemImage: "puzzlepiece.extension") {
             Label("Extensions and their data belong to \(space.name).", systemImage: "square.grid.2x2")
                 .font(.callout).foregroundStyle(.secondary)
-            if store.installed[space.profileID] == nil { ProgressView() }
-            else if extensions.isEmpty { ContentUnavailableView("No Extensions", systemImage: "puzzlepiece.extension", description: Text("Install an extension for this Space to get started.")) }
-            else {
+            if store.installed[space.profileID] == nil {
+                ProgressView()
+            } else if extensions.isEmpty {
+                ContentUnavailableView(
+                    "No Extensions", systemImage: "puzzlepiece.extension",
+                    description: Text("Install an extension for this Space to get started."))
+            } else {
                 ForEach(extensions) { item in
-                    BrowserExtensionRow(item: item, setEnabled: { run($0 ? "enable" : "disable", item.id) },
+                    BrowserExtensionRow(
+                        item: item, setEnabled: { run($0 ? "enable" : "disable", item.id) },
                         options: { run("options", item.id) }, manage: { run("details", item.id) },
                         remove: { pendingRemoval = item }, copy: { pendingCopy = item })
                 }
@@ -85,7 +110,8 @@ struct BrowserExtensionsView: View {
     }
     private func run(_ command: String, _ id: String = "") {
         if !store.command(command, extensionID: id, space: space) {
-            failure = "Chromium could not complete this action. Check the extension’s details for policy or permission requirements."
+            failure =
+                "Chromium could not complete this action. Check the extension’s details for policy or permission requirements."
         }
     }
 }
@@ -105,11 +131,15 @@ struct BrowserExtensionRow: View {
                 if !item.permissions.isEmpty {
                     VStack(alignment: .leading, spacing: CrestSpacing.small) {
                         Text("Permissions and Website Access").font(.headline)
-                        ForEach(item.permissions, id: \.self) { Text($0).font(.callout).fixedSize(horizontal: false, vertical: true) }
+                        ForEach(item.permissions, id: \.self) {
+                            Text($0).font(.callout).fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
                 Button("Manage Permissions in Chromium", systemImage: "hand.raised", action: manage)
-                if !item.options.isEmpty && item.enabled { Button("Extension Settings", systemImage: "gearshape", action: options) }
+                if !item.options.isEmpty && item.enabled {
+                    Button("Extension Settings", systemImage: "gearshape", action: options)
+                }
                 Button("Remove Extension", systemImage: "trash", role: .destructive, action: remove)
             }
             .padding(.top, CrestSpacing.medium)
@@ -123,7 +153,9 @@ struct BrowserExtensionRow: View {
                         Text(item.version).font(.caption).foregroundStyle(.tertiary)
                     }
                     Text(item.detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                    if item.webStore { Text("From Chrome Web Store").font(.caption2).foregroundStyle(.tertiary).lineLimit(1) }
+                    if item.webStore {
+                        Text("From Chrome Web Store").font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+                    }
                 }
                 Spacer(minLength: 0)
                 Toggle("Enabled", isOn: Binding(get: { item.enabled }, set: setEnabled))
@@ -141,14 +173,18 @@ struct BrowserExtensionCopySheet: View {
     @State private var selectedSpaces: Set<UUID> = []
     @State private var loading = true
     private var destinations: [BrowserSpaceIdentity] {
-        store.spaces.filter { $0.id != space.id && !(store.installed[$0.profileID] ?? []).contains { $0.id == item.id } }
+        store.spaces.filter {
+            $0.id != space.id && !(store.installed[$0.profileID] ?? []).contains { $0.id == item.id }
+        }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: CrestSpacing.large) {
             Text("Install a Copy in Other Spaces").font(.title2.bold())
             Text(item.name).font(.headline)
-            Text("Each Space keeps its own extension data; existing data is not copied. Review the verified package and permissions before installing.")
-                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Each Space keeps its own extension data; existing data is not copied. Review the verified package and permissions before installing."
+            )
+            .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             BrowserExtensionSpaceSelectionList(spaces: destinations, selection: $selectedSpaces).disabled(loading)
             HStack {
                 Button("Cancel", role: .cancel) { dismiss() }
@@ -169,6 +205,9 @@ struct BrowserExtensionCopySheet: View {
         }
         .padding(CrestSpacing.extraLarge)
         .frame(idealWidth: 480)
-        .task { for target in store.spaces { await store.load(target) }; loading = false }
+        .task {
+            for target in store.spaces { await store.load(target) }
+            loading = false
+        }
     }
 }

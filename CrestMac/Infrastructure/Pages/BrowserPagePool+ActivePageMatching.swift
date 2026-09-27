@@ -13,7 +13,8 @@ extension BrowserPagePool {
         return members.allSatisfy { member in
             guard
                 let page = presentedPage(
-                    matching: BrowserTabRuntimeAssignment(tabID: member.id, spaceID: space.id, profileID: space.profileID)
+                    matching: BrowserTabRuntimeAssignment(
+                        tabID: member.id, spaceID: space.id, profileID: space.profileID)
                 )
             else { return false }
             return member.url == nil || page.live.documentURL != nil

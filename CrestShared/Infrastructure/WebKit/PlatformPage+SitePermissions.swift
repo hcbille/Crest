@@ -9,7 +9,8 @@ extension BrowserPlatformPage {
     /// choices, or asks the person through the page's host. A granted capture
     /// is remembered for this page, so a later block can stop it.
     func answerPermission(
-        _ permission: SitePermission, origin: SiteOrigin, topLevelOrigin: SiteOrigin, from webKitPage: WebKitEnginePage?,
+        _ permission: SitePermission, origin: SiteOrigin, topLevelOrigin: SiteOrigin,
+        from webKitPage: WebKitEnginePage?,
         decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void
     ) {
         guard let webKitPage else {

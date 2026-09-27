@@ -95,8 +95,11 @@ struct BrowserSettingsDestinationPage: View {
 
     private func presentSetup(_ request: BrowserOnboardingRequest) {
         onboardingCoordinator.request = request
-        if let host = BrowserMacWindowPresentation.host { host.openOnboardingWindow(request) }
-        else { openWindow(id: BrowserOnboardingCoordinator.sceneID) }
+        if let host = BrowserMacWindowPresentation.host {
+            host.openOnboardingWindow(request)
+        } else {
+            openWindow(id: BrowserOnboardingCoordinator.sceneID)
+        }
         BrowserOnboardingWindowActivation.bringForward()
     }
 }

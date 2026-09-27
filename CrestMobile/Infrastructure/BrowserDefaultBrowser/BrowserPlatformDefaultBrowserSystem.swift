@@ -14,9 +14,11 @@ enum BrowserPlatformDefaultBrowserSystem {
     }
 
     static func openSettings() {
-        guard let url = URL(
-            string: UIApplication.openDefaultApplicationsSettingsURLString
-        ) else { return }
+        guard
+            let url = URL(
+                string: UIApplication.openDefaultApplicationsSettingsURLString
+            )
+        else { return }
         UIApplication.shared.open(url)
     }
 }

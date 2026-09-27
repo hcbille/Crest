@@ -175,7 +175,8 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
             window.makeKeyAndOrderFront(nil)
             // The app's initial scene or an earlier test may have another
             // visible window. This fixture specifically exercises empty desktop.
-            let rightEdge = NSApp.orderedWindows.filter { $0.isVisible && !$0.ignoresMouseEvents }
+            let rightEdge =
+                NSApp.orderedWindows.filter { $0.isVisible && !$0.ignoresMouseEvents }
                 .map { $0.frame.maxX }.max() ?? window.frame.maxX
             outside.x = rightEdge - window.frame.minX + 80
             pump()

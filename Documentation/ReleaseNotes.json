@@ -3029,6 +3029,10 @@
     "identities-named-by-uuid": {
       "category": "internal",
       "message": "Space, tab, folder, window, split and credential identities are plain UUIDs named by their role, with no aliases or wrapper types."
+    },
+    "swift-sources-follow-formatter": {
+      "category": "internal",
+      "message": "Swift sources, including the Chromium app's, follow the project's formatting rules throughout."
     }
   }
 }

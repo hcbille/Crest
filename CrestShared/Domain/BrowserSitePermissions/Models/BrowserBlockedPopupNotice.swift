@@ -42,10 +42,15 @@ struct BrowserBlockedPopupPageState: Equatable, Sendable {
     @discardableResult
     mutating func clearAfterAllowedPopup() -> Bool { apply(.popupAllowed) }
 
-    private mutating func apply(_ event: BlockedPopupEvent, documentIdentifier: String? = nil,
-        origin: SiteOrigin? = nil) -> Bool {
-        guard let next = BrowserCorePolicy.blockedPopupState(after: event, from: self,
-            documentIdentifier: documentIdentifier, origin: origin) else { return false }
+    private mutating func apply(
+        _ event: BlockedPopupEvent, documentIdentifier: String? = nil,
+        origin: SiteOrigin? = nil
+    ) -> Bool {
+        guard
+            let next = BrowserCorePolicy.blockedPopupState(
+                after: event, from: self,
+                documentIdentifier: documentIdentifier, origin: origin)
+        else { return false }
         self = next
         return true
     }

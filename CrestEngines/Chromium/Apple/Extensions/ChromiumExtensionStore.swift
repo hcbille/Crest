@@ -96,12 +96,14 @@ final class ChromiumExtensionStore {
     ) -> [BrowserExtensionActionPresentation] {
         _ = revision
         guard let pages = CrestChromiumRoot.chromiumEngine?.pages else { return [] }
-        let live = Dictionary(page?.extensions.map { ($0.id, $0) } ?? [],
-                              uniquingKeysWith: { first, _ in first })
+        let live = Dictionary(
+            page?.extensions.map { ($0.id, $0) } ?? [],
+            uniquingKeysWith: { first, _ in first })
         return pages.request(PinnedExtensions(profileID: space.profileID)).actions
             .map { action -> BrowserExtensionActionPresentation in
                 if let tab = live[action.id] {
-                    return BrowserExtensionActionPresentation(id: tab.id, displayName: tab.displayName,
+                    return BrowserExtensionActionPresentation(
+                        id: tab.id, displayName: tab.displayName,
                         badgeText: tab.badgeText, icon: tab.icon, isPinned: true)
                 }
                 return BrowserExtensionActionPresentation(action)
@@ -111,16 +113,23 @@ final class ChromiumExtensionStore {
     /// Runs a pinned action from a Space with no page open. Only an action with
     /// its own popup can run without one, so anything else states itself as
     /// unavailable rather than doing nothing.
-    func runPinned(_ action: BrowserExtensionActionPresentation, space: BrowserSpaceIdentity,
-                   anchor: BrowserExtensionPopupAnchor?) {
+    func runPinned(
+        _ action: BrowserExtensionActionPresentation, space: BrowserSpaceIdentity,
+        anchor: BrowserExtensionPopupAnchor?
+    ) {
         let fallback = CrestChromiumRoot.activeNativeWindow
-        let anchor = anchor ?? BrowserExtensionPopupAnchor(screenPoint: NSEvent.mouseLocation,
-                                                          sourceWindow: fallback)
+        let anchor =
+            anchor
+            ?? BrowserExtensionPopupAnchor(
+                screenPoint: NSEvent.mouseLocation,
+                sourceWindow: fallback)
         guard let host = CrestChromiumRoot.engineHost,
-              let source = anchor.presentationSource(fallbackWindow: fallback),
-              let windowID = source.view.window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) }),
-              host.runExtension(action.id, profile: space.profileID, window: windowID,
-                                anchorView: source.view, anchorRect: source.rect) else {
+            let source = anchor.presentationSource(fallbackWindow: fallback),
+            let windowID = source.view.window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) }),
+            host.runExtension(
+                action.id, profile: space.profileID, window: windowID,
+                anchorView: source.view, anchorRect: source.rect)
+        else {
             CrestChromiumRoot.showNativeNotice(
                 String(localized: "This extension action needs an open page."),
                 icon: "puzzlepiece.extension")
@@ -143,12 +152,15 @@ final class ChromiumExtensionStore {
         _ command: String, extensionID: String = "", space: BrowserSpaceIdentity, window: NSWindow? = nil
     ) -> Bool {
         guard authorized(space), let pages = CrestChromiumRoot.chromiumEngine?.pages,
-              let window = window ?? CrestChromiumRoot.activeNativeWindow else { return false }
+            let window = window ?? CrestChromiumRoot.activeNativeWindow
+        else { return false }
         let destination: String?
         switch command {
-        case "store": destination = extensionID.isEmpty
-            ? "https://chromewebstore.google.com/"
-            : "https://chromewebstore.google.com/detail/\(extensionID)"
+        case "store":
+            destination =
+                extensionID.isEmpty
+                ? "https://chromewebstore.google.com/"
+                : "https://chromewebstore.google.com/detail/\(extensionID)"
         case "manage": destination = "chrome://extensions/"
         case "shortcuts": destination = "chrome://extensions/shortcuts"
         case "details": destination = "chrome://extensions/?id=\(extensionID)"
@@ -190,9 +202,11 @@ final class ChromiumExtensionStore {
     /// - Parameter openSidePanel: Supplied only when the extension has a side
     ///   panel entry for the page the action was presented on. The caller owns
     ///   the window the panel would mount into, so it also owns the check.
-    func presentMenu(_ action: BrowserExtensionActionPresentation, space: BrowserSpaceIdentity,
-                     anchor: BrowserExtensionPopupAnchor?, isPrivate: Bool = false,
-                     openSidePanel: (@MainActor () -> Void)? = nil) {
+    func presentMenu(
+        _ action: BrowserExtensionActionPresentation, space: BrowserSpaceIdentity,
+        anchor: BrowserExtensionPopupAnchor?, isPrivate: Bool = false,
+        openSidePanel: (@MainActor () -> Void)? = nil
+    ) {
         let menu = NSMenu(title: action.displayName)
         menu.autoenablesItems = false
         let handler = ExtensionMenuHandler()
@@ -205,49 +219,64 @@ final class ChromiumExtensionStore {
         // state, so only the navigation verbs are offered from one.
         if !isPrivate {
             if record.map({ !$0.options.isEmpty && $0.enabled }) ?? true {
-                menu.addItem(handler.item(String(localized: "Extension Settings…")) { [weak self] in
-                    self?.command("options", extensionID: action.id, space: space)
-                })
+                menu.addItem(
+                    handler.item(String(localized: "Extension Settings…")) { [weak self] in
+                        self?.command("options", extensionID: action.id, space: space)
+                    })
             }
-            menu.addItem(handler.item(action.isPinned
-                ? String(localized: "Unpin from Toolbar") : String(localized: "Pin to Toolbar")) { [weak self] in
-                self?.togglePin(action, space: space)
-            })
-            if let record {
-                menu.addItem(handler.item(record.enabled
-                    ? String(localized: "Disable Extension") : String(localized: "Enable Extension")) { [weak self] in
-                    self?.command(record.enabled ? "disable" : "enable", extensionID: action.id, space: space)
+            menu.addItem(
+                handler.item(
+                    action.isPinned
+                        ? String(localized: "Unpin from Toolbar") : String(localized: "Pin to Toolbar")
+                ) { [weak self] in
+                    self?.togglePin(action, space: space)
                 })
+            if let record {
+                menu.addItem(
+                    handler.item(
+                        record.enabled
+                            ? String(localized: "Disable Extension") : String(localized: "Enable Extension")
+                    ) { [weak self] in
+                        self?.command(record.enabled ? "disable" : "enable", extensionID: action.id, space: space)
+                    })
             }
             menu.addItem(.separator())
         }
-        menu.addItem(handler.item(String(localized: "Manage Extension…")) { [weak self] in
-            self?.command("details", extensionID: action.id, space: space)
-        })
-        menu.addItem(handler.item(String(localized: "Manage Extensions…")) { [weak self] in
-            self?.command("manage", space: space)
-        })
-        if record?.webStore ?? false {
-            menu.addItem(handler.item(String(localized: "View on Chrome Web Store")) { [weak self] in
-                self?.command("store", extensionID: action.id, space: space)
+        menu.addItem(
+            handler.item(String(localized: "Manage Extension…")) { [weak self] in
+                self?.command("details", extensionID: action.id, space: space)
             })
+        menu.addItem(
+            handler.item(String(localized: "Manage Extensions…")) { [weak self] in
+                self?.command("manage", space: space)
+            })
+        if record?.webStore ?? false {
+            menu.addItem(
+                handler.item(String(localized: "View on Chrome Web Store")) { [weak self] in
+                    self?.command("store", extensionID: action.id, space: space)
+                })
         }
         if !isPrivate, let record {
             menu.addItem(.separator())
-            menu.addItem(handler.item(String(localized: "Remove Extension…")) { [weak self] in
-                self?.confirmRemoval(record, space: space)
-            })
+            menu.addItem(
+                handler.item(String(localized: "Remove Extension…")) { [weak self] in
+                    self?.confirmRemoval(record, space: space)
+                })
         }
         if let source = anchor?.presentationSource(fallbackWindow: CrestChromiumRoot.activeNativeWindow) {
             menu.popUp(positioning: nil, at: NSPoint(x: source.rect.minX, y: source.rect.minY), in: source.view)
-        } else { menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil) }
+        } else {
+            menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        }
         withExtendedLifetime(handler) {}
     }
     /// Removal asked for by identifier — the Chrome Web Store listing for an
     /// extension already installed in this Space. The confirmation, the Space's
     /// ownership check and the engine command are the menu's own.
-    func confirmRemoval(_ extensionID: String, in space: BrowserSpaceIdentity,
-                        completion: (@MainActor () -> Void)? = nil) {
+    func confirmRemoval(
+        _ extensionID: String, in space: BrowserSpaceIdentity,
+        completion: (@MainActor () -> Void)? = nil
+    ) {
         guard let record = installedRecord(extensionID, in: space) else {
             completion?()
             return
@@ -257,16 +286,22 @@ final class ChromiumExtensionStore {
     /// Mirrors the confirmation the extension settings pane requires before an
     /// uninstall. The menu's tracking loop owns the event while an item runs, so
     /// the alert is presented once the menu has dismissed.
-    private func confirmRemoval(_ record: Installed, space: BrowserSpaceIdentity,
-                                completion: (@MainActor () -> Void)? = nil) {
+    private func confirmRemoval(
+        _ record: Installed, space: BrowserSpaceIdentity,
+        completion: (@MainActor () -> Void)? = nil
+    ) {
         Task { @MainActor [weak self] in
             await Task.yield()
-            guard let self, self.authorized(space) else { completion?(); return }
+            guard let self, self.authorized(space) else {
+                completion?()
+                return
+            }
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = String(localized: "Remove \(record.name)?")
-            alert.informativeText = String(localized:
-                "\(record.name) and its Space-local data will be removed. Other Spaces are unchanged.")
+            alert.informativeText = String(
+                localized:
+                    "\(record.name) and its Space-local data will be removed. Other Spaces are unchanged.")
             alert.addButton(withTitle: String(localized: "Remove from \(space.name)"))
             alert.addButton(withTitle: String(localized: "Cancel"))
             alert.buttons.first?.hasDestructiveAction = true
@@ -275,7 +310,8 @@ final class ChromiumExtensionStore {
                     defer { completion?() }
                     guard response == .alertFirstButtonReturn else { return }
                     guard self.command("remove", extensionID: record.id, space: space) else {
-                        self.reportFailure(); return
+                        self.reportFailure()
+                        return
                     }
                 }
             }
@@ -287,14 +323,21 @@ final class ChromiumExtensionStore {
         }
     }
     private func reportFailure() {
-        BrowserNoticeCenter.shared.post(BrowserNotice(
-            message: String(localized: "Couldn’t complete that extension action. Check its details for policy or permission requirements."),
-            systemImage: "exclamationmark.triangle"))
+        BrowserNoticeCenter.shared.post(
+            BrowserNotice(
+                message: String(
+                    localized:
+                        "Couldn’t complete that extension action. Check its details for policy or permission requirements."
+                ),
+                systemImage: "exclamationmark.triangle"))
     }
-    func install(_ id: String, in space: BrowserSpaceIdentity, anchor: NSView?, copies: Set<UUID> = [],
-                 completion: (@MainActor () -> Void)? = nil) {
+    func install(
+        _ id: String, in space: BrowserSpaceIdentity, anchor: NSView?, copies: Set<UUID> = [],
+        completion: (@MainActor () -> Void)? = nil
+    ) {
         guard installation == nil, authorized(space),
-              let window = anchor?.window ?? CrestChromiumRoot.activeNativeWindow else {
+            let window = anchor?.window ?? CrestChromiumRoot.activeNativeWindow
+        else {
             completion?()
             return
         }
@@ -308,20 +351,27 @@ final class ChromiumExtensionStore {
         self.popover = popover
         // Anchor native presentation in Crest's hosting view. Anchoring it in
         // Chromium's responder subtree lets web focus consume popover input.
-        guard let source = window.contentView else { dismissInstallation(); return }
+        guard let source = window.contentView else {
+            dismissInstallation()
+            return
+        }
         // AppKit reads a caller's positioning rectangle as if the view were not
         // flipped, and SwiftUI's hosting view is flipped: a rectangle measured
         // from its top edge presented the review past the window's lower edge
         // and off the screen. A one-point positioning view carries the anchor
         // instead, because a subview's own frame is resolved in its superview's
         // coordinate space whichever way that space runs.
-        let spot = NSView(frame: NSRect(x: min(160, source.bounds.width / 2),
-            y: source.isFlipped ? 44 : source.bounds.height - 44, width: 1, height: 1))
+        let spot = NSView(
+            frame: NSRect(
+                x: min(160, source.bounds.width / 2),
+                y: source.isFlipped ? 44 : source.bounds.height - 44, width: 1, height: 1))
         source.addSubview(spot)
         anchorSpot = spot
         popover.show(relativeTo: .zero, of: spot, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
-        windowClosed = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+        windowClosed = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak self] _ in
             MainActor.assumeIsolated { self?.dismissInstallation() }
         }
         Task { await job.start() }
@@ -402,7 +452,10 @@ final class ChromiumExtensionInstallation {
     @ObservationIgnored private var targetSpace: BrowserSpaceIdentity?
 
     init(id: String, space: BrowserSpaceIdentity, window: NSWindow, store: ChromiumExtensionStore) {
-        self.id = id; self.space = space; self.window = window; self.store = store
+        self.id = id
+        self.space = space
+        self.window = window
+        self.store = store
     }
     var isAuthorized: Bool { store.authorized(space) && (targetSpace.map { store.authorized($0) } ?? true) }
     var destinations: [BrowserSpaceIdentity] {
@@ -415,19 +468,26 @@ final class ChromiumExtensionInstallation {
         defer { session.invalidateAndCancel() }
         do {
             var components = URLComponents(string: "https://clients2.google.com/service/update2/crx")!
-            components.queryItems = [URLQueryItem(name: "response", value: "redirect"),
+            components.queryItems = [
+                URLQueryItem(name: "response", value: "redirect"),
                 URLQueryItem(name: "prodversion", value: host.engineVersion()),
                 URLQueryItem(name: "acceptformat", value: "crx3"),
-                URLQueryItem(name: "x", value: "id=\(id)&installsource=ondemand&uc")]
-            var request = URLRequest(url: components.url!); request.timeoutInterval = 120
+                URLQueryItem(name: "x", value: "id=\(id)&installsource=ondemand&uc"),
+            ]
+            var request = URLRequest(url: components.url!)
+            request.timeoutInterval = 120
             let (file, response) = try await session.download(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
             let size = try file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
             guard size > 0, size <= 64 * 1024 * 1024 else { throw URLError(.dataLengthExceedsMaximum) }
-            let retained = FileManager.default.temporaryDirectory.appendingPathComponent("crest-extension-\(UUID()).crx")
+            let retained = FileManager.default.temporaryDirectory.appendingPathComponent(
+                "crest-extension-\(UUID()).crx")
             try FileManager.default.moveItem(at: file, to: retained)
             package = retained
-            defer { try? FileManager.default.removeItem(at: retained); package = nil }
+            defer {
+                try? FileManager.default.removeItem(at: retained)
+                package = nil
+            }
             guard !canceled else { return }
             try await installPackage(in: space)
             installedCount = 1
@@ -443,25 +503,38 @@ final class ChromiumExtensionInstallation {
         } catch {
             if !canceled { failure = error.localizedDescription }
         }
-        preparing = false; installing = false
+        preparing = false
+        installing = false
     }
     private func installPackage(in target: BrowserSpaceIdentity) async throws {
         guard !canceled, store.authorized(target), let package, let host = CrestChromiumRoot.engineHost,
-              let windowID = window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) })
+            let windowID = window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) })
         else { throw URLError(.cancelled) }
         targetSpace = target
         let staged = FileManager.default.temporaryDirectory.appendingPathComponent("crest-extension-\(UUID()).crx")
         try FileManager.default.copyItem(at: package, to: staged)
         defer { try? FileManager.default.removeItem(at: staged) }
         let result: (Bool, String) = await withCheckedContinuation { continuation in
-            if !host.installExtension(id, package: staged.path, profile: target.profileID, window: windowID, completion: { success, message in
-                continuation.resume(returning: (success, message))
-            }) { continuation.resume(returning: (false, "The Space is no longer available.")) }
+            if !host.installExtension(
+                id, package: staged.path, profile: target.profileID, window: windowID,
+                completion: { success, message in
+                    continuation.resume(returning: (success, message))
+                })
+            {
+                continuation.resume(returning: (false, "The Space is no longer available."))
+            }
         }
-        guard result.0 else { throw NSError(domain: "CrestExtension", code: 1, userInfo: [NSLocalizedDescriptionKey: result.1.isEmpty ? "Installation canceled." : result.1]) }
+        guard result.0 else {
+            throw NSError(
+                domain: "CrestExtension", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: result.1.isEmpty ? "Installation canceled." : result.1])
+        }
     }
     func review(_ review: ExtensionInstallQuestion, reply: @escaping (Bool, Bool) -> Void) {
-        guard !canceled, store.authorized(space), let targetSpace, store.authorized(targetSpace) else { reply(false, false); return }
+        guard !canceled, store.authorized(space), let targetSpace, store.authorized(targetSpace) else {
+            reply(false, false)
+            return
+        }
         if let approvedIdentity {
             // Consent applies only to the same verified package and warnings.
             reply(Self.consentIdentity(of: review) == approvedIdentity, withhold)
@@ -487,7 +560,9 @@ final class ChromiumExtensionInstallation {
     }
     func cancel() {
         canceled = true
-        let callback = consent; consent = nil; callback?(false, false)
+        let callback = consent
+        consent = nil
+        callback?(false, false)
     }
     func dismiss() { store.dismissInstallation() }
 

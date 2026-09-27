@@ -14,7 +14,7 @@ final class BrowserHostedWebNotificationTests: XCTestCase {
             placement: .current
         )
         let space = SpaceState.Seed(
-                        name: "Work",
+            name: "Work",
             symbol: "briefcase",
             accent: .teal,
             folders: [],

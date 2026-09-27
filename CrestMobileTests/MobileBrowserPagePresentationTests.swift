@@ -16,14 +16,14 @@ final class MobileBrowserPagePresentationTests: XCTestCase {
             placement: .current
         )
         let firstSpace = SpaceState.Seed(
-                        name: "First Space",
+            name: "First Space",
             symbol: "1.circle",
             accent: .indigo,
             folders: [],
             tabs: [firstTab]
         )
         let secondSpace = SpaceState.Seed(
-                        name: "Second Space",
+            name: "Second Space",
             symbol: "2.circle",
             accent: .teal,
             folders: [],

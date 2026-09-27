@@ -80,7 +80,8 @@
             defer { core.state.favicons.withdrawOffer(in: family.workspaceID) }
             do {
                 try family.commit(
-                    ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: [replacement]), from: self)
+                    ImportSpaces(workspaceID: family.workspaceID, windowID: windowID, spaces: [replacement]), from: self
+                )
             } catch {
                 preconditionFailure("The core refused to bring a Space back for a test: \(error)")
             }

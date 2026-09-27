@@ -20,7 +20,8 @@ final class BrowserApplicationLaunch<Value> {
             failure = nil
             recoveryError = nil
         } catch {
-            failure = error as? BrowserSessionStartupFailure
+            failure =
+                error as? BrowserSessionStartupFailure
                 ?? BrowserSessionStartupFailure(storageDirectory: nil, underlying: error)
         }
     }

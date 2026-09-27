@@ -164,7 +164,8 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testUpdatingSpaceBrowsingPreferencesPersistsOnlyThatSpacesChoices() async throws {
-        let harness = try await BrowserStoredSessionHarness.uploaded(seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000010")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(
+            seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000010")!)
         let store = harness.store
         let selectedSpaceID = store.selectedSpaceID
         let otherSpace = try XCTUnwrap(
@@ -184,7 +185,8 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testNormalStoreMutationStagesAndPersistsTheLocalSyncJournal() async throws {
-        let harness = try await BrowserStoredSessionHarness.uploaded(seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(
+            seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!)
         let store = harness.store
 
         store.openNewTab(url: try XCTUnwrap(URL(string: "https://example.com/synced")))
@@ -208,7 +210,8 @@ final class BrowserStoreTests: XCTestCase {
             )
         ]
         let historyID = try XCTUnwrap(session.spaces[0].history.first?.id)
-        let harness = try await BrowserStoredSessionHarness.uploaded(seed: session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(
+            seed: session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!)
         let store = harness.store
 
         store.clearHistory()
@@ -221,7 +224,8 @@ final class BrowserStoreTests: XCTestCase {
 
     func testCloseAndRestoreUseRecoverableSupersessionRatherThanPermanentDelete() async throws {
         let session = SessionState.Seed.preview
-        let harness = try await BrowserStoredSessionHarness.uploaded(seed: session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(
+            seed: session, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!)
         let store = harness.store
         let tabID = try XCTUnwrap(store.shownSpace?.currentTabs.first?.id)
 
@@ -318,7 +322,8 @@ final class BrowserStoreTests: XCTestCase {
     }
 
     func testDeletingASpacePurgesCredentialsAndStagesExplicitSyncTombstones() async throws {
-        let harness = try await BrowserStoredSessionHarness.uploaded(seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000011")!)
+        let harness = try await BrowserStoredSessionHarness.uploaded(
+            seed: .preview, syncDeviceID: UUID(uuidString: "00000000-0000-0000-0000-000000000011")!)
         let store = harness.store
         let vault = try XCTUnwrap(store.credentialVault as? InMemoryCredentialVault)
         let deletedSpace = try XCTUnwrap(store.spaceModels.first)

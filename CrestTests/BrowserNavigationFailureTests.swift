@@ -201,7 +201,7 @@ final class BrowserPageNavigationFailureTests: XCTestCase {
     private func makePage() throws -> BrowserPage {
         let tab = TabState.Seed(title: "Blank", url: nil, placement: .current)
         let space = SpaceState.Seed(
-                        name: "Test",
+            name: "Test",
             symbol: "circle",
             accent: .indigo,
             folders: [],

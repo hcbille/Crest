@@ -15,7 +15,8 @@ final class BrowserPageEngineMoveTests: XCTestCase {
         let space = SpaceState.Seed(
             id: UUID(), profileID: UUID(), name: "Moves", symbol: "arrow.left.arrow.right",
             accent: .teal, folders: [], tabs: [tab])
-        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let pool = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
         pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)

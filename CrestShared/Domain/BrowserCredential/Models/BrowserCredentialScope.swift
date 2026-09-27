@@ -18,9 +18,9 @@ enum BrowserCredentialScope: Codable, Equatable, Hashable, Sendable {
         switch self {
         case .webForm:
             nil
-        case let .httpBasic(realm):
+        case .httpBasic(let realm):
             Self.httpAuthenticationLabel(method: "HTTP Basic", realm: realm)
-        case let .httpDigest(realm):
+        case .httpDigest(let realm):
             Self.httpAuthenticationLabel(method: "HTTP Digest", realm: realm)
         }
     }

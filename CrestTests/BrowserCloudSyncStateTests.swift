@@ -89,9 +89,11 @@ final class BrowserCloudSyncStateTests: XCTestCase {
             "id": ["rawValue": id.uuidString], "profileID": testUUID(prefix: 6, index: index).uuidString,
             "name": "Space \(index)", "symbol": "square.grid.2x2.fill", "accent": "indigo", "orderToken": "a",
         ]
-        let body = try! JSONSerialization.data(withJSONObject: ["type": "space", "value": value], options: [.sortedKeys])
+        let body = try! JSONSerialization.data(
+            withJSONObject: ["type": "space", "value": value], options: [.sortedKeys])
         return SyncRecord(
-            kind: .space, id: id, spaceID: id, version: SyncVersion(clock: UInt64(index), deviceID: testUUID(prefix: 7, index: 1)),
+            kind: .space, id: id, spaceID: id,
+            version: SyncVersion(clock: UInt64(index), deviceID: testUUID(prefix: 7, index: 1)),
             schema: 1, body: body, isTombstone: false)
     }
 

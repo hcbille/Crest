@@ -53,7 +53,8 @@ enum BrowserInstalledRelease {
         let parts = try parts(of: seed)
         defaults.set(parts.core, forKey: BrowserLegacySessionDefaults.coreKey)
         for history in parts.history {
-            defaults.set(history.entries, forKey: BrowserLegacySessionDefaults.historyKeyPrefix + history.spaceID.uuidString)
+            defaults.set(
+                history.entries, forKey: BrowserLegacySessionDefaults.historyKeyPrefix + history.spaceID.uuidString)
         }
         for (tabID, image) in images { favicons.reconcile(image, tabID: tabID) }
     }
@@ -72,7 +73,8 @@ enum BrowserInstalledRelease {
         let parts = try parts(of: seed)
         try core.send(
             AdoptLegacySession(
-                installed: LegacySession(core: parts.core, wholeGraph: nil, history: parts.history, journal: journalData),
+                installed: LegacySession(
+                    core: parts.core, wholeGraph: nil, history: parts.history, journal: journalData),
                 seed: nil))
     }
 }

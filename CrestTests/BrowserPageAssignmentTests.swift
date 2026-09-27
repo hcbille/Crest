@@ -101,7 +101,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
         }
         let outsider = TabState.Seed(title: "Outsider", url: nil, placement: .current)
         let space = SpaceState.Seed(
-                        name: "Split",
+            name: "Split",
             symbol: "circle",
             accent: .indigo,
             folders: [],

@@ -27,36 +27,36 @@ struct BrowserSidebarAddressFieldSurface: ViewModifier {
                 .padding(.leading, leadingPadding ?? metrics.horizontalPadding)
                 .padding(.trailing, metrics.horizontalPadding)
         )
-            .background {
-                ZStack(alignment: .leading) {
-                    fieldShape.fill((spaceForeground ?? .primary).opacity(CrestOpacity.chromeSurface))
-                    if !reduceTransparency {
-                        fieldShape.fill(accent.opacity(BrowserTabAppearance.intensity(appearance.fill) * 0.4))
-                    }
-                    fieldShape
-                        .fill(accent.opacity(isLoading ? 0.2 : 0))
-                        .scaleEffect(x: loadingProgress, anchor: .leading)
-                        .mask(fieldShape)
-                        .animation(
-                            BrowserVisualAccessibilityPolicy.animation(
-                                CrestMotion.loadingProgress,
-                                reduceMotion: reduceMotion
-                            ),
-                            value: loadingProgress
-                        )
+        .background {
+            ZStack(alignment: .leading) {
+                fieldShape.fill((spaceForeground ?? .primary).opacity(CrestOpacity.chromeSurface))
+                if !reduceTransparency {
+                    fieldShape.fill(accent.opacity(BrowserTabAppearance.intensity(appearance.fill) * 0.4))
                 }
-            }
-            .overlay {
                 fieldShape
-                    .strokeBorder(
-                        isEditing
-                            ? (appearance.usesAccentWhenEditing ? accent : metrics.editingRingColor)
-                            : accent.opacity(BrowserTabAppearance.intensity(appearance.border)),
-                        lineWidth: appearance.border > 0 || appearance.usesAccentWhenEditing
-                            ? max(1, metrics.editingRingWidth) : metrics.editingRingWidth,
-                        antialiased: true
+                    .fill(accent.opacity(isLoading ? 0.2 : 0))
+                    .scaleEffect(x: loadingProgress, anchor: .leading)
+                    .mask(fieldShape)
+                    .animation(
+                        BrowserVisualAccessibilityPolicy.animation(
+                            CrestMotion.loadingProgress,
+                            reduceMotion: reduceMotion
+                        ),
+                        value: loadingProgress
                     )
             }
+        }
+        .overlay {
+            fieldShape
+                .strokeBorder(
+                    isEditing
+                        ? (appearance.usesAccentWhenEditing ? accent : metrics.editingRingColor)
+                        : accent.opacity(BrowserTabAppearance.intensity(appearance.border)),
+                    lineWidth: appearance.border > 0 || appearance.usesAccentWhenEditing
+                        ? max(1, metrics.editingRingWidth) : metrics.editingRingWidth,
+                    antialiased: true
+                )
+        }
     }
 
     @ViewBuilder

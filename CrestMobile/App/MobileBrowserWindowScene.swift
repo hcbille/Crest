@@ -39,21 +39,22 @@ struct MobileBrowserWindowScene: View {
         self.automaticallyPresentsOnboarding = automaticallyPresentsOnboarding
         self.sidebarWidgets = sidebarWidgets
         _runtime = StateObject(
-            wrappedValue: Runtime(model: MobileBrowserWindowSceneModel(
-                id: id,
-                rootBrowser: rootBrowser,
-                permissionCenter: permissionCenter,
-                pageStoreRegistry: pageStoreRegistry,
-                spaceAccess: spaceAccess,
-                tabStateArchive: tabStateArchive,
-                windowLayouts: windowLayouts,
-                startupBehavior: startupBehavior,
-                monitorsMemoryPressure: monitorsMemoryPressure,
-                usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
-                mediaSessionStore: mediaSessions,
-                downloads: downloads,
-                privateDownloads: privateDownloads
-            ))
+            wrappedValue: Runtime(
+                model: MobileBrowserWindowSceneModel(
+                    id: id,
+                    rootBrowser: rootBrowser,
+                    permissionCenter: permissionCenter,
+                    pageStoreRegistry: pageStoreRegistry,
+                    spaceAccess: spaceAccess,
+                    tabStateArchive: tabStateArchive,
+                    windowLayouts: windowLayouts,
+                    startupBehavior: startupBehavior,
+                    monitorsMemoryPressure: monitorsMemoryPressure,
+                    usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
+                    mediaSessionStore: mediaSessions,
+                    downloads: downloads,
+                    privateDownloads: privateDownloads
+                ))
         )
     }
 

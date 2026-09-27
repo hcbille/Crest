@@ -9,8 +9,9 @@ extension BrowserCloudSyncController {
     ) -> BrowserCloudSyncController {
         guard let configuration = configuration?.isolated(for: environment),
             let profileID = environment.persistentIsolationID,
-            let defaults = UserDefaults(suiteName:
-                BrowserLaunchEnvironment.isolatedDefaultsSuiteName(isolationID: profileID)
+            let defaults = UserDefaults(
+                suiteName:
+                    BrowserLaunchEnvironment.isolatedDefaultsSuiteName(isolationID: profileID)
                     + ".cloud." + configuration.zoneName)
         else {
             return BrowserCloudSyncController(

@@ -6,9 +6,10 @@ struct BrowserAddressPresentation: Equatable {
 
     init(_ text: String) {
         guard !text.isEmpty,
-              let components = URLComponents(string: text),
-              let rawHost = components.host,
-              !rawHost.isEmpty else {
+            let components = URLComponents(string: text),
+            let rawHost = components.host,
+            !rawHost.isEmpty
+        else {
             domain = text.isEmpty ? "Search or enter website" : text
             route = nil
             return

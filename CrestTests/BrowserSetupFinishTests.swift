@@ -19,7 +19,9 @@ final class BrowserSetupFinishTests: XCTestCase {
         XCTAssertEqual(guide.profileID, first.profileID)
         XCTAssertEqual(browser.shownTab?.id, guide.tabID)
         XCTAssertEqual(
-            browser.shownSpace?.tabs.values.filter { $0.nativeContent?.kind != BrowserNativeTabContent.gettingStarted.kind }, originalTabs)
+            browser.shownSpace?.tabs.values.filter {
+                $0.nativeContent?.kind != BrowserNativeTabContent.gettingStarted.kind
+            }, originalTabs)
         XCTAssertEqual(browser.core.state.setupCompleted, true)
 
         try browser.core.send(StartSetup(workspaceID: browser.family.workspaceID, entry: .rerun))

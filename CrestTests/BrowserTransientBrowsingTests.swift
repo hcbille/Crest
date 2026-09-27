@@ -470,7 +470,8 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         let access = makeAccessController()
 
         XCTAssertEqual(
-            BrowserTransientSessionPolicy.disposition(isPresentingRequest: false, space: locked, isLocked: access.isLocked),
+            BrowserTransientSessionPolicy.disposition(
+                isPresentingRequest: false, space: locked, isLocked: access.isLocked),
             .notPresented
         )
         XCTAssertEqual(
@@ -478,11 +479,13 @@ final class BrowserTransientBrowsingTests: XCTestCase {
             .sourceMissing
         )
         XCTAssertEqual(
-            BrowserTransientSessionPolicy.disposition(isPresentingRequest: true, space: locked, isLocked: access.isLocked),
+            BrowserTransientSessionPolicy.disposition(
+                isPresentingRequest: true, space: locked, isLocked: access.isLocked),
             .sourceLocked
         )
         XCTAssertEqual(
-            BrowserTransientSessionPolicy.disposition(isPresentingRequest: true, space: open, isLocked: access.isLocked),
+            BrowserTransientSessionPolicy.disposition(
+                isPresentingRequest: true, space: open, isLocked: access.isLocked),
             .usable(open)
         )
     }
@@ -536,7 +539,7 @@ final class BrowserTransientBrowsingTests: XCTestCase {
     private func makePolicySpace(name: String) -> SpaceState.Seed {
         let tab = TabState.Seed.startPage()
         return SpaceState.Seed(
-                        name: name,
+            name: name,
             symbol: "circle",
             accent: .indigo,
             folders: [],

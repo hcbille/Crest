@@ -19,7 +19,10 @@ extension BrowserShortcutStore {
         if ["=", "+"].contains(event.charactersIgnoringModifiers ?? ""),
             shortcut.modifiers == .command || shortcut.modifiers == [.command, .shift],
             self.shortcut(for: .zoomIn) == ShortcutCommand.zoomIn.defaultShortcut,
-            isEnabled(.zoomIn) { return .zoomIn }
+            isEnabled(.zoomIn)
+        {
+            return .zoomIn
+        }
         return nil
     }
 }

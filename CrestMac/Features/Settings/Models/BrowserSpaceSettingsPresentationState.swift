@@ -23,7 +23,6 @@ final class BrowserSpaceSettingsPresentationState {
         revision &+= 1
     }
 
-
     func requestedSpaceID(in browser: BrowserStore) -> UUID? {
         guard let requestedAssignment else { return nil }
         return browser.spaceModel(matching: requestedAssignment)?.id

@@ -145,9 +145,11 @@ final class BrowserWebHostViewTests: XCTestCase {
         oldHost.detach()
 
         XCTAssertTrue(view.superview === newHost)
-        XCTAssertEqual(view.attachedHosts.map(ObjectIdentifier.init),
+        XCTAssertEqual(
+            view.attachedHosts.map(ObjectIdentifier.init),
             [ObjectIdentifier(oldHost), ObjectIdentifier(newHost)])
-        XCTAssertTrue(view.detachedHosts.isEmpty,
+        XCTAssertTrue(
+            view.detachedHosts.isEmpty,
             "A stale host must not detach the surface now owned by another window")
         newHost.detach()
         XCTAssertNil(view.superview)

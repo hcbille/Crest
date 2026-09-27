@@ -72,7 +72,6 @@ struct BrowserSpaceHeaderActionsMenu: View {
             action: actions.showHistory
         )
 
-
         if let showPasswords = actions.showPasswords {
             if isPrivateBrowsing {
                 Label(

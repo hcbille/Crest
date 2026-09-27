@@ -181,7 +181,8 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
     func testCodecReusesLastKnownServerRecordSystemFields() throws {
         let source = makeTabRecord()
         let codec = BrowserCloudRecordCodec()
-        let base = CKRecord(recordType: "CrestTab", recordID: codec.recordID(for: SyncRecordReference(kind: .tab, id: source.id)))
+        let base = CKRecord(
+            recordType: "CrestTab", recordID: codec.recordID(for: SyncRecordReference(kind: .tab, id: source.id)))
 
         let encoded = try codec.record(for: source, reusing: base)
 
@@ -196,7 +197,9 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
         let source = makeTabRecord()
         let codec = BrowserCloudRecordCodec()
         let wrongZone = CKRecord(
-            recordType: "CrestTab", recordID: CKRecord.ID(recordName: "tab:\(source.id.uuidString.lowercased())", zoneID: .init(zoneName: "Other")))
+            recordType: "CrestTab",
+            recordID: CKRecord.ID(
+                recordName: "tab:\(source.id.uuidString.lowercased())", zoneID: .init(zoneName: "Other")))
         XCTAssertNil(codec.syncRecord(from: wrongZone))
         let good = try codec.record(for: source)
         XCTAssertNil(codec.syncRecord(from: CKRecord(recordType: "CrestFolder", recordID: good.recordID)))
@@ -234,7 +237,8 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
             body: Data("{}".utf8), isTombstone: false)
         let cloud = try codec.record(for: open)
         let saved = SyncRecord(
-            kind: .folder, id: open.id, spaceID: open.spaceID, version: SyncVersion(clock: 2, deviceID: open.version.deviceID),
+            kind: .folder, id: open.id, spaceID: open.spaceID,
+            version: SyncVersion(clock: 2, deviceID: open.version.deviceID),
             schema: 1, body: Data("{}".utf8), isTombstone: false)
 
         XCTAssertEqual((try codec.record(for: saved, reusing: cloud)["schemaVersion"] as? NSNumber)?.intValue, 1)
@@ -265,7 +269,8 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
         let legacy = CloudRecordFields(recordName: archived.recordName, fields: archived.fields, schemaVersion: nil)
         let base = try XCTUnwrap(legacy.record(for: cloud.recordID))
         XCTAssertEqual(
-            BrowserCloudRecordCodec().syncRecord(from: try BrowserCloudRecordCodec().record(for: source, reusing: base)), source)
+            BrowserCloudRecordCodec().syncRecord(
+                from: try BrowserCloudRecordCodec().record(for: source, reusing: base)), source)
     }
 
     private static let space = UUID(uuidString: "30000000-0000-0000-0000-000000000001")!
@@ -274,7 +279,8 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
     private func makeTabRecord() -> SyncRecord {
         SyncRecord(
             kind: .tab, id: UUID(uuidString: "30000000-0000-0000-0000-000000000002")!, spaceID: Self.space,
-            version: SyncVersion(clock: 1, deviceID: Self.device), schema: 1, body: Data(#"{"type":"tab","value":{}}"#.utf8),
+            version: SyncVersion(clock: 1, deviceID: Self.device), schema: 1,
+            body: Data(#"{"type":"tab","value":{}}"#.utf8),
             isTombstone: false)
     }
 
@@ -287,7 +293,8 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
 
     private func makeSpaceRecord() -> SyncRecord {
         SyncRecord(
-            kind: .space, id: Self.space, spaceID: Self.space, version: SyncVersion(clock: 3, deviceID: Self.device), schema: 1,
+            kind: .space, id: Self.space, spaceID: Self.space, version: SyncVersion(clock: 3, deviceID: Self.device),
+            schema: 1,
             body: Data(#"{"type":"space","value":{}}"#.utf8), isTombstone: false)
     }
 }

@@ -265,7 +265,9 @@ final class WebKitEnginePages: EnginePages {
     /// own prompt decided it, so Crest ends it.
     private func stopCapture(_ stopping: StopMediaCapture) -> Bool {
         guard let webView = page(stopping.pageID)?.webView else { return false }
-        if stopping.permission.devices.contains(.camera) { webView.setCameraCaptureState(.none, completionHandler: nil) }
+        if stopping.permission.devices.contains(.camera) {
+            webView.setCameraCaptureState(.none, completionHandler: nil)
+        }
         if stopping.permission.devices.contains(.microphone) {
             webView.setMicrophoneCaptureState(.none, completionHandler: nil)
         }

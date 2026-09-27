@@ -51,10 +51,12 @@ struct StoredSyncJournal {
             guard let version = record["version"] as? [String: Any],
                 let clock = (version["logicalClock"] as? NSNumber)?.uint64Value,
                 let writer = (version["deviceID"] as? String).flatMap(UUID.init(uuidString:)),
-                let space = ((record["spaceID"] as? [String: Any])?["rawValue"] as? String).flatMap(UUID.init(uuidString:))
+                let space = ((record["spaceID"] as? [String: Any])?["rawValue"] as? String).flatMap(
+                    UUID.init(uuidString:))
             else { throw ReadError.malformed("record") }
             return Record(
-                reference: try Self.reference(record["id"]), spaceID: space, version: SyncVersion(clock: clock, deviceID: writer),
+                reference: try Self.reference(record["id"]), spaceID: space,
+                version: SyncVersion(clock: clock, deviceID: writer),
                 value: (record["payload"] as? [String: Any])?["value"] as? [String: Any],
                 deletionReason: SyncDeletionReason.named((record["tombstone"] as? [String: Any])?["reason"] as? String))
         }
@@ -80,7 +82,8 @@ struct StoredSyncJournal {
     /// syncs the current tabs unless `syncsCurrentTabs` is false.
     static func fresh(deviceID: UUID, syncsCurrentTabs: Bool = true) -> Data {
         let preferences: [String: Any] = [
-            "savedStructure": true, "currentTabs": syncsCurrentTabs, "historyAndArchive": true, "extensionSettings": true,
+            "savedStructure": true, "currentTabs": syncsCurrentTabs, "historyAndArchive": true,
+            "extensionSettings": true,
         ]
         let document: [String: Any] = [
             "schemaVersion": 1, "deviceID": deviceID.uuidString, "logicalClock": 0, "preferences": preferences,

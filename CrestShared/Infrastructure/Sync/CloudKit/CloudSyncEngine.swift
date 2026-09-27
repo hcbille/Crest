@@ -135,7 +135,8 @@ actor BrowserCloudSyncEngine {
                 throw BrowserCloudSyncError.remoteChangeNotApplied(failure)
             }
             guard !transport.requiresFullPull else {
-                throw BrowserCloudSyncError.remoteChangeNotApplied("Pull from iCloud to recover an incomplete download.")
+                throw BrowserCloudSyncError.remoteChangeNotApplied(
+                    "Pull from iCloud to recover an incomplete download.")
             }
             await enqueueLocalChanges(on: syncEngine)
             try await syncEngine.sendChanges(.init(scope: .zoneIDs([codec.recordZoneID])))

@@ -12,9 +12,10 @@ enum BrowserSoftwareUpdateChannel: String, Identifiable, Sendable, CaseIterable 
     static var allCases: [Self] {
         var channels: [Self] = [.stable, .nightly, .development]
 
-        let bundledDefault = Bundle.main.object(
-            forInfoDictionaryKey: "CrestDefaultUpdateChannel"
-        ) as? String
+        let bundledDefault =
+            Bundle.main.object(
+                forInfoDictionaryKey: "CrestDefaultUpdateChannel"
+            ) as? String
 
         if bundledDefault == Self.experimental.rawValue {
             channels.append(.experimental)

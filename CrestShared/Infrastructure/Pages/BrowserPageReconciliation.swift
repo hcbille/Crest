@@ -28,7 +28,8 @@ struct BrowserPageReconciliation {
         for space in workspace?.spaces.models ?? [] {
             let spaceAssignment = BrowserSpaceRuntimeAssignment(space: space)
             for tab in space.tabs.models {
-                let assignment = BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
+                let assignment = BrowserTabRuntimeAssignment(
+                    tabID: tab.id, spaceID: space.id, profileID: space.profileID)
                 precondition(tabsByID[tab.id] == nil)
                 tabsByID[tab.id] = (tab, assignment)
             }

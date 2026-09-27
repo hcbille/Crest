@@ -2,7 +2,9 @@ import Foundation
 
 /// A password stays only in process memory until the person accepts or dismisses
 /// the native save/update prompt. This value is deliberately non-Codable and redacted.
-struct BrowserCredentialSaveCandidate: Identifiable, Equatable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
+struct BrowserCredentialSaveCandidate: Identifiable, Equatable, Sendable, CustomStringConvertible,
+    CustomDebugStringConvertible
+{
     let id: UUID
     let origin: CredentialOrigin
     let topLevelOrigin: CredentialOrigin

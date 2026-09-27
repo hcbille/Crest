@@ -15,7 +15,8 @@ enum BrowserHTTPAuthenticationDecision: Sendable {
     /// The credential the decision answers a server with, if any.
     var credential: AuthenticationCredential? {
         switch self {
-        case .useCredential(let username, let password): AuthenticationCredential(username: username, password: password)
+        case .useCredential(let username, let password):
+            AuthenticationCredential(username: username, password: password)
         case .cancel, .performDefaultHandling: nil
         }
     }

@@ -54,7 +54,8 @@ struct CredentialDescriptor: Codable, Equatable, Identifiable, Sendable {
         id = try container.decodeIdentity(forKey: .id)
         spaceID = try container.decodeIdentity(forKey: .spaceID)
         origin = try container.decode(CredentialOrigin.self, forKey: .origin)
-        scope = try container.decodeIfPresent(BrowserCredentialScope.self, forKey: .scope)
+        scope =
+            try container.decodeIfPresent(BrowserCredentialScope.self, forKey: .scope)
             ?? .webForm
         username = try container.decode(String.self, forKey: .username)
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName)

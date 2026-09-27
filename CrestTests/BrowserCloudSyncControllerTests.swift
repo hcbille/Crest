@@ -54,7 +54,8 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
             configuration: testConfiguration,
             preferences: preferences,
             remoteService: TestBrowserCloudSyncRemoteService(
-                accountState: .available, snapshot: try await cloudRecords(of: SessionState.Seed(spaces: [.blank(number: 1)]))),
+                accountState: .available,
+                snapshot: try await cloudRecords(of: SessionState.Seed(spaces: [.blank(number: 1)]))),
             transportFactory: factory
         )
 

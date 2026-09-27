@@ -61,7 +61,7 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
         let lone = makeTab("First Arrival", group: group)
         let metadata = SplitGroupState.Seed(id: group, customTitle: "Synced Pair", titleModifiedAt: mutationDate)
         let space = SpaceState.Seed(
-                        name: "Work",
+            name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
             folders: [],
@@ -105,7 +105,7 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
         tabs: [TabState.Seed]
     ) -> SpaceState.Seed {
         SpaceState.Seed(
-                        name: name,
+            name: name,
             symbol: "briefcase.fill",
             accent: .indigo,
             folders: folders,

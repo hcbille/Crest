@@ -5,13 +5,13 @@ final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
     var perform: @MainActor @Sendable (BrowserSidebarMouseButtonAction) -> Void
     /// The window's live pages, asked for at event time so a page created or
     /// released since the last SwiftUI update is never consulted.
-    var navigationTargets:
-        @MainActor @Sendable () -> [any BrowserSidebarMouseNavigationTarget]
+    var navigationTargets: @MainActor @Sendable () -> [any BrowserSidebarMouseNavigationTarget]
     private var eventMonitor: Any?
 
     init(
         perform: @escaping @MainActor @Sendable (BrowserSidebarMouseButtonAction) -> Void,
-        navigationTargets: @escaping @MainActor @Sendable ()
+        navigationTargets:
+            @escaping @MainActor @Sendable ()
             -> [any BrowserSidebarMouseNavigationTarget]
     ) {
         self.perform = perform

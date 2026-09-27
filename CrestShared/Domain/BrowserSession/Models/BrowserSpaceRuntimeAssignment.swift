@@ -3,11 +3,6 @@ import Foundation
 struct BrowserSpaceRuntimeAssignment: Equatable, Hashable, Sendable {
     let spaceID: UUID
     let profileID: UUID
-
-    init(spaceID: UUID, profileID: UUID) {
-        self.spaceID = spaceID
-        self.profileID = profileID
-    }
 }
 
 // MARK: - Codable

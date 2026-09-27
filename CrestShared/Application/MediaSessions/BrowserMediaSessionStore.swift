@@ -166,16 +166,18 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
             tabID: owner.tabID,
             documentIdentifier: event.documentIdentifier
         )
-        guard let decision = BrowserCorePolicy.mediaSessionEvent(
-            event,
-            isRetired: retiredIDs.contains(id),
-            lastSequence: lastSequenceByID[id],
-            ordinal: ordinalByID[id],
-            isDismissed: dismissedIDs.contains(id),
-            previousPlayback: snapshotsByID[id]?.playbackState,
-            retainedIdentities: lastSequenceByID.count,
-            nextOrdinal: nextOrdinal
-        ) else { return }
+        guard
+            let decision = BrowserCorePolicy.mediaSessionEvent(
+                event,
+                isRetired: retiredIDs.contains(id),
+                lastSequence: lastSequenceByID[id],
+                ordinal: ordinalByID[id],
+                isDismissed: dismissedIDs.contains(id),
+                previousPlayback: snapshotsByID[id]?.playbackState,
+                retainedIdentities: lastSequenceByID.count,
+                nextOrdinal: nextOrdinal
+            )
+        else { return }
         recordSequence(event.sequence, for: id, evictingOldest: decision.evictOldest)
         endpointsByID[id] = WeakEndpoint(endpoint)
         ownersByID[id] = owner
@@ -418,13 +420,15 @@ final class BrowserMediaSessionStore: BrowserSidebarWidgetEventSource {
     /// ones follow in the order they arrived.
     private func publishIfChanged() {
         let current = Array(snapshotsByID.values)
-        let next = BrowserCorePolicy.mediaSessionArbitration(current)?.order ?? {
-            let placed = sessions.compactMap { snapshotsByID[$0.id] }
-            let placedIDs = Set(placed.map(\.id))
-            let arrivals = current.filter { !placedIDs.contains($0.id) }
-                .sorted { $0.orderingOrdinal < $1.orderingOrdinal }
-            return placed + arrivals
-        }()
+        let next =
+            BrowserCorePolicy.mediaSessionArbitration(current)?.order
+            ?? {
+                let placed = sessions.compactMap { snapshotsByID[$0.id] }
+                let placedIDs = Set(placed.map(\.id))
+                let arrivals = current.filter { !placedIDs.contains($0.id) }
+                    .sorted { $0.orderingOrdinal < $1.orderingOrdinal }
+                return placed + arrivals
+            }()
         if next != sessions {
             sessions = next
             for continuation in sessionSubscribers.values {

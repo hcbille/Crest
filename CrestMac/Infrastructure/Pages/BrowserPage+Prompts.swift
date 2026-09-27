@@ -7,7 +7,8 @@ extension BrowserPage: BrowserPromptPresenting {
 
     func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {
         let question = asked.question
-        let request = URLRequest(url: URL(string: question.sourceURL) ?? pageEngine.currentURL ?? URL(fileURLWithPath: "/"))
+        let request = URLRequest(
+            url: URL(string: question.sourceURL) ?? pageEngine.currentURL ?? URL(fileURLWithPath: "/"))
         let corePage = corePage
         let promptID = asked.promptID
         let reply: @MainActor @Sendable (Bool, String?) -> Void = { accepted, text in

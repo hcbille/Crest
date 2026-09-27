@@ -42,15 +42,16 @@ struct BrowserPeekSourcePresentation: Codable, Equatable, Hashable, Sendable {
     static func resolved(
         _ sourcePresentation: BrowserPeekSourcePresentation?
     ) -> BrowserPeekSourcePresentation {
-        sourcePresentation ?? BrowserPeekSourcePresentation(
-            normalizedMinX: 0.5,
-            normalizedMinY: 0.5,
-            normalizedWidth: 0,
-            normalizedHeight: 0,
-            normalizedTouchX: 0.5,
-            normalizedTouchY: 0.5,
-            label: "Browser center"
-        )
+        sourcePresentation
+            ?? BrowserPeekSourcePresentation(
+                normalizedMinX: 0.5,
+                normalizedMinY: 0.5,
+                normalizedWidth: 0,
+                normalizedHeight: 0,
+                normalizedTouchX: 0.5,
+                normalizedTouchY: 0.5,
+                label: "Browser center"
+            )
     }
 
     private static func normalizedValue(_ value: Double) -> Double {

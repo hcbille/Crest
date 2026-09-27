@@ -15,7 +15,8 @@ extension MobileBrowserPage: BrowserPromptPresenting {
         }
         switch question.kind {
         case .alert:
-            MobileBrowserDialogPresenter.presentAlert(message: question.message, request: request, dismissal: dismissal) {
+            MobileBrowserDialogPresenter.presentAlert(message: question.message, request: request, dismissal: dismissal)
+            {
                 reply(true, nil)
             }
         case .confirm, .beforeUnload:

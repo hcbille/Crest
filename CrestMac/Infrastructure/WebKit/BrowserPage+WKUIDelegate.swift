@@ -6,7 +6,6 @@ import UniformTypeIdentifiers
 import WebKit
 import os
 
-
 extension BrowserPage: WKUIDelegate {
     /// The PDF HUD supplies its live document bytes through this desktop
     /// callback, rather than creating a WKDownload. Keep the supplied data:
@@ -208,7 +207,8 @@ extension BrowserPage: WKUIDelegate {
             return
         }
         answerPermission(
-            SitePermission(type), origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin, from: webKitAdapter?.webKitPage,
+            SitePermission(type), origin: SiteOrigin(origin), topLevelOrigin: topLevelOrigin,
+            from: webKitAdapter?.webKitPage,
             decisionHandler: decisionHandler)
     }
 

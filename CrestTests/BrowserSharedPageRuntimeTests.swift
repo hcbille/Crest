@@ -272,7 +272,8 @@ final class BrowserSharedPageRuntimeTests: XCTestCase {
         // The core moves the tab first, with the address its page reached, and
         // then its archived page state follows it, as the window coordinator
         // moves them.
-        XCTAssertTrue(source.browser.transferTab(tab.id, matching: spaceAssignment, to: destination.browser, in: spaceAssignment))
+        XCTAssertTrue(
+            source.browser.transferTab(tab.id, matching: spaceAssignment, to: destination.browser, in: spaceAssignment))
         XCTAssertTrue(
             destination.transferTabRuntime(
                 from: source, matching: assignment, as: try pageTab(assignment, in: destination),

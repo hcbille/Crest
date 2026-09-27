@@ -18,9 +18,11 @@ enum BrowserPlatformDefaultBrowserSystem {
         }
 
         return destinations.allSatisfy { destination in
-            guard let handlerURL = workspace.urlForApplication(
-                toOpen: destination
-            ) else {
+            guard
+                let handlerURL = workspace.urlForApplication(
+                    toOpen: destination
+                )
+            else {
                 return false
             }
             return Bundle(url: handlerURL)?.bundleIdentifier

@@ -84,7 +84,6 @@ final class BrowserSettingsPaneTests: XCTestCase {
     /// status *string*. The condition decides once, and the label and colour both
     /// read from the decision.
 
-
     // MARK: - Passwords
 
     /// The pane's search runs over four fields, and both shells had written their own
@@ -163,6 +162,5 @@ final class BrowserSettingsPaneTests: XCTestCase {
         XCTAssertEqual(browser.workspaceModel?.defaultSpaceID, other.id)
         XCTAssertEqual(defaultSpace.wrappedValue, other.id)
     }
-
 
 }

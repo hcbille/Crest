@@ -94,7 +94,8 @@
             case .extensionInstallAsked(let asked):
                 CrestChromiumRoot.extensions.review(asked) { [weak self] accepted, withholds in
                     self?.answer(
-                        AnswerExtensionInstall(promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
+                        AnswerExtensionInstall(
+                            promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
                 }
             case .promptSettled(let settled):
                 dismissals.removeValue(forKey: settled.promptID)?.dismiss()

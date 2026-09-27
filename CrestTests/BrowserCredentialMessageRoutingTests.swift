@@ -165,7 +165,7 @@ final class BrowserCredentialMessageRoutingTests: XCTestCase {
     private func makePage() throws -> BrowserPage {
         let tab = TabState.Seed.startPage()
         let space = SpaceState.Seed(
-                        name: "Routing",
+            name: "Routing",
             symbol: "circle",
             accent: .indigo,
             folders: [],

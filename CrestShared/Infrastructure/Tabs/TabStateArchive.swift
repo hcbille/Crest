@@ -1,6 +1,6 @@
+import CryptoKit
 import Dispatch
 import Foundation
-import CryptoKit
 
 final class BrowserTabStateArchive: BrowserTabStateArchiving, @unchecked Sendable {
     /// One tab's framed state may not exceed this. A page with an enormous
@@ -45,11 +45,14 @@ final class BrowserTabStateArchive: BrowserTabStateArchiving, @unchecked Sendabl
         guard environment.requiresIsolation else { return production() }
         guard !environment.isXCTestRuntime, !environment.isSwiftUIPreviewRuntime,
             let identity = environment.persistentIsolationID,
-            let base = production()?.rootDirectory else { return nil }
+            let base = production()?.rootDirectory
+        else { return nil }
         let namespace = SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
-        return BrowserTabStateArchive(rootDirectory: base
-            .appendingPathComponent("Isolated", isDirectory: true)
-            .appendingPathComponent(namespace, isDirectory: true))
+        return BrowserTabStateArchive(
+            rootDirectory:
+                base
+                .appendingPathComponent("Isolated", isDirectory: true)
+                .appendingPathComponent(namespace, isDirectory: true))
     }
 
     init(

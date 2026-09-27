@@ -1,11 +1,11 @@
 import Foundation
 
 #if os(macOS)
-import AppKit
-typealias BrowserEngineView = NSView
+    import AppKit
+    typealias BrowserEngineView = NSView
 #else
-import UIKit
-typealias BrowserEngineView = UIView
+    import UIKit
+    typealias BrowserEngineView = UIView
 #endif
 
 /// The native page port used by the existing UI: the engine's view and what it
@@ -40,9 +40,9 @@ protocol BrowserPageEngine: AnyObject {
     /// document that the page cannot see; nil when it produced no value.
     func evaluateInMainFrame(_ body: String) async -> Any?
     #if os(macOS)
-    /// The engine's own print operation for its view, a page at a time; nil
-    /// when the page prints from the PDF its engine exports.
-    func printOperation(with info: NSPrintInfo) -> NSPrintOperation?
+        /// The engine's own print operation for its view, a page at a time; nil
+        /// when the page prints from the PDF its engine exports.
+        func printOperation(with info: NSPrintInfo) -> NSPrintOperation?
     #endif
 }
 
@@ -55,7 +55,7 @@ extension BrowserPageEngine {
         await contentScripting?.callAsyncJavaScriptInMainFrame(body)
     }
     #if os(macOS)
-    func printOperation(with info: NSPrintInfo) -> NSPrintOperation? { nil }
+        func printOperation(with info: NSPrintInfo) -> NSPrintOperation? { nil }
     #endif
 }
 
