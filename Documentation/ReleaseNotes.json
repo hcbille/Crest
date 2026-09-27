@@ -3045,6 +3045,10 @@
     "generated-password-records-redact-themselves": {
       "category": "internal",
       "message": "Records that carry passwords to and from the core now describe themselves without naming any secret, generated from the core's contracts."
+    },
+    "generated-message-handlers": {
+      "category": "internal",
+      "message": "The contract generator now gives each family of core messages a handler interface in the core and a handling protocol in the apps, so a new message without a handler fails to build."
     }
   }
 }

@@ -54,6 +54,9 @@ internal static class SwiftEmitter {
             code.Append($"protocol {family.Base!.Name}: {family.Root} {{}}\n");
         }
         foreach (var root in ContractRoot.All.Where(root => !root.PlatformSends)) EmitUnion(code, schema, root, equatable);
+        var handled = ContractRoot.All.Where(root => root.PlatformHandles).ToList();
+        if (handled.Count > 0) code.Append("\n// MARK: - Handlers\n");
+        foreach (var root in handled) EmitHandling(code, schema, root);
         code.Append("""
 
             extension CoreState {
@@ -284,14 +287,67 @@ internal static class SwiftEmitter {
 
     /// A root the platform sends becomes the protocol its messages conform to,
     /// each encoding itself with its tag; a question also decodes its answer.
+    /// One a Swift receiver handles also hands itself to its handler.
     private static void EmitProtocol(StringBuilder code, ContractRoot root) {
         code.Append('\n').Append($"/// {root.SwiftDocumentation}\n");
         code.Append($"protocol {root.Name}: Sendable {{\n");
         if (root.HasAnswer) code.Append("    associatedtype Answer: Sendable\n");
         code.Append($"    func encode{root.Name}(into writer: inout WireWriter)\n");
         if (root.HasAnswer) code.Append("    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer\n");
+        if (root.PlatformHandles) {
+            code.Append($"    /// Hands the {Parameter(root)} to `handler`'s method for its case{(root.HasAnswer ? ", which answers it" : "")}.\n");
+            code.Append($"    @MainActor func dispatch(to handler: some {Handling(root)}){(root.HasAnswer ? " -> Answer" : "")}\n");
+        }
         code.Append("}\n");
     }
+
+    /// A root a Swift receiver handles case by case gets a `<Root>Handling`
+    /// protocol with one `handle(_:)` per member, and `dispatch(to:)`, which
+    /// calls the one for the message's case: a switch over a received union,
+    /// or each sent message's own method. A receiver that handles every case
+    /// conforms to it, so a new member it does not handle fails to compile. A
+    /// union that answers nothing also gets `<Root>Observing`, whose cases do
+    /// nothing until a receiver that watches for only some of them handles them.
+    private static void EmitHandling(StringBuilder code, ContractSchema schema, ContractRoot root) {
+        var members = schema.Members(root);
+        string handling = Handling(root);
+        string parameter = Parameter(root);
+        code.Append('\n').Append($"/// Handles each case of `{root.Name}`, one method per case, which `{parameter}.dispatch(to:)` calls.");
+        code.Append(root.HasAnswer ? " Each answers its request.\n" : $"\n/// A receiver that handles only some cases conforms to `{Observing(root)}`.\n");
+        code.Append($"@MainActor\nprotocol {handling} {{\n");
+        foreach (var member in members)
+            code.Append($"    func handle(_ {parameter}: {member.Name}){(root.HasAnswer ? $" -> {TypeName(member.Answer!)}" : "")}\n");
+        code.Append("}\n");
+        if (root.PlatformSends) {
+            foreach (var member in members) {
+                string answer = root.HasAnswer ? $" -> {TypeName(member.Answer!)}" : "";
+                code.Append('\n').Append($"extension {member.Name} {{\n");
+                code.Append($"    @MainActor func dispatch(to handler: some {handling}){answer} {{\n");
+                code.Append("        handler.handle(self)\n    }\n}\n");
+            }
+            return;
+        }
+        code.Append('\n').Append($"/// A `{handling}` that observes only some cases: each case it does not handle does nothing.\n");
+        code.Append($"@MainActor\nprotocol {Observing(root)}: {handling} {{}}\n");
+        code.Append('\n').Append($"extension {Observing(root)} {{\n");
+        foreach (var member in members) code.Append($"    func handle(_ {parameter}: {member.Name}) {{}}\n");
+        code.Append("}\n");
+        code.Append('\n').Append($"extension {root.Name} {{\n");
+        code.Append($"    /// Hands the {parameter} to `handler`'s method for its case.\n");
+        code.Append($"    @MainActor func dispatch(to handler: some {handling}) {{\n        switch self {{\n");
+        foreach (var member in members)
+            code.Append($"        case .{Naming.SwiftMember(member.Name)}(let {parameter}): handler.handle({parameter})\n");
+        code.Append("        }\n    }\n}\n");
+    }
+
+    /// `Change`'s handling protocol is `ChangeHandling`.
+    private static string Handling(ContractRoot root) => $"{root.Name}Handling";
+
+    private static string Observing(ContractRoot root) => $"{root.Name}Observing";
+
+    /// What a message of `root` is called in its handler: the last word of
+    /// the root's name, as `command` for `EngineCommand`.
+    private static string Parameter(ContractRoot root) => Naming.Words(root.Name)[^1].ToLowerInvariant();
 
     /// A root the platform receives becomes an enum with a case per message.
     /// Each text some of its messages carry is read through the enum as an

@@ -25,21 +25,21 @@ internal sealed class ContractRoot {
 
     public static readonly ContractRoot Intent = new(typeof(Intent), travelsToCore: true,
         swiftDocumentation: "A request to change the core's state, sent with `CrestCore.send`.");
-    public static readonly ContractRoot Change = new(typeof(Change), travelsToCore: false,
+    public static readonly ContractRoot Change = new(typeof(Change), travelsToCore: false, platformHandles: true,
         swiftDocumentation: "Everything an intent can change. `CoreState.apply` keeps the read model current.");
     public static readonly ContractRoot Rejection = new(typeof(Rejection), travelsToCore: false,
         swiftDocumentation: "The rule that refused an intent or a query.", swiftConformances: "Error, Sendable");
     public static readonly ContractRoot Query = new(typeof(Query<>), travelsToCore: true,
         swiftDocumentation: "A question the core answers without changing state, asked with `CrestCore.query`.");
     public static readonly ContractRoot EngineCommand = new(typeof(EngineCommand), travelsToCore: false, isEngine: true,
-        swiftDocumentation: "What the core asks an engine binding to do, run by `EngineBinding.run`.");
+        platformHandles: true, swiftDocumentation: "What the core asks an engine binding to do, run by `EngineBinding.run`.");
     public static readonly ContractRoot EngineEvent = new(typeof(EngineEvent), travelsToCore: true, isEngine: true,
         swiftDocumentation: "What happened to one of an engine binding's pages, reported with `CrestCore.report`.");
     public static readonly ContractRoot PageRequest = new(typeof(PageRequest<>), travelsToCore: false, isEngine: true,
-        reachesCore: false, platformSends: true,
+        reachesCore: false, platformSends: true, platformHandles: true,
         swiftDocumentation: "What the platform asks a page's engine binding directly, answered at once.");
     public static readonly ContractRoot EnginePresentation = new(typeof(EnginePresentation), travelsToCore: false, isEngine: true,
-        reachesCore: false, platformSends: false,
+        reachesCore: false, platformSends: false, platformHandles: true,
         swiftDocumentation: "What an engine binding tells the platform directly about one of its pages.");
     public static readonly ContractRoot EngineQuestion = new(typeof(EngineQuestion<>), travelsToCore: true, isEngine: true,
         swiftDocumentation: "What an engine binding asks the core about one of its pages while the engine waits, answered at once.");
@@ -68,6 +68,18 @@ internal sealed class ContractRoot {
     /// Part of the engine contract rather than the application API.
     public bool IsEngine { get; }
 
+    /// The core hands each message of this root it reads to the receiver
+    /// that owns what the message is about, through the handler interface of
+    /// the message's family.
+    public bool CoreHandles => TravelsToCore;
+
+    /// A Swift receiver handles the messages of this root case by case,
+    /// through the root's handling protocol: the changes the read model
+    /// applies, the commands and page requests an engine binding runs, and
+    /// what a binding presents to its pages. A rejection is an error a caller
+    /// catches, never handled case by case.
+    public bool PlatformHandles { get; }
+
     /// Each message is a question with a typed answer.
     public bool HasAnswer => Type.IsGenericTypeDefinition;
 
@@ -83,12 +95,13 @@ internal sealed class ContractRoot {
     #region Constructors
 
     private ContractRoot(Type type, bool travelsToCore, string swiftDocumentation, bool isEngine = false,
-        bool reachesCore = true, bool? platformSends = null, string swiftConformances = "Sendable") {
+        bool reachesCore = true, bool? platformSends = null, bool platformHandles = false, string swiftConformances = "Sendable") {
         Type = type;
-        Name = type.IsGenericTypeDefinition ? type.Name[..type.Name.IndexOf('`', StringComparison.Ordinal)] : type.Name;
+        Name = ContractFamily.NameOf(type);
         TravelsToCore = travelsToCore;
         ReachesCore = reachesCore;
         PlatformSends = platformSends ?? travelsToCore;
+        PlatformHandles = platformHandles;
         IsEngine = isEngine;
         SwiftDocumentation = swiftDocumentation;
         SwiftConformances = swiftConformances;
@@ -187,6 +200,25 @@ internal sealed record ContractRecord(Type Type, IReadOnlyList<ContractField> Fi
 /// an intent or a query the most bytes one encoded message may take.
 internal sealed record ContractMember(ContractRecord Record, int Tag, FieldType? Answer, int? MaximumBytes) {
     public string Name => Record.Name;
+}
+
+/// A union family: a root, or an abstract record some of its members derive
+/// from, with its cases in ordinal name order. A case is a concrete member, or
+/// a family, whose nearest family is this one. A receiver handles a family
+/// case by case, so a family's handler has exactly these cases, and a case
+/// that is a family goes on to that family's own handler. A family of a root
+/// whose messages are questions is generic over the answer, as the root is.
+internal sealed record ContractFamily(ContractRoot Root, Type Type, IReadOnlyList<Type> Cases) {
+    public string Name => NameOf(Type);
+
+    public bool IsRoot => Type == Root.Type;
+
+    /// Whether `type`, one of the cases, is a family of its own.
+    public static bool IsFamily(Type type) => type.IsAbstract;
+
+    /// A type's name without its generic arity: `Query` for `Query<>`.
+    public static string NameOf(Type type) =>
+        type.IsGenericTypeDefinition ? type.Name[..type.Name.IndexOf('`', StringComparison.Ordinal)] : type.Name;
 }
 
 internal sealed record ContractEnum(Type Type, bool IsFlags, IReadOnlyList<KeyValuePair<string, int>> Members) {
@@ -296,6 +328,11 @@ internal sealed class ContractSchema {
             .OrderBy(family => family.Base.Name, StringComparer.Ordinal)
             .Select(family => new RootField(family.Root, family.Base))];
 
+    /// Every union family: each root's own, then the families below it in
+    /// ordinal name order. Families shape how receivers handle messages, not
+    /// the wire, so the canonical description leaves them out.
+    public IReadOnlyList<ContractFamily> Unions { get; private set; } = [];
+
     public string Canonical { get; private set; } = "";
 
     public byte[] Fingerprint => SHA256.HashData(Encoding.UTF8.GetBytes(Canonical));
@@ -363,6 +400,7 @@ internal sealed class ContractSchema {
         foreach (var set in sets.OrderBy(type => type.Name, StringComparer.Ordinal)) schema.DescribeSet(set, set.Name);
         schema.Validate();
         schema.FindSeeds();
+        schema.Unions = schema.DescribeUnions();
         schema.Canonical = schema.Describe();
         return schema;
     }
@@ -783,6 +821,50 @@ internal sealed class ContractSchema {
     /// `<Applies>k__BackingField` is the field behind the property `Applies`.
     private static string DeclaredName(string field) =>
         field.StartsWith('<') && field.IndexOf('>', StringComparison.Ordinal) is > 1 and var end ? field[1..end] : field;
+
+    #endregion
+
+    #region Actions - Families
+
+    /// Each root's family, then the families below it, each with its cases:
+    /// the members and families whose nearest family it is.
+    private List<ContractFamily> DescribeUnions() {
+        var unions = new List<ContractFamily>();
+        foreach (var root in ContractRoot.All) {
+            var parents = new Dictionary<Type, Type>();
+            foreach (var member in roots[root]) {
+                var child = member.Record.Type;
+                foreach (var family in FamilyAncestors(child, root)) {
+                    parents[child] = family;
+                    child = family;
+                }
+                parents[child] = root.Type;
+            }
+            var families = parents.Values.Distinct().Where(family => family != root.Type)
+                .OrderBy(ContractFamily.NameOf, StringComparer.Ordinal).Prepend(root.Type);
+            foreach (var family in families)
+                unions.Add(new ContractFamily(root, family, [.. parents.Where(parent => parent.Value == family).Select(parent => parent.Key)
+                    .OrderBy(ContractFamily.NameOf, StringComparer.Ordinal)]));
+        }
+        return unions;
+    }
+
+    /// The abstract records `type` derives from below `root`, nearest first.
+    /// A question's family is generic over its answer, as its root is, and is
+    /// named by its generic definition.
+    private static IEnumerable<Type> FamilyAncestors(Type type, ContractRoot root) {
+        for (var current = type.BaseType; current is not null; current = current.BaseType) {
+            var definition = current.IsGenericType ? current.GetGenericTypeDefinition() : current;
+            if (definition == root.Type) yield break;
+            if (!current.IsAbstract || !current.IsPublic) continue;
+            bool passesAnswer = definition.IsGenericTypeDefinition && definition.GetGenericArguments().Length == 1
+                && definition.BaseType is { IsGenericType: true } parent && parent.GetGenericArguments().SequenceEqual(definition.GetGenericArguments());
+            if (root.HasAnswer != current.IsGenericType || (root.HasAnswer && !passesAnswer))
+                throw new ContractSchemaException($"{ContractFamily.NameOf(definition)}: a family of {root} is generic over the answer "
+                    + (root.HasAnswer ? "alone, which it passes to its base, as its root is." : "only when its root is."));
+            yield return definition;
+        }
+    }
 
     #endregion
 
