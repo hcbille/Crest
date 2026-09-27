@@ -3125,6 +3125,10 @@
     "chromium-window-size-remembered": {
       "category": "fixed",
       "message": "In the Chromium build, a new window opens at the size of the window you're using instead of its smallest size, and a window you close and reopen keeps saving its size."
+    },
+    "sidebar-drop-into-open-lands-from-drop": {
+      "category": "fixed",
+      "message": "A tab dragged into Open tabs now settles from where you drop it, instead of jumping back to where you picked it up first."
     }
   }
 }

@@ -35,6 +35,12 @@ final class BrowserSidebarReorderState {
     @ObservationIgnored private var landingExpirationTask: Task<Void, Never>?
     @ObservationIgnored private var needsLandingMeasurement = false
     @ObservationIgnored private var landingSection: BrowserSidebarReorderSection?
+    /// The view the landing row was lifted from, when the lift landed in
+    /// another list. That view is leaving, and it measures itself once more
+    /// on its way out: it reads the row's own model, so it names the list the
+    /// row joined, from the slot the row left. The section alone cannot tell
+    /// it from the view that arrived, so it never measures the landing.
+    @ObservationIgnored private var landingDepartingOwner: UUID?
     /// The rows the landing preview carries, kept with it.
     @ObservationIgnored private var landingRowIDs: Set<BrowserSidebarReorderItemID> = []
     /// The section order a lift's insertion reads, worked out once per target
@@ -61,6 +67,7 @@ final class BrowserSidebarReorderState {
         landingSessionToken = nil
         needsLandingMeasurement = false
         landingSection = nil
+        landingDepartingOwner = nil
         landingExpirationTask?.cancel()
         landingExpirationTask = nil
     }
@@ -146,7 +153,7 @@ final class BrowserSidebarReorderState {
         guard !isDragging || geometry.rows[row.id] == nil else { return }
         geometry.register(row: row, owner: owner, scrollRegionID: scrollRegionID)
         if needsLandingMeasurement, var preview = landingPreview, preview.item.id == row.id,
-            !row.frame.isEmpty, landingSection == nil || landingSection == row.section,
+            owner != landingDepartingOwner, !row.frame.isEmpty, landingSection == nil || landingSection == row.section,
             preview.landing?.frame != row.frame, preview.landing?.isRevealing != true
         {
             preview.landing = BrowserSidebarReorderLanding(frame: row.frame)
@@ -414,6 +421,10 @@ final class BrowserSidebarReorderState {
             landingSessionToken = sessionToken
             needsLandingMeasurement = true
             landingSection = resolvedTarget == nil ? lift?.section : resolvedTarget?.section
+            // Within one list the view the row was lifted from is the one it
+            // lands in; any other landing leaves that view behind.
+            landingDepartingOwner =
+                landingSection == lift?.section ? nil : lift.flatMap { geometry.rows[$0.item.id]?.owner }
             landingExpirationTask?.cancel()
             landingExpirationTask = nil
             if let landingTimeout {
