@@ -5,6 +5,16 @@ struct BrowserSpaceRuntimeAssignment: Equatable, Hashable, Sendable {
     let profileID: UUID
 }
 
+extension BrowserSpaceRuntimeAssignment {
+    // MARK: - Initializers
+
+    /// Where a Space of the read model lives: its identity and profile.
+    @MainActor
+    init(space: SpaceModel) {
+        self.init(spaceID: space.id, profileID: space.profileID)
+    }
+}
+
 // MARK: - Codable
 
 /// Scene restoration keeps an assignment inside a window's request, so its

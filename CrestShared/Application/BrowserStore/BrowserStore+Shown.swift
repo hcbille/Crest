@@ -77,13 +77,3 @@ extension BrowserStore {
         windowModel?.unavailableCommands.contains(command) == false
     }
 }
-
-extension BrowserSpaceRuntimeAssignment {
-    // MARK: - Initializers
-
-    /// Where a Space of the read model lives: its identity and profile.
-    @MainActor
-    init(space: SpaceModel) {
-        self.init(spaceID: space.id, profileID: space.profileID)
-    }
-}

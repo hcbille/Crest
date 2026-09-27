@@ -1,6 +1,6 @@
 import Foundation
 
-extension [TranslationRule] {
+extension Array where Element == TranslationRule {
     // MARK: - Actions - Deciding
 
     /// What the core decides for pages in `sourceID` under these rules: the

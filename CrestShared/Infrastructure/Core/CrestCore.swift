@@ -3,6 +3,14 @@ import Foundation
 import Observation
 import Synchronization
 
+// MARK: - Types
+
+/// Holds the answer the core hands `crest_engine_ask`'s callback, borrowed for
+/// the call.
+final class EngineAnswer {
+    var bytes: [UInt8]?
+}
+
 /// The app's one connection to the core's typed application API.
 ///
 /// `send` runs an intent and applies the changes it caused to `state` before

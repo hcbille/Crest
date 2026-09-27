@@ -62,37 +62,3 @@ extension SpaceState.Seed {
         tabs.first { $0.id == id }
     }
 }
-
-extension BrowsingPreferences {
-    // MARK: - Variables
-
-    /// What a seeded Space searches and keeps unless told otherwise: Google,
-    /// current tabs swept after twelve hours, balanced content blocking, and
-    /// everything it browses kept.
-    static let seeded = BrowsingPreferences.seeded()
-
-    // MARK: - Initializers
-
-    /// A seeded Space's preferences that search with `engine`, sweep current
-    /// tabs under `cleanup` and block content under `blocking`, keeping
-    /// everything it browses.
-    static func seeded(
-        engine: BuiltInSearchEngine = .google,
-        cleanup: CurrentTabCleanup = .after12Hours,
-        blocking: ContentBlockingPolicy = .balanced
-    ) -> BrowsingPreferences {
-        BrowsingPreferences(
-            selectedBuiltInEngine: engine, selectedCustomEngineID: nil, customSearchProviders: [],
-            searchSuggestionsEnabled: false, currentTabCleanup: cleanup, contentBlocking: blocking,
-            dataRetention: DataRetentionPreferences(history: .forever, archive: .forever, downloads: .forever))
-    }
-}
-
-extension CredentialPreferences {
-    // MARK: - Variables
-
-    /// A seeded Space offers to save passwords and sync them with iCloud,
-    /// never to the system's passwords, unless told otherwise.
-    static let seeded = CredentialPreferences(
-        isEnabled: true, syncsCrestPasswordsWithICloud: true, alsoOffersSaveToSystemPasswords: false)
-}

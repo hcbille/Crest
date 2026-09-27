@@ -60,39 +60,3 @@ extension CrestCore {
         return try winner(of: remaining)
     }
 }
-
-extension CredentialRecord {
-    /// A stored credential's identity and dates, with its username only where
-    /// an account is matched.
-    init(_ descriptor: CredentialDescriptor, includesUsername: Bool) {
-        self.init(
-            id: descriptor.id,
-            username: includesUsername ? descriptor.username : nil,
-            updatedAt: descriptor.updatedAt.timeIntervalSince1970,
-            lastUsedAt: descriptor.lastUsedAt?.timeIntervalSince1970)
-    }
-}
-
-extension ExistingCredential {
-    /// A saved password an import is compared against. Only a web form's
-    /// password stands for an account a file imports.
-    init(_ credential: BrowserCredential) {
-        let descriptor = credential.descriptor
-        self.init(
-            id: descriptor.id, origin: descriptor.origin, username: descriptor.username,
-            isWebForm: descriptor.scope == .webForm, updatedAt: descriptor.updatedAt.timeIntervalSince1970,
-            lastUsedAt: descriptor.lastUsedAt?.timeIntervalSince1970, password: credential.password)
-    }
-}
-
-extension ExportedCredential {
-    /// A saved password as a Space's password file writes it, with the note
-    /// naming how an HTTP authentication password is used.
-    init(_ credential: BrowserCredential) {
-        let descriptor = credential.descriptor
-        self.init(
-            id: descriptor.id, origin: descriptor.origin, username: descriptor.username,
-            displayName: descriptor.displayName, password: credential.password,
-            note: descriptor.scope.settingsLabel ?? "")
-    }
-}

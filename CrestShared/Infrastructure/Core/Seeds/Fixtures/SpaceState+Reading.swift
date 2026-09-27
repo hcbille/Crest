@@ -17,27 +17,4 @@
             tabs.contains { $0.id == tabID }
         }
     }
-
-    extension ArchivedTabState.Seed {
-        // MARK: - Variables
-
-        /// The archived tab's identity.
-        var id: UUID { tab.id }
-    }
-
-    extension BrowserSpaceRuntimeAssignment {
-        // MARK: - Initializers
-
-        /// Where a seeded Space lives: its identity and profile.
-        init(space: SpaceState.Seed) {
-            self.init(spaceID: space.id, profileID: space.profileID)
-        }
-    }
-
-    extension TabState.Seed {
-        // MARK: - Variables
-
-        /// The address the tab shows, as the platform reads addresses.
-        var address: URL? { url.flatMap(URL.init(string:)) }
-    }
 #endif

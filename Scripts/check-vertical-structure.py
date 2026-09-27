@@ -187,6 +187,9 @@ class PrimaryDeclaration(NamedTuple):
 
 class ExtensionDeclaration(NamedTuple):
     target: str
+    # The outermost name the extension spells, so `extension Owner.Nested`
+    # belongs to Owner's scope.
+    enclosing_target: str
     conformances: tuple[str, ...]
     offset: int
     is_visual: bool
@@ -472,6 +475,7 @@ def _top_level_extensions(source: str) -> list[ExtensionDeclaration]:
         declarations.append(
             ExtensionDeclaration(
                 extension.group("target").split(".")[-1],
+                extension.group("target").split(".")[0],
                 conformances,
                 extension.start(),
                 any(
@@ -632,8 +636,14 @@ def _source_violations(
             declaration.target for declaration in extension_declarations
         ]
         owner_name, extension_suffix = source_path.stem.split("+", maxsplit=1)
+        # A type nested in the owner is part of the owner's scope.
         unrelated_targets = sorted(
-            target for target in set(extension_targets) if target != owner_name
+            {
+                declaration.target
+                for declaration in extension_declarations
+                if owner_name
+                not in (declaration.target, declaration.enclosing_target)
+            }
         )
         # Infrastructure paths omit the redundant Browser prefix while Swift
         # symbols retain it. Still require one exact owner across the file.

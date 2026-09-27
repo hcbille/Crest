@@ -122,12 +122,6 @@ extension CrestCore {
     }
 }
 
-/// Holds the answer the core hands `crest_engine_ask`'s callback, borrowed for
-/// the call.
-private final class EngineAnswer {
-    var bytes: [UInt8]?
-}
-
 /// The core's answer callback. It runs once, inside `crest_engine_ask`, on the
 /// thread that asked.
 private func receiveEngineAnswer(_ context: UnsafeMutableRawPointer?, _ bytes: UnsafePointer<UInt8>?, _ length: Int) {
