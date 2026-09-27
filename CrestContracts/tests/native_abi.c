@@ -281,8 +281,7 @@ static void engine_boundary(void) {
     /* OpenPage: the page, the workspace, the Space (all 0x44), no tab, the
      * window, and no transient presentation. The dispatch returns once the
      * binding ran CreatePage: the page, the Space's profile (all 0x55),
-     * whether it is private, no borrowed profile, the window and no state to
-     * restore. */
+     * whether it is private, the window and no state to restore. */
     uint8_t page[71] = { 0 };
     size_t page_tag = put_tag(page, CREST_INTENT_OPEN_PAGE);
     memset(page + page_tag, 0x61, 16);
@@ -294,10 +293,9 @@ static void engine_boundary(void) {
     assert(crest_app_dispatch(app, page, page_tag + 66, &buffer) == CREST_OK);
     assert(buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_PAGE_OPENED);
     crest_buffer_free(&buffer);
-    assert(fixture.commands == 1 && fixture.last_length == 52 && fixture.last[0] == CREST_ENGINE_COMMAND_CREATE_PAGE);
-    assert(memcmp(fixture.last + 1, page + page_tag, 16) == 0 && fixture.last[17] == 0x55 && fixture.last[33] == 0
-        && fixture.last[34] == 0);
-    assert(memcmp(fixture.last + 35, page + page_tag + 49, 16) == 0 && fixture.last[51] == 0);
+    assert(fixture.commands == 1 && fixture.last_length == 51 && fixture.last[0] == CREST_ENGINE_COMMAND_CREATE_PAGE);
+    assert(memcmp(fixture.last + 1, page + page_tag, 16) == 0 && fixture.last[17] == 0x55 && fixture.last[33] == 0);
+    assert(memcmp(fixture.last + 34, page + page_tag + 49, 16) == 0 && fixture.last[50] == 0);
 
     /* PageCreated for that page goes through the drain; one for a page the
      * core does not know is fine and changes nothing. */

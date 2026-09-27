@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0x45, 0xce, 0x81, 0xf8, 0x71, 0xdf, 0xda, 0xbf, 0x3f, 0xa0, 0x61, 0x5a, 0x3e, 0xf5, 0x4d, 0x2d, 0x5f, 0xed, 0x58, 0x04, 0x1e, 0x50, 0xef, 0x4c, 0xcf, 0xa3, 0x2c, 0x90, 0xcd, 0x1b, 0x52, 0x19};
+    0x59, 0xf4, 0xda, 0x16, 0xad, 0x10, 0x32, 0x8e, 0xc4, 0x32, 0xc1, 0x7b, 0xb4, 0x1d, 0xbe, 0xde, 0x02, 0x77, 0xf9, 0x0d, 0x93, 0x6e, 0x78, 0x63, 0x09, 0xa2, 0xbc, 0xf2, 0x9c, 0xbe, 0x31, 0x78};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -1032,7 +1032,6 @@ struct CreatePage {
   Guid page_id = {};
   Guid profile_id = {};
   bool is_private = false;
-  std::optional<Guid> borrowed_profile_id;
   Guid window_id = {};
   std::optional<PageRestoreState> restore_state;
 
@@ -1042,7 +1041,6 @@ inline void Write(WireWriter& writer, const CreatePage& value) {
   Write(writer, value.page_id);
   Write(writer, value.profile_id);
   Write(writer, value.is_private);
-  Write(writer, value.borrowed_profile_id);
   Write(writer, value.window_id);
   Write(writer, value.restore_state);
 }
@@ -1050,7 +1048,6 @@ inline bool Read(WireReader& reader, CreatePage& value) {
   return Read(reader, value.page_id)
       && Read(reader, value.profile_id)
       && Read(reader, value.is_private)
-      && Read(reader, value.borrowed_profile_id)
       && Read(reader, value.window_id)
       && Read(reader, value.restore_state);
 }
@@ -2569,17 +2566,14 @@ inline bool Read(WireReader& reader, ProfilePrepared& value) {
 
 struct ProfileReleased {
   Guid profile_id = {};
-  std::vector<Guid> derived_profile_ids;
 
   friend bool operator==(const ProfileReleased&, const ProfileReleased&) = default;
 };
 inline void Write(WireWriter& writer, const ProfileReleased& value) {
   Write(writer, value.profile_id);
-  Write(writer, value.derived_profile_ids);
 }
 inline bool Read(WireReader& reader, ProfileReleased& value) {
-  return Read(reader, value.profile_id)
-      && Read(reader, value.derived_profile_ids);
+  return Read(reader, value.profile_id);
 }
 
 struct PromptWithdrawn {

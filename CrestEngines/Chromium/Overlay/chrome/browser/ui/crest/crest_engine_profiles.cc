@@ -165,42 +165,35 @@ bool EngineProfiles::IsDeleting(const std::string& id) const {
   return deleting_.contains(id);
 }
 
-void EngineProfiles::Load(const std::string& id,
-                          bool is_private,
-                          const std::string& source,
-                          base::OnceCallback<void(Profile*)> done) {
-  // A private profile that borrows no Space's derives from the engine's own,
-  // which has no Space's extensions or settings.
-  const bool from_root = is_private && source.empty();
-  const std::string source_id = is_private ? source : id;
+void EngineProfiles::Load(const std::string& id, bool is_private, base::OnceCallback<void(Profile*)> done) {
   auto* manager = g_browser_process->profile_manager();
-  if (!root_ || disposing_ || !manager || !IsProfileIdentity(id) || deleting_.contains(id) ||
-      (!from_root && (!IsProfileIdentity(source_id) || deleting_.contains(source_id)))) {
+  if (!root_ || disposing_ || !manager || !IsProfileIdentity(id) || deleting_.contains(id)) {
     std::move(done).Run(nullptr);
     return;
   }
-  if (from_root) {
-    Loaded(id, is_private, source_id, std::move(done), root_.get());
+  // A private profile derives from the engine's own, never from a Space's,
+  // so no Space's cookies, settings or extensions reach it.
+  if (is_private) {
+    Loaded(id, is_private, std::move(done), root_.get());
     return;
   }
-  manager->CreateProfileAsync(ProfilePath(manager, source_id),
-                              base::BindOnce(&EngineProfiles::Loaded, weak_factory_.GetWeakPtr(), id, is_private,
-                                             source_id, std::move(done)));
+  manager->CreateProfileAsync(ProfilePath(manager, id), base::BindOnce(&EngineProfiles::Loaded,
+                                                                     weak_factory_.GetWeakPtr(), id, is_private,
+                                                                     std::move(done)));
 }
 
 void EngineProfiles::Loaded(const std::string& id,
                             bool is_private,
-                            const std::string& source,
                             base::OnceCallback<void(Profile*)> done,
                             Profile* profile) {
-  if (!profile || disposing_ || deleting_.contains(id) || deleting_.contains(source)) {
+  if (!profile || disposing_ || deleting_.contains(id)) {
     std::move(done).Run(nullptr);
     return;
   }
   if (!profiles_.contains(id)) {
-    // The regular source owns an off-the-record profile and must outlive it.
-    // A private profile creates no profile directory, session checkpoint or
-    // browsing history.
+    // The regular profile owns an off-the-record one and must outlive it. A
+    // private profile creates no profile directory, session checkpoint or
+    // browsing history, and each private Space's is its own.
     leases_[id] = std::make_unique<ScopedProfileKeepAlive>(profile, ProfileKeepAliveOrigin::kAppWindow);
     profiles_[id] = is_private ? profile->GetOffTheRecordProfile(
                                      Profile::OTRProfileID::CreateUnique("Crest::Private::" + id), true)
@@ -271,31 +264,25 @@ bool EngineProfiles::HasStore(const std::string& id) const {
   return manager->GetProfileAttributesStorage().GetProfileAttributesWithPath(path) || base::PathExists(path);
 }
 
-std::optional<std::set<std::string>> EngineProfiles::BeginDeletion(const std::string& id, bool ephemeral) {
+bool EngineProfiles::BeginDeletion(const std::string& id, bool ephemeral) {
   auto* manager = g_browser_process->profile_manager();
   if (!manager || disposing_ || !IsProfileIdentity(id) || deletions_.contains(id)) {
-    return std::nullopt;
+    return false;
   }
   Profile* profile = Find(id);
   if (ephemeral && profile && !profile->IsOffTheRecord()) {
-    return std::nullopt;
+    return false;
   }
   if (profile == root_ || (profile && !profile->IsOffTheRecord() && profile->GetPath() != ProfilePath(manager, id))) {
-    return std::nullopt;
+    return false;
   }
-  std::set<std::string> released{id};
   if (profile && !profile->IsOffTheRecord()) {
-    for (const auto& [key, candidate] : profiles_) {
-      if (candidate->GetOriginalProfile() == profile) {
-        released.insert(key);
-      }
-    }
     // Held while its pages, Browsers and Crest's own leases are let go of.
     deletion_holds_[id] =
         std::make_unique<ScopedProfileKeepAlive>(profile, ProfileKeepAliveOrigin::kProfileDeletionProcess);
   }
-  deleting_.insert(released.begin(), released.end());
-  return released;
+  deleting_.insert(id);
+  return true;
 }
 
 void EngineProfiles::Delete(const std::string& id, bool ephemeral, base::OnceCallback<void(bool)> done) {

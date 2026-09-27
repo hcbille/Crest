@@ -326,7 +326,7 @@ void EngineBinding::CreateNow(const std::string& key) {
   if (!page || page->phase() != EnginePage::Phase::kCreating || !shell_ || disposing_) {
     return;
   }
-  Profiles().Load(page->profile(), page->is_private(), page->borrowed_profile(),
+  Profiles().Load(page->profile(), page->is_private(),
                   base::BindOnce(&EngineBinding::ProfileLoaded, weak_factory_.GetWeakPtr(), key));
 }
 
@@ -862,7 +862,6 @@ bool EngineBinding::Handle(const engine::OpenStandalonePage& request) {
   Create(engine::CreatePage{.page_id = request.page_id,
                             .profile_id = request.profile_id,
                             .is_private = false,
-                            .borrowed_profile_id = std::nullopt,
                             .window_id = request.window_id,
                             .restore_state = std::nullopt},
          /*standalone=*/true);
@@ -1049,25 +1048,16 @@ bool EngineBinding::Handle(const engine::PrepareProfile& request) {
 // from disk when nothing had loaded it.
 void EngineBinding::Erase(const engine::EraseProfileData& erasing) {
   const std::string id = GuidText(erasing.profile_id);
-  const auto released = Profiles().BeginDeletion(id, erasing.ephemeral);
-  if (!released) {
+  if (!Profiles().BeginDeletion(id, erasing.ephemeral)) {
     Report(engine::DataErased{.erasure_id = erasing.erasure_id, .erased = false});
     return;
   }
   if (shell_) {
-    shell_->ReleaseProfiles(*released);
+    shell_->ReleaseProfiles({id});
   }
-  std::vector<engine::Guid> derived;
-  for (const std::string& profile : *released) {
-    Extensions().Forget(profile);
-    Profiles().Release(profile);
-    if (profile != id) {
-      if (const auto guid = ParseGuid(profile)) {
-        derived.push_back(*guid);
-      }
-    }
-  }
-  Present(engine::ProfileReleased{.profile_id = erasing.profile_id, .derived_profile_ids = std::move(derived)});
+  Extensions().Forget(id);
+  Profiles().Release(id);
+  Present(engine::ProfileReleased{.profile_id = erasing.profile_id});
   Profiles().Delete(id, erasing.ephemeral,
                     base::BindOnce(
                         [](base::WeakPtr<EngineBinding> binding, engine::Guid erasure, bool erased) {
@@ -1098,7 +1088,7 @@ void EngineBinding::Erase(const engine::EraseSiteData& erasing) {
     std::move(done).Run(true);
     return;
   }
-  Profiles().Load(id, /*is_private=*/false, id,
+  Profiles().Load(id, /*is_private=*/false,
                   base::BindOnce(
                       [](GURL site, base::OnceCallback<void(bool)> done, Profile* profile) {
                         if (!profile) {

@@ -386,13 +386,14 @@ must: it hosts each page's view and the views an extension or the inspector
 puts beside it, shows extension popups, runs system sign-in, and answers the
 close and quit preflight. Objects and blocks never enter .NET.
 
-A private Space's pages borrow a regular profile, which the core decides and
-`CreatePage` names: that of the Space shown by the window private browsing
-last opened from (`OpenPrivateBrowsing`), while that Space is unlocked and not
-being deleted. Chromium derives the private Space's in-memory profile from it,
-sharing its settings and the extensions allowed in private browsing but none
-of its data; when the core names none, it derives from the engine's own
-profile, which no Space owns.
+A private window works like incognito and shares nothing with any Space. Its
+Space gets a new profile each time private browsing opens
+(`ResetPrivateBrowsing` on close), and `CreatePage` marks its pages private.
+Chromium gives each private profile its own in-memory profile, always derived
+from the engine's own startup profile, which no Space owns and no page browses
+in, and destroys it when the window closes and the profile is released. No
+extension a person installed runs in a private profile, whatever its own
+setting.
 
 TRANSITIONAL: the shell also keeps the `Browser`s, each built on its
 `CrestBrowserWindow`, until the binding owns their lifetime and asks the shell
@@ -638,8 +639,9 @@ after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
   user-data directory; the product keeps it in
   `~/Library/Application Support/Crest/Chromium`. A review package requires an
   explicit `--user-data-dir`. A private window uses a separate in-memory
-  profile for each private Space, derived from the profile the core names
-  and released with the window. Chromium's password manager is off for every
+  profile for each private Space, derived from the engine's own startup
+  profile, never a Space's, and destroyed with the window; it runs no
+  extension a person installed. Chromium's password manager is off for every
   page, in Space and private profiles alike.
 - **Identity and lifecycle.** The packager includes Crest's icons and Dock
   tile plug-in; the host installs Crest's AppKit menus, About identity and

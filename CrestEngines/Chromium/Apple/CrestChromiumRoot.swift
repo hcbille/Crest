@@ -178,14 +178,11 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         chromium.follow(application.browser.core)
     }
 
-    /// The engine let go of a profile: its Space's extensions went with it, and
-    /// a private window whose pages derived from it has nothing left to browse
-    /// in.
+    /// The engine let go of a profile, and its Space's extensions went with it.
+    /// A private window's profile never derives from a Space's, so it is not
+    /// affected.
     static func profileReleased(_ released: ProfileReleased) {
         extensions.refresh()
-        guard let instance else { return }
-        let privateProfiles = Set(instance.application.privateBrowser.spaceModels.map(\.profileID))
-        if !privateProfiles.isDisjoint(with: released.derivedProfileIDs) { instance.privateWindow?.close() }
     }
 
     static var extensionSpaces: [BrowserSpaceIdentity] { hostCommands?.extensionSpaces ?? [] }
@@ -277,12 +274,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
 
     func openPrivateWindow() {
         if let privateWindow { privateWindow.makeKeyAndOrderFront(nil); return }
-        // The core decides which regular profile the private pages borrow,
-        // from the window private browsing opens from; one it refuses leaves
-        // them borrowing none.
-        let opener = activeModel?.browser ?? application.browser
-        _ = try? application.privateBrowser.core.send(
-            OpenPrivateBrowsing(windowID: application.privateBrowser.windowID, fromWindowID: opener.windowID))
         let window = CrestChromiumWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)

@@ -270,5 +270,9 @@
   "content/public/browser/web_contents_observer.h": {
     "before": "2a593b9f47feb5c6bf66f5dd65e889c48b8c6f82af3675964db978bc8f3e2e4e",
     "after": "1d8a170ec953769ada484cdaa967c550d04743164b98029f5d828a766c8f6a66"
+  },
+  "extensions/browser/extension_util.cc": {
+    "before": "583a1892b1bc63f8179d7e7268541a43513b125e6a419ee735aaaadc7f47c61c",
+    "after": "bae7073700f77331fef050266bfeea158bd19b110a827259eb9759da2e011230"
   }
 }

@@ -27,6 +27,10 @@ Rules every package keeps:
   Spaces, or create a page, transfer, export or network request for a locked
   Space without a grant. The core gate covers intents and borrowing; the
   presentation layer must not build content for a locked Space.
+- A private window is incognito on every engine. Its profile is new each time
+  private browsing opens, shares nothing with any Space, runs no extension a
+  person installed, and is destroyed with everything in it when the window
+  closes.
 - Crest is a single-window app. New windows appear only from a user action or
   an explicit extension `windows.create`. DevTools, popups and side panels dock
   inside the Crest window.

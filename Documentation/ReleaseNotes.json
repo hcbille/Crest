@@ -2965,6 +2965,10 @@
     "shared-page-owner": {
       "category": "internal",
       "message": "iPhone, iPad and Mac page owners share one implementation of their common page work"
+    },
+    "chromium-private-window-starts-fresh": {
+      "category": "internal",
+      "message": "Chromium private windows start fresh each time, share nothing with any Space and run no extensions"
     }
   }
 }

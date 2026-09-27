@@ -3,7 +3,6 @@
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <string>
 
@@ -22,11 +21,13 @@ namespace crest {
 
 // The engine profiles Crest browses in: each Space's own regular profile,
 // named `Crest-<Space profile>` in the engine's user data directory, and each
-// private Space's off-the-record profile, derived from the regular profile the
-// core names for its pages, or from the engine's own profile when it names
-// none. Their stores — cookies, storage, cache, network state — are the
-// engine's; this decides which profile a page gets, keeps the ones in use
-// alive, and wipes one when its Space is deleted.
+// private Space's off-the-record profile. A private profile always derives
+// from the engine's own profile, which no Space owns and no page browses in,
+// so it shares nothing with any Space; its profile is new each time private
+// browsing opens, and it is destroyed when released. Their stores — cookies,
+// storage, cache, network state — are the engine's; this decides which
+// profile a page gets, keeps the ones in use alive, and wipes one when its
+// Space is deleted.
 class EngineProfiles final {
  public:
   EngineProfiles();
@@ -35,7 +36,7 @@ class EngineProfiles final {
   ~EngineProfiles();
 
   // The profile the engine started with. It is no Space's, is never deleted,
-  // and until it exists no profile loads.
+  // and until it exists no profile loads. Private profiles derive from it.
   void SetRoot(Profile* root);
 
   Profile* Find(const std::string& id) const;
@@ -49,14 +50,9 @@ class EngineProfiles final {
   bool IsDeletingAny() const { return !deletions_.empty(); }
 
   // Loads the profile `id` names, a Space's regular profile, or a private
-  // Space's off-the-record profile derived from the regular profile `source`
-  // names, or from the engine's own profile when `source` is empty, and
-  // answers it, or nullptr when it cannot load or is being deleted. A private
-  // profile derives once, from the source its first load names.
-  void Load(const std::string& id,
-            bool is_private,
-            const std::string& source,
-            base::OnceCallback<void(Profile*)> done);
+  // Space's off-the-record profile derived from the engine's own, and answers
+  // it, or nullptr when it cannot load or is being deleted.
+  void Load(const std::string& id, bool is_private, base::OnceCallback<void(Profile*)> done);
   // Loads a Space's regular profile for its extensions. Answers whether it is
   // ready; a private profile never is.
   void Prepare(const std::string& id, base::OnceCallback<void(bool)> done);
@@ -66,11 +62,10 @@ class EngineProfiles final {
   void Release(const std::string& id);
   void ReleaseAll();
 
-  // Begins deleting `id`, or refuses: the engine's own profile, one already
-  // being deleted, or a regular profile asked to go as if it were private.
-  // Answers the profiles the deletion releases — `id` and the private ones
-  // derived from it — which the caller lets go of before `Delete`.
-  std::optional<std::set<std::string>> BeginDeletion(const std::string& id, bool ephemeral);
+  // Begins deleting `id`, which the caller lets go of before `Delete`, or
+  // refuses: the engine's own profile, one already being deleted, or a
+  // regular profile asked to go as if it were private.
+  bool BeginDeletion(const std::string& id, bool ephemeral);
   // Wipes the deleted profile's data and leaves its directory marked for
   // deletion at the next launch, then answers whether that finished. A
   // private profile has nothing on disk, so it is deleted at once.
@@ -82,11 +77,7 @@ class EngineProfiles final {
  private:
   class Deletion;
 
-  void Loaded(const std::string& id,
-              bool is_private,
-              const std::string& source,
-              base::OnceCallback<void(Profile*)> done,
-              Profile* profile);
+  void Loaded(const std::string& id, bool is_private, base::OnceCallback<void(Profile*)> done, Profile* profile);
   void Finished(const std::string& id, bool may_retry);
 
   raw_ptr<Profile> root_ = nullptr;

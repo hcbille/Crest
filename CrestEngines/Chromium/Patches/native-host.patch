@@ -1946,3 +1946,20 @@
    // This method is invoked when the load is done for the document represented
    // by `render_frame_host` on the renderer side, e.g. the onload event was
    // dispatched. Note that this function is not related to
+--- a/extensions/browser/extension_util.cc
++++ b/extensions/browser/extension_util.cc
+@@ -99,6 +99,14 @@
+   }
+ #endif
+ 
++  // Crest: a private window starts from nothing each time it opens, so no
++  // extension a person installed runs in one, whatever its own setting says.
++  // Chromium's component extensions, such as the PDF viewer, were allowed
++  // before this point.
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch("crest-control-plane")) {
++    return false;
++  }
++
+   // The ultimate fallback database check.
+   return ExtensionPrefs::Get(context)->IsIncognitoEnabled(extension_id);
+ }

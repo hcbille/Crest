@@ -154,7 +154,6 @@ EnginePage::EnginePage(EngineBinding& binding, const engine::CreatePage& creatio
       key_(GuidText(creation.page_id)),
       profile_(GuidText(creation.profile_id)),
       is_private_(creation.is_private),
-      borrowed_profile_(creation.borrowed_profile_id ? GuidText(*creation.borrowed_profile_id) : std::string()),
       window_(GuidText(creation.window_id)) {}
 
 EnginePage::~EnginePage() {

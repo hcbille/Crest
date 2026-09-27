@@ -111,7 +111,7 @@ public sealed partial class BrowserContractsTests {
         var restored = Guid.NewGuid();
         var opened = Assert.Single(app.Send(new OpenPage(restored, workspace, space, tab, window)).OfType<PageOpened>());
         Assert.Equal("https://kept.example/", opened.Page.Live.PendingUrl);
-        Assert.Equal(new CreatePage(restored, ProfileOf(app, workspace, space), IsPrivate: false, BorrowedProfileId: null, window, kept), binding.Commands[^1]);
+        Assert.Equal(new CreatePage(restored, ProfileOf(app, workspace, space), IsPrivate: false, window, kept), binding.Commands[^1]);
         app.Send(new ReleasePage(restored, KeepsState: false));
         app.Send(new OpenPage(Guid.NewGuid(), workspace, space, tab, window));
         Assert.Null(Assert.IsType<CreatePage>(binding.Commands[^1]).RestoreState);

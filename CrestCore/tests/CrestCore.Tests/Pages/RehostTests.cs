@@ -30,7 +30,7 @@ public sealed partial class BrowserContractsTests {
         Assert.Contains(new PromptSettled(prompt), moved);
         Assert.Equal(new ClosePage(page, KeepsState: false), webKitBinding.Commands[^1]);
         var profile = Assert.IsType<CreatePage>(Assert.Single(chromiumBinding.Commands)).ProfileId;
-        Assert.Equal(new CreatePage(page, profile, IsPrivate: false, BorrowedProfileId: null, window, RestoreState: null), chromiumBinding.Commands[0]);
+        Assert.Equal(new CreatePage(page, profile, IsPrivate: false, window, RestoreState: null), chromiumBinding.Commands[0]);
 
         // What the old engine reports about the page changes nothing, and the new one loads once it has created it.
         app.Report(webKit, new PageClosed(page, RestoreState: null));

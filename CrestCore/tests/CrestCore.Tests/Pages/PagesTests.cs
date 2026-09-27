@@ -66,7 +66,7 @@ public sealed partial class BrowserContractsTests {
 
         var opened = Assert.IsType<PageOpened>(Assert.Single(app.Send(new OpenPage(page, workspace, space, tab, window)))).Page;
         Assert.Equal(new PageState(page, workspace, space, tab, EngineKind.WebKit, PagePhase.Opening, PageLiveState.Blank), opened);
-        Assert.Equal([new CreatePage(page, ProfileId(session["spaces"]![0]!), IsPrivate: false, BorrowedProfileId: null, window, RestoreState: null)], binding.Commands);
+        Assert.Equal([new CreatePage(page, ProfileId(session["spaces"]![0]!), IsPrivate: false, window, RestoreState: null)], binding.Commands);
         app.Report(engine, new PageCreated(page));
         Assert.Equal(opened with { Phase = PagePhase.Live }, Assert.IsType<PageChanged>(Assert.Single(app.Drain())).Page);
 
@@ -126,54 +126,34 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void APrivatePageBorrowsOnlyTheProfileOfAnUnlockedSpaceItsBrowsingOpenedFrom() {
-        var session = GuardedSession(withOpenSecondSpace: true);
+    public void APrivatePageBrowsesInAFreshProfileOfItsOwnThatNoSpaceShares() {
+        var session = TwoSpaceSession();
         var (app, _, binding, workspace, window) = PageHost(session);
         using var disposal = app;
-        var locked = Identity(session);
-        var open = SpaceId(session["spaces"]![1]!);
         var privateWorkspace = TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)));
         var privateWindow = Guid.NewGuid();
         app.Send(new OpenWindow(privateWindow, privateWorkspace, Saved: false, null, null, [], RestoresTabs: true));
-        var privateSpace = app.Workspace(privateWorkspace).Current.Spaces.Single().Id;
-        Guid? Borrowed() {
+        var regularProfiles = app.Workspace(workspace).Current.Spaces.Select(space => space.ProfileId).ToHashSet();
+        CreatePage Opened() {
             var page = Guid.NewGuid();
-            app.Send(new OpenPage(page, privateWorkspace, privateSpace, null, privateWindow));
+            var space = app.Workspace(privateWorkspace).Current.Spaces.Single();
+            app.Send(new OpenPage(page, privateWorkspace, space.Id, null, privateWindow));
             var creation = binding.Commands.OfType<CreatePage>().Single(command => command.PageId == page);
             Assert.True(creation.IsPrivate);
-            return creation.BorrowedProfileId;
+            Assert.Equal(space.ProfileId, creation.ProfileId);
+            Assert.DoesNotContain(creation.ProfileId, regularProfiles);
+            return creation;
         }
 
-        // Until private browsing opens from a window, its pages borrow no Space's profile.
-        Assert.Null(Borrowed());
-
-        // Then they borrow the profile of the Space that window shows.
-        app.Send(new ShowSpace(window, open));
-        app.Send(new OpenPrivateBrowsing(privateWindow, window));
-        Assert.Equal(ProfileId(session["spaces"]![1]!), Borrowed());
-
-        // Never a locked Space's, until a grant unlocks it.
-        app.Send(new ShowSpace(window, locked.Space));
-        app.Send(new OpenPrivateBrowsing(privateWindow, window));
-        Assert.Null(Borrowed());
-        Unlock(app.Send, workspace, locked.Space);
-        Assert.Equal(locked.Profile, Borrowed());
-
-        // Nor a Space being deleted, nor one a private window shows.
-        app.Send(new ShowSpace(window, open));
-        app.Send(new OpenPrivateBrowsing(privateWindow, window));
-        app.Send(new BeginDeletingSpace(workspace, window, open, Guid.NewGuid()));
-        Assert.Null(Borrowed());
-        app.Send(new ShowSpace(window, locked.Space));
-        app.Send(new OpenPrivateBrowsing(privateWindow, window));
-        app.Send(new OpenPrivateBrowsing(privateWindow, privateWindow));
-        Assert.Null(Borrowed());
-
-        // Only a private window borrows, and a page of a regular Space borrows nothing.
-        Assert.Equal(new NotPrivateWorkspace(workspace), Refusal(app, new OpenPrivateBrowsing(window, window)));
+        // A private page browses in its private Space's own profile, never a
+        // regular Space's, and once private browsing starts over it browses in
+        // a profile no earlier private page used.
+        var first = Opened();
+        app.Send(new ResetPrivateBrowsing(privateWorkspace, privateWindow));
+        Assert.NotEqual(first.ProfileId, Opened().ProfileId);
         var regular = Guid.NewGuid();
-        app.Send(new OpenPage(regular, workspace, locked.Space, null, window));
-        Assert.Null(binding.Commands.OfType<CreatePage>().Single(command => command.PageId == regular).BorrowedProfileId);
+        app.Send(new OpenPage(regular, workspace, SpaceId(session["spaces"]![0]!), null, window));
+        Assert.False(binding.Commands.OfType<CreatePage>().Single(command => command.PageId == regular).IsPrivate);
     }
 
     [Fact]
@@ -282,7 +262,7 @@ public sealed partial class BrowserContractsTests {
         int deliveredWhenNestedSendReturned = -1;
         IReadOnlyList<Change> released = [];
         binding.OnCommand = command => {
-            if (command != new CreatePage(first, profile, IsPrivate: false, BorrowedProfileId: null, window, RestoreState: null)) return;
+            if (command != new CreatePage(first, profile, IsPrivate: false, window, RestoreState: null)) return;
             // Inside a delivery, an intent and a report only add to the queue.
             app.Send(new OpenPage(second, workspace, space, null, window));
             deliveredWhenNestedSendReturned = binding.Commands.Count;
@@ -294,8 +274,8 @@ public sealed partial class BrowserContractsTests {
 
         Assert.Equal(1, deliveredWhenNestedSendReturned);
         Assert.Equal([
-            new CreatePage(first, profile, IsPrivate: false, BorrowedProfileId: null, window, RestoreState: null),
-            new CreatePage(second, profile, IsPrivate: false, BorrowedProfileId: null, window, RestoreState: null),
+            new CreatePage(first, profile, IsPrivate: false, window, RestoreState: null),
+            new CreatePage(second, profile, IsPrivate: false, window, RestoreState: null),
             new ClosePage(first, KeepsState: false)
         ], binding.Commands);
         // The report was pending when the release ran, so the release answers
