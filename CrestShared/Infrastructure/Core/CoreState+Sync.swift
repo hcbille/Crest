@@ -15,25 +15,25 @@ extension CoreState {
 
     /// The journal changed. A stage reached it, so the last failure no longer
     /// stands.
-    func apply(_ change: SyncJournalChanged) {
+    func handle(_ change: SyncJournalChanged) {
         syncJournal = change
         syncStagingFailure = nil
     }
 
-    func apply(_ change: SyncStagingFailed) {
+    func handle(_ change: SyncStagingFailed) {
         syncStagingFailure = change.reason
     }
 
     /// A receipt for the cloud transport, which reports what it skipped; the
     /// read model keeps nothing of it.
-    func apply(_ change: SyncRecordsSkipped) {}
+    func handle(_ change: SyncRecordsSkipped) {}
 
     /// Receipts for the cloud transport about its own state, which only the
     /// transport reads.
-    func apply(_ change: CloudTransportChanged) {}
+    func handle(_ change: CloudTransportChanged) {}
 
-    func apply(_ change: CloudMergeBegan) {}
+    func handle(_ change: CloudMergeBegan) {}
 
     /// iCloud sync's status and next steps, which the sync controller keeps.
-    func apply(_ change: CloudSyncAdvanced) {}
+    func handle(_ change: CloudSyncAdvanced) {}
 }

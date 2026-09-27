@@ -43,7 +43,7 @@ final class BrowserDownloadPrompts {
         self.claims = claims
         self.approve = approve
         self.resolveDestination = resolveDestination
-        core.followPrompts(self) { [weak self] change in self?.ask(change) }
+        core.followChanges(self)
         core.followDownloads(self) { [weak self] download in
             guard !download.phase.isLive else { return }
             self?.downloadFolders.removeValue(forKey: download.id)?.stopAccessingSecurityScopedResource()
@@ -51,26 +51,6 @@ final class BrowserDownloadPrompts {
     }
 
     // MARK: - Actions - Prompts
-
-    /// Answers a question the core asks about a download, and closes an
-    /// approval once the core settles it.
-    private func ask(_ change: Change) {
-        switch change {
-        case .downloadDestinationAsked(let asked) where claims(asked.spaceID):
-            choose(asked)
-        case .downloadApprovalAsked(let asked) where claims(asked.spaceID):
-            let dismissal = BrowserPromptDismissal()
-            dismissals[asked.promptID] = dismissal
-            Task { @MainActor [weak self, approve] in
-                let approved = await approve(asked, dismissal)
-                self?.answer(AnswerDownloadApproval(promptID: asked.promptID, approved: approved))
-            }
-        case .promptSettled(let settled):
-            dismissals.removeValue(forKey: settled.promptID)?.dismiss()
-        default:
-            break
-        }
-    }
 
     /// Where a download's file goes: the Space's download folder, or where
     /// the person chooses when the Space or the engine asks for that.
@@ -99,5 +79,31 @@ final class BrowserDownloadPrompts {
     /// question that no longer waits changes nothing.
     private func answer(_ intent: some PromptIntent) {
         _ = try? core?.send(intent)
+    }
+}
+
+// MARK: - Prompts
+
+/// Answers a question the core asks about a download in a Space this claims,
+/// and closes an approval once the core settles it. It observes only the
+/// questions about downloads.
+extension BrowserDownloadPrompts: ChangeObserving {
+    func handle(_ asked: DownloadDestinationAsked) {
+        guard claims(asked.spaceID) else { return }
+        choose(asked)
+    }
+
+    func handle(_ asked: DownloadApprovalAsked) {
+        guard claims(asked.spaceID) else { return }
+        let dismissal = BrowserPromptDismissal()
+        dismissals[asked.promptID] = dismissal
+        Task { @MainActor [weak self, approve] in
+            let approved = await approve(asked, dismissal)
+            self?.answer(AnswerDownloadApproval(promptID: asked.promptID, approved: approved))
+        }
+    }
+
+    func handle(_ settled: PromptSettled) {
+        dismissals.removeValue(forKey: settled.promptID)?.dismiss()
     }
 }

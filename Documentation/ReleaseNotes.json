@@ -3053,6 +3053,10 @@
     "core-receivers-use-message-handlers": {
       "category": "internal",
       "message": "Each part of the core now handles its messages through the generated handler interfaces instead of hand-written type switches, with no change in behaviour."
+    },
+    "app-receivers-use-message-handlers": {
+      "category": "internal",
+      "message": "The apps' read model, engine bindings, pages and prompt followers now handle the core's changes, commands, requests and presentations through generated handling protocols, with no change in behaviour."
     }
   }
 }

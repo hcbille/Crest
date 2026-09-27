@@ -65,9 +65,9 @@ final class CrestCore {
     /// (e) moves live revocation into engine commands, the pages' permission
     /// plumbing learns this way what a change covered.
     @ObservationIgnored private var sitePermissionFollowers: [Follower<SitePermissionsChanged>] = []
-    /// Who hears the questions the core asks the person and those that no
-    /// longer wait, once their batch is applied.
-    @ObservationIgnored private var promptFollowers: [Follower<Change>] = []
+    /// Who hears each change, such as the questions the core asks the person
+    /// and those that no longer wait, once its batch is applied.
+    @ObservationIgnored private var changeFollowers: [Follower<Change>] = []
     /// Who hears each download record the core changed, once its batch is
     /// applied.
     @ObservationIgnored private var downloadFollowers: [Follower<DownloadState>] = []
@@ -308,60 +308,38 @@ final class CrestCore {
     /// Applies one batch to `state`, in order, and reports a failed save the
     /// core started itself.
     private func apply(_ changes: [Change]) {
-        var pageRecords = Engines.PageRecords()
-        var permissionChanges: [SitePermissionsChanged] = []
-        var promptChanges: [Change] = []
-        var downloadChanges: [DownloadState] = []
-        var unloadedPages: [PageUnloaded] = []
-        var putAwayPages: [TabPagePutAway] = []
-        var rehostedPages: [PageRehosted] = []
-        var adoptedPages: [OfferedPageAdopted] = []
-        var closesReady: [CloseReady] = []
-        var dataDeleted: [DataDeleted] = []
+        let batch = CoreChangeBatch(core: self)
         var movedPages: [UUID] = []
         for change in changes {
+            // A page that moved to another engine is found before the read
+            // model forgets the engine it left.
             if case .pageChanged(let changed) = change, let before = state.pages[changed.page.id]?.engine,
                 before != changed.page.engine
             {
                 movedPages.append(changed.page.id)
             }
-            state.apply(change)
-            switch change {
-            case .storageFailed(let failure): storageFailed(failure.reason)
-            case .syncJournalChanged: syncJournalChangeHandler?()
-            case .navigationRecorded(let recorded): pageRecords.navigations.append(recorded)
-            case .tabFaviconAssigned(let assigned) where assigned.pageID != nil: pageRecords.icons.append(assigned)
-            case .sitePermissionsChanged(let changed): permissionChanges.append(changed)
-            case .scriptDialogAsked, .authenticationAsked, .permissionAsked, .extensionInstallAsked,
-                .downloadDestinationAsked, .downloadApprovalAsked, .quitWithDownloadsAsked, .promptSettled:
-                promptChanges.append(change)
-            case .downloadUpdated(let updated): downloadChanges.append(updated.download)
-            case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
-            case .tabPagePutAway(let putAway): putAwayPages.append(putAway)
-            case .pageRehosted(let rehosted): rehostedPages.append(rehosted)
-            case .offeredPageAdopted(let adopted): adoptedPages.append(adopted)
-            case .closeReady(let ready): closesReady.append(ready)
-            case .dataDeleted(let deleted): dataDeleted.append(deleted)
-            default: break
-            }
+            change.dispatch(to: state)
+            change.dispatch(to: batch)
         }
         state.finishBatch()
-        if !pageRecords.isEmpty { engines.recordsApplied(pageRecords) }
-        if !permissionChanges.isEmpty { sitePermissionsChanged(permissionChanges) }
-        if !promptChanges.isEmpty { promptsChanged(promptChanges) }
-        if !downloadChanges.isEmpty { downloadsChanged(downloadChanges) }
-        if !unloadedPages.isEmpty { pagesUnloaded(unloadedPages) }
-        if !putAwayPages.isEmpty { pagesPutAway(putAwayPages) }
+        if !batch.pageRecords.isEmpty { engines.recordsApplied(batch.pageRecords) }
+        if !batch.permissionChanges.isEmpty { sitePermissionsChanged(batch.permissionChanges) }
+        changesApplied(changes)
+        if !batch.downloadChanges.isEmpty { downloadsChanged(batch.downloadChanges) }
+        if !batch.unloadedPages.isEmpty { pagesUnloaded(batch.unloadedPages) }
+        if !batch.putAwayPages.isEmpty { pagesPutAway(batch.putAwayPages) }
         // The page's owner hosts it on its new engine before anyone hears it moved.
         if !movedPages.isEmpty { engines.pagesMoved(movedPages) }
-        if !rehostedPages.isEmpty { pagesRehosted(rehostedPages) }
-        if !adoptedPages.isEmpty { pagesAdopted(adoptedPages) }
+        if !batch.rehostedPages.isEmpty { pagesRehosted(batch.rehostedPages) }
+        if !batch.adoptedPages.isEmpty { pagesAdopted(batch.adoptedPages) }
         #if DEBUG
             batchApplied?(changes)
         #endif
         // Last, because a waiter may send the intent its close was waiting for.
-        for ready in closesReady { closeWaiters.removeValue(forKey: ready.requestID)?(ready.allowed) }
-        for deleted in dataDeleted { dataDeletionWaiters.removeValue(forKey: deleted.requestID)?(deleted.deleted) }
+        for ready in batch.closesReady { closeWaiters.removeValue(forKey: ready.requestID)?(ready.allowed) }
+        for deleted in batch.dataDeleted {
+            dataDeletionWaiters.removeValue(forKey: deleted.requestID)?(deleted.deleted)
+        }
     }
 
     /// Calls `handler` with each site permission change once its batch is
@@ -372,12 +350,15 @@ final class CrestCore {
         sitePermissionFollowers.append(Follower(owner: owner, handler: handler))
     }
 
-    /// Calls `handler` with each question the core asks the person and each
-    /// one that no longer waits, in order, once its batch is applied. The
-    /// registration lasts as long as `owner`.
-    func followPrompts(_ owner: AnyObject, _ handler: @escaping @MainActor (Change) -> Void) {
-        promptFollowers.removeAll { $0.owner == nil }
-        promptFollowers.append(Follower(owner: owner, handler: handler))
+    /// Hands `observer` each change, in order, once its batch is applied, such
+    /// as the questions the core asks the person and those that no longer
+    /// wait. The registration lasts as long as `observer`.
+    func followChanges(_ observer: some ChangeObserving & AnyObject) {
+        changeFollowers.removeAll { $0.owner == nil }
+        changeFollowers.append(
+            Follower(owner: observer) { [weak observer] change in
+                if let observer { change.dispatch(to: observer) }
+            })
     }
 
     /// Calls `handler` with each download record the core changed, in order,
@@ -460,9 +441,9 @@ final class CrestCore {
         }
     }
 
-    private func promptsChanged(_ changes: [Change]) {
-        promptFollowers.removeAll { $0.owner == nil }
-        let followers = promptFollowers
+    private func changesApplied(_ changes: [Change]) {
+        changeFollowers.removeAll { $0.owner == nil }
+        let followers = changeFollowers
         for change in changes {
             for follower in followers { follower.handler(change) }
         }

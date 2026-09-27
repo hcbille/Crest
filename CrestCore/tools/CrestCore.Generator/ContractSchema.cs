@@ -26,7 +26,7 @@ internal sealed class ContractRoot {
     public static readonly ContractRoot Intent = new(typeof(Intent), travelsToCore: true,
         swiftDocumentation: "A request to change the core's state, sent with `CrestCore.send`.");
     public static readonly ContractRoot Change = new(typeof(Change), travelsToCore: false, platformHandles: true,
-        swiftDocumentation: "Everything an intent can change. `CoreState.apply` keeps the read model current.");
+        swiftDocumentation: "Everything an intent can change. `CoreState` handles each to keep the read model current.");
     public static readonly ContractRoot Rejection = new(typeof(Rejection), travelsToCore: false,
         swiftDocumentation: "The rule that refused an intent or a query.", swiftConformances: "Error, Sendable");
     public static readonly ContractRoot Query = new(typeof(Query<>), travelsToCore: true,
@@ -208,7 +208,9 @@ internal sealed record ContractMember(ContractRecord Record, int Tag, FieldType?
 /// case by case, so a family's handler has exactly these cases, and a case
 /// that is a family goes on to that family's own handler. A family of a root
 /// whose messages are questions is generic over the answer, as the root is.
-internal sealed record ContractFamily(ContractRoot Root, Type Type, IReadOnlyList<Type> Cases) {
+/// A family below its root declares the facts every one of its members
+/// carries as its own `Fields`, such as the page a page event is about.
+internal sealed record ContractFamily(ContractRoot Root, Type Type, IReadOnlyList<Type> Cases, IReadOnlyList<ContractField> Fields) {
     public string Name => NameOf(Type);
 
     public bool IsRoot => Type == Root.Type;
@@ -844,10 +846,17 @@ internal sealed class ContractSchema {
                 .OrderBy(ContractFamily.NameOf, StringComparer.Ordinal).Prepend(root.Type);
             foreach (var family in families)
                 unions.Add(new ContractFamily(root, family, [.. parents.Where(parent => parent.Value == family).Select(parent => parent.Key)
-                    .OrderBy(ContractFamily.NameOf, StringComparer.Ordinal)]));
+                    .OrderBy(ContractFamily.NameOf, StringComparer.Ordinal)], FamilyFields(family, root)));
         }
         return unions;
     }
+
+    /// The properties a family below `root` declares itself, in the order it
+    /// declares them. A root declares none.
+    private List<ContractField> FamilyFields(Type family, ContractRoot root) => family == root.Type ? [] : [..
+        family.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly).OrderBy(property => property.MetadataToken)
+            .Select(property => new ContractField(property.Name, Resolve(property.PropertyType, nullability.Create(property),
+                $"{ContractFamily.NameOf(family)}.{property.Name}")))];
 
     /// The abstract records `type` derives from below `root`, nearest first.
     /// A question's family is generic over its answer, as its root is, and is

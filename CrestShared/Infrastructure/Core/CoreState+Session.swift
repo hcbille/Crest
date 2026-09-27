@@ -32,7 +32,7 @@ extension CoreState {
 
     // MARK: - Actions - Changes
 
-    func apply(_ change: WorkspaceOpened) {
+    func handle(_ change: WorkspaceOpened) {
         if let workspace = workspaces[change.workspaceID] {
             favicons.detach(workspace.tabIDs)
             favicons.place(change.session.spaces.flatMap(Self.tabIDs), in: change.workspaceID)
@@ -44,7 +44,7 @@ extension CoreState {
         touch(change.workspaceID)
     }
 
-    func apply(_ change: WorkspaceClosed) {
+    func handle(_ change: WorkspaceClosed) {
         if let workspace = workspacesStorage[change.workspaceID] {
             favicons.detach(workspace.tabIDs)
             publish(nil, forKey: change.workspaceID, into: \.workspacesStorage, as: \.workspaces)
@@ -52,17 +52,17 @@ extension CoreState {
         touch(change.workspaceID)
     }
 
-    func apply(_ change: WorkspaceChanged) {
+    func handle(_ change: WorkspaceChanged) {
         workspaces[change.workspaceID]?.apply(change)
         touch(change.workspaceID)
     }
 
-    func apply(_ change: AppPreferencesChanged) {
+    func handle(_ change: AppPreferencesChanged) {
         workspaces[change.workspaceID]?.apply(change)
         touch(change.workspaceID)
     }
 
-    func apply(_ change: SpacesChanged) {
+    func handle(_ change: SpacesChanged) {
         if let workspace = workspaces[change.workspaceID] {
             for spaceID in change.removed { favicons.detach(workspace.spaces.model(spaceID)?.tabIDs ?? []) }
             favicons.place(change.added.flatMap(Self.tabIDs), in: change.workspaceID)
@@ -71,12 +71,12 @@ extension CoreState {
         touch(change.workspaceID)
     }
 
-    func apply(_ change: SpaceSettingsChanged) {
+    func handle(_ change: SpaceSettingsChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
         touch(change.workspaceID)
     }
 
-    func apply(_ change: TabsChanged) {
+    func handle(_ change: TabsChanged) {
         if let space = space(change.spaceID, in: change.workspaceID) {
             let gone = Set(change.removed)
             favicons.detach(change.removed)
@@ -88,28 +88,28 @@ extension CoreState {
         touch(change.workspaceID)
     }
 
-    func apply(_ change: FoldersChanged) {
+    func handle(_ change: FoldersChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
         touch(change.workspaceID)
     }
 
-    func apply(_ change: SplitGroupsChanged) {
+    func handle(_ change: SplitGroupsChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
         touch(change.workspaceID)
     }
 
     /// The sidebar's lists are the read model's alone: windows need not
     /// follow them.
-    func apply(_ change: SidebarChanged) {
+    func handle(_ change: SidebarChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
     }
 
-    func apply(_ change: HistoryChanged) {
+    func handle(_ change: HistoryChanged) {
         space(change.spaceID, in: change.workspaceID)?.apply(change)
         touch(change.workspaceID)
     }
 
-    func apply(_ change: ArchiveChanged) {
+    func handle(_ change: ArchiveChanged) {
         if let space = space(change.spaceID, in: change.workspaceID) {
             let gone = Set(change.removed)
             favicons.detach(change.removed)
@@ -121,14 +121,14 @@ extension CoreState {
         touch(change.workspaceID)
     }
 
-    func apply(_ change: TabCopied) {
+    func handle(_ change: TabCopied) {
         if workspaces[change.workspaceID]?.holdsOpen(tabID: change.copyTabID) == true {
             favicons.copy(change.sourceTabID, to: change.copyTabID, in: change.workspaceID)
         }
         touch(change.workspaceID)
     }
 
-    func apply(_ change: TabsImported) {
+    func handle(_ change: TabsImported) {
         if let workspace = workspaces[change.workspaceID] {
             favicons.place(imported: change.tabs.filter { workspace.holds(tabID: $0.tabID) }, in: change.workspaceID)
         }
@@ -138,13 +138,13 @@ extension CoreState {
     /// A promoted page changes no state of its own: the session's changes
     /// before it carry the new tab, and the window that promoted it reads it
     /// from the changes its intent answered.
-    func apply(_ change: TransientPagePromoted) {}
+    func handle(_ change: TransientPagePromoted) {}
 
     /// A page put away changes no state of its own: the page host of the
     /// window that asked follows it, and lets the page go.
-    func apply(_ change: TabPagePutAway) {}
+    func handle(_ change: TabPagePutAway) {}
 
-    func apply(_ change: TabFaviconAssigned) {
+    func handle(_ change: TabFaviconAssigned) {
         if workspaces[change.workspaceID]?.holdsOpen(tabID: change.tabID) == true {
             favicons.assign(adopts: change.adopts, to: change.tabID, in: change.workspaceID, from: change.pageID)
         }

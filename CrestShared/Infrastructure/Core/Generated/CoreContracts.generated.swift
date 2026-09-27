@@ -104,7 +104,7 @@ protocol WindowIntent: Intent {}
 /// The members of `Intent` that derive from the core's `WorkspaceIntent`.
 protocol WorkspaceIntent: Intent {}
 
-/// Everything an intent can change. `CoreState.apply` keeps the read model current.
+/// Everything an intent can change. `CoreState` handles each to keep the read model current.
 enum Change: Equatable, Sendable {
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
@@ -426,6 +426,41 @@ enum EnginePresentation: Equatable, Sendable {
     case sidePanelRequested(SidePanelRequested)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
+
+    /// The `pageID` of a message of the core's `EnginePagePresentation`, or nil for any other.
+    var pageID: UUID? {
+        switch self {
+        case .contentFullscreenChanged(let value): value.pageID
+        case .contentMessagePosted(let value): value.pageID
+        case .contentScriptEvaluated(let value): value.pageID
+        case .findFinished(let value): value.pageID
+        case .infoBarRemoved(let value): value.pageID
+        case .infoBarShown(let value): value.pageID
+        case .inspectorClosed(let value): value.pageID
+        case .inspectorLayoutChanged(let value): value.pageID
+        case .linkHovered(let value): value.pageID
+        case .mediaSessionChanged(let value): value.pageID
+        case .pageCaptured(let value): value.pageID
+        case .pageExported(let value): value.pageID
+        case .pageHistoryChanged(let value): value.pageID
+        case .pageInteracted(let value): value.pageID
+        case .pageLoadingChanged(let value): value.pageID
+        case .pageNavigationCommitted(let value): value.pageID
+        case .pageNavigationFailed(let value): value.pageID
+        case .pageNavigationStarted(let value): value.pageID
+        case .pageRendererGone(let value): value.pageID
+        case .pageThemeChanged(let value): value.pageID
+        case .pageViewClosed(let value): value.pageID
+        case .pageViewReady(let value): value.pageID
+        case .pageViewUnavailable(let value): value.pageID
+        case .peekRequested(let value): value.pageID
+        case .popupBlocked(let value): value.pageID
+        case .sidePanelRequested(let value): value.pageID
+        case .storeInstallRequested(let value): value.pageID
+        case .storeRemovalRequested(let value): value.pageID
+        default: nil
+        }
+    }
 }
 
 // MARK: - Handlers
@@ -1081,71 +1116,6 @@ extension EnginePresentation {
         case .sidePanelRequested(let presentation): handler.handle(presentation)
         case .storeInstallRequested(let presentation): handler.handle(presentation)
         case .storeRemovalRequested(let presentation): handler.handle(presentation)
-        }
-    }
-}
-
-extension CoreState {
-    /// Applies one change through the hand-written applier for its type.
-    func apply(_ change: Change) {
-        switch change {
-        case .appPreferencesChanged(let change): apply(change)
-        case .archiveChanged(let change): apply(change)
-        case .authenticationAsked(let change): apply(change)
-        case .closeReady(let change): apply(change)
-        case .cloudMergeBegan(let change): apply(change)
-        case .cloudSyncAdvanced(let change): apply(change)
-        case .cloudTransportChanged(let change): apply(change)
-        case .dataDeleted(let change): apply(change)
-        case .downloadApprovalAsked(let change): apply(change)
-        case .downloadDestinationAsked(let change): apply(change)
-        case .downloadUpdated(let change): apply(change)
-        case .downloadsRemoved(let change): apply(change)
-        case .enginesChanged(let change): apply(change)
-        case .extensionInstallAsked(let change): apply(change)
-        case .foldersChanged(let change): apply(change)
-        case .historyChanged(let change): apply(change)
-        case .linkPreferencesChanged(let change): apply(change)
-        case .navigationRecorded(let change): apply(change)
-        case .offeredPageAdopted(let change): apply(change)
-        case .pageChanged(let change): apply(change)
-        case .pageOpened(let change): apply(change)
-        case .pageRehosted(let change): apply(change)
-        case .pageRemoved(let change): apply(change)
-        case .pageUnloaded(let change): apply(change)
-        case .permissionAsked(let change): apply(change)
-        case .promptSettled(let change): apply(change)
-        case .quitWithDownloadsAsked(let change): apply(change)
-        case .saved(let change): apply(change)
-        case .scriptDialogAsked(let change): apply(change)
-        case .sessionAdopted(let change): apply(change)
-        case .setupCompletedChanged(let change): apply(change)
-        case .setupDraftChanged(let change): apply(change)
-        case .setupFinished(let change): apply(change)
-        case .setupFlowChanged(let change): apply(change)
-        case .shortcutsChanged(let change): apply(change)
-        case .sidebarChanged(let change): apply(change)
-        case .sitePermissionsChanged(let change): apply(change)
-        case .spaceLockChanged(let change): apply(change)
-        case .spaceSettingsChanged(let change): apply(change)
-        case .spacesChanged(let change): apply(change)
-        case .splitGroupsChanged(let change): apply(change)
-        case .storageFailed(let change): apply(change)
-        case .syncJournalChanged(let change): apply(change)
-        case .syncRecordsSkipped(let change): apply(change)
-        case .syncStagingFailed(let change): apply(change)
-        case .tabCopied(let change): apply(change)
-        case .tabFaviconAssigned(let change): apply(change)
-        case .tabPagePutAway(let change): apply(change)
-        case .tabsChanged(let change): apply(change)
-        case .tabsImported(let change): apply(change)
-        case .transientPagePromoted(let change): apply(change)
-        case .windowChanged(let change): apply(change)
-        case .windowClosed(let change): apply(change)
-        case .windowRecordsAdopted(let change): apply(change)
-        case .workspaceChanged(let change): apply(change)
-        case .workspaceClosed(let change): apply(change)
-        case .workspaceOpened(let change): apply(change)
         }
     }
 }

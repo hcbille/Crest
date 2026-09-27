@@ -6,64 +6,68 @@ namespace CrestCore.Contracts;
 /// sees these.
 public abstract record EnginePresentation;
 
+/// What the binding tells the platform about one of its pages, which its
+/// `PageId` names, so the page it is about hears it.
+public abstract record EnginePagePresentation(Guid PageId) : EnginePresentation;
+
 #region Pages
 
 /// The page's latest find counted `Matches` matches and selected the
 /// `ActiveMatch`th, counted from 1; none found when `Matches` is 0. An engine
 /// that finds a match but cannot count them leaves `Matches` null.
-public sealed record FindFinished(Guid PageId, int? Matches, int ActiveMatch) : EnginePresentation;
+public sealed record FindFinished(Guid PageId, int? Matches, int ActiveMatch) : EnginePagePresentation(PageId);
 
 /// The link under the pointer in the page, or none when the pointer left it.
-public sealed record LinkHovered(Guid PageId, string? Url) : EnginePresentation;
+public sealed record LinkHovered(Guid PageId, string? Url) : EnginePagePresentation(PageId);
 
 /// The capture `CaptureId` asked for, as a PNG, or nothing when the page's
 /// view showed nothing to capture.
-public sealed record PageCaptured(Guid PageId, Guid CaptureId, byte[]? Png) : EnginePresentation;
+public sealed record PageCaptured(Guid PageId, Guid CaptureId, byte[]? Png) : EnginePagePresentation(PageId);
 
 /// The export `ExportId` asked for: its document, or why there is none.
-public sealed record PageExported(Guid PageId, Guid ExportId, byte[]? Document, PageExportFailure? Failure) : EnginePresentation;
+public sealed record PageExported(Guid PageId, Guid ExportId, byte[]? Document, PageExportFailure? Failure) : EnginePagePresentation(PageId);
 
 /// The entries the page can go back and forward to, nearest first, for the
 /// back and forward menus.
 public sealed record PageHistoryChanged(Guid PageId, IReadOnlyList<PageHistoryEntry> Back,
-    IReadOnlyList<PageHistoryEntry> Forward) : EnginePresentation;
+    IReadOnlyList<PageHistoryEntry> Forward) : EnginePagePresentation(PageId);
 
 /// One entry of a page's history: its address and the title it had.
 public sealed record PageHistoryEntry(string Url, string Title);
 
 /// The person typed, clicked or scrolled in the page. Presented at most once a
 /// second, for timers that close pages left idle.
-public sealed record PageInteracted(Guid PageId) : EnginePresentation;
+public sealed record PageInteracted(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The page started or stopped loading.
-public sealed record PageLoadingChanged(Guid PageId, bool IsLoading) : EnginePresentation;
+public sealed record PageLoadingChanged(Guid PageId, bool IsLoading) : EnginePagePresentation(PageId);
 
 /// The page now shows the document at `Url`, a new one or a move within the
 /// same one, and is still loading it when `IsLoading`.
-public sealed record PageNavigationCommitted(Guid PageId, string Url, bool IsLoading) : EnginePresentation;
+public sealed record PageNavigationCommitted(Guid PageId, string Url, bool IsLoading) : EnginePagePresentation(PageId);
 
 /// The page's navigation failed; the engine shows its own error page.
-public sealed record PageNavigationFailed(Guid PageId) : EnginePresentation;
+public sealed record PageNavigationFailed(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The page began loading a new document; what the platform keeps for the
 /// document it shows now is about to go stale.
-public sealed record PageNavigationStarted(Guid PageId) : EnginePresentation;
+public sealed record PageNavigationStarted(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The process that drew the page stopped, so the page shows nothing until it
 /// loads again.
-public sealed record PageRendererGone(Guid PageId) : EnginePresentation;
+public sealed record PageRendererGone(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The colour the page's document declared for its surroundings, or none.
-public sealed record PageThemeChanged(Guid PageId, BrandColor? Color) : EnginePresentation;
+public sealed record PageThemeChanged(Guid PageId, BrandColor? Color) : EnginePagePresentation(PageId);
 
 /// The engine closed the page on its own, as a script's `window.close()` does.
-public sealed record PageViewClosed(Guid PageId) : EnginePresentation;
+public sealed record PageViewClosed(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The engine created the page, so its view can be shown.
-public sealed record PageViewReady(Guid PageId) : EnginePresentation;
+public sealed record PageViewReady(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The engine could not create the page, so it has no view to show.
-public sealed record PageViewUnavailable(Guid PageId) : EnginePresentation;
+public sealed record PageViewUnavailable(Guid PageId) : EnginePagePresentation(PageId);
 
 /// A link in the page asked to open in Peek, as the core decided (`Decision`),
 /// and the engine kept the page where it was. `StagedLinkId` names the link the
@@ -71,10 +75,10 @@ public sealed record PageViewUnavailable(Guid PageId) : EnginePresentation;
 /// initiator; without one the Peek loads `Url` afresh. A Peek that does not
 /// open discards the staged link.
 public sealed record PeekRequested(Guid PageId, string Url, LinkNavigationDecision Decision, Guid? StagedLinkId)
-    : EnginePresentation;
+    : EnginePagePresentation(PageId);
 
 /// The engine blocked a pop-up the document at `PageUrl` opened.
-public sealed record PopupBlocked(Guid PageId, string PageUrl) : EnginePresentation;
+public sealed record PopupBlocked(Guid PageId, string PageUrl) : EnginePagePresentation(PageId);
 
 #endregion
 
@@ -82,11 +86,11 @@ public sealed record PopupBlocked(Guid PageId, string PageUrl) : EnginePresentat
 
 /// The page's content entered or left fullscreen. The page still owns its
 /// fullscreen and leaves it on Escape.
-public sealed record ContentFullscreenChanged(Guid PageId, bool Active) : EnginePresentation;
+public sealed record ContentFullscreenChanged(Guid PageId, bool Active) : EnginePagePresentation(PageId);
 
 /// A Crest content script in `Frame` posted `Body`, as JSON, to `Handler`.
 public sealed record ContentMessagePosted(Guid PageId, string Handler, string Body, ContentFrame Frame)
-    : EnginePresentation;
+    : EnginePagePresentation(PageId);
 
 /// A frame of a page's document: the identity `EvaluateContentScript` takes,
 /// whether it is the main frame, and the origin of what it shows.
@@ -94,19 +98,19 @@ public sealed record ContentFrame(string Id, bool IsMainFrame, string Protocol, 
 
 /// What `EvaluateContentScript` answered, as JSON, or nothing when its
 /// document went away first.
-public sealed record ContentScriptEvaluated(Guid PageId, Guid EvaluationId, string? Json) : EnginePresentation;
+public sealed record ContentScriptEvaluated(Guid PageId, Guid EvaluationId, string? Json) : EnginePagePresentation(PageId);
 
 #endregion
 
 #region Info Bars
 
 /// The bar `InfoBarShown` presented is gone.
-public sealed record InfoBarRemoved(Guid PageId, int InfoBarId) : EnginePresentation;
+public sealed record InfoBarRemoved(Guid PageId, int InfoBarId) : EnginePagePresentation(PageId);
 
 /// The engine asks the person something in a bar over the page: a message and
 /// the labels of the buttons it has. The person's answer is `AnswerInfoBar`.
 public sealed record InfoBarShown(Guid PageId, int InfoBarId, string Message, string? AcceptLabel, string? CancelLabel,
-    bool Closeable) : EnginePresentation;
+    bool Closeable) : EnginePagePresentation(PageId);
 
 #endregion
 
@@ -121,7 +125,7 @@ public sealed record ExtensionsChanged(Guid ProfileId) : EnginePresentation;
 /// the panel instead of opening a popup. A panel is a card beside the page,
 /// so the engine never opens or closes one itself.
 public sealed record SidePanelRequested(Guid PageId, string ExtensionId, SidePanelRequest Request)
-    : EnginePresentation;
+    : EnginePagePresentation(PageId);
 
 /// What the engine asks of an extension's side panel.
 public enum SidePanelRequest {
@@ -132,11 +136,11 @@ public enum SidePanelRequest {
 
 /// The Chrome Web Store listing the page shows asked to install the extension
 /// it is about. The engine checked the listing names `ExtensionId`.
-public sealed record StoreInstallRequested(Guid PageId, string ExtensionId) : EnginePresentation;
+public sealed record StoreInstallRequested(Guid PageId, string ExtensionId) : EnginePagePresentation(PageId);
 
 /// The Chrome Web Store listing the page shows asked to remove the extension
 /// it is about. The engine checked the listing names `ExtensionId`.
-public sealed record StoreRemovalRequested(Guid PageId, string ExtensionId) : EnginePresentation;
+public sealed record StoreRemovalRequested(Guid PageId, string ExtensionId) : EnginePagePresentation(PageId);
 
 #endregion
 
@@ -155,7 +159,7 @@ public enum MediaSessionAction {
 /// late one never replaces a newer one.
 public sealed record MediaSessionChanged(Guid PageId, string Document, long Sequence, string Location, bool Active,
     string? Title, string? Artist, string? Album, MediaPlayback Playback, bool Audible, bool Muted,
-    IReadOnlyList<MediaSessionAction> Actions) : EnginePresentation;
+    IReadOnlyList<MediaSessionAction> Actions) : EnginePagePresentation(PageId);
 
 /// Whether a media session plays.
 public enum MediaPlayback {
@@ -171,11 +175,11 @@ public enum MediaPlayback {
 #region Inspectors
 
 /// The inspector on the page is going away, whichever way it was closed.
-public sealed record InspectorClosed(Guid PageId) : EnginePresentation;
+public sealed record InspectorClosed(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The docked inspector on the page appeared, moved to another side, changed
 /// size or went away, so the page's card lays out again.
-public sealed record InspectorLayoutChanged(Guid PageId) : EnginePresentation;
+public sealed record InspectorLayoutChanged(Guid PageId) : EnginePagePresentation(PageId);
 
 #endregion
 

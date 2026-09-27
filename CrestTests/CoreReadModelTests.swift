@@ -25,7 +25,7 @@ final class CoreReadModelTests: XCTestCase {
         XCTAssertFalse(notifies({ _ = renamed.value }) { renamed.update(renamed.value) })
         XCTAssertFalse(
             notifies(core.state) {
-                core.state.apply(
+                core.state.handle(
                     TabsChanged(
                         workspaceID: store.window.workspaceID, spaceID: space.id, updated: space.tabs.values,
                         removed: [], order: nil))
@@ -210,7 +210,7 @@ final class CoreReadModelTests: XCTestCase {
         assertStoredFirst(
             "CoreState.workspaces", reading: { detached.workspaces[workspaceID] != nil },
             after: {
-                detached.apply(
+                detached.handle(
                     WorkspaceOpened(
                         workspaceID: workspaceID, kind: .private,
                         session: SessionState(
@@ -221,7 +221,7 @@ final class CoreReadModelTests: XCTestCase {
         assertStoredFirst(
             "CoreState.windows", reading: { detached.windows[windowID] != nil },
             after: {
-                detached.apply(
+                detached.handle(
                     WindowChanged(
                         window: WindowState(
                             id: windowID, workspaceID: workspaceID, shownSpaceID: UUID(), shownTabs: [],
@@ -231,7 +231,7 @@ final class CoreReadModelTests: XCTestCase {
         assertStoredFirst(
             "CoreState.pages", reading: { detached.pages[pageID] != nil },
             after: {
-                detached.apply(
+                detached.handle(
                     PageOpened(
                         page: PageState(
                             id: pageID, workspaceID: workspaceID, spaceID: UUID(), tabID: nil, engine: .webKit,
@@ -240,7 +240,7 @@ final class CoreReadModelTests: XCTestCase {
         assertStoredFirst(
             "CoreState values", reading: { detached.storageFailure },
             after: {
-                detached.apply(StorageFailed(reason: .diskFull))
+                detached.handle(StorageFailed(reason: .diskFull))
             })
     }
 
@@ -263,7 +263,7 @@ final class CoreReadModelTests: XCTestCase {
     }
 
     private func apply(_ batch: [Change], to state: CoreState) {
-        for change in batch { state.apply(change) }
+        for change in batch { change.dispatch(to: state) }
         state.finishBatch()
     }
 

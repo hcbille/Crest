@@ -140,84 +140,13 @@ final class WebKitEngineBinding: EngineBinding {
         if contentRules.provider == nil {
             contentRules.provider = BrowserContentRuleListProvider.forLaunch(core: engines.core)
         }
-        engines.core.followPrompts(self) { [weak self] change in self?.ask(change) }
+        engines.core.followChanges(self)
     }
 
+    /// Runs a command the core issued, while the binding is attached.
     func run(_ command: EngineCommand) {
-        guard let engines else { return }
-        switch command {
-        case .createPage(let creation):
-            if let request = engines.request(creation.pageID) {
-                let space = engines.core.state.workspaces[request.intent.workspaceID]?.spaces.model(
-                    request.intent.spaceID)
-                request.built = keep(build(creation, in: space, popup: request.popup))
-            } else if let moving = engines.page(creation.pageID), let state = moving.state {
-                // The core moved a page the platform already hosts to WebKit:
-                // its owner takes the new page before the core loads it.
-                let space = engines.core.state.workspaces[state.workspaceID]?.spaces.model(state.spaceID)
-                engines.handOver(keep(build(creation, in: space, popup: nil)), movedPage: moving)
-            } else {
-                engines.report(PageCreationFailed(pageID: creation.pageID), from: self)
-                return
-            }
-            engines.report(PageCreated(pageID: creation.pageID), from: self)
-        case .loadPage(let loading):
-            guard let url = URL(string: loading.url) else { return }
-            pages[loading.pageID]?.value?.load(url)
-        case .closePage(let closing):
-            let page = pages.removeValue(forKey: closing.pageID)?.value
-            // WebKit requires an answer to every question it asked.
-            declinePrompts(of: closing.pageID)
-            // A page takes the links it staged with it.
-            stagedLinks = stagedLinks.filter { $0.value.sourcePageID != closing.pageID }
-            engines.report(
-                PageClosed(pageID: closing.pageID, restoreState: closing.keepsState ? page?.restoreState : nil),
-                from: self)
-        case .checkBeforeUnload(let check):
-            prepareToClose(check.pageID)
-        case .recoverPage(let recovery):
-            // WebKit starts a new web content process for the page's current
-            // history entry.
-            pages[recovery.pageID]?.value?.webView.reload()
-        case .settleScriptDialog(let settlement):
-            guard case .scriptDialog(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
-            answer(settlement.accepted, settlement.text)
-        case .settleAuthentication(let settlement):
-            guard case .authentication(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else {
-                return
-            }
-            answer(settlement.credential)
-        case .settlePermission(let settlement):
-            guard case .permission(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
-            answer(settlement.grants)
-        case .settleDownloadDestination(let settlement):
-            downloads.settle(settlement)
-        case .cancelEngineDownload(let cancellation):
-            downloads.cancel(cancellation.downloadID)
-        case .removeEngineDownload(let removal):
-            downloads.remove(removal.downloadID)
-        case .approveEngineDownload(let approval):
-            // WebKit warns about nothing itself, so the only download the core
-            // approves is a blocked one the person retried.
-            downloads.approve(approval.downloadID)
-        case .eraseProfileData(let erasing):
-            erase(erasing)
-        case .eraseSiteData(let erasing):
-            erase(erasing)
-        case .settleExtensionInstall:
-            // WebKit has no extensions, so the core never asks it to.
-            break
-        case .adoptOfferedPage(let adoption):
-            // WebKit hands Crest its popups while it waits and offers no page.
-            engines.report(PageCreationFailed(pageID: adoption.pageID), from: self)
-        case .stageNavigation(let staging):
-            stage(staging)
-        case .dropStagedLink(let dropping):
-            stagedLinks[dropping.stagedLinkID] = nil
-        case .rejectOfferedPage:
-            // WebKit offers no page.
-            break
-        }
+        guard engines != nil else { return }
+        command.dispatch(to: self)
     }
 
     /// The core this binding reports to, while it is attached.
@@ -476,24 +405,6 @@ final class WebKitEngineBinding: EngineBinding {
         engines?.report(PromptWithdrawn(promptID: promptID), from: self)
     }
 
-    /// Shows a question the core asks about one of this binding's pages on
-    /// the page's host, and closes it once the core settles it. One no host
-    /// can show is declined.
-    private func ask(_ change: Change) {
-        switch change {
-        case .scriptDialogAsked(let asked):
-            present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
-        case .authenticationAsked(let asked):
-            present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
-        case .permissionAsked(let asked):
-            present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
-        case .promptSettled(let settled):
-            dismissals.removeValue(forKey: settled.promptID)?.dismiss()
-        default:
-            break
-        }
-    }
-
     /// Shows one of this binding's prompts with `show` on the host of page
     /// `pageID`, or declines it when no host can show it.
     private func present(
@@ -535,6 +446,140 @@ final class WebKitEngineBinding: EngineBinding {
             }
         #endif
         engines?.report(BeforeUnloadAnswered(pageID: pageID, proceeds: true), from: self)
+    }
+}
+
+// MARK: - Engine commands
+
+extension WebKitEngineBinding: EngineCommandHandling {
+    func handle(_ creation: CreatePage) {
+        guard let engines else { return }
+        if let request = engines.request(creation.pageID) {
+            let space = engines.core.state.workspaces[request.intent.workspaceID]?.spaces.model(
+                request.intent.spaceID)
+            request.built = keep(build(creation, in: space, popup: request.popup))
+        } else if let moving = engines.page(creation.pageID), let state = moving.state {
+            // The core moved a page the platform already hosts to WebKit:
+            // its owner takes the new page before the core loads it.
+            let space = engines.core.state.workspaces[state.workspaceID]?.spaces.model(state.spaceID)
+            engines.handOver(keep(build(creation, in: space, popup: nil)), movedPage: moving)
+        } else {
+            engines.report(PageCreationFailed(pageID: creation.pageID), from: self)
+            return
+        }
+        engines.report(PageCreated(pageID: creation.pageID), from: self)
+    }
+
+    func handle(_ loading: LoadPage) {
+        guard let url = URL(string: loading.url) else { return }
+        pages[loading.pageID]?.value?.load(url)
+    }
+
+    func handle(_ closing: ClosePage) {
+        guard let engines else { return }
+        let page = pages.removeValue(forKey: closing.pageID)?.value
+        // WebKit requires an answer to every question it asked.
+        declinePrompts(of: closing.pageID)
+        // A page takes the links it staged with it.
+        stagedLinks = stagedLinks.filter { $0.value.sourcePageID != closing.pageID }
+        engines.report(
+            PageClosed(pageID: closing.pageID, restoreState: closing.keepsState ? page?.restoreState : nil),
+            from: self)
+    }
+
+    func handle(_ check: CheckBeforeUnload) {
+        prepareToClose(check.pageID)
+    }
+
+    func handle(_ recovery: RecoverPage) {
+        // WebKit starts a new web content process for the page's current
+        // history entry.
+        pages[recovery.pageID]?.value?.webView.reload()
+    }
+
+    func handle(_ settlement: SettleScriptDialog) {
+        guard case .scriptDialog(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
+        answer(settlement.accepted, settlement.text)
+    }
+
+    func handle(_ settlement: SettleAuthentication) {
+        guard case .authentication(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
+        answer(settlement.credential)
+    }
+
+    func handle(_ settlement: SettlePermission) {
+        guard case .permission(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
+        answer(settlement.grants)
+    }
+
+    func handle(_ settlement: SettleDownloadDestination) {
+        downloads.settle(settlement)
+    }
+
+    func handle(_ cancellation: CancelEngineDownload) {
+        downloads.cancel(cancellation.downloadID)
+    }
+
+    func handle(_ removal: RemoveEngineDownload) {
+        downloads.remove(removal.downloadID)
+    }
+
+    func handle(_ approval: ApproveEngineDownload) {
+        // WebKit warns about nothing itself, so the only download the core
+        // approves is a blocked one the person retried.
+        downloads.approve(approval.downloadID)
+    }
+
+    func handle(_ erasing: EraseProfileData) {
+        erase(erasing)
+    }
+
+    func handle(_ erasing: EraseSiteData) {
+        erase(erasing)
+    }
+
+    func handle(_ settlement: SettleExtensionInstall) {
+        // WebKit has no extensions, so the core never asks it to.
+    }
+
+    func handle(_ adoption: AdoptOfferedPage) {
+        // WebKit hands Crest its popups while it waits and offers no page.
+        engines?.report(PageCreationFailed(pageID: adoption.pageID), from: self)
+    }
+
+    func handle(_ staging: StageNavigation) {
+        stage(staging)
+    }
+
+    func handle(_ dropping: DropStagedLink) {
+        stagedLinks[dropping.stagedLinkID] = nil
+    }
+
+    func handle(_ rejection: RejectOfferedPage) {
+        // WebKit offers no page.
+    }
+}
+
+// MARK: - Prompts
+
+/// Shows a question the core asks about one of this binding's pages on the
+/// page's host, and closes it once the core settles it. One no host can show
+/// is declined. It observes only the questions WebKit's pages ask.
+extension WebKitEngineBinding: ChangeObserving {
+    func handle(_ asked: ScriptDialogAsked) {
+        present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
+    }
+
+    func handle(_ asked: AuthenticationAsked) {
+        present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
+    }
+
+    func handle(_ asked: PermissionAsked) {
+        present(asked.promptID, on: asked.pageID) { $0.ask(asked, dismissal: $1) }
+    }
+
+    func handle(_ settled: PromptSettled) {
+        dismissals.removeValue(forKey: settled.promptID)?.dismiss()
     }
 }
 

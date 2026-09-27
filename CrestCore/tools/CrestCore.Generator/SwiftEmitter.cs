@@ -57,17 +57,6 @@ internal static class SwiftEmitter {
         var handled = ContractRoot.All.Where(root => root.PlatformHandles).ToList();
         if (handled.Count > 0) code.Append("\n// MARK: - Handlers\n");
         foreach (var root in handled) EmitHandling(code, schema, root);
-        code.Append("""
-
-            extension CoreState {
-                /// Applies one change through the hand-written applier for its type.
-                func apply(_ change: Change) {
-                    switch change {
-
-            """);
-        foreach (var member in schema.Members(ContractRoot.Change))
-            code.Append($"        case .{Naming.SwiftMember(member.Name)}(let change): apply(change)\n");
-        code.Append("        }\n    }\n}\n");
 
         var roots = new Dictionary<Type, (ContractRoot Root, ContractMember Member)>();
         foreach (var root in ContractRoot.All)
@@ -350,8 +339,9 @@ internal static class SwiftEmitter {
     private static string Parameter(ContractRoot root) => Naming.Words(root.Name)[^1].ToLowerInvariant();
 
     /// A root the platform receives becomes an enum with a case per message.
-    /// Each text some of its messages carry is read through the enum as an
-    /// optional, nil for a message without it.
+    /// Each text some of its messages carry, and each fact a family of them
+    /// declares, is read through the enum as an optional, nil for a message
+    /// without it, or as it is when every message carries it.
     private static void EmitUnion(StringBuilder code, ContractSchema schema, ContractRoot root, HashSet<Type> equatable) {
         var members = schema.Members(root);
         bool isEquatable = members.All(member => equatable.Contains(member.Record.Type));
@@ -365,6 +355,22 @@ internal static class SwiftEmitter {
             foreach (var member in carriers)
                 code.Append($"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}\n");
             if (carriers.Count < members.Count) code.Append("        default: nil\n");
+            code.Append("        }\n    }\n");
+        }
+        foreach (var fact in schema.Unions.Where(family => family.Root == root).SelectMany(family => family.Fields.Select(field =>
+            (Field: field, Family: family))).GroupBy(fact => fact.Field.Name, StringComparer.Ordinal).OrderBy(fact => fact.Key, StringComparer.Ordinal)) {
+            var type = fact.First().Field.Type;
+            if (fact.Any(declared => declared.Field.Type != type))
+                throw new ContractSchemaException($"{fact.Key}: every family of {root} that declares it gives it the same type.");
+            var carriers = members.Where(member => fact.Any(declared => declared.Family.Type.IsAssignableFrom(member.Record.Type))).ToList();
+            bool everyMember = carriers.Count == members.Count;
+            string property = Local(fact.Key);
+            string families = string.Join(" and ", fact.Select(declared => $"`{declared.Family.Name}`"));
+            code.Append('\n').Append($"    /// The `{property}` of a message of the core's {families}{(everyMember ? "" : ", or nil for any other")}.\n");
+            code.Append($"    var {property}: {TypeName(type)}{(everyMember || type is OptionalField ? "" : "?")} {{\n        switch self {{\n");
+            foreach (var member in carriers)
+                code.Append($"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}\n");
+            if (!everyMember) code.Append("        default: nil\n");
             code.Append("        }\n    }\n");
         }
         code.Append("}\n");

@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// The Swift read model of the core's state. Views read it directly; only the
-/// changes `CrestCore` receives update it, each through its applier in a
+/// changes `CrestCore` receives update it, each through its `handle(_:)` in a
 /// `CoreState+Area.swift` file. It is observable per entity: each workspace,
 /// Space, tab, folder and window is an object of its own that notifies only
 /// when one of its values really changes.
@@ -146,3 +146,6 @@ final class CoreState {
 }
 
 extension CoreState: BrowserStoreFirstObservable {}
+
+/// The read model handles every change, each in its `CoreState+Area.swift` file.
+extension CoreState: ChangeHandling {}

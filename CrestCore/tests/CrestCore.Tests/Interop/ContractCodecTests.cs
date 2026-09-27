@@ -280,8 +280,8 @@ public sealed unsafe class ContractCodecTests {
     /// Each family's handler has one overload per case, a message reaches the
     /// overload for its case, which a message of a family below reaches through
     /// that family's case, and a returning handler's result comes back. Each
-    /// Swift handling protocol has one method per member of its root, and
-    /// dispatch reaches each.
+    /// Swift handling protocol has one method per member of its root, dispatch
+    /// reaches each, and a fact a family declares is read from each member.
     [Fact]
     public void EachFamilysHandlerHasExactlyItsCasesAndDispatchReachesTheOneForEachMessage() {
         var schema = ContractSchema.Load(Contracts);
@@ -323,6 +323,16 @@ public sealed unsafe class ContractCodecTests {
                 Assert.Matches(root.PlatformSends
                     ? $@"extension {member} \{{\n    @MainActor func dispatch\(to handler: some {root.Name}Handling\)[^{{]*\{{\n        handler\.handle\(self\)"
                     : $@"case \.{Regex.Escape(Naming.SwiftMember(member))}\(let (\w+)\): handler\.handle\(\1\)\n", swift);
+            // A fact a family declares is read through the enum from each of its members.
+            foreach (var family in schema.Unions.Where(family => family.Root == root && !root.PlatformSends))
+                foreach (var field in family.Fields) {
+                    string property = Naming.SwiftMember(field.Name);
+                    string accessor = Regex.Match(swift, $@"enum {root.Name}\b.*?    var {property}: [^{{]*\{{\n        switch self \{{\n(.*?)\n        \}}",
+                        RegexOptions.Singleline).Groups[1].Value;
+                    Assert.Equal(schema.Members(root).Where(member => family.Type.IsAssignableFrom(member.Record.Type))
+                        .Select(member => $"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}"),
+                        accessor.Split('\n').Where(line => !line.Contains("default:", StringComparison.Ordinal)));
+                }
         }
     }
 

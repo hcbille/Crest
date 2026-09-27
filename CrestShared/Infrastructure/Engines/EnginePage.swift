@@ -251,31 +251,33 @@ final class EnginePage: BrowserFindExecuting {
     func move(to windowID: UUID) -> Bool {
         pages.request(MovePageToWindow(pageID: id, windowID: windowID))
     }
+}
 
-    // MARK: - Actions - Presentations
+// MARK: - Presentations
 
-    /// Hears what the engine finished for the page.
-    func receive(_ presentation: EnginePresentation) {
-        switch presentation {
-        case .findFinished(let finished):
-            let completion = findCompletion
-            findCompletion = nil
-            completion?(
-                finished.matches.map { BrowserFindResult(matchCount: $0, activeMatch: finished.activeMatch) }
-                    ?? BrowserFindResult(matchFound: true))
-        case .pageCaptured(let captured):
-            captures.removeValue(forKey: captured.captureID)?(captured.png)
-        case .pageExported(let exported):
-            guard let continuation = exports.removeValue(forKey: exported.exportID) else { return }
-            if let document = exported.document {
-                continuation.resume(returning: document)
-            } else {
-                let failure = exported.failure ?? PageExportFailure.failed
-                continuation.resume(
-                    throwing: BrowserPageExportError.renderingFailed(String(localized: failure.message)))
-            }
-        default:
-            break
+/// Hears what the engine finished for the page: a find's count, a capture or
+/// an export. It observes only these; the page's owner hears the rest.
+extension EnginePage: EnginePresentationObserving {
+    func handle(_ finished: FindFinished) {
+        let completion = findCompletion
+        findCompletion = nil
+        completion?(
+            finished.matches.map { BrowserFindResult(matchCount: $0, activeMatch: finished.activeMatch) }
+                ?? BrowserFindResult(matchFound: true))
+    }
+
+    func handle(_ captured: PageCaptured) {
+        captures.removeValue(forKey: captured.captureID)?(captured.png)
+    }
+
+    func handle(_ exported: PageExported) {
+        guard let continuation = exports.removeValue(forKey: exported.exportID) else { return }
+        if let document = exported.document {
+            continuation.resume(returning: document)
+        } else {
+            let failure = exported.failure ?? PageExportFailure.failed
+            continuation.resume(
+                throwing: BrowserPageExportError.renderingFailed(String(localized: failure.message)))
         }
     }
 }

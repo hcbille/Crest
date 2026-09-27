@@ -16,7 +16,7 @@ final class BrowserQuitPreparation {
 
     init(core: CrestCore) {
         self.core = core
-        core.followPrompts(self) { [weak self] change in self?.ask(change) }
+        core.followChanges(self)
     }
 
     // MARK: - Actions - Quitting
@@ -32,25 +32,24 @@ final class BrowserQuitPreparation {
             Task { @MainActor in completion(allowed) }
         }
     }
+}
 
-    // MARK: - Actions - Prompts
+// MARK: - Prompts
 
-    /// Shows the question about downloads in progress, and closes it once the
-    /// core settles it.
-    private func ask(_ change: Change) {
-        switch change {
-        case .quitWithDownloadsAsked(let asked):
-            let dismissal = BrowserPromptDismissal()
-            dismissals[asked.promptID] = dismissal
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                let quits = await dialogs.approveQuitWithDownloads(count: asked.liveDownloads, dismissal: dismissal)
-                _ = try? core?.send(AnswerQuitWithDownloads(promptID: asked.promptID, quits: quits))
-            }
-        case .promptSettled(let settled):
-            dismissals.removeValue(forKey: settled.promptID)?.dismiss()
-        default:
-            break
+/// Shows the question about downloads in progress, and closes it once the
+/// core settles it. It observes only that question.
+extension BrowserQuitPreparation: ChangeObserving {
+    func handle(_ asked: QuitWithDownloadsAsked) {
+        let dismissal = BrowserPromptDismissal()
+        dismissals[asked.promptID] = dismissal
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let quits = await dialogs.approveQuitWithDownloads(count: asked.liveDownloads, dismissal: dismissal)
+            _ = try? core?.send(AnswerQuitWithDownloads(promptID: asked.promptID, quits: quits))
         }
+    }
+
+    func handle(_ settled: PromptSettled) {
+        dismissals.removeValue(forKey: settled.promptID)?.dismiss()
     }
 }
