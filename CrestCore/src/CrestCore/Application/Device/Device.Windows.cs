@@ -112,6 +112,17 @@ internal sealed partial class Device {
         lock (gate) return workspaces.GetValueOrDefault(workspaceId);
     }
 
+    /// The workspace the person's own Spaces live in: the session the core
+    /// keeps in its file, or in a launch that keeps nothing, the one that keeps
+    /// the app's preferences in its place. Null while neither is attached.
+    internal (Guid WorkspaceId, NativeSessionAuthority Authority)? Persistent() {
+        lock (gate) {
+            if (persistentWorkspace is { } kept && workspaces.TryGetValue(kept, out var stored)) return (kept, stored);
+            return workspaces.Where(attached => attached.Value.Kind.KeepsAppPreferences)
+                .Select(attached => ((Guid, NativeSessionAuthority)?)(attached.Key, attached.Value)).FirstOrDefault();
+        }
+    }
+
     /// The Space a window may show: one the session holds that is not being deleted.
     internal static SpaceState? Available(SessionState session, Guid spaceId) =>
         session.SpaceDeletions.Any(deletion => deletion.SpaceId == spaceId) ? null : session.Spaces.FirstOrDefault(space => space.Id == spaceId);

@@ -25,6 +25,20 @@ public sealed record FallbackTabIndex(int? Index);
 /// The tab "Split With Next Tab" would add, or null when it would add none.
 public sealed record SplitJoinCandidateTab(Guid? TabId);
 
+/// What the Dock icon's menu shows: its window commands, then the Spaces a
+/// window can show, in order. `WindowId` is the window a chosen Space shows
+/// in and the commands act from, the frontmost over the persistent session,
+/// or null when none is open, when a chosen Space opens a window on itself.
+public sealed record DockMenuContent(IReadOnlyList<DockMenuCommand> Commands, IReadOnlyList<DockMenuSpace> Spaces, Guid? WindowId);
+
+/// One Space in the Dock icon's menu, drawn as the Space switcher draws it:
+/// its name, symbol, accent and the look it wears, which says whether its
+/// icon is its crest or its symbol. `IsShown` checks the Space the frontmost
+/// window shows. `IsLocked` says this process holds no grant for it now, so
+/// choosing it shows it locked until the person unlocks it there.
+public sealed record DockMenuSpace(Guid SpaceId, Guid ProfileId, string Name, string Symbol, SpaceAccent Accent,
+    SpaceBranding Look, bool IsShown, bool IsLocked);
+
 #endregion
 
 #region Changes

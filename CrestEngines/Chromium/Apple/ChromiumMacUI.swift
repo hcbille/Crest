@@ -30,6 +30,8 @@
 
         func openExternal(_ urls: [URL]) -> Bool { CrestChromiumRoot.openExternalURLs(urls) }
 
+        func dockMenu() -> NSMenu? { CrestChromiumRoot.dockMenu() }
+
         func openAuthenticationSession(_ url: URL, window windowID: UUID) -> Bool {
             CrestChromiumRoot.openAuthenticationSession(url, window: windowID)
         }

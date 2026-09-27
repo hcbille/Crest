@@ -116,7 +116,21 @@
    StartupTabs startupTabs;
    for (NSURL* url in urls) {
      // Handle the google-chrome:// scheme (and chromium://).
-@@ -2197,6 +2220,14 @@
+@@ -2137,6 +2160,13 @@
+ }
+ 
+ - (NSMenu*)applicationDockMenu:(NSApplication*)sender {
++  // Crest builds the Dock menu from its own window commands and Spaces.
++  // Chromium's profiles and incognito window are not Crest's, so none of its
++  // items appear, even before Crest's UI has started.
++  if (crest::IsEnabled()) {
++    return crest::DockMenu();
++  }
++
+   NSMenu* dockMenu = [[NSMenu alloc] initWithTitle:@""];
+ 
+   BOOL profilesAdded = [_profileMenuController insertItemsIntoMenu:dockMenu
+@@ -2197,6 +2227,14 @@
    if (profile == _lastProfile)
      return;
  
@@ -131,7 +145,7 @@
    // If _lastProfile becomes null, remember the last state of Cmd+Shift+T so the
    // command can continue working (or stay disabled). This is primarily meant
    // for the zero-profile state.
-@@ -2502,6 +2533,11 @@
+@@ -2502,6 +2540,11 @@
  - (void)beginHandlingWebAuthenticationSessionRequest:
      (ASWebAuthenticationSessionRequest*)request {
    dispatch_async(dispatch_get_main_queue(), ^{
@@ -143,7 +157,7 @@
      // Start tracking the pending request, so it's possible to cancel it before
      // the session actually starts.
      NSUUID* key = request.UUID;
-@@ -2519,6 +2555,10 @@
+@@ -2519,6 +2562,10 @@
  - (void)cancelWebAuthenticationSessionRequest:
      (ASWebAuthenticationSessionRequest*)request {
    dispatch_async(dispatch_get_main_queue(), ^{

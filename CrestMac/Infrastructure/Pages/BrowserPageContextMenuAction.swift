@@ -22,6 +22,9 @@ struct BrowserPageContextMenuAction {
     let symbolName: String
     let linkURL: URL?
     let selectionText: String?
+    /// The Space a Space destination opens the link in, whose icon its row
+    /// shows; nil for every other row.
+    var space: BrowserSpaceIdentity?
 
     var isSpaceDestination: Bool {
         if case .space = kind { return true }
@@ -100,7 +103,9 @@ struct BrowserPageContextMenu {
         item.target = row
         // The menu item keeps its row alive.
         item.representedObject = row
-        item.image = NSImage(systemSymbolName: action.symbolName, accessibilityDescription: nil)
+        item.image =
+            action.space.flatMap { BrowserSpaceSymbolArtworkRenderer.shared.menuImage(for: $0) }
+            ?? NSImage(systemSymbolName: action.symbolName, accessibilityDescription: nil)
         return item
     }
 }
@@ -120,7 +125,8 @@ extension BrowserPage: BrowserPageContextMenuHost {
                 actions.append(
                     BrowserPageContextMenuAction(
                         kind: .space(space.id), title: space.settings.name,
-                        symbolName: "square.stack.3d.up", linkURL: linkURL, selectionText: nil))
+                        symbolName: "square.stack.3d.up", linkURL: linkURL, selectionText: nil,
+                        space: space.identity))
             }
             actions.append(
                 BrowserPageContextMenuAction(

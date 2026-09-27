@@ -47,6 +47,18 @@ struct BrowserSpaceIdentity: Equatable, Identifiable {
         requiresAuthentication = false
     }
 
+    /// A Space of the Dock icon's menu, as the core answered it, wearing the
+    /// lock while this process holds no grant for it.
+    init(dockSpace space: DockMenuSpace) {
+        id = space.spaceID
+        profileID = space.profileID
+        name = space.name
+        symbol = space.symbol
+        accent = space.accent
+        branding = space.look
+        requiresAuthentication = space.isLocked
+    }
+
     // MARK: - Actions - Drafting
 
     /// This identity as a draft shows it before it is saved: named `name` and

@@ -9,7 +9,7 @@
   },
   "chrome/browser/app_controller_mac.mm": {
     "before": "f82d0e17923e264fbb1bf472637e40332d69afc347a3dda391bd3f681076bc5e",
-    "after": "addf7c7e08958385f713ae02261f0399a09309de26f6dc191005b12e1a8a8497"
+    "after": "ab91fc3b23fde76f359a24e52bb66316627a184d48a5c6a66b57fd4f626f2e3d"
   },
   "chrome/browser/ui/BUILD.gn": {
     "before": "d00a05b597c3f25aa7e7eea8b777f5fbcebd1e67ace0e4d0e926a75a62f79ee3",

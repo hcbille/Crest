@@ -33,4 +33,13 @@ final class CrestAppDelegate: NSObject, NSApplicationDelegate {
         }
         return .terminateLater
     }
+
+    // MARK: - Actions - Dock
+
+    /// Crest's window commands and Spaces, which the Dock shows above the
+    /// items macOS adds itself.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        guard let application = launch.value, application.presentsInstalledApplicationUI else { return nil }
+        return application.dockMenu.menu()
+    }
 }

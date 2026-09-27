@@ -57,6 +57,9 @@ NS_SWIFT_UI_ACTOR
 - (BOOL)reopen;
 // A link or document from another app.
 - (BOOL)openExternalURLs:(NSArray<NSURL *> *)urls NS_SWIFT_NAME(openExternal(_:));
+// The Dock icon's menu: Crest's window commands and Spaces, ahead of the
+// window list and the items macOS adds itself.
+- (nullable NSMenu *)dockMenu;
 // An app's system sign-in, in the Quick Window named `windowID`, and its end.
 - (BOOL)openAuthenticationSession:(NSURL *)url window:(NSUUID *)windowID
     NS_SWIFT_NAME(openAuthenticationSession(_:window:));

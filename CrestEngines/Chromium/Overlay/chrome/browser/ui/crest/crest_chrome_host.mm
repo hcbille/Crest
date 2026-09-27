@@ -1220,6 +1220,10 @@ bool OpenExternalURLs(NSArray<NSURL*>* urls) {
   if (!IsEnabled() || !State().started || State().disposing || State().quitting) return false;
   return [UI() openExternalURLs:urls];
 }
+NSMenu* DockMenu() {
+  if (!IsEnabled() || !State().started || State().disposing || State().quitting) return nil;
+  return [UI() dockMenu];
+}
 bool BeginAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
   CHECK(NSThread.isMainThread);
   if (!IsEnabled()) return false;

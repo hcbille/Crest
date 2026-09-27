@@ -124,7 +124,7 @@ private struct BrowserOnboardingReviewSourcePicker: View {
 
             Picker("Source Space", selection: selection) {
                 ForEach(spaces) { item in
-                    Text(item.sourceSpace.settings.name).tag(item.id)
+                    BrowserSpaceIdentityLabel(space: item.sourceSpace).tag(item.id)
                 }
             }
             .labelsHidden()
@@ -158,7 +158,7 @@ private struct BrowserOnboardingReviewDestinationPicker: View {
             Picker("Destination Space", selection: $destination) {
                 Text("New Space").tag(BrowserImportDestination.newSpace)
                 ForEach(spaces) { space in
-                    Text(space.settings.name).tag(
+                    BrowserSpaceIdentityLabel(space: space).tag(
                         BrowserImportDestination.existing(space.id)
                     )
                 }

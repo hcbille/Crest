@@ -470,6 +470,13 @@
             return true
         }
 
+        /// The Dock icon's menu, which Chromium's `AppController` asks for in
+        /// place of its own profiles and incognito window.
+        static func dockMenu() -> NSMenu? {
+            guard let instance, !instance.quitting else { return nil }
+            return instance.application.dockMenu.menu()
+        }
+
         // MARK: - External URLs
 
         /// Chromium's `AppController` hands over every external open. Routing then

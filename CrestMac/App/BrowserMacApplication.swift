@@ -44,6 +44,8 @@ final class BrowserMacApplication {
     let presentsInstalledApplicationUI: Bool
     /// The view an engine anchors its popups to behind Site Controls.
     let siteControlAnchor: BrowserSiteControlAnchor?
+    /// The Dock icon's menu, which the composition hands AppKit when it asks.
+    private(set) lazy var dockMenu = BrowserMacDockMenu(application: self)
 
     /// - Parameters:
     ///   - defaultEngine: The engine new pages open on; nil makes it WebKit,

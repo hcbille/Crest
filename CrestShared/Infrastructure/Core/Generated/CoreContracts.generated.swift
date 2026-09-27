@@ -1686,6 +1686,29 @@ struct DissolveSplit: Intent, SessionIntent, Equatable, Sendable {
     let groupID: UUID
 }
 
+struct DockMenu: Query, Equatable, Sendable {
+    typealias Answer = DockMenuContent
+
+    let windowIDs: [UUID]
+}
+
+struct DockMenuContent: Equatable, Sendable {
+    let commands: [DockMenuCommand]
+    let spaces: [DockMenuSpace]
+    let windowID: UUID?
+}
+
+struct DockMenuSpace: Equatable, Sendable {
+    let spaceID: UUID
+    let profileID: UUID
+    let name: String
+    let symbol: String
+    let accent: SpaceAccent
+    let look: SpaceBranding
+    let isShown: Bool
+    let isLocked: Bool
+}
+
 struct DownloadApprovalAsked: Equatable, Sendable {
     let promptID: UUID
     let downloadID: UUID
@@ -7437,6 +7460,54 @@ struct DevicePlatform: Hashable, Sendable {
     }
 
     static func == (lhs: DevicePlatform, rhs: DevicePlatform) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `DockMenuCommand`. A member's wire tag is its index in `all`.
+struct DockMenuCommand: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let command: ShortcutCommand
+    let title: LocalizedStringResource
+
+    private init(tag: Int, name: String, command: ShortcutCommand, title: LocalizedStringResource) {
+        self.tag = tag
+        self.name = name
+        self.command = command
+        self.title = title
+    }
+
+    static let newWindow = DockMenuCommand(
+        tag: 0,
+        name: "newWindow",
+        command: ShortcutCommand.newWindow,
+        title: LocalizedStringResource("New Window")
+    )
+    static let newQuickWindow = DockMenuCommand(
+        tag: 1,
+        name: "newQuickWindow",
+        command: ShortcutCommand.newQuickWindow,
+        title: LocalizedStringResource("New Quick Window")
+    )
+    static let newPrivateWindow = DockMenuCommand(
+        tag: 2,
+        name: "newPrivateWindow",
+        command: ShortcutCommand.newPrivateWindow,
+        title: LocalizedStringResource("New Private Window")
+    )
+
+    static let all: [DockMenuCommand] = [newWindow, newQuickWindow, newPrivateWindow]
+
+    static func named(_ name: String?) -> DockMenuCommand? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: DockMenuCommand, rhs: DockMenuCommand) -> Bool {
         lhs.tag == rhs.tag
     }
 

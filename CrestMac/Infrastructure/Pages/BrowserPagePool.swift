@@ -67,7 +67,8 @@ final class BrowserPagePool:
     /// from this window, in its workspace.
     @ObservationIgnored let browser: BrowserStore
     var windowID: UUID { browser.windowID }
-    @ObservationIgnored private weak var presentationWindow: NSWindow?
+    /// The native window this pool's window is on screen as, while it is.
+    @ObservationIgnored private(set) weak var presentationWindow: NSWindow?
     private(set) var isWindowFocused = true
     var publishesPageMetadataCentrally: Bool { runtimeStore.publishesPageMetadataCentrally }
     let downloadCenter: BrowserDownloadCenter

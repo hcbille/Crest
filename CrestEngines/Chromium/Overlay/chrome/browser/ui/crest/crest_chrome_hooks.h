@@ -106,6 +106,11 @@ id<CrestMacUI> MacUI();
 // Consumes an external open: a link from another app, a document, or the
 // default-browser role. Crest applies its own routing policy.
 bool OpenExternalURLs(NSArray<NSURL*>* urls);
+// The Dock icon's menu: Crest's window commands and the Spaces a window can
+// show. Nil before Crest's UI starts and once it is shutting down, when the
+// Dock shows only what macOS adds. Chromium's profiles and incognito window
+// are not Crest's, so the Dock never offers them.
+NSMenu* DockMenu();
 // An app's system sign-in (`ASWebAuthenticationSession`). Crest runs it in a
 // Quick Window of the Space the app's links route to, instead of Chromium's
 // Views popup in a profile no Space owns. Both return false only when Crest is

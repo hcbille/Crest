@@ -42,6 +42,7 @@ struct CrestApp: App {
                     BrowserMacAppIconPreference.restore()
                     await application.cloudSync.start()
                 }
+                .modifier(BrowserMacDockMenu.SceneOpening(dockMenu: application.dockMenu))
             } else if launch.failure != nil {
                 BrowserSessionRecoveryView(launch: launch)
             } else {

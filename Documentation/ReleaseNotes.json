@@ -3105,6 +3105,14 @@
     "sync-record-names-from-their-kind": {
       "category": "internal",
       "message": "Every synced record's name is spelled by its record kind in one place."
+    },
+    "dock-menu-spaces-and-window-commands": {
+      "category": "new",
+      "message": "The Dock menu shows your Spaces and Crest's own window commands: New Window, New Quick Window and New Private Window."
+    },
+    "space-icons-in-menus-every-time": {
+      "category": "fixed",
+      "message": "Menus that list your Spaces show each Space's crest or symbol every time they open, including the link menu's Open Link in Another Space."
     }
   }
 }

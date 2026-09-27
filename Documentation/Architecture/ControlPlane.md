@@ -271,6 +271,14 @@ keeps every tab an open window shows and every tab a saved window's record
 shows. Windows over the persistent session are saved in the device store, the
 sixteen used last. Sidebar width and presentation stay the platform's.
 
+The Dock icon's menu is the core's answer to `DockMenu`, asked over the
+windows as the platform stacks them: the window commands (`DockMenuCommand`),
+then the persistent session's Spaces in order, each with whether the frontmost
+window shows it and whether it is locked, and the window a chosen Space shows
+in. That window is the frontmost over the persistent session, never a private
+or borrowed one; with none open, a chosen Space opens a window on itself. Both
+Mac apps draw it with the Space switcher's icons.
+
 ### Storage
 
 The core owns `session.sqlite`. The host passes only a storage directory in
@@ -751,9 +759,10 @@ after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
 - **Identity and lifecycle.** The packager includes Crest's icons and Dock
   tile plug-in; the host installs Crest's AppKit menus, About identity and
   shortcut preferences. External URL and document opens reach Crest's own
-  routing, Dock reopen activates or opens a window, and startup restores the
-  normal windows open at quit. The product registers Crest for HTTP, HTTPS
-  and HTML documents and carries the Sparkle feed.
+  routing, Dock reopen activates or opens a window, the Dock menu is Crest's
+  own in place of Chromium's profiles and incognito window, and startup
+  restores the normal windows open at quit. The product registers Crest for
+  HTTP, HTTPS and HTML documents and carries the Sparkle feed.
 - **Links.** Chromium's binding asks the core `LinkActivation` for each link
   the person follows in an owned page, from its modified-link hook and its
   protected-link throttle: saved-site protection, Peek priority and
