@@ -2953,6 +2953,10 @@
     "chromium-menu-reads-offered-commands": {
       "category": "internal",
       "message": "The Chromium menu bar shows the commands the open pages' engines offer"
+    },
+    "chromium-private-window-borrowed-profile": {
+      "category": "internal",
+      "message": "Chromium private windows borrow only an unlocked Space's settings and extensions"
     }
   }
 }

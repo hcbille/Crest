@@ -169,11 +169,18 @@ void EngineProfiles::Load(const std::string& id,
                           bool is_private,
                           const std::string& source,
                           base::OnceCallback<void(Profile*)> done) {
+  // A private profile that borrows no Space's derives from the engine's own,
+  // which has no Space's extensions or settings.
+  const bool from_root = is_private && source.empty();
   const std::string source_id = is_private ? source : id;
   auto* manager = g_browser_process->profile_manager();
   if (!root_ || disposing_ || !manager || !IsProfileIdentity(id) || deleting_.contains(id) ||
-      !IsProfileIdentity(source_id) || deleting_.contains(source_id)) {
+      (!from_root && (!IsProfileIdentity(source_id) || deleting_.contains(source_id)))) {
     std::move(done).Run(nullptr);
+    return;
+  }
+  if (from_root) {
+    Loaded(id, is_private, source_id, std::move(done), root_.get());
     return;
   }
   manager->CreateProfileAsync(ProfilePath(manager, source_id),

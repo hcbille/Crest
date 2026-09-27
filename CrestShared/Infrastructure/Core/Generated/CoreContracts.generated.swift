@@ -1322,6 +1322,7 @@ struct CreatePage: Equatable, Sendable {
     let pageID: UUID
     let profileID: UUID
     let isPrivate: Bool
+    let borrowedProfileID: UUID?
     let windowID: UUID
     let restoreState: PageRestoreState?
 }
@@ -3290,6 +3291,11 @@ struct OpenPage: Intent, PageIntent, Equatable, Sendable {
     let transient: TransientPresentation?
 }
 
+struct OpenPrivateBrowsing: Intent, WindowIntent, Equatable, Sendable {
+    let windowID: UUID
+    let fromWindowID: UUID
+}
+
 struct OpenStandalonePage: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -3817,6 +3823,7 @@ struct ProfilePrepared: Equatable, Sendable {
 
 struct ProfileReleased: Equatable, Sendable {
     let profileID: UUID
+    let derivedProfileIDs: [UUID]
 }
 
 struct PromoteTransientPage: Intent, SessionIntent, Equatable, Sendable {

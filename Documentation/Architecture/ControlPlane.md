@@ -386,8 +386,17 @@ must: it hosts each page's view and the views an extension or the inspector
 puts beside it, shows extension popups, runs system sign-in, and answers the
 close and quit preflight. Objects and blocks never enter .NET.
 
-TRANSITIONAL: the shell still carries the regular profile a private window
-borrows.
+A private Space's pages borrow a regular profile, which the core decides and
+`CreatePage` names: that of the Space shown by the window private browsing
+last opened from (`OpenPrivateBrowsing`), while that Space is unlocked and not
+being deleted. Chromium derives the private Space's in-memory profile from it,
+sharing its settings and the extensions allowed in private browsing but none
+of its data; when the core names none, it derives from the engine's own
+profile, which no Space owns.
+
+TRANSITIONAL: the shell also keeps the `Browser`s, each built on its
+`CrestBrowserWindow`, until the binding owns their lifetime and asks the shell
+only for a window.
 
 ### WebKit's binding
 
@@ -629,8 +638,9 @@ after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
   user-data directory; the product keeps it in
   `~/Library/Application Support/Crest/Chromium`. A review package requires an
   explicit `--user-data-dir`. A private window uses a separate in-memory
-  profile for each private Space, released with the window. Chromium's
-  password manager is off for every page, in Space and private profiles alike.
+  profile for each private Space, derived from the profile the core names
+  and released with the window. Chromium's password manager is off for every
+  page, in Space and private profiles alike.
 - **Identity and lifecycle.** The packager includes Crest's icons and Dock
   tile plug-in; the host installs Crest's AppKit menus, About identity and
   shortcut preferences. External URL and document opens reach Crest's own

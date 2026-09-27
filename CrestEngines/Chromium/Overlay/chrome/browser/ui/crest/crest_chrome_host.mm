@@ -133,7 +133,7 @@
 #include "chrome/browser/ui/crest/crest_engine_prompts.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "components/tabs/public/tab_interface.h"
+#include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
@@ -609,14 +609,9 @@ struct Page final : content::WebContentsObserver {
   }
   Browser* browser;
   std::string profile;
-  bool closing = false;
   std::unique_ptr<ExtensionPopup> extension_popup;
   std::unique_ptr<ExtensionSidePanel> side_panel;
   std::unique_ptr<DevToolsPanel> devtools;
-  void BeforeUnloadDialogCancelled() override { closing = false; }
-  void BeforeUnloadFired(bool proceed) override {
-    if (!proceed) closing = false;
-  }
   void WebContentsDestroyed() override {
     extension_popup.reset();
     side_panel.reset();
@@ -654,14 +649,6 @@ struct BrowserOwner final : TabStripModelObserver {
       const bool foreground = selection.new_contents == inserted.contents;
       // Core-created pages are registered before this next UI-thread turn.
       dispatch_async(dispatch_get_main_queue(), ^{ OfferNativePage(weak, foreground); });
-    }
-  }
-  void OnTabCloseCancelled(const tabs::TabInterface* tab) override {
-    for (auto& [id, page] : State().pages) {
-      if (page->web_contents() == tab->GetContents() && page->closing) {
-        page->closing = false;
-        return;
-      }
     }
   }
   void OnTabStripModelDestroyed(TabStripModel*) override { strip = nullptr; }
@@ -777,8 +764,9 @@ void CloseBrowsers(Profile* profile) {
   }
 }
 
-// What the Mac shell does for the portable binding. TRANSITIONAL: each part
-// moves into the binding with its area.
+// What the Mac shell does for the portable binding. TRANSITIONAL: it keeps
+// the Browsers, each built on a CrestBrowserWindow, until the binding owns
+// Browser lifetime and asks the shell only for the window.
 class MacShell final : public crest::EngineBinding::Shell {
  public:
   // The WebContents goes in its window's Browser. The controller keeps its
@@ -831,7 +819,7 @@ class MacShell final : public crest::EngineBinding::Shell {
 
   bool MoveToWindow(const std::string& page_id, const std::string& window_id) override {
     Page* page = FindPage(base::SysUTF8ToNSString(page_id));
-    if (!page || !page->web_contents() || page->closing) return false;
+    if (!page || !page->web_contents()) return false;
     Browser* target = BrowserFor(page->profile, window_id);
     if (!target) return false;
     if (page->browser != target) {
@@ -936,10 +924,6 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
                                       const crest_engine_pages_t* pages);
 
 @implementation CrestChromiumMacShell
-- (void)setPrivateSourceProfile:(NSUUID*)profileID {
-  CHECK(NSThread.isMainThread);
-  crest::EngineBinding::Get().SetPrivateSourceProfile(KeyFor(profileID));
-}
 - (NSView*)viewForPage:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
   Page* page = FindPage(pageID.UUIDString);
@@ -1543,11 +1527,10 @@ void TranslateSelection(const std::u16string& text) {
   if (!IsEnabled() || !State().started || State().disposing || text.empty()) return;
   [UI() translateText:base::SysUTF16ToNSString(text)];
 }
-void ShowEngineNotice(const std::u16string& message, const std::string& symbol) {
+void ShowEngineNotice(const std::u16string& message, ToastId toast) {
   if (!IsEnabled() || !State().started || State().disposing || message.empty()) return;
-  // TRANSITIONAL until the toast hunk passes its ToastId: the hook still names
-  // the SF Symbol Chromium's link-copied toast used.
   [UI() showEngineNotice:base::SysUTF16ToNSString(message)
-                    kind:symbol == "link" ? CrestEngineNoticeKindLinkCopied : CrestEngineNoticeKindConfirmation];
+                    kind:toast == ToastId::kLinkCopied ? CrestEngineNoticeKindLinkCopied
+                                                       : CrestEngineNoticeKindConfirmation];
 }
 }  // namespace crest

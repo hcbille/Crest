@@ -22,10 +22,11 @@ namespace crest {
 
 // The engine profiles Crest browses in: each Space's own regular profile,
 // named `Crest-<Space profile>` in the engine's user data directory, and each
-// private window's off-the-record profile derived from the regular profile the
-// window was opened from. Their stores — cookies, storage, cache, network
-// state — are the engine's; this decides which profile a page gets, keeps the
-// ones in use alive, and wipes one when its Space is deleted.
+// private Space's off-the-record profile, derived from the regular profile the
+// core names for its pages, or from the engine's own profile when it names
+// none. Their stores — cookies, storage, cache, network state — are the
+// engine's; this decides which profile a page gets, keeps the ones in use
+// alive, and wipes one when its Space is deleted.
 class EngineProfiles final {
  public:
   EngineProfiles();
@@ -48,8 +49,10 @@ class EngineProfiles final {
   bool IsDeletingAny() const { return !deletions_.empty(); }
 
   // Loads the profile `id` names, a Space's regular profile, or a private
-  // window's off-the-record profile derived from the regular profile `source`
-  // names, and answers it, or nullptr when it cannot load or is being deleted.
+  // Space's off-the-record profile derived from the regular profile `source`
+  // names, or from the engine's own profile when `source` is empty, and
+  // answers it, or nullptr when it cannot load or is being deleted. A private
+  // profile derives once, from the source its first load names.
   void Load(const std::string& id,
             bool is_private,
             const std::string& source,

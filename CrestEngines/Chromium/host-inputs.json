@@ -197,7 +197,7 @@
   },
   "chrome/browser/ui/toasts/toast_controller.cc": {
     "before": "544c3725544ee6b0918d879c2e03a458e85500c6c96e0fb18134cbb33ac37072",
-    "after": "949bfc3b49198ecbbb12bf5f169c4dd0d1d728ce6f4507a393dd66f468e5d03b"
+    "after": "3d3e1d5ef2175aaa292de9fe853ccfdc7f71f962fbf07c9e0c32421152ca56c2"
   },
   "chrome/browser/ui/sad_tab_controller.cc": {
     "before": "f27895f484d5d13cd84d624622d2813c3e0d122893fe0863515a367d80ec950d",

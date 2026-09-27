@@ -95,6 +95,9 @@ class EnginePage final : public content::WebContentsObserver,
   const std::string& key() const { return key_; }
   const std::string& profile() const { return profile_; }
   bool is_private() const { return is_private_; }
+  // The regular profile a private page's profile derives from, as the core
+  // named it, or empty when it names none.
+  const std::string& borrowed_profile() const { return borrowed_profile_; }
   // One of the engine's own pages that Settings shows, which the core never
   // hears of.
   bool standalone() const { return standalone_; }
@@ -280,6 +283,7 @@ class EnginePage final : public content::WebContentsObserver,
   const std::string key_;
   const std::string profile_;
   const bool is_private_;
+  const std::string borrowed_profile_;
   std::string window_;
   Phase phase_ = Phase::kCreating;
   // Primary main-frame navigations to a new document started, and main-frame

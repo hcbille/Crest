@@ -68,8 +68,9 @@ class EnginePrompts;
 // loads it or it is dropped.
 class EngineBinding {
  public:
-  // What the platform shell still does for the binding. TRANSITIONAL: the
-  // shell keeps the Browsers until they move into the binding.
+  // What the platform shell does for the binding. TRANSITIONAL: the shell
+  // keeps the Browsers, each built on its platform BrowserWindow, until the
+  // binding owns Browser lifetime and asks the shell only for the window.
   class Shell {
    public:
     virtual ~Shell() = default;
@@ -88,8 +89,8 @@ class EngineBinding {
     virtual void CloseOffered(content::WebContents* contents) = 0;
     // Destroys `page`'s WebContents, which the binding has let go of.
     virtual void DestroyContents(const std::string& page) = 0;
-    // Moves `page`'s WebContents into the Browser of `window`. TRANSITIONAL
-    // until the Browsers move into the binding.
+    // Moves `page`'s WebContents into the Browser of `window`, which the shell
+    // keeps with the other Browsers.
     virtual bool MoveToWindow(const std::string& page, const std::string& window) = 0;
     // Hosts the view of the inspector docked on `page`, or none when
     // `frontend` is null.
@@ -148,10 +149,6 @@ class EngineBinding {
   // The engine's downloads in Crest's profiles.
   EngineDownloads& Downloads();
   bool disposing() const { return disposing_; }
-  // The regular profile a private window's pages derive from, which the
-  // window names when it opens. TRANSITIONAL: which profile it is is a rule
-  // for the core.
-  void SetPrivateSourceProfile(const std::string& profile);
   // What the binding's pages ask the person.
   EnginePrompts& Prompts();
   // The prompt for a permission request in the page that shows `contents`,
@@ -298,7 +295,6 @@ class EngineBinding {
   std::map<std::string, OfferedPage> offers_;
   std::map<std::string, std::unique_ptr<StagedLink>> staged_links_;
   std::unique_ptr<EngineProfiles> profiles_;
-  std::string private_source_;
   std::unique_ptr<EngineExtensions> extensions_;
   std::unique_ptr<EngineDownloads> downloads_;
   std::unique_ptr<EnginePrompts> prompts_;
@@ -310,8 +306,10 @@ class EngineBinding {
 };
 
 // The engine fired `contents`'s beforeunload. Answers whether the core had
-// asked the page, which then hears `proceed`; otherwise the shell's own close
-// preflight takes it. TRANSITIONAL until the Swift close and quit wiring moves.
+// asked the page, which then hears `proceed`. A beforeunload the core did not
+// ask for, from a close the engine began itself such as an extension's
+// `chrome.tabs.remove` or a script's `window.close()`, stays with Chromium's
+// own unload controller.
 bool AnswerBeforeUnload(content::WebContents* contents, bool proceed);
 
 // A GUID as the platform spells it: uppercase hexadecimal in RFC 4122 groups.

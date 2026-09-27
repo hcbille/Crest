@@ -89,7 +89,7 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
         var restore = intent.TabId is { } tabId ? Restorable(intent.WorkspaceId, space, tabId, engine.Kind) : null;
         if (restore is not null) page.Restoring(restore.Url);
         changes.Publish(new PageOpened(page.State));
-        issue(engine, new CreatePage(page.Id, page.ProfileId, workspace.IsPrivateBrowsing, page.WindowId, restore));
+        issue(engine, Creating(page, workspace.IsPrivateBrowsing, restore));
     }
 
     private void Move(MovePage intent, ChangeFeed changes) {
@@ -154,8 +154,7 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
         var from = page.Engine;
         if (page.Phase.HoldsEnginePage) issue(from, new ClosePage(page.Id, KeepsState: false));
         Update(page, changes, () => page.Rehost(engine, address, reason));
-        issue(engine, new CreatePage(page.Id, page.ProfileId, device.Workspace(page.WorkspaceId).IsPrivateBrowsing, page.WindowId,
-            RestoreState: null));
+        issue(engine, Creating(page, device.Workspace(page.WorkspaceId).IsPrivateBrowsing, restore: null));
         changes.Publish(new PageRehosted(page.Id, page.SpaceId, address is null ? null : new WebAddress(address).Origin, from.Kind,
             engine.Kind, reason));
     }
@@ -497,6 +496,11 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
         if (workspace.IsLocked(space)) throw new Rejected(new SpaceLocked(spaceId));
         return space;
     }
+
+    /// The command that creates `page` on its engine, restoring `restore`. A
+    /// private page names the regular profile its workspace borrows now.
+    private CreatePage Creating(Page page, bool isPrivate, PageRestoreState? restore) => new(page.Id, page.ProfileId, isPrivate,
+        isPrivate ? device.BorrowedProfile(page.WorkspaceId) : null, page.WindowId, restore);
 
     /// A window hosts one page for a tab at a time. Whether the workspace holds
     /// the tab is not checked yet: selection can present a tab before the

@@ -66,7 +66,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     private var onboardingWindow: NSWindow?
     private var softwareUpdateDetailsWindow: NSWindow?
     private var privateWindow: NSWindow?
-    private var privateSourceProfile: UUID?
     private var eventMonitor: Any?
     private var browserMenu: CrestChromiumMenu?
     private var quitting = false
@@ -180,10 +179,13 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     }
 
     /// The engine let go of a profile: its Space's extensions went with it, and
-    /// a private window derived from it has nothing left to browse in.
-    static func profileReleased(_ profileID: UUID) {
+    /// a private window whose pages derived from it has nothing left to browse
+    /// in.
+    static func profileReleased(_ released: ProfileReleased) {
         extensions.refresh()
-        if instance?.privateSourceProfile == profileID { instance?.privateWindow?.close() }
+        guard let instance else { return }
+        let privateProfiles = Set(instance.application.privateBrowser.spaceModels.map(\.profileID))
+        if !privateProfiles.isDisjoint(with: released.derivedProfileIDs) { instance.privateWindow?.close() }
     }
 
     static var extensionSpaces: [BrowserSpaceIdentity] { hostCommands?.extensionSpaces ?? [] }
@@ -275,10 +277,12 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
 
     func openPrivateWindow() {
         if let privateWindow { privateWindow.makeKeyAndOrderFront(nil); return }
-        guard let source = activeModel?.browser.selectedSpace?.profile.id
-            ?? application.browser.selectedSpace?.profile.id else { return }
-        privateSourceProfile = source
-        host.setPrivateSourceProfile(source)
+        // The core decides which regular profile the private pages borrow,
+        // from the window private browsing opens from; one it refuses leaves
+        // them borrowing none.
+        let opener = activeModel?.browser ?? application.browser
+        _ = try? application.privateBrowser.core.send(
+            OpenPrivateBrowsing(windowID: application.privateBrowser.windowID, fromWindowID: opener.windowID))
         let window = CrestChromiumWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
@@ -658,7 +662,6 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             commands.closePrivateBrowsing()
             host.disposePages([], windows: [application.privatePages.windowID], releaseProfiles: profiles)
             privateWindow = nil
-            privateSourceProfile = nil
             NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: window)
             return
         }

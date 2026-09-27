@@ -1662,7 +1662,7 @@
 +            : FormatString(spec->body_string_id(),
 +                           params.body_string_replacement_params,
 +                           params.body_string_cardinality_param),
-+        params.toast_id == ToastId::kLinkCopied ? "link" : "checkmark.circle");
++        params.toast_id);
 +    return true;
 +  }
 +#endif

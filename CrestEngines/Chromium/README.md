@@ -360,8 +360,10 @@ than a browser-owned store, and Chromium's staged rollout features for that
 choice do not apply. A build without the entitlement, such as the review package, keeps
 Chromium's own sheet, so passkeys there are not a test of Crest's behaviour.
 
-Private windows use separate off-the-record profiles, and extension actions are
-filtered by Chromium's incognito authorization.
+Private windows use separate off-the-record profiles, derived from the regular
+profile the core names for them (the unlocked Space shown by the window private
+browsing opened from, or the engine's own profile when there is none), and
+extension actions are filtered by Chromium's incognito authorization.
 
 A browsing window the engine creates for itself, such as one from
 `chrome.windows.create` or an extension app window, routes to a Crest window. Crest reserves the window when

@@ -326,7 +326,7 @@ void EngineBinding::CreateNow(const std::string& key) {
   if (!page || page->phase() != EnginePage::Phase::kCreating || !shell_ || disposing_) {
     return;
   }
-  Profiles().Load(page->profile(), page->is_private(), private_source_,
+  Profiles().Load(page->profile(), page->is_private(), page->borrowed_profile(),
                   base::BindOnce(&EngineBinding::ProfileLoaded, weak_factory_.GetWeakPtr(), key));
 }
 
@@ -694,10 +694,6 @@ EngineProfiles& EngineBinding::Profiles() {
   return *profiles_;
 }
 
-void EngineBinding::SetPrivateSourceProfile(const std::string& profile) {
-  private_source_ = profile;
-}
-
 EngineExtensions& EngineBinding::Extensions() {
   if (!extensions_) {
     extensions_ = std::make_unique<EngineExtensions>(
@@ -866,6 +862,7 @@ bool EngineBinding::Handle(const engine::OpenStandalonePage& request) {
   Create(engine::CreatePage{.page_id = request.page_id,
                             .profile_id = request.profile_id,
                             .is_private = false,
+                            .borrowed_profile_id = std::nullopt,
                             .window_id = request.window_id,
                             .restore_state = std::nullopt},
          /*standalone=*/true);
@@ -1060,11 +1057,17 @@ void EngineBinding::Erase(const engine::EraseProfileData& erasing) {
   if (shell_) {
     shell_->ReleaseProfiles(*released);
   }
+  std::vector<engine::Guid> derived;
   for (const std::string& profile : *released) {
     Extensions().Forget(profile);
     Profiles().Release(profile);
+    if (profile != id) {
+      if (const auto guid = ParseGuid(profile)) {
+        derived.push_back(*guid);
+      }
+    }
   }
-  Present(engine::ProfileReleased{.profile_id = erasing.profile_id});
+  Present(engine::ProfileReleased{.profile_id = erasing.profile_id, .derived_profile_ids = std::move(derived)});
   Profiles().Delete(id, erasing.ephemeral,
                     base::BindOnce(
                         [](base::WeakPtr<EngineBinding> binding, engine::Guid erasure, bool erased) {

@@ -295,7 +295,7 @@ void EngineBoundary() {
   assert(binding.commands.size() == 1);
   const auto& creation = std::get<engine::CreatePage>(binding.commands[0]);
   assert(creation.page_id == page && creation.profile_id == Filled(0x55) && !creation.is_private &&
-         creation.window_id == window);
+         !creation.borrowed_profile_id && creation.window_id == window);
 
   // Every event the binding reports decodes in the core.
   assert(Report(binding, engine::PageCreated{.page_id = page}) == CREST_OK);

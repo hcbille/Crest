@@ -13,6 +13,7 @@
 class Browser;
 class GURL;
 class Profile;
+enum class ToastId;
 namespace content { class WebContents; class NavigationThrottleRegistry; class JavaScriptDialogManager; struct DropData; struct OpenURLParams; }
 namespace net { class AuthChallengeInfo; }
 namespace views { class Widget; }
@@ -59,9 +60,9 @@ void SnapPictureInPictureWindow(views::Widget* window);
 bool BeginLinkDrag(content::WebContents* contents, const content::DropData& data);
 void AddNavigationThrottle(content::NavigationThrottleRegistry& registry);
 // Chromium's toasts ("Link copied" and similar) anchor to a Views browser frame
-// that this build never creates. Their message is shown as a Crest notice
-// named by an SF Symbol instead.
-void ShowEngineNotice(const std::u16string& message, const std::string& symbol);
+// that this build never creates. Their message is shown as a Crest notice of
+// the kind the toast is instead.
+void ShowEngineNotice(const std::u16string& message, ToastId toast);
 // A selection the person asked to translate. Crest shows the system's
 // translation panel rather than Chromium's partial-translate bubble.
 void TranslateSelection(const std::u16string& text);

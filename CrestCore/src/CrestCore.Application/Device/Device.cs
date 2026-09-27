@@ -135,6 +135,7 @@ internal sealed partial class Device {
         Window[] closed;
         lock (gate) {
             if (!workspaces.Remove(workspaceId)) return;
+            privateOrigins.Remove(workspaceId);
             closed = [.. open.Values.Where(window => window.WorkspaceId == workspaceId)];
             foreach (var window in closed) open.Remove(window.Id);
         }

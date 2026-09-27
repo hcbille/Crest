@@ -79,7 +79,7 @@ public sealed partial class BrowserContractsTests {
             app.Send(new ChooseSiteEngine(spaceId, site, EngineKind.WebKit));
             var chosen = Guid.NewGuid();
             app.Send(new OpenPage(chosen, workspace, spaceId, chosenTab, window));
-            Assert.Equal(new CreatePage(chosen, space.ProfileId, IsPrivate: false, window, RestoreState: null),
+            Assert.Equal(new CreatePage(chosen, space.ProfileId, IsPrivate: false, BorrowedProfileId: null, window, RestoreState: null),
                 webKit.Commands.OfType<CreatePage>().Single());
             var other = Guid.NewGuid();
             app.Send(new OpenPage(other, workspace, spaceId, otherTab, window));

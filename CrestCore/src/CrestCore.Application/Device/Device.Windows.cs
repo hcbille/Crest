@@ -12,6 +12,7 @@ internal sealed partial class Device {
         ArgumentNullException.ThrowIfNull(changes);
         switch (intent) {
             case OpenWindow opening: Open(opening, changes); break;
+            case OpenPrivateBrowsing opening: Open(opening); break;
             case CloseWindow closing: Close(closing, changes); break;
             case ShowSpace showing: Show(showing, changes); break;
             case ShowTab showing: Show(showing, changes); break;

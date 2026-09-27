@@ -102,9 +102,6 @@ NS_SWIFT_UI_ACTOR
 @protocol CrestMacShell <NSObject>
 // Crest's own UI, which the shell keeps for as long as it runs.
 - (void)attachUI:(id<CrestMacUI>)ui NS_SWIFT_NAME(attach(ui:));
-// TRANSITIONAL until the core owns the private window's profile: the regular
-// profile a private window's pages derive from.
-- (void)setPrivateSourceProfile:(NSUUID *)profileID;
 - (nullable NSView *)viewForPage:(NSUUID *)pageID;
 - (BOOL)runExtension:(NSString *)extensionID page:(NSUUID *)pageID
          anchorView:(NSView *)anchorView anchorRect:(NSRect)anchorRect;

@@ -191,7 +191,7 @@
             case .extensionsChanged: CrestChromiumRoot.extensions.refresh()
             case .profilePrepared(let prepared):
                 preparations.removeValue(forKey: prepared.preparationID)?.resume(returning: prepared.ready)
-            case .profileReleased(let released): CrestChromiumRoot.profileReleased(released.profileID)
+            case .profileReleased(let released): CrestChromiumRoot.profileReleased(released)
             case .sidePanelRequested(let requested): CrestChromiumRoot.routeSidePanel(requested)
             default:
                 guard let pageID = presentation.pageID else { return }
