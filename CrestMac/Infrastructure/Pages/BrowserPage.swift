@@ -114,6 +114,11 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored let passkeyAccess: BrowserPasskeyAccessController?
     @ObservationIgnored let fileUploadAccess = BrowserFileUploadAccess()
     @ObservationIgnored var downloadCenter: BrowserDownloadCenter
+    /// Where the person started the download the page's engine reports next,
+    /// when the engine saw it and the pointer may have left the page: the link
+    /// WebKit's activation bridge saw them click. The core's word that the
+    /// download began takes it.
+    @ObservationIgnored var startedDownloadSource: BrowserDownloadFeedbackSource?
     let sitePermissionRequests = BrowserPagePermissionController()
     @ObservationIgnored let permissionCenter: BrowserSitePermissionCenter
     /// Carries Crest's site permission decisions to the engine as they change.

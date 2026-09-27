@@ -111,6 +111,10 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
         // A download the engine restored from an earlier run is already known to the person.
         Record(new BeginDownload(download.DownloadId, reported.ProfileId, DownloadFilename.Safe(reported.Filename),
             reported.StartedAt == default ? now : reported.StartedAt, reported.Restored), changes);
+        // One the ledger took that began on a page of its Space leaves from that page.
+        if (!reported.Restored && reported.SourcePageId is { } page && PageSpaceOf(reported) is not null
+            && downloads.Ledger.IndexOf(download.DownloadId) >= 0)
+            changes.Publish(new DownloadStarted(download.DownloadId, page));
         return download;
     }
 
@@ -175,13 +179,18 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
     /// The Space a download belongs to: its page's, while the page lives in a
     /// Space of the download's profile, or else the one Space of that profile
     /// the person may see.
-    internal Guid? SpaceOf(EngineDownload reported) {
+    internal Guid? SpaceOf(EngineDownload reported) => PageSpaceOf(reported) ?? device.OnlySpaceOf(reported.ProfileId);
+
+    /// The Space of the page a download came from, while that page lives in a
+    /// Space of the download's profile the person may see; null for a download
+    /// no such page started.
+    private Guid? PageSpaceOf(EngineDownload reported) {
         if (reported.SourcePageId is { } pageId && pages.Hosted(pageId) is { } page && page.ProfileId == reported.ProfileId
             && device.Attached(page.WorkspaceId) is { } workspace
             && workspace.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId) is { } pageSpace
             && !workspace.IsDeleting(pageSpace.Id) && !workspace.IsLocked(pageSpace))
             return pageSpace.Id;
-        return device.OnlySpaceOf(reported.ProfileId);
+        return null;
     }
 
     /// Runs a ledger intent the engine's report implies. One the ledger refuses,

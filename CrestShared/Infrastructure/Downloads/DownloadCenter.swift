@@ -314,7 +314,10 @@ final class BrowserDownloadCenter: NSObject {
         feedbackExpirationTasks.removeValue(forKey: eventID)?.cancel()
     }
 
+    /// Shows a download leaving where it started. Every window over the page
+    /// hears its start, so an event already shown is shown once.
     func presentFeedback(_ event: BrowserDownloadFeedbackEvent) {
+        guard !feedbackEvents.contains(where: { $0.id == event.id }) else { return }
         let previousIDs = Set(feedbackEvents.map(\.id))
         feedbackEvents = BrowserDownloadFeedbackPolicy.bounded(
             feedbackEvents,

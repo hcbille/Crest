@@ -71,6 +71,9 @@ final class CrestCore {
     /// Who hears each download record the core changed, once its batch is
     /// applied.
     @ObservationIgnored private var downloadFollowers: [Follower<DownloadState>] = []
+    /// Who hears each download an engine began on a page, once its batch is
+    /// applied.
+    @ObservationIgnored private var downloadStartFollowers: [Follower<DownloadStarted>] = []
     /// Who hears each tab page the core unloaded under memory pressure, once
     /// its batch is applied.
     @ObservationIgnored private var unloadFollowers: [Follower<PageUnloaded>] = []
@@ -312,6 +315,7 @@ final class CrestCore {
         var permissionChanges: [SitePermissionsChanged] = []
         var promptChanges: [Change] = []
         var downloadChanges: [DownloadState] = []
+        var startedDownloads: [DownloadStarted] = []
         var unloadedPages: [PageUnloaded] = []
         var putAwayPages: [TabPagePutAway] = []
         var rehostedPages: [PageRehosted] = []
@@ -344,6 +348,7 @@ final class CrestCore {
             if case .quitWithDownloadsAsked = change { promptChanges.append(change) }
             if case .promptSettled = change { promptChanges.append(change) }
             if case .downloadUpdated(let updated) = change { downloadChanges.append(updated.download) }
+            if case .downloadStarted(let started) = change { startedDownloads.append(started) }
             if case .pageUnloaded(let unloaded) = change { unloadedPages.append(unloaded) }
             if case .tabPagePutAway(let putAway) = change { putAwayPages.append(putAway) }
             if case .pageRehosted(let rehosted) = change { rehostedPages.append(rehosted) }
@@ -356,6 +361,7 @@ final class CrestCore {
         if !permissionChanges.isEmpty { sitePermissionsChanged(permissionChanges) }
         if !promptChanges.isEmpty { promptsChanged(promptChanges) }
         if !downloadChanges.isEmpty { downloadsChanged(downloadChanges) }
+        if !startedDownloads.isEmpty { downloadsStarted(startedDownloads) }
         if !unloadedPages.isEmpty { pagesUnloaded(unloadedPages) }
         if !putAwayPages.isEmpty { pagesPutAway(putAwayPages) }
         // The page's owner hosts it on its new engine before anyone hears it moved.
@@ -391,6 +397,15 @@ final class CrestCore {
     func followDownloads(_ owner: AnyObject, _ handler: @escaping @MainActor (DownloadState) -> Void) {
         downloadFollowers.removeAll { $0.owner == nil }
         downloadFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    /// Calls `handler` with each download an engine began on a page, once its
+    /// batch is applied, so the window hosting that page shows it leaving. The
+    /// download's record is already in `state`. The registration lasts as long
+    /// as `owner`.
+    func followStartedDownloads(_ owner: AnyObject, _ handler: @escaping @MainActor (DownloadStarted) -> Void) {
+        downloadStartFollowers.removeAll { $0.owner == nil }
+        downloadStartFollowers.append(Follower(owner: owner, handler: handler))
     }
 
     /// Calls `handler` with each tab page the core unloaded under memory
@@ -461,6 +476,14 @@ final class CrestCore {
     private func downloadsChanged(_ downloads: [DownloadState]) {
         downloadFollowers.removeAll { $0.owner == nil }
         let followers = downloadFollowers
+        for download in downloads {
+            for follower in followers { follower.handler(download) }
+        }
+    }
+
+    private func downloadsStarted(_ downloads: [DownloadStarted]) {
+        downloadStartFollowers.removeAll { $0.owner == nil }
+        let followers = downloadStartFollowers
         for download in downloads {
             for follower in followers { follower.handler(download) }
         }

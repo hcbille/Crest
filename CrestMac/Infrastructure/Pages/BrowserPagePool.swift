@@ -189,6 +189,9 @@ final class BrowserPagePool:
         self.runtimeStore.register(self)
         core.engines.observeRecords(self) { [weak self] in self?.restyleVisitedLinks(after: $0) }
         core.followUnloadedPages(self) { [weak self] in self?.host.pageUnloaded($0) }
+        core.followStartedDownloads(self) { [weak self] started in
+            self?.host.livePages.first { $0.corePage.id == started.pageID }?.showDownloadStarted(started)
+        }
         followAdoptedPages()
         followPutAwayPages()
     }

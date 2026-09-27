@@ -34,6 +34,12 @@ public sealed record DownloadApprovalAsked(Guid PromptId, Guid DownloadId, Guid?
 public sealed record DownloadDestinationAsked(Guid PromptId, Guid DownloadId, Guid SpaceId, string SuggestedFilename,
     bool ForcesPrompt) : Change;
 
+/// The engine download `DownloadId` began on the page `PageId`, so the window
+/// showing that page can show it leaving for the downloads list, whichever
+/// engine runs it. A download the engine restored from an earlier run, and one
+/// no page of its Space started, begins without one.
+public sealed record DownloadStarted(Guid DownloadId, Guid PageId) : Change;
+
 /// A download record changed or began. `Position` is its place in the
 /// newest-first list after the change.
 public sealed record DownloadUpdated(DownloadState Download, int Position) : Change;

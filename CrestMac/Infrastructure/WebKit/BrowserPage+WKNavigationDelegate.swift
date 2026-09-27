@@ -253,8 +253,9 @@ extension BrowserPage: WKNavigationDelegate {
     }
 
     /// Hands a download the page's web view started to WebKit's binding, which
-    /// runs it as the engine's own, and shows it leaving from where the
-    /// person started it.
+    /// runs it as the engine's own. Once the core says it began, the page
+    /// shows it leaving, from the link the person clicked when the pointer
+    /// has left the page.
     func startDownload(
         _ download: WKDownload, in webView: WKWebView, isUserInitiated: Bool,
         feedbackSource: BrowserDownloadFeedbackSource? = nil
@@ -263,13 +264,7 @@ extension BrowserPage: WKNavigationDelegate {
             download.cancel { _ in }
             return
         }
-        if let source = BrowserMacDownloadFeedbackSource.capture(in: webView) ?? feedbackSource {
-            downloadCenter.presentFeedback(
-                BrowserDownloadFeedbackEvent(
-                    id: UUID(), profileID: profileID, spaceID: spaceID,
-                    filename: download.originalRequest?.url?.lastPathComponent.nilIfEmpty ?? "download",
-                    source: source))
-        }
+        startedDownloadSource = feedbackSource
         webKitPage.startDownload(download, isUserInitiated: isUserInitiated)
     }
 

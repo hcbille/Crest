@@ -117,6 +117,7 @@ enum Change: Equatable, Sendable {
     case dataDeleted(DataDeleted)
     case downloadApprovalAsked(DownloadApprovalAsked)
     case downloadDestinationAsked(DownloadDestinationAsked)
+    case downloadStarted(DownloadStarted)
     case downloadUpdated(DownloadUpdated)
     case downloadsRemoved(DownloadsRemoved)
     case enginesChanged(EnginesChanged)
@@ -478,6 +479,7 @@ extension Change {
         case .dataDeleted(let change): change.apply(to: state)
         case .downloadApprovalAsked(let change): change.apply(to: state)
         case .downloadDestinationAsked(let change): change.apply(to: state)
+        case .downloadStarted(let change): change.apply(to: state)
         case .downloadUpdated(let change): change.apply(to: state)
         case .downloadsRemoved(let change): change.apply(to: state)
         case .enginesChanged(let change): change.apply(to: state)
@@ -1779,6 +1781,11 @@ struct DownloadRiskFacts: Equatable, Sendable {
 struct DownloadRiskVerdict: Equatable, Sendable {
     let assessment: DownloadRiskAssessment
     let requiresConfirmation: Bool
+}
+
+struct DownloadStarted: Equatable, Sendable {
+    let downloadID: UUID
+    let pageID: UUID
 }
 
 struct DownloadState: Equatable, Sendable, Identifiable {

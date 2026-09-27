@@ -3129,6 +3129,10 @@
     "sidebar-drop-into-open-lands-from-drop": {
       "category": "fixed",
       "message": "A tab dragged into Open tabs now settles from where you drop it, instead of jumping back to where you picked it up first."
+    },
+    "downloads-fly-to-the-box-on-every-engine": {
+      "category": "fixed",
+      "message": "Starting a download in a Chromium window now shows the file flying from the pointer into the downloads box, which bounces as it lands, as it already did with WebKit."
     }
   }
 }

@@ -54,6 +54,32 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(DownloadPhase.Finished, app.Drain().OfType<DownloadUpdated>().Last().Download.Phase);
     }
 
+    /// A download that begins on a page names that page once, so its window
+    /// can show it leaving, whichever engine runs it; one the engine restored
+    /// from an earlier run, and one no page started, begins without it.
+    [Fact]
+    public void ADownloadThatBeginsOnAPageNamesItOnce() {
+        var (app, engine, _, page, workspace, _, space, _) = LivePage();
+        using var disposal = app;
+        var profile = ProfileOf(app, workspace, space);
+
+        app.Report(engine, new EngineDownloadChanged(Transfer(profile, page)));
+        var begun = app.Drain();
+        var record = begun.OfType<DownloadUpdated>().First().Download;
+        Assert.Equal([new DownloadStarted(record.Id, page)], begun.OfType<DownloadStarted>());
+        app.Report(engine, new EngineDownloadChanged(Transfer(profile, page, EngineDownloadState.Downloading, received: 50)));
+        Assert.Empty(app.Drain().OfType<DownloadStarted>());
+
+        app.Report(engine, new EngineDownloadChanged(Transfer(profile, page) with { DownloadId = "8", Restored = true }));
+        var restored = app.Drain();
+        Assert.Contains(restored, change => change is DownloadUpdated);
+        Assert.Empty(restored.OfType<DownloadStarted>());
+        app.Report(engine, new EngineDownloadChanged(Transfer(profile, page: null) with { DownloadId = "9" }));
+        var pageless = app.Drain();
+        Assert.Contains(pageless, change => change is DownloadUpdated);
+        Assert.Empty(pageless.OfType<DownloadStarted>());
+    }
+
     [Fact]
     public void ADownloadNoSpaceCanHoldIsCancelledOnItsEngine() {
         var (app, engine, binding, _, _, _, _, _) = LivePage();
