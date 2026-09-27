@@ -475,9 +475,10 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertFalse(firstStore.isPersistent)
         XCTAssertNil(firstStore.identifier)
         XCTAssertNil(firstPage.webView.configuration.webExtensionController)
+        // The order the page installs its scripts in is not the contract.
         XCTAssertEqual(
             firstPage.webView.configuration.userContentController.userScripts
-                .map(\.source),
+                .map(\.source).sorted(),
             [
                 BrowserPictureInPictureScript.source,
                 WebKitMediaActivityBridge.source,
@@ -486,7 +487,7 @@ final class BrowserPagePoolTests: XCTestCase {
                 BrowserLinkContextContentBridge.source,
                 BrowserBlockedPopupContentBridge.source,
                 BrowserGeolocationContentBridge.source,
-            ],
+            ].sorted(),
             "Private pages allow browsing bridges, including link pulls, without credential or extension scripts."
         )
 

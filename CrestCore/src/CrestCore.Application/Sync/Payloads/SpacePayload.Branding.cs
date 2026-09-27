@@ -32,26 +32,26 @@ internal sealed partial record SpacePayload {
 
     /// A branding as every client reads it: its colors, strength and crest
     /// are required, a term a client cannot name takes its default, and every
-    /// value is kept within the range the renderer draws. A branding from
-    /// before rendering versions keeps its old banner strength's look.
+    /// value is kept within the range the renderer draws. It keeps the
+    /// rendering version it was written with, so the core's rules put a
+    /// branding from before the baseline vocabulary in today's units once, and
+    /// leave one already in them as it is.
     private static SpaceBranding ReadBranding(SyncPayloadReader value) {
         bool keepsReadable = value.OptionalFlag("keepsControlsReadable") ?? true;
         double fade = value.OptionalNumber("readabilityFade") ?? (keepsReadable ? SpaceBranding.LegacyReadabilityFade : 0);
-        double strength = value.Number("bannerStrength");
-        long version = value.OptionalInteger("renderingVersion") ?? FirstRenderingVersion;
-        if (version < SpaceBranding.BaselineRenderingVersion) strength = Math.Min(1, 0.72 + strength * 0.28);
+        int version = Whole(value.OptionalInteger("renderingVersion") ?? FirstRenderingVersion);
         var colors = value.Array("colors").Select(Color).ToArray();
         var branding = new SpaceBranding(new(colors),
             StoredSessionCodec.SpaceBannerPatterns.Parse(value.TolerantText("bannerPattern")) ?? SpaceBannerPattern.Solid,
-            strength, fade, fade > 0,
+            value.Number("bannerStrength"), fade, fade > 0,
             StoredSessionCodec.SpaceThemeModes.Parse(value.TolerantText("themeMode")) ?? SpaceThemeMode.Banner,
             value.OptionalNumber("gradientAngle") ?? 0, value.OptionalFlag("showsTexture") ?? false,
             StoredSessionCodec.SpaceIconStyles.Parse(value.TolerantText("iconStyle")) ?? SpaceIconStyle.SimpleSymbol,
             value.Value["symbolColor"] is { } symbolColor ? Color(symbolColor) : null,
-            ReadCrest(value.Nested("crest")), FirstRenderingVersion, value.TolerantNumber("folderColorIntensity") ?? 0,
+            ReadCrest(value.Nested("crest")), version, value.TolerantNumber("folderColorIntensity") ?? 0,
             StoredSessionCodec.SpaceTextColorModes.Parse(value.TolerantText("textColorMode")) ?? SpaceTextColorMode.Automatic,
             value.OptionalFlag("hasCustomAppearance"));
-        return Resolved(branding);
+        return SpaceBrandingPolicy.Normalize(branding);
     }
 
     /// A crest as every client reads it: each member it cannot read takes its
@@ -117,10 +117,6 @@ internal sealed partial record SpacePayload {
         return new(Unit(value.Number("red")), Unit(value.Number("green")), Unit(value.Number("blue")),
             Unit(value.OptionalNumber("alpha") ?? 1));
     }
-
-    /// `branding` within the ranges the renderer draws, announcing the
-    /// rendering vocabulary it needs and whether its controls stay readable.
-    private static SpaceBranding Resolved(SpaceBranding branding) => SpaceBrandingPolicy.Normalize(branding);
 
     /// A branding as every client writes it.
     private static JsonObject EncodeBranding(SpaceBranding branding) => StoredSessionCodec.Encode(branding);

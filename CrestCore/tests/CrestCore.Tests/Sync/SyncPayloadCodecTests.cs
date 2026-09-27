@@ -107,6 +107,33 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(2, branding["colors"]!.AsArray().Count);
     }
 
+    /// A look in today's units keeps its banner strength however often it is
+    /// kept, synced and reloaded, and a look written before the baseline
+    /// vocabulary, by an older client or this one, is put in today's units
+    /// exactly once.
+    [Theory]
+    [InlineData(5, 0.63, 0.63)]
+    [InlineData(1, 0.5, 0.86)]
+    public void ALooksBannerStrengthIsPutInTodaysUnitsOnceWhereverItTravels(int version, double stored, double worn) {
+        var (_, _, value) = CodecValue("space");
+        SpaceBranding Synced(SpaceBranding look) {
+            value["branding"] = StoredSessionCodec.Encode(look);
+            var cloud = SyncRecordBody.Read(CodecBody("space", value), isTombstone: false, SyncPayloadForm.Journal)
+                .Write(SyncPayloadForm.Cloud);
+            return Assert.IsType<SpacePayload>(SyncRecordBody.Read(Bytes(cloud), isTombstone: false, SyncPayloadForm.Cloud).Payload)
+                .Branding;
+        }
+        var written = SpaceAccent.Indigo.House with { RenderingVersion = version, BannerStrength = stored };
+
+        var kept = SpaceBrandingPolicy.Normalize(written);
+
+        Assert.Equal(worn, kept.BannerStrength, precision: 10);
+        Assert.Equal(kept, Synced(written));
+        Assert.Equal(kept, SpaceBrandingPolicy.Normalize(kept));
+        Assert.Equal(kept, Synced(Synced(kept)));
+        Assert.Equal(kept, StoredSessionCodec.DecodeBranding(StoredSessionCodec.Encode(kept)).InTodaysUnits());
+    }
+
     /// Members a newer build writes that this one does not know survive both
     /// forms, around the envelope, inside the value, inside a nested member,
     /// and on a list's member, which follows its identity.

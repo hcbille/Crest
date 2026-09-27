@@ -138,10 +138,10 @@ public sealed class SpaceLookTests {
 
     #region Actions - Kept looks
 
-    /// A look a platform edits is kept as every client writes it, whatever the
-    /// platform said of it: in today's units, announcing whether its controls
-    /// stay readable and the rendering vocabulary it draws with, so an older
-    /// reader of the synced record draws it faithfully.
+    /// A look a platform edits is kept announcing whether its controls stay
+    /// readable and the rendering vocabulary it draws with, whatever the
+    /// platform said of them, so an older reader of the synced record draws it
+    /// faithfully. Its banner strength's units are the sync codec tests'.
     [Fact]
     public void AnEditedLookIsKeptAnnouncingWhatItDraws() {
         var house = SpaceAccent.Indigo.House;
@@ -153,12 +153,9 @@ public sealed class SpaceLookTests {
         };
 
         var kept = SpaceBrandingPolicy.Normalize(edited);
-        var legacyStrength = SpaceBrandingPolicy.Normalize(edited with { RenderingVersion = 1, BannerStrength = 0.5 });
 
         Assert.False(kept.KeepsControlsReadable);
         Assert.Equal(SpaceBrandingPolicy.StudioRenderingVersion, kept.RenderingVersion);
-        Assert.Equal(0.86, legacyStrength.BannerStrength, precision: 10);
-        Assert.Equal(SpaceBrandingPolicy.StudioRenderingVersion, legacyStrength.RenderingVersion);
     }
 
     #endregion
