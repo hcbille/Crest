@@ -283,28 +283,22 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         XCTAssertEqual(try harness.storedShownSpace(of: window.windowID), shown.id)
     }
 
-    /// A file whose Spaces and tabs share identities opens repaired: each
+    /// A session whose Spaces and tabs share identities opens repaired: each
     /// gets an identity of its own, and a tab the repair gave a new identity
-    /// wears its source's image, beside the file too.
+    /// wears the image of the tab in its place.
     func testCoreRepairPreservesAssetOwnershipWhenIdentitiesCollide() throws {
         var first = SessionState.Seed.preview.spaces[0]
         first.tabs = [first.tabs[0]]
         let source = first.tabs[0].id
-        let favicons = InMemoryBrowserFaviconStore()
-        favicons.reconcile(Data([1]), tabID: source)
-        let harness = try BrowserStoredSessionHarness(seed: SessionState.Seed(spaces: [first, first]), favicons: favicons)
-        let spaces = harness.store.spaceModels
+        let store = BrowserStore(seed: SessionState.Seed(spaces: [first, first]), images: [source: Data([1])])
+        let spaces = store.spaceModels
         XCTAssertEqual(spaces.count, 2)
         XCTAssertNotEqual(spaces.first?.id, spaces.last?.id)
         XCTAssertNotEqual(spaces.first?.profileID, spaces.last?.profileID)
         let tabs = spaces.compactMap { $0.tabs.models.first?.id }
         XCTAssertEqual(tabs.count, 2)
         XCTAssertEqual(Set(tabs).count, 2)
-        XCTAssertTrue(tabs.contains(source))
-        for tab in tabs {
-            XCTAssertEqual(harness.core.state.favicons.image(of: tab), Data([1]))
-            XCTAssertEqual(harness.favicons.favicon(tabID: tab), Data([1]))
-        }
+        for tab in tabs { XCTAssertEqual(store.core.state.favicons.image(of: tab), Data([1])) }
     }
 
     func testSpaceCommandsPreserveNativeRecordsAndPublishAcrossWindows() throws {

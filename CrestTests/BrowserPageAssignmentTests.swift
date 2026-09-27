@@ -19,8 +19,10 @@ final class BrowserPageAssignmentTests: XCTestCase {
 
     func testCurrentSelectionRejectsChangedSplitMembershipAndFocus() {
         let group = SplitGroupID()
-        let first = TabState.Seed(title: "First", url: nil, placement: .current, splitGroupID: group)
-        let second = TabState.Seed(title: "Second", url: nil, placement: .current, splitGroupID: group)
+        // Web pages, which the sidebar lists and the core shows as split cards.
+        let blank = URL(string: "about:blank")
+        let first = TabState.Seed(title: "First", url: blank, placement: .current, splitGroupID: group)
+        let second = TabState.Seed(title: "Second", url: blank, placement: .current, splitGroupID: group)
         let space = SpaceState.Seed(name: "Split", symbol: "circle", accent: .indigo, tabs: [first, second])
         let browser = BrowserStore.hostingPages(
             SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: first.id])

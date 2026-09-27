@@ -246,7 +246,11 @@ final class BrowserSharedPageRuntimeTests: XCTestCase {
         let space = makeSpace(tabs: [tab])
         let source = BrowserPagePool(
             browser: hosting(space), usesEphemeralWebsiteDataStores: false, tabStateArchive: archive)
-        let destination = BrowserPagePool(browser: hosting(space, on: source.browser.core))
+        // A window over a workspace that borrows the Space, as tearing a tab
+        // off into a window of its own opens.
+        let spaceAssignment = BrowserSpaceRuntimeAssignment(space: space)
+        let destination = BrowserPagePool(
+            browser: try XCTUnwrap(source.browser.makeTemporaryWindowStore(in: spaceAssignment)))
         defer {
             source.reconcile(validTabIDs: [])
             destination.closeWindowWorkspace()
@@ -265,7 +269,14 @@ final class BrowserSharedPageRuntimeTests: XCTestCase {
         XCTAssertNotNil(archive.archivedState(profileID: space.profileID, tabID: tab.id))
         let assignment = BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
 
-        XCTAssertTrue(try transfer(assignment, from: source, to: destination))
+        // The core moves the tab first, with the address its page reached, and
+        // then its archived page state follows it, as the window coordinator
+        // moves them.
+        XCTAssertTrue(source.browser.transferTab(tab.id, matching: spaceAssignment, to: destination.browser, in: spaceAssignment))
+        XCTAssertTrue(
+            destination.transferTabRuntime(
+                from: source, matching: assignment, as: try pageTab(assignment, in: destination),
+                in: try XCTUnwrap(destination.browser.spaceModel(space.id))))
         await source.flushPendingTabStateWrites()
         XCTAssertNil(archive.archivedState(profileID: space.profileID, tabID: tab.id))
         destination.present(tab: tab.id, in: space.id)

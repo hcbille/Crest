@@ -75,7 +75,9 @@ public sealed partial class BrowserContractsTests {
 
         var folder = Legacy("folder", "location", "symbol", "color", "isCollapsed", "collapseModifiedAt");
         Assert.Equal("saved", folder["location"]!.GetValue<string>());
-        Assert.Equal("folder", folder["symbol"]!.GetValue<string>());
+        // A folder without a symbol keeps none of its own: it is drawn with the
+        // folder symbol, and a device that receives it does not store one.
+        Assert.Null(folder["symbol"]);
         Assert.Equal(0.43, folder["color"]!["red"]!.GetValue<double>());
         Assert.False(folder["isCollapsed"]!.GetValue<bool>());
 

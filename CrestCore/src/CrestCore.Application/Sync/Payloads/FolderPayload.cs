@@ -11,7 +11,7 @@ internal sealed record FolderPayload(
     Guid SpaceId,
     TabPlacement Location,
     string Title,
-    string Symbol,
+    string? Symbol,
     BrandColor Color,
     Guid? ParentId,
     bool IsCollapsed,
@@ -22,9 +22,6 @@ internal sealed record FolderPayload(
 
     private const int MaximumTitleBytes = 512;
     private const int MaximumSymbolBytes = 128;
-
-    /// The symbol a folder that names none wears.
-    private const string DefaultSymbol = "folder";
 
     #endregion
 
@@ -44,11 +41,12 @@ internal sealed record FolderPayload(
     #region Actions - Coding
 
     /// The folder `value` holds. One without a location is saved, without a
-    /// symbol wears the folder symbol, without a color the folder color, and
-    /// without a disclosure is expanded.
+    /// symbol keeps none of its own and is drawn with the folder symbol,
+    /// without a color takes the folder color, and without a disclosure is
+    /// expanded.
     public static FolderPayload Read(SyncPayloadReader value) => new(value.WrappedIdentity("id"), value.WrappedIdentity("spaceID"),
         value.OptionalText("location") is { } location ? Placement(location) : TabPlacement.Saved,
-        value.Text("title"), value.OptionalText("symbol") ?? DefaultSymbol,
+        value.Text("title"), value.OptionalText("symbol"),
         value.Value["color"] is { } color ? SpacePayload.Color(color) : FolderState.DefaultColor,
         value.OptionalWrappedIdentity("parentID"), value.OptionalFlag("isCollapsed") ?? false, value.OptionalTime("collapseModifiedAt"),
         value.OptionalWrappedIdentity("orderAnchorTabID"), value.Text("orderToken"));
@@ -59,9 +57,9 @@ internal sealed record FolderPayload(
             ["spaceID"] = StoredSessionCodec.WrappedIdentity(SpaceId),
             ["location"] = Location.Name,
             ["title"] = Title,
-            ["symbol"] = Symbol,
             ["color"] = StoredSessionCodec.Encode(Color)
         };
+        if (Symbol is { } symbol) value["symbol"] = symbol;
         PutWrapped(value, "parentID", ParentId);
         value["isCollapsed"] = IsCollapsed;
         Put(value, "collapseModifiedAt", CollapseModifiedAt, form);
@@ -80,7 +78,7 @@ internal sealed record FolderPayload(
 
     public override void Validate() {
         RequireText(Title, MaximumTitleBytes);
-        RequireText(Symbol, MaximumSymbolBytes);
+        if (Symbol is { } symbol) RequireText(symbol, MaximumSymbolBytes);
         RequireOrderToken(OrderToken);
         if (ParentId == Id) throw new UnreadableSyncPayloadException();
     }

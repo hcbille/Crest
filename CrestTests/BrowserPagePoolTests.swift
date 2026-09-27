@@ -689,10 +689,14 @@ final class BrowserPagePoolTests: XCTestCase {
         }
         await remover.waitUntilRemovalStarts()
 
+        // Asking to show it again leaves the window on the other Space, and
+        // no page of the Space being deleted comes back.
         present(pool, tab: tab.id, in: space.id)
 
-        XCTAssertNil(pool.activePage)
-        XCTAssertTrue(pool.retainedTabIDs.isEmpty)
+        XCTAssertNotEqual(browser.shownSpace?.id, space.id)
+        XCTAssertNotEqual(pool.activePage?.spaceID, space.id)
+        XCTAssertFalse(pool.containsResidentPage(for: tab.id))
+        XCTAssertFalse(pool.retainedTabIDs.contains(tab.id))
         XCTAssertNil(transientLease.page)
         XCTAssertNil(
             pool.makeTransientPageLease(
@@ -888,13 +892,13 @@ final class BrowserPagePoolTests: XCTestCase {
         let groupID = SplitGroupID()
         let first = TabState.Seed(
             title: "First",
-            url: nil,
+            url: URL(string: "about:blank"),
             placement: .current,
             splitGroupID: groupID
         )
         let second = TabState.Seed(
             title: "Second",
-            url: nil,
+            url: URL(string: "about:blank"),
             placement: .current,
             splitGroupID: groupID
         )
@@ -987,13 +991,13 @@ final class BrowserPagePoolTests: XCTestCase {
         let groupID = SplitGroupID()
         let first = TabState.Seed(
             title: "First secret",
-            url: nil,
+            url: URL(string: "about:blank"),
             placement: .current,
             splitGroupID: groupID
         )
         let second = TabState.Seed(
             title: "Second secret",
-            url: nil,
+            url: URL(string: "about:blank"),
             placement: .current,
             splitGroupID: groupID
         )

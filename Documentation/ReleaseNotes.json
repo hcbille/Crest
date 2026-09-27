@@ -2977,6 +2977,10 @@
     "session-copy-deleted": {
       "category": "internal",
       "message": "Swift keeps the browsing session only in the core's read model; its separate copy is gone"
+    },
+    "folder-symbol-stays-unset-across-sync": {
+      "category": "internal",
+      "message": "A folder without its own symbol keeps none when it syncs to another device"
     }
   }
 }
