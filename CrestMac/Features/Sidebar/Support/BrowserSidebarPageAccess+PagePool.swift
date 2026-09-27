@@ -25,10 +25,7 @@ extension BrowserSidebarPageAccess {
                 else { return }
                 if !tab.placement.isDurable {
                     pages.unloadPage(for: tabID, matching: assignment)
-                } else if BrowserDurableTabCloseAction(
-                    browser: browser, spaceAccess: spaceAccess,
-                    closePage: { pages.closeDurablePage($0, discardState: $1) }
-                ).perform(
+                } else if BrowserDurableTabCloseAction(browser: browser, spaceAccess: spaceAccess).perform(
                     BrowserTabRuntimeAssignment(
                         tabID: tabID, spaceID: assignment.spaceID, profileID: assignment.profileID
                     ))

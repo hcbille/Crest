@@ -33,6 +33,24 @@ final class WebKitEngineBinding: EngineBinding {
         weak var value: WKWebsiteDataStore?
     }
 
+    /// A modified link's request one of this binding's pages staged for the
+    /// Peek the core opens for it, which replays the initiator's referrer.
+    private struct StagedLink {
+        let request: URLRequest
+        /// The page the link was followed in.
+        let sourcePageID: UUID
+        /// The store the source page browses in, which the Peek's page must
+        /// share.
+        weak var dataStore: WKWebsiteDataStore?
+        let stagedAt: Date
+    }
+
+    // MARK: - Static Variables
+
+    /// How long a staged link waits for its Peek, and how many may wait.
+    private static let stagedLinkLifetime: TimeInterval = 300
+    private static let stagedLinkLimit = 16
+
     /// A question one of this binding's pages raised with the core, until the
     /// core settles it.
     private enum PendingPrompt {
@@ -95,6 +113,9 @@ final class WebKitEngineBinding: EngineBinding {
     /// How to close what each page's host shows for a question, until the
     /// question no longer waits.
     private var dismissals: [UUID: BrowserPromptDismissal] = [:]
+    /// The links this binding's pages staged, by the identity the core
+    /// stages them under, until a page loads one or the core drops it.
+    private var stagedLinks: [UUID: StagedLink] = [:]
 
     // MARK: - Initializers
 
@@ -147,6 +168,8 @@ final class WebKitEngineBinding: EngineBinding {
             let page = pages.removeValue(forKey: closing.pageID)?.value
             // WebKit requires an answer to every question it asked.
             declinePrompts(of: closing.pageID)
+            // A page takes the links it staged with it.
+            stagedLinks = stagedLinks.filter { $0.value.sourcePageID != closing.pageID }
             engines.report(
                 PageClosed(pageID: closing.pageID, restoreState: closing.keepsState ? page?.restoreState : nil),
                 from: self)
@@ -187,8 +210,12 @@ final class WebKitEngineBinding: EngineBinding {
         case .adoptOfferedPage(let adoption):
             // WebKit hands Crest its popups while it waits and offers no page.
             engines.report(PageCreationFailed(pageID: adoption.pageID), from: self)
-        case .rejectOfferedPage, .stageNavigation, .dropStagedLink:
-            // WebKit offers no page, and keeps the links it stages itself.
+        case .stageNavigation(let staging):
+            stage(staging)
+        case .dropStagedLink(let dropping):
+            stagedLinks[dropping.stagedLinkID] = nil
+        case .rejectOfferedPage:
+            // WebKit offers no page.
             break
         }
     }
@@ -204,6 +231,83 @@ final class WebKitEngineBinding: EngineBinding {
     /// Reports what one of this binding's pages or downloads did.
     func report(_ event: some EngineEvent) {
         engines?.report(event, from: self)
+    }
+
+    /// What the core answers about one of this binding's pages while WebKit
+    /// waits; nil while the binding is not registered.
+    func ask<Question: EngineQuestion>(_ question: Question) -> Question.Answer? {
+        engines?.ask(question, from: self)
+    }
+
+    // MARK: - Actions - Staged links
+
+    /// Keeps the request of a modified link `page` followed under a new
+    /// identity, so the Peek the core opens for it replays the initiator's
+    /// referrer instead of a bare address. Only a plain GET is staged: WebKit
+    /// has no public way to hand another view a form body, the initiating
+    /// origin, user activation or sandbox flags.
+    func stageLink(_ request: URLRequest, from page: WebKitEnginePage) -> BrowserEngineNavigation? {
+        guard let url = request.url, ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+            (request.httpMethod ?? "GET").uppercased() == "GET",
+            request.httpBody == nil, request.httpBodyStream == nil
+        else { return nil }
+        let now = Date()
+        stagedLinks = stagedLinks.filter {
+            $0.value.dataStore != nil && now.timeIntervalSince($0.value.stagedAt) < Self.stagedLinkLifetime
+        }
+        if stagedLinks.count >= Self.stagedLinkLimit,
+            let oldest = stagedLinks.min(by: { $0.value.stagedAt < $1.value.stagedAt })?.key
+        {
+            stagedLinks[oldest] = nil
+        }
+        var replay = URLRequest(url: url, cachePolicy: request.cachePolicy)
+        if let referrer = request.value(forHTTPHeaderField: "Referer") {
+            replay.setValue(referrer, forHTTPHeaderField: "Referer")
+        }
+        let linkID = UUID()
+        stagedLinks[linkID] = StagedLink(
+            request: replay, sourcePageID: page.id, dataStore: page.webView.configuration.websiteDataStore,
+            stagedAt: now)
+        return BrowserEngineNavigation(
+            implementation: integration.implementationId, token: linkID.uuidString, sourcePageID: page.id)
+    }
+
+    /// Asks the core to make the link `navigation` names the first load of
+    /// `page`, when it loads `url`. False, forgetting the link, when it no
+    /// longer applies: it is gone, heads elsewhere, was followed in another
+    /// store, or the page has loaded something; or when the core refuses it.
+    func stage(_ navigation: BrowserEngineNavigation, into page: WebKitEnginePage, expecting url: URL) -> Bool {
+        guard navigation.implementation == integration.implementationId,
+            let linkID = UUID(uuidString: navigation.token)
+        else { return false }
+        guard let link = stagedLinks[linkID], link.request.url == url,
+            link.dataStore === page.webView.configuration.websiteDataStore, page.webView.url == nil, let core
+        else {
+            stagedLinks[linkID] = nil
+            return false
+        }
+        do {
+            try core.send(
+                StageLink(
+                    pageID: page.id, sourcePageID: link.sourcePageID, stagedLinkID: linkID, url: url.absoluteString))
+            return true
+        } catch {
+            stagedLinks[linkID] = nil
+            return false
+        }
+    }
+
+    /// Makes the link the core staged the first load of its page; one that no
+    /// longer applies is reported, so the page does not load it as a bare
+    /// address.
+    private func stage(_ staging: StageNavigation) {
+        guard let link = stagedLinks.removeValue(forKey: staging.stagedLinkID),
+            let page = pages[staging.pageID]?.value, link.request.url?.absoluteString == staging.url,
+            page.engine.stage(link.request)
+        else {
+            report(StagedLinkUnavailable(pageID: staging.pageID))
+            return
+        }
     }
 
     // MARK: - Actions - Pages

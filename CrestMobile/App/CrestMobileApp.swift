@@ -74,8 +74,7 @@ private final class BrowserMobileApplication {
         // defaults, carried once; the link preferences come first, since every
         // window's store reads them.
         let legacyDevice = BrowserLegacyDeviceDefaults.read(for: launchEnvironment)
-        BrowserLinkPreferenceStore.share(
-            BrowserLinkPreferenceStore(core: core, legacyPreferences: legacyDevice.linkPreferences))
+        BrowserLinkPreferenceStore.adopt(legacyDevice.linkPreferences, into: core)
         let browser = try BrowserStore.production(core: core, launchEnvironment: launchEnvironment)
         BrowserAppPreferenceStore.shared.bind(
             to: browser, legacy: LegacyAppPreferences.read(for: launchEnvironment))

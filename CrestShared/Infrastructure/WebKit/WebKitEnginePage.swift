@@ -62,6 +62,7 @@ final class WebKitEnginePage {
         self.ownsUserContentController = ownsUserContentController
         self.isPrivate = isPrivate
         self.restoring = restoring
+        engine.enginePage = self
     }
 
     // MARK: - Actions - Hosting
@@ -85,6 +86,34 @@ final class WebKitEnginePage {
     func load(_ url: URL) {
         host?.prepareToLoad(url)
         engine.load(URLRequest(url: url))
+    }
+
+    // MARK: - Actions - Links
+
+    /// What a person's activation of the link to `url` in the page does, as
+    /// the core decides from the page's tab, how a page without one presents,
+    /// `gesture` and this device's link preferences. A link with no address
+    /// loads in the page. A page no binding holds lets a person's own
+    /// top-level click open a new tab, so a pinned or saved tab never leaves
+    /// the page it keeps.
+    func linkActivation(to url: URL?, gesture: LinkGesture) -> LinkNavigationDecision {
+        guard let url else { return .navigate }
+        guard let answer = binding?.ask(LinkActivation(pageID: id, url: url.absoluteString, gesture: gesture)) else {
+            return gesture.userActivated && gesture.topLevel ? .foregroundTab : .navigate
+        }
+        return answer.decision
+    }
+
+    /// Stages `request`, a modified link the page followed, for the Peek the
+    /// core opens for it; nil for a link that cannot be staged.
+    func stageLink(_ request: URLRequest) -> BrowserEngineNavigation? {
+        binding?.stageLink(request, from: self)
+    }
+
+    /// Makes the link `navigation` names this page's first load, when it
+    /// loads `url`; false when it no longer applies or the core refuses it.
+    func stage(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool {
+        binding?.stage(navigation, into: self, expecting: url) ?? false
     }
 
     /// What brings the page back as it is: WebKit's history, at the address

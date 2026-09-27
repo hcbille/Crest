@@ -230,6 +230,13 @@ final class Engines {
         report(event, on: kind, icon: icon.map { (pageID, $0) })
     }
 
+    /// What the core answers `binding` about one of its pages while its
+    /// engine waits; nil for a binding that is not registered.
+    func ask<Question: EngineQuestion>(_ question: Question, from binding: any EngineBinding) -> Question.Answer? {
+        guard let engine = registered[binding.integration.kind]?.engine else { return nil }
+        return core.ask(question, engine: engine)
+    }
+
     /// The icon `pageID` reported, which leaves this store for the tab that
     /// adopts it.
     func takeIcon(of pageID: UUID) -> Data? {

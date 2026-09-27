@@ -1211,6 +1211,37 @@ final class MobileBrowserNavigationTests: XCTestCase {
         pages.reconcile(validTabIDs: [])
     }
 
+    /// A modified link a page stages for its Peek is spent by the first page
+    /// that asks for it, never reaches a page in another website data store,
+    /// never replays a body, and goes through the core, which stages it only
+    /// in a page of its source's profile that has loaded nothing.
+    func testAStagedLinkIsOneShotAndStaysInItsProfilesStore() throws {
+        let source = makeSpace(index: 54)
+        let other = makeSpace(index: 55)
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [source, other]))
+        let url = try XCTUnwrap(URL(string: "https://example.com/next"))
+        var request = URLRequest(url: url)
+        request.setValue("https://example.com/source", forHTTPHeaderField: "Referer")
+        func peek(in space: SpaceState.Seed) throws -> WebKitEnginePage {
+            try XCTUnwrap(browser.openWebKitPage(in: space.id, for: nil)).webKit
+        }
+        let opened = try XCTUnwrap(browser.openWebKitPage(in: source.id, for: try XCTUnwrap(source.tabs.first).id))
+        let page = opened.webKit
+
+        let crossStore = try XCTUnwrap(page.stageLink(request))
+        XCTAssertEqual(crossStore.sourcePageID, opened.core.id)
+        XCTAssertFalse(try peek(in: other).stage(crossStore, expecting: url))
+        XCTAssertFalse(try peek(in: source).stage(crossStore, expecting: url), "A refused link is spent.")
+
+        let link = try XCTUnwrap(page.stageLink(request))
+        XCTAssertTrue(try peek(in: source).stage(link, expecting: url))
+        XCTAssertFalse(try peek(in: source).stage(link, expecting: url))
+
+        var post = request
+        post.httpMethod = "POST"
+        XCTAssertNil(page.stageLink(post))
+    }
+
     /// Media starting in a WebKit page reaches the page's host, which asks
     /// WebKit what the page runs and tells the core, so memory pressure never
     /// decides on media the core has not heard of.

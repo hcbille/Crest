@@ -40,9 +40,25 @@ protocol BrowserPageOwner: AnyObject, BrowserTabCopying, BrowserTabLinkProviding
     func hostAdoptedPage(_ opened: Engines.OpenedPage, as tab: BrowserPageTab, in space: SpaceModel, shows: Bool)
 }
 
-// MARK: - Pages the core opened
+// MARK: - Pages the core opened or put away
 
 extension BrowserPageOwner {
+    /// Lets go of each saved or pinned tab's page the core put away as this
+    /// window asked, keeping what brings it back unless the tab returned to
+    /// its saved address, which drops what it kept.
+    func followPutAwayPages() {
+        browser.core.followPutAwayPages(self) { [weak self] in self?.pagePutAway($0) }
+    }
+
+    private func pagePutAway(_ putAway: TabPagePutAway) {
+        guard putAway.windowID == browser.windowID, putAway.workspaceID == browser.window.workspaceID,
+            let space = browser.spaceModel(putAway.spaceID)
+        else { return }
+        _ = host.closeDurablePage(
+            BrowserTabRuntimeAssignment(tabID: putAway.tabID, spaceID: space.id, profileID: space.profileID),
+            discardState: !putAway.keepsState)
+    }
+
     /// Hosts each page an engine opened by itself that the core adopted for a
     /// tab of this window, keeping its opener, history and script state, as
     /// the tab's resident page, whichever engine opened it.
@@ -202,12 +218,6 @@ extension BrowserPageOwner {
 
     func siteThemeIconAccent(matching assignment: BrowserTabRuntimeAssignment) -> BrowserTabIconAccent? {
         host.page(matching: assignment)?.siteThemeIconAccent
-    }
-
-    /// Explicit durable close differs from residency eviction only when the
-    /// person chose to return to the saved URL on the next open.
-    func closeDurablePage(_ assignment: BrowserTabRuntimeAssignment, discardState: Bool) -> Bool {
-        host.closeDurablePage(assignment, discardState: discardState)
     }
 
     func discardArchivedTabState(matching assignment: BrowserTabRuntimeAssignment) {

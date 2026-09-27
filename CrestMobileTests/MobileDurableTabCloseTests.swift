@@ -14,8 +14,7 @@ final class MobileDurableTabCloseTests: XCTestCase {
                 preferences.bind(to: context.browser, legacy: .unsaved)
                 preferences.savedTabClosePolicy = policy
                 context.pages.select()
-                let commands = MobileBrowserCommandController(
-                    browser: context.browser, pages: context.pages, preferences: preferences)
+                let commands = MobileBrowserCommandController(browser: context.browser, pages: context.pages)
 
                 XCTAssertEqual(commands.dismissSelectedTab(), context.tab.id)
 

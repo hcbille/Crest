@@ -5,7 +5,6 @@ struct MobileBrowserCommandController {
     let browser: BrowserStore
     let pages: MobileBrowserPageStore
     var spaceAccess = BrowserSpaceAccessController()
-    var preferences: BrowserAppPreferenceStore = .shared
 
     // MARK: - Variables
 
@@ -50,15 +49,11 @@ struct MobileBrowserCommandController {
     @discardableResult
     func dismissSelectedTab() -> TabID? {
         guard let selectedTab = browser.shownTab, canDismissSelectedTab else { return nil }
-        // TRANSITIONAL until the shared page host follows the core's page
-        // closes (WP C (j2)): a saved or pinned tab's page is put away before
-        // the core records it.
+        // A saved or pinned tab puts its page away, which the page host
+        // follows once the core records it.
         if selectedTab.placement.isDurable {
             guard let space = browser.shownSpace,
-                BrowserDurableTabCloseAction(
-                    browser: browser, spaceAccess: spaceAccess, preferences: preferences,
-                    closePage: { pages.closeDurablePage($0, discardState: $1) }
-                ).perform(
+                BrowserDurableTabCloseAction(browser: browser, spaceAccess: spaceAccess).perform(
                     BrowserTabRuntimeAssignment(
                         tabID: selectedTab.id, spaceID: space.id, profileID: space.profileID
                     ))

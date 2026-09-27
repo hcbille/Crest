@@ -141,6 +141,7 @@ final class MobileBrowserPageStore:
         browser.core.engines.observeRecords(self) { [weak self] in self?.restyleVisitedLinks(after: $0) }
         browser.core.followUnloadedPages(self) { [weak self] in self?.host.pageUnloaded($0) }
         followAdoptedPages()
+        followPutAwayPages()
     }
 
     deinit {

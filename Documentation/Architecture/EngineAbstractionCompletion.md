@@ -189,9 +189,10 @@ Remaining, as the Chromium registration declares:
 WebKit reports each page's media activity to the core as it changes,
 including its real Picture in Picture activity, so residency never asks pages
 first. A page it closes keeping its state hands the core its history, which
-the tab's next page restores, as Chromium's do. It stages Peek navigation with
-the source request and website data store, and prepares a page close through
-WebKit's before-unload path. A staged Peek carries the URL
+the tab's next page restores, as Chromium's do. Its pages ask the core how a
+followed link opens (`LinkActivation`) and stage Peek navigation through the
+core (`StageLink`), keeping the source request and website data store, and it
+prepares a page close through WebKit's before-unload path. A staged Peek carries the URL
 and referrer only, because WebKit does not expose the initiating frame's
 security context to a second page; the registration declares that limit.
 WebKit extensions are retired, and the WebKit registration declares

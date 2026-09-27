@@ -26,7 +26,7 @@ final class MobileGettingStartedTests: XCTestCase {
         pages.handleMemoryPressure(.critical)
         XCTAssertTrue(pages.nativeTabs.contains(assignment))
         XCTAssertFalse(
-            pages.closeDurablePage(
+            pages.host.closeDurablePage(
                 BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: UUID()), discardState: false))
         XCTAssertTrue(pages.unloadPage(for: id, matching: BrowserSpaceRuntimeAssignment(space: space)))
         XCTAssertFalse(pages.nativeTabs.contains(assignment))

@@ -27,14 +27,12 @@ final class BrowserGettingStartedTests: XCTestCase {
         XCTAssertEqual(state.chapter, 1)
         XCTAssertEqual(state.practice.members.map(\.id), members)
         XCTAssertFalse(
-            pages.closeDurablePage(
+            pages.host.closeDurablePage(
                 BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: UUID()), discardState: false))
         XCTAssertTrue(pages.nativeTabs.contains(assignment))
         XCTAssertTrue(
-            BrowserDurableTabCloseAction(
-                browser: browser, spaceAccess: BrowserSpaceAccessController(),
-                closePage: { pages.closeDurablePage($0, discardState: $1) }
-            ).perform(assignment))
+            BrowserDurableTabCloseAction(browser: browser, spaceAccess: BrowserSpaceAccessController()).perform(
+                assignment))
         XCTAssertTrue(browser.shownSpace?.tabs.contains(id) == true)
         XCTAssertNil(pages.nativeTabs.runtime(matching: assignment, content: .gettingStarted))
         browser.selectTab(id)

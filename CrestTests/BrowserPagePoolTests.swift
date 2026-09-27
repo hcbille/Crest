@@ -67,10 +67,7 @@ final class BrowserPagePoolTests: XCTestCase {
             let preferences = BrowserAppPreferenceStore()
             preferences.bind(to: browser, legacy: .unsaved)
             preferences.savedTabClosePolicy = policy
-            let action = BrowserDurableTabCloseAction(
-                browser: browser, spaceAccess: BrowserSpaceAccessController(), preferences: preferences,
-                closePage: { pool.closeDurablePage($0, discardState: $1) }
-            )
+            let action = BrowserDurableTabCloseAction(browser: browser, spaceAccess: BrowserSpaceAccessController())
             XCTAssertTrue(
                 action.perform(
                     BrowserTabRuntimeAssignment(

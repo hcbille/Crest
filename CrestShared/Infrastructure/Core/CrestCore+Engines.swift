@@ -98,6 +98,42 @@ extension CrestCore {
         }
         guard status == CREST_OK else { Self.buildBug(status, "take \(type(of: event)) from an engine") }
     }
+
+    /// Answers what an engine asks about one of its pages while the engine
+    /// waits, from the core's state as it stands, changing nothing.
+    func ask<Question: EngineQuestion>(_ question: Question, engine: UInt64) -> Question.Answer {
+        var writer = WireWriter()
+        question.encodeEngineQuestion(into: &writer)
+        let answer = EngineAnswer()
+        let status = writer.bytes.withUnsafeBufferPointer {
+            crest_engine_ask(
+                handle, engine, $0.baseAddress, $0.count, receiveEngineAnswer,
+                Unmanaged.passUnretained(answer).toOpaque())
+        }
+        guard status == CREST_OK, let bytes = answer.bytes else { Self.buildBug(status, "answer \(Question.self)") }
+        var reader = WireReader(bytes)
+        do {
+            let decoded = try Question.decodeAnswer(from: &reader)
+            try reader.finish()
+            return decoded
+        } catch {
+            preconditionFailure("The core's answer to \(Question.self) does not decode (\(error)). Rebuild the core.")
+        }
+    }
+}
+
+/// Holds the answer the core hands `crest_engine_ask`'s callback, borrowed for
+/// the call.
+private final class EngineAnswer {
+    var bytes: [UInt8]?
+}
+
+/// The core's answer callback. It runs once, inside `crest_engine_ask`, on the
+/// thread that asked.
+private func receiveEngineAnswer(_ context: UnsafeMutableRawPointer?, _ bytes: UnsafePointer<UInt8>?, _ length: Int) {
+    guard let context else { return }
+    let answer = Unmanaged<EngineAnswer>.fromOpaque(context).takeUnretainedValue()
+    answer.bytes = bytes.map { Array(UnsafeBufferPointer(start: $0, count: length)) } ?? []
 }
 
 /// The core's command callback. It runs on the main thread, which sends every

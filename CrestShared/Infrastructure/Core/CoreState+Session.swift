@@ -135,6 +135,10 @@ extension CoreState {
     /// from the changes its intent answered.
     func apply(_ change: TransientPagePromoted) {}
 
+    /// A page put away changes no state of its own: the page host of the
+    /// window that asked follows it, and lets the page go.
+    func apply(_ change: TabPagePutAway) {}
+
     func apply(_ change: TabFaviconAssigned) {
         if workspaces[change.workspaceID]?.holdsOpen(tabID: change.tabID) == true {
             favicons.assign(adopts: change.adopts, to: change.tabID, in: change.workspaceID, from: change.pageID)

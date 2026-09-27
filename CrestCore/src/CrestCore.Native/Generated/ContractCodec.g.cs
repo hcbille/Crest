@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0x86, 0xae, 0x03, 0x9d, 0x7a, 0x7f, 0x1b, 0x9e, 0x1b, 0x96, 0xb3, 0x63, 0x63, 0x25, 0xe6, 0x58, 0x31, 0x9b, 0x80, 0x0b, 0x49, 0x97, 0x7e, 0xd0, 0xc8, 0x39, 0xbc, 0x9d, 0xfe, 0xc1, 0x6e, 0x6d
+        0x3c, 0x16, 0x81, 0x83, 0xfb, 0x5c, 0x26, 0x6e, 0x6a, 0x84, 0x98, 0x7b, 0xc2, 0xb8, 0xd8, 0x50, 0xb4, 0x73, 0x3c, 0x46, 0x9d, 0x10, 0x37, 0x7d, 0xac, 0x59, 0x71, 0x69, 0x6a, 0x05, 0x59, 0x7b
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -1157,15 +1157,16 @@ public static class ContractCodec {
             case 44: return ReadSyncStagingFailed(reader);
             case 45: return ReadTabCopied(reader);
             case 46: return ReadTabFaviconAssigned(reader);
-            case 47: return ReadTabsChanged(reader);
-            case 48: return ReadTabsImported(reader);
-            case 49: return ReadTransientPagePromoted(reader);
-            case 50: return ReadWindowChanged(reader);
-            case 51: return ReadWindowClosed(reader);
-            case 52: return ReadWindowRecordsAdopted(reader);
-            case 53: return ReadWorkspaceChanged(reader);
-            case 54: return ReadWorkspaceClosed(reader);
-            case 55: return ReadWorkspaceOpened(reader);
+            case 47: return ReadTabPagePutAway(reader);
+            case 48: return ReadTabsChanged(reader);
+            case 49: return ReadTabsImported(reader);
+            case 50: return ReadTransientPagePromoted(reader);
+            case 51: return ReadWindowChanged(reader);
+            case 52: return ReadWindowClosed(reader);
+            case 53: return ReadWindowRecordsAdopted(reader);
+            case 54: return ReadWorkspaceChanged(reader);
+            case 55: return ReadWorkspaceClosed(reader);
+            case 56: return ReadWorkspaceOpened(reader);
             default: throw new WireFormatException($"Unknown Change tag {tag}.");
         }
     }
@@ -1362,40 +1363,44 @@ public static class ContractCodec {
                 writer.WriteTag(46);
                 WriteTabFaviconAssigned(writer, member);
                 break;
-            case TabsChanged member:
+            case TabPagePutAway member:
                 writer.WriteTag(47);
+                WriteTabPagePutAway(writer, member);
+                break;
+            case TabsChanged member:
+                writer.WriteTag(48);
                 WriteTabsChanged(writer, member);
                 break;
             case TabsImported member:
-                writer.WriteTag(48);
+                writer.WriteTag(49);
                 WriteTabsImported(writer, member);
                 break;
             case TransientPagePromoted member:
-                writer.WriteTag(49);
+                writer.WriteTag(50);
                 WriteTransientPagePromoted(writer, member);
                 break;
             case WindowChanged member:
-                writer.WriteTag(50);
+                writer.WriteTag(51);
                 WriteWindowChanged(writer, member);
                 break;
             case WindowClosed member:
-                writer.WriteTag(51);
+                writer.WriteTag(52);
                 WriteWindowClosed(writer, member);
                 break;
             case WindowRecordsAdopted member:
-                writer.WriteTag(52);
+                writer.WriteTag(53);
                 WriteWindowRecordsAdopted(writer, member);
                 break;
             case WorkspaceChanged member:
-                writer.WriteTag(53);
+                writer.WriteTag(54);
                 WriteWorkspaceChanged(writer, member);
                 break;
             case WorkspaceClosed member:
-                writer.WriteTag(54);
+                writer.WriteTag(55);
                 WriteWorkspaceClosed(writer, member);
                 break;
             case WorkspaceOpened member:
-                writer.WriteTag(55);
+                writer.WriteTag(56);
                 WriteWorkspaceOpened(writer, member);
                 break;
             default: throw new ArgumentOutOfRangeException(nameof(value), value.GetType().Name, "Not a contract Change.");
@@ -15101,6 +15106,26 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteInt32(value.Limit);
+    }
+
+    public static TabPagePutAway ReadTabPagePutAway(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return new TabPagePutAway(
+            reader.ReadGuid(),
+            reader.ReadGuid(),
+            reader.ReadGuid(),
+            reader.ReadGuid(),
+            reader.ReadBool());
+    }
+
+    public static void WriteTabPagePutAway(WireWriter writer, TabPagePutAway value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteGuid(value.WorkspaceId);
+        writer.WriteGuid(value.WindowId);
+        writer.WriteGuid(value.SpaceId);
+        writer.WriteGuid(value.TabId);
+        writer.WriteBool(value.KeepsState);
     }
 
     public static TabPlacementChoice ReadTabPlacementChoice(WireReader reader) {

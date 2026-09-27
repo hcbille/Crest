@@ -10,6 +10,9 @@ final class BrowserLinkDragController {
     private weak var nativeView: NSView?
     private var webView: WKWebView? { nativeView as? WKWebView }
     private let context: () -> BrowserPageNavigationContext?
+    /// Whether this device's link preferences drag links into Peek, as the
+    /// core last published them.
+    private let dragsLinksToPeek: () -> Bool
     private let pullHandler: BrowserLinkPullHandler
     private var frames: [String: WKFrameInfo] = [:]
     private var gesture: Gesture?
@@ -31,18 +34,23 @@ final class BrowserLinkDragController {
     init(
         webView: WKWebView,
         context: @escaping () -> BrowserPageNavigationContext?,
+        dragsLinksToPeek: @escaping () -> Bool,
         handle: @escaping (BrowserPeekInteractionEvent) -> Void
     ) {
         self.nativeView = webView
         self.context = context
+        self.dragsLinksToPeek = dragsLinksToPeek
         pullHandler = BrowserLinkPullHandler(context: context, handle: handle)
         observePreference()
     }
 
-    init(nativeView: NSView, context: @escaping () -> BrowserPageNavigationContext?,
-         handle: @escaping (BrowserPeekInteractionEvent) -> Void) {
+    init(
+        nativeView: NSView, context: @escaping () -> BrowserPageNavigationContext?,
+        dragsLinksToPeek: @escaping () -> Bool, handle: @escaping (BrowserPeekInteractionEvent) -> Void
+    ) {
         self.nativeView = nativeView
         self.context = context
+        self.dragsLinksToPeek = dragsLinksToPeek
         pullHandler = BrowserLinkPullHandler(context: context, handle: handle)
     }
 
@@ -56,14 +64,17 @@ final class BrowserLinkDragController {
         nativeMouseDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
             MainActor.assumeIsolated {
                 guard let self, let view = self.nativeView, event.window === view.window,
-                    let content = view.window?.contentView else { return }
+                    let content = view.window?.contentView
+                else { return }
                 let point = content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
                 guard let hit = content.hitTest(point),
-                    hit === view || hit.isDescendant(of: view) else { return }
+                    hit === view || hit.isDescendant(of: view)
+                else { return }
                 self.mouseDown(event)
                 let flags = event.modifierFlags
-                self.mouseDownAllowsNativeDrag = !flags.contains(.command) && !flags.contains(.control)
-                    && BrowserLinkPreferenceStore.shared.preferences.dragsLinksToPeek != flags.contains(.option)
+                self.mouseDownAllowsNativeDrag =
+                    !flags.contains(.command) && !flags.contains(.control)
+                    && self.dragsLinksToPeek() != flags.contains(.option)
             }
             return event
         }
@@ -260,7 +271,7 @@ final class BrowserLinkDragController {
         webView?.callAsyncJavaScript(
             "globalThis.__crestLinkDrag?.configure(enabled, available);",
             arguments: [
-                "enabled": BrowserLinkPreferenceStore.shared.preferences.dragsLinksToPeek,
+                "enabled": dragsLinksToPeek(),
                 "available": context() != nil && !isNavigating,
             ],
             in: frame, in: BrowserLinkDragContentBridge.world, completionHandler: nil
@@ -269,7 +280,7 @@ final class BrowserLinkDragController {
 
     private func observePreference() {
         withObservationTracking {
-            _ = BrowserLinkPreferenceStore.shared.preferences.dragsLinksToPeek
+            _ = dragsLinksToPeek()
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }

@@ -69,6 +69,9 @@ final class CrestCore {
     /// Who hears each tab page the core unloaded under memory pressure, once
     /// its batch is applied.
     @ObservationIgnored private var unloadFollowers: [Follower<PageUnloaded>] = []
+    /// Who hears each saved or pinned tab's page put away, once its batch is
+    /// applied.
+    @ObservationIgnored private var putAwayFollowers: [Follower<TabPagePutAway>] = []
     /// Who hears each page the core moved to another engine, once its batch
     /// is applied.
     @ObservationIgnored private var rehostFollowers: [Follower<PageRehosted>] = []
@@ -305,6 +308,7 @@ final class CrestCore {
         var promptChanges: [Change] = []
         var downloadChanges: [DownloadState] = []
         var unloadedPages: [PageUnloaded] = []
+        var putAwayPages: [TabPagePutAway] = []
         var rehostedPages: [PageRehosted] = []
         var adoptedPages: [OfferedPageAdopted] = []
         var closesReady: [CloseReady] = []
@@ -328,6 +332,7 @@ final class CrestCore {
                 promptChanges.append(change)
             case .downloadUpdated(let updated): downloadChanges.append(updated.download)
             case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
+            case .tabPagePutAway(let putAway): putAwayPages.append(putAway)
             case .pageRehosted(let rehosted): rehostedPages.append(rehosted)
             case .offeredPageAdopted(let adopted): adoptedPages.append(adopted)
             case .closeReady(let ready): closesReady.append(ready)
@@ -344,6 +349,7 @@ final class CrestCore {
         if !promptChanges.isEmpty { promptsChanged(promptChanges) }
         if !downloadChanges.isEmpty { downloadsChanged(downloadChanges) }
         if !unloadedPages.isEmpty { pagesUnloaded(unloadedPages) }
+        if !putAwayPages.isEmpty { pagesPutAway(putAwayPages) }
         // The page's owner hosts it on its new engine before anyone hears it moved.
         if !movedPages.isEmpty { engines.pagesMoved(movedPages) }
         if !rehostedPages.isEmpty { pagesRehosted(rehostedPages) }
@@ -397,6 +403,22 @@ final class CrestCore {
     func followUnloadedPages(_ owner: AnyObject, _ handler: @escaping @MainActor (PageUnloaded) -> Void) {
         unloadFollowers.removeAll { $0.owner == nil }
         unloadFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    /// Calls `handler` with each saved or pinned tab's page the core put away,
+    /// once its batch is applied, so the page host of the window that asked
+    /// lets the page go. The registration lasts as long as `owner`.
+    func followPutAwayPages(_ owner: AnyObject, _ handler: @escaping @MainActor (TabPagePutAway) -> Void) {
+        putAwayFollowers.removeAll { $0.owner == nil }
+        putAwayFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    private func pagesPutAway(_ pages: [TabPagePutAway]) {
+        putAwayFollowers.removeAll { $0.owner == nil }
+        let followers = putAwayFollowers
+        for page in pages {
+            for follower in followers { follower.handler(page) }
+        }
     }
 
     /// Calls `handler` with each page the core moved to another engine, once

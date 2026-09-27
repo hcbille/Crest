@@ -103,12 +103,14 @@ extension BrowserPage: WKNavigationDelegate {
                 in: webView
             )
             : nil
-        let decision = corePage.linkNavigation(to: navigationAction.request.url, gesture: navigationAction.linkGesture)
+        // The core decides what the link does, as it does for Chromium's.
+        let webKitPage = webKitAdapter?.webKitPage
+        let decision =
+            webKitPage?.linkActivation(to: navigationAction.request.url, gesture: navigationAction.linkGesture)
+            ?? .navigate
         // A modified click keeps its initiator's referrer through a staged
         // request; a saved-site Peek starts afresh, as it does on Chromium.
-        let engineNavigation =
-            decision == .peekModifier
-            ? BrowserWebKitPageEngine.stageLink(navigationAction.request, from: webView) : nil
+        let engineNavigation = decision == .peekModifier ? webKitPage?.stageLink(navigationAction.request) : nil
         if let request = decision.peekRequest(
             destinationURL: navigationAction.request.url,
             context: navigationContext, sourcePresentation: sourcePresentation,
@@ -118,6 +120,7 @@ extension BrowserPage: WKNavigationDelegate {
             decisionHandler(.cancel)
             return
         }
+        if let engineNavigation { corePage.discardStagedLink(engineNavigation) }
         if decision == .foregroundTab || decision == .backgroundTab {
             openModifiedLink(navigationAction.request, spaceID, decision == .foregroundTab)
             decisionHandler(.cancel)

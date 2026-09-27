@@ -2997,6 +2997,10 @@
     "webkit-hands-core-restore-state-and-media": {
       "category": "internal",
       "message": "WebKit hands the core the history of a page it unloads and reports each page's media as it changes, so memory pressure never asks pages first"
+    },
+    "page-host-follows-put-away-and-webkit-links-ask-core": {
+      "category": "internal",
+      "message": "Closing a saved or pinned tab lets the page host put its page away after the core records it, and WebKit asks the core how each followed link opens and stages Peek links through it"
     }
   }
 }

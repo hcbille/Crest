@@ -202,12 +202,16 @@ public sealed partial class BrowserContractsTests {
         var missing = Guid.NewGuid();
         Assert.Equal(new UnknownPage(missing), Refusal(app, new StageLink(missing, source, link, "https://followed.example/")));
 
-        // Once its engine created the page, the page has had its first load.
+        // An engine that creates its page at once, as WebKit does, stages the
+        // link in a page that has loaded nothing yet; once the page heads
+        // anywhere, it has had its first load.
         app.Report(engine, new PageCreated(peek));
+        app.Send(new StageLink(peek, source, link, "https://followed.example/"));
+        Assert.Equal(new StageNavigation(peek, link, "https://followed.example/"), binding.Commands[^1]);
+        app.Send(new Navigate(peek, "https://followed.example/"));
         Assert.Equal(new StagedLinkElsewhere(peek, source), Refusal(app, new StageLink(peek, source, link, "https://followed.example/")));
 
         // A link that no longer applies leaves the page where it was.
-        app.Send(new Navigate(peek, "https://followed.example/"));
         app.Drain();
         app.Report(engine, new StagedLinkUnavailable(peek));
         var live = Assert.IsType<PageChanged>(Assert.Single(app.Drain())).Page.Live;

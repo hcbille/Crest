@@ -12,17 +12,9 @@ final class BrowserDurableTabCloseTests: XCTestCase {
                 let preferences = BrowserAppPreferenceStore()
                 preferences.bind(to: context.browser, legacy: .unsaved)
                 preferences.savedTabClosePolicy = policy
-                var discardedState: Bool?
+                let putAway = PutAwayPages(core: context.browser.core)
                 let action = BrowserDurableTabCloseAction(
-                    browser: context.browser,
-                    spaceAccess: BrowserSpaceAccessController(),
-                    preferences: preferences,
-                    closePage: { assignment, discardState in
-                        XCTAssertEqual(assignment, context.assignment)
-                        discardedState = discardState
-                        return true
-                    }
-                )
+                    browser: context.browser, spaceAccess: BrowserSpaceAccessController())
 
                 XCTAssertTrue(action.perform(context.assignment))
 
@@ -30,7 +22,12 @@ final class BrowserDurableTabCloseTests: XCTestCase {
                 var expected = context.tab
                 if policy == .returnToSavedURL { expected.url = expected.savedURL ?? expected.url }
                 XCTAssertEqual(space.tabs.first, expected)
-                XCTAssertEqual(discardedState, policy == .returnToSavedURL)
+                // The window that asked hears which page went, and whether it
+                // keeps what brings it back.
+                XCTAssertEqual(
+                    putAway.pages.map { [$0.windowID, $0.spaceID, $0.tabID] },
+                    [[context.browser.windowID, context.assignment.spaceID, context.tab.id]])
+                XCTAssertEqual(putAway.pages.map(\.keepsState), [policy != .returnToSavedURL])
                 XCTAssertNil(context.browser.shownTab)
                 XCTAssertEqual(space.tabs.last, context.copy)
                 XCTAssertEqual(space.archivedTabs, context.archived)
@@ -41,16 +38,9 @@ final class BrowserDurableTabCloseTests: XCTestCase {
     func testStaleLockedAndOrdinaryTabsDoNotCloseOrDiscardState() throws {
         for placement: TabPlacement in [.current, .pinned, .saved] {
             let context = try makeContext(placement: placement)
-            var closeCount = 0
+            let putAway = PutAwayPages(core: context.browser.core)
             let action = BrowserDurableTabCloseAction(
-                browser: context.browser,
-                spaceAccess: BrowserSpaceAccessController(),
-                preferences: BrowserAppPreferenceStore(),
-                closePage: { _, _ in
-                    closeCount += 1
-                    return true
-                }
-            )
+                browser: context.browser, spaceAccess: BrowserSpaceAccessController())
             let original = context.browser.sessionSeed
             let stale = BrowserTabRuntimeAssignment(
                 tabID: context.tab.id, spaceID: context.assignment.spaceID, profileID: UUID()
@@ -61,21 +51,8 @@ final class BrowserDurableTabCloseTests: XCTestCase {
 
             context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.assignment.spaceID)
             XCTAssertFalse(action.perform(context.assignment))
-            XCTAssertEqual(closeCount, 0)
+            XCTAssertTrue(putAway.pages.isEmpty)
         }
-    }
-
-    func testMismatchedResidentPageLeavesTheSessionUntouched() throws {
-        let context = try makeContext(placement: .saved)
-        let preferences = BrowserAppPreferenceStore()
-        preferences.savedTabClosePolicy = .returnToSavedURL
-        let original = context.browser.sessionSeed
-        let action = BrowserDurableTabCloseAction(
-            browser: context.browser, spaceAccess: BrowserSpaceAccessController(),
-            preferences: preferences, closePage: { _, _ in false }
-        )
-        XCTAssertFalse(action.perform(context.assignment))
-        XCTAssertEqual(context.browser.sessionSeed, original)
     }
 
     func testDeferredCloseOnlyArchivesAfterApproval() throws {
@@ -122,25 +99,36 @@ final class BrowserDurableTabCloseTests: XCTestCase {
         let context = try makeContext(placement: .saved)
         let gate = DeferredDismissal()
         context.browser.family.pageDismissalAuthorizer = gate
-        var retired = 0
-        let action = BrowserDurableTabCloseAction(browser: context.browser,
-            spaceAccess: BrowserSpaceAccessController(), preferences: BrowserAppPreferenceStore(),
-            closePage: { _, _ in retired += 1; return true })
+        let putAway = PutAwayPages(core: context.browser.core)
+        let action = BrowserDurableTabCloseAction(
+            browser: context.browser, spaceAccess: BrowserSpaceAccessController())
         let original = context.browser.sessionSeed
         XCTAssertFalse(action.perform(context.assignment))
-        XCTAssertEqual(retired, 0)
+        XCTAssertTrue(putAway.pages.isEmpty)
         XCTAssertFalse(gate.resolve(false))
-        XCTAssertEqual(retired, 0)
+        XCTAssertTrue(putAway.pages.isEmpty)
         XCTAssertEqual(context.browser.sessionSeed, original)
         XCTAssertFalse(action.perform(context.assignment))
         XCTAssertTrue(gate.resolve(true))
-        XCTAssertEqual(retired, 1)
+        XCTAssertEqual(putAway.pages.map(\.tabID), [context.tab.id])
+    }
+
+    /// Hears each saved or pinned tab's page the core puts away.
+    @MainActor
+    private final class PutAwayPages {
+        private(set) var pages: [TabPagePutAway] = []
+
+        init(core: CrestCore) {
+            core.followPutAwayPages(self) { [weak self] in self?.pages.append($0) }
+        }
     }
 
     private final class DeferredDismissal: BrowserPageDismissalAuthorizing {
         var pending: (@MainActor () -> Bool)?
-        func performDismissal(of assignments: [BrowserTabRuntimeAssignment], in browser: BrowserStore,
-            operation: @escaping @MainActor () -> Bool) -> Bool {
+        func performDismissal(
+            of assignments: [BrowserTabRuntimeAssignment], in browser: BrowserStore,
+            operation: @escaping @MainActor () -> Bool
+        ) -> Bool {
             pending = operation
             return false
         }

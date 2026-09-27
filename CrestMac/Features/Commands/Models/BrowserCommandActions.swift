@@ -271,14 +271,10 @@ struct BrowserCommandActions {
             closeKeyWindow()
             return
         }
-        // TRANSITIONAL until the shared page host follows the core's page
-        // closes (WP C (j2)): a saved or pinned tab's page is put away before
-        // the core records it.
+        // A saved or pinned tab puts its page away, which the page host
+        // follows once the core records it.
         if selectedTab.placement.isDurable {
-            if BrowserDurableTabCloseAction(
-                browser: browser, spaceAccess: spaceAccess,
-                closePage: { pages.closeDurablePage($0, discardState: $1) }
-            ).perform(
+            if BrowserDurableTabCloseAction(browser: browser, spaceAccess: spaceAccess).perform(
                 BrowserTabRuntimeAssignment(
                     tabID: selectedTab.id, spaceID: space.id, profileID: space.profileID
                 ))

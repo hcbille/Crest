@@ -30,11 +30,23 @@ internal sealed record SessionTransientPromotion(Guid PageId, Guid TabId, bool A
     #endregion
 }
 
+/// A saved or pinned tab put its page away as window `WindowId` asked,
+/// keeping what brings it back unless it returned to its saved address.
+internal sealed record SessionPagePutAway(Guid WindowId, Guid SpaceId, Guid TabId, bool KeepsState) {
+    #region Actions - Publishing
+
+    public TabPagePutAway PutAway(Guid workspaceId) => new(workspaceId, WindowId, SpaceId, TabId, KeepsState);
+
+    #endregion
+}
+
 /// The tabs a command copied, the image it assigned, the transient page it
-/// kept as a tab and the tabs an import placed from its Spaces, which
-/// comparing the sessions before and after it cannot tell.
+/// kept as a tab, the tabs an import placed from its Spaces and the page a
+/// saved or pinned tab put away, which comparing the sessions before and
+/// after it cannot tell.
 internal sealed record SessionTabEvents(IReadOnlyList<SessionTabCopy> Copies, SessionFaviconUpdate? Favicon,
-    SessionTransientPromotion? Promotion = null, IReadOnlyList<ImportedTab>? Imported = null) {
+    SessionTransientPromotion? Promotion = null, IReadOnlyList<ImportedTab>? Imported = null,
+    SessionPagePutAway? PutAway = null) {
     #region Static Variables
 
     public static SessionTabEvents None { get; } = new([], null);
@@ -48,7 +60,8 @@ internal sealed record SessionTabEvents(IReadOnlyList<SessionTabCopy> Copies, Se
         Copies.Select(copy => (Change)copy.Copied(workspaceId))
             .Concat(Favicon is { } favicon ? [favicon.Assigned(workspaceId)] : [])
             .Concat(Promotion is { } promotion ? [promotion.Promoted(workspaceId)] : [])
-            .Concat(Imported is { Count: > 0 } imported ? [new TabsImported(workspaceId, imported)] : []);
+            .Concat(Imported is { Count: > 0 } imported ? [new TabsImported(workspaceId, imported)] : [])
+            .Concat(PutAway is { } putAway ? [putAway.PutAway(workspaceId)] : []);
 
     #endregion
 }

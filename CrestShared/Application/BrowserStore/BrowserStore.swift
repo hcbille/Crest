@@ -139,7 +139,7 @@ final class BrowserStore {
         tabs: [SpaceID: TabID] = [:],
         credentialVault: any CredentialVault = InMemoryCredentialVault(),
         browsingMode: BrowserBrowsingMode = .standard,
-        linkPreferences: BrowserLinkPreferenceStore = .shared,
+        linkPreferences: BrowserLinkPreferenceStore? = nil,
         core: CrestCore = CrestCore()
     ) {
         self.init(
@@ -159,11 +159,11 @@ final class BrowserStore {
         credentialVault: any CredentialVault,
         browsingMode: BrowserBrowsingMode,
         family: BrowserStoreFamily,
-        linkPreferences: BrowserLinkPreferenceStore = .shared,
+        linkPreferences: BrowserLinkPreferenceStore? = nil,
         core: CrestCore
     ) {
         windowID = opening.id
-        self.linkPreferences = linkPreferences
+        self.linkPreferences = linkPreferences ?? BrowserLinkPreferenceStore(core: core)
         self.core = core
         self.credentialVault = credentialVault
         self.browsingMode = browsingMode

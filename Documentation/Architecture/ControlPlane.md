@@ -429,6 +429,13 @@ page with the rules its Space's protection applies; each page owner still
 applies a changed protection to its live pages. A popup WebKit makes keeps the
 configuration WebKit derived from its opener's.
 
+The binding asks the core `LinkActivation` for each link the person follows
+in one of its pages, as Chromium's does, and keeps a modified link bound for
+a Peek staged with its referrer: the platform asks the core `StageLink` to
+hand it to the Peek's page, which the core allows only on the same engine and
+profile and before the page has loaded anything, and WebKit drops a link the
+core discards, one that no longer applies, and those of a page that closes.
+
 The binding runs each `LoadPage` in its page once the page's host is ready
 for it. A page the core closes keeping its state reports `PageClosed` with
 WebKit's history and the address it shows; a popup and a private page keep
@@ -452,7 +459,10 @@ place, so its tab, lease and window keep it. WebKit's binding builds a page
 the core moved to WebKit from its own stores and rules, and hands it over
 before the core loads it. A page an engine opened by itself that the core
 adopted for a tab (`OfferedPageAdopted`) is hosted by the shared page owner
-of the window that opened the tab, whichever engine opened it. What a page
+of the window that opened the tab, whichever engine opened it. When closing
+a saved or pinned tab puts its page away (`TabPagePutAway`), the page host of
+the window that asked lets the page go, keeping what brings it back unless
+the tab returned to its saved address. What a page
 owner does beyond that is shared too (`BrowserPageOwner`): `BrowserPagePool`
 (Mac) and `MobileBrowserPageStore` (iPhone and iPad) keep only presentation
 and each platform's own commands.

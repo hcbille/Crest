@@ -25,54 +25,21 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
 
     init(webView: WKWebView) { self.webView = webView }
 
-    private struct StagedLink {
-        let request: URLRequest
-        weak var dataStore: WKWebsiteDataStore?
-        let stagedAt: Date
-    }
-    private static var stagedLinks: [String: StagedLink] = [:]
+    /// The binding's page this port serves, which stages links through the
+    /// core.
+    @ObservationIgnored weak var enginePage: WebKitEnginePage?
 
-    /// Holds a modified link's request under a one-shot token, so the page Crest
-    /// opens for it replays the initiator's referrer instead of a bare URL.
-    /// Only a plain GET is staged: WebKit has no public way to hand another view
-    /// a form body, the initiating origin, user activation or sandbox flags.
-    static func stageLink(_ request: URLRequest, from webView: WKWebView) -> BrowserEngineNavigation? {
-        guard let url = request.url, ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
-            (request.httpMethod ?? "GET").uppercased() == "GET",
-            request.httpBody == nil, request.httpBodyStream == nil
-        else { return nil }
-        let now = Date()
-        stagedLinks = stagedLinks.filter {
-            $0.value.dataStore != nil && now.timeIntervalSince($0.value.stagedAt) < 300
-        }
-        if stagedLinks.count >= 16,
-            let oldest = stagedLinks.min(by: { $0.value.stagedAt < $1.value.stagedAt })?.key
-        {
-            stagedLinks[oldest] = nil
-        }
-        var replay = URLRequest(url: url, cachePolicy: request.cachePolicy)
-        if let referrer = request.value(forHTTPHeaderField: "Referer") {
-            replay.setValue(referrer, forHTTPHeaderField: "Referer")
-        }
-        let token = UUID().uuidString
-        stagedLinks[token] = StagedLink(
-            request: replay,
-            dataStore: webView.configuration.websiteDataStore, stagedAt: now)
-        return BrowserEngineNavigation(
-            implementation: BrowserEngineRegistration.webKit.implementationId,
-            token: token)
-    }
-
-    /// Consumes the token even when it is refused, and only for a page that has
-    /// not loaded yet in the same website data store as the link's source.
+    /// The link the core staged as the page's first load, through the
+    /// binding, which its first load of that address replays.
     func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool {
-        guard navigation.implementation == registration.implementationId,
-            let staged = Self.stagedLinks.removeValue(forKey: navigation.token),
-            stagedRequest == nil, webView.url == nil,
-            staged.request.url == url,
-            staged.dataStore === webView.configuration.websiteDataStore
-        else { return false }
-        stagedRequest = staged.request
+        enginePage?.stage(navigation, expecting: url) ?? false
+    }
+
+    /// Keeps `request` as the page's first load, while the page has loaded
+    /// nothing and keeps no other; false otherwise.
+    func stage(_ request: URLRequest) -> Bool {
+        guard stagedRequest == nil, webView.url == nil else { return false }
+        stagedRequest = request
         return true
     }
 

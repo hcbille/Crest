@@ -4,20 +4,15 @@ import os
 /// The platform's side of this device's link preferences.
 ///
 /// The core owns them: the device store keeps them, the core applies every
-/// edit and its rules, forgets a deleted Space in them, and routes a link
-/// another app hands a window. This store reads them from the read model and
-/// sends the person's changes as intents.
+/// edit and its rules, answers how a link a page's engine asks about opens,
+/// forgets a deleted Space in them, and routes a link another app hands a
+/// window. This store reads them from the read model and sends the person's
+/// changes as intents. Each window keeps one over its core.
 @MainActor
 final class BrowserLinkPreferenceStore {
     // MARK: - Static Variables
 
     private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "Links")
-
-    /// TRANSITIONAL until pages ask the core how a clicked link opens: the
-    /// store the launch shares with pages that read a preference directly. It
-    /// runs over a memory-only core of its own until the launch shares the
-    /// store over its core.
-    private(set) static var shared = BrowserLinkPreferenceStore()
 
     // MARK: - Variables
 
@@ -33,11 +28,20 @@ final class BrowserLinkPreferenceStore {
 
     // MARK: - Initializers
 
-    /// A store over `core`. It carries the preferences an installed release
-    /// kept under `crest.link-preferences.v1`, `legacyPreferences`, into the
-    /// core's device store once; the core publishes them either way.
-    init(core: CrestCore, legacyPreferences: Data? = nil) {
+    /// A store over `core`, which has the core publish the preferences when
+    /// it has not yet.
+    init(core: CrestCore) {
         self.core = core
+        if core.state.linkPreferences == nil { Self.adopt(nil, into: core) }
+    }
+
+    // MARK: - Actions - Adoption
+
+    /// Carries the preferences an installed release kept under
+    /// `crest.link-preferences.v1`, `legacyPreferences`, into `core`'s device
+    /// store once; the core publishes them either way. A launch does this
+    /// before any window opens.
+    static func adopt(_ legacyPreferences: Data?, into core: CrestCore) {
         do {
             try core.send(AdoptLinkPreferences(preferences: legacyPreferences))
         } catch {
@@ -49,13 +53,6 @@ final class BrowserLinkPreferenceStore {
     /// use, which keeps nothing.
     convenience init() {
         self.init(core: CrestCore())
-    }
-
-    // MARK: - Actions - Sharing
-
-    /// Shares `store` with the pages that read a preference directly.
-    static func share(_ store: BrowserLinkPreferenceStore) {
-        shared = store
     }
 
     // MARK: - Actions - Changes

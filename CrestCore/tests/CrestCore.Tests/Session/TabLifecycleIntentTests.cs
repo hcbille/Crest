@@ -130,15 +130,17 @@ public sealed partial class BrowserContractsTests {
         foreach (var tab in new[] { start, right, article }) device.Send(new ShowTab(window, space.Id, tab));
 
         // A saved tab keeps its place, and its page returns to its saved
-        // address when the app's preferences say so.
-        device.Send(new CloseTab(device.Workspace, window, space.Id, article));
+        // address when the app's preferences say so. The window that asked
+        // lets the tab's page go, keeping nothing of it.
+        var putAway = device.Send(new CloseTab(device.Workspace, window, space.Id, article)).OfType<TabPagePutAway>();
         var kept = core.Current.Spaces[0].Tabs.Single(tab => tab.Id == article);
         Assert.Equal((TabPlacement.Saved, "https://news.example/article"), (kept.Placement, kept.Url));
         Assert.Equal(right, device.Tab(window, space.Id));
+        Assert.Equal([new TabPagePutAway(device.Workspace, window, space.Id, article, KeepsState: false)], putAway);
 
         // An open tab is archived, and the window goes back to the tab it
-        // showed before.
-        device.Send(new CloseTab(device.Workspace, window, space.Id, right));
+        // showed before; no page is put away.
+        Assert.Empty(device.Send(new CloseTab(device.Workspace, window, space.Id, right)).OfType<TabPagePutAway>());
         Assert.DoesNotContain(core.Current.Spaces[0].Tabs, tab => tab.Id == right);
         var archived = core.Current.Spaces[0].ArchivedTabs[^1];
         Assert.Equal((right, ArchiveReason.Closed), (archived.Tab.Id, archived.Reason));

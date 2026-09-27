@@ -142,6 +142,7 @@ enum Change: Equatable, Sendable {
     case syncStagingFailed(SyncStagingFailed)
     case tabCopied(TabCopied)
     case tabFaviconAssigned(TabFaviconAssigned)
+    case tabPagePutAway(TabPagePutAway)
     case tabsChanged(TabsChanged)
     case tabsImported(TabsImported)
     case transientPagePromoted(TransientPagePromoted)
@@ -467,6 +468,7 @@ extension CoreState {
         case .syncStagingFailed(let change): apply(change)
         case .tabCopied(let change): apply(change)
         case .tabFaviconAssigned(let change): apply(change)
+        case .tabPagePutAway(let change): apply(change)
         case .tabsChanged(let change): apply(change)
         case .tabsImported(let change): apply(change)
         case .transientPagePromoted(let change): apply(change)
@@ -5316,6 +5318,14 @@ struct TabIconAccent: Equatable, Sendable {
 
 struct TabLimitReached: Equatable, Sendable {
     let limit: Int
+}
+
+struct TabPagePutAway: Equatable, Sendable {
+    let workspaceID: UUID
+    let windowID: UUID
+    let spaceID: UUID
+    let tabID: UUID
+    let keepsState: Bool
 }
 
 struct TabPlacementChoice: Equatable, Sendable {

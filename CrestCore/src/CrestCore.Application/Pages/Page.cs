@@ -59,6 +59,11 @@ internal sealed class Page {
     /// committed.
     public string? DocumentAddress => documentUrl;
 
+    /// Whether the page has loaded nothing yet: its engine is still creating
+    /// it, or created it and it neither shows a document nor heads to one.
+    public bool AwaitsFirstLoad => Phase == PagePhase.Opening
+        || Phase == PagePhase.Live && documentUrl is null && shown.Url is null && shown.PendingUrl is null;
+
     /// The document's navigation is recorded, or ended with nothing to record.
     private bool isRecorded;
 
