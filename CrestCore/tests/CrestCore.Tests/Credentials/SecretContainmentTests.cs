@@ -14,18 +14,18 @@ namespace CrestCore.Tests;
 public sealed class SecretContainmentTests {
     private const string Secret = "correct-horse-battery-staple";
 
-    private static readonly Assembly[] Assemblies = [typeof(Change).Assembly, typeof(CrestApp).Assembly];
+    private static readonly Assembly Core = typeof(CrestApp).Assembly;
 
     /// Every record marked as holding secrets.
-    private static IReadOnlyList<Type> SecretTypes => [.. Assemblies.SelectMany(assembly => assembly.GetTypes())
+    private static IReadOnlyList<Type> SecretTypes => [.. Core.GetTypes()
         .Where(type => type.IsDefined(typeof(HoldsSecretsAttribute), inherit: false))];
 
     [Fact]
     public void NoRecordThatHoldsAPasswordIsReachableFromWhatTheCoreKeepsOrPublishes() {
         Assert.Contains(typeof(CredentialImportPlan), SecretTypes);
         Assert.Contains(typeof(ExistingCredential), SecretTypes);
-        var contracts = typeof(Change).Assembly.GetTypes();
-        var roots = contracts.Where(type => !type.IsAbstract && (typeof(Change).IsAssignableFrom(type) || typeof(Intent).IsAssignableFrom(type)))
+        var types = Core.GetTypes();
+        var roots = types.Where(type => !type.IsAbstract && (typeof(Change).IsAssignableFrom(type) || typeof(Intent).IsAssignableFrom(type)))
             .Concat([typeof(SessionState), typeof(StoredSession), typeof(FirstSession), typeof(DeviceRecords), typeof(NativeSyncJournal),
                 typeof(NativeSyncSessionTransition)]);
         var secrets = SecretTypes.ToHashSet();
@@ -35,7 +35,7 @@ public sealed class SecretContainmentTests {
             var (type, path) = next;
             if (!reached.Add(type)) continue;
             Assert.False(secrets.Contains(type), $"{path} reaches {type.Name}, which holds passwords.");
-            foreach (var reference in References(type, contracts)) pending.Push((reference, $"{path} → {reference.Name}"));
+            foreach (var reference in References(type, types)) pending.Push((reference, $"{path} → {reference.Name}"));
         }
         Assert.Contains(typeof(SessionState), reached);
     }
@@ -66,15 +66,15 @@ public sealed class SecretContainmentTests {
     }
 
     /// The types a value of `type` can hold: its fields' and properties'
-    /// types, their element and argument types, and for an abstract contract
-    /// type, every contract that derives from it.
-    private static IEnumerable<Type> References(Type type, Type[] contracts) {
+    /// types, their element and argument types, and for an abstract type,
+    /// every type of the core that derives from it.
+    private static IEnumerable<Type> References(Type type, Type[] types) {
         if (type.IsArray) return [type.GetElementType()!];
         var held = new List<Type>();
         if (type.IsGenericType) held.AddRange(type.GetGenericArguments());
         if (type.Namespace?.StartsWith("System", StringComparison.Ordinal) == true || type.IsPrimitive || type.IsEnum) return held;
         if (type.IsAbstract || type.IsInterface)
-            held.AddRange(contracts.Where(derived => derived != type && !derived.IsAbstract && type.IsAssignableFrom(derived)));
+            held.AddRange(types.Where(derived => derived != type && !derived.IsAbstract && type.IsAssignableFrom(derived)));
         const BindingFlags members = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         held.AddRange(type.GetFields(members).Select(field => field.FieldType));
         held.AddRange(type.GetProperties(members).Select(property => property.PropertyType));

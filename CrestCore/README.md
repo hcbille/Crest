@@ -1,16 +1,22 @@
 # CrestCore source layout
 
-CrestCore is the portable browser control plane. The projects have distinct
-responsibilities:
+CrestCore is the portable browser control plane. It builds as one assembly,
+`src/CrestCore`, whose folders keep the core's three concerns apart without a
+project boundary between them, so a message can reach the internal state of
+the area that receives it:
 
-| Project | Responsibility |
+| Folder or project | Responsibility |
 | --- | --- |
-| `CrestCore.Domain` | Tab and Space behavior, durable state, navigation, and sync policy. No JSON or native dependencies. |
-| `CrestCore.Contracts` | The typed contract records (intents, changes, rejections, queries, engine commands and events, and the read models they carry), plus the JSON protocol validation policy requests use. |
-| `CrestCore.Application` | Session commands, the session file, imports, and sync transitions. It owns the JSON-backed native and persistence formats and the SQLite file they are stored in, and calls typed domain rules. |
-| `CrestCore.Native` | C exports that adapt native callers to the application layer, and the generated wire codec. |
-| `tools/CrestCore.Generator` | Generates the codec, the Swift models and the C tag header from the contract records. |
+| `src/CrestCore/Contracts` | The typed contract records (intents, changes, rejections, queries, engine commands and events, and the read models they carry), plus the JSON protocol validation policy requests use. Namespace `CrestCore.Contracts`. |
+| `src/CrestCore/Domain` | Tab and Space behavior, durable state, navigation, and sync policy. No JSON or native dependencies. Namespace `CrestCore.Domain`. |
+| `src/CrestCore/Application` | Session commands, the session file, imports, and sync transitions. It owns the JSON-backed native and persistence formats and the SQLite file they are stored in, and calls typed domain rules. Namespace `CrestCore.Application`. |
+| `src/CrestCore.Native` | C exports that adapt native callers to the application layer, and the generated wire codec. |
+| `tools/CrestCore.Generator` | Generates the codec, the Swift models and the C tag header from the contract records: the types the core exports in the `CrestCore.Contracts` namespace, wherever their files sit. It reads each record's data and ignores its methods. |
 | `CrestCore.Tests` | Behavioral contracts for the corresponding source areas. |
+
+The folders keep the layering the separate projects had: domain code uses
+only the contracts, and the contracts use neither the domain nor the
+application.
 
 Source folders follow the browser concepts they own. In the domain, `Tabs`
 contains tab state and its batch, lifecycle, and organization rules; `Spaces`
@@ -31,7 +37,7 @@ boundary, apply browser rules through domain objects, then encode JSON at an
 output boundary. The application layer retains JSON when preserving the native
 session and sync formats. Preserve the existing protocol and C ABI when moving
 source files. File-scoped namespaces remain stable across folders so native
-callers and existing assemblies do not need new type names.
+callers do not need new type names.
 
 The repository `.editorconfig` controls C# layout, including same-line opening
 braces. Run `Scripts/control-plane/lint-dotnet.sh` and the .NET tests before

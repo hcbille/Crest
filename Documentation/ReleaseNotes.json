@@ -3069,6 +3069,10 @@
     "generated-message-handlers-withdrawn": {
       "category": "internal",
       "message": "The core and the apps route their messages with the hand-written dispatch they used before the generated handlers, while each message family moves toward carrying its own behavior; nothing changes in behavior."
+    },
+    "core-builds-as-one-assembly": {
+      "category": "internal",
+      "message": "The portable core now builds as one assembly, with its contracts, domain and application kept as folders and namespaces of it; nothing changes in behavior."
     }
   }
 }

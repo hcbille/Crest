@@ -6,7 +6,7 @@
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../CrestCore.Application/CrestCore.Application.csproj" />
+    <ProjectReference Include="../CrestCore/CrestCore.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- The session file uses the system SQLite on every Apple platform. -->

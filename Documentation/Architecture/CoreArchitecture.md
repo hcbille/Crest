@@ -19,6 +19,11 @@ today and are rewritten when the restructure finishes.
 | Engine bindings (Chromium in portable C++ with a thin shell per OS; WebKit in Swift) | Creating and closing pages, loading, engine navigation history, find, zoom, capture, printing, DevTools, extensions, network and cookie stores | Deciding browser rules; changing browser state other than by reporting events |
 | OS services (supplied by each platform) | CloudKit transport, Keychain, authentication prompts, notification delivery, file pickers, default-browser registration, software updates | Rules; deciding when to save or sync |
 
+`CrestCore` builds as one assembly. Its contracts, domain and application are
+folders and namespaces of that assembly rather than projects, so a message can
+reach the internal state of the area that receives it without that state
+becoming public.
+
 Sync stays Apple-only. CloudKit transport is an OS service the Apple hosts
 supply through a port, and the core owns records, merging, ordering and
 scheduling.

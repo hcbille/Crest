@@ -60,8 +60,10 @@ site shows which one it uses.
 
 ## The typed contract
 
-Everything that crosses the boundary is a C# record or fixed set in
-`CrestCore.Contracts`:
+Everything that crosses the boundary is a C# record or fixed set in the
+`CrestCore.Contracts` namespace. The contracts share the core's one assembly
+with its domain and application, which keep folders and namespaces of their own
+(`Contracts`, `Domain` and `Application` under `CrestCore/src/CrestCore`):
 
 - **Intents** change state (`OpenTab`, `ChooseSiteEngine`).
 - **Queries** answer without changing it (`PaletteSuggestions`, `SiteDecision`).
@@ -76,7 +78,8 @@ Everything that crosses the boundary is a C# record or fixed set in
 - **Engine commands, engine events, page requests and engine presentations**
   form the engine contract (see "Engines").
 
-`CrestCore.Generator` reads the records and writes the core's codec, the Swift
+`CrestCore.Generator` reads the records, the types the core exports in that
+namespace, and writes the core's codec, the Swift
 models and codec, the C header with each type's tag and the schema
 fingerprint, and the C++ engine codec. No source spells a wire tag, and no
 model is written twice by hand. Run `Scripts/control-plane/generate-contracts.sh`

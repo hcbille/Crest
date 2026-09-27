@@ -4,11 +4,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Storage tests read and fault the session file through the core's own connection. -->
+    <!-- Storage tests read and fault the session file through the core's own
+         connection, and history tests walk visits against a small history limit. -->
     <InternalsVisibleTo Include="CrestCore.Tests" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="../CrestCore.Domain/CrestCore.Domain.csproj" />
-    <ProjectReference Include="../CrestCore.Contracts/CrestCore.Contracts.csproj" />
   </ItemGroup>
 </Project>

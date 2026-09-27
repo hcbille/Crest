@@ -16,7 +16,8 @@ namespace CrestCore.Tests;
 /// reflection from every contract type, so a new record is covered without a
 /// new test.
 public sealed unsafe class ContractCodecTests {
-    private static readonly Assembly Contracts = typeof(Intent).Assembly;
+    /// The contract types the core exports, beside its domain and application.
+    private static readonly IReadOnlyList<Type> Contracts = ContractSchema.ContractTypes(typeof(Intent).Assembly);
     private static readonly Type[] Roots = [typeof(Intent), typeof(Change), typeof(Rejection), typeof(EngineCommand), typeof(EngineEvent)];
     private static readonly NullabilityInfoContext Nullability = new();
 
@@ -26,7 +27,7 @@ public sealed unsafe class ContractCodecTests {
         return false;
     }
 
-    private static IEnumerable<Type> RootMembers(Type root) => Contracts.GetExportedTypes()
+    private static IEnumerable<Type> RootMembers(Type root) => Contracts
         .Where(type => type is { IsClass: true, IsAbstract: false } && (root == typeof(Query<>) ? IsQuery(type) : root.IsAssignableFrom(type)))
         .OrderBy(type => type.Name, StringComparer.Ordinal);
 
@@ -44,9 +45,9 @@ public sealed unsafe class ContractCodecTests {
         var found = new HashSet<Type>();
         var pending = new Queue<Type>(Roots.Append(typeof(Query<>)).SelectMany(RootMembers));
         foreach (var query in RootMembers(typeof(Query<>))) pending.Enqueue(Answer(query));
-        foreach (var set in Contracts.GetExportedTypes().Where(type => type.IsSealed && SetMembers(type) is not null)) pending.Enqueue(set);
+        foreach (var set in Contracts.Where(type => type.IsSealed && SetMembers(type) is not null)) pending.Enqueue(set);
         while (pending.TryDequeue(out var type)) {
-            if (!type.IsClass || type.Assembly != Contracts || type.IsAbstract || !found.Add(type)) continue;
+            if (!type.IsClass || !ContractSchema.IsContract(type) || type.IsAbstract || !found.Add(type)) continue;
             var held = SetMembers(type) is not null
                 ? type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Select(property => property.PropertyType)
                 : type.GetConstructors().Single().GetParameters().Select(parameter => parameter.ParameterType);
@@ -84,7 +85,7 @@ public sealed unsafe class ContractCodecTests {
         if (SetMembers(type) is { } members) return members[^1];
         if (Roots.Contains(type)) return Sample(RootMembers(type).First(), null, optionals);
         if (type.IsAbstract && Roots.Any(root => root.IsAssignableFrom(type)))
-            return Sample(Contracts.GetExportedTypes().Where(member => member is { IsAbstract: false } && type.IsAssignableFrom(member))
+            return Sample(Contracts.Where(member => member is { IsAbstract: false } && type.IsAssignableFrom(member))
                 .OrderBy(member => member.Name, StringComparer.Ordinal).First(), null, optionals);
         if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IReadOnlyList<>)) {
             var element = type.GetGenericArguments()[0];
@@ -116,7 +117,7 @@ public sealed unsafe class ContractCodecTests {
             Assert.Same(expected, actual);
             return;
         }
-        if (type.Assembly != Contracts || !type.IsClass) {
+        if (!ContractSchema.IsContract(type) || !type.IsClass) {
             Assert.Equal(expected, actual);
             return;
         }
@@ -466,7 +467,7 @@ public sealed unsafe class ContractCodecTests {
     /// cross the wire, must leave its fingerprint as it was.
     [Fact]
     public void TheEngineContractKeepsItsFingerprintWhenTheApplicationContractChanges() {
-        var types = Contracts.GetExportedTypes();
+        var types = Contracts;
         var schema = ContractSchema.Load(types);
         var extended = ContractSchema.Load([.. types, typeof(Ordered.ShowSignal)]);
 

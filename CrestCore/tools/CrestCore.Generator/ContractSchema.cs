@@ -333,9 +333,21 @@ internal sealed class ContractSchema {
 
     #region Actions - Loading
 
-    public static ContractSchema Load(Assembly assembly) {
-        ArgumentNullException.ThrowIfNull(assembly);
-        return Load(assembly.GetExportedTypes());
+    /// The schema of the contract types the core's assembly exports.
+    public static ContractSchema Load(Assembly core) => Load(ContractTypes(core));
+
+    /// The contract types the core's assembly exports. The core's domain and
+    /// application share its assembly, so a type is a contract by its
+    /// namespace, wherever its file sits, and nothing else crosses the wire.
+    public static IReadOnlyList<Type> ContractTypes(Assembly core) {
+        ArgumentNullException.ThrowIfNull(core);
+        return [.. core.GetExportedTypes().Where(IsContract)];
+    }
+
+    /// Whether `type` belongs to the contracts' namespace.
+    public static bool IsContract(Type type) {
+        ArgumentNullException.ThrowIfNull(type);
+        return type.Namespace == typeof(Intent).Namespace;
     }
 
     /// The schema whose roots are the given types' concrete contract types,
@@ -507,7 +519,7 @@ internal sealed class ContractSchema {
                 ? throw new ContractSchemaException($"{where}: open set {type.Name} has members made at runtime, which no wire tag names.")
                 : set;
         }
-        if (type.IsClass && !type.IsAbstract && type.Assembly == typeof(Intent).Assembly) {
+        if (type.IsClass && !type.IsAbstract && IsContract(type)) {
             DescribeRecord(type);
             return new RecordField(type);
         }
@@ -677,9 +689,9 @@ internal sealed class ContractSchema {
             + $"nullable, and {Display(type)} is none of them. Keep other state private, or pass behavior as a delegate.");
     }
 
-    /// A record declared in the same assembly as the set that holds it.
+    /// A record declared beside the set that holds it: in its assembly and namespace.
     private static bool IsRecordOf(Type type, Type set) =>
-        type is { IsClass: true, IsAbstract: false } && type.Assembly == set.Assembly
+        type is { IsClass: true, IsAbstract: false } && type.Assembly == set.Assembly && type.Namespace == set.Namespace
         && type.GetProperty("EqualityContract", BindingFlags.NonPublic | BindingFlags.Instance) is not null;
 
     /// A record held as set data is spelled with its initializer,
