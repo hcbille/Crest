@@ -25,6 +25,11 @@
         private var commandItems: [(ShortcutCommand, NSMenuItem)] = []
         /// The menus that hold commands, whose separators follow what is offered.
         private var commandMenus: [NSMenu] = []
+        /// The Page menu, which ends with a row for each engine the shown page
+        /// can move to.
+        private weak var pageMenu: NSMenu?
+        /// The Page menu's engine rows as last built, with their separator.
+        private var engineMoveItems: [NSMenuItem] = []
 
         init(
             shortcuts: BrowserShortcutStore, state: CoreState, actions: @escaping () -> BrowserCommandActions?,
@@ -104,13 +109,15 @@
             // blocking while no WebKit page is open) stays hidden. Selection
             // translation stays on Chromium's own page context menu, and blocking
             // comes from an extension.
+            let page = submenu("Page", in: bar)
             commands(
                 [
                     .toggleReaderMode, .toggleContentBlocking, nil, .findInPage, nil, .zoomIn, .zoomOut, .actualSize,
                     nil, .copyPageLink,
                     .copyPageLinkAsMarkdown, .sharePage, .exportPDF, .saveWebArchive,
                 ],
-                in: submenu("Page", in: bar))
+                in: page)
+            pageMenu = page
             commands([.toggleDeveloperToolbar, nil, .showWebInspector], in: submenu("Develop", in: bar))
             let window = submenu("Window", in: bar)
             standard("Minimize", "performMiniaturize:", key: "m", in: window)
@@ -126,6 +133,7 @@
         }
 
         func menuNeedsUpdate(_ menu: NSMenu) {
+            if menu === pageMenu { refreshEngineMoves() }
             refreshBindings()
             refreshOffers()
         }
@@ -147,6 +155,11 @@
                 let command = ShortcutCommand.named(value), canPerform(command)
             else { return }
             perform(command)
+        }
+
+        @objc private func movePage(_ item: NSMenuItem) {
+            guard let engine = item.representedObject as? EngineKind else { return }
+            actions()?.movePage(to: engine)
         }
 
         @objc private func runApplicationAction(_ item: NSMenuItem) {
@@ -172,6 +185,28 @@
                 item.keyEquivalent = shortcut.map { String($0.key.keyEquivalent.character) } ?? ""
                 item.keyEquivalentModifierMask = shortcut?.modifiers.appKitModifierFlags ?? []
             }
+        }
+
+        /// Ends the Page menu with a row for each registered engine the shown
+        /// page is not on. Moving depends only on the engine being registered,
+        /// so the rows are there before any page has opened on it.
+        private func refreshEngineMoves() {
+            guard let pageMenu else { return }
+            for item in engineMoveItems { pageMenu.removeItem(item) }
+            engineMoveItems = []
+            let engines = actions()?.pageEngineMoves ?? []
+            guard !engines.isEmpty else { return }
+            engineMoveItems.append(.separator())
+            for engine in engines {
+                let item = NSMenuItem(
+                    title: String(localized: "Open Page in \(String(localized: engine.title))"),
+                    action: #selector(movePage(_:)), keyEquivalent: "")
+                item.image = NSImage(systemSymbolName: "arrow.triangle.swap", accessibilityDescription: nil)
+                item.target = self
+                item.representedObject = engine
+                engineMoveItems.append(item)
+            }
+            for item in engineMoveItems { pageMenu.addItem(item) }
         }
 
         /// Hides each command the device does not offer, which also takes its

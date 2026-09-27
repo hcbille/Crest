@@ -63,9 +63,18 @@ struct BrowserPageContextMenu {
             windowNumber = view.window?.windowNumber
         }
 
-        @objc func perform(_ sender: NSMenuItem) {
-            guard let view, view.window?.windowNumber == windowNumber else { return }
-            host?.performContextMenuAction(action)
+        /// Runs the row on the main queue's next turn, once the engine's menu
+        /// and the engine code that showed it have returned, while the page's
+        /// view is still in the window the menu opened in.
+        ///
+        /// The Objective-C name is spelled out: a method named `perform(_:)`
+        /// makes `#selector` pick NSObject's `performSelector:`, which sends
+        /// the menu item itself as a selector and raises.
+        @objc(runContextMenuRow:) func run(_ sender: NSMenuItem) {
+            Task { @MainActor in
+                guard let view, view.window?.windowNumber == windowNumber else { return }
+                host?.performContextMenuAction(action)
+            }
         }
     }
 
@@ -99,7 +108,7 @@ struct BrowserPageContextMenu {
 
     private func item(for action: BrowserPageContextMenuAction) -> NSMenuItem {
         let row = Row(action, host: host, view: view)
-        let item = NSMenuItem(title: action.title, action: #selector(Row.perform(_:)), keyEquivalent: "")
+        let item = NSMenuItem(title: action.title, action: #selector(Row.run(_:)), keyEquivalent: "")
         item.target = row
         // The menu item keeps its row alive.
         item.representedObject = row

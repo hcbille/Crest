@@ -32,6 +32,13 @@ final class CorePage {
     /// holds the page.
     var live: PageLiveState { state?.live ?? .blank }
 
+    /// The registered engines this page can move to: every one but its own.
+    /// Empty before the core holds the page or while one engine is registered.
+    var otherEngines: [EngineKind] {
+        guard let current = state?.engine, let engines else { return [] }
+        return engines.engines.map(\.kind).filter { $0 != current }
+    }
+
     // MARK: - Initializers
 
     init(id: UUID = UUID(), core: CrestCore) {
@@ -161,6 +168,23 @@ final class CorePage {
     func open(_ origin: SiteOrigin, in spaceID: UUID, on engine: EngineKind) -> Bool {
         guard !isReleased, let core else { return false }
         return core.open(origin, in: spaceID, on: engine, moving: id)
+    }
+
+    /// Moves this page alone to `engine`, which loads what it showed; the
+    /// site's other pages keep opening where they did. False when a rule
+    /// refuses it, such as a locked Space or an engine this device did not
+    /// register.
+    @discardableResult
+    func move(to engine: EngineKind) -> Bool {
+        guard !isReleased, let core else { return false }
+        do {
+            try core.send(RehostPage(pageID: id, engine: engine))
+            return true
+        } catch {
+            Self.logger.debug(
+                "The core kept page \(self.id, privacy: .public) on its engine: \(String(describing: error))")
+            return false
+        }
     }
 
     // MARK: - Actions - Reports

@@ -3137,6 +3137,14 @@
     "extension-side-panel-follows-its-tab": {
       "category": "fixed",
       "message": "An extension's side panel now follows the tab you're on. A panel an extension opened for one tab, such as Claude's, closes when you switch to another tab and comes back when you return, so it no longer answers about a tab you've left. A panel an extension shows for every tab stays open as you switch."
+    },
+    "page-menu-rows-no-longer-quit": {
+      "category": "fixed",
+      "message": "Choosing Open Link in Peek, Open Link in Split View, another Space or Search from a page's right-click menu works again instead of quitting Crest."
+    },
+    "open-page-in-other-engine": {
+      "category": "fixed",
+      "message": "In the Chromium build, the Page menu has Open Page in WebKit, so you can move a page to WebKit even before any page has opened there."
     }
   }
 }

@@ -297,6 +297,12 @@ struct BrowserCommandActions {
             for: browser.shownSpace?.settings.browsingPreferences.contentBlocking)
     }
 
+    /// The engines the shown page can move to: every registered engine but
+    /// its own, so the choice is there before any page opens on the others.
+    var pageEngineMoves: [EngineKind] {
+        pages.activePage?.corePage.otherEngines ?? []
+    }
+
     // MARK: - Chrome
 
     func presentArchive() {
@@ -366,6 +372,11 @@ struct BrowserCommandActions {
     }
 
     // MARK: - Page
+
+    /// Moves the shown page to `engine`, which loads what it showed there.
+    func movePage(to engine: EngineKind) {
+        pages.activePage?.corePage.move(to: engine)
+    }
 
     func copyPageLink() {
         guard pages.copyPageLink() else { return }

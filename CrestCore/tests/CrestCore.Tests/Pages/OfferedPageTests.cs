@@ -184,6 +184,31 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void APlainClickLeavingAPinnedOrSavedTabsSiteOpensPeekAndAnOpenTabLoadsItInPlace() {
+        var session = TwoSpaceSession();
+        var space = SpaceId(session["spaces"]![0]!);
+        var (app, engine, _, workspace, window) = PageHost(session);
+        using var disposal = app;
+        var click = new LinkGesture(UserActivated: true, TopLevel: true, ShortcutModifiers.None, MiddleClick: false);
+
+        foreach (var (placement, leaving) in new[] {
+                     (TabPlacement.Pinned, LinkNavigationDecision.PeekSavedSite),
+                     (TabPlacement.Saved, LinkNavigationDecision.PeekSavedSite),
+                     (TabPlacement.Current, LinkNavigationDecision.Navigate)
+                 }) {
+            var (tab, page) = (Guid.NewGuid(), Guid.NewGuid());
+            app.Send(new OpenTab(workspace, window, space, tab, new TabContent("https://www.home.example/start", View: null, Title: null),
+                placement, AfterTabId: null, Shows: true));
+            app.Send(new OpenPage(page, workspace, space, tab, window));
+            app.Report(engine, new PageCreated(page));
+
+            Assert.Equal(leaving, app.Ask(engine, new LinkActivation(page, "https://elsewhere.example/", click)).Decision);
+            // A link that stays on the tab's site, with or without its www, loads in the tab.
+            Assert.Equal(LinkNavigationDecision.Navigate, app.Ask(engine, new LinkActivation(page, "https://home.example/next", click)).Decision);
+        }
+    }
+
+    [Fact]
     public void AStagedLinkLoadsOnlyInANewPageOfItsSourcesEngineAndProfile() {
         var session = TwoSpaceSession();
         var (first, second) = (SpaceId(session["spaces"]![0]!), SpaceId(session["spaces"]![1]!));

@@ -552,6 +552,10 @@ engine.
   `PageRehosted(page, space, origin, from, to, reason)`.
 - **Site Controls** shows which engine the site opens in when more than one is
   registered, and choosing another moves the page and records the choice.
+  The Chromium product's Page menu also moves the shown page alone to any
+  other registered engine (**Open Page in WebKit**), recording no choice.
+  Both read the registered engines, not what the device offers, so they are
+  there before any page has opened on the other engine.
 - **Protected media.** Crest's Chromium carries no Widevine. When a page, or
   a frame of its own site, asks for Widevine or PlayReady, Chromium reports
   `ProtectedMediaUnavailable`. The core moves the page once to an engine with
