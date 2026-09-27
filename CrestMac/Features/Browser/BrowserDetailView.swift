@@ -8,6 +8,8 @@ struct BrowserDetailView: View {
     let tabPromotionNamespace: Namespace.ID
     let startPageFocusRequest: Int
     let isCommandPalettePresented: Bool
+    /// The window's commands, for the Start Page's palette.
+    let commands: BrowserCommandPaletteCommandRegistry
     var previewsStartPage = false
 
     var body: some View {
@@ -26,7 +28,8 @@ struct BrowserDetailView: View {
             spaceAccess: spaceAccess,
             tabPromotionNamespace: tabPromotionNamespace,
             startPageFocusRequest: startPageFocusRequest,
-            isCommandPalettePresented: isCommandPalettePresented
+            isCommandPalettePresented: isCommandPalettePresented,
+            commands: commands
         )
     }
 }

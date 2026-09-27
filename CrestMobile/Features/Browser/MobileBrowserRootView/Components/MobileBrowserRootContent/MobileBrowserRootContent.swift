@@ -48,6 +48,9 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
     }
 
     var body: some View {
+        // One reading of the window's commands serves the scene's menu and
+        // both Start Page paths.
+        let commandContext = mobileBrowserCommandContext
         MobileBrowserRootSurface(
             presentation: presentation,
             browser: browser,
@@ -193,6 +196,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                         addressFocusRequest: addressFocusRequest,
                         isCommandPalettePresented:
                             commandPaletteMode != nil,
+                        commands: commandContext.paletteRegistry,
                         isCompact: true,
                         obscuresSystemSafeAreas:
                             MobileBrowserViewportPolicy.usesEdgeToEdgeWebViewport(
@@ -290,7 +294,8 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     detail: regularPageSurface(
                         adjoinsSidebar:
                             navigation.regularSidebarIsDocked
-                            && layout.reservesSidebarWidth
+                            && layout.reservesSidebarWidth,
+                        commands: commandContext.paletteRegistry
                     )
                     .overlay {
                         MobileTransientBrowsingOverlay(
@@ -346,7 +351,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
         .environment(\.spacePagerPresentation, spacePagerPresentation)
         .focusedSceneValue(
             \.mobileBrowserCommandContext,
-            mobileBrowserCommandContext
+            commandContext
         )
         .sheet(isPresented: Binding(get: { model.showsSettings }, set: { model.showsSettings = $0 })) {
             MobileBrowserSettingsView(

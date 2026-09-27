@@ -67,7 +67,8 @@ extension MobileBrowserRootContent {
     /// The expanded detail area. The container decides whether it adjoins a
     /// docked sidebar, while the page and split composition stay identical.
     func regularPageSurface(
-        adjoinsSidebar: Bool
+        adjoinsSidebar: Bool,
+        commands: BrowserCommandPaletteCommandRegistry
     ) -> MobileRegularPageSurface {
         MobileRegularPageSurface(
             model: model,
@@ -78,6 +79,7 @@ extension MobileBrowserRootContent {
             isAddressEditing: $isAddressEditing,
             addressFocusRequest: addressFocusRequest,
             isCommandPalettePresented: commandPaletteMode != nil,
+            commands: commands,
             compactToolbarIsHidden: navigation.compactToolbarIsHidden,
             submitAddress: submitAddress,
             beginNewTab: beginNewTab,

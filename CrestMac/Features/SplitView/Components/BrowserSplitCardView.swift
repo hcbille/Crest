@@ -39,6 +39,8 @@ struct BrowserSplitCardView: View {
     let tabPromotionNamespace: Namespace.ID
     let startPageFocusRequest: Int
     let isCommandPalettePresented: Bool
+    /// The window's commands, for a Start Page card's palette.
+    let commands: BrowserCommandPaletteCommandRegistry
     /// Where this card records its bounds for the surface's click monitor.
     let cardFrames: BrowserSplitCardFrameRegistry
     /// Asked when the pointer enters the card, never during layout, so the guards
@@ -63,7 +65,8 @@ struct BrowserSplitCardView: View {
             spaceAccess: spaceAccess,
             tabPromotionNamespace: tabPromotionNamespace,
             startPageFocusRequest: startPageFocusRequest,
-            isCommandPalettePresented: isCommandPalettePresented
+            isCommandPalettePresented: isCommandPalettePresented,
+            commands: commands
         )
         .overlay {
             BrowserSplitCardHoverTracker { isHovering in

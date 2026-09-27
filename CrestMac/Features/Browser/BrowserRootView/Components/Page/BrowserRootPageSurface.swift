@@ -9,11 +9,14 @@ import SwiftUI
 /// pointer may do to it.
 struct BrowserRootPageSurface: View {
     @Environment(\.spaceContentPresentation) private var contentPresentation
+    @Environment(\.openWindow) private var openWindow
     let model: BrowserRootModel
     let space: SpaceModel
     let isSelectedSpace: Bool
     let transientBrowsing: BrowserTransientBrowsingCoordinator
     let tabPromotionNamespace: Namespace.ID
+    /// The chords the window's commands show in a Start Page's palette.
+    let shortcuts: BrowserShortcutStore?
     var appearance = BrowserChromeAppearance()
     var layoutDirection = LayoutDirection.leftToRight
 
@@ -84,6 +87,7 @@ struct BrowserRootPageSurface: View {
                 members: members,
                 placeholderIndex: placeholderIndex,
                 tabPromotionNamespace: tabPromotionNamespace,
+                shortcuts: shortcuts,
                 appearance: appearance
             )
         } else {
@@ -131,6 +135,8 @@ struct BrowserRootPageSurface: View {
                                 model.chrome.startPageFocusRequest,
                             isCommandPalettePresented:
                                 model.chrome.isCommandPalettePresented,
+                            commands: model.paletteRegistry(
+                                openWindow: openWindow, layoutDirection: layoutDirection, shortcuts: shortcuts),
                             previewsStartPage: previewsStartPage
                         )
                     }

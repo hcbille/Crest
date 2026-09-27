@@ -5,6 +5,9 @@ import SwiftUI
 /// The palette is rebuilt whenever the tab it speaks for changes, and — where a
 /// shell raises focus requests — whenever its address field asks for the
 /// keyboard again, so a stale query never survives into another tab's page.
+///
+/// It offers the window's commands only once something is typed: a page with
+/// an empty field suggests none.
 struct BrowserStartPageCommandPalette: View {
     let page: BrowserStartPage
 
@@ -36,6 +39,8 @@ struct BrowserStartPageCommandPalette: View {
             browser: page.browser,
             space: page.space,
             selectedTabID: page.selectedTabID,
+            commands: page.commands,
+            offersRestingCommands: false,
             isSourceAvailable: page.isSourceAvailable,
             selectTab: page.selectTab,
             openURL: page.openURL,

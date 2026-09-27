@@ -3153,6 +3153,10 @@
     "context-menu-row-test-keeps-its-page-view": {
       "category": "internal",
       "message": "The context-menu row test keeps its page view alive, as the window does."
+    },
+    "start-page-search-offers-commands": {
+      "category": "improved",
+      "message": "The Start Page's search now offers Crest's commands, like New Quick Window, when what you type matches one."
     }
   }
 }

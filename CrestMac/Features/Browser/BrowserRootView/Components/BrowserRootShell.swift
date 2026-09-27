@@ -49,7 +49,7 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                 ) {
                     BrowserSpacePageSurface(
                         model: model, transientBrowsing: transientBrowsing,
-                        tabPromotionNamespace: tabPromotionNamespace, appearance: appearance
+                        tabPromotionNamespace: tabPromotionNamespace, shortcuts: shortcuts, appearance: appearance
                     )
                     .clipped()
                 } sidebar: {

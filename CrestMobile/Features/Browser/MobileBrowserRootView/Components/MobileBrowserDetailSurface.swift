@@ -8,6 +8,7 @@ struct MobileBrowserDetailSurface: View {
     @Binding var isAddressEditing: Bool
     let addressFocusRequest: Int
     let isCommandPalettePresented: Bool
+    var commands: BrowserCommandPaletteCommandRegistry?
     let isCompact: Bool
     let obscuresSystemSafeAreas: Bool
     let showsCompactToolbar: Bool
@@ -33,6 +34,7 @@ struct MobileBrowserDetailSurface: View {
             isAddressEditing: $isAddressEditing,
             addressFocusRequest: addressFocusRequest,
             isCommandPalettePresented: isCommandPalettePresented,
+            commands: commands,
             isCompact: isCompact,
             obscuresSystemSafeAreas: obscuresSystemSafeAreas,
             showsCompactToolbar: showsCompactToolbar,

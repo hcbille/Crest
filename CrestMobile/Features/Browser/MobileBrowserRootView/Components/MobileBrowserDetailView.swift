@@ -8,6 +8,9 @@ struct MobileBrowserDetailView: View {
     @Binding var isAddressEditing: Bool
     let addressFocusRequest: Int
     let isCommandPalettePresented: Bool
+    /// The window's commands, which the Start Page's palette offers once what
+    /// is typed matches one.
+    var commands: BrowserCommandPaletteCommandRegistry?
     let isCompact: Bool
     let obscuresSystemSafeAreas: Bool
     let showsCompactToolbar: Bool
@@ -81,7 +84,8 @@ struct MobileBrowserDetailView: View {
                             layout: isCompact ? .mobileCompactPage : .mobileRegularPage,
                             focusRequest: addressFocusRequest,
                             headerColorScheme: startPageHeaderColorScheme,
-                            emptySelectionActions: emptySelectionPaletteActions
+                            emptySelectionActions: emptySelectionPaletteActions,
+                            commands: commands
                         )
                         .onChange(of: isCompact, initial: true) { _, compact in
                             if compact { address = "" }

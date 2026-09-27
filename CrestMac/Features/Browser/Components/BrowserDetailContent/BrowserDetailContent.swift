@@ -14,6 +14,8 @@ struct BrowserDetailContent: View {
     let tabPromotionNamespace: Namespace.ID
     let startPageFocusRequest: Int
     let isCommandPalettePresented: Bool
+    /// The window's commands, for the Start Page's palette.
+    let commands: BrowserCommandPaletteCommandRegistry
 
     var body: some View {
         if let tab, let space, !spaceAccess.isLocked(space), pages.isMirroringPage(for: tab.id) {
@@ -45,7 +47,8 @@ struct BrowserDetailContent: View {
                 spaceAccess: spaceAccess,
                 tabPromotionNamespace: tabPromotionNamespace,
                 focusRequest: startPageFocusRequest,
-                isCommandPalettePresented: isCommandPalettePresented
+                isCommandPalettePresented: isCommandPalettePresented,
+                commands: commands
             )
         case .livePage, .navigationFailure, .processFailure:
             BrowserLivePageContent(

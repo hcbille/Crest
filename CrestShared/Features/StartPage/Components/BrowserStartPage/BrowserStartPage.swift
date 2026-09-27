@@ -6,8 +6,9 @@ import SwiftUI
 /// browsing notice, and the embedded command palette — so this is that surface
 /// once. What a shell wants of its own arrives as data: its
 /// ``BrowserStartPageLayout``, the appearance its header reads over Space
-/// branding, the focus request its address field raises, and the
-/// ``BrowserStartPagePromotion`` that grows that field into the palette.
+/// branding, the focus request its address field raises, the
+/// ``BrowserStartPagePromotion`` that grows that field into the palette, and
+/// the window's commands.
 ///
 /// The tab is named explicitly rather than read off the Space because Split
 /// View renders one of these per card, so the surface cannot assume it is
@@ -37,6 +38,9 @@ struct BrowserStartPage: View {
     /// draws the header over Space branding. `nil` inherits the environment.
     var headerColorScheme: ColorScheme? = nil
     var emptySelectionActions: BrowserEmptySelectionPaletteActions? = nil
+    /// The window's commands, the same the shell's overlay palette offers.
+    /// The page's palette offers one only once what is typed matches it.
+    var commands: BrowserCommandPaletteCommandRegistry? = nil
 
     var body: some View {
         ZStack {

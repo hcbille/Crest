@@ -25,6 +25,8 @@ struct MobileRegularPageSurface: View {
     @Binding var isAddressEditing: Bool
     let addressFocusRequest: Int
     let isCommandPalettePresented: Bool
+    /// The window's commands, for the Start Page's palette.
+    let commands: BrowserCommandPaletteCommandRegistry
     let compactToolbarIsHidden: Bool
     let submitAddress: () -> Void
     let beginNewTab: () -> Void
@@ -100,6 +102,7 @@ struct MobileRegularPageSurface: View {
                     isAddressEditing: $isAddressEditing,
                     addressFocusRequest: addressFocusRequest,
                     isCommandPalettePresented: isCommandPalettePresented,
+                    commands: commands,
                     isCompact: false,
                     obscuresSystemSafeAreas: false,
                     showsCompactToolbar: false,

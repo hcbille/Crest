@@ -19,6 +19,7 @@ struct BrowserCommandPalette: View {
         selectedTabID: UUID?,
         initialQuery: String = "",
         commands: BrowserCommandPaletteCommandRegistry? = nil,
+        offersRestingCommands: Bool = true,
         isSourceAvailable: @escaping (BrowserTabRuntimeAssignment) -> Bool,
         selectTab:
             @escaping (
@@ -44,6 +45,7 @@ struct BrowserCommandPalette: View {
                 selectedTabID: selectedTabID,
                 initialQuery: initialQuery,
                 commands: commands,
+                offersRestingCommands: offersRestingCommands,
                 isSourceAvailable: isSourceAvailable,
                 selectTab: selectTab,
                 openURL: openURL,
@@ -91,6 +93,7 @@ struct BrowserCommandPalette: View {
         space: BrowserCommandPalettePreviewFixture.space,
         selectedTabID: BrowserCommandPalettePreviewFixture.selectedTabID,
         commands: BrowserCommandPalettePreviewFixture.registry,
+        offersRestingCommands: false,
         isSourceAvailable: { _ in true },
         selectTab: { _, _ in true },
         openURL: { _, _ in true },

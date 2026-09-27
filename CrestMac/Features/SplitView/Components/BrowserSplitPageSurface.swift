@@ -34,11 +34,14 @@ struct BrowserSplitPageSurface: View {
     /// it.
     let placeholderIndex: Int?
     let tabPromotionNamespace: Namespace.ID
+    /// The chords the window's commands show in a Start Page card's palette.
+    let shortcuts: BrowserShortcutStore?
     var appearance = BrowserChromeAppearance()
 
     /// The core's app preference; an unbound preview store keeps click-to-focus.
     private var appPreferences: BrowserAppPreferenceStore { .shared }
     @Environment(\.layoutDirection) private var layoutDirection
+    @Environment(\.openWindow) private var openWindow
     @State private var cardFrames = BrowserSplitCardFrameRegistry()
     /// Where the card-frame space begins in the window, so a pointer measured in
     /// one can be drawn in the other.
@@ -85,6 +88,8 @@ struct BrowserSplitPageSurface: View {
                         model.chrome.startPageFocusRequest,
                     isCommandPalettePresented:
                         model.chrome.isCommandPalettePresented,
+                    commands: model.paletteRegistry(
+                        openWindow: openWindow, layoutDirection: layoutDirection, shortcuts: shortcuts),
                     cardFrames: cardFrames,
                     focusesOnHover: { focusesOnHover(member.id) },
                     onFocusRequest: { if isSelectedSpace { model.focusSplitCard(member.id) } }

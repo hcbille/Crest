@@ -16,6 +16,10 @@ final class BrowserCommandPaletteModel {
     let space: SpaceModel?
     let selectedTabID: UUID?
     let commands: BrowserCommandPaletteCommandRegistry?
+    /// Whether the palette offers the platform's resting commands before
+    /// anything is typed. The Start Page's palette offers commands only once
+    /// what is typed matches one.
+    let offersRestingCommands: Bool
 
     var query: String {
         didSet {
@@ -82,6 +86,7 @@ final class BrowserCommandPaletteModel {
         selectedTabID: UUID?,
         initialQuery: String,
         commands: BrowserCommandPaletteCommandRegistry?,
+        offersRestingCommands: Bool = true,
         suggestionDebounce: Duration = .milliseconds(250),
         fetchSuggestions: @escaping @Sendable (URL) async throws -> [String] = { address in
             try await BrowserSearchSuggestionClient.shared.suggestions(from: address)
@@ -96,6 +101,7 @@ final class BrowserCommandPaletteModel {
         self.space = space
         self.selectedTabID = selectedTabID
         self.commands = commands
+        self.offersRestingCommands = offersRestingCommands
         query = initialQuery
         self.suggestionDebounce = suggestionDebounce
         self.fetchSuggestions = fetchSuggestions
@@ -224,8 +230,15 @@ final class BrowserCommandPaletteModel {
     /// The question for `text`, with the commands this window offers and the
     /// suggestions fetched for the same text.
     private func question(for text: String, remote: [String] = []) -> PaletteSuggestions {
-        PaletteSuggestions(
-            windowID: browser.windowID, text: text, commands: commands?.paletteCommands ?? [], remote: remote)
+        PaletteSuggestions(windowID: browser.windowID, text: text, commands: offeredCommands(for: text), remote: remote)
+    }
+
+    /// The commands the core may rank for `text`. A palette without resting
+    /// commands offers none while the text is blank, which the core reads as
+    /// nothing typed.
+    private func offeredCommands(for text: String) -> [PaletteCommand] {
+        guard offersRestingCommands || !text.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        return commands?.paletteCommands ?? []
     }
 
     /// Asks the core for the current query's answer off the main thread, then

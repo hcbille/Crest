@@ -607,6 +607,25 @@ extension BrowserRootModel {
         browser.shownTabAssignment
     }
 
+    /// The commands this window's palettes offer, the overlay's and every
+    /// Start Page's, run by the same routes as the menu bar.
+    func paletteRegistry(
+        openWindow: OpenWindowAction,
+        layoutDirection: LayoutDirection,
+        shortcuts: BrowserShortcutStore?
+    ) -> BrowserCommandPaletteCommandRegistry {
+        BrowserCommandActions(
+            browser: browser,
+            pages: pages,
+            chrome: chrome,
+            openWindow: openWindow,
+            spaceAccess: spaceAccess,
+            targetWindowID: windowState?.id,
+            layoutDirection: layoutDirection,
+        )
+        .paletteRegistry(shortcuts: shortcuts)
+    }
+
     func isPaletteSourceAvailable(
         _ source: BrowserTabRuntimeAssignment
     ) -> Bool {

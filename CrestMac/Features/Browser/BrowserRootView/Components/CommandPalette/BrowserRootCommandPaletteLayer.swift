@@ -19,7 +19,8 @@ struct BrowserRootCommandPaletteLayer: View {
                 space: paletteSpace,
                 selectedTabID: model.browser.shownTab?.id,
                 initialQuery: mode.initialQuery,
-                commands: commandActions.paletteRegistry(shortcuts: shortcuts),
+                commands: model.paletteRegistry(
+                    openWindow: openWindow, layoutDirection: layoutDirection, shortcuts: shortcuts),
                 isSourceAvailable: model.isPaletteSourceAvailable,
                 selectTab: model.selectPaletteTab,
                 openURL: { source, url in
@@ -45,17 +46,5 @@ struct BrowserRootCommandPaletteLayer: View {
     /// The Space the window shows, unless it is being deleted.
     private var paletteSpace: SpaceModel? {
         model.browser.shownSpace
-    }
-
-    private var commandActions: BrowserCommandActions {
-        BrowserCommandActions(
-            browser: model.browser,
-            pages: model.pages,
-            chrome: model.chrome,
-            openWindow: openWindow,
-            spaceAccess: model.spaceAccess,
-            targetWindowID: model.windowState?.id,
-            layoutDirection: layoutDirection,
-        )
     }
 }

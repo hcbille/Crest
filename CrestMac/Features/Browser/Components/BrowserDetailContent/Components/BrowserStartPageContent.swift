@@ -16,6 +16,9 @@ struct BrowserStartPageContent: View {
     let tabPromotionNamespace: Namespace.ID
     let focusRequest: Int
     let isCommandPalettePresented: Bool
+    /// The window's commands, which the page's palette offers once what is
+    /// typed matches one. They run exactly as they do from the overlay.
+    let commands: BrowserCommandPaletteCommandRegistry
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -39,7 +42,8 @@ struct BrowserStartPageContent: View {
                         namespace: tabPromotionNamespace,
                         id: BrowserTabPromotionID.value(for: tab.id)
                     )
-                }
+                },
+                commands: commands
             )
         } else {
             BrowserUnloadedPageSurface()
