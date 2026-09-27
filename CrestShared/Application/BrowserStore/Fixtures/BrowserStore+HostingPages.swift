@@ -41,12 +41,10 @@
         }
 
         /// Opens a page through the core for `tabID` in `spaceID`, and answers
-        /// it with the page WebKit built, as a popup `popup` names when given,
-        /// for a test that hosts the page itself. Nil when a rule refuses it.
-        func openWebKitPage(
-            in spaceID: UUID, for tabID: UUID?, popup: WebKitPopup? = nil
-        ) -> (core: CorePage, webKit: WebKitEnginePage)? {
-            guard let opened = openPage(in: spaceID, for: tabID, popup: popup) else { return nil }
+        /// it with the page WebKit built, for a test that hosts the page
+        /// itself. Nil when a rule refuses it.
+        func openWebKitPage(in spaceID: UUID, for tabID: UUID?) -> (core: CorePage, webKit: WebKitEnginePage)? {
+            guard let opened = openPage(in: spaceID, for: tabID) else { return nil }
             guard let page = opened.built as? WebKitEnginePage else {
                 preconditionFailure("A test opened a page on an engine other than WebKit.")
             }

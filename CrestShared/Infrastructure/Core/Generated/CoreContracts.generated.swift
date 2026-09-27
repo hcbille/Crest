@@ -3407,6 +3407,7 @@ struct OpenPage: Intent, PageIntent, Equatable, Sendable {
     let tabID: UUID?
     let windowID: UUID
     let transient: TransientPresentation?
+    let openerPageID: UUID?
 }
 
 struct OpenTab: Intent, SessionIntent, Equatable, Sendable {

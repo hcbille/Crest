@@ -98,9 +98,10 @@ extension MobileBrowserPage: WKUIDelegate {
 
     /// Returns the popup's web view built from WebKit's own configuration, which
     /// is what keeps `window.open()` non-null, `window.opener` connected, and
-    /// `about:blank` popups writable. Crest never loads that web view itself:
-    /// WebKit drives the navigation it already scheduled. `windowFeatures` is
-    /// ignored because every popup becomes a tab.
+    /// `about:blank` popups writable. The page offers the popup to the core,
+    /// which decides where it shows; Crest never loads that web view itself:
+    /// WebKit drives the navigation it already scheduled. A popup the core
+    /// refuses gets no window, and never a tab of its own.
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
@@ -108,17 +109,11 @@ extension MobileBrowserPage: WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         recordAcceptedPopup()
-        return popupCoordinator.resolveOpen(
-            for: navigationAction,
-            currentURL: webView.url
-        ) { [weak self] requestedURL in
-            guard let self, let host else { return nil }
-            return host.adoptPopupWebView(
-                configuration: configuration,
-                requestedURL: requestedURL,
-                opener: self,
-                selecting: corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
-            )
+        let foreground = corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
+        let webKitPage = webKitPage
+        return popupCoordinator.resolveOpen(for: navigationAction, currentURL: webView.url) { requestedURL in
+            webKitPage.offer(WebKitPopup(configuration: configuration), heading: requestedURL, foreground: foreground)?
+                .webView
         }
     }
 

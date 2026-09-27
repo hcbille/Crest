@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x33, 0xf7, 0x3d, 0x05, 0xc9, 0x5a, 0xc0, 0xeb, 0xc4, 0xaa, 0xa1, 0x10, 0xc8, 0x7b, 0x16, 0xc3, 0x9a, 0x67, 0x60, 0x40, 0xab, 0x6d, 0x6c, 0xac, 0x45, 0xb7, 0xbb, 0x2d, 0x36, 0xc0, 0x14, 0x56
+        0x26, 0x89, 0x4c, 0xa3, 0x77, 0xc1, 0xc4, 0xed, 0x53, 0xff, 0x8c, 0xa7, 0x4e, 0xb0, 0xda, 0xb2, 0xa5, 0x78, 0xb3, 0x6e, 0xde, 0xf5, 0x46, 0xb1, 0x72, 0xa4, 0x8e, 0xd3, 0xbc, 0x70, 0x59, 0xb3
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -12039,7 +12039,14 @@ extension OpenPage {
         } else {
             transient = nil
         }
-        self.init(pageID: pageID, workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, windowID: windowID, transient: transient)
+        let openerPageID: UUID?
+        if try reader.readPresence() {
+            let openerPageIDValue = try reader.readUUID()
+            openerPageID = openerPageIDValue
+        } else {
+            openerPageID = nil
+        }
+        self.init(pageID: pageID, workspaceID: workspaceID, spaceID: spaceID, tabID: tabID, windowID: windowID, transient: transient, openerPageID: openerPageID)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -12056,6 +12063,12 @@ extension OpenPage {
         if let present0 = transient {
             writer.writePresence(true)
             present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
+        if let present0 = openerPageID {
+            writer.writePresence(true)
+            writer.writeUUID(present0)
         } else {
             writer.writePresence(false)
         }

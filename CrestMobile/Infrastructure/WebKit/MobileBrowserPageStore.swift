@@ -188,12 +188,14 @@ final class MobileBrowserPageStore:
         return activePage?.corePage.navigate(to: input) ?? false
     }
 
-    func loadOpenedLink(_ registration: BrowserModifiedLinkRegistration, request: URLRequest, selecting: Bool) {
+    func loadOpenedLink(
+        _ registration: BrowserModifiedLinkRegistration, request: URLRequest, selecting: Bool, opener: UUID
+    ) {
         let space = registration.space
         guard registration.tab.nativeContent == nil,
             let page = makeResidentPage(
                 for: BrowserPageTab(registration.tab, images: browser.core.state.favicons), in: space,
-                loadsInitialURL: false)
+                loadsInitialURL: false, opener: opener)
         else { return }
         host.retain(page, for: registration.tab.id)
         page.load(request)
@@ -366,6 +368,7 @@ final class MobileBrowserPageStore:
         in space: SpaceModel,
         presentation: TransientPresentation = .quickWindow,
         engineNavigation: BrowserEngineNavigation? = nil,
+        opener: UUID? = nil,
         onUserActivity: @escaping () -> Void = {},
         onDownloadOnlyNavigation: (() -> Void)? = nil
     ) -> MobileBrowserTransientPageLease? {
@@ -375,19 +378,23 @@ final class MobileBrowserPageStore:
             balancedContentRuleLists: contentBlocking.balancedRuleLists ?? [], onUserActivity: onUserActivity,
             onDownloadOnlyNavigation: onDownloadOnlyNavigation
         ) { [weak self] in
-            self?.makeTransientPage(tab: transientTab, in: space, presenting: presentation)
+            self?.makeTransientPage(tab: transientTab, in: space, presenting: presentation, opener: opener)
         }
     }
 
     /// Opens a transient request's page through the core, presenting as
-    /// `presentation`; `tab` is the request's own stand-in, which no Space
-    /// holds. Nil when the core refuses it.
+    /// `presentation`, on `opener`'s engine when another page opened it;
+    /// `tab` is the request's own stand-in, which no Space holds. Nil when
+    /// the core refuses it.
     private func makeTransientPage(
         tab: BrowserPageTab,
         in space: SpaceModel,
-        presenting presentation: TransientPresentation
+        presenting presentation: TransientPresentation,
+        opener: UUID?
     ) -> MobileBrowserPage? {
-        guard let opening = browser.openPage(in: space.id, for: nil, presenting: presentation) else { return nil }
+        guard let opening = browser.openPage(in: space.id, for: nil, presenting: presentation, opener: opener) else {
+            return nil
+        }
         return host(
             MobileBrowserPage(
                 corePage: opening.page,
@@ -441,47 +448,6 @@ final class MobileBrowserPageStore:
         host.retain(page, for: tabID)
         activate(page)
         return true
-    }
-
-    /// Adopts the web view WebKit pre-made for a popup as a new selected tab in
-    /// the opener's Space.
-    ///
-    /// Declines — leaving the coordinator to route the destination into an
-    /// ordinary tab — when the opener is not a resident page of this store. That
-    /// covers Peek openers, whose pages belong to transient leases with no tab of
-    /// their own, so a popup from one cannot inherit a place in the tab list.
-    ///
-    /// Per-Space isolation needs no work here: WebKit derives the popup's
-    /// configuration from the opener's, so it already carries the opener's
-    /// `websiteDataStore`. The Space lookup only
-    /// confirms the tab landed in the opener's own profile.
-    func adoptPopupWebView(
-        configuration: WKWebViewConfiguration,
-        requestedURL: URL?,
-        opener: MobileBrowserPage,
-        selecting: Bool = true
-    ) -> WKWebView? {
-        guard host.tabID(for: opener) != nil,
-            !browser.deletingSpaceIDs.contains(opener.spaceID),
-            let registration = popupTabHost.openTab(requestedURL, opener.spaceID, selecting),
-            registration.space.id == opener.spaceID,
-            registration.space.profileID == opener.profileID
-        else { return nil }
-
-        guard
-            let page = makeResidentPage(
-                for: BrowserPageTab(registration.tab, images: browser.core.state.favicons),
-                in: registration.space,
-                adoptedConfiguration: configuration
-            )
-        else {
-            popupTabHost.closeTab(registration.tab.id, registration.space.id)
-            return nil
-        }
-        page.markOpenedAsPopup()
-        host.retain(page, for: registration.tab.id)
-        if selecting { activate(page) }
-        return page.webView
     }
 
     /// Honors `window.close()` by closing the popup's tab through the same store
@@ -617,20 +583,15 @@ final class MobileBrowserPageStore:
     }
 
     /// Opens a page for `tab` in `space` through the core and hosts what WebKit
-    /// built; nil when the core refuses the tab a page. `adoptedConfiguration`
-    /// is WebKit's own popup configuration, which must be used exactly as
-    /// handed over; passing it replaces the configuration the binding would
-    /// otherwise assemble and leaves the first navigation to WebKit.
+    /// built, on `opener`'s engine when another page opened the tab; nil when
+    /// the core refuses the tab a page.
     private func makeResidentPage(
         for tab: BrowserPageTab,
         in space: SpaceModel,
-        adoptedConfiguration: WKWebViewConfiguration? = nil,
-        loadsInitialURL: Bool = true
+        loadsInitialURL: Bool = true,
+        opener: UUID? = nil
     ) -> MobileBrowserPage? {
-        guard
-            let opening = browser.openPage(
-                in: space.id, for: tab.id, popup: adoptedConfiguration.map(WebKitPopup.init(configuration:)))
-        else { return nil }
+        guard let opening = browser.openPage(in: space.id, for: tab.id, opener: opener) else { return nil }
         // A page the core brings back shows itself heading to what it kept,
         // and restores that in place of its first load.
         let loadsInitialURL = loadsInitialURL && opening.page.live.pendingURL == nil
@@ -639,7 +600,7 @@ final class MobileBrowserPageStore:
         // navigation begins. Read only once the core opened the page, so a
         // refused page leaves the archive as it was.
         let archivedState =
-            loadsInitialURL && adoptedConfiguration == nil
+            loadsInitialURL
             ? tab.url.flatMap {
                 host.archivedInteractionState(
                     for: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID),
@@ -649,7 +610,7 @@ final class MobileBrowserPageStore:
         let page = residentPage(hosting: opening, for: tab, in: space)
         // Anything WebKit will not take falls through to the plain load the page
         // would otherwise start, which the core asks its engine for.
-        if loadsInitialURL, adoptedConfiguration == nil, let url = tab.url,
+        if loadsInitialURL, let url = tab.url,
             archivedState.map({ !page.restoreInteractionState($0, expecting: url) }) ?? true
         {
             page.corePage.navigate(to: url.absoluteString)

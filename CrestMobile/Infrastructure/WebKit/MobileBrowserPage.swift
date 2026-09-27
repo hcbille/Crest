@@ -233,7 +233,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         )
         self.externalSchemeCoordinator = externalSchemeCoordinator
         popupCoordinator = BrowserPopupCoordinator(
-            openNewTab: openNewTab,
             handOffExternalScheme: { destinationURL, trigger, origin in
                 externalSchemeCoordinator.handOff(
                     destinationURL: destinationURL,
@@ -417,7 +416,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         guard let url = request.url,
             let registration = openModifiedLink(url, spaceID, selecting)
         else { return }
-        host?.loadOpenedLink(registration, request: request, selecting: selecting)
+        host?.loadOpenedLink(registration, request: request, selecting: selecting, opener: corePage.id)
     }
 
     /// WebKit's own opaque per-view session state: the back/forward list and the

@@ -29,6 +29,12 @@ internal sealed class Page {
     /// How the page presents while it has no tab, as it opened.
     public TransientPresentation? Transient { get; }
 
+    /// Whether another page opened this one: a script's window, a link to a
+    /// new tab or window, or a link the person followed into a new tab, Peek
+    /// or split. Such a page runs on its opener's engine, and the site's
+    /// engine choice moves it only when the person asks for an address in it.
+    public bool OpenedByPage { get; }
+
     public PagePhase Phase { get; private set; } = PagePhase.Opening;
 
     public PageState State => new(Id, WorkspaceId, SpaceId, TabId, Engine.Kind, Phase, Live);
@@ -105,7 +111,7 @@ internal sealed class Page {
     #region Constructors
 
     public Page(Guid id, Engine engine, Guid profileId, Guid workspaceId, Guid spaceId, Guid? tabId, Guid windowId,
-        TransientPresentation? transient) {
+        TransientPresentation? transient, bool openedByPage = false) {
         Id = id;
         Engine = engine;
         ProfileId = profileId;
@@ -114,6 +120,7 @@ internal sealed class Page {
         TabId = tabId;
         WindowId = windowId;
         Transient = transient;
+        OpenedByPage = openedByPage;
     }
 
     #endregion

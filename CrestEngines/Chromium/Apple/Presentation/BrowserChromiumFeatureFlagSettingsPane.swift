@@ -56,7 +56,7 @@
                 let opened = core.engines.open(
                     OpenPage(
                         pageID: UUID(), workspaceID: browser.family.workspaceID, spaceID: space.id, tabID: nil,
-                        windowID: browser.windowID, transient: .settings))
+                        windowID: browser.windowID, transient: .settings, openerPageID: nil))
                 page = opened?.page
                 native = (opened?.built as? ChromiumPageAdapter)?.native
                 native?.profileID = space.profileID

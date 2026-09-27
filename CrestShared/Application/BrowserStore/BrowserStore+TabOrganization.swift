@@ -514,7 +514,7 @@ extension BrowserStore {
                     ?? false
             },
             openLink: { [weak self] url, tabID, assignment in
-                _ = self?.openLinkInSplit(
+                self?.openLinkInSplit(
                     url: url,
                     joining: tabID,
                     matching: assignment

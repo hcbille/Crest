@@ -308,7 +308,7 @@ final class BrowserPagePool:
             page.host = self
             page.windowRouting?.pool = self
             page.downloadCenter = downloadCenter
-            page.splitLinkHost = splitLinkHost
+            page.splitLinkHost = pageSplitLinkHost
             page.linkDestinationHost = linkDestinationHost
         }
     }
@@ -460,15 +460,42 @@ final class BrowserPagePool:
         }
     }
 
+    /// The split host this pool's pages open links through. The new tab's
+    /// page opens and loads at once, on the engine of the page the link was
+    /// followed in.
+    private var pageSplitLinkHost: BrowserSplitLinkHost {
+        BrowserSplitLinkHost(
+            canOpenLink: splitLinkHost.canOpenLink,
+            openLink: { [weak self] url, tabID, assignment in
+                self?.openLinkInSplit(url, joining: tabID, matching: assignment)
+            })
+    }
+
+    private func openLinkInSplit(
+        _ url: URL, joining tabID: UUID, matching assignment: BrowserSpaceRuntimeAssignment
+    ) -> UUID? {
+        let opener = tabRuntimes[tabID]?.page.corePage.id
+        guard let openedID = splitLinkHost.openLink(url, tabID, assignment) else { return nil }
+        if let space = browser.spaceModel(matching: assignment), let tab = space.tabs.model(openedID) {
+            let pageTab = BrowserPageTab(tab, images: browser.core.state.favicons)
+            if let page = page(for: pageTab, space: space, opener: opener) { loadInitialURL(for: pageTab, into: page) }
+        }
+        return openedID
+    }
+
+    /// Opens the link a person followed with a modifier in page `opener` as a
+    /// new tab of Space `spaceID`, whose page runs on its opener's engine.
     private func openModifiedLink(
         _ request: URLRequest,
         in spaceID: UUID,
-        selecting: Bool
+        selecting: Bool,
+        opener: UUID
     ) {
         guard let url = request.url,
             let registration = openModifiedLink(url, spaceID, selecting),
             let page = page(
-                for: BrowserPageTab(registration.tab, images: browser.core.state.favicons), space: registration.space)
+                for: BrowserPageTab(registration.tab, images: browser.core.state.favicons), space: registration.space,
+                opener: opener)
         else {
             return
         }
@@ -594,6 +621,7 @@ final class BrowserPagePool:
         in space: SpaceModel,
         presentation: TransientPresentation = .quickWindow,
         engineNavigation: BrowserEngineNavigation? = nil,
+        opener: UUID? = nil,
         onUserActivity: @escaping () -> Void = {},
         onDownloadOnlyNavigation: (() -> Void)? = nil
     ) -> BrowserTransientPageLease? {
@@ -602,7 +630,7 @@ final class BrowserPagePool:
             balancedContentRuleLists: contentBlocking.balancedRuleLists ?? [], onUserActivity: onUserActivity,
             onDownloadOnlyNavigation: onDownloadOnlyNavigation
         ) { [weak self] in
-            self?.makePage(space: space, presentation: presentation)
+            self?.makePage(space: space, presentation: presentation, opener: opener)
         }
     }
 
@@ -633,58 +661,12 @@ final class BrowserPagePool:
         return true
     }
 
-    func navigatePopupInCurrentPage(
-        _ request: URLRequest,
-        opener: BrowserPage
-    ) -> Bool {
-        guard request.url != nil,
-            !browser.deletingSpaceIDs.contains(opener.spaceID),
-            host.leases(opener)
-        else { return false }
-        opener.loadWebContentRequest(request)
-        return true
-    }
-
     /// The Space a download belongs to when the engine names its source page.
     func engineDownloadAssignment(pageID: String, profileID: UUID) -> BrowserSpaceRuntimeAssignment? {
         guard let page = host.livePages.first(where: { $0.corePage.id == UUID(uuidString: pageID) }),
             page.profileID == profileID, !browser.deletingSpaceIDs.contains(page.spaceID)
         else { return nil }
         return BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
-    }
-
-    /// Adopts the popup WebKit made for the opener's document, `popup`, as a
-    /// new tab in the opener's Space, selected unless `selecting` is false.
-    ///
-    /// Declines — leaving the coordinator to route the destination into an
-    /// ordinary tab — when the opener is not a resident page of this pool.
-    /// Transient openers have already had the opportunity to keep the request in
-    /// their lease before this adoption path is reached.
-    func adoptPopupPage(
-        requestedURL: URL?,
-        opener: BrowserPage,
-        selecting: Bool,
-        popup: WebKitPopup
-    ) -> BrowserPage? {
-        guard tabID(for: opener) != nil,
-            !browser.deletingSpaceIDs.contains(opener.spaceID),
-            let registration = popupTabHost.openTab(requestedURL, opener.spaceID, selecting),
-            registration.space.id == opener.spaceID,
-            registration.space.profileID == opener.profileID
-        else { return nil }
-
-        guard
-            let page = makePage(space: registration.space, tabID: registration.tab.id, popup: popup)
-        else {
-            popupTabHost.closeTab(registration.tab.id, registration.space.id)
-            return nil
-        }
-        page.markOpenedAsPopup()
-        page.updateNavigationContext(tab: BrowserPageTab(registration.tab, images: browser.core.state.favicons))
-        retainResidentPage(page, for: registration.tab.id)
-        residencyRevision &+= 1
-        if selecting { activate(registration.tab.id) }
-        return page
     }
 
     /// Honors `window.close()` by closing the popup's tab through the same store
@@ -814,9 +796,10 @@ final class BrowserPagePool:
         if shows { activate(tab.id) }
     }
 
-    /// The tab's resident page, or a new one the core opened for it; nil when
-    /// the core refuses the tab a page.
-    private func page(for tab: BrowserPageTab, space: SpaceModel) -> BrowserPage? {
+    /// The tab's resident page, or a new one the core opened for it, on
+    /// `opener`'s engine when another page opened the tab; nil when the core
+    /// refuses the tab a page.
+    private func page(for tab: BrowserPageTab, space: SpaceModel, opener: UUID? = nil) -> BrowserPage? {
         if let existingPage = tabRuntimes[tab.id]?.page {
             if existingPage.spaceID == space.id,
                 existingPage.profileID == space.profileID
@@ -836,7 +819,7 @@ final class BrowserPagePool:
             )
             tabRuntimes.removeValue(forKey: tab.id)?.release(keepingState: false)
         }
-        guard let page = makePage(space: space, tabID: tab.id) else { return nil }
+        guard let page = makePage(space: space, tabID: tab.id, opener: opener) else { return nil }
         page.updateNavigationContext(tab: tab)
         retainResidentPage(page, for: tab.id)
         residencyRevision &+= 1
@@ -844,15 +827,15 @@ final class BrowserPagePool:
     }
 
     /// A page the core opens for `tabID` in `space`, or for a transient
-    /// request presenting as `presentation`, on the engine the core chooses;
-    /// WebKit builds a popup it made, `popup`, as it made it. With `opened`,
-    /// the page the core already opened for the tab instead. Nil when the core
+    /// request presenting as `presentation`, on the engine the core chooses,
+    /// which is `opener`'s when another page opened it. With `opened`, the
+    /// page the core already opened for the tab instead. Nil when the core
     /// refuses it.
     private func makePage(
         space: SpaceModel,
         tabID: UUID? = nil,
         presentation: TransientPresentation? = nil,
-        popup: WebKitPopup? = nil,
+        opener: UUID? = nil,
         opened alreadyOpened: Engines.OpenedPage? = nil
     ) -> BrowserPage? {
         let interval = Self.lifecycleSignposter.beginInterval("Create Browser Page")
@@ -862,7 +845,7 @@ final class BrowserPagePool:
 
         guard
             let opened = alreadyOpened
-                ?? browser.openPage(in: space.id, for: tabID, presenting: presentation, popup: popup)
+                ?? browser.openPage(in: space.id, for: tabID, presenting: presentation, opener: opener)
         else { return nil }
         let engine: any BrowserPageEngineAdapter
         if let webKitPage = opened.built as? WebKitEnginePage {
@@ -897,12 +880,12 @@ final class BrowserPagePool:
                 try await routing?.pool?.saveHTTPAuthenticationCredential(request, space.id)
             },
             openNewTab: { [weak routing] url in routing?.pool?.openNewTab(url) },
-            openModifiedLink: { [weak routing] url, spaceID, selecting in
-                routing?.pool?.openModifiedLink(url, in: spaceID, selecting: selecting)
+            openModifiedLink: { [weak routing, pageID = opened.page.id] url, spaceID, selecting in
+                routing?.pool?.openModifiedLink(url, in: spaceID, selecting: selecting, opener: pageID)
             },
             openPeek: { [weak routing] in routing?.pool?.openPeek($0) },
             handleLinkDrag: { [weak routing] in routing?.pool?.handleLinkDrag($0) },
-            splitLinkHost: splitLinkHost,
+            splitLinkHost: pageSplitLinkHost,
             linkDestinationHost: linkDestinationHost
         )
         page.setPrivateBrowsing(browsingMode.isPrivate)

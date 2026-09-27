@@ -72,26 +72,6 @@ extension BrowserStore {
         )
     }
 
-    /// Registers the tab that hosts a web-content popup. WebKit is still inside
-    /// `createWebViewWith`, so this has to answer synchronously with both the tab
-    /// and its Space: the page owner builds the adopting page from them.
-    /// `window.open()` without a destination arrives as a nil or empty URL and
-    /// becomes an `about:blank` tab, because a tab without a URL is a start page
-    /// rather than a web page.
-    func openPopupTab(url: URL?, in spaceID: UUID, selecting: Bool = true) -> BrowserPopupTabRegistration? {
-        guard !isDeleting(spaceID), spaceModel(spaceID) != nil,
-            let destinationURL = url.flatMap({ $0.absoluteString.isEmpty ? nil : $0 }) ?? URL(string: "about:blank")
-        else { return nil }
-        guard
-            let tabID = openSessionTab(
-                .page(destinationURL), in: spaceID, insertingAfter: selectedTabID(in: spaceID), shouldSelect: selecting
-            ),
-            let space = spaceModel(spaceID),
-            let tab = space.tabs.model(tabID)
-        else { return nil }
-        return BrowserPopupTabRegistration(tab: tab, space: space)
-    }
-
     /// Opens `url` in a new tab of Space `spaceID` for a modified link,
     /// selected when `selecting`, and answers the tab with its Space.
     func openModifiedLink(_ url: URL, in spaceID: UUID, selecting: Bool) -> BrowserModifiedLinkRegistration? {
@@ -107,9 +87,6 @@ extension BrowserStore {
     /// the tab list does.
     var popupTabHost: BrowserPopupTabHost {
         BrowserPopupTabHost(
-            openTab: { [weak self] url, spaceID, selecting in
-                self?.openPopupTab(url: url, in: spaceID, selecting: selecting)
-            },
             closeTab: { [weak self] tabID, spaceID in
                 _ = self?.closeTab(tabID, in: spaceID)
             }

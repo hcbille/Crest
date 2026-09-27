@@ -6,11 +6,13 @@ import Foundation
 @MainActor
 struct BrowserSplitLinkHost {
     var canOpenLink: (UUID, BrowserSpaceRuntimeAssignment) -> Bool
-    var openLink: (URL, UUID, BrowserSpaceRuntimeAssignment) -> Void
+    /// Opens the link as a new tab beside the tab it came from, presenting as
+    /// one split, and answers the new tab.
+    var openLink: (URL, UUID, BrowserSpaceRuntimeAssignment) -> UUID?
 
     init(
         canOpenLink: @escaping (UUID, BrowserSpaceRuntimeAssignment) -> Bool,
-        openLink: @escaping (URL, UUID, BrowserSpaceRuntimeAssignment) -> Void
+        openLink: @escaping (URL, UUID, BrowserSpaceRuntimeAssignment) -> UUID?
     ) {
         self.canOpenLink = canOpenLink
         self.openLink = openLink
@@ -20,6 +22,6 @@ struct BrowserSplitLinkHost {
     /// simply leave the menu item out.
     static let unavailable = BrowserSplitLinkHost(
         canOpenLink: { _, _ in false },
-        openLink: { _, _, _ in }
+        openLink: { _, _, _ in nil }
     )
 }

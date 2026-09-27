@@ -4,23 +4,16 @@ import UIKit
 import UniformTypeIdentifiers
 import WebKit
 
-/// The tab-level operations a page needs from whatever owns it. Popup adoption
-/// and `window.close()` arrive while a WebKit delegate callback is on the stack;
+/// The tab-level operations a page needs from whatever owns it.
+/// `window.close()` arrives while a WebKit delegate callback is on the stack;
 /// the page itself defers teardown requests until that callback has unwound.
 @MainActor
 protocol MobileBrowserPageHosting: AnyObject {
     /// Starts the original request in its newly registered tab, independently
-    /// of whether the shared focus policy selects it.
-    func loadOpenedLink(_ registration: BrowserModifiedLinkRegistration, request: URLRequest, selecting: Bool)
-
-    /// Adopts the web view WebKit pre-made for a popup into a new tab,
-    /// or returns nil when this opener cannot host one.
-    func adoptPopupWebView(
-        configuration: WKWebViewConfiguration,
-        requestedURL: URL?,
-        opener: MobileBrowserPage,
-        selecting: Bool
-    ) -> WKWebView?
+    /// of whether the shared focus policy selects it, on the engine of page
+    /// `opener`, which followed the link.
+    func loadOpenedLink(
+        _ registration: BrowserModifiedLinkRegistration, request: URLRequest, selecting: Bool, opener: UUID)
 
     /// Honors `window.close()` for a page the web content itself opened.
     func closeWebContentInitiatedPage(_ page: MobileBrowserPage)

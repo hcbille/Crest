@@ -544,13 +544,23 @@ engine.
   site the tab shows, when that engine is registered, and otherwise on the
   default engine. A restore state kept by one engine is never handed to
   another.
+- **Opened pages keep their opener's engine.** A page another page opened runs
+  on its opener's engine, whatever the site's choice: a script's window, a
+  `target=_blank` link or form, a popup, a link the person follows into a new
+  tab with a modifier or the context menu, and the Peek or split a link opens.
+  `OpenPage` names such a page's opener (`OpenerPageId`), and a page an engine
+  opened by itself (`PageOffered`) stays on that engine. The site's choice and
+  the default engine apply to pages the person opens: typed addresses,
+  bookmarks and links from other apps.
 - **Moving a page.** `RehostPage(page, engine)` closes the page on its engine,
   keeping nothing, creates it on the other in the same profile and window, and
   loads the address it showed once that engine created it. The page keeps its
   identity, owner and window; its history and form state stay behind, and the
-  questions its old engine asked end. A load the person asks for, or a
-  navigation the document starts, toward a site chosen for another engine
-  moves the page there the same way. Every move publishes
+  questions its old engine asked end. A load the person asks for toward a site
+  chosen for another engine moves the page there the same way, and so does a
+  navigation the document starts in a page no other page opened; a page
+  another page opened stays with its opener's engine, which keeps a sign-in
+  window's redirects inside it. Every move publishes
   `PageRehosted(page, space, origin, from, to, reason)`.
 - **Site Controls** shows which engine the site opens in when more than one is
   registered, and choosing another moves the page and records the choice.
@@ -597,7 +607,12 @@ core no longer hosts, or that another engine hosts, changes nothing.
 
 - **Offered pages.** A page an engine opens by itself, such as a
   `window.open` popup or an extension's `chrome.windows.create`, arrives as
-  `PageOffered`, and the core decides where it goes. A transient page keeps
+  `PageOffered`, and the core decides where it goes. WebKit offers the popup
+  it made while it waits for the popup's web view: the core adopts or refuses
+  it on the same stack, the binding builds the adopted page from the
+  configuration WebKit derived from the opener's, and the page's owner hosts it
+  before WebKit starts its first navigation, so `window.opener` stays
+  connected. A refused popup gets no window, never a tab of its own. A transient page keeps
   what it opens: the core rejects the offer and loads the address in the
   Quick Window or Peek itself. A tab's offer becomes a new tab beside the
   tab, in its Space and window. Anything else joins the window's reserved

@@ -116,6 +116,14 @@ final class WebKitEnginePage {
         binding?.stage(navigation, into: self, expecting: url) ?? false
     }
 
+    /// Offers the core `popup`, the page WebKit made for this page's
+    /// document heading to `url`, and answers the page the core adopted it
+    /// as, which its owner already hosts, or nil when the core refused it.
+    /// The core decides where it shows; it runs on WebKit, as its opener does.
+    func offer(_ popup: WebKitPopup, heading url: URL?, foreground: Bool) -> WebKitEnginePage? {
+        binding?.offer(popup, from: self, heading: url, foreground: foreground)
+    }
+
     /// What brings the page back as it is: WebKit's history, at the address
     /// the page shows. A popup and a private page keep nothing, and neither
     /// does a page that never committed a document.

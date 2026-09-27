@@ -116,6 +116,11 @@ final class BrowserContentBlockingTests: XCTestCase {
 
             let space = try XCTUnwrap(SessionState.Seed.preview.spaces.first)
             let browser = BrowserStore.hostingPages(.preview)
+            // A popup shares its opener's user content controller, so it holds
+            // rule lists Crest did not install.
+            let opener = try XCTUnwrap(
+                browser.openWebKitPage(in: space.id, for: try XCTUnwrap(space.tabs.first).id))
+            defer { opener.core.release(keepingState: false) }
             let configuration = BrowserPageConfiguration.make(
                 for: BrowsingProfile(id: space.profileID),
                 websiteDataStore: .nonPersistent(),
@@ -123,7 +128,7 @@ final class BrowserContentBlockingTests: XCTestCase {
             )
             configuration.userContentController.add(extensionRuleList)
             let page = try XCTUnwrap(
-                browser.openWebKitPage(in: space.id, for: nil, popup: WebKitPopup(configuration: configuration)).map {
+                browser.openWebKitPopup(from: opener.webKit, configuration: configuration).map {
                     opened in
                     BrowserPage(
                         corePage: opened.core,
@@ -436,5 +441,20 @@ private final class StubContentRuleListProvider: BrowserContentRuleListProviding
     func balancedRuleLists() async throws -> [WKContentRuleList] {
         defer { requestCount += 1 }
         return generations[min(requestCount, generations.count - 1)]
+    }
+}
+
+extension BrowserStore {
+    /// The page WebKit builds from `configuration` for a popup `opener`, a
+    /// tab's page this window opened, offers the core, as a popup WebKit made
+    /// would be, for a test that hosts the page itself. Nil when the core
+    /// refuses it.
+    fileprivate func openWebKitPopup(
+        from opener: WebKitEnginePage, configuration: WKWebViewConfiguration
+    ) -> (core: CorePage, webKit: WebKitEnginePage)? {
+        guard let popup = opener.offer(WebKitPopup(configuration: configuration), heading: nil, foreground: false),
+            let opened = core.engines.host(popup.id)
+        else { return nil }
+        return (opened.page, popup)
     }
 }

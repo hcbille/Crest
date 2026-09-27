@@ -33,6 +33,14 @@ final class WebKitEngineBinding: EngineBinding {
         weak var value: WKWebsiteDataStore?
     }
 
+    /// A popup WebKit made for one of this binding's pages, which the page
+    /// offered the core while WebKit waits: the configuration WebKit derived
+    /// from the opener's, and the Space the opener browses in.
+    struct Offer {
+        let popup: WebKitPopup
+        let space: SpaceModel?
+    }
+
     /// A modified link's request one of this binding's pages staged for the
     /// Peek the core opens for it, which replays the initiator's referrer.
     struct StagedLink {
@@ -116,6 +124,12 @@ final class WebKitEngineBinding: EngineBinding {
     /// The links this binding's pages staged, by the identity the core
     /// stages them under, until a page loads one or the core drops it.
     var stagedLinks: [UUID: StagedLink] = [:]
+    /// The popups this binding's pages offered the core, by offer, while the
+    /// core decides on them.
+    var offers: [UUID: Offer] = [:]
+    /// The page this binding built for each offer the core adopted, until the
+    /// page that offered it hands it to WebKit.
+    var adoptedOffers: [UUID: WebKitEnginePage] = [:]
 
     // MARK: - Initializers
 
@@ -223,6 +237,34 @@ final class WebKitEngineBinding: EngineBinding {
             stagedLinks[linkID] = nil
             return false
         }
+    }
+
+    // MARK: - Actions - Offered pages
+
+    /// Offers the core `popup`, the page WebKit made for `opener`'s document
+    /// heading to `url`, as `PageOffered` from its opener, and answers the
+    /// page the core adopted it as, or nil when the core refused it. The core
+    /// decides where the page shows, and it runs on WebKit, its opener's
+    /// engine. The core adopts or refuses it on this stack, while WebKit
+    /// waits, and the changes it made are applied before this returns, so the
+    /// page's owner hosts the page, and answers its navigations, before
+    /// WebKit starts the first one.
+    func offer(_ popup: WebKitPopup, from opener: WebKitEnginePage, heading url: URL?, foreground: Bool)
+        -> WebKitEnginePage?
+    {
+        guard let engines else { return nil }
+        let offerID = UUID()
+        let source = engines.core.state.pages[opener.id]
+        let space = source.flatMap { engines.core.state.workspaces[$0.workspaceID]?.spaces.model($0.spaceID) }
+        offers[offerID] = Offer(popup: popup, space: space)
+        defer { offers[offerID] = nil }
+        report(
+            PageOffered(
+                offerID: offerID, profileID: opener.profileID, sourcePageID: opener.id, windowID: nil, spaceID: nil,
+                url: url?.absoluteString ?? "about:blank", foreground: foreground))
+        guard let page = adoptedOffers.removeValue(forKey: offerID) else { return nil }
+        engines.core.drain()
+        return page
     }
 
     // MARK: - Actions - Pages

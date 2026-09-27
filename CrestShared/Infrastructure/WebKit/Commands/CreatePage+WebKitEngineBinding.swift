@@ -8,7 +8,7 @@ extension CreatePage {
         guard let engines = binding.engines else { return }
         if let request = engines.request(pageID) {
             let space = engines.core.state.workspaces[request.intent.workspaceID]?.spaces.model(request.intent.spaceID)
-            request.built = binding.keep(binding.build(self, in: space, popup: request.popup))
+            request.built = binding.keep(binding.build(self, in: space, popup: nil))
         } else if let moving = engines.page(pageID), let state = moving.state {
             // The core moved a page the platform already hosts to WebKit:
             // its owner takes the new page before the core loads it.

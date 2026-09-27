@@ -1,24 +1,15 @@
 import Foundation
 
-/// Tab-level operations a page pool needs to host adopted popups. Both are
-/// synchronous because WebKit demands the popup's web view before it returns.
+/// The tab-level operation a page pool needs for pages web content opened:
+/// closing the tab of one that closed itself, as `window.close()` does.
 @MainActor
 struct BrowserPopupTabHost {
-    var openTab: (URL?, UUID, Bool) -> BrowserPopupTabRegistration?
     var closeTab: (UUID, UUID) -> Void
 
-    init(
-        openTab: @escaping (URL?, UUID, Bool) -> BrowserPopupTabRegistration?,
-        closeTab: @escaping (UUID, UUID) -> Void
-    ) {
-        self.openTab = openTab
+    init(closeTab: @escaping (UUID, UUID) -> Void) {
         self.closeTab = closeTab
     }
 
-    /// Declines every popup. Pools built without a tab host (tests, previews)
-    /// fall back to the URL-routed path instead of adopting.
-    static let unavailable = BrowserPopupTabHost(
-        openTab: { _, _, _ in nil },
-        closeTab: { _, _ in }
-    )
+    /// Closes nothing, for pools built without a tab host (tests, previews).
+    static let unavailable = BrowserPopupTabHost(closeTab: { _, _ in })
 }

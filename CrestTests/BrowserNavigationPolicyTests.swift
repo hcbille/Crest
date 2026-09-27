@@ -480,7 +480,7 @@ final class BrowserPopupSchemeRoutingTests: XCTestCase {
         }
     }
 
-    func testAMailtoPopupHandsOffAndNeverAdoptsOrOpensATab() throws {
+    func testAMailtoPopupHandsOffAndIsNeverOffered() throws {
         let harness = Harness()
         let mailURL = try XCTUnwrap(URL(string: "mailto:person@example.com"))
 
@@ -497,14 +497,9 @@ final class BrowserPopupSchemeRoutingTests: XCTestCase {
             harness.handedOff.first?.origin,
             SiteOrigin(scheme: "https", host: "mail.example", port: 443)
         )
-        XCTAssertEqual(
-            harness.adoptedURLs.count,
-            0,
-            "A mailto: popup must never reach tab adoption."
-        )
         XCTAssertTrue(
-            harness.openedTabURLs.isEmpty,
-            "The hand-off replaces the tab; it must not also open one."
+            harness.offeredURLs.isEmpty,
+            "The hand-off replaces the popup; it must never also reach the core as a page."
         )
     }
 
@@ -519,11 +514,10 @@ final class BrowserPopupSchemeRoutingTests: XCTestCase {
         )
 
         XCTAssertEqual(harness.handedOff.first?.trigger, .scripted)
-        XCTAssertTrue(harness.openedTabURLs.isEmpty)
-        XCTAssertEqual(harness.adoptedURLs.count, 0)
+        XCTAssertTrue(harness.offeredURLs.isEmpty)
     }
 
-    func testABlockedSchemePopupIsDroppedWithoutAHandOffOrATab() throws {
+    func testABlockedSchemePopupIsDroppedWithoutAHandOffOrAPage() throws {
         for address in ["javascript:alert(1)", "file:///etc/passwd"] {
             let harness = Harness()
 
@@ -535,12 +529,11 @@ final class BrowserPopupSchemeRoutingTests: XCTestCase {
 
             XCTAssertNil(webView)
             XCTAssertTrue(harness.handedOff.isEmpty, "\(address) must not launch another app.")
-            XCTAssertTrue(harness.openedTabURLs.isEmpty)
-            XCTAssertEqual(harness.adoptedURLs.count, 0)
+            XCTAssertTrue(harness.offeredURLs.isEmpty)
         }
     }
 
-    func testAUserActivatedWindowOpenClassifiedAsOtherStillReachesAdoption() throws {
+    func testAUserActivatedWindowOpenClassifiedAsOtherIsOfferedOnceAndNeverBecomesATabOfItsOwn() throws {
         let harness = Harness()
         let signInURL = try XCTUnwrap(URL(string: "https://accounts.google.com/gsi/transform"))
 
@@ -550,12 +543,9 @@ final class BrowserPopupSchemeRoutingTests: XCTestCase {
             currentURL: try XCTUnwrap(URL(string: "https://www.reddit.com/"))
         )
 
-        XCTAssertEqual(harness.adoptedURLs, [signInURL])
-        XCTAssertEqual(
-            harness.openedTabURLs,
-            [signInURL],
-            "The harness cannot host an adopted web view, so the tested request falls back to a plain tab only after reaching adoption."
-        )
+        // The harness refuses the offer, as the core refuses a popup it has no
+        // place for: the request gets no window rather than a second page.
+        XCTAssertEqual(harness.offeredURLs, [signInURL])
     }
 
     @MainActor
@@ -568,19 +558,15 @@ final class BrowserPopupSchemeRoutingTests: XCTestCase {
 
         let coordinator: BrowserPopupCoordinator
         private(set) var handedOff: [HandOff] = []
-        private(set) var openedTabURLs: [URL] = []
-        private(set) var adoptedURLs: [URL?] = []
+        private(set) var offeredURLs: [URL?] = []
 
         init() {
-            var recordOpenTab: (URL) -> Void = { _ in }
             var recordHandOff: (HandOff) -> Void = { _ in }
             coordinator = BrowserPopupCoordinator(
-                openNewTab: { recordOpenTab($0) },
                 handOffExternalScheme: { url, trigger, origin in
                     recordHandOff(HandOff(url: url, trigger: trigger, origin: origin))
                 }
             )
-            recordOpenTab = { [weak self] url in self?.openedTabURLs.append(url) }
             recordHandOff = { [weak self] handOff in self?.handedOff.append(handOff) }
         }
 
@@ -596,7 +582,7 @@ final class BrowserPopupSchemeRoutingTests: XCTestCase {
                 ),
                 currentURL: currentURL
             ) { requestedURL in
-                self.adoptedURLs.append(requestedURL)
+                self.offeredURLs.append(requestedURL)
                 return nil
             }
         }

@@ -22,16 +22,12 @@ final class Engines {
         /// What the platform asked for: the page's workspace, Space, tab and
         /// window.
         let intent: OpenPage
-        /// The popup WebKit made that the page is, which WebKit's binding
-        /// builds the page from as given.
-        let popup: WebKitPopup?
         /// What the engine's binding built for the platform to host.
         var built: AnyObject?
 
-        init(page: CorePage, intent: OpenPage, popup: WebKitPopup?) {
+        init(page: CorePage, intent: OpenPage) {
             self.page = page
             self.intent = intent
-            self.popup = popup
         }
     }
 
@@ -90,6 +86,9 @@ final class Engines {
     /// What an engine the core moved a page to built for it, until the page's
     /// owner takes it.
     @ObservationIgnored private var moved: [UUID: AnyObject] = [:]
+    /// What a binding built for a page the core adopted from its engine's
+    /// offer, such as a popup WebKit made, until the page's owner hosts it.
+    @ObservationIgnored private var offered: [UUID: AnyObject] = [:]
     /// The icon each page last reported, until a tab adopts it and the bytes
     /// move to `FaviconAssets` under that tab.
     @ObservationIgnored private var pageIcons: [UUID: Data] = [:]
@@ -140,10 +139,9 @@ final class Engines {
     // MARK: - Actions - Pages
 
     /// Opens a page through the core and answers it with what its engine built,
-    /// or nil when a rule refused it or the engine built nothing. A page that
-    /// is a popup WebKit made, `popup`, is built from it.
-    func open(_ intent: OpenPage, popup: WebKitPopup? = nil) -> OpenedPage? {
-        let request = PageRequest(page: CorePage(id: intent.pageID, core: core), intent: intent, popup: popup)
+    /// or nil when a rule refused it or the engine built nothing.
+    func open(_ intent: OpenPage) -> OpenedPage? {
+        let request = PageRequest(page: CorePage(id: intent.pageID, core: core), intent: intent)
         requests[intent.pageID] = request
         defer { requests[intent.pageID] = nil }
         do {
@@ -161,14 +159,14 @@ final class Engines {
     }
 
     /// What the shared page host hosts for a page the core opened itself,
-    /// such as one an engine opened by itself that the core adopted for a
-    /// tab: the page its engine's binding built for it. Only an engine the
-    /// core runs directly opens pages by itself; WebKit offers none. Nil when
-    /// the core holds no such page or the platform already hosts it.
+    /// such as one an engine opened by itself that the core adopted: the page
+    /// its engine's binding built for it, which WebKit's binding handed over,
+    /// or the host of an engine the core runs directly. Nil when the core
+    /// holds no such page or the platform already hosts it.
     func host(_ pageID: UUID) -> OpenedPage? {
         guard opened[pageID]?.value == nil else { return nil }
         let page = CorePage(id: pageID, core: core)
-        guard let built = nativeHost(for: page) else { return nil }
+        guard let built = offered.removeValue(forKey: pageID) ?? nativeHost(for: page) else { return nil }
         opened[pageID] = WeakPage(value: page)
         return OpenedPage(page: page, built: built)
     }
@@ -198,6 +196,12 @@ final class Engines {
     func handOver(_ built: AnyObject, movedPage page: CorePage) {
         moved[page.id] = built
         page.engineMoved?()
+    }
+
+    /// Keeps `built`, the page a binding built for page `pageID`, which the
+    /// core adopted from the binding's offer, until the page's owner hosts it.
+    func handOver(_ built: AnyObject, adoptedPage pageID: UUID) {
+        offered[pageID] = built
     }
 
     /// What the platform hosts for `page` now that the core moved it off
@@ -251,6 +255,7 @@ final class Engines {
         pageIcons[pageID] = nil
         opened[pageID] = nil
         moved[pageID] = nil
+        offered[pageID] = nil
     }
 
     private func report(_ event: some EngineEvent, on kind: EngineKind, icon: (page: UUID, data: Data)?) {
@@ -284,6 +289,7 @@ final class Engines {
     /// lets it go.
     func run(_ command: EngineCommand, on kind: EngineKind) {
         if case .createPage(let creation) = command { hosts[creation.pageID] = kind }
+        if case .adoptOfferedPage(let adoption) = command { hosts[adoption.pageID] = kind }
         if case .closePage(let closing) = command, hosts[closing.pageID] == kind { hosts[closing.pageID] = nil }
         bindings[kind]?.run(command)
     }

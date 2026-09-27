@@ -68,9 +68,11 @@ extension BrowserPage: WKUIDelegate {
 
     /// Returns the popup's web view built from WebKit's own configuration, which
     /// is what keeps `window.open()` non-null, `window.opener` connected, and
-    /// `about:blank` popups writable. Crest never loads that web view itself:
-    /// WebKit drives the navigation it already scheduled. `windowFeatures` is
-    /// ignored because every popup becomes a tab.
+    /// `about:blank` popups writable. The page offers the popup to the core,
+    /// which decides where it shows and keeps it on WebKit, this page's
+    /// engine; Crest never loads that web view itself: WebKit drives the
+    /// navigation it already scheduled. A popup the core refuses gets no
+    /// window, and never a tab of its own.
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
@@ -78,33 +80,16 @@ extension BrowserPage: WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         recordAcceptedPopup()
-        // Only a WebKit page asks for a window, so only it resolves popups.
         let externalSchemeCoordinator = externalSchemeCoordinator
-        let popups = BrowserPopupCoordinator(
-            openNewTab: openNewTab,
-            handOffExternalScheme: { destinationURL, trigger, origin in
-                externalSchemeCoordinator.handOff(destinationURL: destinationURL, trigger: trigger, origin: origin)
-            })
-        return popups.resolveOpen(
-            for: navigationAction,
-            currentURL: webView.url,
-            navigateCurrent: { [weak self] request in
-                guard let self, let host else { return false }
-                return host.navigatePopupInCurrentPage(
-                    request,
-                    opener: self
-                )
-            },
-            adopt: { [weak self] requestedURL in
-                guard let self, let host else { return nil }
-                return host.adoptPopupWebView(
-                    configuration: configuration,
-                    requestedURL: requestedURL,
-                    opener: self,
-                    selecting: corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
-                )
-            }
-        )
+        let popups = BrowserPopupCoordinator(handOffExternalScheme: { destinationURL, trigger, origin in
+            externalSchemeCoordinator.handOff(destinationURL: destinationURL, trigger: trigger, origin: origin)
+        })
+        let webKitPage = webKitAdapter?.webKitPage
+        let foreground = corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
+        return popups.resolveOpen(for: navigationAction, currentURL: webView.url) { requestedURL in
+            webKitPage?.offer(WebKitPopup(configuration: configuration), heading: requestedURL, foreground: foreground)?
+                .webView
+        }
     }
 
     /// Closes only tabs that web content opened. A hand-opened tab keeps its

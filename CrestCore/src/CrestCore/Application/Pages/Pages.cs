@@ -16,12 +16,16 @@ internal sealed record PageTurn(ChangeFeed Changes, Action<Engine, EngineCommand
 /// window that hosts it, the engine that hosts it and the live state its
 /// engine reports. Never saved or synced. The platform decides when a page
 /// opens or goes; the core decides whether it may, and on which engine, and
-/// asks the engine to create, load and close it. A tab's page opens on the
-/// engine chosen for the site the tab shows, when that engine is registered,
-/// and on the default engine otherwise. A page moves to another engine when
-/// the person asks, when it heads to a site chosen for another engine, or
-/// when it asks for protected media its engine cannot play and another plays
-/// it through the platform.
+/// asks the engine to create, load and close it. A page another page opened
+/// runs on its opener's engine, whatever the site's choice: every window,
+/// popup, new tab, Peek or split a page opens stays in the engine that page
+/// runs in. Any other page opens on the engine chosen for the site its tab
+/// shows, when that engine is registered, and on the default engine
+/// otherwise. A page moves to another engine when the person asks, when the
+/// person asks for an address of a site chosen for another engine, when a
+/// page no other page opened heads to such a site, or when it asks for
+/// protected media its engine cannot play and another plays it through the
+/// platform.
 ///
 /// A window hosts one page for a tab. The Mac's windows over one workspace
 /// share one runtime store, so a second window shows the page the first opened
@@ -117,6 +121,22 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         turn.Changes.Publish(new PageRehosted(page.Id, page.SpaceId, address is null ? null : new WebAddress(address).Origin, from.Kind,
             engine.Kind, reason));
     }
+
+    /// The engine a new page in `space` opens on: its opener's, when another
+    /// page opened it, so a page never leaves the engine of the page that
+    /// opened it; otherwise the registered engine chosen for the site `tab`
+    /// shows, or the default engine. Null when no engine is the default.
+    internal Engine? Opening(SpaceState space, TabState? tab, Page? opener) =>
+        opener?.Engine ?? Chosen(space, tab) ?? engines.Default;
+
+    /// The page `pageId` names as the opener of a new page in `space` of
+    /// `workspaceId`: one the core hosts in that workspace and the Space's
+    /// profile. Null for none, or for one the core no longer hosts, which
+    /// leaves the new page to the site's choice.
+    internal Page? Opener(Guid? pageId, Guid workspaceId, SpaceState space) =>
+        pageId is { } id && Hosted(id) is { } opener && opener.WorkspaceId == workspaceId && opener.ProfileId == space.ProfileId
+            ? opener
+            : null;
 
     /// The registered engine chosen for the site `tab` shows, or null when
     /// none is, or for a page without a tab, which opens before it has an

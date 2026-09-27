@@ -279,7 +279,7 @@ static void engine_boundary(void) {
     crest_buffer_free(&buffer);
 
     /* OpenPage: the page, the workspace, the Space (all 0x44), no tab, the
-     * window, and no transient presentation. The dispatch returns once the
+     * window, no transient presentation and no opener. The dispatch returns once the
      * binding ran CreatePage: the page, the Space's profile (all 0x55),
      * whether it is private, the window and no state to restore. */
     uint8_t page[71] = { 0 };
@@ -290,7 +290,8 @@ static void engine_boundary(void) {
     page[page_tag + 48] = 0;
     memset(page + page_tag + 49, 0x42, 16);
     page[page_tag + 65] = 0;
-    assert(crest_app_dispatch(app, page, page_tag + 66, &buffer) == CREST_OK);
+    page[page_tag + 66] = 0;
+    assert(crest_app_dispatch(app, page, page_tag + 67, &buffer) == CREST_OK);
     assert(buffer.bytes[0] == 1 && buffer.bytes[1] == CREST_CHANGE_PAGE_OPENED);
     crest_buffer_free(&buffer);
     assert(fixture.commands == 1 && fixture.last_length == 51 && fixture.last[0] == CREST_ENGINE_COMMAND_CREATE_PAGE);

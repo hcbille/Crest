@@ -3181,6 +3181,10 @@
     "page-top-keeps-its-drags": {
       "category": "fixed",
       "message": "Dragging at the very top of a page, like selecting text or using YouTube's search box, no longer moves the window. The sidebar, the strip above the page and the space around it, and the top of a Quick Window, still move the window and do what your title bar double-click setting says."
+    },
+    "opened-pages-keep-their-openers-engine": {
+      "category": "fixed",
+      "message": "A sign-in window, a new tab or a Peek that a page opens now stays on that page's engine, so signing in with Google from a page moved to WebKit opens one sign-in page that finishes the sign-in, instead of several Chromium tabs."
     }
   }
 }

@@ -288,11 +288,11 @@ void EngineBoundary() {
   Dispatched(app, Intent(CREST_INTENT_OPEN_WINDOW, window, workspace, false, std::optional<engine::Guid>(),
                          std::optional<engine::Guid>(), std::vector<engine::Guid>(), true));
 
-  // OpenPage for a transient request, with no transient presentation: the
-  // binding creates it in its window.
+  // OpenPage for a transient request, with no transient presentation and no
+  // opener: the binding creates it in its window.
   const engine::Guid page = Filled(0x61);
   Dispatched(app, Intent(CREST_INTENT_OPEN_PAGE, page, workspace, Filled(0x44), std::optional<engine::Guid>(), window,
-                         std::optional<Member>()));
+                         std::optional<Member>(), std::optional<engine::Guid>()));
   assert(binding.commands.size() == 1);
   const auto& creation = std::get<engine::CreatePage>(binding.commands[0]);
   assert(creation.page_id == page && creation.profile_id == Filled(0x55) && !creation.is_private &&

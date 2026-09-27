@@ -5,18 +5,16 @@ import Foundation
 extension BrowserStore {
     /// Opens a page through the core, from this window, for `tabID` in
     /// `spaceID`, or for a transient request presenting as `transient` when
-    /// `tabID` is nil. A popup WebKit made, `popup`, becomes the page as
-    /// WebKit made it. Nil when a rule refuses it, such as a locked Space, one
-    /// being deleted, or a tab that already has a page.
+    /// `tabID` is nil. A page another page opened, `opener`, runs on its
+    /// opener's engine. Nil when a rule refuses it, such as a locked Space,
+    /// one being deleted, or a tab that already has a page.
     func openPage(
-        in spaceID: UUID, for tabID: UUID?, presenting transient: TransientPresentation? = nil,
-        popup: WebKitPopup? = nil
+        in spaceID: UUID, for tabID: UUID?, presenting transient: TransientPresentation? = nil, opener: UUID? = nil
     ) -> Engines.OpenedPage? {
         core.engines.open(
             OpenPage(
                 pageID: UUID(), workspaceID: window.workspaceID, spaceID: spaceID, tabID: tabID,
-                windowID: windowID, transient: tabID == nil ? transient : nil),
-            popup: popup)
+                windowID: windowID, transient: tabID == nil ? transient : nil, openerPageID: opener))
     }
 
     /// Gives `page` to `tabID` in `spaceID` of this window's workspace, or to

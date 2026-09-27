@@ -25,12 +25,14 @@ protocol BrowserPageOwner: AnyObject, BrowserTabCopying, BrowserTabLinkProviding
     var downloadCenter: BrowserDownloadCenter { get }
     var permissionCenter: BrowserSitePermissionCenter { get }
 
-    /// A lease on a page the core opens in `space` for a transient request.
+    /// A lease on a page the core opens in `space` for a transient request,
+    /// on `opener`'s engine when another page opened it.
     func makeTransientPageLease(
         url: URL,
         in space: SpaceModel,
         presentation: TransientPresentation,
         engineNavigation: BrowserEngineNavigation?,
+        opener: UUID?,
         onUserActivity: @escaping () -> Void,
         onDownloadOnlyNavigation: (() -> Void)?
     ) -> BrowserPlatformTransientPageLease?
@@ -266,17 +268,19 @@ extension BrowserPageOwner {
 
 extension BrowserPageOwner {
     /// The Peek's lease on a page for `request` in `space`, reused while the
-    /// Peek asks for the same request.
+    /// Peek asks for the same request. The Peek runs on the engine of the page
+    /// it opened from: the one that staged its link, or its source tab's.
     func makePeekPageLease(
         request: BrowserPeekRequest,
         in space: SpaceModel,
         onDownloadOnlyNavigation: @escaping () -> Void
     ) -> BrowserPlatformTransientPageLease? {
         guard request.assignment == BrowserSpaceRuntimeAssignment(space: space) else { return nil }
+        let opener = request.engineNavigation?.sourcePageID ?? host.page(for: request.sourceTabID)?.corePage.id
         return host.peekPageLease(for: request) {
             makeTransientPageLease(
                 url: request.url, in: space, presentation: .peek, engineNavigation: request.engineNavigation,
-                onUserActivity: {}, onDownloadOnlyNavigation: onDownloadOnlyNavigation)
+                opener: opener, onUserActivity: {}, onDownloadOnlyNavigation: onDownloadOnlyNavigation)
         }
     }
 

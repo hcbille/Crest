@@ -9,7 +9,7 @@ extension BrowserPage {
         guard let context = navigationContext,
             BrowserCorePolicy.acceptsExternalURL(url)
         else { return }
-        splitLinkHost.openLink(url, context.tabID, context.assignment)
+        _ = splitLinkHost.openLink(url, context.tabID, context.assignment)
     }
 
     /// Opens the Peek the core chose for a link the engine kept in the page.

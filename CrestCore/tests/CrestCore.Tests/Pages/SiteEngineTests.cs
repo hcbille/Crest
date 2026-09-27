@@ -66,6 +66,55 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void APageAnotherPageOpensRunsOnItsOpenersEngineWhateverItsSiteAndOnlyThePersonMovesIt() {
+        var session = TwoSpaceSession();
+        var (space, profile) = (SpaceId(session["spaces"]![0]!), ProfileId(session["spaces"]![0]!));
+        using var app = new CrestApp();
+        var (chromiumBinding, webKitBinding) = (new RecordingEngine(), new RecordingEngine());
+        var chromium = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium, EngineCapability.Required, IsDefault: true),
+            chromiumBinding.Run);
+        var webKit = app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: false),
+            webKitBinding.Run);
+        var workspace = TestWorkspaces.Open(app, session);
+        var window = Guid.NewGuid();
+        app.Send(new OpenWindow(window, workspace, Saved: false, null, null, [], RestoresTabs: true));
+        const string signIn = "https://accounts.example/sign-in";
+        app.Send(new ChooseSiteEngine(space, new WebAddress("https://video.example/").Origin!, EngineKind.WebKit));
+        app.Send(new ChooseSiteEngine(space, new WebAddress(signIn).Origin!, EngineKind.Chromium));
+        var (_, opener) = LiveTab(app, webKit, workspace, window, space, "https://video.example/login");
+        Assert.Equal(EngineKind.WebKit, CreatedOn(opener, chromiumBinding, webKitBinding));
+
+        // A tab, Peek or window the page opens runs on WebKit, though the site it heads to chose Chromium.
+        var tab = Guid.NewGuid();
+        app.Send(new OpenTab(workspace, window, space, tab, new TabContent(signIn, View: null, Title: null), TabPlacement.Current,
+            AfterTabId: null, Shows: true));
+        var opened = Guid.NewGuid();
+        app.Send(new OpenPage(opened, workspace, space, tab, window, OpenerPageId: opener));
+        var peek = Guid.NewGuid();
+        app.Send(new OpenPage(peek, workspace, space, null, window, TransientPresentation.Peek, OpenerPageId: opener));
+        app.Report(webKit, new PageOffered(Guid.NewGuid(), profile, opener, WindowId: null, SpaceId: null, signIn, Foreground: true));
+        var offered = Assert.Single(app.Drain().OfType<OfferedPageAdopted>()).PageId;
+        Assert.All(new[] { opened, peek }, page => Assert.Equal(EngineKind.WebKit, CreatedOn(page, chromiumBinding, webKitBinding)));
+        Assert.Equal(offered, Assert.IsType<AdoptOfferedPage>(webKitBinding.Commands[^1]).PageId);
+        Assert.DoesNotContain(chromiumBinding.Commands, command => command is AdoptOfferedPage);
+
+        // Its own navigations keep it there; an address the person asks for follows the site's choice.
+        app.Report(webKit, new PageCreated(opened));
+        app.Report(webKit, new NavigationStarted(opened, signIn, SameDocument: false));
+        Assert.DoesNotContain(chromiumBinding.Commands, command => command is CreatePage creation && creation.PageId == opened);
+        app.Send(new Navigate(opened, signIn));
+        Assert.Equal(new ClosePage(opened, KeepsState: false), webKitBinding.Commands[^1]);
+        Assert.Equal(opened, Assert.IsType<CreatePage>(chromiumBinding.Commands[^1]).PageId);
+
+        // A page the person opens follows the site's choice, as does one whose opener the core no longer hosts.
+        var (typed, orphaned) = (Guid.NewGuid(), Guid.NewGuid());
+        app.Send(new OpenPage(typed, workspace, space, null, window, TransientPresentation.QuickWindow));
+        app.Send(new ReleasePage(peek, KeepsState: false));
+        app.Send(new OpenPage(orphaned, workspace, space, null, window, TransientPresentation.Peek, OpenerPageId: peek));
+        Assert.All(new[] { typed, orphaned }, page => Assert.Equal(EngineKind.Chromium, CreatedOn(page, chromiumBinding, webKitBinding)));
+    }
+
+    [Fact]
     public void ATabsPageOpensOnTheEngineChosenForItsSiteAndOnlyThePersistentSessionsChoicesAreKept() {
         using var directory = new StorageDirectory();
         Guid spaceId, chosenTab, otherTab;

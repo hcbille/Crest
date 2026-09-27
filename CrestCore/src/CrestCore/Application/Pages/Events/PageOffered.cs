@@ -4,7 +4,8 @@ namespace CrestCore.Contracts;
 
 /// The engine opened a page of its own in the profile `ProfileId` names: a
 /// script's `window.open`, a link to a new window or tab, or an extension's
-/// tab. `SourcePageId` names the page that opened it, when one did. Otherwise
+/// tab. The page stays on the engine that opened it, which is its opener's.
+/// `SourcePageId` names the page that opened it, when one did. Otherwise
 /// `WindowId` names the Crest window whose engine window holds it, and
 /// `SpaceId` the Space a window the engine created for itself was reserved
 /// for. `Url` is where it is heading, and `Foreground` whether the engine
@@ -66,7 +67,8 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
             // The Space's tabs are full, or the address is one no tab shows.
             return false;
         }
-        var page = new Page(pages.Ids.Next(), engine, space.ProfileId, workspaceId, space.Id, tabId, windowId, transient: null);
+        var page = new Page(pages.Ids.Next(), engine, space.ProfileId, workspaceId, space.Id, tabId, windowId, transient: null,
+            openedByPage: source is not null);
         pages.Add(page);
         turn.Changes.Publish(new PageOpened(page.State));
         turn.Changes.Publish(new OfferedPageAdopted(page.Id, workspaceId, windowId, space.Id, tabId, Foreground));
