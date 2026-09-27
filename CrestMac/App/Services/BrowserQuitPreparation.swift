@@ -38,8 +38,7 @@ final class BrowserQuitPreparation {
     /// Shows the question about downloads in progress, and closes it once the
     /// core settles it.
     private func ask(_ change: Change) {
-        switch change {
-        case .quitWithDownloadsAsked(let asked):
+        if case .quitWithDownloadsAsked(let asked) = change {
             let dismissal = BrowserPromptDismissal()
             dismissals[asked.promptID] = dismissal
             Task { @MainActor [weak self] in
@@ -47,10 +46,9 @@ final class BrowserQuitPreparation {
                 let quits = await dialogs.approveQuitWithDownloads(count: asked.liveDownloads, dismissal: dismissal)
                 _ = try? core?.send(AnswerQuitWithDownloads(promptID: asked.promptID, quits: quits))
             }
-        case .promptSettled(let settled):
+        }
+        if case .promptSettled(let settled) = change {
             dismissals.removeValue(forKey: settled.promptID)?.dismiss()
-        default:
-            break
         }
     }
 }

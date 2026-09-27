@@ -325,25 +325,31 @@ final class CrestCore {
             {
                 movedPages.append(changed.page.id)
             }
-            state.apply(change)
-            switch change {
-            case .storageFailed(let failure): storageFailed(failure.reason)
-            case .syncJournalChanged: syncJournalChangeHandler?()
-            case .navigationRecorded(let recorded): pageRecords.navigations.append(recorded)
-            case .tabFaviconAssigned(let assigned) where assigned.pageID != nil: pageRecords.icons.append(assigned)
-            case .sitePermissionsChanged(let changed): permissionChanges.append(changed)
-            case .scriptDialogAsked, .authenticationAsked, .permissionAsked, .extensionInstallAsked,
-                .downloadDestinationAsked, .downloadApprovalAsked, .quitWithDownloadsAsked, .promptSettled:
-                promptChanges.append(change)
-            case .downloadUpdated(let updated): downloadChanges.append(updated.download)
-            case .pageUnloaded(let unloaded): unloadedPages.append(unloaded)
-            case .tabPagePutAway(let putAway): putAwayPages.append(putAway)
-            case .pageRehosted(let rehosted): rehostedPages.append(rehosted)
-            case .offeredPageAdopted(let adopted): adoptedPages.append(adopted)
-            case .closeReady(let ready): closesReady.append(ready)
-            case .dataDeleted(let deleted): dataDeleted.append(deleted)
-            default: break
+            change.apply(to: state)
+            // What else the batch tells, for those who follow it once it is applied.
+            if case .storageFailed(let failure) = change { storageFailed(failure.reason) }
+            if case .syncJournalChanged = change { syncJournalChangeHandler?() }
+            if case .navigationRecorded(let recorded) = change { pageRecords.navigations.append(recorded) }
+            if case .tabFaviconAssigned(let assigned) = change, assigned.pageID != nil {
+                pageRecords.icons.append(assigned)
             }
+            if case .sitePermissionsChanged(let changed) = change { permissionChanges.append(changed) }
+            // The questions the core asks the person, and each one that settles.
+            if case .scriptDialogAsked = change { promptChanges.append(change) }
+            if case .authenticationAsked = change { promptChanges.append(change) }
+            if case .permissionAsked = change { promptChanges.append(change) }
+            if case .extensionInstallAsked = change { promptChanges.append(change) }
+            if case .downloadDestinationAsked = change { promptChanges.append(change) }
+            if case .downloadApprovalAsked = change { promptChanges.append(change) }
+            if case .quitWithDownloadsAsked = change { promptChanges.append(change) }
+            if case .promptSettled = change { promptChanges.append(change) }
+            if case .downloadUpdated(let updated) = change { downloadChanges.append(updated.download) }
+            if case .pageUnloaded(let unloaded) = change { unloadedPages.append(unloaded) }
+            if case .tabPagePutAway(let putAway) = change { putAwayPages.append(putAway) }
+            if case .pageRehosted(let rehosted) = change { rehostedPages.append(rehosted) }
+            if case .offeredPageAdopted(let adopted) = change { adoptedPages.append(adopted) }
+            if case .closeReady(let ready) = change { closesReady.append(ready) }
+            if case .dataDeleted(let deleted) = change { dataDeleted.append(deleted) }
         }
         state.finishBatch()
         if !pageRecords.isEmpty { engines.recordsApplied(pageRecords) }

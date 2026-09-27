@@ -118,8 +118,11 @@ for `EnginePage` lists every direct engine call.
    apart, such as the page an event names, is a property of the family.
    Intents route themselves to the area that owns their family
    (`Intent.Route`), engine events likewise, and queries and engine questions
-   answer themselves (`Answer`). Capability sets are flags. No capability is a
-   string.
+   answer themselves (`Answer`). Swift receives each union as an enum whose
+   one method forwards, with an exhaustive switch, to its payload's own
+   method (`change.apply(to: state)`, `command.perform(on: binding)`); a
+   listener for a few cases uses `if case`. Capability sets are flags. No
+   capability is a string.
 4. Identifiers are plain `Guid` in C# and `UUID` in Swift, and they appear only
    at boundaries. Inside the core, methods take the objects themselves
    (`window.Show(space, tab)`), not their identifiers. Crest does not wrap a

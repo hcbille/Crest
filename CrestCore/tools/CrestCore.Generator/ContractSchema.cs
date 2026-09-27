@@ -953,6 +953,22 @@ internal sealed class ContractSchema {
     /// preferences, which a settings pane edits in place before it sends them.
     public bool IsBuilt(Type type) => built.Contains(type);
 
+    /// The facts the families below a root the platform receives declare: a
+    /// property every member of the family carries, such as the page an
+    /// engine presentation is about, in family then declaration order. Swift
+    /// reads each through the root's enum, which answers nil for a member
+    /// outside the family.
+    public IReadOnlyList<(Type Family, ContractField Field)> Facts(ContractRoot root) {
+        ArgumentNullException.ThrowIfNull(root);
+        if (root.PlatformSends) return [];
+        var families = roots[root].SelectMany(member => Ancestors(member.Record.Type, root.Type)).Distinct()
+            .OrderBy(family => family.Name, StringComparer.Ordinal);
+        return [.. families.SelectMany(family => family.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .OrderBy(property => property.MetadataToken)
+            .Select(property => (family, new ContractField(property.Name,
+                Resolve(property.PropertyType, nullability.Create(property), $"{family.Name}.{property.Name}")))))];
+    }
+
     /// The abstract records `type` derives from below `root`, nearest first.
     private static IEnumerable<Type> Ancestors(Type type, Type root) {
         for (var current = type.BaseType; current is not null && current != root; current = current.BaseType)

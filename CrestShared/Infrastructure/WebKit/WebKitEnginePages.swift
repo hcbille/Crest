@@ -27,79 +27,24 @@ final class WebKitEnginePages: EnginePages {
         attached.attach(page)
     }
 
-    /// Answers `request` for one of the binding's pages. One for a page that is
-    /// gone answers that nothing was done.
+    /// Answers `request` for one of the binding's pages, as the request's own
+    /// `answer(on:)` says. One for a page that is gone answers that nothing
+    /// was done.
     @discardableResult
     func request<Request: PageRequest>(_ request: Request) -> Request.Answer {
-        switch request {
-        case let going as GoToHistoryOffset:
-            return answer(page(going.pageID).map { $0.engine.navigateHistory(by: going.offset) } != nil)
-        case let reloading as ReloadPage:
-            let reloaded = page(reloading.pageID)
-            reloaded?.engine.reload(bypassingCache: reloading.bypassesCache)
-            return answer(reloaded != nil)
-        case let stopping as StopLoading:
-            return answer(page(stopping.pageID).map { $0.webView.stopLoading() } != nil)
-        case let zooming as ZoomPage:
-            return answer(page(zooming.pageID).map { $0.webView.pageZoom = CGFloat(zooming.factor) } != nil)
-        case let finding as FindInPage:
-            return answer(find(finding))
-        case let saving as SaveInteractionState:
-            return answer(InteractionState(state: page(saving.pageID)?.engine.savedHistory()))
-        case let restoring as RestoreInteractionState:
-            return answer(page(restoring.pageID)?.engine.restoreHistory(restoring.state) ?? false)
-        case let capturing as CapturePage:
-            return answer(capture(capturing))
-        case let exporting as ExportPage:
-            return answer(export(exporting))
-        case let asking as PageCertificates:
-            return answer(CertificateChain(certificates: page(asking.pageID).map(certificates) ?? []))
-        case let opening as OpenInspector:
-            return answer(openInspector(opening))
-        case let closing as CloseInspector:
-            return answer(closeInspector(closing.pageID))
-        case let asking as PageInspected:
-            return answer(isInspected(asking.pageID))
-        case is LayoutInspector:
-            // WebKit's inspector lays itself out beside the page.
-            return answer(InspectorLayout(inspector: nil, page: nil))
-        case let setting as SetSitePermission:
-            return answer(setSitePermission(setting))
-        case let stopping as StopMediaCapture:
-            return answer(stopCapture(stopping))
-        case let asking as PageMedia:
-            return answer(PageMediaState(activity: page(asking.pageID).map(mediaActivity) ?? []))
-        case let moving as MovePageToWindow:
-            // A web view travels with its page from window to window.
-            return answer(page(moving.pageID) != nil)
-        case is ShowBlockedPopups, is AnswerInfoBar, is RefreshPageIcon, is EnterPictureInPicture,
-            is ActivateMediaSession, is PerformMediaAction, is MuteMediaSession:
-            // WebKit keeps no blocked popups or bars of its own. Crest fetches
-            // its pages' icons, and runs their Media Session and Picture in
-            // Picture through its own bridges in the page.
-            return answer(false)
-        default:
-            preconditionFailure("WebKit answers no \(Request.self).")
-        }
+        request.answer(on: self)
     }
 
-    private func page(_ pageID: UUID) -> WebKitEnginePage? {
+    /// The binding's page `pageID` names, while its owner keeps it.
+    func page(_ pageID: UUID) -> WebKitEnginePage? {
         binding.page(pageID)
-    }
-
-    /// The answer a request's own type names, which each case above builds.
-    private func answer<Answer>(_ value: Any) -> Answer {
-        guard let typed = value as? Answer else {
-            preconditionFailure("WebKit built the wrong answer for \(Answer.self).")
-        }
-        return typed
     }
 
     // MARK: - Actions - Documents
 
     /// Snapshots what the page's web view shows, and presents it as a PNG
     /// once WebKit has it.
-    private func capture(_ capturing: CapturePage) -> Bool {
+    func capture(_ capturing: CapturePage) -> Bool {
         #if os(macOS)
             guard let page = page(capturing.pageID) else { return false }
             let configuration = WKSnapshotConfiguration()
@@ -124,7 +69,7 @@ final class WebKitEnginePages: EnginePages {
     /// Makes the page's document as the export asks, and presents it once
     /// WebKit made it. WebKit keeps its archives as web archives, never as
     /// MHTML.
-    private func export(_ exporting: ExportPage) -> Bool {
+    func export(_ exporting: ExportPage) -> Bool {
         #if os(macOS)
             guard let page = page(exporting.pageID), exporting.format != .mhtml else { return false }
             let webView = page.webView
@@ -150,7 +95,7 @@ final class WebKitEnginePages: EnginePages {
 
     /// The certificates the page's current document was verified with, the
     /// leaf first.
-    private func certificates(_ page: WebKitEnginePage) -> [Data] {
+    func certificates(_ page: WebKitEnginePage) -> [Data] {
         guard let trust = page.webView.serverTrust,
             let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate]
         else { return [] }
@@ -223,7 +168,7 @@ final class WebKitEnginePages: EnginePages {
 
     // MARK: - Actions - Inspector
 
-    private func openInspector(_ opening: OpenInspector) -> Bool {
+    func openInspector(_ opening: OpenInspector) -> Bool {
         #if os(macOS)
             guard let webView = page(opening.pageID)?.webView else { return false }
             return BrowserWebInspectorAccess.open(
@@ -233,7 +178,7 @@ final class WebKitEnginePages: EnginePages {
         #endif
     }
 
-    private func closeInspector(_ pageID: UUID) -> Bool {
+    func closeInspector(_ pageID: UUID) -> Bool {
         #if os(macOS)
             guard let webView = page(pageID)?.webView else { return false }
             return BrowserWebInspectorAccess.close(inspectorOwner: webView)
@@ -242,7 +187,7 @@ final class WebKitEnginePages: EnginePages {
         #endif
     }
 
-    private func isInspected(_ pageID: UUID) -> Bool {
+    func isInspected(_ pageID: UUID) -> Bool {
         #if os(macOS)
             guard let webView = page(pageID)?.webView else { return false }
             return BrowserWebInspectorAccess.isVisible(inspectorOwner: webView)
@@ -255,7 +200,7 @@ final class WebKitEnginePages: EnginePages {
 
     /// WebKit has no popup blocker of its own to tell: the page's preferences
     /// carry Crest's popup decision. Crest's own prompts enforce the rest.
-    private func setSitePermission(_ setting: SetSitePermission) -> Bool {
+    func setSitePermission(_ setting: SetSitePermission) -> Bool {
         guard setting.permission == .popups, let page = page(setting.pageID) else { return false }
         page.webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically = setting.allowed == true
         return true
@@ -263,7 +208,7 @@ final class WebKitEnginePages: EnginePages {
 
     /// WebKit leaves capture running after Crest withdraws a grant; Crest's
     /// own prompt decided it, so Crest ends it.
-    private func stopCapture(_ stopping: StopMediaCapture) -> Bool {
+    func stopCapture(_ stopping: StopMediaCapture) -> Bool {
         guard let webView = page(stopping.pageID)?.webView else { return false }
         if stopping.permission.devices.contains(.camera) {
             webView.setCameraCaptureState(.none, completionHandler: nil)
@@ -276,7 +221,7 @@ final class WebKitEnginePages: EnginePages {
 
     /// What media the page ran when WebKit last answered, and the Picture in
     /// Picture it reported since.
-    private func mediaActivity(_ page: WebKitEnginePage) -> PageMediaActivity {
+    func mediaActivity(_ page: WebKitEnginePage) -> PageMediaActivity {
         page.engine.hasVideoInPictureInPicture
             ? page.engine.knownMediaActivity.union(.pictureInPicture) : page.engine.knownMediaActivity
     }
@@ -284,7 +229,7 @@ final class WebKitEnginePages: EnginePages {
     // MARK: - Actions - Find
 
     /// Finds text in the page, and presents its count once WebKit has it.
-    private func find(_ finding: FindInPage) -> Bool {
+    func find(_ finding: FindInPage) -> Bool {
         guard let page = page(finding.pageID) else { return false }
         let configuration = BrowserFindConfiguration(backwards: finding.backwards, caseSensitive: finding.caseSensitive)
         page.webView.performFind(finding.query, configuration: configuration) { [weak self] result in

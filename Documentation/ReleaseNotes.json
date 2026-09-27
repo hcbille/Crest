@@ -3093,6 +3093,10 @@
     "queries-answer-themselves": {
       "category": "internal",
       "message": "Every question the core answers, and the one an engine asks while it waits, now carries its own answer, so a new one that lacks it fails to build; nothing changes in behavior."
+    },
+    "swift-messages-carry-their-logic": {
+      "category": "internal",
+      "message": "In the apps, each change the core publishes, each command WebKit runs, each request its pages answer and each presentation Chromium shows now carries its own logic, so a new one that lacks it fails to build; nothing changes in behavior."
     }
   }
 }

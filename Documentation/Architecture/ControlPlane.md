@@ -98,6 +98,19 @@ without an app. An engine's question answers itself the same way
 namespace and live beside the area that receives them, and a new case without
 its logic does not compile.
 
+Swift receives each union as an enum, and each case's payload carries its
+logic the same way, in an extension beside its receiver: a change applies
+itself to the read model (`apply(to: CoreState)`, in
+`Changes/Area/Change+CoreState.swift`), an engine command performs itself on
+the WebKit binding (`perform(on:)`), a page request answers itself from
+WebKit's pages (`answer(on:)`, a requirement of `PageRequest`), and a
+presentation presents itself on the Chromium engine (`present(on:)`). Each
+enum's method only forwards, with an exhaustive switch: the generator writes
+`Change.apply(to:)` and `EnginePresentation.pageID`, and each binding writes
+its own forwarder beside its payloads' files. A new case without its logic
+does not compile. Code that listens for a few cases, such as the prompts a
+page shows, matches them with `if case`.
+
 `CrestCore.Generator` reads the records, the types the core exports in that
 namespace, and writes the core's codec, the Swift
 models and codec, the C header with each type's tag and the schema
@@ -165,10 +178,10 @@ merge, an engine event) arrive through a payload-free wake callback that the
 UI answers by draining the pending batch, at most once per main-queue turn.
 
 `CoreState` is the Swift read model. Only the changes `CrestCore` receives
-update it, each through its applier in a `CoreState+Area.swift` file. It is
-observable per entity: each workspace, Space, tab, folder, window and page is
-an object that notifies only when one of its values really changes, so a tab's
-new title redraws that tab's row and nothing else. Every value is stored
+update it, each through its own `apply(to:)`. It is observable per entity:
+each workspace, Space, tab, folder, window and page is an object that notifies
+only when one of its values really changes, so a tab's new title redraws that
+tab's row and nothing else. Every value is stored
 before it is announced (`BrowserStoreFirstObservable`), so a view rendering
 during an announcement reads the new value. A generator check refuses views
 that read a whole read-model list's `.values`.

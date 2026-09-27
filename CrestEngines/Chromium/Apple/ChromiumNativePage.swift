@@ -35,9 +35,9 @@
         weak var linkDrag: BrowserLinkDragController?
         private var host: (any CrestMacShell)?
         private var created = false
-        private var disposed = false
+        private(set) var disposed = false
         /// What waits for the engine: each script evaluation by its identity.
-        private var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
+        var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
 
         /// A page the core opened, which Chromium's binding creates.
         init(id: UUID, engine: ChromiumEngine) {
@@ -78,11 +78,11 @@
             else { return false }
             return engine.stage(stagedLinkID, from: sourcePageID, into: pageID, expecting: url)
         }
-        private(set) var backHistory: [BrowserNavigationHistoryItem] = []
-        private(set) var forwardHistory: [BrowserNavigationHistoryItem] = []
-        private(set) var currentURL: URL?
-        private(set) var canGoBack = false
-        private(set) var canGoForward = false
+        var backHistory: [BrowserNavigationHistoryItem] = []
+        var forwardHistory: [BrowserNavigationHistoryItem] = []
+        var currentURL: URL?
+        var canGoBack = false
+        var canGoForward = false
         /// The binding presents the page's history, loading and failures, so the
         /// page reads them from its presentations.
         var reportsNavigationState: Bool { true }
@@ -119,25 +119,12 @@
         // MARK: Content bridges
 
         private var contentScripts: [BrowserContentScript] = []
-        private var contentReceivers: [String: @MainActor (BrowserContentMessage) -> Void] = [:]
+        private(set) var contentReceivers: [String: @MainActor (BrowserContentMessage) -> Void] = [:]
         var contentScripting: (any BrowserPageContentScripting)? { self }
-
-        private func receive(_ message: ContentMessagePosted) {
-            // The body is whatever the bridge posted, so it stays an opaque value.
-            guard let receive = contentReceivers[message.handler],
-                let body = try? JSONSerialization.jsonObject(with: Data(message.body.utf8), options: .fragmentsAllowed)
-            else { return }
-            receive(
-                BrowserContentMessage(
-                    handlerName: message.handler, body: body,
-                    frame: BrowserContentFrame(
-                        isMainFrame: message.frame.isMainFrame, securityProtocol: message.frame.protocol,
-                        host: message.frame.host, port: Int(message.frame.port), handle: message.frame.id as NSString)))
-        }
 
         /// The committed document's address, which the page's Media Session
         /// names.
-        private(set) var mediaSessionLocation: String?
+        var mediaSessionLocation: String?
 
         /// The extension actions the page's toolbar offers, with each one's state
         /// for the page's own tab.
@@ -209,7 +196,7 @@
         /// the extension is the one the page's own URL names, and the destination is
         /// this page's own Space — a listing can never reach another Space or a
         /// private window, which keeps no persistent extension state.
-        private func performStoreRequest(_ extensionID: String, removes: Bool) {
+        func performStoreRequest(_ extensionID: String, removes: Bool) {
             let store = CrestChromiumRoot.extensions
             guard !isPrivateBrowsing, let profileID, let space = hostCommands?.extensionSpace(forProfile: profileID)
             else {
@@ -258,84 +245,6 @@
             evaluations = [:]
         }
 
-        private func history(_ entries: [PageHistoryEntry]) -> [BrowserNavigationHistoryItem] {
-            entries.enumerated().compactMap { index, entry in
-                guard let url = URL(string: entry.url) else { return nil }
-                let title = entry.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                return BrowserNavigationHistoryItem(
-                    depth: index + 1, title: title.isEmpty ? url.host() ?? url.absoluteString : title, url: url)
-            }
-        }
-
-        /// What the binding presents of this page, as the page's events.
-        func receive(_ presentation: EnginePresentation) {
-            guard !disposed else { return }
-            switch presentation {
-            case .pageViewReady: viewReady()
-            case .pageViewUnavailable: creationFailed()
-            case .pageViewClosed: observer(.closeRequested)
-            case .pageNavigationStarted: observer(.navigationStarted)
-            case .pageNavigationCommitted(let committed):
-                currentURL = URL(string: committed.url)
-                mediaSessionLocation = committed.url
-                surface.layoutEngineView()
-                observer(.navigationCommitted(currentURL, isLoading: committed.isLoading))
-            case .pageNavigationFailed: observer(.navigationFailed)
-            case .pageRendererGone: observer(.webContentProcessTerminated)
-            case .pageLoadingChanged(let loading):
-                observer(.loadingChanged(loading.isLoading))
-                observer(.progressChanged(loading.isLoading ? 0.5 : 1))
-            case .pageHistoryChanged(let changed):
-                backHistory = history(changed.back)
-                forwardHistory = history(changed.forward)
-                canGoBack = !changed.back.isEmpty
-                canGoForward = !changed.forward.isEmpty
-            case .pageThemeChanged(let theme):
-                observer(
-                    .themeColorChanged(
-                        theme.color.map {
-                            NSColor(srgbRed: $0.red, green: $0.green, blue: $0.blue, alpha: $0.alpha)
-                        }))
-            case .pageInteracted: observer(.userActivity)
-            case .linkHovered(let hovered): observer(.linkHovered(hovered.url.flatMap(URL.init(string:))))
-            case .popupBlocked(let blocked):
-                if let url = URL(string: blocked.pageURL) { observer(.popupBlocked(pageURL: url)) }
-            case .contentFullscreenChanged(let fullscreen): observer(.contentFullscreenChanged(fullscreen.active))
-            case .infoBarShown(let shown):
-                guard
-                    let bar = BrowserEngineInfoBar(
-                        id: Int(shown.infoBarID), message: shown.message, acceptTitle: shown.acceptLabel ?? "",
-                        cancelTitle: shown.cancelLabel ?? "", isCloseable: shown.closeable)
-                else { return }
-                observer(.infoBarAdded(bar))
-            case .infoBarRemoved(let removed): observer(.infoBarRemoved(id: Int(removed.infoBarID)))
-            case .mediaSessionChanged(let session):
-                if let event = BrowserMediaSessionPageEvent(session) { observer(.mediaSession(event)) }
-            case .contentMessagePosted(let message): receive(message)
-            case .contentScriptEvaluated(let evaluated):
-                evaluations.removeValue(forKey: evaluated.evaluationID)?.resume(returning: evaluated.json)
-            case .storeInstallRequested(let request): performStoreRequest(request.extensionID, removes: false)
-            case .storeRemovalRequested(let request): performStoreRequest(request.extensionID, removes: true)
-            case .peekRequested(let requested):
-                guard let url = URL(string: requested.url) else { return }
-                observer(
-                    .peekRequested(
-                        url, decision: requested.decision,
-                        stagedLink: requested.stagedLinkID.map {
-                            BrowserEngineNavigation(
-                                implementation: registration.implementationId, token: $0.uuidString,
-                                sourcePageID: pageID)
-                        }))
-            case .inspectorLayoutChanged: refreshDevTools()
-            case .inspectorClosed: developerPanelDidClose()
-            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileReleased:
-                break
-            case .findFinished, .pageCaptured, .pageExported:
-                // The page's shared direct path hears what it asked for.
-                break
-            }
-        }
-
         /// A script dialog the core asks the person, answered once they answer it.
         func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {
             guard let promptPresenter else {
@@ -367,7 +276,7 @@
 
         /// The engine created the page: the page's scripts go in, and its view
         /// goes on screen if it has a window to go in.
-        private func viewReady() {
+        func viewReady() {
             guard !created else { return }
             created = true
             for script in contentScripts {
@@ -375,10 +284,6 @@
                     AddContentScript(pageID: pageID, source: script.source, mainFrameOnly: script.mainFrameOnly))
             }
             attachIfPossible()
-        }
-
-        private func creationFailed() {
-            observer(.creationFailed(message: String(localized: "Chromium couldn’t create this page.")))
         }
 
         // MARK: Menus and drags
@@ -578,7 +483,7 @@
     extension BrowserMediaSessionPageEvent {
         /// The session the binding presented, as Crest's media store takes it,
         /// within the bounds a page script's report is held to.
-        fileprivate init?(_ session: MediaSessionChanged) {
+        init?(_ session: MediaSessionChanged) {
             typealias Bounds = BrowserMediaSessionPageEventDecoder
             guard !session.document.isEmpty, session.document.count <= Bounds.maximumDocumentIdentifierLength,
                 session.location.count <= Bounds.maximumLocationLength

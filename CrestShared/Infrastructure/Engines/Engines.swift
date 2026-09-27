@@ -283,16 +283,8 @@ final class Engines {
     /// closes on this one and lives on, and its owner forgets it only when it
     /// lets it go.
     func run(_ command: EngineCommand, on kind: EngineKind) {
-        switch command {
-        case .createPage(let creation): hosts[creation.pageID] = kind
-        case .loadPage, .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission,
-            .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
-            .approveEngineDownload, .checkBeforeUnload, .eraseProfileData, .eraseSiteData, .adoptOfferedPage,
-            .rejectOfferedPage, .stageNavigation, .dropStagedLink:
-            break
-        case .closePage(let closing):
-            if hosts[closing.pageID] == kind { hosts[closing.pageID] = nil }
-        }
+        if case .createPage(let creation) = command { hosts[creation.pageID] = kind }
+        if case .closePage(let closing) = command, hosts[closing.pageID] == kind { hosts[closing.pageID] = nil }
         bindings[kind]?.run(command)
     }
 }

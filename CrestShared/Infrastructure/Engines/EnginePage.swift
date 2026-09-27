@@ -256,17 +256,19 @@ final class EnginePage: BrowserFindExecuting {
 
     /// Hears what the engine finished for the page.
     func receive(_ presentation: EnginePresentation) {
-        switch presentation {
-        case .findFinished(let finished):
+        if case .findFinished(let finished) = presentation {
             let completion = findCompletion
             findCompletion = nil
             completion?(
                 finished.matches.map { BrowserFindResult(matchCount: $0, activeMatch: finished.activeMatch) }
                     ?? BrowserFindResult(matchFound: true))
-        case .pageCaptured(let captured):
+        }
+        if case .pageCaptured(let captured) = presentation {
             captures.removeValue(forKey: captured.captureID)?(captured.png)
-        case .pageExported(let exported):
-            guard let continuation = exports.removeValue(forKey: exported.exportID) else { return }
+        }
+        if case .pageExported(let exported) = presentation,
+            let continuation = exports.removeValue(forKey: exported.exportID)
+        {
             if let document = exported.document {
                 continuation.resume(returning: document)
             } else {
@@ -274,8 +276,6 @@ final class EnginePage: BrowserFindExecuting {
                 continuation.resume(
                     throwing: BrowserPageExportError.renderingFailed(String(localized: failure.message)))
             }
-        default:
-            break
         }
     }
 }

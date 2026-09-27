@@ -1,12 +1,6 @@
 import Foundation
 
 extension CoreState {
-    // MARK: - Actions - Changes
-
-    func apply(_ change: EnginesChanged) {
-        engines = change.roster
-    }
-
     // MARK: - Actions - Capabilities
 
     /// Whether the device offers `capability` anywhere a person can find a

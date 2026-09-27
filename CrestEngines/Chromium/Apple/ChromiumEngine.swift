@@ -31,7 +31,7 @@
         private var hosted: [UUID: WeakNativePage] = [:]
         /// What waits for the binding to prepare each profile, by the
         /// preparation's identity.
-        private var preparations: [UUID: CheckedContinuation<Bool, Never>] = [:]
+        var preparations: [UUID: CheckedContinuation<Bool, Never>] = [:]
 
         // MARK: - Initializers
 
@@ -42,7 +42,10 @@
             self.host = host
             self.table = table
             self.fingerprint = fingerprint
-            self.pages = NativeEnginePages(table: pages) { [weak self] presentation in self?.present(presentation) }
+            self.pages = NativeEnginePages(table: pages) { [weak self] presentation in
+                guard let self else { return }
+                presentation.present(on: self)
+            }
         }
 
         // MARK: - Actions - Pages
@@ -72,35 +75,36 @@
         /// more is declined; one about a page another engine hosts is that
         /// engine's to show.
         private func ask(_ change: Change) {
-            switch change {
-            case .scriptDialogAsked(let asked):
+            if case .scriptDialogAsked(let asked) = change {
                 guard let page = hosted[asked.pageID]?.page else {
                     guard !isAnotherEnginesPage(asked.pageID) else { return }
                     return answer(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
                 }
                 page.ask(asked, dismissal: dismissal(for: asked.promptID))
-            case .authenticationAsked(let asked):
+            }
+            if case .authenticationAsked(let asked) = change {
                 guard let page = hosted[asked.pageID]?.page else {
                     guard !isAnotherEnginesPage(asked.pageID) else { return }
                     return answer(AnswerAuthentication(promptID: asked.promptID, credential: nil))
                 }
                 page.ask(asked, dismissal: dismissal(for: asked.promptID))
-            case .permissionAsked(let asked):
+            }
+            if case .permissionAsked(let asked) = change {
                 guard let page = hosted[asked.pageID]?.page else {
                     guard !isAnotherEnginesPage(asked.pageID) else { return }
                     return answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
                 }
                 page.ask(asked, dismissal: dismissal(for: asked.promptID))
-            case .extensionInstallAsked(let asked):
+            }
+            if case .extensionInstallAsked(let asked) = change {
                 CrestChromiumRoot.extensions.review(asked) { [weak self] accepted, withholds in
                     self?.answer(
                         AnswerExtensionInstall(
                             promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
                 }
-            case .promptSettled(let settled):
+            }
+            if case .promptSettled(let settled) = change {
                 dismissals.removeValue(forKey: settled.promptID)?.dismiss()
-            default:
-                break
             }
         }
 
@@ -177,19 +181,11 @@
             hosted[native.pageID] = WeakNativePage(page: native)
         }
 
-        /// Hands a presentation to the page it names; one for a page that is
-        /// gone changes nothing.
-        private func present(_ presentation: EnginePresentation) {
-            switch presentation {
-            case .extensionsChanged: CrestChromiumRoot.extensions.refresh()
-            case .profilePrepared(let prepared):
-                preparations.removeValue(forKey: prepared.preparationID)?.resume(returning: prepared.ready)
-            case .profileReleased(let released): CrestChromiumRoot.profileReleased(released)
-            case .sidePanelRequested(let requested): CrestChromiumRoot.routeSidePanel(requested)
-            default:
-                guard let pageID = presentation.pageID else { return }
-                hosted[pageID]?.page?.receive(presentation)
-            }
+        /// The live page a presentation names. One for a page that is gone, or
+        /// that its owner let go, changes nothing.
+        func presentedPage(_ pageID: UUID) -> ChromiumNativePage? {
+            guard let page = hosted[pageID]?.page, !page.disposed else { return nil }
+            return page
         }
     }
 

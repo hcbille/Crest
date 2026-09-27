@@ -55,20 +55,19 @@ final class BrowserDownloadPrompts {
     /// Answers a question the core asks about a download, and closes an
     /// approval once the core settles it.
     private func ask(_ change: Change) {
-        switch change {
-        case .downloadDestinationAsked(let asked) where claims(asked.spaceID):
+        if case .downloadDestinationAsked(let asked) = change, claims(asked.spaceID) {
             choose(asked)
-        case .downloadApprovalAsked(let asked) where claims(asked.spaceID):
+        }
+        if case .downloadApprovalAsked(let asked) = change, claims(asked.spaceID) {
             let dismissal = BrowserPromptDismissal()
             dismissals[asked.promptID] = dismissal
             Task { @MainActor [weak self, approve] in
                 let approved = await approve(asked, dismissal)
                 self?.answer(AnswerDownloadApproval(promptID: asked.promptID, approved: approved))
             }
-        case .promptSettled(let settled):
+        }
+        if case .promptSettled(let settled) = change {
             dismissals.removeValue(forKey: settled.promptID)?.dismiss()
-        default:
-            break
         }
     }
 

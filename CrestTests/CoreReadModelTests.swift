@@ -25,10 +25,11 @@ final class CoreReadModelTests: XCTestCase {
         XCTAssertFalse(notifies({ _ = renamed.value }) { renamed.update(renamed.value) })
         XCTAssertFalse(
             notifies(core.state) {
-                core.state.apply(
-                    TabsChanged(
-                        workspaceID: store.window.workspaceID, spaceID: space.id, updated: space.tabs.values,
-                        removed: [], order: nil))
+                TabsChanged(
+                    workspaceID: store.window.workspaceID, spaceID: space.id, updated: space.tabs.values,
+                    removed: [], order: nil
+                )
+                .apply(to: core.state)
             })
 
         // A new custom title notifies the readers of that title and no one else.
@@ -210,37 +211,37 @@ final class CoreReadModelTests: XCTestCase {
         assertStoredFirst(
             "CoreState.workspaces", reading: { detached.workspaces[workspaceID] != nil },
             after: {
-                detached.apply(
-                    WorkspaceOpened(
-                        workspaceID: workspaceID, kind: .private,
-                        session: SessionState(
-                            spaces: [], defaultSpaceID: nil, disposableSeedMarker: nil, spaceDeletions: [],
-                            appPreferences: nil)))
+                WorkspaceOpened(
+                    workspaceID: workspaceID, kind: .private,
+                    session: SessionState(
+                        spaces: [], defaultSpaceID: nil, disposableSeedMarker: nil, spaceDeletions: [],
+                        appPreferences: nil)
+                ).apply(to: detached)
             })
         let windowID = UUID()
         assertStoredFirst(
             "CoreState.windows", reading: { detached.windows[windowID] != nil },
             after: {
-                detached.apply(
-                    WindowChanged(
-                        window: WindowState(
-                            id: windowID, workspaceID: workspaceID, shownSpaceID: UUID(), shownTabs: [],
-                            splitColumnShares: [], cards: [], unavailableCommands: [])))
+                WindowChanged(
+                    window: WindowState(
+                        id: windowID, workspaceID: workspaceID, shownSpaceID: UUID(), shownTabs: [],
+                        splitColumnShares: [], cards: [], unavailableCommands: [])
+                ).apply(to: detached)
             })
         let pageID = UUID()
         assertStoredFirst(
             "CoreState.pages", reading: { detached.pages[pageID] != nil },
             after: {
-                detached.apply(
-                    PageOpened(
-                        page: PageState(
-                            id: pageID, workspaceID: workspaceID, spaceID: UUID(), tabID: nil, engine: .webKit,
-                            phase: .opening, live: .blank)))
+                PageOpened(
+                    page: PageState(
+                        id: pageID, workspaceID: workspaceID, spaceID: UUID(), tabID: nil, engine: .webKit,
+                        phase: .opening, live: .blank)
+                ).apply(to: detached)
             })
         assertStoredFirst(
             "CoreState values", reading: { detached.storageFailure },
             after: {
-                detached.apply(StorageFailed(reason: .diskFull))
+                StorageFailed(reason: .diskFull).apply(to: detached)
             })
     }
 
@@ -263,7 +264,7 @@ final class CoreReadModelTests: XCTestCase {
     }
 
     private func apply(_ batch: [Change], to state: CoreState) {
-        for change in batch { state.apply(change) }
+        for change in batch { change.apply(to: state) }
         state.finishBatch()
     }
 

@@ -56,14 +56,14 @@ internal static class SwiftEmitter {
         foreach (var root in ContractRoot.All.Where(root => !root.PlatformSends)) EmitUnion(code, schema, root, equatable);
         code.Append("""
 
-            extension CoreState {
-                /// Applies one change through the hand-written applier for its type.
-                func apply(_ change: Change) {
-                    switch change {
+            extension Change {
+                /// Applies the change to the read model, as its own `apply(to:)` does.
+                @MainActor func apply(to state: CoreState) {
+                    switch self {
 
             """);
         foreach (var member in schema.Members(ContractRoot.Change))
-            code.Append($"        case .{Naming.SwiftMember(member.Name)}(let change): apply(change)\n");
+            code.Append($"        case .{Naming.SwiftMember(member.Name)}(let change): change.apply(to: state)\n");
         code.Append("        }\n    }\n}\n");
 
         var roots = new Dictionary<Type, (ContractRoot Root, ContractMember Member)>();
@@ -290,6 +290,11 @@ internal static class SwiftEmitter {
         if (root.HasAnswer) code.Append("    associatedtype Answer: Sendable\n");
         code.Append($"    func encode{root.Name}(into writer: inout WireWriter)\n");
         if (root.HasAnswer) code.Append("    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer\n");
+        if (root == ContractRoot.PageRequest) {
+            code.Append("    /// What WebKit answers, from the pages its binding holds; each request's\n");
+            code.Append("    /// own file says how.\n");
+            code.Append("    @MainActor func answer(on pages: WebKitEnginePages) -> Answer\n");
+        }
         code.Append("}\n");
     }
 
@@ -309,6 +314,18 @@ internal static class SwiftEmitter {
             foreach (var member in carriers)
                 code.Append($"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}\n");
             if (carriers.Count < members.Count) code.Append("        default: nil\n");
+            code.Append("        }\n    }\n");
+        }
+        foreach (var (family, field) in schema.Facts(root)) {
+            string property = Naming.SwiftIdentifier(Naming.SwiftMember(field.Name));
+            var others = members.Where(member => !family.IsAssignableFrom(member.Record.Type)).ToList();
+            code.Append('\n').Append($"    /// The `{field.Name}` every member of the core's `{family.Name}` carries")
+                .Append(others.Count > 0 ? ", or nil for any other.\n" : ".\n");
+            code.Append($"    var {property}: {TypeName(field.Type)}{(others.Count > 0 ? "?" : "")} {{\n        switch self {{\n");
+            if (others.Count > 0)
+                code.Append($"        case {string.Join(", ", others.Select(member => $".{Naming.SwiftMember(member.Name)}"))}: nil\n");
+            foreach (var member in members.Where(member => family.IsAssignableFrom(member.Record.Type)))
+                code.Append($"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}\n");
             code.Append("        }\n    }\n");
         }
         code.Append("}\n");
