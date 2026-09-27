@@ -16,7 +16,11 @@ the area that receives it:
 
 The folders keep the layering the separate projects had: domain code uses
 only the contracts, and the contracts use neither the domain nor the
-application.
+application. The one exception is a message that carries its own behavior,
+such as a page intent: its record keeps the `CrestCore.Contracts` namespace,
+has its own file beside the area that receives it (`Application/Pages/Intents`
+and `Events` beside `Pages`), and overrides the method its family declares
+with its own logic.
 
 Source folders follow the browser concepts they own. In the domain, `Tabs`
 contains tab state and its batch, lifecycle, and organization rules; `Spaces`

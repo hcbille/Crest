@@ -158,7 +158,7 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
                     device.Handle(flow, changes, ids);
                     break;
                 case PageIntent page:
-                    pages.Handle(page, changes, Issue);
+                    pages.Handle(page, new PageTurn(changes, Issue));
                     PublishEngines(changes.Publish);
                     break;
                 case DataDeletionIntent deletion:
@@ -167,8 +167,8 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
                 case SessionIntent session:
                     if (session is FinishDeletingSpace finishing) RequireErased(finishing);
                     device.Workspace(session.WorkspaceId).Handle(session, clock.Now, ids, pages);
-                    if (session is PromoteTransientPage promoted) pages.Completed(promoted.PageId);
-                    else if (session is ArchiveTransientPage archived) pages.Completed(archived.PageId);
+                    if (session is PromoteTransientPage promoted) pages.ForgetUnloaded(promoted.PageId);
+                    else if (session is ArchiveTransientPage archived) pages.ForgetUnloaded(archived.PageId);
                     // A deleted Space leaves nothing in this device's link preferences.
                     else if (session is FinishDeletingSpace deleted) device.ForgetLinks(deleted.SpaceId, changes);
                     // An applied manual setup ends.

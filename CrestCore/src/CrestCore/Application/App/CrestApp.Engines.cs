@@ -84,7 +84,11 @@ public sealed partial class CrestApp {
             } else if (DataDeletions.Concerns(report)) {
                 dataDeletions.Report(engine, report, changes);
             } else {
-                pages.Report(engine, report, changes, Issue);
+                // Every other report is about pages.
+                var turn = new PageTurn(changes, Issue);
+                if (report is PageEvent pageReport) pages.Report(pageReport, engine, turn);
+                else if (report is PageOffered offer) offer.Apply(pages, engine, turn);
+                else throw new ArgumentOutOfRangeException(nameof(report), report.GetType().Name, "No area handles this report.");
                 // A report that moved a page to another engine, or offered one
                 // that may be the first a registered engine hosts, changes what
                 // the engines offer.

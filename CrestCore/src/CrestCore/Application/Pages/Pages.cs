@@ -3,6 +3,15 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one page intent or engine report needs: where it publishes what it
+/// changed, and where it hands the engine commands it causes, which reach
+/// their engines once the core lets go of its lock.
+internal sealed record PageTurn(ChangeFeed Changes, Action<Engine, EngineCommand> Issue);
+
+#endregion
+
 /// The pages this device hosts: which tab or transient request owns each, the
 /// window that hosts it, the engine that hosts it and the live state its
 /// engine reports. Never saved or synced. The platform decides when a page
@@ -19,9 +28,18 @@ namespace CrestCore.Application;
 /// and never opens its own; each iPad scene keeps pages of its own, so two
 /// scenes showing one tab each host a page for it.
 ///
-/// A page's report is stamped with the core's `clock`, and a visit it records
-/// takes its identity from `ids`.
-internal sealed partial class Pages(Device device, Engines engines, IClock clock, IIdSource ids) {
+/// Each page intent and engine report carries its own logic, which reads and
+/// changes the pages through the state and rules kept here. A page's report
+/// is stamped with the core's `clock`, and a visit it records takes its
+/// identity from `ids`.
+internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSource ids) {
+    #region Static Variables
+
+    /// The most restore states the core holds; past it, the oldest goes.
+    private const int MaximumRestoreStates = 64;
+
+    #endregion
+
     #region Variables
 
     private readonly Dictionary<Guid, Page> open = [];
@@ -39,9 +57,23 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
     /// The pages asked to close keeping their state, until their engine says
     /// they are gone.
     private readonly Dictionary<Guid, (Engine Engine, Guid WorkspaceId, Guid SpaceId, Guid TabId)> keeping = [];
-    /// The most restore states the core holds; past it, the oldest goes.
-    private const int MaximumRestoreStates = 64;
     private readonly List<(Guid WorkspaceId, Guid TabId)> restoreOrder = [];
+
+    /// The device whose workspaces and windows the pages belong to, and whose
+    /// site choices pick their engines.
+    internal Device Device => device;
+
+    /// The engines pages open on.
+    internal Engines Engines => engines;
+
+    /// The core's clock, which stamps what a page records.
+    internal IClock Clock => clock;
+
+    /// Where what a page records takes its identity.
+    internal IIdSource Ids => ids;
+
+    /// Every page the core hosts.
+    public IReadOnlyCollection<Page> All => open.Values;
 
     /// The engines a page is open on.
     public IReadOnlySet<EngineKind> HostingEngines => open.Values.Select(page => page.Engine.Kind).ToHashSet();
@@ -52,143 +84,49 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
 
     #endregion
 
-    #region Actions - Intents
+    #region Actions - Messages
 
-    /// Runs one page intent, publishing what it changed to `changes` and
-    /// handing the engine commands it causes to `issue`, which delivers them
-    /// once the core lets go of its lock.
-    public void Handle(PageIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(issue);
-        switch (intent) {
-            case OpenPage opening: Open(opening, changes, issue); break;
-            case MovePage moving: Move(moving, changes); break;
-            case RehostPage rehosting: Rehost(rehosting, changes, issue); break;
-            case ReleasePage releasing: Release(releasing, changes, issue); break;
-            case Navigate navigation: Load(navigation, changes, issue); break;
-            case LeavePageFailure leaving: LeaveFailure(leaving, changes); break;
-            case ReportMemoryPressure pressure: Relieve(pressure.Level, changes, issue); break;
-            case StageLink staging: Stage(staging, issue); break;
-            case DiscardStagedLink discarding: Discard(discarding, issue); break;
-            default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Pages do not handle this intent.");
-        }
-    }
+    /// Runs one page intent, which publishes what it changed to the turn's
+    /// `Changes` and hands the engine commands it causes to its `Issue`.
+    public void Handle(PageIntent intent, PageTurn turn) => intent.Apply(this, turn);
 
-    private void Open(OpenPage intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        if (open.ContainsKey(intent.PageId)) throw new Rejected(new DuplicatePage(intent.PageId));
-        var workspace = device.Workspace(intent.WorkspaceId);
-        device.Opened(intent.WindowId);
-        var space = Hosting(workspace, intent.SpaceId);
-        RequireUnowned(intent.WorkspaceId, intent.WindowId, intent.TabId, moving: null);
-        var tab = space.Tabs.FirstOrDefault(held => held.Id == intent.TabId);
-        var engine = Chosen(space, tab) ?? engines.Default ?? throw new Rejected(new EngineNotRegistered());
-        var page = new Page(intent.PageId, engine, space.ProfileId, intent.WorkspaceId, space.Id, intent.TabId, intent.WindowId,
-            intent.Transient);
-        open[page.Id] = page;
-        var restore = intent.TabId is { } tabId ? Restorable(intent.WorkspaceId, space, tabId, engine.Kind) : null;
-        if (restore is not null) page.Restoring(restore.Url);
-        changes.Publish(new PageOpened(page.State));
-        issue(engine, new CreatePage(page.Id, page.ProfileId, workspace.IsPrivateBrowsing, page.WindowId, restore));
-    }
+    /// Applies what `engine` saw happen to one of its pages. A report about a
+    /// page the core no longer knows, one another engine hosts, or one that
+    /// would move a page backwards changes nothing. What the engine shows, a
+    /// failure and a commit that ends it change the page's live state, which
+    /// is published only when it differs. A finished navigation is recorded
+    /// once per document in the Space the page lives in, and an icon reported
+    /// for a recorded document goes to the page's tab; either waits while a
+    /// transaction holds the workspace's session. A page whose renderer
+    /// stopped comes back by the core's crash recovery.
+    public void Report(PageEvent report, Engine engine, PageTurn turn) => report.Apply(this, engine, turn);
 
-    private void Move(MovePage intent, ChangeFeed changes) {
-        var page = Known(intent.PageId);
-        var workspace = device.Workspace(intent.WorkspaceId);
-        device.Opened(intent.WindowId);
-        var space = Hosting(workspace, intent.SpaceId);
-        if (space.ProfileId != page.ProfileId) throw new Rejected(new PageProfileMismatch(page.Id, space.Id));
-        RequireUnowned(intent.WorkspaceId, intent.WindowId, intent.TabId, moving: page);
-        var before = page.State;
-        page.Move(intent.WorkspaceId, space.Id, intent.TabId, intent.WindowId);
-        if (page.State != before) changes.Publish(new PageChanged(page.State));
-    }
+    #endregion
 
-    /// The page is gone at once, so its tab may open another straight away;
-    /// the engine closes what it still holds afterwards. A Quick Window's or
-    /// Peek's page its owner unloaded, keeping what it needs to bring it back,
-    /// leaves what it showed last; releasing it again for good forgets that.
-    private void Release(ReleasePage intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        if (!open.Remove(intent.PageId, out var page)) {
-            if (!unloaded.ContainsKey(intent.PageId)) throw new Rejected(new UnknownPage(intent.PageId));
-            if (!intent.KeepsState) unloaded.Remove(intent.PageId);
-            return;
-        }
-        if (page.TabId is null && intent.KeepsState) unloaded[page.Id] = Transient(page) with { MovesBetweenWindows = false };
-        changes.Publish(new PageRemoved(page.Id));
-        if (page.Phase.HoldsEnginePage) Close(page, intent.KeepsState, issue);
-    }
-
-    /// Resolves what the person asked for by the address rules of the page's
-    /// Space and engine, shows the page heading there at once, and asks its
-    /// engine to load it. A load to a site chosen for another registered
-    /// engine moves the page there, which loads it instead.
-    private void Load(Navigate intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        var page = Known(intent.PageId);
-        if (!page.Phase.HoldsEnginePage) throw new Rejected(new PageNotLoadable(page.Id));
-        var space = Hosting(device.Workspace(page.WorkspaceId), page.SpaceId);
-        var url = AddressResolution.Loading(intent.Input, space.Settings.BrowsingPreferences,
-            page.Engine.Supports(EngineCapability.InternalPages));
-        if (Chosen(space, url) is { } chosen && !ReferenceEquals(chosen, page.Engine)) {
-            Rehost(page, chosen, url, RehostReason.SiteChoice, changes, issue);
-            return;
-        }
-        Update(page, changes, () => page.Load(url));
-        issue(page.Engine, new LoadPage(page.Id, url));
-    }
-
-    /// Moves the page to the engine the person asked for, which loads the
-    /// address it shows.
-    private void Rehost(RehostPage intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        var page = Known(intent.PageId);
-        Hosting(device.Workspace(page.WorkspaceId), page.SpaceId);
-        var engine = engines.Registered(intent.Engine) ?? throw new Rejected(new UnregisteredEngine(intent.Engine));
-        if (!ReferenceEquals(engine, page.Engine)) Rehost(page, engine, page.Live.Address, RehostReason.PersonAsked, changes, issue);
-    }
+    #region Actions - Engines
 
     /// Closes the page on its engine, keeping nothing, and creates it on
     /// `engine`, which loads `address` once it has created it, then publishes
     /// the move and why it happened.
-    private void Rehost(Page page, Engine engine, string? address, RehostReason reason, ChangeFeed changes,
-        Action<Engine, EngineCommand> issue) {
+    internal void Rehost(Page page, Engine engine, string? address, RehostReason reason, PageTurn turn) {
         var from = page.Engine;
-        if (page.Phase.HoldsEnginePage) issue(from, new ClosePage(page.Id, KeepsState: false));
-        Update(page, changes, () => page.Rehost(engine, address, reason));
-        issue(engine, new CreatePage(page.Id, page.ProfileId, device.Workspace(page.WorkspaceId).IsPrivateBrowsing, page.WindowId,
+        if (page.Phase.HoldsEnginePage) turn.Issue(from, new ClosePage(page.Id, KeepsState: false));
+        Update(page, turn.Changes, () => page.Rehost(engine, address, reason));
+        turn.Issue(engine, new CreatePage(page.Id, page.ProfileId, device.Workspace(page.WorkspaceId).IsPrivateBrowsing, page.WindowId,
             RestoreState: null));
-        changes.Publish(new PageRehosted(page.Id, page.SpaceId, address is null ? null : new WebAddress(address).Origin, from.Kind,
+        turn.Changes.Publish(new PageRehosted(page.Id, page.SpaceId, address is null ? null : new WebAddress(address).Origin, from.Kind,
             engine.Kind, reason));
-    }
-
-    /// Moves a page that asked for protected media its engine cannot play to
-    /// an engine that plays it through the platform, and opens the page's
-    /// site there from then on. Nothing moves when no other engine plays it,
-    /// when the page moved for this once already, so it never bounces between
-    /// engines, when its document is not a web page's, or when its site has an
-    /// engine chosen for it, as a person who moved it back chose.
-    private void PlayProtectedMedia(Page page, SpaceState space, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        if (page.MovedFor(RehostReason.ProtectedMedia) || engines.PlayingProtectedMedia(page.Engine) is not { } fallback
-            || page.DocumentAddress is not { } address || new WebAddress(address).Origin is not { } origin
-            || device.ChosenEngine(space.Id, origin) is not null)
-            return;
-        device.Choose(space.Id, origin, fallback.Kind);
-        Rehost(page, fallback, address, RehostReason.ProtectedMedia, changes, issue);
     }
 
     /// The registered engine chosen for the site `tab` shows, or null when
     /// none is, or for a page without a tab, which opens before it has an
     /// address.
-    private Engine? Chosen(SpaceState space, TabState? tab) => tab?.Url is { } url ? Chosen(space, url) : null;
+    internal Engine? Chosen(SpaceState space, TabState? tab) => tab?.Url is { } url ? Chosen(space, url) : null;
 
     /// The registered engine chosen in `space` for the site `url` belongs to,
     /// or null when none is.
-    private Engine? Chosen(SpaceState space, string url) =>
+    internal Engine? Chosen(SpaceState space, string url) =>
         new WebAddress(url).Origin is { } origin && device.ChosenEngine(space.Id, origin) is { } kind ? engines.Registered(kind) : null;
-
-    private void LeaveFailure(LeavePageFailure intent, ChangeFeed changes) {
-        var page = Known(intent.PageId);
-        Update(page, changes, page.LeaveFailure);
-    }
 
     #endregion
 
@@ -247,90 +185,6 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
 
     #region Actions - Reports
 
-    /// Applies what an engine saw happen to one of its pages. A report about a
-    /// page the core no longer knows, one another engine hosts, or one that
-    /// would move a page backwards changes nothing. What the engine shows, a
-    /// failure and a commit that ends it change the page's live state, which
-    /// is published only when it differs. A finished navigation is recorded
-    /// once per document in the Space the page lives in, and an icon reported
-    /// for a recorded document goes to the page's tab; either waits while a
-    /// transaction holds the workspace's session.
-    ///
-    /// A page whose renderer stopped comes back by the core's crash recovery,
-    /// which hands the engine command it causes to `issue`.
-    public void Report(Engine engine, EngineEvent report, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        ArgumentNullException.ThrowIfNull(engine);
-        ArgumentNullException.ThrowIfNull(report);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(issue);
-        if (report is PageOffered offer) {
-            Offered(engine, offer, changes, issue);
-            return;
-        }
-        if (report is PageClosed closedKeeping && keeping.Remove(closedKeeping.PageId, out var kept) && ReferenceEquals(kept.Engine, engine)
-            && closedKeeping.RestoreState is { } restoreState)
-            Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, engine.Kind, restoreState);
-        var pageId = report switch {
-            PageCreated created => created.PageId,
-            PageCreationFailed failed => failed.PageId,
-            PageClosed closed => closed.PageId,
-            NavigationStarted started => started.PageId,
-            NavigationCommitted committed => committed.PageId,
-            NavigationFinished finished => finished.PageId,
-            NavigationFailed failed => failed.PageId,
-            ProtectedMediaUnavailable unavailable => unavailable.PageId,
-            PageIconChanged icon => icon.PageId,
-            PageStateChanged state => state.PageId,
-            PageCrashed crashed => crashed.PageId,
-            StagedLinkUnavailable unavailable => unavailable.PageId,
-            _ => throw new ArgumentOutOfRangeException(nameof(report), report.GetType().Name, "Pages do not handle this report.")
-        };
-        if (!open.TryGetValue(pageId, out var page) || !ReferenceEquals(page.Engine, engine)) return;
-        switch (report) {
-            case PageCreated:
-                Enter(page, PagePhase.Live, changes);
-                if (page.TakeRehostedAddress() is { } address) issue(page.Engine, new LoadPage(page.Id, address));
-                break;
-            case PageCreationFailed: Enter(page, PagePhase.Failed, changes); break;
-            case PageClosed: Enter(page, PagePhase.Closed, changes); break;
-            // A navigation to another document of a site chosen for another
-            // registered engine moves the page there, which loads it instead.
-            // Otherwise nothing is recorded until the navigation finishes.
-            case NavigationStarted { SameDocument: false } started
-                when Shown(page) is { } space && Chosen(space, started.Url) is { } chosen && !ReferenceEquals(chosen, page.Engine):
-                Rehost(page, chosen, started.Url, RehostReason.SiteChoice, changes, issue);
-                break;
-            case NavigationStarted: break;
-            case ProtectedMediaUnavailable when page.Phase == PagePhase.Live && Shown(page) is { } space:
-                PlayProtectedMedia(page, space, changes, issue);
-                break;
-            case ProtectedMediaUnavailable: break;
-            case NavigationCommitted committed:
-                Update(page, changes, () => page.Commit(committed.Url, committed.SameDocument));
-                break;
-            case NavigationFinished finished when page.Finish(finished.Url):
-                Edit(page, new NavigationRecord(page.Id, page.SpaceId, clock.Now, page.TabId, finished.Url, finished.Title, page.Icon,
-                    ids.Next()), changes);
-                break;
-            case NavigationFinished: break;
-            case NavigationFailed failed: Update(page, changes, () => page.Fail(failed.Failure)); break;
-            case PageIconChanged reported when page.ShowIcon(new(reported.Url, reported.Accent)) && page.TabId is { } tabId:
-                Edit(page, new IconAdoption(page.Id, page.SpaceId, clock.Now, tabId, page.Icon!), changes);
-                break;
-            case PageIconChanged: break;
-            case PageStateChanged reported: Update(page, changes, () => page.Show(reported.Snapshot)); break;
-            case PageCrashed crashed when page.Phase == PagePhase.Live:
-                var recovers = false;
-                Update(page, changes, () => recovers = page.Crash(IsShown(page), crashed.Domain, crashed.Code));
-                if (recovers) issue(page.Engine, new RecoverPage(page.Id));
-                break;
-            case PageCrashed: break;
-            // A stale link is never retried as a bare address, so the page
-            // stops heading there and shows what it had.
-            case StagedLinkUnavailable: Update(page, changes, page.CancelLoad); break;
-        }
-    }
-
     /// Brings back each page whose renderer stopped while nobody saw it and
     /// that a window now shows, or shows its failure once the recovery budget
     /// is spent.
@@ -347,23 +201,23 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
     /// Whether a window shows the page: a Quick Window's or Peek's page always,
     /// a tab's page when a window over its workspace shows the tab or a split
     /// it belongs to.
-    private bool IsShown(Page page) => page.TabId is not { } tabId || device.Shows(page.WorkspaceId, page.SpaceId, tabId);
+    internal bool IsShown(Page page) => page.TabId is not { } tabId || device.Shows(page.WorkspaceId, page.SpaceId, tabId);
 
     /// Applies `update` to the page, and publishes the page when that changed
     /// what readers see of it.
-    private static void Update(Page page, ChangeFeed changes, Action update) {
+    internal void Update(Page page, ChangeFeed changes, Action update) {
         var before = page.State;
         update();
         if (page.State != before) changes.Publish(new PageChanged(page.State));
     }
 
-    private static void Enter(Page page, PagePhase next, ChangeFeed changes) {
+    internal void Enter(Page page, PagePhase next, ChangeFeed changes) {
         if (page.Enter(next)) changes.Publish(new PageChanged(page.State));
     }
 
     /// Applies a page's edit to the session of the workspace it lives in; a
     /// workspace that is gone takes nothing.
-    private void Edit(Page page, PageEdit edit, ChangeFeed changes) {
+    internal void Edit(Page page, PageEdit edit, ChangeFeed changes) {
         if (device.Attached(page.WorkspaceId) is not { } workspace) return;
         foreach (var change in workspace.Apply(edit)) changes.Publish(change);
     }
@@ -371,31 +225,6 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
     #endregion
 
     #region Actions - Residency
-
-    /// Unloads the pages memory pressure may take back: off screen, live on
-    /// an engine that can bring them back, showing a document, owned by a tab
-    /// that does not keep its page loaded, and running no media. A page that
-    /// has shown no document yet stays: nothing of it could come back, and a
-    /// popup waiting for its first document would lose the page that opened
-    /// it. The pages off screen longest go first, as many as the device's
-    /// platform gives back at `level`.
-    private void Relieve(MemoryPressureLevel level, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        Stamp(clock.Now);
-        const PageMediaActivity keepsLoaded = PageMediaActivity.Playing | PageMediaActivity.Capturing | PageMediaActivity.PictureInPicture;
-        var candidates = open.Values
-            .Where(page => page.TabId is not null && page.Phase == PagePhase.Live && page.HiddenSince is not null
-                && page.Live.Url is not null && page.Engine.Supports(EngineCapability.PageResidency)
-                && (page.Live.Media & keepsLoaded) == 0
-                && Tab(page) is { KeepsPageLoaded: false })
-            .OrderBy(page => page.HiddenSince).ThenBy(page => page.Id)
-            .ToArray();
-        foreach (var page in candidates.Take(device.Platform.ReleaseLimit(level, candidates.Length))) {
-            open.Remove(page.Id);
-            changes.Publish(new PageRemoved(page.Id));
-            changes.Publish(new PageUnloaded(page.Id, page.WorkspaceId, page.TabId!.Value));
-            Close(page, keepsState: true, issue);
-        }
-    }
 
     /// Stamps each tab's page with whether a window shows it now.
     public void Stamp(DateTimeOffset now) {
@@ -416,15 +245,23 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
 
     /// Asks the engine to close the page. A tab's page closed keeping its
     /// state hands back what brings it back, which the tab keeps.
-    private void Close(Page page, bool keepsState, Action<Engine, EngineCommand> issue) {
+    internal void Close(Page page, bool keepsState, Action<Engine, EngineCommand> issue) {
         if (keepsState && page.TabId is { } tabId) keeping[page.Id] = (page.Engine, page.WorkspaceId, page.SpaceId, tabId);
         issue(page.Engine, new ClosePage(page.Id, keepsState));
+    }
+
+    /// The page `pageId` names closed on `engine`, handing back `state`. When
+    /// the core asked that engine to close it keeping its state, its tab
+    /// keeps what it handed back for the tab's next page.
+    internal void KeepRestoreState(Guid pageId, Engine engine, PageRestoreState? state) {
+        if (keeping.Remove(pageId, out var kept) && ReferenceEquals(kept.Engine, engine) && state is { } restoreState)
+            Keep((kept.WorkspaceId, kept.TabId), kept.SpaceId, engine.Kind, restoreState);
     }
 
     /// What the tab kept for its next page, taken once, when the tab still
     /// shows the address it kept and the page opens on the engine that kept
     /// it. What it kept for another address or engine is dropped.
-    private PageRestoreState? Restorable(Guid workspaceId, SpaceState space, Guid tabId, EngineKind engine) {
+    internal PageRestoreState? Restorable(Guid workspaceId, SpaceState space, Guid tabId, EngineKind engine) {
         var key = (workspaceId, tabId);
         if (!restoreStates.TryGetValue(key, out var kept)) return null;
         Forget(key);
@@ -446,11 +283,11 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
     }
 
     /// The tab a page belongs to, as its Space holds it now.
-    private TabState? Tab(Page page) => page.TabId is { } tabId ? Held(page.WorkspaceId, page.SpaceId, tabId) : null;
+    internal TabState? Tab(Page page) => page.TabId is { } tabId ? Held(page.WorkspaceId, page.SpaceId, tabId) : null;
 
     /// The Space a page lives in, while its workspace is attached, the Space
     /// is not being deleted and this process may show it; null otherwise.
-    private SpaceState? Shown(Page page) =>
+    internal SpaceState? Shown(Page page) =>
         device.Attached(page.WorkspaceId) is { } workspace && !workspace.IsDeleting(page.SpaceId)
             && workspace.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId) is { } space && !workspace.IsLocked(space)
             ? space : null;
@@ -468,10 +305,19 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
     /// The page `pageId` names while the core hosts it, or null.
     public Page? Hosted(Guid pageId) => open.GetValueOrDefault(pageId);
 
-    /// Every page the core hosts.
-    public IReadOnlyCollection<Page> All => open.Values;
+    /// Whether the core hosts the page `pageId` names.
+    internal bool IsOpen(Guid pageId) => open.ContainsKey(pageId);
 
-    private Page Known(Guid pageId) => open.TryGetValue(pageId, out var page) ? page : throw new Rejected(new UnknownPage(pageId));
+    /// The core hosts `page` from now on.
+    internal void Add(Page page) => open[page.Id] = page;
+
+    /// The core no longer hosts the page `pageId` names, which it answers, or
+    /// null when it hosted no such page.
+    internal Page? Remove(Guid pageId) => open.Remove(pageId, out var page) ? page : null;
+
+    /// The page `pageId` names, refused with `UnknownPage` when the core does
+    /// not host it.
+    internal Page Known(Guid pageId) => open.TryGetValue(pageId, out var page) ? page : throw new Rejected(new UnknownPage(pageId));
 
     /// The Quick Window or Peek page `pageId` names, as it is or as it was
     /// when its owner unloaded it, or null when this device hosts no such page
@@ -481,17 +327,27 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
         ? page.TabId is null ? Transient(page) : null
         : unloaded.GetValueOrDefault(pageId);
 
-    /// Forgets an unloaded Quick Window or Peek page the session kept or
-    /// archived.
-    public void Completed(Guid pageId) => unloaded.Remove(pageId);
+    /// Whether the core remembers what the Quick Window or Peek page `pageId`
+    /// names showed when its owner unloaded it.
+    internal bool RemembersUnloaded(Guid pageId) => unloaded.ContainsKey(pageId);
 
-    private static TransientPage Transient(Page page) => new(page.Id, page.WorkspaceId, page.SpaceId, page.ProfileId,
+    /// Remembers what a Quick Window or Peek page showed when its owner
+    /// unloaded it.
+    internal void RememberUnloaded(TransientPage page) => unloaded[page.Id] = page;
+
+    /// Forgets an unloaded Quick Window or Peek page the session kept or
+    /// archived, or its owner released for good.
+    public void ForgetUnloaded(Guid pageId) => unloaded.Remove(pageId);
+
+    /// What a Quick Window's or Peek's page shows, as its window keeps or
+    /// archives it.
+    internal TransientPage Transient(Page page) => new(page.Id, page.WorkspaceId, page.SpaceId, page.ProfileId,
         page.Engine.Supports(EngineCapability.WorkspaceTransfer), page.Live.Address, page.Live.Title);
 
     /// The Space a page may live in: one the workspace holds, that is not
     /// being deleted, here or in the workspace a borrowed one borrows from, and
     /// that this process may show.
-    private static SpaceState Hosting(NativeSessionAuthority workspace, Guid spaceId) {
+    internal SpaceState Hosting(NativeSessionAuthority workspace, Guid spaceId) {
         var space = workspace.Current.Spaces.FirstOrDefault(space => space.Id == spaceId) ?? throw new Rejected(new UnknownSpace(spaceId));
         if (workspace.IsDeleting(spaceId)) throw new Rejected(new SpaceBeingDeleted(spaceId));
         if (workspace.IsLocked(space)) throw new Rejected(new SpaceLocked(spaceId));
@@ -502,7 +358,7 @@ internal sealed partial class Pages(Device device, Engines engines, IClock clock
     /// the tab is not checked yet: selection can present a tab before the
     /// core's session has it, and an `UnknownTab` rejection arrives with the
     /// session intents.
-    private void RequireUnowned(Guid workspaceId, Guid windowId, Guid? tabId, Page? moving) {
+    internal void RequireUnowned(Guid workspaceId, Guid windowId, Guid? tabId, Page? moving) {
         if (tabId is not { } tab) return;
         if (open.Values.FirstOrDefault(page => page != moving && page.WorkspaceId == workspaceId && page.WindowId == windowId
             && page.TabId == tab) is { } owner)

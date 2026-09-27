@@ -108,8 +108,15 @@ for `EnginePage` lists every direct engine call.
 
    A nested `Kinds` enum is used only where a switch cannot be avoided. Plain
    enums remain only for sets whose members carry nothing. Unions of message
-   types (changes, events, rejections) are not fixed sets, so the one place
-   that handles them switches over them. Capability sets are flags. No
+   types (intents, queries, events, changes) are not fixed sets, and no switch,
+   handler interface or generated dispatch picks their cases. Each message
+   carries its own behavior: its family's base record declares an abstract
+   method that takes its receiver and a small context record (`Apply`, or
+   `Answer` for a query), each case overrides it in its own file beside the
+   receiver, and the receiver's whole dispatcher is `intent.Apply(this, turn)`.
+   A case without its logic does not compile. A fact that only tells cases
+   apart, such as the page an event names, is a property of the family. Page
+   intents and page events work this way. Capability sets are flags. No
    capability is a string.
 4. Identifiers are plain `Guid` in C# and `UUID` in Swift, and they appear only
    at boundaries. Inside the core, methods take the objects themselves

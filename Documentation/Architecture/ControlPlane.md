@@ -523,6 +523,16 @@ engine's page. Typed addresses, the command palette, Open Location and every
 first load go through `Navigate`, which the core resolves by the Space's
 address and search rules before it issues `LoadPage`.
 
+Each page intent and each engine report about a page carries its own logic.
+`PageIntent` declares `Apply(Pages, PageTurn)` and `PageEvent`
+`Apply(Pages, Page, PageTurn)`, where `PageTurn` holds the change feed and the
+engine commands the message causes. Every case overrides it in its own file
+under `Application/Pages/Intents` or `Events`, so a case without its logic does
+not compile. `Pages` keeps the open pages, the restore states and the rules
+they share, internal to the core, and its dispatchers hand it to each message:
+`intent.Apply(this, turn)`. A report reads its page once; one about a page the
+core no longer hosts, or that another engine hosts, changes nothing.
+
 - **Offered pages.** A page an engine opens by itself, such as a
   `window.open` popup or an extension's `chrome.windows.create`, arrives as
   `PageOffered`, and the core decides where it goes. A transient page keeps
