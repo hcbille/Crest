@@ -16,7 +16,8 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
         var answer: (accepted: Bool, text: String?)?
 
         opened.webKit.ask(
-            ScriptDialogQuestion(kind: .prompt, message: "Name?", defaultText: "", sourceURL: "https://prompt.crest.test/")
+            ScriptDialogQuestion(
+                kind: .prompt, message: "Name?", defaultText: "", sourceURL: "https://prompt.crest.test/")
         ) { answer = ($0, $1) }
         browser.core.drain()
         let asked = try XCTUnwrap(host.asked.first)
@@ -35,7 +36,8 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
         opened.webKit.presenter = host
         var answer: (accepted: Bool, text: String?)?
         opened.webKit.ask(
-            ScriptDialogQuestion(kind: .confirm, message: "Sure?", defaultText: "", sourceURL: "https://confirm.crest.test/")
+            ScriptDialogQuestion(
+                kind: .confirm, message: "Sure?", defaultText: "", sourceURL: "https://confirm.crest.test/")
         ) { answer = ($0, $1) }
         browser.core.drain()
         XCTAssertEqual(host.asked.count, 1)
@@ -54,7 +56,8 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
         var answer: AuthenticationCredential??
         opened.webKit.ask(
             AuthenticationQuestion(
-                url: "https://sign-in.crest.test/", host: "sign-in.crest.test", port: 443, realm: "Staff", scheme: .basic,
+                url: "https://sign-in.crest.test/", host: "sign-in.crest.test", port: 443, realm: "Staff",
+                scheme: .basic,
                 isProxy: false, previousFailures: 0)
         ) { answer = .some($0) }
         browser.core.drain()
@@ -73,7 +76,9 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
         opened.webKit.presenter = host
         let origin = SiteOrigin(scheme: "https", host: "camera.crest.test", port: 443)
         var answer: Bool?
-        opened.webKit.ask(PermissionQuestion(permission: .camera, origin: origin, topLevelOrigin: origin)) { answer = $0 }
+        opened.webKit.ask(PermissionQuestion(permission: .camera, origin: origin, topLevelOrigin: origin)) {
+            answer = $0
+        }
         browser.core.drain()
         let asked = try XCTUnwrap(host.permissions.first)
         XCTAssertEqual(asked.question.permission, .camera)
@@ -89,7 +94,7 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
         let space = SpaceState.Seed(name: "Prompts", symbol: "circle", accent: .indigo, tabs: [tab])
         let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let opened = try XCTUnwrap(
-            browser.openWebKitPage(in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
+            browser.openWebKitPage(in: space.id, for: tab.id))
         return (browser, opened)
     }
 }

@@ -4,12 +4,15 @@
     extension CrestCore {
         /// A memory-only core that hosts pages the way the app composes one, for
         /// tests: WebKit is registered as its default engine, erasing its
-        /// profiles' stores with `profileStores`.
+        /// profiles' stores with `profileStores` and compiling its pages'
+        /// content rules with `contentRuleLists`, or as the launch allows.
         static func hostingPages(
-            profileStores: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover()
+            profileStores: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
+            contentRuleLists: (any BrowserContentRuleListProviding)? = nil
         ) -> CrestCore {
             let core = CrestCore()
-            core.engines.register(WebKitEngineBinding(profileStores: profileStores), isDefault: true)
+            core.engines.register(
+                WebKitEngineBinding(profileStores: profileStores, contentRuleLists: contentRuleLists), isDefault: true)
             return core
         }
     }
@@ -54,12 +57,12 @@
         }
 
         /// Opens a page through the core for `tabID` in `spaceID`, and answers
-        /// it with the page WebKit built from `webKit`, for a test that hosts
-        /// the page itself. Nil when a rule refuses it.
+        /// it with the page WebKit built, as a popup `popup` names when given,
+        /// for a test that hosts the page itself. Nil when a rule refuses it.
         func openWebKitPage(
-            in spaceID: SpaceID, for tabID: TabID?, webKit: WebKitPageInputs = WebKitPageInputs()
+            in spaceID: SpaceID, for tabID: TabID?, popup: WebKitPopup? = nil
         ) -> (core: CorePage, webKit: WebKitEnginePage)? {
-            guard let opened = openPage(in: spaceID, for: tabID, webKit: webKit) else { return nil }
+            guard let opened = openPage(in: spaceID, for: tabID, popup: popup) else { return nil }
             guard let page = opened.built as? WebKitEnginePage else {
                 preconditionFailure("A test opened a page on an engine other than WebKit.")
             }

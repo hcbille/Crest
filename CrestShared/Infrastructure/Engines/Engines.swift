@@ -19,14 +19,19 @@ final class Engines {
     /// engine to create it.
     final class PageRequest {
         let page: CorePage
-        /// What WebKit's binding builds the page from when WebKit hosts it.
-        let webKit: WebKitPageInputs
+        /// What the platform asked for: the page's workspace, Space, tab and
+        /// window.
+        let intent: OpenPage
+        /// The popup WebKit made that the page is, which WebKit's binding
+        /// builds the page from as given.
+        let popup: WebKitPopup?
         /// What the engine's binding built for the platform to host.
         var built: AnyObject?
 
-        init(page: CorePage, webKit: WebKitPageInputs) {
+        init(page: CorePage, intent: OpenPage, popup: WebKitPopup?) {
             self.page = page
-            self.webKit = webKit
+            self.intent = intent
+            self.popup = popup
         }
     }
 
@@ -135,10 +140,10 @@ final class Engines {
     // MARK: - Actions - Pages
 
     /// Opens a page through the core and answers it with what its engine built,
-    /// or nil when a rule refused it or the engine built nothing. WebKit builds
-    /// the page from `webKit` when it hosts it.
-    func open(_ intent: OpenPage, webKit: WebKitPageInputs) -> OpenedPage? {
-        let request = PageRequest(page: CorePage(id: intent.pageID, core: core), webKit: webKit)
+    /// or nil when a rule refused it or the engine built nothing. A page that
+    /// is a popup WebKit made, `popup`, is built from it.
+    func open(_ intent: OpenPage, popup: WebKitPopup? = nil) -> OpenedPage? {
+        let request = PageRequest(page: CorePage(id: intent.pageID, core: core), intent: intent, popup: popup)
         requests[intent.pageID] = request
         defer { requests[intent.pageID] = nil }
         do {
@@ -155,11 +160,11 @@ final class Engines {
         return OpenedPage(page: request.page, built: built)
     }
 
-    /// Hosts a page the core opened itself, such as one an engine opened by
-    /// itself that the core adopted for a tab, on an engine the core runs
-    /// directly. Nil when the core holds no such page or the platform already
-    /// hosts it. TRANSITIONAL until the shared page host (WP C (j2)) hosts
-    /// every page the core opens, on either engine.
+    /// What the shared page host hosts for a page the core opened itself,
+    /// such as one an engine opened by itself that the core adopted for a
+    /// tab: the page its engine's binding built for it. Only an engine the
+    /// core runs directly opens pages by itself; WebKit offers none. Nil when
+    /// the core holds no such page or the platform already hosts it.
     func host(_ pageID: UUID) -> OpenedPage? {
         guard opened[pageID]?.value == nil else { return nil }
         let page = CorePage(id: pageID, core: core)

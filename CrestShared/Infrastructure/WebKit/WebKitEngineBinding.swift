@@ -3,9 +3,14 @@ import WebKit
 
 /// WebKit's binding, on the Mac and on iPhone and iPad. It builds each page
 /// the core asks WebKit to create: the page's configuration for its profile,
-/// with the platform's own settings, and the platform's web view, which the
-/// page's owner then hosts. It loads an address through the owner's own load,
-/// which prepares the page for it. The owner tears the web view down when it
+/// with the platform's own settings, in the profile's website data store and
+/// with its Space's content rules, and the platform's web view, which the
+/// page's owner then hosts. It keeps each profile's store itself: a private
+/// page's profile, and every profile of a launch that keeps nothing on disk,
+/// lives in a store of its own in memory, which goes when the core erases the
+/// profile, as private browsing ending does; any other profile opens its
+/// store on disk. It loads an address through the owner's own load, which
+/// prepares the page for it. The owner tears the web view down when it
 /// releases the page, so closing only tells the core the page is gone. The
 /// questions a page's document asks go to the core, which the page's host
 /// shows the person, and come back as the core settles them. The files its
@@ -64,9 +69,18 @@ final class WebKitEngineBinding: EngineBinding {
     private weak var engines: Engines?
     /// Removes a profile's stores, which WebKit keeps on disk across runs.
     private let profileStores: any BrowserEngineProfileRemoving
-    /// The store each profile's pages use, while one holds it, which a site's
-    /// data is cleared from.
+    /// Whether every profile keeps its website data in memory only, as an
+    /// isolated launch's do.
+    private let keepsProfilesInMemory: Bool
+    /// The store each profile that keeps nothing on disk browses in, until the
+    /// core erases the profile: every private profile's, and every profile's
+    /// when the launch keeps nothing on disk.
+    private var memoryStores: [UUID: WKWebsiteDataStore] = [:]
+    /// The store on disk each other profile's pages use, while one holds it,
+    /// which its next page shares and a site's data is cleared from.
     private var liveStores: [UUID: WeakStore] = [:]
+    /// The content rules every page this binding builds applies, compiled once.
+    let contentRules: WebKitContentRules
     /// The files this binding's pages download, which the core records.
     private(set) lazy var downloads = WebKitDownloads(binding: self)
     /// The pages' direct path to the views this binding built.
@@ -82,15 +96,27 @@ final class WebKitEngineBinding: EngineBinding {
 
     // MARK: - Initializers
 
-    /// A binding whose profiles' stores `profileStores` removes.
-    init(profileStores: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover()) {
+    /// A binding whose profiles' stores `profileStores` removes, which keeps
+    /// every profile in memory when `keepsProfilesInMemory`, and whose pages'
+    /// content rules `contentRuleLists` compiles; nil compiles the core's
+    /// rules as the launch allows.
+    init(
+        profileStores: any BrowserEngineProfileRemoving = WebKitBrowserWebsiteDataStoreRemover(),
+        keepsProfilesInMemory: Bool = BrowserLaunchEnvironment.current.usesEphemeralProfileStorage,
+        contentRuleLists: (any BrowserContentRuleListProviding)? = nil
+    ) {
         self.profileStores = profileStores
+        self.keepsProfilesInMemory = keepsProfilesInMemory
+        contentRules = WebKitContentRules(provider: contentRuleLists)
     }
 
     // MARK: - Actions - Binding
 
     func attach(to engines: Engines) {
         self.engines = engines
+        if contentRules.provider == nil {
+            contentRules.provider = BrowserContentRuleListProvider.forLaunch(core: engines.core)
+        }
         engines.core.followPrompts(self) { [weak self] change in self?.ask(change) }
     }
 
@@ -99,11 +125,14 @@ final class WebKitEngineBinding: EngineBinding {
         switch command {
         case .createPage(let creation):
             if let request = engines.request(creation.pageID) {
-                request.built = keep(build(creation, from: request.webKit))
-            } else if let moving = engines.page(creation.pageID), let inputs = moving.webKitInputs?() {
+                let space = engines.core.state.workspaces[request.intent.workspaceID]?.spaces.model(
+                    request.intent.spaceID)
+                request.built = keep(build(creation, in: space, popup: request.popup))
+            } else if let moving = engines.page(creation.pageID), let state = moving.state {
                 // The core moved a page the platform already hosts to WebKit:
                 // its owner takes the new page before the core loads it.
-                engines.handOver(keep(build(creation, from: inputs)), movedPage: moving)
+                let space = engines.core.state.workspaces[state.workspaceID]?.spaces.model(state.spaceID)
+                engines.handOver(keep(build(creation, in: space, popup: nil)), movedPage: moving)
             } else {
                 engines.report(PageCreationFailed(pageID: creation.pageID), from: self)
                 return
@@ -127,7 +156,9 @@ final class WebKitEngineBinding: EngineBinding {
             guard case .scriptDialog(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
             answer(settlement.accepted, settlement.text)
         case .settleAuthentication(let settlement):
-            guard case .authentication(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
+            guard case .authentication(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else {
+                return
+            }
             answer(settlement.credential)
         case .settlePermission(let settlement):
             guard case .permission(_, let answer)? = prompts.removeValue(forKey: settlement.promptID) else { return }
@@ -182,34 +213,57 @@ final class WebKitEngineBinding: EngineBinding {
         return page
     }
 
-    /// The page for `creation`, with the configuration `inputs` hands over, or
-    /// one assembled for the page's profile with the platform's own settings.
-    private func build(_ creation: CreatePage, from inputs: WebKitPageInputs) -> WebKitEnginePage {
+    /// The page for `creation` in `space`: a popup's with the configuration
+    /// WebKit derived from its opener's, as `popup` gives it, and any other's
+    /// assembled for its profile's store and its Space's content rules with
+    /// the platform's own settings.
+    private func build(_ creation: CreatePage, in space: SpaceModel?, popup: WebKitPopup?) -> WebKitEnginePage {
+        let contentRuleLists =
+            space.map { contentRules.ruleLists(for: $0.settings.browsingPreferences.contentBlocking) }
+            ?? []
         let configuration =
-            inputs.configuration
+            popup?.configuration
             ?? BrowserPageConfiguration.make(
                 for: BrowsingProfile(id: creation.profileID),
-                websiteDataStore: inputs.websiteDataStore,
-                contentRuleLists: inputs.contentRuleLists,
+                websiteDataStore: store(for: creation),
+                contentRuleLists: contentRuleLists,
                 preferredContentMode: BrowserPlatformWebKit.preferredContentMode,
                 decorate: BrowserPlatformWebKit.decorate)
-        liveStores = liveStores.filter { $0.value.value != nil }
-        liveStores[creation.profileID] = WeakStore(value: configuration.websiteDataStore)
         return WebKitEnginePage(
             id: creation.pageID,
             profileID: creation.profileID,
             webView: BrowserPlatformWebKit.makeWebView(configuration: configuration),
-            contentRuleLists: inputs.contentRuleLists,
-            ownsUserContentController: !inputs.sharesUserContentController)
+            contentRuleLists: contentRuleLists,
+            ownsUserContentController: popup == nil)
+    }
+
+    /// The website data store the page `creation` asks for browses in: its
+    /// profile's store in memory when the page is private or the launch keeps
+    /// nothing on disk, made the first time a page of the profile asks for
+    /// it; otherwise the profile's store on disk, which its pages share while
+    /// one holds it.
+    private func store(for creation: CreatePage) -> WKWebsiteDataStore {
+        let profileID = creation.profileID
+        if creation.isPrivate || keepsProfilesInMemory {
+            if let store = memoryStores[profileID] { return store }
+            let store = WKWebsiteDataStore.nonPersistent()
+            memoryStores[profileID] = store
+            return store
+        }
+        liveStores = liveStores.filter { $0.value.value != nil }
+        if let store = liveStores[profileID]?.value { return store }
+        let store = BrowserWebsiteDataStore.persistent(for: BrowsingProfile(id: profileID))
+        liveStores[profileID] = WeakStore(value: store)
+        return store
     }
 
     // MARK: - Actions - Data
 
-    /// Erases every store WebKit keeps for the profile; one that keeps
-    /// nothing on disk has nothing to erase.
+    /// Erases every store WebKit keeps for the profile. One that keeps
+    /// nothing on disk goes with its store in memory, which no page it builds
+    /// uses again.
     private func erase(_ erasing: EraseProfileData) {
-        // An ephemeral profile keeps nothing on disk: its stores went with the
-        // pages that held them.
+        memoryStores[erasing.profileID] = nil
         guard !erasing.ephemeral else {
             report(DataErased(erasureID: erasing.erasureID, erased: true))
             return
@@ -230,7 +284,7 @@ final class WebKitEngineBinding: EngineBinding {
     /// Clears the site from the store the profile's pages use, or from its
     /// store on disk, without creating one the profile does not have.
     private func erase(_ erasing: EraseSiteData) {
-        let live = liveStores[erasing.profileID]?.value
+        let live = memoryStores[erasing.profileID] ?? liveStores[erasing.profileID]?.value
         Task { [weak self] in
             guard let site = URL(string: "https://\(erasing.host)/") else {
                 self?.report(DataErased(erasureID: erasing.erasureID, erased: false))
@@ -254,7 +308,8 @@ final class WebKitEngineBinding: EngineBinding {
     /// Raises with the core a script dialog the document of page `pageID`
     /// opened. The core settles it with the person's answer, or declines it
     /// when nobody can give one.
-    func raise(_ question: ScriptDialogQuestion, for pageID: UUID, answer: @escaping @MainActor (Bool, String?) -> Void) {
+    func raise(_ question: ScriptDialogQuestion, for pageID: UUID, answer: @escaping @MainActor (Bool, String?) -> Void)
+    {
         guard let engines else { return answer(false, nil) }
         let promptID = UUID()
         prompts[promptID] = .scriptDialog(pageID: pageID, answer: answer)
@@ -354,4 +409,9 @@ final class WebKitEngineBinding: EngineBinding {
         #endif
         engines?.report(BeforeUnloadAnswered(pageID: pageID, proceeds: true), from: self)
     }
+}
+
+extension Engines {
+    /// WebKit's binding, when the composition registered it.
+    var webKit: WebKitEngineBinding? { bindings[.webKit] as? WebKitEngineBinding }
 }

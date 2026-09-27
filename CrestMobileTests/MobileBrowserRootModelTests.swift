@@ -726,13 +726,13 @@ final class MobileBrowserRootModelTests: XCTestCase {
             // Every Space shows its first tab, as a window restoring them would.
             tabs: Dictionary(
                 uniqueKeysWithValues: spaces.compactMap { space in space.tabs.first.map { (space.id, $0.id) } }),
-            browsingMode: browsingMode
+            browsingMode: browsingMode,
+            core: .hostingPages(contentRuleLists: EmptyMobileRootContentRuleListProvider())
         )
         let pages = MobileBrowserPageStore(
             browser: browser,
             browsingMode: browsingMode,
-            usesEphemeralWebsiteDataStores: true,
-            contentRuleListProvider: EmptyMobileRootContentRuleListProvider()
+            usesEphemeralWebsiteDataStores: true
         )
         let navigation = MobileBrowserNavigationState()
         browser.attachSpaceAccess(spaceAccess)

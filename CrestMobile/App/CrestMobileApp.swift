@@ -68,7 +68,8 @@ private final class BrowserMobileApplication {
         // One core per process, keeping the session file and shared by every
         // window of both browsing modes.
         let core = try BrowserStore.launchCore(for: launchEnvironment)
-        core.engines.register(WebKitEngineBinding(), isDefault: true)
+        // An isolated launch keeps every profile's website data in memory.
+        core.engines.register(WebKitEngineBinding(keepsProfilesInMemory: usesIsolatedLaunch), isDefault: true)
         // The core's device store keeps what an older release kept in its
         // defaults, carried once; the link preferences come first, since every
         // window's store reads them.

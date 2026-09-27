@@ -1,6 +1,5 @@
 #if DEBUG
     import Foundation
-    import WebKit
 
     extension BrowserStore {
         /// Records a visit to `url` in `spaceID`, the Space this window shows
@@ -32,9 +31,7 @@
         /// default engine is WebKit. The page loads nothing: a test reports
         /// what its engine would see with `finishNavigation(of:to:titled:icon:)`.
         func openReportingPage(for tabID: TabID?, in spaceID: SpaceID? = nil) -> CorePage? {
-            openPage(
-                in: spaceID ?? selectedSpaceID, for: tabID,
-                webKit: WebKitPageInputs(websiteDataStore: .nonPersistent()))?.page
+            openPage(in: spaceID ?? selectedSpaceID, for: tabID)?.page
         }
 
         /// Reports that `page` loaded a new document at `url`, found `icon`

@@ -81,9 +81,9 @@ final class BrowserPagePool:
         get { runtimeStore.runtimes }
         set { runtimeStore.runtimes = newValue }
     }
-    /// Per-profile engine state every window pool of this store family shares.
-    @ObservationIgnored let profileDataStores: BrowserPageProfileDataStores
-    @ObservationIgnored private let contentRuleListProvider: any BrowserContentRuleListProviding
+    /// The certificate exceptions every window pool of this store family
+    /// shares, by profile.
+    @ObservationIgnored let serverTrustOverrides: BrowserServerTrustOverrideStore
     /// The app's passkey access, refreshed as pages navigate. Nil where no
     /// composition supplied one.
     @ObservationIgnored private let passkeyAccess: BrowserPasskeyAccessController?
@@ -115,7 +115,7 @@ final class BrowserPagePool:
     init(
         browser: BrowserStore,
         runtimeStore: BrowserPageRuntimeStore? = nil,
-        profileDataStores: BrowserPageProfileDataStores? = nil,
+        serverTrustOverrides: BrowserServerTrustOverrideStore? = nil,
         browsingMode: BrowserBrowsingMode = .standard,
         usesEphemeralWebsiteDataStores: Bool =
             BrowserLaunchEnvironment.current.usesEphemeralProfileStorage,
@@ -130,7 +130,6 @@ final class BrowserPagePool:
             @escaping HTTPAuthenticationCredentialLoader = { _, _ in nil },
         saveHTTPAuthenticationCredential:
             @escaping HTTPAuthenticationCredentialSaver = { _, _ in },
-        contentRuleListProvider: (any BrowserContentRuleListProviding)? = nil,
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
         popupTabHost: BrowserPopupTabHost = .unavailable,
         openNewTab: @escaping (URL) -> Void = { _ in },
@@ -155,10 +154,7 @@ final class BrowserPagePool:
                 archive: self.usesEphemeralWebsiteDataStores ? nil : tabStateArchive
             )
         self.runtimeStore = owner
-        self.profileDataStores = profileDataStores ?? BrowserPageProfileDataStores()
-        let contentRuleListProvider =
-            contentRuleListProvider ?? BrowserContentRuleListProvider.forLaunch(core: core)
-        self.contentRuleListProvider = contentRuleListProvider
+        self.serverTrustOverrides = serverTrustOverrides ?? BrowserServerTrustOverrideStore()
         self.passkeyAccess = passkeyAccess
         self.permissionCenter = permissionCenter
         self.hostedNotificationCenter = hostedNotificationCenter
@@ -167,7 +163,7 @@ final class BrowserPagePool:
         self.popupTabHost = popupTabHost
         self.loadHTTPAuthenticationCredential = loadHTTPAuthenticationCredential
         self.saveHTTPAuthenticationCredential = saveHTTPAuthenticationCredential
-        contentBlocking = BrowserContentBlockingController(provider: contentRuleListProvider)
+        contentBlocking = BrowserContentBlockingController(rules: core.engines.webKit?.contentRules)
         self.openNewTab = openNewTab
         self.openModifiedLink = openModifiedLink
         self.openPeek = openPeek
@@ -192,7 +188,7 @@ final class BrowserPagePool:
         self.runtimeStore.register(self)
         core.engines.observeRecords(self) { [weak self] in self?.restyleVisitedLinks(after: $0) }
         core.followUnloadedPages(self) { [weak self] in self?.host.pageUnloaded($0) }
-        core.followAdoptedPages(self) { [weak self] in self?.pageAdopted($0) }
+        followAdoptedPages()
     }
 
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
@@ -320,7 +316,8 @@ final class BrowserPagePool:
         let owner = sharesRuntimes ? runtimeStore : BrowserPageRuntimeStore()
         owner.publishesPageMetadataCentrally = true
         let pool = BrowserPagePool(
-            browser: browser, runtimeStore: owner, profileDataStores: profileDataStores, browsingMode: browsingMode,
+            browser: browser, runtimeStore: owner, serverTrustOverrides: serverTrustOverrides,
+            browsingMode: browsingMode,
             usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
             pageZoomPreferences: pageZoomPreferences,
 
@@ -335,7 +332,6 @@ final class BrowserPagePool:
                     username: request.username, password: request.password, protectionSpace: request.protectionSpace,
                     in: spaceID, replacing: request.replacing)
             },
-            contentRuleListProvider: contentRuleListProvider,
             popupTabHost: browser.popupTabHost,
             openNewTab: { [weak browser] url in browser?.openNewTab(url: url) },
             openModifiedLink: { [weak browser] url, spaceID, selecting in
@@ -670,9 +666,8 @@ final class BrowserPagePool:
         return BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
     }
 
-    /// Adopts a page the opener's engine created for a popup as a new tab in
-    /// the opener's Space, selected unless `selecting` is false. WebKit builds
-    /// the popup's page from what `webKit` gives it for the tab's Space.
+    /// Adopts the popup WebKit made for the opener's document, `popup`, as a
+    /// new tab in the opener's Space, selected unless `selecting` is false.
     ///
     /// Declines — leaving the coordinator to route the destination into an
     /// ordinary tab — when the opener is not a resident page of this pool.
@@ -682,7 +677,7 @@ final class BrowserPagePool:
         requestedURL: URL?,
         opener: BrowserPage,
         selecting: Bool,
-        webKit: (SpaceModel) -> WebKitPageInputs
+        popup: WebKitPopup
     ) -> BrowserPage? {
         guard tabID(for: opener) != nil,
             !browser.deletingSpaceIDs.contains(opener.spaceID),
@@ -692,11 +687,7 @@ final class BrowserPagePool:
         else { return nil }
 
         guard
-            let page = makePage(
-                space: registration.space,
-                tabID: registration.tab.id,
-                webKit: webKit(registration.space)
-            )
+            let page = makePage(space: registration.space, tabID: registration.tab.id, popup: popup)
         else {
             popupTabHost.closeTab(registration.tab.id, registration.space.id)
             return nil
@@ -828,22 +819,17 @@ final class BrowserPagePool:
         host.relieveMemoryPressure(level, presenting: Array(runtimeStore.presentedTabIDs))
     }
 
-    /// Hosts the page an engine opened by itself that the core adopted for a
-    /// tab it opened in this window, keeping its opener, history, JavaScript
-    /// state and extension tab identity, as the tab's resident page, and
-    /// brings the tab forward when the core showed it.
-    private func pageAdopted(_ adopted: OfferedPageAdopted) {
-        guard adopted.windowID == windowID, adopted.workspaceID == browser.window.workspaceID,
-            tabRuntimes[adopted.tabID] == nil,
-            let space = browser.spaceModel(adopted.spaceID),
-            let tab = space.tabs.model(adopted.tabID),
-            let page = makePage(space: space, tabID: tab.id, hosting: adopted.pageID)
-        else { return }
+    /// Hosts `opened`, a page an engine opened by itself that the core
+    /// adopted for `tab` in this window, keeping its opener, history,
+    /// JavaScript state and extension tab identity, as the tab's resident
+    /// page, and brings the tab forward when `shows`.
+    func hostAdoptedPage(_ opened: Engines.OpenedPage, as tab: BrowserPageTab, in space: SpaceModel, shows: Bool) {
+        guard let page = makePage(space: space, tabID: tab.id, opened: opened) else { return }
         page.markOpenedAsPopup()
-        page.updateNavigationContext(tab: BrowserPageTab(tab, images: browser.core.state.favicons))
+        page.updateNavigationContext(tab: tab)
         retainResidentPage(page, for: tab.id)
         residencyRevision &+= 1
-        if adopted.shows { activate(tab.id) }
+        if shows { activate(tab.id) }
     }
 
     /// The tab's resident page, or a new one the core opened for it; nil when
@@ -875,35 +861,27 @@ final class BrowserPagePool:
         return page
     }
 
-    /// Opens a page through the core for `tabID` in `space`, or for a
-    /// transient request presenting as `presentation` when `tabID` is nil, on
-    /// the engine the core chooses, and hosts it. `webKit` builds the page when WebKit hosts it, and this
-    /// pool's own WebKit configuration builds it otherwise. Nil when the core
-    /// refuses the page.
-    /// A page the core opens for `tabID` in `space`, or for a transient request
-    /// presenting as `presentation`; WebKit builds it from `webKit`, or from
-    /// the Space's own inputs. With `pageID`, the page the core already opened
-    /// for the tab instead. Nil when the core refuses it.
+    /// A page the core opens for `tabID` in `space`, or for a transient
+    /// request presenting as `presentation`, on the engine the core chooses;
+    /// WebKit builds a popup it made, `popup`, as it made it. With `opened`,
+    /// the page the core already opened for the tab instead. Nil when the core
+    /// refuses it.
     private func makePage(
         space: SpaceModel,
         tabID: TabID? = nil,
         presentation: TransientPresentation? = nil,
-        webKit: WebKitPageInputs? = nil,
-        hosting pageID: UUID? = nil
+        popup: WebKitPopup? = nil,
+        opened alreadyOpened: Engines.OpenedPage? = nil
     ) -> BrowserPage? {
         let interval = Self.lifecycleSignposter.beginInterval("Create Browser Page")
         defer {
             Self.lifecycleSignposter.endInterval("Create Browser Page", interval)
         }
 
-        let hosted =
-            if let pageID {
-                browser.core.engines.host(pageID)
-            } else {
-                browser.openPage(
-                    in: space.id, for: tabID, presenting: presentation, webKit: webKit ?? webKitInputs(for: space))
-            }
-        guard let opened = hosted else { return nil }
+        guard
+            let opened = alreadyOpened
+                ?? browser.openPage(in: space.id, for: tabID, presenting: presentation, popup: popup)
+        else { return nil }
         let engine: any BrowserPageEngineAdapter
         if let webKitPage = opened.built as? WebKitEnginePage {
             engine = BrowserWebKitPageAdapter(page: webKitPage)

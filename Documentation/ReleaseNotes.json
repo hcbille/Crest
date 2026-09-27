@@ -2989,6 +2989,10 @@
     "settings-bind-core-branding": {
       "category": "internal",
       "message": "Space looks are drawn and edited as the core's own branding records, and the core works out each look's rendering vocabulary when it keeps it"
+    },
+    "webkit-binding-keeps-stores-and-rules": {
+      "category": "internal",
+      "message": "WebKit keeps each profile's website data and its pages' content rules itself, and private browsing drops its in-memory data when it ends"
     }
   }
 }

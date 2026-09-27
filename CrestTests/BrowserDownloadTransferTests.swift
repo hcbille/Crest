@@ -165,7 +165,7 @@ final class BrowserDownloadTransferTests: XCTestCase {
             })
         let opened = try XCTUnwrap(
             browser.openWebKitPage(
-                in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
+                in: space.id, for: nil))
         let page = BrowserPage(
             corePage: opened.core, webKitPage: opened.webKit, dialogPresenter: BrowserDialogPresenter(),
             downloadCenter: BrowserDownloadCenter(core: browser.core), permissionCenter: permissions,
@@ -310,6 +310,5 @@ final class BrowserDownloadTransferTests: XCTestCase {
         XCTAssertNotNil(properties)
         XCTAssertFalse((properties?["LSQuarantineAgentName"] as? String)?.isEmpty ?? true)
     }
-
 
 }

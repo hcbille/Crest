@@ -418,6 +418,16 @@ WebKit's binding (`WebKitEngineBinding`) is Swift, shared by macOS, iPhone and
 iPad. It builds each page the core asks WebKit to create, raises script
 dialogs, sign-ins and permission requests with the core, runs WebKit's
 downloads as the engine's own, and settles each question the core answers.
+It keeps each profile's website data store: a private page's profile, and
+every profile of a launch that keeps nothing on disk, browses in a
+non-persistent store of its own, made the first time a page of the profile
+opens and dropped when the core erases the profile; any other profile opens
+its store on disk. Private browsing ending erases its profiles
+(`DeleteProfileData`, ephemeral), so the next private window starts in a new
+store. The binding also compiles Crest's content rules once and builds each
+page with the rules its Space's protection applies; each page owner still
+applies a changed protection to its live pages. A popup WebKit makes keeps the
+configuration WebKit derived from its opener's.
 
 `BrowserPageHost` keeps a workspace's pages on the Mac, iPhone and iPad: each
 tab's resident page, the Quick Window and Peek leases, and the state a tab's
@@ -425,16 +435,16 @@ page leaves behind. Every Mac window over a workspace shares one host through
 its runtime store; each iPhone or iPad scene has its own. When the core moves
 a page to another engine, the page takes the new engine's adapter and view in
 place, so its tab, lease and window keep it. WebKit's binding builds a page
-the core moved to WebKit from the inputs the page's owner keeps, and hands it
-over before the core loads it. What a page owner does beyond that is shared
-too (`BrowserPageOwner`): `BrowserPagePool` (Mac) and `MobileBrowserPageStore`
-(iPhone and iPad) keep only presentation and each platform's own commands.
+the core moved to WebKit from its own stores and rules, and hands it over
+before the core loads it. A page an engine opened by itself that the core
+adopted for a tab (`OfferedPageAdopted`) is hosted by the shared page owner
+of the window that opened the tab, whichever engine opened it. What a page
+owner does beyond that is shared too (`BrowserPageOwner`): `BrowserPagePool`
+(Mac) and `MobileBrowserPageStore` (iPhone and iPad) keep only presentation
+and each platform's own commands.
 
 TRANSITIONAL:
 
-- The page's owner still supplies `WebKitPageInputs`, the profile's website
-  data store and the Space's content rules, which the platform's content
-  blocking compiles. The binding does not own them yet.
 - A WebKit page the core unloads hands it no restore state; its owner archives
   WebKit's interaction state itself.
 

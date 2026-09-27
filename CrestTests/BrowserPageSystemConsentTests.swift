@@ -49,7 +49,7 @@ final class BrowserPageSystemConsentTests: XCTestCase {
         let space = try XCTUnwrap(SessionState.Seed.preview.spaces.first)
         let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let opened = try XCTUnwrap(
-            browser.openWebKitPage(in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
+            browser.openWebKitPage(in: space.id, for: nil))
         let page = BrowserPage(
             corePage: opened.core,
             webKitPage: opened.webKit,

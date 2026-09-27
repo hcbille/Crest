@@ -61,9 +61,9 @@ final class MobileBrowserPageStore:
     /// a store made on its own keeps while it lives.
     @ObservationIgnored private let downloadPrompts: BrowserDownloadPrompts
     let permissionCenter: BrowserSitePermissionCenter
-    /// The certificate exceptions and ephemeral website data stores this
-    /// scene's pages keep by profile.
-    @ObservationIgnored let profileDataStores = BrowserPageProfileDataStores()
+    /// The certificate exceptions people accepted for this scene's pages, by
+    /// profile.
+    @ObservationIgnored let serverTrustOverrides = BrowserServerTrustOverrideStore()
     @ObservationIgnored private let popupTabHost: BrowserPopupTabHost
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
@@ -98,7 +98,6 @@ final class MobileBrowserPageStore:
             @escaping HTTPAuthenticationCredentialLoader = { _, _ in nil },
         saveHTTPAuthenticationCredential:
             @escaping HTTPAuthenticationCredentialSaver = { _, _ in },
-        contentRuleListProvider: (any BrowserContentRuleListProviding)? = nil,
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
         popupTabHost: BrowserPopupTabHost = .unavailable,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
@@ -135,8 +134,7 @@ final class MobileBrowserPageStore:
         downloadRiskConfirmation = downloads.riskConfirmation
         downloadCenter = downloads.center
         downloadPrompts = downloads.prompts
-        contentBlocking = BrowserContentBlockingController(
-            provider: contentRuleListProvider ?? BrowserContentRuleListProvider.forLaunch(core: downloads.center.core))
+        contentBlocking = BrowserContentBlockingController(rules: browser.core.engines.webKit?.contentRules)
         if monitorsMemoryPressure {
             installMemoryPressureSource()
         }
@@ -144,6 +142,7 @@ final class MobileBrowserPageStore:
         host.dropPresentation = { [weak self] in self?.dropPresentation(of: $0) }
         browser.core.engines.observeRecords(self) { [weak self] in self?.restyleVisitedLinks(after: $0) }
         browser.core.followUnloadedPages(self) { [weak self] in self?.host.pageUnloaded($0) }
+        followAdoptedPages()
     }
 
     deinit {
@@ -392,10 +391,7 @@ final class MobileBrowserPageStore:
         in space: SpaceModel,
         presenting presentation: TransientPresentation
     ) -> MobileBrowserPage? {
-        guard
-            let opening = browser.openPage(
-                in: space.id, for: nil, presenting: presentation, webKit: webKitInputs(for: space))
-        else { return nil }
+        guard let opening = browser.openPage(in: space.id, for: nil, presenting: presentation) else { return nil }
         return host(
             MobileBrowserPage(
                 corePage: opening.page,
@@ -648,10 +644,10 @@ final class MobileBrowserPageStore:
         adoptedConfiguration: WKWebViewConfiguration? = nil,
         loadsInitialURL: Bool = true
     ) -> MobileBrowserPage? {
-        let inputs =
-            adoptedConfiguration.map { .popup($0, contentRuleLists: contentRuleLists(for: space)) }
-            ?? webKitInputs(for: space)
-        guard let opening = browser.openPage(in: space.id, for: tab.id, webKit: inputs) else { return nil }
+        guard
+            let opening = browser.openPage(
+                in: space.id, for: tab.id, popup: adoptedConfiguration.map(WebKitPopup.init(configuration:)))
+        else { return nil }
         // Restoring WebKit's session state performs its own navigation, so the
         // page must not also start the tab's URL: whichever path runs, exactly one
         // navigation begins. Read only once the core opened the page, so a
@@ -664,7 +660,23 @@ final class MobileBrowserPageStore:
                     expecting: $0)
             }
             : nil
-        let page = host(
+        let page = residentPage(hosting: opening, for: tab, in: space)
+        // Anything WebKit will not take falls through to the plain load the page
+        // would otherwise start, which the core asks its engine for.
+        if loadsInitialURL, adoptedConfiguration == nil, let url = tab.url,
+            archivedState.map({ !page.restoreInteractionState($0, expecting: url) }) ?? true
+        {
+            page.corePage.navigate(to: url.absoluteString)
+        }
+        return page
+    }
+
+    /// Hosts `opening`, a page the core opened for `tab` in `space`, as the
+    /// page of a tab, which loads nothing until the core asks it to.
+    private func residentPage(
+        hosting opening: Engines.OpenedPage, for tab: BrowserPageTab, in space: SpaceModel
+    ) -> MobileBrowserPage {
+        host(
             MobileBrowserPage(
                 corePage: opening.page,
                 webKitPage: webKitPage(opening),
@@ -690,14 +702,16 @@ final class MobileBrowserPageStore:
                 openModifiedLink: openModifiedLink,
                 openPeek: openPeek
             ))
-        // Anything WebKit will not take falls through to the plain load the page
-        // would otherwise start, which the core asks its engine for.
-        if loadsInitialURL, adoptedConfiguration == nil, let url = tab.url,
-            archivedState.map({ !page.restoreInteractionState($0, expecting: url) }) ?? true
-        {
-            page.corePage.navigate(to: url.absoluteString)
-        }
-        return page
+    }
+
+    /// Hosts `opened`, a page an engine opened by itself that the core
+    /// adopted for `tab` in this scene, as the tab's resident page, and
+    /// brings the tab forward when `shows`.
+    func hostAdoptedPage(_ opened: Engines.OpenedPage, as tab: BrowserPageTab, in space: SpaceModel, shows: Bool) {
+        let page = residentPage(hosting: opened, for: tab, in: space)
+        page.markOpenedAsPopup()
+        host.retain(page, for: tab.id)
+        if shows { activate(page) }
     }
 
     /// Focuses a page that is already on screen, or brings one on screen beside

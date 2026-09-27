@@ -17,8 +17,9 @@ protocol BrowserPageOwner: AnyObject, BrowserTabCopying, BrowserTabLinkProviding
     var presentedTabIDsAcrossWindows: Set<TabID> { get }
     /// The built-in content blocking the owner applies to its pages.
     var contentBlocking: BrowserContentBlockingController { get }
-    /// The per-profile engine state the owner's pages keep beside the host.
-    var profileDataStores: BrowserPageProfileDataStores { get }
+    /// The certificate exceptions people accepted for the owner's pages, by
+    /// profile.
+    var serverTrustOverrides: BrowserServerTrustOverrideStore { get }
     /// Whether every page keeps its website data in memory only.
     var usesEphemeralWebsiteDataStores: Bool { get }
     var downloadCenter: BrowserDownloadCenter { get }
@@ -33,6 +34,32 @@ protocol BrowserPageOwner: AnyObject, BrowserTabCopying, BrowserTabLinkProviding
         onUserActivity: @escaping () -> Void,
         onDownloadOnlyNavigation: (() -> Void)?
     ) -> BrowserPlatformTransientPageLease?
+
+    /// Hosts `opened`, a page the core opened itself for `tab` in `space`, as
+    /// the tab's resident page, and brings the tab forward when `shows`.
+    func hostAdoptedPage(_ opened: Engines.OpenedPage, as tab: BrowserPageTab, in space: SpaceModel, shows: Bool)
+}
+
+// MARK: - Pages the core opened
+
+extension BrowserPageOwner {
+    /// Hosts each page an engine opened by itself that the core adopted for a
+    /// tab of this window, keeping its opener, history and script state, as
+    /// the tab's resident page, whichever engine opened it.
+    func followAdoptedPages() {
+        browser.core.followAdoptedPages(self) { [weak self] in self?.adoptedPageOpened($0) }
+    }
+
+    private func adoptedPageOpened(_ adopted: OfferedPageAdopted) {
+        guard adopted.windowID == browser.windowID, adopted.workspaceID == browser.window.workspaceID,
+            host.page(for: adopted.tabID) == nil,
+            let space = browser.spaceModel(adopted.spaceID),
+            let tab = space.tabs.model(adopted.tabID),
+            let opened = browser.core.engines.host(adopted.pageID)
+        else { return }
+        hostAdoptedPage(
+            opened, as: BrowserPageTab(tab, images: browser.core.state.favicons), in: space, shows: adopted.shows)
+    }
 }
 
 // MARK: - Reconciliation
@@ -62,12 +89,10 @@ extension BrowserPageOwner {
     }
 }
 
-// MARK: - Content blocking and WebKit inputs
+// MARK: - Content blocking
 
 extension BrowserPageOwner {
     var contentBlockingErrorDescription: String? { contentBlocking.errorDescription }
-
-    var serverTrustOverrides: BrowserServerTrustOverrideStore { profileDataStores.serverTrustOverrides }
 
     func prepareContentBlocking() async {
         await contentBlocking.prepare()
@@ -100,32 +125,6 @@ extension BrowserPageOwner {
         contentBlocking.invalidateRuleLists()
         await reconcileContentBlocking()
     }
-
-    /// What WebKit's binding builds a page of `space` from: the Space's
-    /// content rules and, where the owner keeps nothing on disk, its
-    /// profile's ephemeral website data store.
-    func webKitInputs(for space: SpaceModel) -> WebKitPageInputs {
-        WebKitPageInputs(
-            websiteDataStore: websiteDataStore(for: space.profileID), contentRuleLists: contentRuleLists(for: space))
-    }
-
-    /// What WebKit's binding builds a page of Space `spaceID` from when the
-    /// core moves the page to WebKit; nil once the Space is gone.
-    func webKitInputs(forSpaceID spaceID: SpaceID) -> WebKitPageInputs? {
-        browser.spaceModel(spaceID).map(webKitInputs(for:))
-    }
-
-    /// The content rules `space` applies.
-    func contentRuleLists(for space: SpaceModel) -> [WKContentRuleList] {
-        contentBlocking.ruleLists(for: space.settings.browsingPreferences.contentBlocking)
-    }
-
-    /// The profile's ephemeral website data store, or nil where the owner's
-    /// pages keep their profile's own store.
-    func websiteDataStore(for profileID: UUID) -> WKWebsiteDataStore? {
-        guard usesEphemeralWebsiteDataStores else { return nil }
-        return profileDataStores.ephemeralStore(for: profileID)
-    }
 }
 
 // MARK: - Space data
@@ -141,8 +140,9 @@ extension BrowserPageOwner {
         permissionCenter.reset(spaceID: space.spaceID)
     }
 
-    /// Lets go of every page, download record and ephemeral store the owner
-    /// keeps for the Space `space` names.
+    /// Lets go of every page and download record the owner keeps for the
+    /// Space `space` names. Its website data goes when every engine erases
+    /// its profile.
     func releaseWindowRuntime(for space: BrowserSpaceRuntimeAssignment) async {
         guard host.spacesReleasingData.insert(space.spaceID).inserted else {
             host.nativeTabs.remove(in: space.spaceID)
@@ -151,24 +151,30 @@ extension BrowserPageOwner {
         defer { host.spacesReleasingData.remove(space.spaceID) }
         await host.releasePages(of: space)
         downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
-        if usesEphemeralWebsiteDataStores {
-            profileDataStores.releaseEphemeralStore(for: space.profileID)
-        }
     }
 
     /// Lets go of everything a private workspace kept in the Spaces `spaces`
-    /// names: its pages, download records, site permissions, fallback icons
-    /// and ephemeral website data.
+    /// names: its pages, download records, site permissions, certificate
+    /// exceptions and fallback icons, and then, once the private window's
+    /// own teardown finished, the website data every engine keeps in memory
+    /// for their profiles, which no later private window ever uses again.
     func releasePrivateBrowsingData(in spaces: [BrowserSpaceRuntimeAssignment]) {
         host.closePrivateBrowsingSession()
         for space in spaces {
             downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
             permissionCenter.reset(spaceID: space.spaceID)
+            serverTrustOverrides.removeApprovals(for: space.profileID)
             Task {
                 await BrowserFaviconFallbackLoader.shared.removeAll(for: space.profileID)
             }
         }
-        profileDataStores.releaseAllEphemeralStores()
+        let core = browser.core
+        let profileIDs = spaces.map(\.profileID)
+        Task { @MainActor in
+            for profileID in profileIDs {
+                _ = await core.deleteData(DeleteProfileData(requestID: UUID(), profileID: profileID, ephemeral: true))
+            }
+        }
     }
 }
 

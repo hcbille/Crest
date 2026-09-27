@@ -23,10 +23,6 @@ final class CorePage {
     /// the app's own load of an address in the platform's page, which WebKit
     /// runs when the core asks it to load one. Set by the page's owner.
     var appLoad: (@MainActor (URL) -> Void)?
-    /// What WebKit's binding builds the page from if the core moves it to
-    /// WebKit: its profile's store and its Space's content rules, as its
-    /// owner keeps them. Set by the page's owner.
-    var webKitInputs: (@MainActor () -> WebKitPageInputs?)?
     /// Runs when the core moved the page to another engine, so its owner
     /// hosts it there; `movedHost(from:)` answers what it hosts. Set by the
     /// page's owner.

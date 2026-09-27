@@ -38,12 +38,9 @@ final class BrowserContentBlockingTests: XCTestCase {
         let firstTab = TabState.Seed.startPage()
         let firstSpace = contentBlockingSpace(name: "Protected", tab: firstTab)
         let browser = BrowserStore.hostingPages(
-            SessionState.Seed(spaces: [firstSpace]), showing: firstSpace.id, tabs: [firstSpace.id: firstTab.id])
-        let pool = BrowserPagePool(
-            browser: browser,
-            browsingMode: .privateBrowsing,
-            contentRuleListProvider: provider
-        )
+            SessionState.Seed(spaces: [firstSpace]), showing: firstSpace.id, tabs: [firstSpace.id: firstTab.id],
+            core: .hostingPages(contentRuleLists: provider))
+        let pool = BrowserPagePool(browser: browser, browsingMode: .privateBrowsing)
         defer {
             for tabID in pool.retainedTabIDs {
                 pool.unloadPage(for: tabID)
@@ -126,7 +123,7 @@ final class BrowserContentBlockingTests: XCTestCase {
             )
             configuration.userContentController.add(extensionRuleList)
             let page = try XCTUnwrap(
-                browser.openWebKitPage(in: space.id, for: nil, webKit: WebKitPageInputs(configuration: configuration)).map {
+                browser.openWebKitPage(in: space.id, for: nil, popup: WebKitPopup(configuration: configuration)).map {
                     opened in
                     BrowserPage(
                         corePage: opened.core,
@@ -192,12 +189,9 @@ final class BrowserContentBlockingTests: XCTestCase {
             tabs: [activeTab, backgroundTab]
         )
         let browser = BrowserStore.hostingPages(
-            SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: backgroundTab.id])
-        let pool = BrowserPagePool(
-            browser: browser,
-            browsingMode: .privateBrowsing,
-            contentRuleListProvider: provider
-        )
+            SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: backgroundTab.id],
+            core: .hostingPages(contentRuleLists: provider))
+        let pool = BrowserPagePool(browser: browser, browsingMode: .privateBrowsing)
         defer {
             for tabID in pool.retainedTabIDs {
                 pool.unloadPage(for: tabID)
@@ -276,7 +270,7 @@ final class BrowserContentBlockingTests: XCTestCase {
         tabs: [TabState.Seed]
     ) -> SpaceState.Seed {
         SpaceState.Seed(
-                        name: name,
+            name: name,
             symbol: "shield",
             accent: .indigo,
             folders: [],

@@ -51,7 +51,7 @@ final class MobileBrowserPageSystemConsentTests: XCTestCase {
         let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let opened = try XCTUnwrap(
             browser.openWebKitPage(
-                in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
+                in: space.id, for: tab.id))
         let page = MobileBrowserPage(
             corePage: opened.core,
             webKitPage: opened.webKit,

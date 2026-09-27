@@ -1,31 +1,37 @@
 import Observation
 import WebKit
 
-/// Prepares rule lists and distinguishes protection changes from background refreshes.
+/// One page owner's view of WebKit's built-in content blocking: the rules
+/// WebKit's binding compiled for every page it builds, and which Spaces of the
+/// owner's workspace changed their protection since the owner last applied it.
 @MainActor
 @Observable
 final class BrowserContentBlockingController {
-    private(set) var errorDescription: String?
-    @ObservationIgnored private(set) var balancedRuleLists: [WKContentRuleList]?
-    @ObservationIgnored private let provider: any BrowserContentRuleListProviding
+    // MARK: - Variables
+
+    @ObservationIgnored private let rules: WebKitContentRules
     @ObservationIgnored private var reconciledState: BrowserContentBlockingSessionState?
 
-    init(provider: any BrowserContentRuleListProviding) {
-        self.provider = provider
+    /// Why the rules could not be compiled, when they could not.
+    var errorDescription: String? { rules.errorDescription }
+    /// The compiled rules a Space that blocks content applies, once compiled.
+    var balancedRuleLists: [WKContentRuleList]? { rules.balancedRuleLists }
+
+    // MARK: - Initializers
+
+    /// A view of `rules`, or of no rules where no WebKit binding compiles any.
+    init(rules: WebKitContentRules?) {
+        self.rules = rules ?? WebKitContentRules(provider: nil)
     }
 
+    // MARK: - Actions - Rules
+
     func prepare() async {
-        guard balancedRuleLists == nil else { return }
-        do {
-            balancedRuleLists = try await provider.balancedRuleLists()
-            errorDescription = nil
-        } catch {
-            errorDescription = error.localizedDescription
-        }
+        await rules.prepare()
     }
 
     func invalidateRuleLists() {
-        balancedRuleLists = nil
+        rules.invalidate()
     }
 
     /// Prepares the rule lists any Space of `workspace` needs, and answers
@@ -41,6 +47,6 @@ final class BrowserContentBlockingController {
     }
 
     func ruleLists(for policy: ContentBlockingPolicy) -> [WKContentRuleList] {
-        policy.blocksContent ? balancedRuleLists ?? [] : []
+        rules.ruleLists(for: policy)
     }
 }

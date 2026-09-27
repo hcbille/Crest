@@ -187,6 +187,31 @@ final class MobileBrowserNavigationTests: XCTestCase {
         XCTAssertEqual(browser.spaceModels.count, 1)
     }
 
+    /// A private window's website data lives only as long as private
+    /// browsing does: ending it erases each private profile, so no later page
+    /// of the profile finds the store its pages browsed in.
+    func testEndingPrivateBrowsingDropsTheStoreItsPagesBrowsedIn() async throws {
+        let browser = BrowserStore.privateBrowsing(core: .hostingPages())
+        let pages = MobileBrowserPageStore(
+            browser: browser,
+            browsingMode: .privateBrowsing,
+            usesEphemeralWebsiteDataStores: true
+        )
+        pages.select()
+        let privateStore = try XCTUnwrap(pages.activePage).webView.configuration.websiteDataStore
+
+        pages.closePrivateBrowsingSession(browser.spaceModels.map(BrowserSpaceRuntimeAssignment.init(space:)))
+        // The erasure runs once the private window's own teardown finished.
+        try await Task.sleep(for: .milliseconds(100))
+        pages.select()
+        let laterStore = try XCTUnwrap(pages.activePage).webView.configuration.websiteDataStore
+
+        XCTAssertFalse(laterStore.isPersistent)
+        XCTAssertFalse(laterStore === privateStore)
+        pages.closePrivateBrowsingSession(browser.spaceModels.map(BrowserSpaceRuntimeAssignment.init(space:)))
+        browser.resetPrivateBrowsingSession()
+    }
+
     func testXCTestStandardMobilePagesNeverUseTheInstalledWebsiteDataStore() throws {
         let browser = BrowserStore.hostingPages()
         let pages = MobileBrowserPageStore(
@@ -641,12 +666,9 @@ final class MobileBrowserNavigationTests: XCTestCase {
         )
         let provider = StubMobileContentRuleListProvider(generations: [[ruleList]])
         let space = makeSpace(index: 28)
-        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
-        let pages = MobileBrowserPageStore(
-            browser: browser,
-            usesEphemeralWebsiteDataStores: true,
-            contentRuleListProvider: provider
-        )
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [space]), core: .hostingPages(contentRuleLists: provider))
+        let pages = MobileBrowserPageStore(browser: browser, usesEphemeralWebsiteDataStores: true)
 
         await pages.prepareContentBlocking()
         XCTAssertEqual(provider.requestCount, 1)
@@ -697,10 +719,10 @@ final class MobileBrowserNavigationTests: XCTestCase {
         let space = contentBlockingSpace(tabs: [activeTab, backgroundTab])
         let session = SessionState.Seed(spaces: [space])
         let pages = MobileBrowserPageStore(
-            browser: .hostingPages(session, browsingMode: .privateBrowsing),
+            browser: .hostingPages(
+                session, browsingMode: .privateBrowsing, core: .hostingPages(contentRuleLists: provider)),
             browsingMode: .privateBrowsing,
-            usesEphemeralWebsiteDataStores: true,
-            contentRuleListProvider: provider
+            usesEphemeralWebsiteDataStores: true
         )
 
         await pages.prepareContentBlocking()
@@ -755,12 +777,13 @@ final class MobileBrowserNavigationTests: XCTestCase {
         let activeTab = TabState.Seed.startPage()
         let backgroundTab = TabState.Seed.startPage()
         let space = contentBlockingSpace(tabs: [activeTab, backgroundTab])
-        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]), browsingMode: .privateBrowsing)
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [space]), browsingMode: .privateBrowsing,
+            core: .hostingPages(contentRuleLists: provider))
         let pages = MobileBrowserPageStore(
             browser: browser,
             browsingMode: .privateBrowsing,
-            usesEphemeralWebsiteDataStores: true,
-            contentRuleListProvider: provider
+            usesEphemeralWebsiteDataStores: true
         )
 
         await pages.prepareContentBlocking()
@@ -806,7 +829,7 @@ final class MobileBrowserNavigationTests: XCTestCase {
 
     private func contentBlockingSpace(tabs: [TabState.Seed]) -> SpaceState.Seed {
         SpaceState.Seed(
-                        name: "Protected",
+            name: "Protected",
             symbol: "shield",
             accent: .indigo,
             folders: [],

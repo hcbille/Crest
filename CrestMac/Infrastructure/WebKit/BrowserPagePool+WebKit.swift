@@ -22,9 +22,10 @@ extension BrowserPagePool {
     ) -> WKWebView? {
         // A popup keeps the opener's configuration, which carries its website
         // data store, content controller and web extension controller.
-        adoptPopupPage(requestedURL: requestedURL, opener: opener, selecting: selecting) { space in
-            .popup(configuration, contentRuleLists: contentRuleLists(for: space))
-        }?.webKitView
+        adoptPopupPage(
+            requestedURL: requestedURL, opener: opener, selecting: selecting,
+            popup: WebKitPopup(configuration: configuration)
+        )?.webKitView
     }
 
     // MARK: - Actions - Script message routing

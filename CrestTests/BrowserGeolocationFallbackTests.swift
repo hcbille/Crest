@@ -279,7 +279,7 @@ final class BrowserGeolocationBridgeTests: XCTestCase {
             authorization: systemAuthorization
         )
         let page = try XCTUnwrap(
-            browser.openWebKitPage(in: space.id, for: nil, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())).map {
+            browser.openWebKitPage(in: space.id, for: nil).map {
                 opened in
                 BrowserPage(
                     corePage: opened.core,

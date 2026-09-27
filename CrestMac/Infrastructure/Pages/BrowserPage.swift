@@ -300,10 +300,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         super.init()
         corePage.appLoad = { [weak self] in self?.load($0) }
         corePage.engineMoved = { [weak self] in self?.moveToNewEngine() }
-        corePage.webKitInputs = { [weak self] in
-            guard let self else { return nil }
-            return self.windowRouting?.pool?.webKitInputs(forSpaceID: self.spaceID)
-        }
         installEngine()
     }
 

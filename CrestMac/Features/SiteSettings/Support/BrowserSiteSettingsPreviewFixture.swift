@@ -30,7 +30,7 @@ enum BrowserSiteSettingsPreviewFixture {
             branding: SpaceAccent.teal.house, tabs: [tab])
         let permissionCenter = BrowserSitePermissionCenter()
         let core = CrestCore()
-        core.engines.register(WebKitEngineBinding(), isDefault: true)
+        core.engines.register(WebKitEngineBinding(keepsProfilesInMemory: true), isDefault: true)
         let browser = BrowserStore(
             seed: SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id], core: core)
         let pages = BrowserPagePool(

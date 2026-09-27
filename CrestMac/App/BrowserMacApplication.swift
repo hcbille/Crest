@@ -87,7 +87,8 @@ final class BrowserMacApplication {
         // both browsing modes shares it, and standard and private windows each
         // share one download center over it.
         let core = try BrowserStore.launchCore(for: launchEnvironment)
-        core.engines.register(WebKitEngineBinding(), isDefault: defaultEngine == nil)
+        core.engines.register(
+            WebKitEngineBinding(keepsProfilesInMemory: usesEphemeralProfileStorage), isDefault: defaultEngine == nil)
         if let defaultEngine { core.engines.register(defaultEngine, isDefault: true) }
         // The core's device store keeps what an older release kept in its
         // defaults, carried once; the link preferences come first, since every
@@ -379,7 +380,8 @@ final class BrowserMacApplication {
     }
 
     func closePrivateBrowsingWindow() {
-        privatePages.closePrivateBrowsingSession(privateBrowser.spaceModels.map(BrowserSpaceRuntimeAssignment.init(space:)))
+        privatePages.closePrivateBrowsingSession(
+            privateBrowser.spaceModels.map(BrowserSpaceRuntimeAssignment.init(space:)))
         privateBrowser.resetPrivateBrowsingSession()
         privateChrome.dismissCommandPalette()
         privateTransientBrowsing.dismissPeek()

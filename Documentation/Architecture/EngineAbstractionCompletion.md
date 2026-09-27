@@ -57,16 +57,18 @@ Chromium's binding is portable C++ inside the engine, keeps Chromium's
 hosts windows, views, popups and system sign-in. WebKit's
 binding is Swift, shared by macOS and iOS. `BrowserPage`
 (`CrestMac/Infrastructure/Pages`) holds an `any BrowserPageEngineAdapter` and
-names no engine type. `project.yml` selects each composition's entry point,
+names no engine type. `MobileBrowserPage` is typed over WebKit by design,
+since iPhone and iPad run only WebKit. `project.yml` selects each composition's entry point,
 engine registration and engine-contributed views by file, and no Swift outside
 `CrestEngines` tests `CREST_CHROMIUM_HOST`.
 
 One shared page host, `BrowserPageHost`, keeps each workspace's pages on the
 Mac, iPhone and iPad, and one shared page owner, `BrowserPageOwner`, does the
-rest of the work both platforms' pages have in common. `BrowserPagePool` and
-`MobileBrowserPageStore` keep only presentation and each platform's own
-commands. TRANSITIONAL: the shared owner still supplies WebKit's per-profile
-stores and content rules.
+rest of the work both platforms' pages have in common, including hosting the
+pages the core opens itself. `BrowserPagePool` and `MobileBrowserPageStore`
+keep only presentation and each platform's own commands. WebKit's binding
+keeps each profile's website data store and compiles the content rules its
+pages are built with.
 
 Engine glue, the page hosts and the tests read the core's read model; no Swift
 copy of the session remains.
@@ -123,9 +125,6 @@ Remaining, TRANSITIONAL:
 - `CredentialContentBridge.swift` in `CrestShared/Infrastructure/Credentials`
   still imports WebKit to install the WebKit credential bridge.
 - The transient page lease carries WebKit content-rule lists.
-- WebKit builds a page the core moved to it from the inputs its owner keeps,
-  not from stores and rules of its own.
-- `MobileBrowserPage` stays concretely typed over WebKit.
 
 Remaining otherwise:
 
@@ -266,7 +265,8 @@ Remaining:
   report of a missing Widevine or PlayReady key system.
 
 A moved page takes its new engine's adapter and view in place, and WebKit's
-binding builds a page no owner asked for when the core moves one to it.
+binding builds a page no owner asked for when the core moves one to it, from
+its own stores and rules.
 Deleting a Space and clearing a site's data reach every registered engine,
 started or not.
 
