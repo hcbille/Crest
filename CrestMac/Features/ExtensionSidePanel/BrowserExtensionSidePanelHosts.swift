@@ -25,16 +25,26 @@ enum BrowserExtensionSidePanelHosts {
         }
         return host
     }
+    /// The page's panel document went away with the page, or gave way to
+    /// another, in whichever window last showed it.
+    static func release(_ pageID: UUID) {
+        for reference in hosts.values { reference.host?.release(pageID) }
+    }
 }
 
-/// Publishes a window's panel host for the engine's own side-panel requests.
+/// Publishes a window's panel host for the engine's own side-panel requests,
+/// and has it follow the tab the window focuses.
 struct BrowserExtensionSidePanelRegistration: ViewModifier {
     let host: BrowserExtensionSidePanelHost
-    let window: UUID
+    /// The window's pages, whose focused card is the tab the panel follows.
+    let pages: BrowserPagePool
 
     func body(content: Content) -> some View {
         content
-            .onAppear { BrowserExtensionSidePanelHosts.register(host, for: window) }
-            .onDisappear { BrowserExtensionSidePanelHosts.forget(window) }
+            .onAppear { BrowserExtensionSidePanelHosts.register(host, for: pages.windowID) }
+            .onDisappear { BrowserExtensionSidePanelHosts.forget(pages.windowID) }
+            .onChange(of: pages.activePage?.corePage.id, initial: true) { _, pageID in
+                host.focus(on: pageID)
+            }
     }
 }

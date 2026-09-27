@@ -143,8 +143,19 @@ public enum ExtensionChange {
     Unpin
 }
 
-/// Whether the extension has a side panel for the page's own tab.
-public sealed record HasSidePanel(Guid PageId, string ExtensionId) : PageRequest<bool>;
+/// Which side panel, if any, the extension has for the page's own tab.
+public sealed record HasSidePanel(Guid PageId, string ExtensionId) : PageRequest<SidePanelScope>;
+
+/// Which side panel an extension has for a tab.
+public enum SidePanelScope {
+    /// None: the extension has no panel for the tab, or turned it off there.
+    Unavailable,
+    /// One the extension gave that tab alone, which stays with the tab.
+    Tab,
+    /// The extension's panel for every tab with none of its own (Chromium's
+    /// global panel), which stays open as the person moves between such tabs.
+    Window
+}
 
 /// The extensions installed in the profile `ProfileId` names, for Settings.
 public sealed record InstalledExtensions(Guid ProfileId) : PageRequest<InstalledExtensionList>;

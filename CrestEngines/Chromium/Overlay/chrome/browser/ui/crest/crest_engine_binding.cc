@@ -1025,9 +1025,10 @@ bool EngineBinding::Handle(const engine::ChangeExtension& request) {
   return profile && Extensions().Change(profile, request.extension_id, request.change);
 }
 
-bool EngineBinding::Handle(const engine::HasSidePanel& request) {
+engine::SidePanelScope EngineBinding::Handle(const engine::HasSidePanel& request) {
   EnginePage* page = Find(GuidText(request.page_id));
-  return page && EngineExtensions::SidePanelExtension(page->web_contents(), request.extension_id);
+  return page ? EngineExtensions::SidePanelScopeFor(page->web_contents(), request.extension_id)
+              : engine::SidePanelScope::kUnavailable;
 }
 
 engine::CertificateChain EngineBinding::Handle(const engine::PageCertificates& request) {

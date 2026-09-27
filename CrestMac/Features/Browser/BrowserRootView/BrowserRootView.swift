@@ -79,10 +79,7 @@ struct BrowserRootView: View {
         // `chrome.sidePanel.open()` and an action click that opens a panel
         // reach the engine host, which has a page but no view context, so this
         // window publishes the host that owns its row.
-        .modifier(
-            BrowserExtensionSidePanelRegistration(
-                host: model.extensionSidePanel, window: model.pages.windowID)
-        )
+        .modifier(BrowserExtensionSidePanelRegistration(host: model.extensionSidePanel, pages: model.pages))
         .navigationTitle(Text(verbatim: model.windowTitle))
     }
 }

@@ -439,6 +439,21 @@ const extensions::Extension* EngineExtensions::SidePanelExtension(content::WebCo
   return service->HasSidePanelContextMenuActionForTab(*extension, tab) ? extension : nullptr;
 }
 
+// A tab with no panel options of its own shows the extension's default panel,
+// which Chromium's side panel keeps open as the person moves between such tabs.
+// static
+engine::SidePanelScope EngineExtensions::SidePanelScopeFor(content::WebContents* contents,
+                                                           const std::string& extension_id) {
+  const extensions::Extension* extension = SidePanelExtension(contents, extension_id);
+  if (!extension) {
+    return engine::SidePanelScope::kUnavailable;
+  }
+  auto* service = extensions::SidePanelService::Get(Profile::FromBrowserContext(contents->GetBrowserContext()));
+  const int tab = sessions::SessionTabHelper::IdForTab(contents).id();
+  return service->GetSpecificOptionsForTab(*extension, tab).path ? engine::SidePanelScope::kTab
+                                                                 : engine::SidePanelScope::kWindow;
+}
+
 // Changes arrive in bursts while the registry and the toolbar model mutate,
 // so each profile's are presented once the turn ends.
 void EngineExtensions::Changed(const std::string& profile_id) {

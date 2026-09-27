@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0xca, 0xbf, 0x80, 0x2e, 0xce, 0x65, 0x52, 0x4b, 0x03, 0x1e, 0x45, 0xda, 0x9a, 0x8d, 0xa9, 0x09, 0xb5, 0x89, 0xec, 0x75, 0xfd, 0x5f, 0x03, 0x6a, 0xf4, 0xa7, 0x7a, 0x9e, 0x6e, 0xb4, 0x8a, 0x29};
+    0xa2, 0x39, 0x87, 0x70, 0x15, 0xf2, 0x45, 0x60, 0x99, 0x15, 0xe4, 0xf9, 0xdb, 0xa4, 0x5a, 0xb8, 0x71, 0x18, 0x8b, 0x0f, 0x78, 0x4a, 0x7e, 0xc3, 0x65, 0x35, 0x25, 0xd0, 0x65, 0x11, 0x18, 0x70};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -467,6 +467,17 @@ enum class SidePanelRequest : uint32_t {
 inline void Write(WireWriter& writer, SidePanelRequest value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
 inline bool Read(WireReader& reader, SidePanelRequest& value) {
   value = static_cast<SidePanelRequest>(reader.ReadEnum(3));
+  return reader.ok();
+}
+
+enum class SidePanelScope : uint32_t {
+  kUnavailable = 0,
+  kTab = 1,
+  kWindow = 2,
+};
+inline void Write(WireWriter& writer, SidePanelScope value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
+inline bool Read(WireReader& reader, SidePanelScope& value) {
+  value = static_cast<SidePanelScope>(reader.ReadEnum(3));
   return reader.ok();
 }
 
@@ -3296,7 +3307,7 @@ struct PageRequestAnswer<GoToHistoryOffset> {
 };
 template <>
 struct PageRequestAnswer<HasSidePanel> {
-  using Type = bool;
+  using Type = SidePanelScope;
 };
 template <>
 struct PageRequestAnswer<HidePage> {

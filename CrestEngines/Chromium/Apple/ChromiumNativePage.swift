@@ -145,10 +145,19 @@
             }
         }
 
-        /// Whether `extensionID` has a side panel entry for this page's own tab.
-        func hasSidePanel(_ extensionID: String) -> Bool {
-            guard created, let pages else { return false }
+        /// Which side panel `extensionID` has for this page's own tab.
+        func sidePanelScope(_ extensionID: String) -> SidePanelScope {
+            guard created, let pages else { return .unavailable }
             return pages.request(HasSidePanel(pageID: pageID, extensionID: extensionID))
+        }
+
+        /// Whether this page's panel for `extensionID` also belongs beside the
+        /// page `pageID` names: both are tabs of one profile for which the
+        /// extension shows its panel for every tab, so one document serves both.
+        func sharesSidePanel(_ extensionID: String, with pageID: UUID) -> Bool {
+            guard let other = engine?.page(pageID), other !== self, let profileID, other.profileID == profileID
+            else { return false }
+            return sidePanelScope(extensionID) == .window && other.sidePanelScope(extensionID) == .window
         }
 
         /// Creates the panel document and returns its view for the core to mount.
@@ -238,6 +247,7 @@
         func dispose() {
             guard !disposed else { return }
             disposed = true
+            BrowserExtensionSidePanelHosts.release(pageID)
             surface.devToolsView = nil
             for subview in surface.subviews { subview.removeFromSuperview() }
             host = nil

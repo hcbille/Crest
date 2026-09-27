@@ -785,7 +785,11 @@ after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
   and Site Controls take their Space from the read model, and the install
   review shows the question the core asks (`ExtensionInstallAsked`). Action popups
   appear in a child window of the Crest window; side panels are cards in the
-  page row. A Chrome Web Store listing installs through Crest's review.
+  page row that follow the focused tab, as Chromium's side panel does: a panel
+  an extension gave one tab shows only beside that tab and returns with it,
+  while its panel for every tab (`HasSidePanel` answers which) stays open as
+  the person moves between tabs of the Space. A Chrome Web Store listing
+  installs through Crest's review.
 - **Downloads, favicons and archives.** Chromium's downloads report to the
   core's ledger; destinations resolve per Space. Opaque navigation archives
   carry an engine and version tag, stay local to the profile, and never enter

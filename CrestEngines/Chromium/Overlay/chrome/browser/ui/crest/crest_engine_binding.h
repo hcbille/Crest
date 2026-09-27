@@ -262,7 +262,7 @@ class EngineBinding {
   engine::ExtensionActionList Handle(const engine::PinnedExtensions& request);
   engine::InstalledExtensionList Handle(const engine::InstalledExtensions& request);
   bool Handle(const engine::ChangeExtension& request);
-  bool Handle(const engine::HasSidePanel& request);
+  engine::SidePanelScope Handle(const engine::HasSidePanel& request);
   engine::CertificateChain Handle(const engine::PageCertificates& request);
   bool Handle(const engine::SetSitePermission& request);
   bool Handle(const engine::StopMediaCapture& request);

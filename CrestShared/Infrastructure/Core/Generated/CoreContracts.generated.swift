@@ -2418,7 +2418,7 @@ struct GuideSpaceLocked: Equatable, Sendable {
 }
 
 struct HasSidePanel: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
+    typealias Answer = SidePanelScope
 
     let pageID: UUID
     let extensionID: String
@@ -6187,6 +6187,12 @@ enum SidePanelRequest: Int, CaseIterable, Sendable {
     case open = 0
     case close = 1
     case toggle = 2
+}
+
+enum SidePanelScope: Int, CaseIterable, Sendable {
+    case unavailable = 0
+    case tab = 1
+    case window = 2
 }
 
 enum SitePermissionVerdict: Int, CaseIterable, Sendable {

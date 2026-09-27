@@ -131,6 +131,9 @@ class EngineExtensions final {
   // The extension, only if it has a side panel for `contents`' own tab.
   static const extensions::Extension* SidePanelExtension(content::WebContents* contents,
                                                          const std::string& extension_id);
+  // Which side panel the extension has for `contents`' own tab: one it gave
+  // that tab, its panel for every tab, or none.
+  static engine::SidePanelScope SidePanelScopeFor(content::WebContents* contents, const std::string& extension_id);
 
  private:
   void Changed(const std::string& profile_id);
