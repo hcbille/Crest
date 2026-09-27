@@ -3081,6 +3081,10 @@
     "session-intents-carry-their-edits": {
       "category": "internal",
       "message": "Each session intent in the core now carries its own edit, so a new one that lacks it fails to build; nothing changes in behavior."
+    },
+    "intents-route-themselves": {
+      "category": "internal",
+      "message": "Every intent now routes itself to the part of the core that owns it, and device, window, setup and workspace intents carry their own logic, so a new one that lacks either fails to build; nothing changes in behavior."
     }
   }
 }

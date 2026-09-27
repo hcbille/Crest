@@ -14,4 +14,15 @@ public abstract record PageIntent : Intent {
     internal abstract void Apply(Pages pages, PageTurn turn);
 
     #endregion
+
+    #region Actions - Routing
+
+    /// A page that opened on an engine no page used, or the last one an
+    /// engine hosted, changes what the engines offer.
+    internal sealed override IReadOnlyList<Change> Route(CrestApp app) => app.Turn(changes => {
+        app.Pages.Handle(this, new PageTurn(changes, app.Issue));
+        app.PublishEngines(changes.Publish);
+    });
+
+    #endregion
 }

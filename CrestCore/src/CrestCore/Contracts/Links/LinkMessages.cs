@@ -1,51 +1,5 @@
 namespace CrestCore.Contracts;
 
-#region Intents - Links
-
-/// An edit of this device's link preferences, which the device store keeps.
-public abstract record LinkIntent : Intent;
-
-/// Carries the link preferences an installed release kept in its defaults
-/// into the device store, once, and publishes them. `Preferences` is the
-/// document that release saved under `crest.link-preferences.v1`, or null when
-/// it saved none; the release's own copy stays where it is. A value this build
-/// cannot read keeps its default. A device that adopted them before, or keeps
-/// no file, adopts nothing and still publishes its preferences, so the
-/// platform reads them from launch.
-public sealed record AdoptLinkPreferences(byte[]? Preferences) : LinkIntent;
-
-/// Chooses where a link from another app opens when no route takes it, and,
-/// for a destination that asks for one, the Space it opens in; null keeps the
-/// Space chosen before.
-public sealed record ChooseExternalLinkDestination(ExternalLinkDestination Destination, Guid? SpaceId) : LinkIntent;
-
-/// Chooses the key that opens a clicked link in Peek.
-public sealed record ChoosePeekModifier(LinkPeekModifier Modifier) : LinkIntent;
-
-/// Moves a route `Offset` places among the routes, which match in order. A
-/// move past either end changes nothing. Refused with `UnknownLinkRoute`.
-public sealed record MoveLinkRoute(Guid RouteId, int Offset) : LinkIntent;
-
-/// Removes a route. Refused with `UnknownLinkRoute`.
-public sealed record RemoveLinkRoute(Guid RouteId) : LinkIntent;
-
-/// Turns one on-or-off link preference on or off.
-public sealed record SetLinkBehavior(LinkBehavior Behavior, bool IsOn) : LinkIntent;
-
-#endregion
-
-#region Intents - Quick Window
-
-/// Chooses how long an idle Quick Window lives before it is archived.
-public sealed record ChooseQuickWindowArchivePolicy(QuickWindowArchivePolicy Policy) : LinkIntent;
-
-/// Remembers the Space a Quick Window opened `Url`'s site in, when the
-/// preferences remember Spaces by site and the address has a host; otherwise
-/// changes nothing.
-public sealed record RememberQuickWindowSpace(string Url, Guid SpaceId) : LinkIntent;
-
-#endregion
-
 #region Queries
 
 /// What following `Url` from a page does: load in the page, open in Peek, or

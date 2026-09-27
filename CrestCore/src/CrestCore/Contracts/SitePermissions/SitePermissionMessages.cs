@@ -1,42 +1,5 @@
 namespace CrestCore.Contracts;
 
-#region Intents
-
-/// An intent about this device's site permission choices. The device store
-/// keeps the persistent session's choices beside the session, never in it,
-/// and they never sync; every other Space's choices live in memory until the
-/// process ends.
-public abstract record SitePermissionIntent : Intent;
-
-/// Carries the site permission choices an installed release kept in its
-/// defaults into the device store, once, and publishes every Space's choices.
-/// `Records` is the document that release saved under
-/// `crest.site-permissions.v1`, or null when it saved none. Entries this build
-/// cannot read, repeats of an earlier choice and anything but a persistent
-/// answer are left out. The store is written before the intent returns; a
-/// device that adopted them before, or keeps no file, adopts nothing and still
-/// publishes what it holds.
-public sealed record AdoptSitePermissions(byte[]? Records) : SitePermissionIntent;
-
-/// Records the person's answer for `Permission` at `Origin` in a Space.
-/// `Detail` narrows a capability a site can ask for more than one way, such as
-/// the URL scheme behind one external-app hand-off; null is the site-wide rule.
-/// Ask clears both the session and the saved choice; a session answer
-/// overrides the saved choice until the process ends without replacing it; a
-/// persistent answer replaces both and keeps an existing record's identity.
-public sealed record DecideSitePermission(Guid SpaceId, SiteOrigin Origin, SitePermission Permission, string? Detail,
-    SitePermissionDecision Decision) : SitePermissionIntent;
-
-/// Forgets one saved choice, so the site asks again. A locked Space's choice
-/// is forgotten too; a record that is gone changes nothing.
-public sealed record ResetSitePermission(Guid RecordId) : SitePermissionIntent;
-
-/// Forgets every saved and session choice in one Space, locked, deleted or
-/// private alike, so resetting or deleting a Space is never blocked.
-public sealed record ResetSpacePermissions(Guid SpaceId) : SitePermissionIntent;
-
-#endregion
-
 #region Queries
 
 /// A page's blocked-popup notice after one popup event from `State`. Refused

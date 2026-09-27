@@ -115,8 +115,9 @@ for `EnginePage` lists every direct engine call.
    `Answer` for a query), each case overrides it in its own file beside the
    receiver, and the receiver's whole dispatcher is `intent.Apply(this, turn)`.
    A case without its logic does not compile. A fact that only tells cases
-   apart, such as the page an event names, is a property of the family. Page
-   intents and page events work this way. Capability sets are flags. No
+   apart, such as the page an event names, is a property of the family.
+   Intents route themselves to the area that owns their family
+   (`Intent.Route`), and engine events likewise. Capability sets are flags. No
    capability is a string.
 4. Identifiers are plain `Guid` in C# and `UUID` in Swift, and they appear only
    at boundaries. Inside the core, methods take the objects themselves

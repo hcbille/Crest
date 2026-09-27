@@ -2,11 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// A request to close pages, windows or the app, which the core prepares by
-/// asking each page it would close whether it may go. One preparation runs at
-/// a time, and ends with `CloseReady`.
-public abstract record CloseIntent(Guid RequestId) : Intent;
-
 /// Whether the person quits and stops the downloads in progress.
 public sealed record AnswerQuitWithDownloads(Guid PromptId, bool Quits) : PromptIntent(PromptId);
 

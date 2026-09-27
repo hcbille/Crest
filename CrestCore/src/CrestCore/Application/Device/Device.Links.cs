@@ -9,36 +9,19 @@ internal sealed partial class Device {
     #region Variables
 
     private LinkPreferences links = LinkPreferencePolicy.Default;
+    internal LinkPreferences Links { get => links; set => links = value; }
 
     #endregion
 
     #region Actions - Link intents
 
-    /// Runs one link intent, publishing the preferences when they changed. An
-    /// adoption always publishes them, so the platform reads them from launch.
-    public void Handle(LinkIntent intent, ChangeFeed changes) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        lock (gate) {
-            if (intent is AdoptLinkPreferences adoption) {
-                Adopt(adoption);
-                changes.Publish(new LinkPreferencesChanged(links));
-                return;
-            }
-            Revise(intent switch {
-                ChooseExternalLinkDestination choice =>
-                    links with { Destination = choice.Destination, DestinationSpaceId = choice.SpaceId ?? links.DestinationSpaceId },
-                SetLinkBehavior setting => setting.Behavior.Setting(links, setting.IsOn),
-                ChoosePeekModifier choice => links with { PeekModifier = choice.Modifier },
-                ChooseQuickWindowArchivePolicy choice => links with { ArchivePolicy = choice.Policy },
-                AddLinkRoute adding => LinkPreferencePolicy.Adding(links, adding),
-                EditLinkRoute edit => LinkPreferencePolicy.Editing(links, edit),
-                MoveLinkRoute move => LinkPreferencePolicy.Moving(links, move),
-                RemoveLinkRoute removal => LinkPreferencePolicy.Removing(links, removal),
-                RememberQuickWindowSpace remembering => LinkPreferencePolicy.Remembering(links, remembering.Url, remembering.SpaceId),
-                _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.")
-            }, changes);
-        }
+    /// Runs one link intent, publishing the preferences when they changed.
+    public void Handle(LinkIntent intent, DeviceTurn turn) => intent.Apply(this, turn);
+
+    /// Keeps the preferences `revise` makes of the device's own, and publishes
+    /// them when they changed.
+    internal void ReviseLinks(ChangeFeed changes, Func<LinkPreferences, LinkPreferences> revise) {
+        lock (gate) Revise(revise(links), changes);
     }
 
     /// Forgets a deleted Space in the link preferences: its routes, its
@@ -55,17 +38,6 @@ internal sealed partial class Device {
         links = revised;
         storage?.EnqueueDevice(Records());
         changes.Publish(new LinkPreferencesChanged(links));
-    }
-
-    /// Carries the preferences an installed release kept into the device store
-    /// once, in place of the defaults. The preferences and the adoption's
-    /// marker are saved together, so a launch that could not save them adopts
-    /// them again. The caller holds the device lock.
-    private void Adopt(AdoptLinkPreferences intent) {
-        if (storage is not { } target || adopted.Contains(DeviceAdoption.LinkPreferences)) return;
-        links = LegacyLinkPreferencesDocument.Read(intent.Preferences) ?? links;
-        adopted.Add(DeviceAdoption.LinkPreferences);
-        target.EnqueueDevice(Records());
     }
 
     #endregion

@@ -1,3 +1,4 @@
+using CrestCore.Application;
 using CrestCore.Contracts;
 
 namespace CrestCore.Tests.Malformed;
@@ -73,12 +74,47 @@ public sealed class Uncounted {
     }
 }
 
-public sealed record SendUnlisted(Unlisted Value) : Intent;
+public sealed record SendUnlisted(Unlisted Value) : Intent {
+    #region Actions - Routing
 
-public sealed record SendConstructible(Constructible Value) : Intent;
+    /// A schema fixture is never sent.
+    internal override IReadOnlyList<Change> Route(CrestApp app) => throw new NotSupportedException();
 
-public sealed record SendDated(Dated Value) : Intent;
+    #endregion
+}
 
-public sealed record SendStamped(Stamped Value) : Intent;
+public sealed record SendConstructible(Constructible Value) : Intent {
+    #region Actions - Routing
 
-public sealed record SendUncounted(Uncounted Value) : Intent;
+    /// A schema fixture is never sent.
+    internal override IReadOnlyList<Change> Route(CrestApp app) => throw new NotSupportedException();
+
+    #endregion
+}
+
+public sealed record SendDated(Dated Value) : Intent {
+    #region Actions - Routing
+
+    /// A schema fixture is never sent.
+    internal override IReadOnlyList<Change> Route(CrestApp app) => throw new NotSupportedException();
+
+    #endregion
+}
+
+public sealed record SendStamped(Stamped Value) : Intent {
+    #region Actions - Routing
+
+    /// A schema fixture is never sent.
+    internal override IReadOnlyList<Change> Route(CrestApp app) => throw new NotSupportedException();
+
+    #endregion
+}
+
+public sealed record SendUncounted(Uncounted Value) : Intent {
+    #region Actions - Routing
+
+    /// A schema fixture is never sent.
+    internal override IReadOnlyList<Change> Route(CrestApp app) => throw new NotSupportedException();
+
+    #endregion
+}

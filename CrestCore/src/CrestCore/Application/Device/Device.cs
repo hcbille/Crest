@@ -5,6 +5,15 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one device intent needs: where it publishes what it changed, the
+/// core's time and identity source, and the pages the windows host, which
+/// finishing setup hands the session it applies.
+internal sealed record DeviceTurn(ChangeFeed Changes, DateTimeOffset Now, IIdSource Ids, Pages Pages);
+
+#endregion
+
 /// This device's windows and what each shows. It is saved in the device store
 /// beside the session and never synced.
 ///
@@ -27,13 +36,18 @@ internal sealed partial class Device {
     public const int MaximumSavedWindows = 16;
 
     private readonly Lock gate = new();
+    internal Lock Gate => gate;
     private readonly Dictionary<Guid, Window> open = [];
+    internal Dictionary<Guid, Window> OpenWindows => open;
     /// What the device last published for each open window.
     private readonly Dictionary<Guid, WindowState> published = [];
+    internal Dictionary<Guid, WindowState> PublishedWindows => published;
     private readonly Dictionary<Guid, NativeSessionAuthority> workspaces = [];
     /// The saved windows' records, open or not.
     private readonly Dictionary<Guid, SavedWindow> saved = [];
+    internal Dictionary<Guid, SavedWindow> SavedWindows => saved;
     private readonly SessionStorage? storage;
+    internal SessionStorage? Storage => storage;
     /// The grants every session this device shows consults.
     private readonly SpaceAccessAuthority access;
     private readonly Action<Change> announce;
@@ -49,10 +63,14 @@ internal sealed partial class Device {
     /// The tabs an older release kept in the session, which a window without a
     /// record adopts during the launch that loaded them.
     private IReadOnlyDictionary<Guid, Guid> legacyTabs = new Dictionary<Guid, Guid>();
+    internal IReadOnlyDictionary<Guid, Guid> LegacyShownTabs => legacyTabs;
     /// What the device store has adopted from an installed release.
     private readonly HashSet<DeviceAdoption> adopted = [];
+    internal HashSet<DeviceAdoption> Adopted => adopted;
     private Guid? persistentWorkspace;
+    internal Guid? PersistentWorkspace => persistentWorkspace;
     private long lastUse;
+    internal long LastUse { get => lastUse; set => lastUse = value; }
 
     #endregion
 
@@ -247,7 +265,7 @@ internal sealed partial class Device {
     /// Runs `edit` on each of `windows` and answers a change for every one
     /// that shows something else over `session` afterwards, keeping saved
     /// records current. The caller holds the device lock.
-    private List<Change> Changing(IEnumerable<Window> windows, Action<Window> edit, SessionState session) {
+    internal List<Change> Changing(IEnumerable<Window> windows, Action<Window> edit, SessionState session) {
         var changes = new List<Change>();
         foreach (var window in windows.ToArray()) {
             edit(window);
@@ -259,7 +277,7 @@ internal sealed partial class Device {
     /// What `window` shows over `session`, when it differs from what the
     /// device last published for it, keeping a saved window's record current
     /// with what it chose to show. The caller holds the device lock.
-    private WindowChanged? Publishing(Window window, SessionState session) {
+    internal WindowChanged? Publishing(Window window, SessionState session) {
         var state = window.State(session, workspaces.GetValueOrDefault(window.WorkspaceId)?.Kind.IsPrivate == true);
         published.TryGetValue(window.Id, out var before);
         if (state == before) return null;
@@ -286,7 +304,7 @@ internal sealed partial class Device {
     }
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
-    private DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. keptPermissions.PersistentRecords],
+    internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. keptPermissions.PersistentRecords],
         [.. keptEngines.Choices], shortcuts, links, keptSetupDraft, setupCompleted, new HashSet<DeviceAdoption>(adopted));
 
     #endregion

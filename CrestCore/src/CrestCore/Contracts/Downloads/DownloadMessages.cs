@@ -2,9 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// An intent the downloads ledger handles.
-public abstract record DownloadIntent : Intent;
-
 /// Opening a profile's downloads acknowledges its records without clearing them.
 public sealed record AcknowledgeDownloads(Guid ProfileId) : DownloadIntent;
 

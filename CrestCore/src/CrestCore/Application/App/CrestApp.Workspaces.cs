@@ -10,26 +10,12 @@ public sealed partial class CrestApp {
     /// the order it happened: a closing workspace's pages, then its windows,
     /// then that it closed; an opening workspace whole, then the tabs its
     /// repair gave a new identity. The caller holds the lock.
-    private void Handle(WorkspaceIntent intent) {
-        switch (intent) {
-            case OpenWorkspace opening: Open(opening); break;
-            case BorrowSpace borrowing: Borrow(borrowing); break;
-            case CloseWorkspace closing: Close(closing.WorkspaceId); break;
-            default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "No area handles this workspace intent.");
-        }
-    }
-
-    private void Open(OpenWorkspace intent) {
-        if (!intent.Kind.OpensDirectly) throw new Rejected(new BorrowedWorkspaceRequiresSpace(intent.Kind));
-        if (intent.Seed is { } seed) OpenSeeded(intent.Kind, seed);
-        else if (intent.Kind.KeepsFile) OpenStored();
-        else device.Attach(new NativeSessionAuthority(intent.Kind, Template(intent.Kind)), ids.Next());
-    }
+    internal void Handle(WorkspaceIntent intent) => intent.Apply(this);
 
     /// Opens a workspace over `seed`, repaired as the file's session is when
     /// it loads. A tab the repair gave a new identity follows as `TabCopied`
     /// from the tab whose image it wears.
-    private void OpenSeeded(WorkspaceKind kind, SessionState seed) {
+    internal void OpenSeeded(WorkspaceKind kind, SessionState seed) {
         var (session, copies) = Seeded(seed);
         var workspaceId = ids.Next();
         device.Attach(new NativeSessionAuthority(kind, session), workspaceId);
@@ -39,7 +25,7 @@ public sealed partial class CrestApp {
     /// Opens the session this core keeps in its file, then attaches the sync
     /// component it stages into, so the transport hears the launch stage. A
     /// session already open publishes itself again.
-    private void OpenStored() {
+    internal void OpenStored() {
         if (storedSession is not { } session) throw new Rejected(new NoStoredSession());
         if (device.Identity(session) is { } open) {
             Announce(new WorkspaceOpened(open, session.Kind, session.Current));
@@ -74,23 +60,18 @@ public sealed partial class CrestApp {
     /// The session a workspace of `kind` starts with when it keeps no file and
     /// has no seed: one Space of its kind's template, or the practice Space
     /// for the practice, stamped as the session stores the time.
-    private SessionState Template(WorkspaceKind kind) {
+    internal SessionState Template(WorkspaceKind kind) {
         var now = StoredSessionCodec.Date(StoredSessionCodec.Seconds(clock.Now));
         var template = kind.IsPractice ? SpaceTemplate.Practice : SpaceTemplate.For(kind.IsPrivate);
         var space = template.Make(ids.Next(), ids.Next(), ids.Next, number: 1, now);
         return new([space], DefaultSpaceId: null, DisposableSeedMarker: null, SpaceDeletions: [], AppPreferences: null);
     }
 
-    private void Borrow(BorrowSpace intent) {
-        var owner = device.Workspace(intent.WorkspaceId);
-        device.Attach(owner.Borrow(intent.SpaceId, intent.ProfileId), ids.Next());
-    }
-
     /// Closes a workspace and, first, every workspace that borrows from it:
     /// its session takes no edits, its pages go and their engines close what
     /// they hold, then its windows close, keeping their saved records, and its
     /// sync stops once its queued stages ran. The caller holds the lock.
-    private void Close(Guid workspaceId) {
+    internal void Close(Guid workspaceId) {
         if (device.Attached(workspaceId) is not { } session) return;
         foreach (var borrower in device.Borrowers(session)) Close(borrower);
         session.Close();

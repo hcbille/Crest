@@ -2,13 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// An intent about which Spaces this process may show: unlocking one once the
-/// device owner authenticates, or locking Spaces again. A grant covers one
-/// Space's profile in every workspace that shows it, lives only as long as the
-/// process, and is never saved or synced. The platform presents the
-/// authentication prompt itself.
-public abstract record SpaceAccessIntent : Intent;
-
 /// Starts unlocking a Space of a workspace as the request `RequestId`, which
 /// the platform answers once the device owner has authenticated or declined.
 /// One request waits at a time. A Space that opens freely, or that this

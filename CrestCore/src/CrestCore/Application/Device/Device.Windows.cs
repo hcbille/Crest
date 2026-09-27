@@ -6,153 +6,10 @@ namespace CrestCore.Application;
 internal sealed partial class Device {
     #region Actions - Intents
 
-    /// Runs one window intent, publishing what it changed to `changes`.
-    public void Handle(WindowIntent intent, ChangeFeed changes) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        switch (intent) {
-            case OpenWindow opening: Open(opening, changes); break;
-            case CloseWindow closing: Close(closing, changes); break;
-            case ShowSpace showing: Show(showing, changes); break;
-            case ShowTab showing: Show(showing, changes); break;
-            case ShowAdjacentTab stepping: Show(stepping, changes); break;
-            case ShowAdjacentSpace stepping: Show(stepping, changes); break;
-            case ShowMostRecentTab recent: Show(recent, changes); break;
-            case DismissShownTab dismissing: Dismiss(dismissing, changes); break;
-            case ResizeSplitColumns resizing: Resize(resizing, changes); break;
-            case AdoptWindowRecords adoption: Adopt(adoption, changes); break;
-            default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.");
-        }
-    }
+    /// Runs one window intent, publishing what it changed to the turn's changes.
+    public void Handle(WindowIntent intent, DeviceTurn turn) => intent.Apply(this, turn);
 
-    private void Open(OpenWindow intent, ChangeFeed changes) {
-        var authority = Workspace(intent.WorkspaceId);
-        var session = authority.Current;
-        lock (gate) {
-            if (open.TryGetValue(intent.WindowId, out var existing)) {
-                Publishing(existing, session);
-                changes.Publish(new WindowChanged(published[existing.Id]));
-                return;
-            }
-            if (intent.Saved && intent.WorkspaceId != persistentWorkspace)
-                throw new Rejected(new UnsavedWorkspace(intent.WorkspaceId));
-            var window = intent.Saved && saved.TryGetValue(intent.WindowId, out var record)
-                ? Window.Restoring(record, intent.WorkspaceId)
-                : intent.CopyingWindowId is { } copied && open.TryGetValue(copied, out var source) && source.WorkspaceId == intent.WorkspaceId
-                    ? Window.Copying(source, intent.WindowId, intent.Saved)
-                    : Window.Launching(intent.WindowId, intent.WorkspaceId, intent.Saved, session,
-                        intent.WorkspaceId == persistentWorkspace ? legacyTabs : new Dictionary<Guid, Guid>());
-            if (!intent.RestoresTabs) window.ForgetTabs();
-            foreach (var shown in intent.ShowingTabs) window.ShowTab(shown.SpaceId, shown.TabId, moves: false);
-            if (intent.ShowingSpaceId is { } showing && session.Spaces.Any(space => space.Id == showing)) window.MoveTo(showing);
-            window.Repair(session);
-            open[window.Id] = window;
-            changes.Publish(Publishing(window, session)!);
-        }
-    }
-
-    private void Close(CloseWindow intent, ChangeFeed changes) {
-        lock (gate) {
-            if (!open.Remove(intent.WindowId)) return;
-            published.Remove(intent.WindowId);
-        }
-        changes.Publish(new WindowClosed(intent.WindowId));
-    }
-
-    private void Show(ShowSpace intent, ChangeFeed changes) {
-        var window = Opened(intent.WindowId);
-        var session = Workspace(window.WorkspaceId).Current;
-        if (Available(session, intent.SpaceId) is not { } space || window.ShownSpaceId == space.Id) return;
-        lock (gate) Publish(Changing([window], shown => shown.ShowSpace(space), session), changes);
-    }
-
-    /// Showing a tab records its use first, as its own change to the
-    /// workspace, so cleanup never archives what a window just showed. A
-    /// workspace that takes no edits records nothing and still shows it.
-    private void Show(ShowTab intent, ChangeFeed changes) {
-        var window = Opened(intent.WindowId);
-        var authority = Workspace(window.WorkspaceId);
-        if (Available(authority.Current, intent.SpaceId) is not { } space) return;
-        if (intent.TabId is { } tabId) {
-            if (space.Tabs.All(tab => tab.Id != tabId)) return;
-            if (authority.Touch(intent.SpaceId, tabId, DateTimeOffset.UtcNow) is { } touched)
-                Publish(SessionChanges.Publish(window.WorkspaceId, touched.Previous, touched.Next), changes);
-        }
-        var session = authority.Current;
-        lock (gate) Publish(Changing([window], shown => shown.ShowTab(intent.SpaceId, intent.TabId, moves: true), session), changes);
-    }
-
-    /// Steps the window's tab through its Space's sidebar, showing the tab the
-    /// step reaches the way `ShowTab` does.
-    private void Show(ShowAdjacentTab intent, ChangeFeed changes) {
-        var window = Opened(intent.WindowId);
-        var session = Workspace(window.WorkspaceId).Current;
-        Guid spaceId;
-        Guid? shown;
-        lock (gate) {
-            spaceId = window.ShownSpaceId;
-            shown = window.Tab(spaceId);
-        }
-        if (Available(session, spaceId) is not { } space || shown is not { } tabId || space.Step(tabId, intent.Direction) is not { } next)
-            return;
-        Show(new ShowTab(intent.WindowId, space.Id, next), changes);
-    }
-
-    /// Shows the tab of the window's Space used most recently other than the
-    /// one it shows, the way `ShowTab` does.
-    private void Show(ShowMostRecentTab intent, ChangeFeed changes) {
-        var window = Opened(intent.WindowId);
-        var session = Workspace(window.WorkspaceId).Current;
-        Guid spaceId;
-        Guid? shown;
-        lock (gate) {
-            spaceId = window.ShownSpaceId;
-            shown = window.Tab(spaceId);
-        }
-        if (Available(session, spaceId) is not { } space || shown is not { } tabId
-            || space.Tabs.Where(tab => tab.Id != tabId).MaxBy(tab => tab.LastActivatedAt) is not { } recent) return;
-        Show(new ShowTab(intent.WindowId, space.Id, recent.Id), changes);
-    }
-
-    /// Steps the window through the Spaces it may show, showing the one the
-    /// step reaches the way `ShowSpace` does.
-    private void Show(ShowAdjacentSpace intent, ChangeFeed changes) {
-        var window = Opened(intent.WindowId);
-        var spaces = Window.Showable(Workspace(window.WorkspaceId).Current).ToList();
-        int shown;
-        lock (gate) shown = spaces.FindIndex(space => space.Id == window.ShownSpaceId);
-        if (spaces.Count < 2 || shown < 0) return;
-        Show(new ShowSpace(intent.WindowId, spaces[intent.Direction.From(shown, spaces.Count)].Id), changes);
-    }
-
-    /// The window returns to the tab it showed before, recording its use the
-    /// way showing a tab does, or shows nothing in that Space.
-    private void Dismiss(DismissShownTab intent, ChangeFeed changes) {
-        var window = Opened(intent.WindowId);
-        var authority = Workspace(window.WorkspaceId);
-        if (Available(authority.Current, intent.SpaceId) is not { } space) return;
-        Guid? fallback;
-        lock (gate) {
-            if (window.Tab(space.Id) != intent.TabId) return;
-            fallback = window.DismissalFallback(space.Id, intent.TabId, space.Tabs.Select(tab => tab.Id).ToHashSet());
-        }
-        if (fallback is { } tabId && authority.Touch(space.Id, tabId, DateTimeOffset.UtcNow) is { } touched)
-            Publish(SessionChanges.Publish(window.WorkspaceId, touched.Previous, touched.Next), changes);
-        var session = authority.Current;
-        lock (gate) Publish(Changing([window], shown => shown.ShowTab(space.Id, fallback, moves: false), session), changes);
-    }
-
-    private void Resize(ResizeSplitColumns intent, ChangeFeed changes) {
-        var window = Opened(intent.WindowId);
-        var session = Workspace(window.WorkspaceId).Current;
-        if (Window.SplitShares(intent.Shares) is null) throw new Rejected(new InvalidSplitColumnShares());
-        lock (gate) Publish(Changing([window], resized => {
-            resized.Resize(intent.GroupId, intent.Shares);
-            resized.Repair(session);
-        }, session), changes);
-    }
-
-    private static void Publish(IEnumerable<Change> published, ChangeFeed changes) {
+    internal static void Publish(IEnumerable<Change> published, ChangeFeed changes) {
         foreach (var change in published) changes.Publish(change);
     }
 
@@ -344,7 +201,7 @@ internal sealed partial class Device {
     }
 
     /// The Space a window may show: one the session holds that is not being deleted.
-    private static SpaceState? Available(SessionState session, Guid spaceId) =>
+    internal static SpaceState? Available(SessionState session, Guid spaceId) =>
         session.SpaceDeletions.Any(deletion => deletion.SpaceId == spaceId) ? null : session.Spaces.FirstOrDefault(space => space.Id == spaceId);
 
     #endregion

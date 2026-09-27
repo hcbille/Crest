@@ -13,7 +13,7 @@ public sealed partial class CrestApp {
     /// it lets go. An intent about the journal alone takes no lock the host's
     /// intents wait for. Answers the intent's receipts: `SyncRecordsSkipped`
     /// when it left records out.
-    private IReadOnlyList<Change> Handle(CloudSyncIntent intent) {
+    internal IReadOnlyList<Change> Handle(CloudSyncIntent intent) {
         var session = StoredSyncSession();
         if (device.Identity(session) is null) throw new Rejected(new NoStoredSession());
         try {
@@ -36,7 +36,7 @@ public sealed partial class CrestApp {
 
     /// Whether the stored session's journal holds records waiting to upload,
     /// once every stage queued before the call settled.
-    private bool JournalHoldsUploads() {
+    internal bool JournalHoldsUploads() {
         var session = StoredSyncSession();
         storedSync?.Flush();
         return session.Answer(new PendingUploads()).Records.Count > 0;

@@ -80,9 +80,6 @@ internal sealed class DataDeletions(Engines engines, IIdSource ids) {
 
     #region Actions - Reports
 
-    /// Whether the report answers an erasure.
-    public static bool Concerns(EngineEvent report) => report is DataErased;
-
     /// One engine answered its part of a deletion; an answer from another
     /// engine, or to an erasure nobody waits on, changes nothing.
     public void Report(Engine engine, EngineEvent report, ChangeFeed changes) {

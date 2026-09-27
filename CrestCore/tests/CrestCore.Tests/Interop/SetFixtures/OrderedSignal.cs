@@ -1,3 +1,4 @@
+using CrestCore.Application;
 using CrestCore.Contracts;
 
 namespace CrestCore.Tests.Ordered;
@@ -18,4 +19,11 @@ public sealed class Signal {
     }
 }
 
-public sealed record ShowSignal(Signal Signal) : Intent;
+public sealed record ShowSignal(Signal Signal) : Intent {
+    #region Actions - Routing
+
+    /// A schema fixture is never sent.
+    internal override IReadOnlyList<Change> Route(CrestApp app) => throw new NotSupportedException();
+
+    #endregion
+}

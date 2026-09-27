@@ -1,3 +1,4 @@
+using CrestCore.Application;
 using CrestCore.Contracts;
 
 namespace CrestCore.Tests.Opened;
@@ -22,4 +23,11 @@ public sealed class Engine {
 }
 
 /// A runtime member has no index in `All`, so no message may carry one.
-public sealed record SendEngine(Engine Value) : Intent;
+public sealed record SendEngine(Engine Value) : Intent {
+    #region Actions - Routing
+
+    /// A schema fixture is never sent.
+    internal override IReadOnlyList<Change> Route(CrestApp app) => throw new NotSupportedException();
+
+    #endregion
+}

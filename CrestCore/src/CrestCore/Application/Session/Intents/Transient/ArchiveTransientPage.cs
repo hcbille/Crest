@@ -27,4 +27,14 @@ public sealed record ArchiveTransientPage(Guid WorkspaceId, Guid PageId, Guid Sp
     }
 
     #endregion
+
+    #region Actions - Routing
+
+    /// An archived page is no longer remembered as one its owner unloaded.
+    internal override void Commit(CrestApp app, ChangeFeed changes) {
+        base.Commit(app, changes);
+        app.Pages.ForgetUnloaded(PageId);
+    }
+
+    #endregion
 }

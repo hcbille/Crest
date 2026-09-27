@@ -32,4 +32,15 @@ public abstract record SessionIntent(Guid WorkspaceId) : Intent {
     internal virtual bool MovedAcross(NativeSessionAuthority workspace, DateTimeOffset now, bool commits) => false;
 
     #endregion
+
+    #region Actions - Routing
+
+    internal sealed override IReadOnlyList<Change> Route(CrestApp app) => app.Turn(changes => Commit(app, changes));
+
+    /// Commits the intent to the session of the workspace it names. An intent
+    /// that asks more of the device first or afterwards adds to it.
+    internal virtual void Commit(CrestApp app, ChangeFeed changes) =>
+        app.Device.Workspace(WorkspaceId).Handle(this, app.Clock.Now, app.Ids, app.Pages);
+
+    #endregion
 }

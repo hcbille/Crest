@@ -37,4 +37,14 @@ public sealed record PromoteTransientPage(Guid WorkspaceId, Guid WindowId, Guid 
     }
 
     #endregion
+
+    #region Actions - Routing
+
+    /// A kept page is no longer remembered as one its owner unloaded.
+    internal override void Commit(CrestApp app, ChangeFeed changes) {
+        base.Commit(app, changes);
+        app.Pages.ForgetUnloaded(PageId);
+    }
+
+    #endregion
 }

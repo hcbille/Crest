@@ -2,10 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// A request to erase what the engines keep for a profile, which the core asks
-/// of every registered engine, started or not. It ends with `DataDeleted`.
-public abstract record DataDeletionIntent(Guid RequestId) : Intent;
-
 /// Erases everything every engine keeps for profile `ProfileId`: cookies,
 /// storage, caches and the stores themselves. An `Ephemeral` profile keeps
 /// nothing on disk. A Space's deletion finishes only once its profile's data

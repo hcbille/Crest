@@ -78,6 +78,17 @@ with its domain and application, which keep folders and namespaces of their own
 - **Engine commands, engine events, page requests and engine presentations**
   form the engine contract (see "Engines").
 
+Each message carries its own behavior. `Intent` declares `Route(CrestApp)`,
+and each family's base routes its cases to the area that owns them, most in
+one of the app's turns (`CrestApp.Turn`), which stamps pages, prunes what a
+gone page asked and delivers engine commands afterwards. Each case overrides
+its family's own method with its logic: `SessionIntent.Edit`,
+`WindowIntent.Apply` and the other device families' `Apply`, and
+`PageIntent.Apply`. An engine event routes itself the same way
+(`EngineEvent.Route`). The records keep the `CrestCore.Contracts` namespace and
+live beside the area that receives them, and a new case without its logic does
+not compile.
+
 `CrestCore.Generator` reads the records, the types the core exports in that
 namespace, and writes the core's codec, the Swift
 models and codec, the C header with each type's tag and the schema

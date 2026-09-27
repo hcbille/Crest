@@ -15,51 +15,31 @@ internal sealed partial class Device {
     /// What the device store keeps of an unfinished setup, which setup goes
     /// on with at its manual-setup step. Always null on a platform that keeps none.
     private KeptSetupDraft? keptSetupDraft;
+    internal KeptSetupDraft? KeptSetupDraft { get => keptSetupDraft; set => keptSetupDraft = value; }
 
     #endregion
 
     #region Actions - Setup intents
 
     /// Runs one setup intent, publishing the setup it leaves.
-    public void Handle(SetupDraftIntent intent, ChangeFeed changes, IIdSource ids) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(ids);
-        lock (gate) {
-            if (intent is AdoptSetupDraft adoption) {
-                Adopt(adoption);
-                return;
-            }
-            var draft = setupDraft ?? throw new Rejected(new NoManualSetup());
-            KeepSetup(intent switch {
-                AddSetupSpace => ManualSetupPolicy.Adding(draft, ids.Next),
-                RemoveSetupSpace removal => ManualSetupPolicy.Removing(draft, removal.SpaceId),
-                MoveSetupSpace move => ManualSetupPolicy.Moving(draft, move.SpaceId, move.TargetSpaceId),
-                CustomizeSetupSpace customizing => ManualSetupPolicy.Customizing(draft, customizing.SpaceId, customizing.Customization),
-                _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The device does not handle this intent.")
-            }, changes);
-        }
+    public void Handle(SetupDraftIntent intent, DeviceTurn turn) => intent.Apply(this, turn);
+
+    /// Keeps the setup `revise` makes of the one in progress, and publishes it.
+    /// Throws `Rejected` with `NoManualSetup` when none is in progress.
+    internal void ReviseSetup(ChangeFeed changes, Func<SetupDraft, SetupDraft> revise) {
+        lock (gate) KeepSetup(revise(setupDraft ?? throw new Rejected(new NoManualSetup())), changes);
     }
 
     /// Starts a setup of `session`'s Spaces over `workspaceId`, or goes on with
     /// the one held or kept unless `startsOver`, and publishes it. The caller
     /// holds the device lock.
-    private void BeginSetup(Guid workspaceId, SessionState session, bool startsOver, ChangeFeed changes, IIdSource ids) {
+    internal void BeginSetup(Guid workspaceId, SessionState session, bool startsOver, ChangeFeed changes, IIdSource ids) {
         var resumed = startsOver ? null
             : setupDraft is { } held && held.WorkspaceId == workspaceId ? held
             : keptSetupDraft?.For(workspaceId);
         var draft = resumed is null ? ManualSetupPolicy.Started(workspaceId, session, ids.Next) : ManualSetupPolicy.Reconciled(resumed, session);
         KeepSetup(draft, changes: null);
         changes.Publish(new SetupDraftChanged(draft));
-    }
-
-    /// Carries the setup an installed release kept into the device store
-    /// once. The caller holds the device lock.
-    private void Adopt(AdoptSetupDraft intent) {
-        if (storage is not { } target || adopted.Contains(DeviceAdoption.SetupDraft)) return;
-        if (platform.KeepsSetupDraft) keptSetupDraft ??= LegacySetupDraftDocument.Read(intent.Draft);
-        adopted.Add(DeviceAdoption.SetupDraft);
-        target.EnqueueDevice(Records());
     }
 
     #endregion
@@ -98,7 +78,7 @@ internal sealed partial class Device {
     /// Holds `draft` as the setup in progress, and keeps it for the next
     /// launch on a platform that keeps one, publishing it into `changes` when
     /// it changed. The caller holds the device lock.
-    private void KeepSetup(SetupDraft? draft, ChangeFeed? changes) {
+    internal void KeepSetup(SetupDraft? draft, ChangeFeed? changes) {
         bool changed = !ReferenceEquals(draft, setupDraft);
         setupDraft = draft;
         var kept = platform.KeepsSetupDraft && draft is not null ? KeptSetupDraft.From(draft) : null;

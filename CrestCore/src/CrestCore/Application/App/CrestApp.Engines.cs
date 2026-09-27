@@ -7,6 +7,7 @@ public sealed partial class CrestApp {
 
     /// The engine bindings pages open on.
     private readonly Engines engines = new();
+    internal Engines Engines => engines;
 
     /// Commands issued and not yet delivered, oldest first.
     private readonly Queue<(Engine Engine, EngineCommand Command)> undelivered = [];
@@ -48,14 +49,14 @@ public sealed partial class CrestApp {
 
     /// The engines as they stand, and what they offer with the pages open now.
     /// The caller holds the lock.
-    private EngineRoster RegisteredEngines() => engines.Roster(pages.HostingEngines);
+    internal EngineRoster RegisteredEngines() => engines.Roster(pages.HostingEngines);
 
     /// Hands `publish` the engines when they changed since the core last
     /// published them: one registered or went away, or what they offer
     /// changed because a page opened on an engine no page used or an engine's
     /// last page went. The shortcut bindings follow when the commands they
     /// offer changed. The caller holds the lock.
-    private void PublishEngines(Action<Change> publish) {
+    internal void PublishEngines(Action<Change> publish) {
         var current = RegisteredEngines();
         if (current.SameAs(publishedEngines)) return;
         var before = Engines.OfferedCommands(publishedEngines);
@@ -74,33 +75,21 @@ public sealed partial class CrestApp {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(report);
         var changes = new ChangeFeed();
-        lock (gate) {
-            if (Prompts.Concerns(report)) {
-                prompts.Report(engine, report, changes, Issue);
-            } else if (EngineDownloads.Concerns(report)) {
-                engineDownloads.Report(engine, report, changes, Issue, clock.Now);
-            } else if (ClosePreparations.Concerns(report)) {
-                closePreparations.Report(engine, report, changes, Issue);
-            } else if (DataDeletions.Concerns(report)) {
-                dataDeletions.Report(engine, report, changes);
-            } else {
-                // Every other report is about pages.
-                var turn = new PageTurn(changes, Issue);
-                if (report is PageEvent pageReport) pages.Report(pageReport, engine, turn);
-                else if (report is PageOffered offer) offer.Apply(pages, engine, turn);
-                else throw new ArgumentOutOfRangeException(nameof(report), report.GetType().Name, "No area handles this report.");
-                // A report that moved a page to another engine, or offered one
-                // that may be the first a registered engine hosts, changes what
-                // the engines offer.
-                PublishEngines(changes.Publish);
-                prompts.Prune(changes);
-                closePreparations.Prune(changes, Issue);
-            }
-        }
+        lock (gate) report.Route(this, engine, changes);
         foreach (var change in changes.Published) Announce(change);
         WakeIfOwed();
         WakeForRequestedTurn();
         Deliver();
+    }
+
+    /// A report that moved a page to another engine, or offered one that may
+    /// be the first a registered engine hosts, changes what the engines offer,
+    /// and what a page that went had asked no longer waits. The caller holds
+    /// the lock.
+    internal void AfterPageReport(ChangeFeed changes) {
+        PublishEngines(changes.Publish);
+        prompts.Prune(changes);
+        closePreparations.Prune(changes, Issue);
     }
 
     /// Answers what an engine asks about one of its pages while the engine
@@ -126,7 +115,7 @@ public sealed partial class CrestApp {
     #region Actions - Delivery
 
     /// Queues a command for delivery once the core lets go of its lock.
-    private void Issue(Engine engine, EngineCommand command) {
+    internal void Issue(Engine engine, EngineCommand command) {
         lock (deliveryGate) undelivered.Enqueue((engine, command));
     }
 

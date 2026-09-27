@@ -9,11 +9,13 @@ public sealed partial class CrestApp {
     #region Variables
 
     private readonly SessionStorage? storage;
+    internal SessionStorage? Storage => storage;
 
     /// The session this core keeps in its file, as it loaded and repaired it,
     /// once the file holds one. `OpenWorkspace` opens it. Set once, under the
     /// lock; the cloud transport's calls read it without the lock.
     private volatile NativeSessionAuthority? storedSession;
+    internal NativeSessionAuthority? StoredSession => storedSession;
     /// The sync component the file's session stages into, kept beside it. Set
     /// with `storedSession`.
     private volatile NativeSyncAuthority? storedSync;
@@ -32,29 +34,6 @@ public sealed partial class CrestApp {
 
     #region Actions - Stored session
 
-    /// Gives a file that holds no session its first one, before returning:
-    /// the installed release's, or the seed. See `AdoptLegacySession`.
-    private void Adopt(AdoptLegacySession adoption, ChangeFeed changes) {
-        if (storage is not { } target || storedSession is not null) return;
-        // A file that holds a session this core could not take over is refused
-        // at creation, so one found here was written by an adoption whose
-        // takeover failed: it is as unreadable now as it was then.
-        if (target.HoldsSession) throw new Rejected(new StorageUnreadable(StorageFailure.Damaged));
-        var first = FirstSession.For(adoption, () => FirstSession.FirstInstall(ids.Next, clock.Now));
-        try {
-            if (first.RequestsCloudRecovery) target.RequestCloudRecovery();
-            target.Install(first.Session, first.Journal);
-        } catch (StorageException error) {
-            throw new Rejected(new SaveFailed(error.Reason));
-        } catch (IOException) {
-            throw new Rejected(new SaveFailed(StorageFailure.Unavailable));
-        } catch (UnauthorizedAccessException) {
-            throw new Rejected(new SaveFailed(StorageFailure.ReadOnly));
-        }
-        Establish(first.Session, first.Journal, first.LegacySelection);
-        changes.Publish(new SessionAdopted(first.Favicons));
-    }
-
     /// Replaces the session file in `configuration`'s directory with the
     /// recovery checkpoint the last good launch kept, while no core has that
     /// file open. Throws `Rejected` naming why it cannot; see
@@ -69,7 +48,7 @@ public sealed partial class CrestApp {
     /// Makes a stored session the one `OpenWorkspace` opens from the file. The
     /// recovery checkpoint preserves the file exactly as loaded before anything
     /// else is written; the repaired session is then the first save.
-    private void Establish(SessionState stored, NativeSyncJournal? journal, JsonObject? legacySelection) {
+    internal void Establish(SessionState stored, NativeSyncJournal? journal, JsonObject? legacySelection) {
         var target = storage!;
         try {
             target.SaveRecoveryCheckpoint();

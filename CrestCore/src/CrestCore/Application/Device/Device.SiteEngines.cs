@@ -19,13 +19,6 @@ internal sealed partial class Device {
 
     #region Actions - Site engine intents
 
-    /// Records the choice. The caller has checked that its engine is
-    /// registered.
-    public void Choose(ChooseSiteEngine intent) {
-        ArgumentNullException.ThrowIfNull(intent);
-        Choose(intent.SpaceId, intent.Origin, intent.Engine);
-    }
-
     /// Opens `origin`'s new pages on `engine` from now on, as a choice made in
     /// `spaceId`: for every Space when the device store keeps its choices, or
     /// for that Space alone. Throws `Rejected` for an origin that is not valid

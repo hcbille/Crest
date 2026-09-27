@@ -64,9 +64,6 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
 
     #region Actions - Reports
 
-    /// Whether the report is about an engine download.
-    public static bool Concerns(EngineEvent report) => report is EngineDownloadChanged or EngineDownloadDestinationRequested;
-
     public void Report(Engine engine, EngineEvent report, ChangeFeed changes, Action<Engine, EngineCommand> issue, DateTimeOffset now) {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(report);

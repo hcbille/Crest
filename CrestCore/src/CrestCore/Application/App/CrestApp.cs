@@ -49,6 +49,21 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
     /// Reading other browsers' data and browser-data files, and exports.
     private readonly Portability portability;
 
+    // The areas each message routes itself to, which only the core's own
+    // messages reach.
+    internal Downloads Downloads => downloads;
+    internal Device Device => device;
+    internal Pages Pages => pages;
+    internal Prompts Prompts => prompts;
+    internal EngineDownloads EngineDownloads => engineDownloads;
+    internal ClosePreparations ClosePreparations => closePreparations;
+    internal DataDeletions DataDeletions => dataDeletions;
+    internal SpaceAccess Access => access;
+    internal CloudTransportStore CloudTransport => cloudTransport;
+    internal CloudSyncControl CloudSync => cloudSync;
+    internal IClock Clock => clock;
+    internal IIdSource Ids => ids;
+
     #endregion
 
     #region Constructors
@@ -110,88 +125,24 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
     /// there, in the order they happened, then the changes the intent itself
     /// published. An intent that does not apply to the current state publishes
     /// none. Engine commands the intent caused have been delivered when this
-    /// returns, unless it runs inside a delivery. A `CloudSyncIntent` answers
-    /// only its receipts; see `Handle(CloudSyncIntent)`.
+    /// returns, unless it runs inside a delivery. An intent of the cloud
+    /// transport answers only its receipts; see `CloudSyncIntent`.
     public IReadOnlyList<Change> Send(Intent intent) {
         ArgumentNullException.ThrowIfNull(intent);
-        if (intent is CloudSyncIntent cloud) return Handle(cloud);
-        if (intent is CloudTransportIntent transport) return cloudTransport.Handle(transport, JournalHoldsUploads);
-        if (intent is CloudSyncControlIntent control) return cloudSync.Handle(control);
+        return intent.Route(this);
+    }
+
+    /// Runs `apply` in one turn under the core's lock, with the feed it
+    /// publishes to, and answers the changes still pending and then those it
+    /// published. Afterwards the pages windows show are stamped, closed tabs
+    /// let go of what they kept, and what a page that went had asked no longer
+    /// waits. The engine commands the turn caused are delivered once the lock
+    /// is released.
+    internal IReadOnlyList<Change> Turn(Action<ChangeFeed> apply) {
         IReadOnlyList<Change> published;
         lock (gate) {
             var changes = new ChangeFeed();
-            switch (intent) {
-                case DownloadIntent download:
-                    engineDownloads.Before(download, changes, Issue);
-                    downloads.Handle(download, changes);
-                    break;
-                case AdoptLegacySession adoption:
-                    Adopt(adoption, changes);
-                    break;
-                case WorkspaceIntent workspace:
-                    Handle(workspace);
-                    break;
-                case WindowIntent window:
-                    device.Handle(window, changes);
-                    pages.RecoverShown(changes, Issue);
-                    break;
-                case SitePermissionIntent permission:
-                    device.Handle(permission, changes, clock.Now, ids);
-                    break;
-                case ChooseSiteEngine choice:
-                    if (engines.Registered(choice.Engine) is null) throw new Rejected(new UnregisteredEngine(choice.Engine));
-                    device.Choose(choice);
-                    break;
-                case ShortcutIntent shortcut:
-                    device.Handle(shortcut, Engines.OfferedCommands(RegisteredEngines()), changes);
-                    break;
-                case LinkIntent link:
-                    device.Handle(link, changes);
-                    break;
-                case SetupDraftIntent setup:
-                    device.Handle(setup, changes, ids);
-                    break;
-                case FinishSetup finish:
-                    Finish(finish, changes);
-                    break;
-                case SetupFlowIntent flow:
-                    device.Handle(flow, changes, ids);
-                    break;
-                case PageIntent page:
-                    pages.Handle(page, new PageTurn(changes, Issue));
-                    PublishEngines(changes.Publish);
-                    break;
-                case DataDeletionIntent deletion:
-                    dataDeletions.Handle(deletion, changes, Issue);
-                    break;
-                case SessionIntent session:
-                    if (session is FinishDeletingSpace finishing) RequireErased(finishing);
-                    device.Workspace(session.WorkspaceId).Handle(session, clock.Now, ids, pages);
-                    if (session is PromoteTransientPage promoted) pages.ForgetUnloaded(promoted.PageId);
-                    else if (session is ArchiveTransientPage archived) pages.ForgetUnloaded(archived.PageId);
-                    // A deleted Space leaves nothing in this device's link preferences.
-                    else if (session is FinishDeletingSpace deleted) device.ForgetLinks(deleted.SpaceId, changes);
-                    // An applied manual setup ends.
-                    else if (session is ApplyManualSetup applied) device.FinishManualSetup(applied.WorkspaceId, changes);
-                    break;
-                case SpaceAccessIntent grant:
-                    access.Handle(grant, changes);
-                    break;
-                case CloseIntent closing:
-                    closePreparations.Handle(closing, changes, Issue);
-                    break;
-                case PromptIntent prompt when ClosePreparations.Concerns(prompt):
-                    closePreparations.Handle(prompt, changes);
-                    break;
-                case PromptIntent prompt when EngineDownloads.Concerns(prompt):
-                    engineDownloads.Handle(prompt, changes, Issue);
-                    break;
-                case PromptIntent prompt:
-                    prompts.Handle(prompt, changes, Issue, clock.Now, ids);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "No area handles this intent.");
-            }
+            apply(changes);
             // Which pages windows show now, and what closed tabs no longer keep.
             pages.Stamp(clock.Now);
             pages.PruneRestoreStates();
@@ -205,14 +156,9 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
         return published;
     }
 
-    /// A Space's deletion finishes only once this run erased its profile's
-    /// data on every registered engine. Throws `Rejected` otherwise; a Space
-    /// the session no longer holds is the session's to refuse.
-    private void RequireErased(FinishDeletingSpace finishing) {
-        if (device.Workspace(finishing.WorkspaceId).Current.Spaces.FirstOrDefault(space => space.Id == finishing.SpaceId) is { } space
-            && !dataDeletions.Erased(space.ProfileId))
-            throw new Rejected(new SpaceDataNotErased(space.Id));
-    }
+    /// What a device intent reads in a turn that publishes to `changes`: the
+    /// core's time and identity source, and the pages the windows host.
+    internal DeviceTurn DeviceTurn(ChangeFeed changes) => new(changes, clock.Now, ids, pages);
 
     #endregion
 

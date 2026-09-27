@@ -1,21 +1,10 @@
 namespace CrestCore.Contracts;
 
-/// Something an engine binding saw happen to one of its pages. A report is
-/// never refused: one about a page the core no longer knows changes nothing.
-public abstract record EngineEvent;
-
 #region Prompts
-
-/// A question the engine raises with the person, or takes back, which its
-/// `PromptId` names until the core settles it.
-public abstract record PromptEvent(Guid PromptId) : EngineEvent;
 
 /// A server a page loads from asked for a user name and password; the load
 /// waits for the core's `SettleAuthentication`.
 public sealed record AuthenticationChallenged(Guid PromptId, Guid PageId, AuthenticationQuestion Question) : PromptEvent(PromptId);
-
-/// Whether a page the core asked may go.
-public sealed record BeforeUnloadAnswered(Guid PageId, bool Proceeds) : EngineEvent;
 
 /// An extension install the window `WindowId` started needs the person's
 /// approval, which waits for the core's `SettleExtensionInstall`.
@@ -37,9 +26,6 @@ public sealed record ScriptDialogOpened(Guid PromptId, Guid PageId, ScriptDialog
 #endregion
 
 #region Downloads
-
-/// A download the engine runs, which the core records in its download ledger.
-public abstract record EngineDownloadEvent(EngineDownload Download) : EngineEvent;
 
 /// An engine download started, progressed, finished or failed. The core
 /// records it in the download ledger, in the Space its page or profile belongs
@@ -105,13 +91,5 @@ public enum EngineDownloadState {
 /// engine never sends the address itself.
 public sealed record EngineDownloadDestinationRequested(Guid PromptId, EngineDownload Download, string SuggestedFilename,
     bool ForcesPrompt, DownloadRiskFacts Facts, bool UserInitiated, string? SourceHost) : EngineDownloadEvent(Download);
-
-#endregion
-
-#region Website Data
-
-/// An erasure the core asked for ended: `Erased` says nothing it covered is
-/// left.
-public sealed record DataErased(Guid ErasureId, bool Erased) : EngineEvent;
 
 #endregion

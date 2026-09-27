@@ -59,7 +59,7 @@ internal sealed class Prompts(Device device, Pages pages) {
             var decision = chosen.Grants ? SitePermissionDecision.GrantPersistently : SitePermissionDecision.DenyPersistently;
             try {
                 device.Handle(new DecideSitePermission(page.SpaceId, permission.Origin, permission.Permission, Detail: null, decision),
-                    changes, now, ids);
+                    new DeviceTurn(changes, now, ids, pages));
             } catch (Rejected) {
                 // A Space that locked keeps nothing; the request is still answered.
             }
@@ -71,10 +71,6 @@ internal sealed class Prompts(Device device, Pages pages) {
     #endregion
 
     #region Actions - Reports
-
-    /// Whether the report is one of the prompts' own.
-    public static bool Concerns(EngineEvent report) =>
-        report is ScriptDialogOpened or AuthenticationChallenged or PermissionRequested or ExtensionInstallRequested or PromptWithdrawn;
 
     /// Applies an engine's prompt report. A question from a page the core does
     /// not host on that engine is declined at once, and a permission request

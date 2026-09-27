@@ -1,3 +1,6 @@
+using CrestCore.Application;
+using CrestCore.Domain;
+
 namespace CrestCore.Contracts;
 
 /// Adds a route, `RouteId`, after the others: enabled, matching by containment
@@ -8,6 +11,13 @@ public sealed record AddLinkRoute(Guid RouteId, Guid DestinationSpaceId) : LinkI
     #region Static Variables
 
     public const int MaximumRoutes = 64;
+
+    #endregion
+
+    #region Actions - Device
+
+    internal override void Apply(Device device, DeviceTurn turn) =>
+        device.ReviseLinks(turn.Changes, links => LinkPreferencePolicy.Adding(links, this));
 
     #endregion
 }

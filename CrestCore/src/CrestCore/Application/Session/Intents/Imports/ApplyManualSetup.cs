@@ -27,4 +27,14 @@ public sealed record ApplyManualSetup(Guid WorkspaceId, Guid WindowId) : ImportW
     }
 
     #endregion
+
+    #region Actions - Routing
+
+    /// An applied manual setup ends.
+    internal override void Commit(CrestApp app, ChangeFeed changes) {
+        base.Commit(app, changes);
+        app.Device.FinishManualSetup(WorkspaceId, changes);
+    }
+
+    #endregion
 }

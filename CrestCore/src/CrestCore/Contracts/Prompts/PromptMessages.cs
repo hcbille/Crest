@@ -2,11 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// An answer to a question waiting on the person. A prompt lasts until the
-/// person answers it, its engine withdraws it or its page goes, and is never
-/// saved or synced.
-public abstract record PromptIntent(Guid PromptId) : Intent;
-
 /// The person answered a server's request with `Credential`, or cancelled it
 /// with none. The core hands the credential to the engine and keeps no copy:
 /// it is never in the core's state, a change or anything saved.

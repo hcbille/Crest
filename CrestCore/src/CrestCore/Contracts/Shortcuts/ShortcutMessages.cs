@@ -1,44 +1,5 @@
 namespace CrestCore.Contracts;
 
-#region Intents
-
-/// An intent about this device's shortcut choices. The device store keeps
-/// them beside the session, never in it, and they never sync. Only the
-/// commands this device offers, those its default engine can perform, hold or
-/// lose a chord.
-public abstract record ShortcutIntent : Intent;
-
-/// Carries the shortcut choices an installed release kept in its defaults
-/// into the device store, once, and publishes every offered command's chord.
-/// `Overrides` is the document that release saved under
-/// `crest.keyboard-shortcuts.v1`, or null when it saved none. An entry this
-/// build cannot read is left out; one for a command it does not know is kept.
-/// The store is written before the intent returns; a device that adopted them
-/// before, or keeps no file, adopts nothing and still publishes its bindings.
-public sealed record AdoptShortcuts(byte[]? Overrides) : ShortcutIntent;
-
-/// Binds `Keys` to `Command`. Refused while another offered command answers to
-/// them, so nothing loses its chord until the person confirms with
-/// `ReassignShortcut`.
-public sealed record AssignShortcut(ShortcutCommand Command, KeyCombination Keys) : ShortcutIntent;
-
-/// Binds `Keys` to `Command`, taking them from every other offered command
-/// that answers to them, which is left without a chord.
-public sealed record ReassignShortcut(ShortcutCommand Command, KeyCombination Keys) : ShortcutIntent;
-
-/// Forgets the person's choice for `Command`, which answers to its default
-/// again. Nothing else loses its chord.
-public sealed record ResetShortcut(ShortcutCommand Command) : ShortcutIntent;
-
-/// Forgets every shortcut choice, including those for commands this device
-/// does not offer.
-public sealed record ResetShortcuts() : ShortcutIntent;
-
-/// Leaves `Command` without a chord.
-public sealed record UnassignShortcut(ShortcutCommand Command) : ShortcutIntent;
-
-#endregion
-
 #region Queries
 
 /// Where each numbered command leads in a window: to the stops of the Space it

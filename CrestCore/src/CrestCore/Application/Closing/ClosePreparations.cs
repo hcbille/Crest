@@ -76,9 +76,6 @@ internal sealed class ClosePreparations(Pages pages, Downloads downloads, IIdSou
 
     #region Actions - Reports
 
-    /// Whether the report answers a close preparation.
-    public static bool Concerns(EngineEvent report) => report is BeforeUnloadAnswered;
-
     public void Report(Engine engine, EngineEvent report, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(changes);
