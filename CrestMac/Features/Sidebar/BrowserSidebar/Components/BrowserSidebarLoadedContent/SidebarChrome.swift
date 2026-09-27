@@ -42,7 +42,7 @@ struct SidebarChrome: View {
                 if context.utilityPresentation.surface == nil {
                     SpaceSidebarAddressBand(
                         space: space,
-                        siteControlSpace: context.browser.isDeleting(space.id) ? nil : space.identity,
+                        offersSiteControls: !context.browser.isDeleting(space.id),
                         selectedTabID: context.browser.selectedTabID(in: space.id),
                         pages: pages,
                         capabilities: context.capabilities,

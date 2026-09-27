@@ -22,10 +22,6 @@
         /// The browser operations this page may ask for, such as the Space a
         /// Chrome Web Store listing installs into. Weak: the composition owns it.
         private weak var hostCommands: (any BrowserEngineHostCommands)?
-        /// A Settings page of the engine's own, such as its flags page, which no
-        /// tab owns and the core never hears of: it opens once its view is in a
-        /// window. TRANSITIONAL until such pages open through the core.
-        private let isStandalone: Bool
         /// The engine that hosts the page, which its direct requests go to.
         private weak var engine: ChromiumEngine?
         var observer: (BrowserPageEngineEvent) -> Void
@@ -38,9 +34,6 @@
         /// Crest's own drag of a link out of the page.
         weak var linkDrag: BrowserLinkDragController?
         private var host: (any CrestMacShell)?
-        /// What a standalone page loads once it opens.
-        private var requestedURL: URL?
-        private var opening = false
         private var created = false
         private var disposed = false
         /// What waits for the engine: each script evaluation by its identity.
@@ -54,26 +47,10 @@
             host = engine.host
             hostCommands = engine.hostCommands
             isPrivateBrowsing = false
-            isStandalone = false
             observer = { _ in }
             surface.page = self
             // The binding may have created the page before its view came.
             engine.pages.request(WatchPage(pageID: id))
-        }
-
-        /// A Settings page of the engine's own in `profileID`, which opens once
-        /// its view is in a window.
-        init(standaloneIn profileID: UUID, engine: ChromiumEngine) {
-            let id = UUID()
-            pageID = id
-            self.id = id.uuidString
-            self.profileID = profileID
-            self.engine = engine
-            host = engine.host
-            isPrivateBrowsing = false
-            isStandalone = true
-            observer = { _ in }
-            surface.page = self
         }
 
         /// The page's direct path to the binding, while the engine is running.
@@ -95,7 +72,7 @@
         /// load, through the core, which checks the two pages share an engine
         /// and a profile.
         func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool {
-            guard !isStandalone, !created, !disposed, let engine,
+            guard !created, !disposed, let engine,
                 navigation.implementation == registration.implementationId,
                 let stagedLinkID = UUID(uuidString: navigation.token), let sourcePageID = navigation.sourcePageID
             else { return false }
@@ -115,45 +92,28 @@
             load(url)
         }
         /// The app's own load of `url`, which the core resolves and asks the
-        /// binding to run. A standalone page, which the core never hears of,
-        /// opens at it, and keeps the address it is opening at.
+        /// binding to run.
         func load(_ url: URL) {
             guard !disposed else { return }
-            guard isStandalone else {
-                engine?.navigate(pageID, to: url)
-                return
-            }
-            guard !opening else { return }
-            requestedURL = url
-            attachIfPossible()
+            engine?.navigate(pageID, to: url)
         }
 
         func attachIfPossible() {
-            guard !disposed, let windowID = surface.window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) }),
-                let pages
+            // The binding creates the page the core opened; its view joins
+            // the window once both exist.
+            guard !disposed, created,
+                let windowID = surface.window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) }),
+                let pages,
+                pages.request(MovePageToWindow(pageID: pageID, windowID: windowID)),
+                let view = host?.view(forPage: pageID)
             else { return }
-            if created {
-                guard pages.request(MovePageToWindow(pageID: pageID, windowID: windowID)),
-                    let view = host?.view(forPage: pageID)
-                else { return }
-                if view.superview !== surface {
-                    view.removeFromSuperview()
-                    view.frame = surface.bounds
-                    view.autoresizingMask = [.width, .height]
-                    surface.addSubview(view)
-                }
-                pages.request(ShowPage(pageID: pageID))
-                return
+            if view.superview !== surface {
+                view.removeFromSuperview()
+                view.frame = surface.bounds
+                view.autoresizingMask = [.width, .height]
+                surface.addSubview(view)
             }
-            // The binding creates a page the core opened; a standalone page
-            // opens itself, in its window's part of the engine.
-            guard isStandalone, !opening, let profileID, let requestedURL else { return }
-            opening = true
-            let opened = pages.request(
-                OpenStandalonePage(
-                    pageID: pageID, profileID: profileID, windowID: windowID,
-                    url: ChromiumInternalURL.engine(requestedURL.absoluteString)))
-            if !opened { creationFailed() }
+            pages.request(ShowPage(pageID: pageID))
         }
 
         // MARK: Content bridges
@@ -287,10 +247,9 @@
         }
 
         /// The page's owner let it go. The core's ClosePage has the binding
-        /// close what the engine holds; only a standalone page closes itself.
+        /// close what the engine holds.
         func dispose() {
             guard !disposed else { return }
-            if isStandalone { engine?.pages.request(CloseStandalonePage(pageID: pageID)) }
             disposed = true
             surface.devToolsView = nil
             for subview in surface.subviews { subview.removeFromSuperview() }
@@ -411,7 +370,6 @@
         private func viewReady() {
             guard !created else { return }
             created = true
-            opening = false
             for script in contentScripts {
                 pages?.request(
                     AddContentScript(pageID: pageID, source: script.source, mainFrameOnly: script.mainFrameOnly))
@@ -420,7 +378,6 @@
         }
 
         private func creationFailed() {
-            opening = false
             observer(.creationFailed(message: String(localized: "Chromium couldn’t create this page.")))
         }
 

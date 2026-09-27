@@ -53,14 +53,6 @@
             return ChromiumPageAdapter(native)
         }
 
-        /// One of the engine's own pages that Settings shows in `profileID`,
-        /// which no tab owns and the core never hears of.
-        func standalonePage(in profileID: UUID) -> ChromiumNativePage {
-            let native = ChromiumNativePage(standaloneIn: profileID, engine: self)
-            hold(native)
-            return native
-        }
-
         // MARK: - Actions - Prompts
 
         /// Hears the questions `core` asks the person, which this engine's

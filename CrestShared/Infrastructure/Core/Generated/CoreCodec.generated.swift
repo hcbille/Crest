@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x3c, 0x16, 0x81, 0x83, 0xfb, 0x5c, 0x26, 0x6e, 0x6a, 0x84, 0x98, 0x7b, 0xc2, 0xb8, 0xd8, 0x50, 0xb4, 0x73, 0x3c, 0x46, 0x9d, 0x10, 0x37, 0x7d, 0xac, 0x59, 0x71, 0x69, 0x6a, 0x05, 0x59, 0x7b
+        0xff, 0x18, 0x71, 0xa6, 0xd3, 0x19, 0x08, 0x7b, 0xf9, 0x62, 0x2b, 0x3f, 0xea, 0xcf, 0xea, 0xa7, 0xc1, 0x38, 0x61, 0xa0, 0x82, 0xed, 0x55, 0x03, 0x6c, 0x69, 0x1b, 0x7e, 0x38, 0xe4, 0x32, 0x0f
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0x59, 0xf4, 0xda, 0x16, 0xad, 0x10, 0x32, 0x8e, 0xc4, 0x32, 0xc1, 0x7b, 0xb4, 0x1d, 0xbe, 0xde, 0x02, 0x77, 0xf9, 0x0d, 0x93, 0x6e, 0x78, 0x63, 0x09, 0xa2, 0xbc, 0xf2, 0x9c, 0xbe, 0x31, 0x78
+        0xca, 0xbf, 0x80, 0x2e, 0xce, 0x65, 0x52, 0x4b, 0x03, 0x1e, 0x45, 0xda, 0x9a, 0x8d, 0xa9, 0x09, 0xb5, 0x89, 0xec, 0x75, 0xfd, 0x5f, 0x03, 0x6a, 0xf4, 0xa7, 0x7a, 0x9e, 0x6e, 0xb4, 0x8a, 0x29
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -348,40 +348,38 @@ enum CoreCodec {
         case 3: return try CapturePage(from: &reader)
         case 4: return try ChangeExtension(from: &reader)
         case 5: return try CloseInspector(from: &reader)
-        case 6: return try CloseStandalonePage(from: &reader)
-        case 7: return try EnterPictureInPicture(from: &reader)
-        case 8: return try EvaluateContentScript(from: &reader)
-        case 9: return try ExportPage(from: &reader)
-        case 10: return try FindInPage(from: &reader)
-        case 11: return try GoToHistoryOffset(from: &reader)
-        case 12: return try HasSidePanel(from: &reader)
-        case 13: return try HidePage(from: &reader)
-        case 14: return try InstalledExtensions(from: &reader)
-        case 15: return try LayoutInspector(from: &reader)
-        case 16: return try MovePageToWindow(from: &reader)
-        case 17: return try MuteMediaSession(from: &reader)
-        case 18: return try OpenInspector(from: &reader)
-        case 19: return try OpenStandalonePage(from: &reader)
-        case 20: return try PageCertificates(from: &reader)
-        case 21: return try PageExtensions(from: &reader)
-        case 22: return try PageIcon(from: &reader)
-        case 23: return try PageInspected(from: &reader)
-        case 24: return try PageMedia(from: &reader)
-        case 25: return try PerformMediaAction(from: &reader)
-        case 26: return try PinnedExtensions(from: &reader)
-        case 27: return try PrepareProfile(from: &reader)
-        case 28: return try RefreshPageIcon(from: &reader)
-        case 29: return try RefreshStoreListing(from: &reader)
-        case 30: return try ReloadPage(from: &reader)
-        case 31: return try RestoreInteractionState(from: &reader)
-        case 32: return try SaveInteractionState(from: &reader)
-        case 33: return try SetSitePermission(from: &reader)
-        case 34: return try ShowBlockedPopups(from: &reader)
-        case 35: return try ShowPage(from: &reader)
-        case 36: return try StopLoading(from: &reader)
-        case 37: return try StopMediaCapture(from: &reader)
-        case 38: return try WatchPage(from: &reader)
-        case 39: return try ZoomPage(from: &reader)
+        case 6: return try EnterPictureInPicture(from: &reader)
+        case 7: return try EvaluateContentScript(from: &reader)
+        case 8: return try ExportPage(from: &reader)
+        case 9: return try FindInPage(from: &reader)
+        case 10: return try GoToHistoryOffset(from: &reader)
+        case 11: return try HasSidePanel(from: &reader)
+        case 12: return try HidePage(from: &reader)
+        case 13: return try InstalledExtensions(from: &reader)
+        case 14: return try LayoutInspector(from: &reader)
+        case 15: return try MovePageToWindow(from: &reader)
+        case 16: return try MuteMediaSession(from: &reader)
+        case 17: return try OpenInspector(from: &reader)
+        case 18: return try PageCertificates(from: &reader)
+        case 19: return try PageExtensions(from: &reader)
+        case 20: return try PageIcon(from: &reader)
+        case 21: return try PageInspected(from: &reader)
+        case 22: return try PageMedia(from: &reader)
+        case 23: return try PerformMediaAction(from: &reader)
+        case 24: return try PinnedExtensions(from: &reader)
+        case 25: return try PrepareProfile(from: &reader)
+        case 26: return try RefreshPageIcon(from: &reader)
+        case 27: return try RefreshStoreListing(from: &reader)
+        case 28: return try ReloadPage(from: &reader)
+        case 29: return try RestoreInteractionState(from: &reader)
+        case 30: return try SaveInteractionState(from: &reader)
+        case 31: return try SetSitePermission(from: &reader)
+        case 32: return try ShowBlockedPopups(from: &reader)
+        case 33: return try ShowPage(from: &reader)
+        case 34: return try StopLoading(from: &reader)
+        case 35: return try StopMediaCapture(from: &reader)
+        case 36: return try WatchPage(from: &reader)
+        case 37: return try ZoomPage(from: &reader)
         default: throw WireError.malformed("Unknown PageRequest tag \(tag)")
         }
     }
@@ -3648,27 +3646,6 @@ extension CloseReady {
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(requestID)
         writer.writeBool(allowed)
-    }
-}
-
-extension CloseStandalonePage {
-    init(from reader: inout WireReader) throws(WireError) {
-        let pageID = try reader.readUUID()
-        self.init(pageID: pageID)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(pageID)
-    }
-
-    func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(6)
-        encode(into: &writer)
-    }
-
-    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
-        let answer = try reader.readBool()
-        return answer
     }
 }
 
@@ -6976,7 +6953,7 @@ extension EnterPictureInPicture {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(7)
+        writer.writeTag(6)
         encode(into: &writer)
     }
 
@@ -7035,7 +7012,7 @@ extension EvaluateContentScript {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(8)
+        writer.writeTag(7)
         encode(into: &writer)
     }
 
@@ -7143,7 +7120,7 @@ extension ExportPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(9)
+        writer.writeTag(8)
         encode(into: &writer)
     }
 
@@ -7732,7 +7709,7 @@ extension FindInPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(10)
+        writer.writeTag(9)
         encode(into: &writer)
     }
 
@@ -8288,7 +8265,7 @@ extension GoToHistoryOffset {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(11)
+        writer.writeTag(10)
         encode(into: &writer)
     }
 
@@ -8322,7 +8299,7 @@ extension HasSidePanel {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(12)
+        writer.writeTag(11)
         encode(into: &writer)
     }
 
@@ -8343,7 +8320,7 @@ extension HidePage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(13)
+        writer.writeTag(12)
         encode(into: &writer)
     }
 
@@ -9139,7 +9116,7 @@ extension InstalledExtensions {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(14)
+        writer.writeTag(13)
         encode(into: &writer)
     }
 
@@ -9777,7 +9754,7 @@ extension LayoutInspector {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(15)
+        writer.writeTag(14)
         encode(into: &writer)
     }
 
@@ -10877,7 +10854,7 @@ extension MovePageToWindow {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(16)
+        writer.writeTag(15)
         encode(into: &writer)
     }
 
@@ -11155,7 +11132,7 @@ extension MuteMediaSession {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(17)
+        writer.writeTag(16)
         encode(into: &writer)
     }
 
@@ -11774,7 +11751,7 @@ extension OpenInspector {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(18)
+        writer.writeTag(17)
         encode(into: &writer)
     }
 
@@ -11857,33 +11834,6 @@ extension OpenPage {
     func encodeIntent(into writer: inout WireWriter) {
         writer.writeTag(131)
         encode(into: &writer)
-    }
-}
-
-extension OpenStandalonePage {
-    init(from reader: inout WireReader) throws(WireError) {
-        let pageID = try reader.readUUID()
-        let profileID = try reader.readUUID()
-        let windowID = try reader.readUUID()
-        let url = try reader.readString()
-        self.init(pageID: pageID, profileID: profileID, windowID: windowID, url: url)
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeUUID(pageID)
-        writer.writeUUID(profileID)
-        writer.writeUUID(windowID)
-        writer.writeString(url)
-    }
-
-    func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(19)
-        encode(into: &writer)
-    }
-
-    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
-        let answer = try reader.readBool()
-        return answer
     }
 }
 
@@ -12127,7 +12077,7 @@ extension PageCertificates {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(20)
+        writer.writeTag(18)
         encode(into: &writer)
     }
 
@@ -12279,7 +12229,7 @@ extension PageExtensions {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(21)
+        writer.writeTag(19)
         encode(into: &writer)
     }
 
@@ -12376,7 +12326,7 @@ extension PageIcon {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(20)
         encode(into: &writer)
     }
 
@@ -12450,7 +12400,7 @@ extension PageInspected {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(23)
+        writer.writeTag(21)
         encode(into: &writer)
     }
 
@@ -12579,7 +12529,7 @@ extension PageMedia {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(24)
+        writer.writeTag(22)
         encode(into: &writer)
     }
 
@@ -13405,7 +13355,7 @@ extension PerformMediaAction {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(25)
+        writer.writeTag(23)
         encode(into: &writer)
     }
 
@@ -13487,7 +13437,7 @@ extension PinnedExtensions {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(26)
+        writer.writeTag(24)
         encode(into: &writer)
     }
 
@@ -13581,7 +13531,7 @@ extension PrepareProfile {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(27)
+        writer.writeTag(25)
         encode(into: &writer)
     }
 
@@ -14032,7 +13982,7 @@ extension RefreshPageIcon {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(28)
+        writer.writeTag(26)
         encode(into: &writer)
     }
 
@@ -14053,7 +14003,7 @@ extension RefreshStoreListing {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(29)
+        writer.writeTag(27)
         encode(into: &writer)
     }
 
@@ -14123,7 +14073,7 @@ extension ReloadPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(30)
+        writer.writeTag(28)
         encode(into: &writer)
     }
 
@@ -14793,7 +14743,7 @@ extension RestoreInteractionState {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(31)
+        writer.writeTag(29)
         encode(into: &writer)
     }
 
@@ -14959,7 +14909,7 @@ extension SaveInteractionState {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(32)
+        writer.writeTag(30)
         encode(into: &writer)
     }
 
@@ -15838,7 +15788,7 @@ extension SetSitePermission {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(33)
+        writer.writeTag(31)
         encode(into: &writer)
     }
 
@@ -16718,7 +16668,7 @@ extension ShowBlockedPopups {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(34)
+        writer.writeTag(32)
         encode(into: &writer)
     }
 
@@ -16771,7 +16721,7 @@ extension ShowPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(35)
+        writer.writeTag(33)
         encode(into: &writer)
     }
 
@@ -18413,7 +18363,7 @@ extension StopLoading {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(36)
+        writer.writeTag(34)
         encode(into: &writer)
     }
 
@@ -18436,7 +18386,7 @@ extension StopMediaCapture {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(37)
+        writer.writeTag(35)
         encode(into: &writer)
     }
 
@@ -19916,7 +19866,7 @@ extension WatchPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(38)
+        writer.writeTag(36)
         encode(into: &writer)
     }
 
@@ -20184,7 +20134,7 @@ extension ZoomPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(39)
+        writer.writeTag(37)
         encode(into: &writer)
     }
 

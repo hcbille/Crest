@@ -1,8 +1,9 @@
 namespace CrestCore.Contracts;
 
-/// How a page with no tab presents: a Peek over the tab it opened from, or a
-/// Quick Window of its own. A presentation travels as its index in `All`, so
-/// `All` is append-only.
+/// How a page with no tab presents: a Peek over the tab it opened from, a
+/// Quick Window of its own, or one of its engine's own pages, such as its
+/// feature flags, inside Settings. A presentation travels as its index in
+/// `All`, so `All` is append-only.
 public sealed class TransientPresentation {
     #region Variables
 
@@ -14,7 +15,11 @@ public sealed class TransientPresentation {
     /// preferences.
     public static readonly TransientPresentation QuickWindow = new(name: "quickWindow", opensNewTabsInFront: false);
 
-    public static IReadOnlyList<TransientPresentation> All { get; } = [Peek, QuickWindow];
+    /// A link an engine's own page in Settings opens in a new tab follows the
+    /// person's link preferences.
+    public static readonly TransientPresentation Settings = new(name: "settings", opensNewTabsInFront: false);
+
+    public static IReadOnlyList<TransientPresentation> All { get; } = [Peek, QuickWindow, Settings];
 
     public string Name { get; }
 

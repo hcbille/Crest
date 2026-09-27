@@ -51,9 +51,6 @@ final class CrestCore {
     @ObservationIgnored private let wake = CoreWakeRelay()
     /// Callers waiting for a revision to reach disk. A drain resumes them.
     @ObservationIgnored var saveWaiters: [(revision: Int64, continuation: CheckedContinuation<Void, Never>)] = []
-    /// TRANSITIONAL until WP C's "navigation commit first": who hears which
-    /// workspaces' sessions each batch changed.
-    @ObservationIgnored private var sessionFollowers: [Follower<Set<UUID>>] = []
     /// Who hears that an intent from the cloud transport committed.
     @ObservationIgnored private var cloudDeliveryFollowers: [Follower<Void>] = []
     /// Who hears each site permission change once it is applied. Until WP C
@@ -341,9 +338,6 @@ final class CrestCore {
             }
         }
         state.finishBatch()
-        let touched = state.touchedWorkspaces
-        state.touchedWorkspaces = []
-        if !touched.isEmpty { sessionsChanged(touched) }
         if !pageRecords.isEmpty { engines.recordsApplied(pageRecords) }
         if !permissionChanges.isEmpty { sitePermissionsChanged(permissionChanges) }
         if !promptChanges.isEmpty { promptsChanged(promptChanges) }
@@ -360,17 +354,6 @@ final class CrestCore {
         // Last, because a waiter may send the intent its close was waiting for.
         for ready in closesReady { closeWaiters.removeValue(forKey: ready.requestID)?(ready.allowed) }
         for deleted in dataDeleted { dataDeletionWaiters.removeValue(forKey: deleted.requestID)?(deleted.deleted) }
-    }
-
-    /// Calls `handler` with the workspaces whose session each batch changed,
-    /// once the batch is applied: a drain's, or the changes an intent answered,
-    /// which carry first any the core made on its own, such as a cloud merge.
-    /// The registration lasts as long as `owner`. TRANSITIONAL until WP C's
-    /// "navigation commit first": the windows over a session follow it this
-    /// way.
-    func followSessions(_ owner: AnyObject, _ handler: @escaping @MainActor (Set<UUID>) -> Void) {
-        sessionFollowers.removeAll { $0.owner == nil }
-        sessionFollowers.append(Follower(owner: owner, handler: handler))
     }
 
     /// Calls `handler` with each site permission change once its batch is
@@ -483,11 +466,6 @@ final class CrestCore {
         for change in changes {
             for follower in followers { follower.handler(change) }
         }
-    }
-
-    private func sessionsChanged(_ workspaces: Set<UUID>) {
-        sessionFollowers.removeAll { $0.owner == nil }
-        for follower in sessionFollowers { follower.handler(workspaces) }
     }
 
     /// Tells the core the main queue finished the turn a wake's drain followed,

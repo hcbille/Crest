@@ -59,6 +59,7 @@ struct MobileBrowserRootLifecycleModifier: ViewModifier {
         let runtimeObservedContent =
             pageObservedContent
             .onChange(of: model.browser.sessionRevision, initial: true) {
+                model.browser.followSession()
                 runtimeSessionProjection = model.pages.runtimeProjection
                 tabRuntimeAssignments =
                     model.pages.tabRuntimeAssignments

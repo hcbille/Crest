@@ -28,7 +28,8 @@ struct BrowserEngineSitePermissionsSection: View {
 /// Per-site extension actions and access, alongside Crest's own site controls.
 struct BrowserEngineSiteControlsSection: View {
     let page: BrowserPage
-    let space: BrowserSpaceIdentity
+    /// The page's Space in the read model.
+    let space: SpaceModel
     let url: URL?
     let dismiss: () -> Void
 
@@ -42,7 +43,8 @@ struct BrowserEngineSiteControlsSection: View {
 
 /// The pinned extension actions that sit above a Space's tab list.
 struct BrowserEngineSidebarAccessory: View {
-    let space: BrowserSpaceIdentity
+    /// The Space whose row this is, in the read model.
+    let space: SpaceModel
     /// The window's own store. Extension ownership is decided against the store
     /// family that owns this window rather than against one global Space list.
     let browser: BrowserStore

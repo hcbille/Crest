@@ -6,7 +6,9 @@ import Observation
 final class BrowserStore {
     /// This window in the core's device, which owns what it shows.
     let windowID: BrowserWindowID
-    private(set) var sessionRevision = 0
+    /// Advances each time this window shows another Space or tab by an
+    /// intent of its own, or a tab moves into or out of it.
+    private var windowRevision = 0
     var localSyncErrorDescription: String?
     let browsingMode: BrowserBrowsingMode
     let tabMultiSelection = BrowserTabMultiSelection()
@@ -20,15 +22,28 @@ final class BrowserStore {
     @ObservationIgnored weak var interactionObserver: (any BrowserStoreInteractionObserving)?
     @ObservationIgnored weak var tabLinkProvider: (any BrowserTabLinkProviding)?
     @ObservationIgnored weak var tabCopying: (any BrowserTabCopying)?
-    /// What this window showed when it last followed the core, which it keeps
+    /// What this window showed when it last read the core, which it keeps
     /// showing once the core no longer has it open.
     @ObservationIgnored private var lastWindow: WindowState
-    /// The Space `lastWindow` showed, under its profile and access policy then.
+    /// The Space this window showed when it last followed its session, under
+    /// its profile and access policy then.
     @ObservationIgnored private var lastSelectionScope: BrowserSelectionScope
     @ObservationIgnored private var isClosed = false
 
     /// What the core says this window shows.
-    var window: WindowState { core.state.windows[windowID]?.value ?? lastWindow }
+    var window: WindowState {
+        guard let shown = core.state.windows[windowID]?.value else { return lastWindow }
+        lastWindow = shown
+        return shown
+    }
+
+    /// Where this window stands in what it shows, for the readers that follow
+    /// it as a whole, such as its page host: the revision the read model gives
+    /// its workspace's session, and how many times the window itself showed
+    /// something else.
+    var sessionRevision: BrowserSessionRevision {
+        BrowserSessionRevision(session: workspaceModel?.sessionRevision, window: windowRevision)
+    }
 
     var selectedSpaceID: SpaceID { window.shownSpace }
 
@@ -47,7 +62,7 @@ final class BrowserStore {
         guard !isDeleting(id), spaceModel(id) != nil else { return }
         guard sendWindowIntent(ShowSpace(windowID: windowID, spaceID: id)) else { return }
         tabMultiSelection.clear()
-        sessionRevision &+= 1
+        windowRevision &+= 1
     }
 
     /// Shows the Space before or after this window's, wrapping, among the
@@ -59,7 +74,7 @@ final class BrowserStore {
             selectedSpaceID != shown
         else { return nil }
         tabMultiSelection.clear()
-        sessionRevision &+= 1
+        windowRevision &+= 1
         return selectedSpaceID
     }
 
@@ -71,7 +86,7 @@ final class BrowserStore {
         guard sendWindowIntent(ShowAdjacentTab(windowID: windowID, direction: direction)),
             let next = shownTab?.id, next != shown
         else { return nil }
-        sessionRevision &+= 1
+        windowRevision &+= 1
         return next
     }
 
@@ -81,7 +96,7 @@ final class BrowserStore {
     func showMostRecentTab() -> Bool {
         let shown = shownTab?.id
         guard sendWindowIntent(ShowMostRecentTab(windowID: windowID)), shownTab?.id != shown else { return false }
-        sessionRevision &+= 1
+        windowRevision &+= 1
         return true
     }
 
@@ -89,7 +104,7 @@ final class BrowserStore {
         guard sendWindowIntent(ShowTab(windowID: windowID, spaceID: spaceID, tabID: nil)) else {
             return
         }
-        sessionRevision &+= 1
+        windowRevision &+= 1
     }
 
     /// Shows a tab in this window and records when it was last used, which
@@ -99,7 +114,7 @@ final class BrowserStore {
         guard !isDeleting(spaceID), spaceModel(spaceID)?.tabs.contains(id) == true,
             sendWindowIntent(ShowTab(windowID: windowID, spaceID: spaceID, tabID: id))
         else { return false }
-        sessionRevision &+= 1
+        windowRevision &+= 1
         return true
     }
 
@@ -110,7 +125,7 @@ final class BrowserStore {
             sendWindowIntent(
                 DismissShownTab(windowID: windowID, spaceID: spaceID, tabID: id))
         else { return }
-        sessionRevision &+= 1
+        windowRevision &+= 1
     }
 
     /// The column shares this window keeps for a split group it resized.
@@ -124,8 +139,14 @@ final class BrowserStore {
     @discardableResult
     private func sendWindowIntent(_ intent: some Intent) -> Bool {
         do { try core.send(intent) } catch { return false }
-        rememberShown()
+        lastSelectionScope = selectionScope
         return true
+    }
+
+    /// What this window shows changed without an intent of its own, as when a
+    /// tab moved into or out of it.
+    func showsAnew() {
+        windowRevision &+= 1
     }
 
     /// A window over a new family the core opens from `seed`, whose tabs wear
@@ -187,7 +208,7 @@ final class BrowserStore {
         } catch {
             preconditionFailure("The core refused to open a window over its own workspace: \(error)")
         }
-        rememberShown()
+        lastSelectionScope = selectionScope
     }
 
     /// Closes this window in the core's device. What it showed stays readable
@@ -255,17 +276,20 @@ extension BrowserStore {
     /// being opened or a page's settling title, is saved and staged too.
     /// Callers bound the wait with `BrowserPersistenceFlush`.
     func flushPendingSyncPersistenceUntilSettled() async {
-        var revision: Int
+        var revision: BrowserSessionRevision
         repeat {
             revision = sessionRevision
             await flushPendingSyncPersistence()
         } while sessionRevision != revision
     }
 
-    /// The family accepted a change. The core's device has already moved or
-    /// repaired this window; a window that now shows another Space, or its
-    /// Space under another profile or policy, drops its multi-selection.
-    func receiveFamilySessionChange() {
+    /// Brings what this window keeps of its own in line with the session it
+    /// shows, each time `sessionRevision` moves; the window's root view calls
+    /// it. The core's device has already moved or repaired this window. A
+    /// window that now shows another Space, or its Space under another
+    /// profile or policy, drops its multi-selection, and forgets a moved tab
+    /// it was to show that it no longer shows.
+    func followSession() {
         let scope = selectionScope
         if scope != lastSelectionScope {
             tabMultiSelection.clear()
@@ -277,19 +301,11 @@ extension BrowserStore {
         {
             pendingMovedTabActivation = nil
         }
-        rememberShown()
-        sessionRevision &+= 1
+        lastSelectionScope = scope
     }
 
     /// The Space this window shows, under its profile and access policy now.
     private var selectionScope: BrowserSelectionScope {
         BrowserSelectionScope(spaceID: selectedSpaceID, space: spaceModel(selectedSpaceID))
-    }
-
-    /// Keeps what the window shows now, which it keeps showing once the core
-    /// no longer has it open, and the scope its multi-selection is made under.
-    private func rememberShown() {
-        lastWindow = window
-        lastSelectionScope = selectionScope
     }
 }

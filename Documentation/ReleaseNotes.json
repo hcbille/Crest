@@ -3001,6 +3001,10 @@
     "page-host-follows-put-away-and-webkit-links-ask-core": {
       "category": "internal",
       "message": "Closing a saved or pinned tab lets the page host put its page away after the core records it, and WebKit asks the core how each followed link opens and stages Peek links through it"
+    },
+    "settings-engine-pages-open-through-core": {
+      "category": "internal",
+      "message": "Chromium's feature flags page in Settings opens through the core like every other page, windows follow the session from the read model, and extension controls read their Space from it"
     }
   }
 }

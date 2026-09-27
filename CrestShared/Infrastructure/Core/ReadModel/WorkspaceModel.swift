@@ -6,6 +6,11 @@ import Observation
 /// object of its own, so a change inside one Space never notifies the readers
 /// of the Space list. Each of its own values is stored before it is
 /// announced; see `BrowserStoreFirstObservable`.
+///
+/// The workspace also announces its session as a whole: `sessionRevision`
+/// advances once for each batch of the core's changes that changed any of
+/// it, for the few readers that follow the whole session, such as a window's
+/// page host bringing its pages in line.
 @MainActor
 @Observable
 final class WorkspaceModel: Identifiable {
@@ -40,6 +45,15 @@ final class WorkspaceModel: Identifiable {
         set { publish(newValue, into: \.isDisposableSeedStorage, as: \.isDisposableSeed) }
     }
     @ObservationIgnored private var isDisposableSeedStorage: Bool
+    /// Advances once for each batch of the core's changes that changed the
+    /// session, after the batch is applied.
+    private(set) var sessionRevision: UInt64 {
+        get { observed(\.sessionRevisionStorage, as: \.sessionRevision) }
+        set { publish(newValue, into: \.sessionRevisionStorage, as: \.sessionRevision) }
+    }
+    @ObservationIgnored private var sessionRevisionStorage: UInt64 = 0
+    /// Whether a change of the batch being applied changed the session.
+    @ObservationIgnored private var changedInBatch = false
 
     /// Every tab the workspace holds, open or archived.
     var tabIDs: [UUID] {
@@ -68,6 +82,23 @@ final class WorkspaceModel: Identifiable {
     /// Whether any Space of the workspace holds the tab open.
     func holdsOpen(tabID: UUID) -> Bool {
         spaces.models.contains { $0.tabs.contains(tabID) }
+    }
+
+    // MARK: - Actions - Batches
+
+    /// A change of the batch being applied changed the session.
+    func sessionChanged() {
+        changedInBatch = true
+    }
+
+    /// The batch ended: the session announces itself once when a change of
+    /// the batch changed it. Answers whether it did.
+    @discardableResult
+    func finishBatch() -> Bool {
+        guard changedInBatch else { return false }
+        changedInBatch = false
+        sessionRevision &+= 1
+        return true
     }
 
     // MARK: - Actions - Changes

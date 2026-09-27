@@ -15,11 +15,11 @@ struct BrowserChromeWebStoreInstallView: View {
                     goBack: { isSelectingSpaces = false })
             } else {
                 HStack(alignment: .center, spacing: CrestSpacing.medium) {
-                    BrowserExtensionIconView(image: model.candidate?.icon, size: BrowserExtensionsMetrics.installReviewIconSize)
+                    BrowserExtensionIconView(image: model.questionIcon, size: BrowserExtensionsMetrics.installReviewIconSize)
                     VStack(alignment: .leading, spacing: CrestSpacing.extraSmall) {
-                        Text(model.completed ? "Extension Installed" : model.candidate?.name ?? "Install Extension")
+                        Text(model.completed ? "Extension Installed" : model.questionName ?? "Install Extension")
                             .font(.title3.weight(.semibold))
-                        if model.candidate != nil {
+                        if model.question != nil {
                             Label("Verified Chrome Web Store package", systemImage: "checkmark.seal.fill")
                                 .font(.caption).foregroundStyle(.green)
                         }
@@ -32,25 +32,25 @@ struct BrowserChromeWebStoreInstallView: View {
                         Text("Preparing extension…").foregroundStyle(.secondary)
                     }
                 } else if model.completed {
-                    Label("\(model.candidate?.name ?? "Extension") is ready in \(model.space.name).", systemImage: "checkmark.circle.fill")
+                    Label("\(model.questionName ?? "Extension") is ready in \(model.space.name).", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                     if model.installedCount > 1 {
                         Text("Installed in \(model.installedCount - 1) additional Spaces.").font(.callout)
                     }
-                } else if let candidate = model.candidate {
+                } else if let question = model.question {
                     VStack(alignment: .leading, spacing: CrestSpacing.medium) {
-                        if !candidate.detail.isEmpty {
-                            Text(candidate.detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        if !question.summary.isEmpty {
+                            Text(question.summary).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                         }
                         LabeledContent("Install In", value: "\(model.space.name) Space").font(.callout)
-                        LabeledContent("Version", value: candidate.version).font(.callout)
+                        LabeledContent("Version", value: question.version).font(.callout)
                         Text("Only install extensions you trust. Review the access below before installing.")
                             .font(.caption).foregroundStyle(.secondary)
                         DisclosureGroup(isExpanded: $isAccessExpanded) {
                             ScrollView {
                                 VStack(alignment: .leading, spacing: CrestSpacing.medium) {
                                     BrowserExtensionInstallAccessGroup(title: "Permissions and Website Access",
-                                        values: candidate.permissions, emptyText: "No additional browser permissions requested.")
+                                        values: question.permissions, emptyText: "No additional browser permissions requested.")
                                     if model.canWithhold {
                                         Toggle("Withhold website access until I grant it", isOn: $model.withhold)
                                             .toggleStyle(.checkbox).font(.caption)
@@ -83,7 +83,7 @@ struct BrowserChromeWebStoreInstallView: View {
                         Button("Done", action: model.dismiss).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
                     } else {
                         Button("Cancel", role: .cancel, action: model.dismiss).disabled(model.installing)
-                        if model.candidate != nil && model.failure == nil {
+                        if model.question != nil && model.failure == nil {
                             Button(action: model.accept) {
                                 if model.installing { ProgressView().controlSize(.small).accessibilityLabel("Adding extension") }
                                 else { Text("Add Extension") }

@@ -3,8 +3,8 @@ import Foundation
 /// Each session change updates the workspace it names and the images its tabs
 /// wear. The images move first, while the read model still holds what the
 /// change replaces, so a tab a change places anew is told apart from one it
-/// keeps. Each change also marks its workspace touched, so the windows over
-/// that session follow it once the batch is applied.
+/// keeps. Each change also marks its workspace's session changed, which the
+/// workspace announces once the batch is applied.
 extension CoreState {
     // MARK: - Actions - Images
 
@@ -20,9 +20,14 @@ extension CoreState {
     // MARK: - Actions - Batches
 
     /// A batch of changes was applied: images of tabs a change removed and no
-    /// workspace holds any longer are gone.
+    /// workspace holds any longer are gone, and each workspace whose session
+    /// a change changed announces it, with the images kept beside the core's
+    /// file following that session.
     func finishBatch() {
         favicons.finishBatch { tabID in workspaces.values.contains { $0.holds(tabID: tabID) } }
+        for workspace in workspacesStorage.values where workspace.finishBatch() {
+            favicons.keepImages(of: workspace)
+        }
     }
 
     // MARK: - Actions - Changes
@@ -156,6 +161,6 @@ extension CoreState {
     }
 
     private func touch(_ workspace: UUID) {
-        touchedWorkspaces.insert(workspace)
+        workspacesStorage[workspace]?.sessionChanged()
     }
 }

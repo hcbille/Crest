@@ -152,10 +152,13 @@ is the per-window facade that sends intents and answers what a window shows;
 it holds no browser state of its own. Tests and previews build sessions as
 typed seeds (`SessionState.Seed`) and read them back from the read model.
 
-TRANSITIONAL until the windows follow navigation commits instead: after each
-batch, `CrestCore` tells the windows over every workspace whose session the
-batch changed (`followSessions`). They then reconcile their pages and, for the
-session the core keeps in its file, the favicon store.
+Each workspace also announces its session as a whole: its `sessionRevision`
+advances once for each batch that changed any of it. A window's revision
+(`BrowserSessionRevision`) joins it with the window's own moves, and the
+window's root view follows that one value to reconcile the window's pages and
+what the window keeps of its own, such as its multi-selection. The read model
+keeps the images of the session the core keeps in its file in the favicon store
+beside that file, following each batch that changes the session.
 
 ## State the core keeps
 
@@ -508,11 +511,11 @@ engine.
 
 ## Page lifecycle
 
-The core owns page identity. A page's owner (a tab, or a Quick Window or Peek
-request) opens it through the core (`OpenPage`) from its window, hands it to
-another owner (`MovePage`) and releases it (`ReleasePage`). The core refuses a
-page in a locked Space, in one being deleted, or for a tab that already has
-one in that window. It asks the page's engine to create, load and close the
+The core owns page identity. A page's owner (a tab, or a Quick Window, Peek or
+Settings request) opens it through the core (`OpenPage`) from its window,
+hands it to another owner (`MovePage`) and releases it (`ReleasePage`). The
+core refuses a page in a locked Space, in one being deleted, or for a tab that
+already has one in that window. It asks the page's engine to create, load and close the
 engine's page. Typed addresses, the command palette, Open Location and every
 first load go through `Navigate`, which the core resolves by the Space's
 address and search rules before it issues `LoadPage`.
@@ -702,10 +705,15 @@ after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
 - **Internal pages.** Crest's session and address controls spell internal
   addresses `crest://`; the binding translates them to `chrome://` for
   navigation and back for observations. Internal navigation is gated by the
-  `internal-pages` capability.
+  `internal-pages` capability. The feature flags page Settings shows opens
+  through the core like any page, owned by no tab (`TransientPresentation`
+  `settings`), in the Settings tab's Space and window, so a private window's
+  flags page is private too.
 - **Extensions.** Chromium owns verification, runtime permissions, updates,
   execution and pin state. Crest's toolbar, Site Controls, install review,
-  Space-scoped management and copying read the binding's model. Action popups
+  Space-scoped management and copying read the binding's model; the toolbar
+  and Site Controls take their Space from the read model, and the install
+  review shows the question the core asks (`ExtensionInstallAsked`). Action popups
   appear in a child window of the Crest window; side panels are cards in the
   page row. A Chrome Web Store listing installs through Crest's review.
 - **Downloads, favicons and archives.** Chromium's downloads report to the

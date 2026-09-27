@@ -82,6 +82,13 @@ final class FaviconAssets {
     /// Hands over the image a page reported, which leaves the store that kept
     /// it until a tab adopted it.
     @ObservationIgnored var takePageImage: (UUID) -> Data? = { _ in nil }
+    /// Where the images of the one workspace whose session the core keeps in
+    /// its file are kept beside that file, or nil for a core that keeps
+    /// nothing.
+    @ObservationIgnored private var keeper: (workspaceID: UUID, store: any BrowserFaviconStoring)?
+    /// The open tabs of the kept workspace whose images `keeper` last took,
+    /// each with the fingerprint of the image it wore then, or none.
+    @ObservationIgnored private var kept: [UUID: BrowserFaviconPayloadIdentity?] = [:]
 
     // MARK: - Actions - Reading
 
@@ -98,6 +105,38 @@ final class FaviconAssets {
             return nil
         }
         return slot.image
+    }
+
+    // MARK: - Actions - Keeping
+
+    /// Keeps the images of `workspace`'s open tabs in `store` from now on,
+    /// following each batch that changes its session. The images of every
+    /// tab it does not hold open go from the store at once.
+    func keep(_ workspace: WorkspaceModel, in store: any BrowserFaviconStoring) {
+        keeper = (workspace.id, store)
+        kept = [:]
+        keepImages(of: workspace, pruning: true)
+    }
+
+    /// Brings the kept images in line with `workspace`, when it is the kept
+    /// one: an open tab whose image changed since the store last took it is
+    /// written, and the images of tabs it no longer holds open go, or with
+    /// `pruning` the images of every tab it does not hold open.
+    func keepImages(of workspace: WorkspaceModel, pruning: Bool = false) {
+        guard let keeper, keeper.workspaceID == workspace.id else { return }
+        var open: [UUID: BrowserFaviconPayloadIdentity?] = [:]
+        for space in workspace.spaces.models {
+            for tab in space.tabs.models {
+                let icon = slots[tab.id]?.image
+                open.updateValue(icon?.identity, forKey: tab.id)
+                if let previous = kept[tab.id], previous == icon?.identity { continue }
+                keeper.store.reconcile(icon?.data, tabID: tab.id)
+            }
+        }
+        if pruning || kept.keys.contains(where: { open.index(forKey: $0) == nil }) {
+            keeper.store.pruneFavicons(keeping: Set(open.keys))
+        }
+        kept = open
     }
 
     // MARK: - Actions - Offers

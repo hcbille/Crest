@@ -56,8 +56,7 @@ class PageStore;
 // the platform shows of the page: whether its view is ready, its navigations
 // as they start, commit and fail, its loading, history and theme, the link
 // under the pointer, blocked pop-ups, fullscreen and a Chrome Web Store
-// listing's requests. A standalone page, one of the engine's own that
-// Settings shows, answers and presents those and reports nothing to the core.
+// listing's requests.
 class EnginePage final : public content::WebContentsObserver,
                          public favicon::FaviconDriverObserver,
                          public find_in_page::FindResultObserver {
@@ -85,7 +84,7 @@ class EnginePage final : public content::WebContentsObserver,
   // The most history entries presented each way.
   static constexpr int kHistoryDepth = 50;
 
-  EnginePage(EngineBinding& binding, const engine::CreatePage& creation, bool standalone = false);
+  EnginePage(EngineBinding& binding, const engine::CreatePage& creation);
   EnginePage(const EnginePage&) = delete;
   EnginePage& operator=(const EnginePage&) = delete;
   ~EnginePage() override;
@@ -95,9 +94,6 @@ class EnginePage final : public content::WebContentsObserver,
   const std::string& key() const { return key_; }
   const std::string& profile() const { return profile_; }
   bool is_private() const { return is_private_; }
-  // One of the engine's own pages that Settings shows, which the core never
-  // hears of.
-  bool standalone() const { return standalone_; }
   // The Crest window whose Browser holds the page.
   const std::string& window() const { return window_; }
   void set_window(std::string window) { window_ = std::move(window); }
@@ -275,7 +271,6 @@ class EnginePage final : public content::WebContentsObserver,
   bool ShowsInitialBlank(const GURL& url) const;
 
   const raw_ref<EngineBinding> binding_;
-  const bool standalone_;
   const engine::Guid id_;
   const std::string key_;
   const std::string profile_;

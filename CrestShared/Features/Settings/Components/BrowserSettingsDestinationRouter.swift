@@ -34,7 +34,9 @@ struct BrowserSettingsDestinationRouter: View {
     var shortcuts: BrowserShortcutStore? = nil
     var requestedSpaceID: SpaceID? = nil
     var requestRevision = 0
-    var featureFlagsProfileID: UUID? = nil
+    /// The Space whose engine pages the feature flags pane shows, or nil
+    /// while it is locked.
+    var featureFlagsSpace: SpaceModel? = nil
 
     @ViewBuilder
     var body: some View {
@@ -88,7 +90,7 @@ struct BrowserSettingsDestinationRouter: View {
                 manage: managePasswords
             )
         case .featureFlags:
-            BrowserEngineRegistration.featureFlagsPane(profileID: featureFlagsProfileID)
+            BrowserEngineRegistration.featureFlagsPane(space: featureFlagsSpace, browser: browser)
         case .advanced:
             BrowserAdvancedSettingsPane(
                 browser: browser,

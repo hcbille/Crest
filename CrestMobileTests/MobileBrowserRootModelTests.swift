@@ -776,7 +776,7 @@ final class MobileBrowserRootModelTests: XCTestCase {
         profileID: UUID
     ) -> MobileBrowserRootSelectionSnapshot {
         MobileBrowserRootSelectionSnapshot(
-            sessionRevision: revision,
+            sessionRevision: BrowserSessionRevision(session: UInt64(revision), window: 0),
             selectedSpaceID: spaceID,
             selectedProfileID: profileID,
             assignment: BrowserTabRuntimeAssignment(

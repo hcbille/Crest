@@ -147,9 +147,8 @@ GURL EngineURL(const std::string& url) {
   return GURL(ReplacingScheme(url, kCrestScheme, kEngineScheme));
 }
 
-EnginePage::EnginePage(EngineBinding& binding, const engine::CreatePage& creation, bool standalone)
+EnginePage::EnginePage(EngineBinding& binding, const engine::CreatePage& creation)
     : binding_(binding),
-      standalone_(standalone),
       id_(creation.page_id),
       key_(GuidText(creation.page_id)),
       profile_(GuidText(creation.profile_id)),
@@ -777,9 +776,6 @@ void EnginePage::StateChanged() {
 void EnginePage::ReportState() {
   report_due_ = false;
   PresentView();
-  if (standalone_) {
-    return;
-  }
   engine::PageSnapshot snapshot = Snapshot();
   if (snapshot == reported_) {
     return;
@@ -863,9 +859,7 @@ bool EnginePage::ShowsInitialBlank(const GURL& url) const {
 }
 
 void EnginePage::Report(engine::EngineEvent event) {
-  if (!standalone_) {
-    binding_->Report(std::move(event));
-  }
+  binding_->Report(std::move(event));
 }
 
 void EnginePage::Present(engine::EnginePresentation presentation) {

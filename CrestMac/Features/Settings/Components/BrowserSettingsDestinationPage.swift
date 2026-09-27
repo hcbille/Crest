@@ -33,7 +33,7 @@ struct BrowserSettingsDestinationPage: View {
                 shortcuts: shortcuts,
                 requestedSpaceID: requestedSpaceID,
                 requestRevision: acceptsExternalRoute ? spaceSettingsPresentation.revision : 0,
-                featureFlagsProfileID: featureFlagsProfileID
+                featureFlagsSpace: featureFlagsSpace
             )
         }
     }
@@ -49,7 +49,7 @@ struct BrowserSettingsDestinationPage: View {
         acceptsExternalRoute ? spaceSettingsPresentation.requestedSpaceID(in: browser) : nil
     }
 
-    private var featureFlagsProfileID: UUID? {
+    private var featureFlagsSpace: SpaceModel? {
         let space: SpaceModel?
         if let tabAssignment {
             space = browser.spaceModel(
@@ -61,7 +61,7 @@ struct BrowserSettingsDestinationPage: View {
         guard let space,
             !spaceAccess.isLocked(space)
         else { return nil }
-        return space.profileID
+        return space
     }
 
     private var setupActions: [BrowserAdvancedSetupAction] {

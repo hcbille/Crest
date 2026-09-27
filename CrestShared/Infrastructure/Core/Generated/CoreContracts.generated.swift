@@ -1096,12 +1096,6 @@ struct CloseReady: Equatable, Sendable {
     let allowed: Bool
 }
 
-struct CloseStandalonePage: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let pageID: UUID
-}
-
 struct CloseTab: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
@@ -3302,15 +3296,6 @@ struct OpenPage: Intent, PageIntent, Equatable, Sendable {
     let tabID: UUID?
     let windowID: UUID
     let transient: TransientPresentation?
-}
-
-struct OpenStandalonePage: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
-    let pageID: UUID
-    let profileID: UUID
-    let windowID: UUID
-    let url: String
 }
 
 struct OpenTab: Intent, SessionIntent, Equatable, Sendable {
@@ -12951,8 +12936,9 @@ struct TransientPresentation: Hashable, Sendable {
 
     static let peek = TransientPresentation(tag: 0, name: "peek", opensNewTabsInFront: true)
     static let quickWindow = TransientPresentation(tag: 1, name: "quickWindow", opensNewTabsInFront: false)
+    static let settings = TransientPresentation(tag: 2, name: "settings", opensNewTabsInFront: false)
 
-    static let all: [TransientPresentation] = [peek, quickWindow]
+    static let all: [TransientPresentation] = [peek, quickWindow, settings]
 
     static func named(_ name: String?) -> TransientPresentation? {
         all.first { $0.name == name }

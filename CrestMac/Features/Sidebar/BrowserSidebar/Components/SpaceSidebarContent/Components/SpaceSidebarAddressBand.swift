@@ -4,10 +4,9 @@ import SwiftUI
 /// so semantic selection cannot resize the viewport during a Space transition.
 struct SpaceSidebarAddressBand: View {
     let space: SpaceModel
-    /// The same Space for the engine's extension controls. TRANSITIONAL until
-    /// Lane 2 moves them to the read model.
-    /// The Space the site controls act for, or nil while it is being deleted.
-    let siteControlSpace: BrowserSpaceIdentity?
+    /// Whether the site controls act for `space`; they offer nothing while it
+    /// is being deleted.
+    let offersSiteControls: Bool
     /// The tab this window shows in `space`.
     let selectedTabID: TabID?
     let pages: BrowserPagePool
@@ -85,14 +84,12 @@ struct SpaceSidebarAddressBand: View {
     }
 
     private var siteControl: BrowserSiteControlConfiguration? {
-        guard let page = displayedPage, let siteControlSpace,
-            page.live.displayURL != nil
-        else {
+        guard offersSiteControls, let page = displayedPage, page.live.displayURL != nil else {
             return nil
         }
         return BrowserSiteControlConfiguration(
             page: page,
-            space: siteControlSpace,
+            space: space,
             selectedTabID: selectedTabID,
             permissionCenter: pages.permissionCenter,
             presentationChanged: siteControlPresentationChanged,

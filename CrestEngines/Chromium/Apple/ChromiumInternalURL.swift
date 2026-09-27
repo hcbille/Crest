@@ -1,12 +1,10 @@
 import Foundation
 
-/// Crest's address namespace is separate from Chromium's privileged origins.
-/// Translate only at the engine boundary, leaving web and extension URLs intact.
+/// Crest's address namespace is separate from Chromium's privileged origins:
+/// an engine page's address reaches Crest in its own `crest://` spelling,
+/// leaving web and extension URLs intact. The binding translates the other
+/// way itself.
 enum ChromiumInternalURL {
-    static func engine(_ value: String) -> String {
-        replacingScheme(in: value, from: "crest", to: "chrome")
-    }
-
     static func presented(_ value: String) -> String {
         replacingScheme(in: value, from: "chrome", to: "crest")
     }

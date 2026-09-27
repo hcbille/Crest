@@ -10,11 +10,6 @@ final class BrowserStoreFamily {
 
     private var stores: [WeakStore] = []
     private let core: BrowserCoreSessionAuthority
-    private struct WeakFamily { weak var value: BrowserStoreFamily? }
-    private var borrowedFamilies: [WeakFamily] = []
-    /// Counts the batches of the core's changes that changed this family's
-    /// session, so a command learns whether it changed it.
-    @ObservationIgnored private var sessionChanges = 0
     let temporarySourceAssignment: BrowserSpaceRuntimeAssignment?
     let temporarySettingsBrowser: BrowserStore?
     private var activeSpaceDeletions: Set<SpaceID> = []
@@ -31,11 +26,6 @@ final class BrowserStoreFamily {
     @ObservationIgnored weak var pageDismissalAuthorizer: (any BrowserPageDismissalAuthorizing)?
     /// The core that keeps this family's session in its file; nil in memory.
     @ObservationIgnored private let storage: CrestCore?
-    /// Where tab images are kept beside the session file; nil in memory.
-    @ObservationIgnored private let favicons: (any BrowserFaviconStoring)?
-    /// The open tabs whose images `favicons` last took, each with the
-    /// fingerprint of the image it wore then, or none.
-    @ObservationIgnored private var persistedImages: [TabID: BrowserFaviconPayloadIdentity?] = [:]
 
     /// Whether this family's windows keep their records across launches:
     /// only the windows over the session the core keeps in its file do.
@@ -81,23 +71,21 @@ final class BrowserStoreFamily {
         temporarySourceAssignment = nil
         temporarySettingsBrowser = nil
         storage = nil
-        favicons = nil
-        followSession()
+        followCloudDeliveries()
     }
 
     /// The family of the session `storage` keeps in its file, opened by
-    /// `stored`. The image each open tab of the loaded session wears is
-    /// reconciled with `favicons`, and images of tabs it no longer has are
-    /// pruned, as each later edit does for what it changed.
+    /// `stored`. The read model keeps the image each open tab of the session
+    /// wears in `favicons` from now on, following each batch that changes the
+    /// session, and prunes the images of tabs it does not hold open.
     init(stored: BrowserCoreSessionAuthority, storage: CrestCore, favicons: any BrowserFaviconStoring) {
         core = stored
         temporarySourceAssignment = nil
         temporarySettingsBrowser = nil
         self.storage = storage
-        self.favicons = favicons
-        persistFavicons(pruning: true)
+        if let workspace { storage.state.favicons.keep(workspace, in: favicons) }
         storage.storageFailureHandler = { [weak self] reason in self?.storageDidFail(reason) }
-        followSession()
+        followCloudDeliveries()
     }
 
     private init(
@@ -107,8 +95,7 @@ final class BrowserStoreFamily {
         temporarySourceAssignment = assignment
         temporarySettingsBrowser = settingsBrowser
         storage = nil
-        favicons = nil
-        followSession()
+        followCloudDeliveries()
     }
 
     /// A family over a workspace that borrows the Space `assignment` names
@@ -116,12 +103,9 @@ final class BrowserStoreFamily {
     func makeBorrowed(in assignment: BrowserSpaceRuntimeAssignment, settingsBrowser: BrowserStore) throws
         -> BrowserStoreFamily
     {
-        let child = BrowserStoreFamily(
+        BrowserStoreFamily(
             core: try core.borrow(assignment),
             assignment: assignment, settingsBrowser: settingsBrowser)
-        borrowedFamilies.removeAll { $0.value == nil }
-        borrowedFamilies.append(WeakFamily(value: child))
-        return child
     }
 
     /// Closes this family's workspace, and first every workspace that borrows
@@ -168,10 +152,9 @@ final class BrowserStoreFamily {
     }
 
     /// Runs one session intent that `source`'s window issued. What it changed
-    /// reaches the read model through the core's changes, and every window
-    /// then follows the accepted session. Answers whether the session
-    /// changed; a refusal changes nothing, and the window's sync status
-    /// reports it after `failure`.
+    /// reaches the read model through the core's changes, which every window
+    /// reads. Answers whether the session changed; a refusal changes nothing,
+    /// and the window's sync status reports it after `failure`.
     @discardableResult
     func send(
         _ intent: some Intent, from source: BrowserStore, offering image: Data? = nil,
@@ -188,7 +171,7 @@ final class BrowserStoreFamily {
         _ intent: some Intent, from source: BrowserStore, offering image: Data? = nil,
         failure: String = "Core command failed"
     ) -> (changes: [Change], changed: Bool)? {
-        let before = sessionChanges
+        let before = workspace?.sessionRevision
         let changes: [Change]
         let favicons = source.core.state.favicons
         if let image { favicons.offer(FaviconAssets.Offer(assigned: image), in: workspaceID) }
@@ -199,7 +182,7 @@ final class BrowserStoreFamily {
             source.localSyncErrorDescription = "\(failure): \(error)"
             return nil
         }
-        return (changes, sessionChanges != before)
+        return (changes, workspace?.sessionRevision != before)
     }
 
     /// Runs one session intent as `send` does, and answers the changes the
@@ -229,15 +212,14 @@ final class BrowserStoreFamily {
 
     /// Moves a tab from `source`'s window to `destination`'s. The core changes
     /// both workspaces together, saving the one that keeps a file with its
-    /// journal before it returns, and the windows of both families follow,
-    /// even when only what they show changed.
+    /// journal before it returns, and both windows follow what they show now,
+    /// even when only that changed.
     static func moveTab(
         _ intent: MoveTabToWindow, from source: BrowserStore, to destination: BrowserStore
     ) throws(Rejection) {
         try source.core.send(intent)
-        source.family.follow()
-        guard destination.family !== source.family else { return }
-        destination.family.follow()
+        source.showsAnew()
+        destination.showsAnew()
     }
 
     // MARK: - Actions - Storage
@@ -257,53 +239,9 @@ final class BrowserStoreFamily {
         }
     }
 
-    /// Keeps the favicon store in step with the session: an open tab whose
-    /// image changed since the store last took it is written, and the images
-    /// of tabs the session no longer has open are pruned, or with `pruning`
-    /// the images of every tab it does not have open. A family in memory
-    /// keeps images only in the read model.
-    private func persistFavicons(pruning: Bool = false) {
-        guard let favicons, let images = core.device?.state.favicons else { return }
-        var open: [TabID: BrowserFaviconPayloadIdentity?] = [:]
-        for space in workspace?.spaces.models ?? [] {
-            for tab in space.tabs.models {
-                let icon = images.icon(of: tab.id)
-                open.updateValue(icon?.identity, forKey: tab.id)
-                if let persisted = persistedImages[tab.id], persisted == icon?.identity { continue }
-                favicons.reconcile(icon?.data, tabID: tab.id)
-            }
-        }
-        if pruning || persistedImages.keys.contains(where: { open.index(forKey: $0) == nil }) {
-            favicons.pruneFavicons(keeping: Set(open.keys))
-        }
-        persistedImages = open
-    }
-
-    /// Every window follows the accepted session. The core's device already
-    /// moved the window that issued the command and repaired the others, and
-    /// the read model already holds what the core published for it.
-    private func follow() {
-        persistFavicons()
-        stores.removeAll { $0.value == nil }
-        for store in stores.compactMap(\.value) {
-            store.receiveFamilySessionChange()
-        }
-        borrowedFamilies.removeAll { $0.value == nil }
-        for child in borrowedFamilies.compactMap(\.value) { child.follow() }
-    }
-
-    /// Hears each batch of the core's changes that changed this family's
-    /// session: a page's navigation or icon it recorded, a cloud merge, or the
-    /// changes an intent answered. Every window follows. Each time the cloud
-    /// transport's records commit, a Space deletion whose cleanup has not
-    /// finished, such as one the cloud began, starts it again. TRANSITIONAL
-    /// until WP C's "navigation commit first" replaces the windows' follow.
-    private func followSession() {
-        core.device?.followSessions(self) { [weak self] workspaces in
-            guard let self, workspaces.contains(workspaceID) else { return }
-            sessionChanges &+= 1
-            follow()
-        }
+    /// Each time the cloud transport's records commit, a Space deletion whose
+    /// cleanup has not finished, such as one the cloud began, starts it again.
+    private func followCloudDeliveries() {
         core.device?.followCloudDeliveries(self) { [weak self] in self?.scheduleSpaceDataCleanup() }
     }
 

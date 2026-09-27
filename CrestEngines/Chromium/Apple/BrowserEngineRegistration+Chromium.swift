@@ -6,8 +6,8 @@
         static var current: BrowserAdapterRegistration { chromium }
 
         @MainActor
-        static func featureFlagsPane(profileID: UUID?) -> some View {
-            BrowserChromiumFeatureFlagSettingsPane(profileID: profileID)
+        static func featureFlagsPane(space: SpaceModel?, browser: BrowserStore) -> some View {
+            BrowserChromiumFeatureFlagSettingsPane(space: space, browser: browser)
         }
     }
 #endif

@@ -276,7 +276,7 @@ void EngineBinding::Perform(engine::EngineCommand command) {
     return;
   }
   if (const auto* creation = std::get_if<engine::CreatePage>(&command)) {
-    Create(*creation, /*standalone=*/false);
+    Create(*creation);
   } else if (const auto* loading = std::get_if<engine::LoadPage>(&command)) {
     Load(GuidText(loading->page_id), loading->url);
   } else if (const auto* closing = std::get_if<engine::ClosePage>(&command)) {
@@ -326,15 +326,13 @@ void EngineBinding::Perform(engine::EngineCommand command) {
 // Creates the page's WebContents on a task of its own: the command arrives
 // on the stack of whatever opened the page, and a page the engine offered
 // may still claim it as its own first.
-void EngineBinding::Create(const engine::CreatePage& creation, bool standalone) {
+void EngineBinding::Create(const engine::CreatePage& creation) {
   const std::string key = GuidText(creation.page_id);
   if (pages_.contains(key)) {
-    if (!standalone) {
-      Report(engine::PageCreationFailed{.page_id = creation.page_id});
-    }
+    Report(engine::PageCreationFailed{.page_id = creation.page_id});
     return;
   }
-  EnginePage& page = *pages_.emplace(key, std::make_unique<EnginePage>(*this, creation, standalone)).first->second;
+  EnginePage& page = *pages_.emplace(key, std::make_unique<EnginePage>(*this, creation)).first->second;
   // A tab's page the core unloaded comes back with the history it had,
   // restored once the page exists.
   if (creation.restore_state) {
@@ -374,13 +372,10 @@ void EngineBinding::Created(const std::string& key, content::WebContents* conten
   }
   if (!contents) {
     const engine::Guid id = page->id();
-    const bool standalone = page->standalone();
     pages_.erase(key);
     failed_.insert(key);
     Present(engine::PageViewUnavailable{.page_id = id});
-    if (!standalone) {
-      Report(engine::PageCreationFailed{.page_id = id});
-    }
+    Report(engine::PageCreationFailed{.page_id = id});
     return;
   }
   Live(*page, contents);
@@ -443,9 +438,7 @@ void EngineBinding::Stage(const engine::StageNavigation& staging) {
 void EngineBinding::Live(EnginePage& page, content::WebContents* contents) {
   DisableEnginePasswordManager(contents);
   page.Start(contents);
-  if (!page.standalone()) {
-    Report(engine::PageCreated{.page_id = page.id()});
-  }
+  Report(engine::PageCreated{.page_id = page.id()});
   page.LoadPending();
 }
 
@@ -481,9 +474,7 @@ void EngineBinding::PageLost(const std::string& key) {
   }
   // The engine closed the page on its own, as `window.close()` does. The
   // page is still inside its own teardown, so it is let go of afterwards.
-  if (!page->standalone()) {
-    Report(engine::PageClosed{.page_id = page->id(), .restore_state = std::nullopt});
-  }
+  Report(engine::PageClosed{.page_id = page->id(), .restore_state = std::nullopt});
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&EngineBinding::Forget, weak_factory_.GetWeakPtr(), key));
 }
@@ -523,8 +514,7 @@ void EngineBinding::Offer(content::WebContents* contents,
   }
   std::optional<engine::Guid> source;
   if (content::RenderFrameHost* opener = contents->GetOpener()) {
-    EnginePage* page = PageFor(content::WebContents::FromRenderFrameHost(opener));
-    if (page && !page->standalone()) {
+    if (EnginePage* page = PageFor(content::WebContents::FromRenderFrameHost(opener))) {
       source = page->id();
     }
   }
@@ -542,7 +532,7 @@ void EngineBinding::Offer(content::WebContents* contents,
 
 bool EngineBinding::FollowModifiedLink(content::WebContents* contents, content::OpenURLParams& params) {
   EnginePage* page = PageFor(contents);
-  if (!page || page->standalone() || params.crest_link_modifiers > kLinkModifiers ||
+  if (!page || params.crest_link_modifiers > kLinkModifiers ||
       !(params.crest_link_modifiers & kLinkModified) || !params.is_renderer_initiated || !params.user_gesture ||
       params.triggering_event_info != blink::mojom::TriggeringEventInfo::kFromTrustedEvent ||
       params.started_from_context_menu || params.post_data || !params.url.SchemeIsHTTPOrHTTPS() ||
@@ -595,7 +585,7 @@ bool EngineBinding::StageForPeek(EnginePage& page, content::OpenURLParams& param
 
 bool EngineBinding::KeepsLinkForPeek(content::WebContents* contents, const GURL& url) {
   EnginePage* page = PageFor(contents);
-  if (!page || page->standalone()) {
+  if (!page) {
     return false;
   }
   const auto answer = Ask(engine::LinkActivation{
@@ -878,36 +868,6 @@ bool EngineBinding::Handle(const engine::HidePage& request) {
 engine::PageIconImage EngineBinding::Handle(const engine::PageIcon& request) {
   EnginePage* page = Find(GuidText(request.page_id));
   return engine::PageIconImage{.image = page ? page->icon() : std::nullopt};
-}
-
-// An engine page Settings shows is created like any other, in its window's
-// Browser, and loads its address once it exists; the core never hears of it.
-bool EngineBinding::Handle(const engine::OpenStandalonePage& request) {
-  if (disposing_ || pages_.contains(GuidText(request.page_id))) {
-    return false;
-  }
-  Create(engine::CreatePage{.page_id = request.page_id,
-                            .profile_id = request.profile_id,
-                            .is_private = false,
-                            .window_id = request.window_id,
-                            .restore_state = std::nullopt},
-         /*standalone=*/true);
-  Load(GuidText(request.page_id), request.url);
-  return true;
-}
-
-bool EngineBinding::Handle(const engine::CloseStandalonePage& request) {
-  const std::string key = GuidText(request.page_id);
-  EnginePage* page = Find(key);
-  if (!page || !page->standalone()) {
-    return false;
-  }
-  content::WebContents* contents = page->web_contents();
-  page->Stop();
-  pages_.erase(key);
-  std::erase(due_, key);
-  DestroyContents(key, contents);
-  return true;
 }
 
 // A page the platform comes to after the engine made it, or failed to,

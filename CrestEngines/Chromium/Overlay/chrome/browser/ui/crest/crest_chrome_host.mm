@@ -1003,7 +1003,7 @@ bool BeginLinkDrag(content::WebContents* contents, const content::DropData& data
       !focused_frame->GetView()->GetSelectedText().empty()) return false;
   crest::EnginePage* page = crest::EngineBinding::Get().PageFor(contents);
   NSURL* url = net::NSURLWithGURL(data.url_infos[0].url);
-  if (!page || page->standalone() || !url) return false;
+  if (!page || !url) return false;
   return [UI() beginLinkDrag:url title:base::SysUTF16ToNSString(data.url_infos[0].title)
                         page:UUIDFor(page->key())];
 }
@@ -1013,7 +1013,7 @@ void AppendLinkMenuItem(NSMenu* menu, content::WebContents* contents, const GURL
                         const std::u16string& selection) {
   if (!IsEnabled() || State().disposing) return;
   crest::EnginePage* page = crest::EngineBinding::Get().PageFor(contents);
-  if (!page || page->standalone()) return;
+  if (!page) return;
   NSURL* link = url.SchemeIsHTTPOrHTTPS() ? net::NSURLWithGURL(url) : nil;
   NSString* const selected = base::SysUTF16ToNSString(
       std::u16string(base::TrimWhitespace(selection, base::TRIM_ALL)));

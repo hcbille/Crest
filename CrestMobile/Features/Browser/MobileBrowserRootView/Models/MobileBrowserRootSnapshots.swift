@@ -1,7 +1,7 @@
 import Foundation
 
 struct MobileBrowserRootLockSnapshot: Equatable, Sendable {
-    let sessionRevision: Int
+    let sessionRevision: BrowserSessionRevision
     let selectedSpaceID: SpaceID
     let selectedProfileID: UUID?
     let isLocked: Bool
@@ -9,7 +9,7 @@ struct MobileBrowserRootLockSnapshot: Equatable, Sendable {
 }
 
 struct MobileBrowserRootSelectionSnapshot: Equatable, Sendable {
-    let sessionRevision: Int
+    let sessionRevision: BrowserSessionRevision
     let selectedSpaceID: SpaceID
     let selectedProfileID: UUID?
     let assignment: BrowserTabRuntimeAssignment?

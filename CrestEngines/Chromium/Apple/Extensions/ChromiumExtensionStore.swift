@@ -27,20 +27,6 @@ final class ChromiumExtensionStore {
             webStore = item.fromWebStore
             options = item.optionsURL ?? ""
         }
-        /// The package an install review describes. TRANSITIONAL until the
-        /// review travels as a presentation (WP C (e)).
-        init(review: ExtensionInstallQuestion) {
-            id = review.extensionID
-            name = review.name.isEmpty ? review.extensionID : review.name
-            version = review.version
-            detail = review.summary
-            icon = review.icon.flatMap(NSImage.init(data:))
-            enabled = true
-            permissions = review.permissions
-            webStore = true
-            options = ""
-        }
-        var permissionIdentity: [String] { [id, version] + permissions.sorted() }
     }
     var revision = 0
     private(set) var installed: [UUID: [Installed]] = [:]
@@ -392,7 +378,13 @@ final class ChromiumExtensionInstallation {
     let space: BrowserSpaceIdentity
     weak var window: NSWindow?
     private let store: ChromiumExtensionStore
-    var candidate: ChromiumExtensionStore.Installed?
+    /// The verified package the core asks the person about, as its question
+    /// presents it.
+    var question: ExtensionInstallQuestion?
+    /// The name the review shows: the package's own, or its identifier when
+    /// it names none.
+    var questionName: String? { question.map { $0.name.isEmpty ? $0.extensionID : $0.name } }
+    var questionIcon: NSImage? { question?.icon.flatMap(NSImage.init(data:)) }
     var selectedSpaces: Set<SpaceID> = []
     var withhold = false
     var canWithhold = false
@@ -470,13 +462,12 @@ final class ChromiumExtensionInstallation {
     }
     func review(_ review: ExtensionInstallQuestion, reply: @escaping (Bool, Bool) -> Void) {
         guard !canceled, store.authorized(space), let targetSpace, store.authorized(targetSpace) else { reply(false, false); return }
-        let candidate = ChromiumExtensionStore.Installed(review: review)
         if let approvedIdentity {
             // Consent applies only to the same verified package and warnings.
-            reply(candidate.permissionIdentity == approvedIdentity, withhold)
+            reply(Self.consentIdentity(of: review) == approvedIdentity, withhold)
             return
         }
-        self.candidate = candidate
+        question = review
         canWithhold = review.canWithholdSiteAccess
         withhold = review.withholdsSiteAccess
         consent = reply
@@ -487,8 +478,8 @@ final class ChromiumExtensionInstallation {
         }
     }
     func accept() {
-        guard canAccept, let candidate, store.authorized(space), let consent else { return }
-        approvedIdentity = candidate.permissionIdentity
+        guard canAccept, let question, store.authorized(space), let consent else { return }
+        approvedIdentity = Self.consentIdentity(of: question)
         approvedDestinations = destinations.filter { selectedSpaces.contains($0.id) }
         self.consent = nil
         installing = true
@@ -499,4 +490,10 @@ final class ChromiumExtensionInstallation {
         let callback = consent; consent = nil; callback?(false, false)
     }
     func dismiss() { store.dismissInstallation() }
+
+    /// What a consent covers: the same verified package, at the same version,
+    /// asking for the same access.
+    private static func consentIdentity(of question: ExtensionInstallQuestion) -> [String] {
+        [question.extensionID, question.version] + question.permissions.sorted()
+    }
 }

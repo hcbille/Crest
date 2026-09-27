@@ -57,6 +57,7 @@ struct BrowserRootLifecycleModifier: ViewModifier {
         let runtimeObservedContent =
             pageObservedContent
             .onChange(of: model.browser.sessionRevision, initial: true) {
+                model.browser.followSession()
                 runtimeSessionProjection = model.pages.runtimeProjection
                 model.reconcilePages()
             }

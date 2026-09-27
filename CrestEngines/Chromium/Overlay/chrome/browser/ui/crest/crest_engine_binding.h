@@ -242,8 +242,6 @@ class EngineBinding {
   bool Handle(const engine::ShowPage& request);
   bool Handle(const engine::HidePage& request);
   engine::PageIconImage Handle(const engine::PageIcon& request);
-  bool Handle(const engine::OpenStandalonePage& request);
-  bool Handle(const engine::CloseStandalonePage& request);
   bool Handle(const engine::WatchPage& request);
   engine::PageMediaState Handle(const engine::PageMedia& request);
   bool Handle(const engine::EnterPictureInPicture& request);
@@ -272,7 +270,7 @@ class EngineBinding {
 
   void Perform(engine::EngineCommand command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
-  void Create(const engine::CreatePage& creation, bool standalone);
+  void Create(const engine::CreatePage& creation);
   void Load(const std::string& page, const std::string& url);
   void Adopt(const engine::AdoptOfferedPage& adoption);
   void Reject(const engine::RejectOfferedPage& rejection);

@@ -18,7 +18,8 @@ internal sealed class Page {
     public Guid WorkspaceId { get; private set; }
     public Guid SpaceId { get; private set; }
 
-    /// The tab that owns the page, or null for a Quick Window or Peek page.
+    /// The tab that owns the page, or null for a transient request's page: a
+    /// Quick Window's, a Peek's, or one of its engine's own pages in Settings.
     public Guid? TabId { get; private set; }
 
     /// The window that hosts the page. A window that shares its pages with

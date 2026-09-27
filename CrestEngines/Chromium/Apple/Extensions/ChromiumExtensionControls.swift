@@ -2,7 +2,8 @@ import SwiftUI
 
 struct BrowserPinnedExtensionStrip: View {
     let page: ChromiumNativePage?
-    let space: BrowserSpaceIdentity
+    /// The Space whose row this is, in the read model.
+    let space: SpaceModel
     let browser: BrowserStore
     private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -11,7 +12,7 @@ struct BrowserPinnedExtensionStrip: View {
     var body: some View {
         // The row is the Space's, not the page's: a Space showing its Start Page
         // still has the extensions the user pinned to it.
-        let actions = store.pinnedActions(for: space, page: page)
+        let actions = store.pinnedActions(for: space.identity, page: page)
         // The container is always in the view tree, empty or not. SwiftUI does
         // not run `task` on a conditional that resolves to nothing, and the
         // Space's engine profile is what the row needs to have any action to
@@ -24,7 +25,7 @@ struct BrowserPinnedExtensionStrip: View {
                     perform: run,
                     presentMenu: { action, anchor in
                         store.presentMenu(
-                            action, space: space, anchor: anchor,
+                            action, space: space.identity, anchor: anchor,
                             isPrivate: page?.isPrivateBrowsing ?? false,
                             openSidePanel: page.flatMap {
                                 BrowserExtensionSidePanelHost.opener(action, page: $0, host: sidePanel)
@@ -34,7 +35,7 @@ struct BrowserPinnedExtensionStrip: View {
                 .padding(
                     .top,
                     BrowserPinnedExtensionStripLayoutPolicy.adjacentSpacing
-                        + (browser.spaceModel(space.id)?.sidebar.section(.pinned).isEmpty ?? true
+                        + (space.sidebar.section(.pinned).isEmpty
                             ? 0 : BrowserTabSelectionGlow.outset)
                 )
                 .transition(.opacity)
@@ -42,7 +43,7 @@ struct BrowserPinnedExtensionStrip: View {
         }
         .animation(reduceMotion ? nil : SpacePagerSettlement.standardAnimation, value: actions.map(\.id))
         .task(id: PreparationKey(space: space.id, profile: space.profileID)) {
-            await store.prepare(space, in: browser)
+            await store.prepare(space.identity, in: browser)
         }
     }
 
@@ -58,7 +59,7 @@ struct BrowserPinnedExtensionStrip: View {
         anchor: BrowserExtensionPopupAnchor?
     ) {
         guard let page else {
-            store.runPinned(action, space: space, anchor: anchor)
+            store.runPinned(action, space: space.identity, anchor: anchor)
             return
         }
         page.runExtension(action.id, anchor: anchor)
@@ -67,7 +68,8 @@ struct BrowserPinnedExtensionStrip: View {
 
 struct ChromiumExtensionControls: View {
     let page: ChromiumNativePage
-    let space: BrowserSpaceIdentity
+    /// The page's Space in the read model.
+    let space: SpaceModel
     let url: URL?
     let dismiss: () -> Void
     private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
@@ -83,20 +85,20 @@ struct ChromiumExtensionControls: View {
                     let retained = anchor?.replacingSourceWindow(page.surface.window)
                     afterDismiss { page.runExtension(action.id, anchor: retained) }
                 },
-                togglePinned: { store.togglePin($0, space: space) },
+                togglePinned: { store.togglePin($0, space: space.identity) },
                 presentMenu: { action, anchor in
                     let retained = anchor?.replacingSourceWindow(page.surface.window)
                     let openSidePanel = BrowserExtensionSidePanelHost.opener(
                         action, page: page, host: sidePanel)
                     afterDismiss {
                         store.presentMenu(
-                            action, space: space, anchor: retained,
+                            action, space: space.identity, anchor: retained,
                             isPrivate: page.isPrivateBrowsing, openSidePanel: openSidePanel)
                     }
                 })
             if !page.isPrivateBrowsing, let id = ChromiumNativePage.webStoreExtensionID(url) {
                 Button("Install Extension…", systemImage: "plus.app") {
-                    afterDismiss { store.install(id, in: space, anchor: page.surface) }
+                    afterDismiss { store.install(id, in: space.identity, anchor: page.surface) }
                 }
             }
         }
