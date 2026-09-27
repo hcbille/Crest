@@ -3169,6 +3169,10 @@
     "chromium-build-names-itself-crest-to-macos": {
       "category": "improved",
       "message": "In the Chromium build, camera, microphone, location, Bluetooth and passkey prompts name Crest instead of Chromium, and Crest no longer includes a helper app that could appear as “Chromium” in Notifications settings."
+    },
+    "picture-in-picture-returns-to-its-tab": {
+      "category": "fixed",
+      "message": "The back-to-tab button in a Picture in Picture video now brings Crest forward on the video's own tab, switching window or Space if needed, in both the Chromium and WebKit builds. When you go back to that tab yourself, the video leaves Picture in Picture and returns to its place on the page, whether it floated automatically or you floated it."
     }
   }
 }

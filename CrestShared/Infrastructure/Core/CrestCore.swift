@@ -86,6 +86,9 @@ final class CrestCore {
     /// Who hears each page an engine opened by itself that the core adopted
     /// for a tab, once its batch is applied.
     @ObservationIgnored private var adoptionFollowers: [Follower<OfferedPageAdopted>] = []
+    /// Who hears each window the core brings to the front, once its batch is
+    /// applied.
+    @ObservationIgnored private var broughtForwardFollowers: [Follower<WindowBroughtForward>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     /// What waits for each data deletion to end, by its request.
@@ -320,6 +323,7 @@ final class CrestCore {
         var putAwayPages: [TabPagePutAway] = []
         var rehostedPages: [PageRehosted] = []
         var adoptedPages: [OfferedPageAdopted] = []
+        var broughtForward: [WindowBroughtForward] = []
         var closesReady: [CloseReady] = []
         var dataDeleted: [DataDeleted] = []
         var movedPages: [UUID] = []
@@ -353,6 +357,7 @@ final class CrestCore {
             if case .tabPagePutAway(let putAway) = change { putAwayPages.append(putAway) }
             if case .pageRehosted(let rehosted) = change { rehostedPages.append(rehosted) }
             if case .offeredPageAdopted(let adopted) = change { adoptedPages.append(adopted) }
+            if case .windowBroughtForward(let window) = change { broughtForward.append(window) }
             if case .closeReady(let ready) = change { closesReady.append(ready) }
             if case .dataDeleted(let deleted) = change { dataDeleted.append(deleted) }
         }
@@ -368,6 +373,7 @@ final class CrestCore {
         if !movedPages.isEmpty { engines.pagesMoved(movedPages) }
         if !rehostedPages.isEmpty { pagesRehosted(rehostedPages) }
         if !adoptedPages.isEmpty { pagesAdopted(adoptedPages) }
+        if !broughtForward.isEmpty { windowsBroughtForward(broughtForward) }
         #if DEBUG
             batchApplied?(changes)
         #endif
@@ -462,6 +468,24 @@ final class CrestCore {
         let followers = adoptionFollowers
         for page in pages {
             for follower in followers { follower.handler(page) }
+        }
+    }
+
+    /// Calls `handler` with each window the core brings to the front, once its
+    /// batch is applied: what the window shows is already in `state`. The
+    /// registration lasts as long as `owner`.
+    func followWindowsBroughtForward(
+        _ owner: AnyObject, _ handler: @escaping @MainActor (WindowBroughtForward) -> Void
+    ) {
+        broughtForwardFollowers.removeAll { $0.owner == nil }
+        broughtForwardFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    private func windowsBroughtForward(_ windows: [WindowBroughtForward]) {
+        broughtForwardFollowers.removeAll { $0.owner == nil }
+        let followers = broughtForwardFollowers
+        for window in windows {
+            for follower in followers { follower.handler(window) }
         }
     }
 

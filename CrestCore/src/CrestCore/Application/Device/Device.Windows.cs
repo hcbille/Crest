@@ -64,6 +64,19 @@ internal sealed partial class Device {
         }
     }
 
+    /// The open window over the workspace that returns the person to a tab of
+    /// `spaceId`: `hostId`, the window that hosts the tab's page, while it is
+    /// open; else one that shows the Space; else any. Null when no window over
+    /// the workspace is open, since returning to a tab never opens one.
+    internal Guid? ReturnWindow(Guid workspaceId, Guid spaceId, Guid hostId) {
+        lock (gate) {
+            var windows = open.Values.Where(window => window.WorkspaceId == workspaceId).ToArray();
+            return (windows.FirstOrDefault(window => window.Id == hostId)
+                ?? windows.FirstOrDefault(window => window.ShownSpaceId == spaceId)
+                ?? windows.FirstOrDefault())?.Id;
+        }
+    }
+
     /// The attached workspace, or `UnknownWorkspace`.
     internal NativeSessionAuthority Workspace(Guid workspaceId) {
         lock (gate)

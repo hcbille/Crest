@@ -14,6 +14,7 @@ extension EngineCommand {
         case .dropStagedLink(let command): command.perform(on: binding)
         case .eraseProfileData(let command): command.perform(on: binding)
         case .eraseSiteData(let command): command.perform(on: binding)
+        case .exitPictureInPicture(let command): command.perform(on: binding)
         case .loadPage(let command): command.perform(on: binding)
         case .recoverPage(let command): command.perform(on: binding)
         case .rejectOfferedPage(let command): command.perform(on: binding)

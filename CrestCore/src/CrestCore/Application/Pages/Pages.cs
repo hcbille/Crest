@@ -211,13 +211,18 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     #region Actions - Residency
 
-    /// Stamps each tab's page with whether a window shows it now.
-    public void Stamp(DateTimeOffset now) {
+    /// Stamps each tab's page with whether a window shows it now. A page a
+    /// window shows again ends its Picture in Picture, which `issue` asks its
+    /// engine for, so the video returns to its place in the page however the
+    /// person came back to it, and whether the video left automatically or at
+    /// their request.
+    public void Stamp(DateTimeOffset now, Action<Engine, EngineCommand> issue) {
+        ArgumentNullException.ThrowIfNull(issue);
         var shown = new Dictionary<Guid, IReadOnlySet<Guid>>();
         foreach (var page in open.Values) {
             if (page.TabId is not { } tabId) continue;
             if (!shown.TryGetValue(page.WorkspaceId, out var tabs)) shown[page.WorkspaceId] = tabs = device.OnScreenTabs(page.WorkspaceId);
-            page.Seen(tabs.Contains(tabId), now);
+            if (page.Seen(tabs.Contains(tabId), now) && page.ShowsPictureInPicture) issue(page.Engine, new ExitPictureInPicture(page.Id));
         }
     }
 

@@ -2,7 +2,10 @@
 
 #include <utility>
 
+#include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
@@ -78,6 +81,29 @@ void PageMedia::VisibilityChanged(bool visible) {
   played_before_hidden_ = !visible && !playing_videos_.empty();
 }
 
+void PageMedia::PictureInPictureChanged(bool active) {
+  if (active || leaving_picture_in_picture_) {
+    return;
+  }
+  leaving_picture_in_picture_ = true;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](base::WeakPtr<PageMedia> media) {
+                       if (media) {
+                         media->leaving_picture_in_picture_ = false;
+                       }
+                     },
+                     weak_factory_.GetWeakPtr()));
+}
+
+// A video's return control closes its window and then asks for the page, in
+// one task; a document's asks while its window is still open. An ask for a
+// page whose video still floats is someone else's, such as an extension
+// focusing the window.
+bool PageMedia::ReturnsFromPictureInPicture() const {
+  return leaving_picture_in_picture_ || contents_->HasPictureInPictureDocument();
+}
+
 // The browser's Media Session chooses the active video player and asks its
 // renderer to enter Picture in Picture; no page gesture is synthesized.
 bool PageMedia::EnterPictureInPicture() {
@@ -91,6 +117,17 @@ bool PageMedia::EnterPictureInPicture() {
     return false;
   }
   session->EnterPictureInPicture();
+  return true;
+}
+
+// The engine's window manager closes the Picture in Picture window, and the
+// video goes back to its element and keeps playing. It keeps one window for
+// every page, so the page asks only while that window is its own.
+bool PageMedia::ExitPictureInPicture() {
+  if (!contents_->HasPictureInPictureVideo() && !contents_->HasPictureInPictureDocument()) {
+    return false;
+  }
+  content::MediaSession::Get(contents_)->ExitPictureInPicture();
   return true;
 }
 

@@ -9,6 +9,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/crest/crest_engine_contract.h"
 #include "content/public/browser/media_player_id.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -49,9 +50,17 @@ class PageMedia final : public media_session::mojom::MediaSessionObserver {
   void DocumentChanged();
   // The page's view left the screen or came back to it.
   void VisibilityChanged(bool visible);
+  // The page's video or document entered or left Picture in Picture.
+  void PictureInPictureChanged(bool active);
+  // Whether an ask for the page comes from its Picture in Picture window's
+  // return control: the page left Picture in Picture in the task running
+  // now, or its document is still there.
+  bool ReturnsFromPictureInPicture() const;
 
   // What the platform asks of the session.
   bool EnterPictureInPicture();
+  // Ends the page's own Picture in Picture; one of another page stays.
+  bool ExitPictureInPicture();
   bool Activate(const std::string& document);
   bool Perform(const std::string& document, engine::MediaSessionAction action);
   bool Mute(const std::string& document, bool muted);
@@ -83,6 +92,9 @@ class PageMedia final : public media_session::mojom::MediaSessionObserver {
   bool last_playing_ = false;
   std::set<content::MediaPlayerId> playing_videos_;
   bool played_before_hidden_ = false;
+  // The page left Picture in Picture in the task running now.
+  bool leaving_picture_in_picture_ = false;
+  base::WeakPtrFactory<PageMedia> weak_factory_{this};
 };
 
 }  // namespace crest

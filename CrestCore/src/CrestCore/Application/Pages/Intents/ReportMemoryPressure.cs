@@ -17,7 +17,7 @@ public sealed record ReportMemoryPressure(MemoryPressureLevel Level) : PageInten
     /// popup waiting for its first document would lose the page that opened
     /// it. Each page unloaded closes keeping its state, which its tab keeps.
     internal override void Apply(Pages pages, PageTurn turn) {
-        pages.Stamp(pages.Clock.Now);
+        pages.Stamp(pages.Clock.Now, turn.Issue);
         const PageMediaActivity keepsLoaded = PageMediaActivity.Playing | PageMediaActivity.Capturing | PageMediaActivity.PictureInPicture;
         var candidates = pages.All
             .Where(page => page.TabId is not null && page.Phase == PagePhase.Live && page.HiddenSince is not null

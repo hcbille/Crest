@@ -217,10 +217,6 @@ final class BrowserMacApplication {
             splitLinkHost: privateBrowser.splitLinkHost,
             linkDestinationHost: BrowserLinkDestinationHost(browser: privateBrowser, spaceAccess: spaceAccess)
         )
-        privatePages.connectPictureInPictureSourceSelection(
-            to: privateBrowser,
-            spaceAccess: spaceAccess
-        )
         browser.tabLinkProvider = pages
         privateBrowser.tabLinkProvider = privatePages
         browser.tabCopying = pages

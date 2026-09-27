@@ -76,6 +76,10 @@ internal sealed class Page {
     /// pressure unloads the pages off screen longest first.
     public DateTimeOffset? HiddenSince { get; private set; }
 
+    /// Whether the page's engine last said a video of the page floats in
+    /// Picture in Picture, or is about to.
+    public bool ShowsPictureInPicture => Phase == PagePhase.Live && shown.Media.HasFlag(PageMediaActivity.PictureInPicture);
+
     /// How many times in a row the page's renderer stopped where a window
     /// showed it, or came back once shown, since a document last finished
     /// loading or the person asked for one.
@@ -221,8 +225,14 @@ internal sealed class Page {
     public void Restoring(string url) => shown = shown with { PendingUrl = url };
 
     /// Whether a window shows the page now. A page leaving the screen is
-    /// stamped at `now`; one already off screen keeps its stamp.
-    public void Seen(bool isShown, DateTimeOffset now) => HiddenSince = isShown ? null : HiddenSince ?? now;
+    /// stamped at `now`; one already off screen keeps its stamp. Answers
+    /// whether the page came back on screen, which a page ending a video's
+    /// Picture in Picture reads.
+    public bool Seen(bool isShown, DateTimeOffset now) {
+        var returned = isShown && HiddenSince is not null;
+        HiddenSince = isShown ? null : HiddenSince ?? now;
+        return returned;
+    }
 
     /// The engine reported what the page shows now.
     public void Show(PageSnapshot snapshot) => shown = snapshot;

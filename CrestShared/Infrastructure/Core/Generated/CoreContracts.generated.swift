@@ -159,6 +159,7 @@ enum Change: Equatable, Sendable {
     case tabsChanged(TabsChanged)
     case tabsImported(TabsImported)
     case transientPagePromoted(TransientPagePromoted)
+    case windowBroughtForward(WindowBroughtForward)
     case windowChanged(WindowChanged)
     case windowClosed(WindowClosed)
     case windowRecordsAdopted(WindowRecordsAdopted)
@@ -383,6 +384,7 @@ enum EngineCommand: Equatable, Sendable {
     case dropStagedLink(DropStagedLink)
     case eraseProfileData(EraseProfileData)
     case eraseSiteData(EraseSiteData)
+    case exitPictureInPicture(ExitPictureInPicture)
     case loadPage(LoadPage)
     case recoverPage(RecoverPage)
     case rejectOfferedPage(RejectOfferedPage)
@@ -525,6 +527,7 @@ extension Change {
         case .tabsChanged(let change): change.apply(to: state)
         case .tabsImported(let change): change.apply(to: state)
         case .transientPagePromoted(let change): change.apply(to: state)
+        case .windowBroughtForward(let change): change.apply(to: state)
         case .windowChanged(let change): change.apply(to: state)
         case .windowClosed(let change): change.apply(to: state)
         case .windowRecordsAdopted(let change): change.apply(to: state)
@@ -2106,6 +2109,10 @@ struct ExistingCredential: Equatable, Sendable, Identifiable {
     var updatedAt: Double
     var lastUsedAt: Double?
     var password: String
+}
+
+struct ExitPictureInPicture: Equatable, Sendable {
+    let pageID: UUID
 }
 
 struct ExpandSavedTabs: Intent, SessionIntent, Equatable, Sendable {
@@ -3823,6 +3830,10 @@ struct PersistentWorkspaceRequired: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Open a regular window to do this.")
     }
+}
+
+struct PictureInPictureReturned: EngineEvent, PageEvent, Equatable, Sendable {
+    let pageID: UUID
 }
 
 struct PinnedExtensions: PageRequest, Equatable, Sendable {
@@ -5682,6 +5693,10 @@ struct WebPagesOnly: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("This action requires webpage tabs. Deselect built-in pages first.")
     }
+}
+
+struct WindowBroughtForward: Equatable, Sendable {
+    let windowID: UUID
 }
 
 struct WindowChanged: Equatable, Sendable {

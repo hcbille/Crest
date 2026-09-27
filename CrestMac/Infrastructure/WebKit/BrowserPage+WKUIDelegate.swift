@@ -56,13 +56,14 @@ extension BrowserPage: WKUIDelegate {
         }
     }
 
-    /// Native PiP's Restore action asks the embedder to reveal its document.
-    /// The ordinary Close action does not send this callback. Fullscreen also
-    /// uses it, so only a still-valid PiP source may change tab selection.
+    /// Native PiP's Restore action asks the embedder to reveal its document,
+    /// and WebKit returns the video inline itself. The ordinary Close action
+    /// does not send this callback. Fullscreen also uses it, so only a
+    /// still-valid PiP source tells the core, which shows the page's tab.
     @objc(_webViewFullscreenMayReturnToInline:)
     func webViewFullscreenMayReturnToInline(_ webView: WKWebView) {
         guard webView === self.webKitView, pictureInPicture?.canRestoreSource == true else { return }
-        host?.restorePictureInPictureSourcePage(self)
+        corePage.report(PictureInPictureReturned(pageID: corePage.id))
     }
 
     /// Returns the popup's web view built from WebKit's own configuration, which

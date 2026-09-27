@@ -578,6 +578,13 @@ void EnginePage::MediaStoppedPlaying(const MediaPlayerInfo& info,
   StateChanged();
 }
 
+void EnginePage::MediaPictureInPictureChanged(bool is_picture_in_picture) {
+  if (media_) {
+    media_->PictureInPictureChanged(is_picture_in_picture);
+  }
+  StateChanged();
+}
+
 // The engine closed the page on its own; a page the binding lets go of stops
 // following its WebContents first.
 void EnginePage::WebContentsDestroyed() {
@@ -1149,6 +1156,18 @@ engine::PageMediaActivity EnginePage::MediaActivity() const {
 
 bool EnginePage::EnterPictureInPicture() {
   return media_ && media_->EnterPictureInPicture();
+}
+
+bool EnginePage::ExitPictureInPicture() {
+  return media_ && media_->ExitPictureInPicture();
+}
+
+bool EnginePage::ReturnFromPictureInPicture() {
+  if (!media_ || !media_->ReturnsFromPictureInPicture()) {
+    return false;
+  }
+  Report(engine::PictureInPictureReturned{.page_id = id_});
+  return true;
 }
 
 bool EnginePage::ActivateMediaSession(const std::string& document) {

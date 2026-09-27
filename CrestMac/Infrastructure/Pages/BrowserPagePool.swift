@@ -101,9 +101,6 @@ final class BrowserPagePool:
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored private let hostedNotificationCenter: (any BrowserHostedWebNotificationCentering)?
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
-    /// Shows the tab a Picture in Picture source page belongs to in this
-    /// window, answering whether it could.
-    @ObservationIgnored private var selectPictureInPictureSource: (BrowserTabRuntimeAssignment) -> Bool = { _ in false }
     @ObservationIgnored private let activateHostedNotificationSource: (UUID, UUID) -> Void
     @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
     @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
@@ -194,6 +191,10 @@ final class BrowserPagePool:
         }
         followAdoptedPages()
         followPutAwayPages()
+        core.followWindowsBroughtForward(self) { [weak self] brought in
+            guard let self, brought.windowID == windowID else { return }
+            bringForward()
+        }
     }
 
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
@@ -350,29 +351,10 @@ final class BrowserPagePool:
                 browser?.selectSpace(spaceID)
                 browser?.selectTab(tabID)
             })
-        pool.connectPictureInPictureSourceSelection(to: browser, spaceAccess: spaceAccess)
         browser.tabLinkProvider = pool
         browser.tabCopying = pool
         pool.setWindowFocused(false)
         return pool
-    }
-
-    /// Connects a directly presented pool to the browser selection it owns.
-    func connectPictureInPictureSourceSelection(
-        to browser: BrowserStore,
-        spaceAccess: BrowserSpaceAccessController
-    ) {
-        selectPictureInPictureSource = { [weak browser, weak spaceAccess] source in
-            guard let browser, let spaceAccess,
-                let space = BrowserSidebarAccessPolicy.unlockedSpace(
-                    matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID),
-                    in: browser, accessController: spaceAccess),
-                space.tabs.model(source.tabID) != nil
-            else { return false }
-            browser.selectSpace(space.id)
-            browser.selectTab(source.tabID)
-            return true
-        }
     }
 
     var retainedTabIDs: Set<UUID> {
@@ -722,18 +704,13 @@ final class BrowserPagePool:
         closeWebContentInitiatedPage(page)
     }
 
-    func restorePictureInPictureSourcePage(_ page: BrowserPage) {
-        guard page.pictureInPicture?.canRestoreSource == true,
-            let tabID = tabID(for: page),
-            tabRuntimes[tabID]?.routingWindowID == windowID,
-            !browser.deletingSpaceIDs.contains(page.spaceID),
-            let window = presentationWindow,
-            selectPictureInPictureSource(
-                BrowserTabRuntimeAssignment(tabID: tabID, spaceID: page.spaceID, profileID: page.profileID))
-        else { return }
-        // Claim the existing runtime and its split group through normal
-        // selection. WebKit finishes returning the original video inline once
-        // SwiftUI reattaches its view; never recreate or navigate the page here.
+    /// Brings this window and the app to the front, as the core asks when the
+    /// person returns to a page from Picture in Picture. The window already
+    /// shows the page's tab; selection claims its resident page and split
+    /// group, and the engine returns the video inline once the page's view is
+    /// back on screen. The page is never recreated or navigated here.
+    private func bringForward() {
+        guard let window = presentationWindow else { return }
         setWindowFocused(true)
         select()
         if window.isMiniaturized { window.deminiaturize(nil) }

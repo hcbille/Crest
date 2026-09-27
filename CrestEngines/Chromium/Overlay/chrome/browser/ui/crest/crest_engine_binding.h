@@ -290,6 +290,7 @@ class EngineBinding {
   void Handle(const engine::LoadPage& command);
   void Handle(const engine::ClosePage& command);
   void Handle(const engine::RecoverPage& command);
+  void Handle(const engine::ExitPictureInPicture& command);
   void Handle(const engine::CheckBeforeUnload& command);
   void Handle(const engine::SettleScriptDialog& command);
   void Handle(const engine::SettleAuthentication& command);

@@ -303,6 +303,12 @@ void EngineBinding::Handle(const engine::RecoverPage& command) {
   }
 }
 
+void EngineBinding::Handle(const engine::ExitPictureInPicture& command) {
+  if (EnginePage* page = Find(GuidText(command.page_id))) {
+    page->ExitPictureInPicture();
+  }
+}
+
 void EngineBinding::Handle(const engine::CheckBeforeUnload& command) {
   if (EnginePage* page = Find(GuidText(command.page_id))) {
     page->CheckBeforeUnload();
@@ -1343,6 +1349,11 @@ void ReportContentFullscreen(content::WebContents* contents, bool active) {
   if (EnginePage* page = EngineBinding::Get().PageFor(contents)) {
     page->FullscreenChanged(active);
   }
+}
+
+bool ReturnFromPictureInPicture(content::WebContents* contents) {
+  EnginePage* page = IsEnabled() && contents ? EngineBinding::Get().PageFor(contents) : nullptr;
+  return page && page->ReturnFromPictureInPicture();
 }
 
 void UpdateTargetURL(content::WebContents* contents, const GURL& url) {

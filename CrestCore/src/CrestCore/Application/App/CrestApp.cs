@@ -134,17 +134,18 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
 
     /// Runs `apply` in one turn under the core's lock, with the feed it
     /// publishes to, and answers the changes still pending and then those it
-    /// published. Afterwards the pages windows show are stamped, closed tabs
-    /// let go of what they kept, and what a page that went had asked no longer
-    /// waits. The engine commands the turn caused are delivered once the lock
-    /// is released.
+    /// published. Afterwards the pages windows show are stamped, and one shown
+    /// again ends its Picture in Picture; closed tabs let go of what they
+    /// kept, and what a page that went had asked no longer waits. The engine
+    /// commands the turn caused are delivered once the lock is released.
     internal IReadOnlyList<Change> Turn(Action<ChangeFeed> apply) {
         IReadOnlyList<Change> published;
         lock (gate) {
             var changes = new ChangeFeed();
             apply(changes);
-            // Which pages windows show now, and what closed tabs no longer keep.
-            pages.Stamp(clock.Now);
+            // Which pages windows show now, ending the Picture in Picture of
+            // one shown again, and what closed tabs no longer keep.
+            pages.Stamp(clock.Now, Issue);
             pages.PruneRestoreStates();
             // What a page that went had asked no longer waits.
             prompts.Prune(changes);

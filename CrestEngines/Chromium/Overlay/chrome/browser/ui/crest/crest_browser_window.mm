@@ -1035,6 +1035,12 @@ bool CrestBrowserWindow::IsActive() const {
 }
 
 void CrestBrowserWindow::Activate() {
+  // Chromium brings a page forward by making it the Browser's active tab and
+  // then asking for its window, as a Picture in Picture window's return
+  // control does. Crest shows that page's own window, Space and tab instead.
+  if (crest::ReturnFromPictureInPicture(browser_->tab_strip_model()->GetActiveWebContents())) {
+    return;
+  }
   [crest::WindowForBrowser(browser_) makeKeyAndOrderFront:nil];
 }
 

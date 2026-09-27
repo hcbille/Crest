@@ -43,17 +43,32 @@ tab set. Moving focus between cards in a visible split does not enter PiP.
 If multiple cards leave together, the focused card is considered first.
 Entering an unlocked empty Space or start page follows the same departure
 lifecycle. Locking a protected Space still invalidates its presentations.
-Returning to the source tab ends the PiP session Crest started automatically;
-it preserves a session the user entered manually.
 
-The native Return to tab control reaches WebKit's
-`_webViewFullscreenMayReturnToInline:` delegate callback. Crest accepts it only
-for an active, valid PiP source and resolves the exact current page through its
-runtime's owning window. It selects that tab and Space, restores the split group,
-and raises the window without replacing the media pipeline. Closed tabs,
-retired documents, unavailable windows, and locked or replaced Space profiles
-cannot activate another tab. Ordinary PiP dismissal does not request this routing.
-The page controller's `returnToTab()` is a separate tab-arrival lifecycle hook.
+Coming back to the source page ends its PiP session, whether Crest started it
+automatically or the person entered it: the video returns to its place in the
+page. The core decides this once for both engines. Each page reports its PiP
+activity in its snapshot, and when a window shows a page again (by the sidebar,
+a Space switch, a shortcut, the Dock menu or a window opening on it) the core
+sends that page's engine `ExitPictureInPicture`. WebKit closes the page's media
+presentations; Chromium closes its PiP window only when the page owns it. A page
+that stays on screen, such as one the person floated without leaving it, keeps
+its PiP. The page controller's `returnToTab()` only withdraws an automatic
+request still pending.
+
+The PiP window's return control reports `PictureInPictureReturned` for its page,
+and the engine returns the video inline itself. WebKit reports it from
+`_webViewFullscreenMayReturnToInline:` for an active, valid PiP source only.
+Chromium's return control asks the page's `Browser` to activate it; the host's
+`BrowserWindow` hands that ask to the binding, which reports it when the page
+holds PiP or left it in the same task. The core then shows the page's tab in the
+window that hosts the page, switching its Space and restoring its split group,
+and publishes `WindowBroughtForward`. That window's page pool raises and
+activates it without replacing the media pipeline. When the page's window has
+closed, another window over its workspace shows the tab, preferring one that
+shows the tab's Space; with none open, nothing happens, since the return never
+opens a window. Closed tabs, locked Spaces and Spaces being deleted show
+nothing, and a private page returns only within the private workspace. Ordinary
+PiP dismissal does not request this routing.
 
 One application-wide coordinator serves all windows and private Spaces.
 It reserves the slot before dispatching a request, rejects requests while a
@@ -119,15 +134,16 @@ separate WebKit capability and is not subject to the automatic classifier.
 
 ## Validation
 
-Retained tests cover slot reservation/cancellation, manual occupancy, DOM player
-eligibility, and native callback routing to the exact tab, split group, Space,
-and owning window. They also reject unavailable or inaccessible sources.
+Retained tests cover slot reservation/cancellation, manual occupancy and DOM
+player eligibility. The core's tests cover ending PiP when a page comes back on
+screen, and the return control's routing to the owning window, Space and tab.
 
 Exercise the actual macOS PiP controls in an isolated app with a disposable video
-fixture. Check manual and automatic entry, Return to tab from another tab, Space,
-and browser window, ordinary Close, playback continuity, and source navigation or
-closure. These native UI checks complement the delegate-routing tests; invoking
-the delegate directly does not establish that the system control sends it.
+fixture, on both engines. Check manual and automatic entry, Return to tab from
+another tab, Space and browser window, coming back to the source tab by the
+sidebar, a Space switch and a shortcut, ordinary Close, playback continuity, and
+source navigation or closure. These native UI checks complement the core's
+tests; a reported return does not establish that the native control sends it.
 
 ## Media pipeline
 

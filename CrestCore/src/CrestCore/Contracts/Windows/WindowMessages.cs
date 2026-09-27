@@ -43,6 +43,10 @@ public sealed record DockMenuSpace(Guid SpaceId, Guid ProfileId, string Name, st
 
 #region Changes
 
+/// A window comes to the front, with the app: it shows the tab whose page the
+/// person returned to from Picture in Picture.
+public sealed record WindowBroughtForward(Guid WindowId) : Change;
+
 /// An open window shows something else: it opened, a person chose what it
 /// shows, or the session changed under it and the core repaired it.
 public sealed record WindowChanged(WindowState Window) : Change;

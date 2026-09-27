@@ -160,6 +160,13 @@ class EnginePage final : public content::WebContentsObserver,
   bool Hide();
   engine::PageMediaActivity MediaActivity() const;
   bool EnterPictureInPicture();
+  // Ends the page's own Picture in Picture, as the core asks once a window
+  // shows the page again, returning the video to its place in the page.
+  bool ExitPictureInPicture();
+  // A Picture in Picture window's return control asks for the page. Answers
+  // whether the page returns from Picture in Picture, which it then reports
+  // so the core shows the page's tab; false for any other ask.
+  bool ReturnFromPictureInPicture();
   bool ActivateMediaSession(const std::string& document);
   bool PerformMediaAction(const std::string& document, engine::MediaSessionAction action);
   bool MuteMediaSession(const std::string& document, bool muted);
@@ -226,6 +233,7 @@ class EnginePage final : public content::WebContentsObserver,
   void MediaStoppedPlaying(const MediaPlayerInfo& info,
                            const content::MediaPlayerId& id,
                            content::WebContentsObserver::MediaStoppedReason reason) override;
+  void MediaPictureInPictureChanged(bool is_picture_in_picture) override;
   void WebContentsDestroyed() override;
 
   // favicon::FaviconDriverObserver:

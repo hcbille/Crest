@@ -387,19 +387,21 @@ Development CloudKit environment.
 The engine contract is a set of contract records like intents and changes:
 
 - **Engine commands** the core issues to one binding: `CreatePage`,
-  `LoadPage`, `ClosePage`, `RecoverPage`, `CheckBeforeUnload`, the prompt
-  settlements, the download commands, the erasures (`EraseProfileData`,
-  `EraseSiteData`), `AdoptOfferedPage` and `RejectOfferedPage` for a page the
-  engine offered, and `StageNavigation` and `DropStagedLink` for a staged
-  link. The core delivers them in the order it issued them, never while it
-  holds a lock and never on the stack of the report that caused them.
+  `LoadPage`, `ClosePage`, `RecoverPage`, `ExitPictureInPicture` for a page a
+  window shows again, `CheckBeforeUnload`, the prompt settlements, the
+  download commands, the erasures (`EraseProfileData`, `EraseSiteData`),
+  `AdoptOfferedPage` and `RejectOfferedPage` for a page the engine offered,
+  and `StageNavigation` and `DropStagedLink` for a staged link. The core
+  delivers them in the order it issued them, never while it holds a lock and
+  never on the stack of the report that caused them.
 - **Engine events** a binding reports: `PageCreated`, `PageCreationFailed`,
   `PageClosed`, the navigation events, `PageStateChanged` with a
   `PageSnapshot`, `PageIconChanged`, `PageCrashed`, the prompt events, the
   download events, `BeforeUnloadAnswered`, `DataErased`,
-  `ProtectedMediaUnavailable`, `PageOffered` and `StagedLinkUnavailable`. A
-  report is never refused; one about a page the core no longer knows, or one
-  from an engine that no longer hosts the page, changes nothing.
+  `ProtectedMediaUnavailable`, `PictureInPictureReturned`, `PageOffered` and
+  `StagedLinkUnavailable`. A report is never refused; one about a page the
+  core no longer knows, or one from an engine that no longer hosts the page,
+  changes nothing.
 - **Engine questions** a binding asks the core and has answered at once,
   changing nothing, through `crest_engine_ask`: `LinkActivation` asks where a
   link the person followed goes, by the same rules as the `LinkNavigation`

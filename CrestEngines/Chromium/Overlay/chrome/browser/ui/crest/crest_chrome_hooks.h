@@ -58,6 +58,11 @@ bool PresentHTTPAuthentication(content::WebContents* contents, const net::AuthCh
 // fullscreen; the renderer still owns Escape and the fullscreen lifecycle.
 void ReportContentFullscreen(content::WebContents* contents, bool active);
 void SnapPictureInPictureWindow(views::Widget* window);
+// Chromium asks for `contents`' window after making it its Browser's active
+// tab, as a Picture in Picture window's return control does. Answers whether
+// the page returns from Picture in Picture, which the core then shows in its
+// own window, Space and tab; false leaves the ask to Chromium.
+bool ReturnFromPictureInPicture(content::WebContents* contents);
 // Called after Chromium has approved a renderer's drag request.
 bool BeginLinkDrag(content::WebContents* contents, const content::DropData& data);
 void AddNavigationThrottle(content::NavigationThrottleRegistry& registry);
