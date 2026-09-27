@@ -10,6 +10,14 @@ namespace CrestCore.Contracts;
 /// for an attempt that is no longer current changes only what the core says
 /// it must.
 public abstract record CloudSyncControlIntent : Intent {
+    #region Abstract Methods
+
+    /// Moves the control's state on, and answers the steps the platform takes
+    /// next, in order. The control holds its lock.
+    internal abstract List<CloudSyncStep> Steps(CloudSyncControl control);
+
+    #endregion
+
     #region Actions - Routing
 
     /// Runs outside the app's turns.

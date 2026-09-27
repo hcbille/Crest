@@ -6,6 +6,14 @@ namespace CrestCore.Contracts;
 /// asking each page it would close whether it may go. One preparation runs at
 /// a time, and ends with `CloseReady`.
 public abstract record CloseIntent(Guid RequestId) : Intent {
+    #region Abstract Methods
+
+    /// Runs the intent on the close preparations, publishing what it changed
+    /// to `changes` and handing the pages' engines what they are asked.
+    internal abstract void Apply(ClosePreparations preparations, ChangeFeed changes, Action<Engine, EngineCommand> issue);
+
+    #endregion
+
     #region Actions - Routing
 
     internal sealed override IReadOnlyList<Change> Route(CrestApp app) =>

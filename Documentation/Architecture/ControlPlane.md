@@ -83,9 +83,12 @@ and each family's base routes its cases to the area that owns them, most in
 one of the app's turns (`CrestApp.Turn`), which stamps pages, prunes what a
 gone page asked and delivers engine commands afterwards. Each case overrides
 its family's own method with its logic: `SessionIntent.Edit`,
-`WindowIntent.Apply` and the other device families' `Apply`, and
-`PageIntent.Apply`. An engine event routes itself the same way
-(`EngineEvent.Route`). The records keep the `CrestCore.Contracts` namespace and
+`WindowIntent.Apply` and the other device families' `Apply`,
+`PageIntent.Apply`, and the families of downloads, prompts, close
+preparations, data deletion, Space access and cloud sync
+(`CloudSyncControlIntent.Steps`, for one). A prompt's answer knows which area
+asked it. An engine event routes itself the same way (`EngineEvent.Route`),
+and the page, prompt and download events each apply themselves to their area. The records keep the `CrestCore.Contracts` namespace and
 live beside the area that receives them, and a new case without its logic does
 not compile.
 

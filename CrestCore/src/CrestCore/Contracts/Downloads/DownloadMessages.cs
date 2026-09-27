@@ -2,75 +2,9 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// Opening a profile's downloads acknowledges its records without clearing them.
-public sealed record AcknowledgeDownloads(Guid ProfileId) : DownloadIntent;
-
-/// Whether the person keeps a file the engine warned about. A file not kept
-/// is cancelled.
-public sealed record AnswerDownloadApproval(Guid PromptId, bool Approved) : PromptIntent(PromptId);
-
-/// Where the file of a download goes, as the platform resolved it or the person
-/// chose it, or none to cancel the download.
-public sealed record AnswerDownloadDestination(Guid PromptId, string? Path) : PromptIntent(PromptId);
-
-/// Records a live download's risk. Any reason makes it wait for approval under
-/// its sanitized name.
-public sealed record AssessDownloadRisk(Guid DownloadId, DownloadRiskAssessment Assessment) : DownloadIntent;
-
-/// A live download waits for the person's approval.
-public sealed record AwaitDownloadApproval(Guid DownloadId) : DownloadIntent;
-
-/// Records a new download as preparing, ahead of every existing record. The
-/// caller supplies the identity and creation time so a retried call is
-/// deterministic. A download an engine restored from an earlier run starts
-/// acknowledged.
-public sealed record BeginDownload(Guid DownloadId, Guid ProfileId, string Filename, DateTimeOffset CreatedAt,
-    bool IsAcknowledged) : DownloadIntent;
-
-/// A live automatic download was blocked and waits for the person to retry it.
-public sealed record BlockAutomaticDownload(Guid DownloadId) : DownloadIntent;
-
-/// A live download was canceled.
-public sealed record CancelDownload(Guid DownloadId, string Message) : DownloadIntent;
-
-/// Removes finished, canceled, failed and blocked records whose age strictly
-/// exceeds their profile's retention. When several Spaces share a profile the
-/// shortest retention wins; a profile with no limit keeps its records.
-public sealed record ExpireDownloads(DateTimeOffset Now, IReadOnlyList<DownloadRetention> Retentions)
-    : DownloadIntent;
-
 /// One Space's download retention for the profile it uses. A null lifetime
 /// keeps records forever.
 public sealed record DownloadRetention(Guid ProfileId, TimeSpan? Lifetime);
-
-/// A live or blocked download failed, for `Reason` when it is known, with the
-/// engine's or platform's own `Message` when it has one; one of the two is
-/// given. A blocked automatic download fails when its retry can no longer be
-/// replayed.
-public sealed record FailDownload(Guid DownloadId, DownloadFailure? Reason, string? Message) : DownloadIntent;
-
-/// A live download finished with the bytes actually written, when known.
-public sealed record FinishDownload(Guid DownloadId, long? FinalByteCount) : DownloadIntent;
-
-/// One transfer reading for a live download. Progress never moves backwards.
-public sealed record RecordDownloadTransfer(Guid DownloadId, DownloadTelemetry Telemetry, double Progress)
-    : DownloadIntent;
-
-/// Clears one record. Files already written stay on disk; the caller refuses to
-/// clear a record whose transfer it still owns.
-public sealed record RemoveDownload(Guid DownloadId) : DownloadIntent;
-
-/// Deleting a profile's data removes every record it owns, live or not. The
-/// caller cancels the matching transfers.
-public sealed record RemoveProfileDownloads(Guid ProfileId) : DownloadIntent;
-
-/// Retrying a blocked automatic download starts the same record again from
-/// nothing and counts as news for the downloads badge.
-public sealed record RestartDownload(Guid DownloadId) : DownloadIntent;
-
-/// Names the file a live download writes. The record's filename follows the
-/// destination's.
-public sealed record SetDownloadDestination(Guid DownloadId, string Destination, string Filename) : DownloadIntent;
 
 #endregion
 

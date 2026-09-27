@@ -1,26 +1,5 @@
 namespace CrestCore.Contracts;
 
-#region Intents
-
-/// Whether the person quits and stops the downloads in progress.
-public sealed record AnswerQuitWithDownloads(Guid PromptId, bool Quits) : PromptIntent(PromptId);
-
-/// Stops the preparation `RequestId` names, which ends not allowed. Nothing
-/// happens when another preparation, or none, is under way.
-public sealed record CancelClosePreparation(Guid RequestId) : CloseIntent(RequestId);
-
-/// Prepares to close the pages `PageIds` names, in that order.
-public sealed record PrepareToClosePages(Guid RequestId, IReadOnlyList<Guid> PageIds) : CloseIntent(RequestId);
-
-/// Prepares to close the windows `WindowIds` names, with every page they host.
-public sealed record PrepareToCloseWindows(Guid RequestId, IReadOnlyList<Guid> WindowIds) : CloseIntent(RequestId);
-
-/// Prepares to quit: every page this device hosts may go, and the person
-/// agrees to stop the downloads still in progress.
-public sealed record PrepareToQuit(Guid RequestId) : CloseIntent(RequestId);
-
-#endregion
-
 #region Changes
 
 /// A close preparation ended: `Allowed` says every page it asked about may go

@@ -11,66 +11,23 @@ public sealed class Downloads {
 
     private readonly DownloadLedger ledger = new();
 
+    /// This run's downloads.
+    internal DownloadLedger Ledger => ledger;
+
     #endregion
 
     #region Actions - Intents
 
-    public void Handle(DownloadIntent intent, ChangeFeed changes) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        switch (intent) {
-            case BeginDownload begin:
-                Updated(ledger.Begin(begin.DownloadId, begin.ProfileId, begin.Filename, begin.CreatedAt, begin.IsAcknowledged), changes);
-                break;
-            case SetDownloadDestination destination:
-                Updated(ledger.SetDestination(destination.DownloadId, destination.Destination, destination.Filename), changes);
-                break;
-            case RecordDownloadTransfer transfer:
-                Updated(ledger.RecordTransfer(transfer.DownloadId, transfer.Telemetry, transfer.Progress), changes);
-                break;
-            case AssessDownloadRisk risk:
-                Updated(ledger.AssessRisk(risk.DownloadId, risk.Assessment), changes);
-                break;
-            case AwaitDownloadApproval approval:
-                Updated(ledger.AwaitApproval(approval.DownloadId), changes);
-                break;
-            case FinishDownload finish:
-                Updated(ledger.Finish(finish.DownloadId, finish.FinalByteCount), changes);
-                break;
-            case FailDownload failure:
-                Updated(ledger.Fail(failure.DownloadId, failure.Reason, failure.Message), changes);
-                break;
-            case CancelDownload cancellation:
-                Updated(ledger.Cancel(cancellation.DownloadId, cancellation.Message), changes);
-                break;
-            case BlockAutomaticDownload block:
-                Updated(ledger.BlockAutomaticDownload(block.DownloadId), changes);
-                break;
-            case RestartDownload restart:
-                Updated(ledger.Restart(restart.DownloadId), changes);
-                break;
-            case AcknowledgeDownloads acknowledgement:
-                foreach (var download in ledger.AcknowledgeProfile(acknowledgement.ProfileId)) Updated(download, changes);
-                break;
-            case RemoveDownload removal:
-                Removed(ledger.Remove(removal.DownloadId) ? [removal.DownloadId] : [], changes);
-                break;
-            case RemoveProfileDownloads profileRemoval:
-                Removed(ledger.RemoveProfile(profileRemoval.ProfileId), changes);
-                break;
-            case ExpireDownloads expiry:
-                Removed(ledger.RemoveExpired(expiry.Retentions, expiry.Now), changes);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Downloads does not handle this intent.");
-        }
-    }
+    /// Runs one download intent, publishing each download it changed or removed.
+    public void Handle(DownloadIntent intent, ChangeFeed changes) => intent.Apply(this, changes);
 
-    private void Updated(DownloadState? download, ChangeFeed changes) {
+    /// Publishes `download` where the ledger holds it, when an event applied.
+    internal void Updated(DownloadState? download, ChangeFeed changes) {
         if (download is not null) changes.Publish(new DownloadUpdated(download, ledger.IndexOf(download.Id)));
     }
 
-    private static void Removed(IReadOnlyList<Guid> downloadIds, ChangeFeed changes) {
+    /// Publishes the downloads the ledger let go, when there are any.
+    internal static void Removed(IReadOnlyList<Guid> downloadIds, ChangeFeed changes) {
         if (downloadIds.Count > 0) changes.Publish(new DownloadsRemoved(downloadIds));
     }
 

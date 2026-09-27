@@ -6,6 +6,16 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one intent of the cloud transport needs: the sync component the
+/// session stages into, the time it runs at, where the identities repair gives
+/// come from, and the lock the host's intents take, which a merge or
+/// replacement commits holding.
+internal sealed record CloudSyncTurn(NativeSyncAuthority Sync, DateTimeOffset Now, IIdSource Ids, Lock CommitGate);
+
+#endregion
+
 public sealed partial class NativeSessionAuthority {
     #region Static Variables
 
@@ -49,33 +59,7 @@ public sealed partial class NativeSessionAuthority {
     internal IReadOnlyList<Change> Handle(CloudSyncIntent intent, DateTimeOffset now, IIdSource ids, Lock commitGate) {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(ids);
-        var sync = AttachedSync();
-        IncomingSyncRecords? records = null;
-        switch (intent) {
-            case MergeSyncRecords merge:
-                records = new(merge.Records);
-                if (!records.IsEmpty) Converging(sync, records, replacing: false, now, ids, commitGate);
-                break;
-            case MergeCloudSnapshot snapshot:
-                records = new(snapshot.Records);
-                records.RequireWhole();
-                if (!records.IsEmpty) Converging(sync, records, replacing: false, now, ids, commitGate);
-                break;
-            case ReplaceWithCloudRecords replacement:
-                records = new(replacement.Records);
-                Converging(sync, records, replacing: true, now, ids, commitGate);
-                break;
-            case ReplaceSeedWithCloudRecords replacement:
-                records = new(replacement.Records);
-                if (Current.DisposableSeedMarker is not null) Converging(sync, records, replacing: true, now, ids, commitGate, seedOnly: true);
-                break;
-            case OverwriteCloud overwrite:
-                records = new(overwrite.Records);
-                Overwriting(sync, records, now);
-                break;
-            case AcknowledgeUploads acknowledgement: Acknowledging(sync, acknowledgement.Records); break;
-            default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The session does not handle this intent.");
-        }
+        var records = intent.Apply(this, new CloudSyncTurn(AttachedSync(), now, ids, commitGate));
         return records?.Receipt ?? [];
     }
 
@@ -100,7 +84,7 @@ public sealed partial class NativeSessionAuthority {
     /// before each computation, and a merge deletes each record their edits
     /// removed for the reason of the edit that removed it; a transaction that
     /// never commits queues them again.
-    private void Converging(NativeSyncAuthority sync, IncomingSyncRecords records, bool replacing, DateTimeOffset now,
+    internal void Converging(NativeSyncAuthority sync, IncomingSyncRecords records, bool replacing, DateTimeOffset now,
         IIdSource ids, Lock commitGate, bool seedOnly = false) {
         var superseded = sync.Supersede();
         var transaction = sync.BeginTransaction();
@@ -213,7 +197,7 @@ public sealed partial class NativeSessionAuthority {
     /// and each record their edits removed is deleted for the reason of the
     /// edit that removed it; a transaction that never commits queues them
     /// again.
-    private void Overwriting(NativeSyncAuthority sync, IncomingSyncRecords records, DateTimeOffset now) {
+    internal void Overwriting(NativeSyncAuthority sync, IncomingSyncRecords records, DateTimeOffset now) {
         var superseded = sync.Supersede();
         var transaction = sync.BeginTransaction();
         transaction.Superseded = superseded;
@@ -236,7 +220,7 @@ public sealed partial class NativeSessionAuthority {
 
     /// Takes the cloud's word that it saved `uploaded`, and saves the journal
     /// before it returns. The session does not change.
-    private static void Acknowledging(NativeSyncAuthority sync, IReadOnlyList<UploadedRecord> uploaded) {
+    internal static void Acknowledging(NativeSyncAuthority sync, IReadOnlyList<UploadedRecord> uploaded) {
         ArgumentNullException.ThrowIfNull(uploaded);
         var transaction = sync.BeginTransaction();
         try {

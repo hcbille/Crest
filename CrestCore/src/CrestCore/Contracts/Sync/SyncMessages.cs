@@ -2,52 +2,8 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// The cloud saved `Records`. Each that the journal still holds at exactly the
-/// version the cloud saved no longer waits to upload; one the journal wrote
-/// again since, or no longer holds, is left as it is. The journal is saved
-/// before this returns and publishes `SyncJournalChanged`; the session does not
-/// change.
-public sealed record AcknowledgeUploads(IReadOnlyList<UploadedRecord> Records) : CloudSyncIntent;
-
 /// A record the cloud saved, at the version it saved.
 public sealed record UploadedRecord(SyncRecordReference Record, SyncVersion Version);
-
-/// Merges every record the cloud holds, as `MergeSyncRecords` merges a batch,
-/// when the transport pulls the whole zone to recover. The snapshot is refused
-/// whole with `InvalidSyncRecords` naming `UnreadablePayload` when any of its
-/// records is one this build cannot read, so an incomplete snapshot never
-/// decides what this device holds.
-[MessageLimit(64 * 1024 * 1024)]
-public sealed record MergeCloudSnapshot(IReadOnlyList<SyncRecord> Records) : CloudSyncIntent;
-
-/// Merges records the cloud sent into the session and its journal. The
-/// session's edits are staged first; each record the journal holds already
-/// resolves against the one that arrived, field by field where the fields carry
-/// their own clocks; the session is rebuilt from the reconciled records,
-/// repaired, swept for retention and staged again. A Space tombstone for an
-/// explicit deletion begins deleting that Space on this device. A record the
-/// journal holds in another Space is refused.
-[MessageLimit(64 * 1024 * 1024)]
-public sealed record MergeSyncRecords(IReadOnlyList<SyncRecord> Records) : CloudSyncIntent;
-
-/// Prepares the journal to overwrite the cloud with this device's session, as
-/// the person chose: each record the cloud holds is superseded by one written
-/// above it, and every record waits to upload. The session does not change.
-[MessageLimit(64 * 1024 * 1024)]
-public sealed record OverwriteCloud(IReadOnlyList<SyncRecord> Records) : CloudSyncIntent;
-
-/// Replaces the session with the cloud's records, as `ReplaceWithCloudRecords`
-/// does, while it is still the disposable seed a first launch made. It changes
-/// nothing once the seed is gone.
-[MessageLimit(64 * 1024 * 1024)]
-public sealed record ReplaceSeedWithCloudRecords(IReadOnlyList<SyncRecord> Records) : CloudSyncIntent;
-
-/// Replaces the session's synced content and its journal with the cloud's
-/// records, as the person chose. Nothing waits to upload afterwards, and an
-/// empty cloud leaves one new ordinary Space. What only this device keeps, its
-/// app preferences and the Space deletions under way, stays.
-[MessageLimit(64 * 1024 * 1024)]
-public sealed record ReplaceWithCloudRecords(IReadOnlyList<SyncRecord> Records) : CloudSyncIntent;
 
 #endregion
 

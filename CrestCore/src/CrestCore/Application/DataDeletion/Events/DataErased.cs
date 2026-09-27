@@ -7,7 +7,16 @@ namespace CrestCore.Contracts;
 public sealed record DataErased(Guid ErasureId, bool Erased) : EngineEvent {
     #region Actions - Routing
 
-    internal override void Route(CrestApp app, Engine engine, ChangeFeed changes) => app.DataDeletions.Report(engine, this, changes);
+    /// One engine answered its part of a deletion; an answer from another
+    /// engine, or to an erasure nobody waits on, changes nothing.
+    internal override void Route(CrestApp app, Engine engine, ChangeFeed changes) {
+        var deletions = app.DataDeletions;
+        if (!deletions.ByErasure.TryGetValue(ErasureId, out var deletion) || !ReferenceEquals(deletion.Waiting[ErasureId], engine)) return;
+        deletions.ByErasure.Remove(ErasureId);
+        deletion.Waiting.Remove(ErasureId);
+        deletion.Erased &= Erased;
+        if (deletion.Waiting.Count == 0) deletions.Finish(deletion, changes);
+    }
 
     #endregion
 }

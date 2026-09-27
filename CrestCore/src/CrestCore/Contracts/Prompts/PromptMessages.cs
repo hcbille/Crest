@@ -1,27 +1,5 @@
 namespace CrestCore.Contracts;
 
-#region Intents
-
-/// The person answered a server's request with `Credential`, or cancelled it
-/// with none. The core hands the credential to the engine and keeps no copy:
-/// it is never in the core's state, a change or anything saved.
-public sealed record AnswerAuthentication(Guid PromptId, AuthenticationCredential? Credential) : PromptIntent(PromptId);
-
-/// The person answered whether to install an extension, and whether it
-/// installs with its site access withheld.
-public sealed record AnswerExtensionInstall(Guid PromptId, bool Accepted, bool WithholdsSiteAccess) : PromptIntent(PromptId);
-
-/// The person answered a site's permission request: whether it `Grants` it,
-/// and whether the Space `Remembers` that for the site's later requests, which
-/// the core records as the Space's choice in the same step.
-public sealed record AnswerPermission(Guid PromptId, bool Grants, bool Remembers) : PromptIntent(PromptId);
-
-/// The person answered a script dialog: whether they accepted it, and the text
-/// a prompt dialog took.
-public sealed record AnswerScriptDialog(Guid PromptId, bool Accepted, string? Text) : PromptIntent(PromptId);
-
-#endregion
-
 #region Changes
 
 /// A server's request for a user name and password waits on the person.

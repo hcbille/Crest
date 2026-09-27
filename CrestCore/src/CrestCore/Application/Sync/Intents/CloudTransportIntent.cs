@@ -15,6 +15,16 @@ namespace CrestCore.Contracts;
 /// answer carries `CloudTransportChanged` with the state it left, which
 /// never reaches the host's state.
 public abstract record CloudTransportIntent : Intent {
+    #region Abstract Methods
+
+    /// Runs the intent on the transport's state, saving what it changed before
+    /// it returns, and answers the state it left. `journalHoldsUploads` tells
+    /// whether the stored session's journal still holds records waiting to
+    /// upload, once every stage queued before settled.
+    internal abstract IReadOnlyList<Change> Apply(CloudTransportStore transport, Func<bool> journalHoldsUploads);
+
+    #endregion
+
     #region Actions - Routing
 
     /// Runs on the transport's thread, outside the app's turns.

@@ -5,6 +5,14 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
+#region Types
+
+/// What one engine download report needs: where it publishes what it changed,
+/// where it hands the engine commands it causes, and the time it happens at.
+internal sealed record EngineDownloadTurn(ChangeFeed Changes, Action<Engine, EngineCommand> Issue, DateTimeOffset Now);
+
+#endregion
+
 /// The downloads engines run, in the core's download ledger. Each belongs to
 /// the Space its page lives in, or else the one Space its profile belongs to; a
 /// download no Space the person may see can hold is cancelled. The core judges
@@ -19,7 +27,7 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
     #region Types
 
     /// One engine download the ledger records.
-    private sealed class Tracked(Engine engine, Guid profileId, string engineId, Guid downloadId) {
+    internal sealed class Tracked(Engine engine, Guid profileId, string engineId, Guid downloadId) {
         public Engine Engine { get; } = engine;
         public Guid ProfileId { get; } = profileId;
         public string EngineId { get; } = engineId;
@@ -43,123 +51,49 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
     /// What a download's prompt asks: where its file goes, whether to keep a
     /// file its engine warned about, or whether to go on with one the core
     /// judged dangerous, which holds back the engine's destination request.
-    private enum Question { Destination, Approval, Risk }
+    internal enum Question { Destination, Approval, Risk }
 
-    private sealed record Waiting(Tracked Download, Question Question, EngineDownloadDestinationRequested? Held = null);
+    internal sealed record Waiting(Tracked Download, Question Question, EngineDownloadDestinationRequested? Held = null);
 
     #endregion
 
     #region Variables
 
-    private const string CanceledMessage = "Canceled.";
-    private const string DeclinedMessage = "Canceled before downloading a potentially dangerous file.";
+    internal const string CanceledMessage = "Canceled.";
+    internal const string DeclinedMessage = "Canceled before downloading a potentially dangerous file.";
     /// The longest host a question shows; anything longer is not a host.
-    private const int MaximumHostLength = 253;
+    internal const int MaximumHostLength = 253;
 
     private readonly Dictionary<(Engine Engine, Guid ProfileId, string EngineId), Tracked> tracked = [];
     private readonly Dictionary<Guid, Tracked> byDownload = [];
     private readonly Dictionary<Guid, Waiting> waiting = [];
 
+    /// Every engine download the ledger records.
+    internal IEnumerable<Tracked> TrackedDownloads => byDownload.Values;
+
+    /// The downloads' prompts waiting on the person.
+    internal Dictionary<Guid, Waiting> WaitingPrompts => waiting;
+
+    /// The download ledger the engines' downloads are recorded in.
+    internal Downloads Downloads => downloads;
+
+    /// The device whose Spaces a download belongs to.
+    internal Device Device => device;
+
+    /// The pages downloads come from.
+    internal Pages Pages => pages;
+
+    /// Where the identities of new records come from.
+    internal IIdSource Ids => ids;
+
     #endregion
 
     #region Actions - Reports
 
-    public void Report(Engine engine, EngineEvent report, ChangeFeed changes, Action<Engine, EngineCommand> issue, DateTimeOffset now) {
-        ArgumentNullException.ThrowIfNull(engine);
-        ArgumentNullException.ThrowIfNull(report);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(issue);
-        switch (report) {
-            case EngineDownloadChanged changed: Changed(engine, changed.Download, changes, issue, now); break;
-            case EngineDownloadDestinationRequested requested: DestinationRequested(engine, requested, changes, issue, now); break;
-            default: throw new ArgumentOutOfRangeException(nameof(report), report.GetType().Name, "Engine downloads do not handle this report.");
-        }
-    }
+    /// Applies what `engine` reported about one of its downloads.
+    public void Report(EngineDownloadEvent report, Engine engine, EngineDownloadTurn turn) => report.Apply(this, engine, turn);
 
-    private void Changed(Engine engine, EngineDownload reported, ChangeFeed changes, Action<Engine, EngineCommand> issue, DateTimeOffset now) {
-        if (Track(engine, reported, changes, now) is not { } download) {
-            issue(engine, new CancelEngineDownload(reported.ProfileId, reported.DownloadId));
-            return;
-        }
-        if (!download.IsLive) return;
-        if (reported.Path is { Length: > 0 } path) Record(new SetDownloadDestination(download.DownloadId, FileAddress(path), Path.GetFileName(path)), changes);
-        var sample = new DownloadProgress(download.Estimator, reported.Received, reported.Total,
-            reported.Total > 0 ? (double)reported.Received / reported.Total : 0, reported.Paused, Uptime);
-        if (Sample(sample) is { } reading) {
-            download.Estimator = reading.Estimator;
-            Record(new RecordDownloadTransfer(download.DownloadId, reading.Telemetry, reading.Progress), changes);
-        }
-        switch (reported.State) {
-            case EngineDownloadState.Preparing or EngineDownloadState.Downloading:
-                // A warning the person or the engine resolved asks nothing more.
-                SettleApproval(download, changes);
-                break;
-            case EngineDownloadState.Finished:
-                Record(new FinishDownload(download.DownloadId, reported.Received), changes);
-                End(download, changes);
-                break;
-            case EngineDownloadState.Canceled:
-                Record(new CancelDownload(download.DownloadId, CanceledMessage), changes);
-                End(download, changes);
-                break;
-            case EngineDownloadState.Failed:
-                Record(new FailDownload(download.DownloadId, FailureOf(reported), reported.FailureDetail), changes);
-                End(download, changes);
-                break;
-            case EngineDownloadState.AwaitingApproval when reported.Warning is null:
-                // An approval with nothing to approve is never kept.
-                issue(engine, new CancelEngineDownload(download.ProfileId, download.EngineId));
-                break;
-            case EngineDownloadState.AwaitingApproval when reported.Warning is { } warning
-                && download.ReasonsApproved && Covers(download.Reasons, warning):
-                // A warning about what the person already kept asks nothing new.
-                if (download.ApprovalToken == reported.ApprovalToken) break;
-                download.ApprovalToken = reported.ApprovalToken;
-                issue(engine, new ApproveEngineDownload(download.ProfileId, download.EngineId, reported.ApprovalToken));
-                break;
-            case EngineDownloadState.AwaitingApproval when reported.Warning is { } warning:
-                Record(new AwaitDownloadApproval(download.DownloadId), changes);
-                if (download.ApprovalToken == reported.ApprovalToken) break;
-                SettleApproval(download, changes);
-                download.ApprovalToken = reported.ApprovalToken;
-                var prompt = ids.Next();
-                waiting[prompt] = new(download, Question.Approval);
-                changes.Publish(new DownloadApprovalAsked(prompt, download.DownloadId, SpaceOf(reported),
-                    DownloadFilename.Safe(reported.Filename), download.Reasons, warning, download.SourceHost));
-                break;
-            case EngineDownloadState.Blocked:
-                Record(new BlockAutomaticDownload(download.DownloadId), changes);
-                download.IsBlocked = true;
-                download.ApprovalToken = reported.ApprovalToken;
-                break;
-        }
-    }
-
-    /// Judges the download's risk, then asks where its file goes, or first
-    /// whether to go on with it when the person must confirm it.
-    private void DestinationRequested(Engine engine, EngineDownloadDestinationRequested requested, ChangeFeed changes,
-        Action<Engine, EngineCommand> issue, DateTimeOffset now) {
-        if (Track(engine, requested.Download, changes, now) is not { IsLive: true } download
-            || SpaceOf(requested.Download) is not { } space) {
-            issue(engine, new SettleDownloadDestination(requested.PromptId, Path: null));
-            return;
-        }
-        download.SourceHost = requested.SourceHost is { Length: > 0 and <= MaximumHostLength } host ? host : null;
-        var verdict = Verdict(requested.Facts, requested.UserInitiated);
-        Record(new AssessDownloadRisk(download.DownloadId, verdict.Assessment), changes);
-        download.Reasons = verdict.Assessment.Reasons;
-        download.ReasonsApproved = false;
-        if (!verdict.RequiresConfirmation) {
-            AskDestination(download, requested, space, changes);
-            return;
-        }
-        var prompt = ids.Next();
-        waiting[prompt] = new(download, Question.Risk, requested);
-        changes.Publish(new DownloadApprovalAsked(prompt, download.DownloadId, space, DownloadFilename.Safe(requested.SuggestedFilename),
-            download.Reasons, Warning: null, download.SourceHost));
-    }
-
-    private void AskDestination(Tracked download, EngineDownloadDestinationRequested requested, Guid space, ChangeFeed changes) {
+    internal void AskDestination(Tracked download, EngineDownloadDestinationRequested requested, Guid space, ChangeFeed changes) {
         waiting[requested.PromptId] = new(download, Question.Destination);
         changes.Publish(new DownloadDestinationAsked(requested.PromptId, download.DownloadId, space,
             DownloadFilename.Safe(requested.SuggestedFilename), requested.ForcesPrompt));
@@ -167,7 +101,7 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
 
     /// The record of an engine download, begun on its first report in the
     /// Space it belongs to; null for one no Space can hold.
-    private Tracked? Track(Engine engine, EngineDownload reported, ChangeFeed changes, DateTimeOffset now) {
+    internal Tracked? Track(Engine engine, EngineDownload reported, ChangeFeed changes, DateTimeOffset now) {
         var key = (engine, reported.ProfileId, reported.DownloadId);
         if (tracked.TryGetValue(key, out var known)) return known;
         if (SpaceOf(reported) is null) return null;
@@ -184,101 +118,29 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
 
     #region Actions - Intents
 
-    /// Whether the answer is to one of the downloads' prompts.
-    public static bool Concerns(PromptIntent intent) => intent is AnswerDownloadDestination or AnswerDownloadApproval;
-
-    /// Runs one answer. A file going somewhere names the record's file; a file
-    /// the person does not keep is cancelled at once, and one they go on with
-    /// despite the core's reasons is then asked where it goes.
-    public void Handle(PromptIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(issue);
-        if (!waiting.TryGetValue(intent.PromptId, out var prompt)) throw new Rejected(new UnknownPrompt(intent.PromptId));
-        var download = prompt.Download;
-        switch (prompt.Question, intent) {
-            case (Question.Destination, AnswerDownloadDestination answer):
-                Settle(answer.PromptId, changes);
-                if (answer.Path is { Length: > 0 } path && download.IsLive)
-                    Record(new SetDownloadDestination(download.DownloadId, FileAddress(path), Path.GetFileName(path)), changes);
-                issue(download.Engine, new SettleDownloadDestination(answer.PromptId, answer.Path));
-                break;
-            case (Question.Risk, AnswerDownloadApproval answer):
-                Settle(answer.PromptId, changes);
-                var held = prompt.Held!;
-                if (answer.Approved && SpaceOf(held.Download) is { } space) {
-                    download.ReasonsApproved = true;
-                    AskDestination(download, held, space, changes);
-                } else {
-                    issue(download.Engine, new SettleDownloadDestination(held.PromptId, Path: null));
-                    Record(new CancelDownload(download.DownloadId, answer.Approved ? CanceledMessage : DeclinedMessage), changes);
-                    End(download, changes);
-                }
-                break;
-            case (Question.Approval, AnswerDownloadApproval answer):
-                Settle(answer.PromptId, changes);
-                if (answer.Approved) {
-                    issue(download.Engine, new ApproveEngineDownload(download.ProfileId, download.EngineId, download.ApprovalToken ?? ""));
-                } else {
-                    issue(download.Engine, new CancelEngineDownload(download.ProfileId, download.EngineId));
-                    Record(new CancelDownload(download.DownloadId, CanceledMessage), changes);
-                    End(download, changes);
-                }
-                break;
-            default:
-                throw new Rejected(new PromptAnswerMismatch(intent.PromptId));
-        }
-    }
-
     /// Before the ledger runs a download intent: an engine download the person
     /// cancels is cancelled on its engine, one they clear leaves the engine's
     /// list, one they retry after the site's choices blocked it is replayed,
     /// and deleting a profile's data cancels and clears each of its downloads.
-    public void Before(DownloadIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(issue);
-        switch (intent) {
-            case CancelDownload cancellation
-                when byDownload.GetValueOrDefault(cancellation.DownloadId) is { IsLive: true, IsBlocked: false } download:
-                issue(download.Engine, new CancelEngineDownload(download.ProfileId, download.EngineId));
-                End(download, changes);
-                break;
-            case RemoveDownload removal
-                when byDownload.GetValueOrDefault(removal.DownloadId) is { } download && (!download.IsLive || download.IsBlocked):
-                issue(download.Engine, new RemoveEngineDownload(download.ProfileId, download.EngineId));
-                End(download, changes);
-                break;
-            case RestartDownload restart
-                when byDownload.GetValueOrDefault(restart.DownloadId) is { IsLive: true, IsBlocked: true } download:
-                // The engine replays it as the person's own download, under the same name.
-                download.IsBlocked = false;
-                issue(download.Engine, new ApproveEngineDownload(download.ProfileId, download.EngineId, download.ApprovalToken ?? ""));
-                download.ApprovalToken = null;
-                break;
-            case RemoveProfileDownloads removal:
-                foreach (var download in byDownload.Values.Where(download => download.ProfileId == removal.ProfileId)) {
-                    if (download.IsLive) issue(download.Engine, new CancelEngineDownload(download.ProfileId, download.EngineId));
-                    issue(download.Engine, new RemoveEngineDownload(download.ProfileId, download.EngineId));
-                    End(download, changes);
-                }
-                break;
-        }
-    }
+    public void Before(DownloadIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) =>
+        intent.Before(this, changes, issue);
 
     #endregion
 
     #region Actions - Rules
 
+    /// The engine download the ledger records as `downloadId`, or null.
+    internal Tracked? Tracking(Guid downloadId) => byDownload.GetValueOrDefault(downloadId);
+
     /// The download ended: what it asked no longer waits, and later reports
     /// about it change nothing. Its identity stays, so a late report cannot
     /// bring back a record the person cleared.
-    private void End(Tracked download, ChangeFeed changes) {
+    internal void End(Tracked download, ChangeFeed changes) {
         download.IsLive = false;
         foreach (var (id, _) in waiting.Where(entry => entry.Value.Download == download).ToArray()) Settle(id, changes);
     }
 
-    private void SettleApproval(Tracked download, ChangeFeed changes) {
+    internal void SettleApproval(Tracked download, ChangeFeed changes) {
         download.ApprovalToken = null;
         foreach (var (id, _) in waiting.Where(entry => entry.Value.Download == download && entry.Value.Question == Question.Approval)
                      .ToArray())
@@ -287,7 +149,7 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
 
     /// The core's risk verdict from the platform's facts. Facts the ledger
     /// could not record ask the person first rather than passing as safe.
-    private DownloadRiskVerdict Verdict(DownloadRiskFacts facts, bool userInitiated) {
+    internal DownloadRiskVerdict Verdict(DownloadRiskFacts facts, bool userInitiated) {
         try {
             return downloads.Answer(new DownloadRisk(facts, userInitiated));
         } catch (Rejected) {
@@ -297,18 +159,23 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
 
     /// Whether the engine's `warning` is a fact the core's `reasons` already
     /// named: a file whose type runs code.
-    private static bool Covers(IReadOnlyList<DownloadRiskReason> reasons, EngineDownloadWarning warning) =>
+    internal static bool Covers(IReadOnlyList<DownloadRiskReason> reasons, EngineDownloadWarning warning) =>
         warning == EngineDownloadWarning.DangerousFile
         && reasons.Any(reason => reason == DownloadRiskReason.ExecutableOrInstaller || reason == DownloadRiskReason.DangerousTypeMismatch);
 
-    private void Settle(Guid promptId, ChangeFeed changes) {
+    /// The downloads' prompt `promptId` names. Refused with `UnknownPrompt`
+    /// when no such prompt waits.
+    internal Waiting Prompt(Guid promptId) =>
+        waiting.TryGetValue(promptId, out var prompt) ? prompt : throw new Rejected(new UnknownPrompt(promptId));
+
+    internal void Settle(Guid promptId, ChangeFeed changes) {
         if (waiting.Remove(promptId)) changes.Publish(new PromptSettled(promptId));
     }
 
     /// The Space a download belongs to: its page's, while the page lives in a
     /// Space of the download's profile, or else the one Space of that profile
     /// the person may see.
-    private Guid? SpaceOf(EngineDownload reported) {
+    internal Guid? SpaceOf(EngineDownload reported) {
         if (reported.SourcePageId is { } pageId && pages.Hosted(pageId) is { } page && page.ProfileId == reported.ProfileId
             && device.Attached(page.WorkspaceId) is { } workspace
             && workspace.Current.Spaces.FirstOrDefault(space => space.Id == page.SpaceId) is { } pageSpace
@@ -319,7 +186,7 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
 
     /// Runs a ledger intent the engine's report implies. One the ledger refuses,
     /// such as a reading for a record that already ended, changes nothing.
-    private void Record(DownloadIntent intent, ChangeFeed changes) {
+    internal void Record(DownloadIntent intent, ChangeFeed changes) {
         try {
             downloads.Handle(intent, changes);
         } catch (Rejected) {
@@ -327,7 +194,7 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
         }
     }
 
-    private DownloadProgressReading? Sample(DownloadProgress sample) {
+    internal DownloadProgressReading? Sample(DownloadProgress sample) {
         try {
             return downloads.Answer(sample);
         } catch (Rejected) {
@@ -336,14 +203,14 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
     }
 
     /// The file's address as the ledger names destinations.
-    private static string FileAddress(string path) => new Uri(path).AbsoluteUri;
+    internal static string FileAddress(string path) => new Uri(path).AbsoluteUri;
 
     /// A monotonic clock in seconds, which transfer rates are measured by.
-    private static double Uptime => Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+    internal static double Uptime => Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
 
     /// Why a download the engine stopped failed: the warning it was blocked
     /// for, else what interrupted it.
-    private static DownloadFailure FailureOf(EngineDownload reported) => reported.Warning switch {
+    internal static DownloadFailure FailureOf(EngineDownload reported) => reported.Warning switch {
         EngineDownloadWarning.InsecureBlocked or EngineDownloadWarning.InsecureConnection => DownloadFailure.BlockedInsecure,
         EngineDownloadWarning.PolicyBlocked => DownloadFailure.BlockedByPolicy,
         EngineDownloadWarning.DangerousFile or EngineDownloadWarning.UncommonContent or EngineDownloadWarning.PotentiallyUnwanted =>

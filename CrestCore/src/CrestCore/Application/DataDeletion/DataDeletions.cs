@@ -14,14 +14,14 @@ internal sealed class DataDeletions(Engines engines, IIdSource ids) {
     #region Static Variables
 
     /// The longest host a site can have.
-    private const int MaximumHostLength = 253;
+    internal const int MaximumHostLength = 253;
 
     #endregion
 
     #region Types
 
     /// One deletion, until every engine asked has answered.
-    private sealed class Deletion(Guid requestId, Guid? profileId) {
+    internal sealed class Deletion(Guid requestId, Guid? profileId) {
         public Guid RequestId { get; } = requestId;
         /// The profile whose data this erases in full, if it does.
         public Guid? ProfileId { get; } = profileId;
@@ -38,34 +38,21 @@ internal sealed class DataDeletions(Engines engines, IIdSource ids) {
     /// The profiles whose data this run erased in full.
     private readonly HashSet<Guid> erasedProfiles = [];
 
+    /// Each erasure an engine has yet to answer, with its deletion.
+    internal Dictionary<Guid, Deletion> ByErasure => byErasure;
+
+    /// The profiles whose data this run erased in full.
+    internal HashSet<Guid> ErasedProfiles => erasedProfiles;
+
     #endregion
 
     #region Actions - Intents
 
-    public void Handle(DataDeletionIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        ArgumentNullException.ThrowIfNull(intent);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(issue);
-        switch (intent) {
-            case DeleteProfileData deleting:
-                // Until every engine erases it again, the profile's data is not known gone.
-                erasedProfiles.Remove(deleting.ProfileId);
-                Start(new(deleting.RequestId, deleting.ProfileId),
-                    erasure => new EraseProfileData(deleting.ProfileId, deleting.Ephemeral, erasure), changes, issue);
-                break;
-            case DeleteSiteData deleting:
-                if (deleting.Host.Trim() is not { Length: > 0 and <= MaximumHostLength } host) throw new Rejected(new InvalidSiteHost());
-                Start(new(deleting.RequestId, profileId: null),
-                    erasure => new EraseSiteData(deleting.ProfileId, deleting.Ephemeral, host.ToLowerInvariant(), erasure), changes,
-                    issue);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Data deletions do not handle this intent.");
-        }
-    }
+    /// Runs one data deletion intent, handing each engine its part.
+    public void Handle(DataDeletionIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) => intent.Apply(this, changes, issue);
 
     /// Asks every registered engine for its part of `deletion`.
-    private void Start(Deletion deletion, Func<Guid, EngineCommand> erasing, ChangeFeed changes,
+    internal void Start(Deletion deletion, Func<Guid, EngineCommand> erasing, ChangeFeed changes,
         Action<Engine, EngineCommand> issue) {
         foreach (var engine in engines.All) {
             var erasure = ids.Next();
@@ -80,21 +67,7 @@ internal sealed class DataDeletions(Engines engines, IIdSource ids) {
 
     #region Actions - Reports
 
-    /// One engine answered its part of a deletion; an answer from another
-    /// engine, or to an erasure nobody waits on, changes nothing.
-    public void Report(Engine engine, EngineEvent report, ChangeFeed changes) {
-        ArgumentNullException.ThrowIfNull(engine);
-        ArgumentNullException.ThrowIfNull(changes);
-        if (report is not DataErased erased || !byErasure.TryGetValue(erased.ErasureId, out var deletion)
-            || !ReferenceEquals(deletion.Waiting[erased.ErasureId], engine))
-            return;
-        byErasure.Remove(erased.ErasureId);
-        deletion.Waiting.Remove(erased.ErasureId);
-        deletion.Erased &= erased.Erased;
-        if (deletion.Waiting.Count == 0) Finish(deletion, changes);
-    }
-
-    private void Finish(Deletion deletion, ChangeFeed changes) {
+    internal void Finish(Deletion deletion, ChangeFeed changes) {
         if (deletion is { ProfileId: { } profile, Erased: true }) erasedProfiles.Add(profile);
         changes.Publish(new DataDeleted(deletion.RequestId, deletion.Erased));
     }
