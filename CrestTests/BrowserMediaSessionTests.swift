@@ -446,7 +446,7 @@ final class BrowserMediaSessionTests: XCTestCase {
         playback: BrowserMediaSessionPlaybackState = .paused,
         audible: Bool = false,
         muted: Bool = false,
-        actions: Set<BrowserMediaSessionAction> = []
+        actions: Set<BrowserMediaSessionAction> = [.play, .pause]
     ) -> BrowserMediaSessionPageEvent {
         BrowserMediaSessionPageEvent(
             documentIdentifier: document,

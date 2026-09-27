@@ -3031,6 +3031,8 @@ struct MediaSessionEvent: Equatable, Sendable {
     var isInvalidated: Bool
     var hasActiveSession: Bool
     var playback: MediaPlaybackState
+    var isMuted: Bool
+    var actions: [MediaSessionAction]
 }
 
 struct MediaSessionEventDecision: Equatable, Sendable {

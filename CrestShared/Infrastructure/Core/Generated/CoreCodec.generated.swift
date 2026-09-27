@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x52, 0x88, 0xce, 0xfa, 0xa6, 0x46, 0xc3, 0x05, 0x7e, 0xa9, 0x10, 0xa6, 0xb3, 0xea, 0xf8, 0xc0, 0xbc, 0x46, 0xc6, 0x2e, 0xad, 0xdc, 0x63, 0xb6, 0x26, 0x94, 0xb2, 0x4a, 0xa9, 0x32, 0xff, 0x97
+        0x42, 0x46, 0xc4, 0x70, 0x96, 0x5c, 0x29, 0xbb, 0x03, 0xa3, 0x60, 0xeb, 0xd1, 0x71, 0x5c, 0xa9, 0xfe, 0x8e, 0x68, 0x85, 0x9d, 0xc0, 0x7b, 0x8d, 0x25, 0x4e, 0xe6, 0xc6, 0x0f, 0xff, 0x87, 0x5b
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -10623,7 +10623,15 @@ extension MediaSessionEvent {
         let isInvalidated = try reader.readBool()
         let hasActiveSession = try reader.readBool()
         let playback = try MediaPlaybackState(from: &reader)
-        self.init(sequence: sequence, isInvalidated: isInvalidated, hasActiveSession: hasActiveSession, playback: playback)
+        let isMuted = try reader.readBool()
+        let actionsCount = try reader.readCount()
+        var actions: [MediaSessionAction] = []
+        actions.reserveCapacity(actionsCount)
+        for _ in 0..<actionsCount {
+            let actionsElement = try MediaSessionAction(from: &reader)
+            actions.append(actionsElement)
+        }
+        self.init(sequence: sequence, isInvalidated: isInvalidated, hasActiveSession: hasActiveSession, playback: playback, isMuted: isMuted, actions: actions)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -10631,6 +10639,11 @@ extension MediaSessionEvent {
         writer.writeBool(isInvalidated)
         writer.writeBool(hasActiveSession)
         playback.encode(into: &writer)
+        writer.writeBool(isMuted)
+        writer.writeCount(actions.count)
+        for element0 in actions {
+            element0.encode(into: &writer)
+        }
     }
 }
 

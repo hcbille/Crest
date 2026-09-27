@@ -2,9 +2,14 @@ namespace CrestCore.Contracts;
 
 #region Queries
 
-/// The ordering and lifecycle facts of one page media-session report. Engines
-/// sequence reports per document; metadata and artwork stay native.
-public sealed record MediaSessionEvent(ulong Sequence, bool IsInvalidated, bool HasActiveSession, MediaPlaybackState Playback);
+/// The ordering, lifecycle and control facts of one page media-session report.
+/// Engines sequence reports per document; metadata and artwork stay native.
+/// `Actions` are the playback controls the session offers: WebKit's bridge
+/// offers play and pause for a player that passes Picture in Picture's player
+/// rule, and Chromium's session for media it can control, never for a short
+/// sound a script plays.
+public sealed record MediaSessionEvent(ulong Sequence, bool IsInvalidated, bool HasActiveSession, MediaPlaybackState Playback,
+    bool IsMuted, IReadOnlyList<MediaSessionAction> Actions);
 
 /// The store's instructions for one report. A rejected report changes nothing.
 /// `EvictOldest` is how many of the oldest remembered identities to forget
@@ -20,7 +25,8 @@ public enum MediaSessionDisposition { Retire, Clear, Publish }
 
 /// What the store remembers about the reporting document: whether it was
 /// retired, the last sequence it accepted, the ordinal it was given, whether the
-/// person hid its card, and the playback state it last published.
+/// person hid its card, and the playback state it last published, which is
+/// null while the document has no card.
 public sealed record MediaSessionIdentity(bool IsRetired, ulong? LastSequence, ulong? Ordinal, bool IsDismissed,
     MediaPlaybackState? PreviousPlayback);
 

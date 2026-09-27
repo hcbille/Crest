@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0x52, 0x88, 0xce, 0xfa, 0xa6, 0x46, 0xc3, 0x05, 0x7e, 0xa9, 0x10, 0xa6, 0xb3, 0xea, 0xf8, 0xc0, 0xbc, 0x46, 0xc6, 0x2e, 0xad, 0xdc, 0x63, 0xb6, 0x26, 0x94, 0xb2, 0x4a, 0xa9, 0x32, 0xff, 0x97
+        0x42, 0x46, 0xc4, 0x70, 0x96, 0x5c, 0x29, 0xbb, 0x03, 0xa3, 0x60, 0xeb, 0xd1, 0x71, 0x5c, 0xa9, 0xfe, 0x8e, 0x68, 0x85, 0x9d, 0xc0, 0x7b, 0x8d, 0x25, 0x4e, 0xe6, 0xc6, 0x0f, 0xff, 0x87, 0x5b
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -9463,7 +9463,9 @@ public static class ContractCodec {
             reader.ReadUInt64(),
             reader.ReadBool(),
             reader.ReadBool(),
-            ReadMediaPlaybackState(reader));
+            ReadMediaPlaybackState(reader),
+            reader.ReadBool(),
+            reader.ReadList(() => ReadMediaSessionAction(reader)));
     }
 
     public static void WriteMediaSessionEvent(WireWriter writer, MediaSessionEvent value) {
@@ -9473,6 +9475,11 @@ public static class ContractCodec {
         writer.WriteBool(value.IsInvalidated);
         writer.WriteBool(value.HasActiveSession);
         WriteMediaPlaybackState(writer, value.Playback);
+        writer.WriteBool(value.IsMuted);
+        writer.WriteCount(value.Actions.Count);
+        foreach (var itemActions in value.Actions) {
+            WriteMediaSessionAction(writer, itemActions);
+        }
     }
 
     public static MediaSessionEventDecision ReadMediaSessionEventDecision(WireReader reader) {
@@ -16465,6 +16472,16 @@ public static class ContractCodec {
     }
 
     public static void WriteMediaPlaybackState(WireWriter writer, MediaPlaybackState value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteEnum((int)value);
+    }
+
+    public static MediaSessionAction ReadMediaSessionAction(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return (MediaSessionAction)reader.ReadEnum(4);
+    }
+
+    public static void WriteMediaSessionAction(WireWriter writer, MediaSessionAction value) {
         ArgumentNullException.ThrowIfNull(writer);
         writer.WriteEnum((int)value);
     }

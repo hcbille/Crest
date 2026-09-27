@@ -1,8 +1,9 @@
 import Foundation
 
 /// Media-session arbitration owned by the portable core, identical for the
-/// WebKit bridge and Chromium's native session. Only ordering and lifecycle
-/// facts cross; metadata, artwork and command endpoints stay in the store.
+/// WebKit bridge and Chromium's native session. Only ordering, lifecycle and
+/// control facts cross, and the core alone decides which sessions take a card;
+/// metadata, artwork and command endpoints stay in the store.
 extension BrowserCorePolicy {
     // MARK: - Actions - Media
 
@@ -16,7 +17,8 @@ extension BrowserCorePolicy {
         let question = MediaSessionReport(
             event: MediaSessionEvent(
                 sequence: event.sequence, isInvalidated: event.isInvalidated, hasActiveSession: event.hasActiveSession,
-                playback: event.playbackState.core),
+                playback: event.playbackState.core, isMuted: event.isMuted,
+                actions: event.availableActions.map(\.core)),
             identity: MediaSessionIdentity(
                 isRetired: isRetired, lastSequence: lastSequence, ordinal: ordinal, isDismissed: isDismissed,
                 previousPlayback: previousPlayback?.core),

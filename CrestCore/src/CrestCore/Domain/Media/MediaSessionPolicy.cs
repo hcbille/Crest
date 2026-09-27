@@ -6,7 +6,12 @@ namespace CrestCore.Domain;
 ///
 /// Each document reports sequenced events. Stale and retired reports are
 /// dropped; a report can retire its document, withdraw its card, or publish it,
-/// and a published document supersedes every other document of its tab. The
+/// and a published document supersedes every other document of its tab. Only
+/// media a person can control is published: a session offering play or pause,
+/// the transport a player has. A notification chime or other short sound a
+/// script plays offers neither, so it never takes a card or the system's Now
+/// Playing. A muted session already shown keeps its card, since an engine may
+/// withdraw a muted page's controls and the card is where it is unmuted. The
 /// store remembers a bounded window of identities. Published sessions are
 /// shown in first-published order, and one of them owns the system's Now
 /// Playing: playing before paused, audible before silent, then the most
@@ -30,7 +35,8 @@ public static class MediaSessionPolicy {
         int retained = retainedIdentities + (identity.LastSequence is null ? 1 : 0);
         int evict = Math.Max(0, retained - MaximumRetainedIdentities);
         if (report.IsInvalidated) return new(true, evict, MediaSessionDisposition.Retire, false, null, nextOrdinal, false);
-        if (!report.HasActiveSession) return new(true, evict, MediaSessionDisposition.Clear, false, null, nextOrdinal, false);
+        if (!report.HasActiveSession || !IsControllable(report, identity))
+            return new(true, evict, MediaSessionDisposition.Clear, false, null, nextOrdinal, false);
         ulong ordinal = identity.Ordinal ?? nextOrdinal;
         ulong next = identity.Ordinal is null ? unchecked(nextOrdinal + 1) : nextOrdinal;
         // A card the person hid stays hidden until playback starts afresh.
@@ -38,6 +44,11 @@ public static class MediaSessionPolicy {
             && report.Playback == MediaPlaybackState.Playing;
         return new(true, evict, MediaSessionDisposition.Publish, true, ordinal, next, clearsDismissal);
     }
+
+    // `PreviousPlayback` is known only while the document's card is shown.
+    private static bool IsControllable(MediaSessionEvent report, MediaSessionIdentity identity) =>
+        report.Actions.Contains(MediaSessionAction.Play) || report.Actions.Contains(MediaSessionAction.Pause)
+        || (report.IsMuted && identity.PreviousPlayback is not null);
 
     #endregion
 

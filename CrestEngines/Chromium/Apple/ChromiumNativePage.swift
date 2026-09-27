@@ -459,23 +459,12 @@
         func performMediaSessionAction(_ action: BrowserMediaSessionAction, documentIdentifier: String) {
             guard created else { return }
             pages?.request(
-                PerformMediaAction(pageID: pageID, document: documentIdentifier, action: MediaSessionAction(action)))
+                PerformMediaAction(pageID: pageID, document: documentIdentifier, action: action.core))
         }
 
         func setMediaSessionMuted(_ muted: Bool, documentIdentifier: String) {
             guard created else { return }
             pages?.request(MuteMediaSession(pageID: pageID, document: documentIdentifier, muted: muted))
-        }
-    }
-
-    extension MediaSessionAction {
-        fileprivate init(_ action: BrowserMediaSessionAction) {
-            switch action {
-            case .play: self = .play
-            case .pause: self = .pause
-            case .previousTrack: self = .previousTrack
-            case .nextTrack: self = .nextTrack
-            }
         }
     }
 

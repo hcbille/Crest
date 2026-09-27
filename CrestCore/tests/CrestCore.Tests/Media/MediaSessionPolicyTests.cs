@@ -9,8 +9,11 @@ namespace CrestCore.Tests;
 public sealed class MediaSessionPolicyTests {
     private static readonly MediaSessionIdentity Fresh = new(false, null, null, false, null);
 
+    private static readonly MediaSessionAction[] Transport = [MediaSessionAction.Play, MediaSessionAction.Pause];
+
     private static MediaSessionEvent Report(ulong sequence, MediaPlaybackState playback = MediaPlaybackState.Playing,
-        bool active = true, bool invalidated = false) => new(sequence, invalidated, active, playback);
+        bool active = true, bool invalidated = false, bool muted = false, MediaSessionAction[]? actions = null) =>
+        new(sequence, invalidated, active, playback, muted, actions ?? Transport);
 
     [Fact]
     public void StaleAndRetiredReportsChangeNothing() {
@@ -44,6 +47,29 @@ public sealed class MediaSessionPolicyTests {
         Assert.Equal(MediaSessionDisposition.Clear, cleared.Disposition);
         Assert.Null(cleared.Ordinal);
         Assert.Equal(4UL, cleared.NextOrdinal);
+    }
+
+    [Fact]
+    public void OnlyMediaWithPlaybackControlsTakesACard() {
+        MediaSessionDisposition Shown(MediaSessionEvent report, MediaSessionIdentity identity) =>
+            MediaSessionPolicy.Decide(report, identity, 1, 8).Disposition;
+
+        // A notification chime: the engine's session plays, but offers no controls.
+        var chime = MediaSessionPolicy.Decide(Report(1, actions: []), Fresh, 0, 7);
+        Assert.Equal(MediaSessionDisposition.Clear, chime.Disposition);
+        Assert.Null(chime.Ordinal);
+        Assert.Equal(7UL, chime.NextOrdinal);
+        Assert.Equal(MediaSessionDisposition.Clear, Shown(Report(1, actions: [MediaSessionAction.NextTrack]), Fresh));
+        Assert.Equal(MediaSessionDisposition.Clear, Shown(Report(1, muted: true, actions: []), Fresh));
+
+        Assert.Equal(MediaSessionDisposition.Publish, Shown(Report(1), Fresh));
+        Assert.Equal(MediaSessionDisposition.Publish,
+            Shown(Report(1, MediaPlaybackState.Paused, actions: [MediaSessionAction.Play]), Fresh));
+
+        // Muting the shown card's page may take its controls away; the card stays to unmute it.
+        var shown = Fresh with { LastSequence = 1, Ordinal = 7, PreviousPlayback = MediaPlaybackState.Playing };
+        Assert.Equal(MediaSessionDisposition.Publish, Shown(Report(2, muted: true, actions: []), shown));
+        Assert.Equal(MediaSessionDisposition.Clear, Shown(Report(2, actions: []), shown));
     }
 
     [Fact]
