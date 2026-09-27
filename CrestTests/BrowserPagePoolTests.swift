@@ -42,7 +42,7 @@ final class BrowserPagePoolTests: XCTestCase {
     }
 
     func testDurableClosePolicyControlsNativeStateAndFreshPoolRestoration() async throws {
-        for policy in SavedTabClosePolicy.allCases {
+        for policy in SavedTabClosePolicy.all {
             let archive = try makeTabStateArchive()
             let root = try XCTUnwrap(URL(string: "https://state.crest.test/root"))
             let child = try XCTUnwrap(URL(string: "https://state.crest.test/child"))

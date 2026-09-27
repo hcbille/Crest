@@ -53,7 +53,7 @@ struct BrowserPageTab: Equatable {
                 faviconURL: nil, iconAccent: nil, storedIconMode: nil, placement: .current, folderID: nil,
                 splitGroupID: nil, lastActivatedAt: .now, positionModifiedAt: nil, customTitle: nil,
                 titleModifiedAt: nil, keepsPageLoaded: false, iconMode: .automatic, displayTitle: title,
-                isAwayFromSavedAddress: false, pageIconIsCurrent: false, surface: .webPage),
+                isAwayFromSavedAddress: false, pageIconIsCurrent: false, surface: .webPage, nativeView: nil),
             faviconData: nil)
     }
 }

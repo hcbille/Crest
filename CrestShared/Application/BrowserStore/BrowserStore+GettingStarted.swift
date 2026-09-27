@@ -17,7 +17,7 @@ extension BrowserStore {
             selectTab(existing.id)
             return existing.id
         }
-        return openNativeTab(.gettingStarted, title: String(localized: "Getting Started"), symbol: "book.closed.fill")
+        return openNativeTab(.gettingStarted)
     }
 
     @discardableResult
@@ -40,17 +40,14 @@ extension BrowserStore {
             selectTab(existing.id)
             return existing.id
         }
-        return openNativeTab(
-            .settings, title: String(localized: "Settings"), symbol: "gearshape.fill", placement: .current)
+        return openNativeTab(.settings, placement: .current)
     }
 
     /// Native documents enter the same session mutation and persistence path as
     /// websites. No page pool or second selection model is owned by the document.
     @discardableResult
-    func openNativeTab(
-        _ content: BrowserNativeTabContent, title: String, symbol: String, placement: TabPlacement = .saved
-    ) -> TabID? {
+    func openNativeTab(_ view: NativeView, placement: TabPlacement = .saved) -> TabID? {
         guard let space = shownSpace else { return nil }
-        return openSessionTab(.view(content, title: title, symbol: symbol), in: space.id, placement: placement)
+        return openSessionTab(.view(view), in: space.id, placement: placement)
     }
 }

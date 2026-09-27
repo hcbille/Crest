@@ -88,7 +88,7 @@
                     TabStateFaviconView(
                         tab: tab, favicons: practice.browser.core.state.favicons, profileID: practice.space.profileID,
                         size: 18)
-                    Text(tab.displayTitle).font(CrestTypography.sans(12, weight: .semibold)).lineLimit(1)
+                    Text(tab.shownTitle).font(CrestTypography.sans(12, weight: .semibold)).lineLimit(1)
                 }
                 Divider()
                 Spacer(minLength: 0)

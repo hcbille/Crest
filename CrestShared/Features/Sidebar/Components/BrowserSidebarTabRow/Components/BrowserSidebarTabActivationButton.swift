@@ -50,7 +50,7 @@ struct BrowserSidebarTabActivationButton: View {
                 .accessibilityHidden(true)
                 .browserIconCustomizationPopover(iconCustomization, arrowEdge: iconPickerArrowEdge)
         }
-        .accessibilityLabel(tab.displayTitle)
+        .accessibilityLabel(tab.shownTitle)
         .accessibilityValue(BrowserChromeAccessibility.tabValue(isLoaded: isLoaded))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier(BrowserTabAccessibilityID.row(tab.id))

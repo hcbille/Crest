@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0xff, 0x18, 0x71, 0xa6, 0xd3, 0x19, 0x08, 0x7b, 0xf9, 0x62, 0x2b, 0x3f, 0xea, 0xcf, 0xea, 0xa7, 0xc1, 0x38, 0x61, 0xa0, 0x82, 0xed, 0x55, 0x03, 0x6c, 0x69, 0x1b, 0x7e, 0x38, 0xe4, 0x32, 0x0f
+        0x4b, 0x0a, 0x73, 0x75, 0x07, 0x33, 0x89, 0xdf, 0x3a, 0x5f, 0x16, 0xdf, 0xbe, 0xa6, 0xcf, 0x01, 0x10, 0xc0, 0x95, 0xd3, 0xb2, 0x48, 0x6a, 0x11, 0xe5, 0x90, 0xf8, 0x26, 0x1a, 0xe9, 0x74, 0x7b
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -14993,8 +14993,7 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(reader);
         return new TabContent(
             reader.ReadPresence() ? (string?)reader.ReadString() : null,
-            reader.ReadPresence() ? (NativeTabContent?)ReadNativeTabContent(reader) : null,
-            reader.ReadPresence() ? (string?)reader.ReadString() : null,
+            reader.ReadPresence() ? (NativeView?)ReadNativeView(reader) : null,
             reader.ReadPresence() ? (string?)reader.ReadString() : null);
     }
 
@@ -15009,19 +15008,13 @@ public static class ContractCodec {
         }
         if (value.View is { } presentView) {
             writer.WritePresence(true);
-            WriteNativeTabContent(writer, presentView);
+            WriteNativeView(writer, presentView);
         } else {
             writer.WritePresence(false);
         }
         if (value.Title is { } presentTitle) {
             writer.WritePresence(true);
             writer.WriteString(presentTitle);
-        } else {
-            writer.WritePresence(false);
-        }
-        if (value.Symbol is { } presentSymbol) {
-            writer.WritePresence(true);
-            writer.WriteString(presentSymbol);
         } else {
             writer.WritePresence(false);
         }
@@ -15192,6 +15185,7 @@ public static class ContractCodec {
         _ = reader.ReadBool();
         _ = reader.ReadBool();
         _ = ReadTabSurface(reader);
+        _ = reader.ReadPresence() ? (NativeView?)ReadNativeView(reader) : null;
         return value;
     }
 
@@ -15275,6 +15269,12 @@ public static class ContractCodec {
         writer.WriteBool(value.IsAwayFromSavedAddress);
         writer.WriteBool(value.PageIconIsCurrent);
         WriteTabSurface(writer, value.Surface);
+        if (value.NativeView is { } presentNativeView) {
+            writer.WritePresence(true);
+            WriteNativeView(writer, presentNativeView);
+        } else {
+            writer.WritePresence(false);
+        }
     }
 
     public static TabState ReadTabStateSeed(WireReader reader) {
@@ -16378,16 +16378,6 @@ public static class ContractCodec {
         writer.WriteEnum((int)value);
     }
 
-    public static SavedTabClosePolicy ReadSavedTabClosePolicy(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return (SavedTabClosePolicy)reader.ReadEnum(2);
-    }
-
-    public static void WriteSavedTabClosePolicy(WireWriter writer, SavedTabClosePolicy value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteEnum((int)value);
-    }
-
     public static SessionFlaw ReadSessionFlaw(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return (SessionFlaw)reader.ReadEnum(6);
@@ -16464,16 +16454,6 @@ public static class ContractCodec {
     }
 
     public static void WriteSpaceThemeMode(WireWriter writer, SpaceThemeMode value) {
-        ArgumentNullException.ThrowIfNull(writer);
-        writer.WriteEnum((int)value);
-    }
-
-    public static StartupBehavior ReadStartupBehavior(WireReader reader) {
-        ArgumentNullException.ThrowIfNull(reader);
-        return (StartupBehavior)reader.ReadEnum(2);
-    }
-
-    public static void WriteStartupBehavior(WireWriter writer, StartupBehavior value) {
         ArgumentNullException.ThrowIfNull(writer);
         writer.WriteEnum((int)value);
     }
@@ -16980,6 +16960,17 @@ public static class ContractCodec {
         writer.WriteEnum(TagOf(MemoryPressureLevel.All, value));
     }
 
+    public static NativeView ReadNativeView(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return NativeView.All[reader.ReadEnum(NativeView.All.Count)];
+    }
+
+    public static void WriteNativeView(WireWriter writer, NativeView value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(NativeView.All, value));
+    }
+
     public static NavigationError ReadNavigationError(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
         return NavigationError.All[reader.ReadEnum(NavigationError.All.Count)];
@@ -17099,6 +17090,17 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteEnum(TagOf(RehostReason.All, value));
+    }
+
+    public static SavedTabClosePolicy ReadSavedTabClosePolicy(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return SavedTabClosePolicy.All[reader.ReadEnum(SavedTabClosePolicy.All.Count)];
+    }
+
+    public static void WriteSavedTabClosePolicy(WireWriter writer, SavedTabClosePolicy value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(SavedTabClosePolicy.All, value));
     }
 
     public static SearchEngineFlaw ReadSearchEngineFlaw(WireReader reader) {
@@ -17231,6 +17233,17 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteEnum(TagOf(SpaceAccent.All, value));
+    }
+
+    public static StartupBehavior ReadStartupBehavior(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return StartupBehavior.All[reader.ReadEnum(StartupBehavior.All.Count)];
+    }
+
+    public static void WriteStartupBehavior(WireWriter writer, StartupBehavior value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteEnum(TagOf(StartupBehavior.All, value));
     }
 
     public static SyncDeletionReason ReadSyncDeletionReason(WireReader reader) {

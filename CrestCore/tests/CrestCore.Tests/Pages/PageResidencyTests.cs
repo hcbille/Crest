@@ -34,7 +34,7 @@ public sealed partial class BrowserContractsTests {
         Guid space, string address, bool blank = false) {
         clock.Now += TimeSpan.FromMinutes(1);
         var (tab, page) = (Guid.NewGuid(), Guid.NewGuid());
-        app.Send(new OpenTab(workspace, window, space, tab, new TabContent(address, null, "Page", null), TabPlacement.Current, null,
+        app.Send(new OpenTab(workspace, window, space, tab, new TabContent(address, null, "Page"), TabPlacement.Current, null,
             Shows: true));
         app.Send(new OpenPage(page, workspace, space, tab, window));
         app.Report(engine, new PageCreated(page));

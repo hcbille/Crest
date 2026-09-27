@@ -3009,6 +3009,10 @@
     "synced-look-strength-once": {
       "category": "internal",
       "message": "A synced Space look keeps its banner strength; only a look from before the current rendering vocabulary is converted, once"
+    },
+    "native-views-and-preference-choices-describe-themselves": {
+      "category": "internal",
+      "message": "Settings and Getting Started tabs take their title and symbol from the core, and startup and saved-tab close choices carry their own titles"
     }
   }
 }

@@ -9,13 +9,6 @@ namespace CrestCore.Application;
 internal static partial class StoredSessionCodec {
     #region Variables
 
-    private static readonly StoredSpellings<StartupBehavior> StartupBehaviors = new([
-        (StartupBehavior.ShowStartPage, "showStartPage"), (StartupBehavior.LastActiveTab, "lastActiveTab")
-    ]);
-    private static readonly StoredSpellings<SavedTabClosePolicy> SavedTabClosePolicies = new([
-        (SavedTabClosePolicy.ResumeLastLocation, "resumeLastLocation"), (SavedTabClosePolicy.ReturnToSavedUrl, "returnToSavedURL")
-    ]);
-
     /// What a Space that stored no browsing preferences searches and keeps.
     internal static BrowsingPreferences DefaultBrowsingPreferences { get; } = new(BuiltInSearchEngine.Google, null, [], false,
         CurrentTabCleanup.After12Hours, ContentBlockingPolicy.Balanced,
@@ -116,25 +109,25 @@ internal static partial class StoredSessionCodec {
     internal static AppPreferences DecodeAppPreferences(JsonNode? node) {
         var value = Object(node);
         var defaults = AppPreferences.Default;
-        return new(StartupBehaviors.Parse(TolerantText(value[Key.StartupBehavior])) ?? defaults.Startup,
+        return new(StartupBehavior.Named(TolerantText(value[Key.StartupBehavior])) ?? defaults.Startup,
             TolerantFlag(value[Key.OffersTranslation]) ?? defaults.OffersTranslation,
             TolerantFlag(value[Key.AutomaticallyTranslates]) ?? defaults.AutomaticallyTranslates,
             TranslationRules(value[Key.TranslationRules]),
             TolerantFlag(value[Key.ChecksSpelling]) ?? defaults.ChecksSpelling,
             TolerantFlag(value[Key.AutomaticallyEntersPictureInPicture]) ?? defaults.AutomaticallyEntersPictureInPicture,
-            SavedTabClosePolicies.Parse(TolerantText(value[Key.SavedTabClosePolicy])) ?? defaults.SavedTabClose,
+            SavedTabClosePolicy.Named(TolerantText(value[Key.SavedTabClosePolicy])) ?? defaults.SavedTabClose,
             TolerantFlag(value[Key.SavedTabFaviconReturnsToSavedUrl]) ?? defaults.SavedTabFaviconReturnsToSavedUrl,
             TolerantFlag(value[Key.SplitFocusFollowsMouse]) ?? defaults.SplitFocusFollowsMouse);
     }
 
     internal static JsonObject Encode(AppPreferences preferences) => new() {
-        [Key.StartupBehavior] = StartupBehaviors.Name(preferences.Startup),
+        [Key.StartupBehavior] = preferences.Startup.Name,
         [Key.OffersTranslation] = preferences.OffersTranslation,
         [Key.AutomaticallyTranslates] = preferences.AutomaticallyTranslates,
         [Key.TranslationRules] = EncodeTranslationRules(preferences.TranslationRules),
         [Key.ChecksSpelling] = preferences.ChecksSpelling,
         [Key.AutomaticallyEntersPictureInPicture] = preferences.AutomaticallyEntersPictureInPicture,
-        [Key.SavedTabClosePolicy] = SavedTabClosePolicies.Name(preferences.SavedTabClose),
+        [Key.SavedTabClosePolicy] = preferences.SavedTabClose.Name,
         [Key.SavedTabFaviconReturnsToSavedUrl] = preferences.SavedTabFaviconReturnsToSavedUrl,
         [Key.SplitFocusFollowsMouse] = preferences.SplitFocusFollowsMouse
     };
@@ -190,11 +183,9 @@ internal static partial class StoredSessionCodec {
 
     /// A startup or saved-tab close choice in its stored spelling, which settings
     /// commands and the launch plan also use; null when this build cannot name it.
-    internal static StartupBehavior? ParseStartupBehavior(JsonNode? node) => StartupBehaviors.Parse(TolerantText(node));
+    internal static StartupBehavior? ParseStartupBehavior(JsonNode? node) => StartupBehavior.Named(TolerantText(node));
 
-    internal static string Spelling(StartupBehavior behavior) => StartupBehaviors.Name(behavior);
-
-    internal static SavedTabClosePolicy? ParseSavedTabClosePolicy(JsonNode? node) => SavedTabClosePolicies.Parse(TolerantText(node));
+    internal static SavedTabClosePolicy? ParseSavedTabClosePolicy(JsonNode? node) => SavedTabClosePolicy.Named(TolerantText(node));
 
     #endregion
 }

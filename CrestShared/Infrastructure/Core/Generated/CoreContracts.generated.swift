@@ -629,13 +629,13 @@ struct AppConfiguration: Equatable, Sendable {
 
 struct AppPreferences: Equatable, Sendable {
     static let `default` = AppPreferences(
-        startup: .showStartPage,
+        startup: StartupBehavior.showStartPage,
         offersTranslation: true,
         automaticallyTranslates: false,
         translationRules: [],
         checksSpelling: false,
         automaticallyEntersPictureInPicture: true,
-        savedTabClose: .resumeLastLocation,
+        savedTabClose: SavedTabClosePolicy.resumeLastLocation,
         savedTabFaviconReturnsToSavedURL: false,
         splitFocusFollowsMouse: false
     )
@@ -5272,9 +5272,8 @@ struct TabAlreadyHasPage: Equatable, Sendable {
 
 struct TabContent: Equatable, Sendable {
     var address: String?
-    var view: NativeTabContent?
+    var view: NativeView?
     var title: String?
-    var symbol: String?
 }
 
 struct TabCopied: Equatable, Sendable {
@@ -5347,6 +5346,7 @@ struct TabState: Equatable, Sendable, Identifiable {
     let isAwayFromSavedAddress: Bool
     let pageIconIsCurrent: Bool
     let surface: TabSurface
+    let nativeView: NativeView?
 
     /// The fields of a `TabState` alone, as a platform builds one to send. The
     /// core resolves the rest when it reads it.
@@ -5977,11 +5977,6 @@ enum PasskeyDeviceConfiguration: Int, CaseIterable, Sendable {
     case unknown = 2
 }
 
-enum SavedTabClosePolicy: Int, CaseIterable, Sendable {
-    case resumeLastLocation = 0
-    case returnToSavedURL = 1
-}
-
 enum SessionFlaw: Int, CaseIterable, Sendable {
     case unreadable = 0
     case missingIdentity = 1
@@ -6042,11 +6037,6 @@ enum SpaceTextColorMode: Int, CaseIterable, Sendable {
 enum SpaceThemeMode: Int, CaseIterable, Sendable {
     case banner = 0
     case gradient = 1
-}
-
-enum StartupBehavior: Int, CaseIterable, Sendable {
-    case showStartPage = 0
-    case lastActiveTab = 1
 }
 
 enum StorageFailure: Int, CaseIterable, Sendable {
@@ -8477,6 +8467,48 @@ struct MemoryPressureLevel: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `NativeView`. A member's wire tag is its index in `all`.
+struct NativeView: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: LocalizedStringResource
+    let symbol: String
+
+    private init(tag: Int, name: String, title: LocalizedStringResource, symbol: String) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+        self.symbol = symbol
+    }
+
+    static let settings = NativeView(
+        tag: 0,
+        name: "settings",
+        title: LocalizedStringResource("Settings"),
+        symbol: "gearshape.fill"
+    )
+    static let gettingStarted = NativeView(
+        tag: 1,
+        name: "getting-started",
+        title: LocalizedStringResource("Getting Started"),
+        symbol: "book.closed.fill"
+    )
+
+    static let all: [NativeView] = [settings, gettingStarted]
+
+    static func named(_ name: String?) -> NativeView? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: NativeView, rhs: NativeView) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `NavigationError`. A member's wire tag is its index in `all`.
 struct NavigationError: Hashable, Sendable {
     let tag: Int
@@ -9271,6 +9303,44 @@ struct RehostReason: Hashable, Sendable {
     }
 
     static func == (lhs: RehostReason, rhs: RehostReason) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `SavedTabClosePolicy`. A member's wire tag is its index in `all`.
+struct SavedTabClosePolicy: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: LocalizedStringResource
+
+    private init(tag: Int, name: String, title: LocalizedStringResource) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+    }
+
+    static let resumeLastLocation = SavedTabClosePolicy(
+        tag: 0,
+        name: "resumeLastLocation",
+        title: LocalizedStringResource("Resume last location")
+    )
+    static let returnToSavedURL = SavedTabClosePolicy(
+        tag: 1,
+        name: "returnToSavedURL",
+        title: LocalizedStringResource("Return to saved URL")
+    )
+
+    static let all: [SavedTabClosePolicy] = [resumeLastLocation, returnToSavedURL]
+
+    static func named(_ name: String?) -> SavedTabClosePolicy? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SavedTabClosePolicy, rhs: SavedTabClosePolicy) -> Bool {
         lhs.tag == rhs.tag
     }
 
@@ -12510,6 +12580,48 @@ struct SpaceAccent: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `StartupBehavior`. A member's wire tag is its index in `all`.
+struct StartupBehavior: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: LocalizedStringResource
+    let activatesRestoredTab: Bool
+
+    private init(tag: Int, name: String, title: LocalizedStringResource, activatesRestoredTab: Bool) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+        self.activatesRestoredTab = activatesRestoredTab
+    }
+
+    static let showStartPage = StartupBehavior(
+        tag: 0,
+        name: "showStartPage",
+        title: LocalizedStringResource("Show Start Page"),
+        activatesRestoredTab: false
+    )
+    static let lastActiveTab = StartupBehavior(
+        tag: 1,
+        name: "lastActiveTab",
+        title: LocalizedStringResource("Open Last Active Tab"),
+        activatesRestoredTab: true
+    )
+
+    static let all: [StartupBehavior] = [showStartPage, lastActiveTab]
+
+    static func named(_ name: String?) -> StartupBehavior? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: StartupBehavior, rhs: StartupBehavior) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
 /// The members of the core's `SyncDeletionReason`. A member's wire tag is its index in `all`.
 struct SyncDeletionReason: Hashable, Sendable {
     let tag: Int
@@ -13528,6 +13640,10 @@ final class TabStateModel: ObservedModel, Identifiable {
         access(keyPath: \.surface)
         return surfaceStorage
     }
+    var nativeView: NativeView? {
+        access(keyPath: \.nativeView)
+        return nativeViewStorage
+    }
 
     @ObservationIgnored private var titleStorage: String
     @ObservationIgnored private var urlStorage: String?
@@ -13550,6 +13666,7 @@ final class TabStateModel: ObservedModel, Identifiable {
     @ObservationIgnored private var isAwayFromSavedAddressStorage: Bool
     @ObservationIgnored private var pageIconIsCurrentStorage: Bool
     @ObservationIgnored private var surfaceStorage: TabSurface
+    @ObservationIgnored private var nativeViewStorage: NativeView?
 
     var value: TabState {
         TabState(
@@ -13574,7 +13691,8 @@ final class TabStateModel: ObservedModel, Identifiable {
             displayTitle: displayTitle,
             isAwayFromSavedAddress: isAwayFromSavedAddress,
             pageIconIsCurrent: pageIconIsCurrent,
-            surface: surface
+            surface: surface,
+            nativeView: nativeView
         )
     }
 
@@ -13601,6 +13719,7 @@ final class TabStateModel: ObservedModel, Identifiable {
         isAwayFromSavedAddressStorage = value.isAwayFromSavedAddress
         pageIconIsCurrentStorage = value.pageIconIsCurrent
         surfaceStorage = value.surface
+        nativeViewStorage = value.nativeView
     }
 
     func update(_ value: TabState) {
@@ -13688,6 +13807,10 @@ final class TabStateModel: ObservedModel, Identifiable {
         if surfaceStorage != value.surface {
             surfaceStorage = value.surface
             withMutation(keyPath: \.surface) {}
+        }
+        if nativeViewStorage != value.nativeView {
+            nativeViewStorage = value.nativeView
+            withMutation(keyPath: \.nativeView) {}
         }
     }
 }

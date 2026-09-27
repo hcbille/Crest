@@ -16,7 +16,7 @@ struct BrowserUtilityListRow: View {
                     actions.restoreArchivedTab(archived.tab.id, assignment)
                 } label: {
                     BrowserUtilityListRowLabel(
-                        title: archived.tab.displayTitle,
+                        title: archived.tab.shownTitle,
                         subtitle: archiveSubtitle(archived),
                         subtitleStyle: AnyShapeStyle(
                             archived.reason.tint.color
@@ -33,7 +33,7 @@ struct BrowserUtilityListRow: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Restore \(archived.tab.displayTitle)")
+                .accessibilityLabel("Restore \(archived.tab.shownTitle)")
                 .accessibilityIdentifier(
                     BrowserTabAccessibilityID.archivedRow(archived.tab.id)
                 )

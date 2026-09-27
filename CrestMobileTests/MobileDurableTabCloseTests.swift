@@ -6,7 +6,7 @@ import XCTest
 final class MobileDurableTabCloseTests: XCTestCase {
     func testCommandsApplyClosePolicyToPinnedAndSavedTabsWithoutReloadingThem() throws {
         for placement: TabPlacement in [.pinned, .saved] {
-            for policy in SavedTabClosePolicy.allCases {
+            for policy in SavedTabClosePolicy.all {
                 let context = try makeContext(placement: placement)
                 defer { context.pages.reconcile(validTabIDs: []) }
                 // The core puts the page away as the session's preferences say.

@@ -239,7 +239,7 @@ public sealed unsafe partial class BrowserContractsTests {
             var window = Guid.NewGuid();
             app.Send(new OpenWindow(window, workspace.WorkspaceId, Saved: false, null, null, [], RestoresTabs: true));
             app.Send(new OpenTab(workspace.WorkspaceId, window, space.Id, Guid.NewGuid(),
-                new TabContent("https://private.example/", null, "Private page", null), TabPlacement.Current, null, false));
+                new TabContent("https://private.example/", null, "Private page"), TabPlacement.Current, null, false));
             app.Send(new SetSpaceIdentity(workspace.WorkspaceId, space.Id, "Renamed in private", "eyeglasses", SpaceAccent.Teal));
             Assert.Null(app.Workspace(workspace.WorkspaceId).Storage);
             Assert.Same(staged, sync.Snapshot);

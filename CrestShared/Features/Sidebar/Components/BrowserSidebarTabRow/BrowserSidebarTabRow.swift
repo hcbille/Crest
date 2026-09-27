@@ -106,7 +106,7 @@ struct BrowserSidebarTabRow: View {
 
     private func beginRenaming() {
         guard configuration.isCurrentAndUnlocked else { return }
-        draftTitle = tab.displayTitle
+        draftTitle = tab.shownTitle
         renameRequest = runtimeAssignment
         Task { @MainActor in
             isTitleFocused = true
@@ -172,7 +172,7 @@ struct BrowserSidebarTabRow: View {
 
     private func cancelTitleEditing() {
         guard renameRequest != nil else { return }
-        draftTitle = tab.displayTitle
+        draftTitle = tab.shownTitle
         renameRequest = nil
     }
 

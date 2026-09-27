@@ -16,7 +16,7 @@ public sealed partial class BrowserContractsTests {
     private static (Guid Tab, Guid Page) LiveTab(CrestApp app, Engine engine, Guid workspace, Guid window, Guid space,
         string url = "https://source.example/") {
         var (tab, page) = (Guid.NewGuid(), Guid.NewGuid());
-        app.Send(new OpenTab(workspace, window, space, tab, new TabContent(url, View: null, Title: null, Symbol: null),
+        app.Send(new OpenTab(workspace, window, space, tab, new TabContent(url, View: null, Title: null),
             TabPlacement.Current, AfterTabId: null, Shows: true));
         app.Send(new OpenPage(page, workspace, space, tab, window));
         app.Report(engine, new PageCreated(page));

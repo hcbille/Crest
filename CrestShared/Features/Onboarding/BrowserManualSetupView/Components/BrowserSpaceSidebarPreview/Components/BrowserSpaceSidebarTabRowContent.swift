@@ -19,7 +19,7 @@ struct BrowserSpaceSidebarTabRowContent: View {
                 profileID: profileID,
                 size: BrowserManualSetupSidebarPreviewMetrics.tabIconSize * BrowserSidebarDensityPolicy.scale(tabScale)
             )
-            Text(tab.displayTitle)
+            Text(tab.shownTitle)
                 .lineLimit(1)
             Spacer()
         }

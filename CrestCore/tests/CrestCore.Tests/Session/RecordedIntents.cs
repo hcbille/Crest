@@ -129,7 +129,7 @@ internal static class RecordedIntents {
     /// that names what it shows.
     private static OpenTab Opening(Guid workspace, Guid window, Guid space, JsonObject arguments) {
         var tab = StoredSessionCodec.DecodeTab(arguments["tab"]);
-        return new(workspace, window, space, tab.Id, new TabContent(tab.Url, tab.NativeContent, tab.Title, tab.Symbol), tab.Placement,
+        return new(workspace, window, space, tab.Id, new TabContent(tab.Url, tab.NativeView, tab.Title), tab.Placement,
             arguments["after"] is { } after ? Guid.Parse(after.GetValue<string>()) : null, arguments["select"]?.GetValue<bool>() == true);
     }
 
@@ -210,15 +210,15 @@ internal static class RecordedIntents {
         ["requiresIsolation"] = plan.RequiresIsolation,
         ["usesEphemeralProfileStorage"] = plan.UsesEphemeralProfileStorage,
         ["presentsInstalledApplicationUI"] = plan.PresentsInstalledApplicationUI,
-        ["startupBehavior"] = StoredSessionCodec.Spelling(plan.Startup)
+        ["startupBehavior"] = plan.Startup.Name
     };
 
     /// `current` with the one preference a recorded `preferences.set` named
     /// set to the value it recorded, in its stored spelling.
     private static AppPreferences Preferred(AppPreferences current, string preference, JsonNode value) => preference switch {
         "checksSpelling" => current with { ChecksSpelling = value.GetValue<bool>() },
-        "startupBehavior" => current with { Startup = StoredSessionCodec.ParseStartupBehavior(value)!.Value },
-        "savedTabClosePolicy" => current with { SavedTabClose = StoredSessionCodec.ParseSavedTabClosePolicy(value)!.Value },
+        "startupBehavior" => current with { Startup = StoredSessionCodec.ParseStartupBehavior(value)! },
+        "savedTabClosePolicy" => current with { SavedTabClose = StoredSessionCodec.ParseSavedTabClosePolicy(value)! },
         _ => throw new ArgumentOutOfRangeException(nameof(preference), preference, "The recording sets no other preference.")
     };
 

@@ -1,3 +1,5 @@
+using CrestCore.Contracts;
+
 namespace CrestCore.Domain;
 
 /// <summary>The content a tab presents. Persisted native kind names are resolved at the boundary.</summary>
@@ -12,8 +14,11 @@ public sealed record TabKind {
     public bool IsWebPage => RenderType == TabRenderType.WebRender && !IsStartPage;
     public static TabKind Web { get; } = new("New tab", TabRenderType.WebRender, null, "globe");
     public static TabKind StartPage { get; } = new("Start Page", TabRenderType.UiNative, null, "flag.fill", true);
-    public static TabKind Settings { get; } = new("Settings", TabRenderType.UiNative, "settings", "gearshape");
-    public static TabKind GettingStarted { get; } = new("Getting Started", TabRenderType.UiNative, "getting-started", "book.closed.fill");
+
+    /// <summary>The content of each native view this build knows, titled and drawn as the
+    /// view is.</summary>
+    private static readonly IReadOnlyDictionary<NativeView, TabKind> Views = NativeView.All.ToDictionary(view => view,
+        view => new TabKind(view.Title, TabRenderType.UiNative, view.Name, view.Symbol));
 
     #endregion
 
@@ -31,13 +36,14 @@ public sealed record TabKind {
 
     #region Actions - Content decoding
 
+    /// <summary>The content of a tab that shows `view`.</summary>
+    public static TabKind Of(NativeView view) => Views[view];
+
     public static TabKind Native(string kind, string title, string symbol = "square") {
         if (string.IsNullOrWhiteSpace(kind)) throw new BrowserRuleException(BrowserRuleCodes.InvalidNativeKind);
-        return kind switch {
-            "settings" => Settings,
-            "getting-started" => GettingStarted,
-            _ => new(string.IsNullOrWhiteSpace(title) ? "Native Tab" : title, TabRenderType.UiNative, kind, symbol)
-        };
+        return NativeView.Named(kind) is { } view
+            ? Of(view)
+            : new(string.IsNullOrWhiteSpace(title) ? "Native Tab" : title, TabRenderType.UiNative, kind, symbol);
     }
 
     public static TabKind FromStored(string? nativeKind, string? url, string title)

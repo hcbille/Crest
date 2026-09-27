@@ -19,7 +19,7 @@ struct BrowserSidebarTabLabelContent: View {
 
     var body: some View {
         Label {
-            Text(tab.displayTitle)
+            Text(tab.shownTitle)
                 .modifier(BrowserSidebarDensityFont(scale: textScale, supportsTouch: capabilities.supportsTouch))
                 .foregroundStyle(.primary)
                 .lineLimit(1)

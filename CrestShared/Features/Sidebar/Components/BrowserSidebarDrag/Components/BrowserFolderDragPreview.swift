@@ -73,7 +73,7 @@ struct BrowserFolderDragPreview: View {
             if let profileID, let favicons {
                 TabStateFaviconView(tab: tab, favicons: favicons, profileID: profileID, size: 18).frame(width: 20)
             }
-            Text(tab.displayTitle).lineLimit(1)
+            Text(tab.shownTitle).lineLimit(1)
             Spacer(minLength: 0)
         }
         .padding(.leading, CrestSpacing.medium + leadingInset)

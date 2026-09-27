@@ -65,7 +65,7 @@ struct BrowserTabDragPreview: View {
             y: 5
         )
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(tab.displayTitle)
+        .accessibilityLabel(tab.shownTitle)
     }
 
     private var rowIconCenter: CGFloat {
@@ -78,7 +78,7 @@ struct BrowserTabDragPreview: View {
     private var cardContent: some View {
         VStack(spacing: CrestSpacing.small) {
             TabStateFaviconView(tab: tab, favicons: favicons, profileID: profileID, size: 32)
-            Text(tab.displayTitle)
+            Text(tab.shownTitle)
                 .font(CrestTypography.controlTitle)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)

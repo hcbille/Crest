@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xff, 0x18, 0x71, 0xa6, 0xd3, 0x19, 0x08, 0x7b, 0xf9, 0x62, 0x2b, 0x3f, 0xea, 0xcf, 0xea, 0xa7, 0xc1, 0x38, 0x61, 0xa0, 0x82, 0xed, 0x55, 0x03, 0x6c, 0x69, 0x1b, 0x7e, 0x38, 0xe4, 0x32, 0x0f
+        0x4b, 0x0a, 0x73, 0x75, 0x07, 0x33, 0x89, 0xdf, 0x3a, 0x5f, 0x16, 0xdf, 0xbe, 0xa6, 0xcf, 0x01, 0x10, 0xc0, 0x95, 0xd3, 0xb2, 0x48, 0x6a, 0x11, 0xe5, 0x90, 0xf8, 0x26, 0x1a, 0xe9, 0x74, 0x7b
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -18749,9 +18749,9 @@ extension TabContent {
         } else {
             address = nil
         }
-        let view: NativeTabContent?
+        let view: NativeView?
         if try reader.readPresence() {
-            let viewValue = try NativeTabContent(from: &reader)
+            let viewValue = try NativeView(from: &reader)
             view = viewValue
         } else {
             view = nil
@@ -18763,14 +18763,7 @@ extension TabContent {
         } else {
             title = nil
         }
-        let symbol: String?
-        if try reader.readPresence() {
-            let symbolValue = try reader.readString()
-            symbol = symbolValue
-        } else {
-            symbol = nil
-        }
-        self.init(address: address, view: view, title: title, symbol: symbol)
+        self.init(address: address, view: view, title: title)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -18787,12 +18780,6 @@ extension TabContent {
             writer.writePresence(false)
         }
         if let present0 = title {
-            writer.writePresence(true)
-            writer.writeString(present0)
-        } else {
-            writer.writePresence(false)
-        }
-        if let present0 = symbol {
             writer.writePresence(true)
             writer.writeString(present0)
         } else {
@@ -19047,7 +19034,14 @@ extension TabState {
         let isAwayFromSavedAddress = try reader.readBool()
         let pageIconIsCurrent = try reader.readBool()
         let surface = try TabSurface(from: &reader)
-        self.init(id: id, title: title, url: url, nativeContent: nativeContent, savedURL: savedURL, symbol: symbol, faviconURL: faviconURL, iconAccent: iconAccent, storedIconMode: storedIconMode, placement: placement, folderID: folderID, splitGroupID: splitGroupID, lastActivatedAt: lastActivatedAt, positionModifiedAt: positionModifiedAt, customTitle: customTitle, titleModifiedAt: titleModifiedAt, keepsPageLoaded: keepsPageLoaded, iconMode: iconMode, displayTitle: displayTitle, isAwayFromSavedAddress: isAwayFromSavedAddress, pageIconIsCurrent: pageIconIsCurrent, surface: surface)
+        let nativeView: NativeView?
+        if try reader.readPresence() {
+            let nativeViewValue = try NativeView(from: &reader)
+            nativeView = nativeViewValue
+        } else {
+            nativeView = nil
+        }
+        self.init(id: id, title: title, url: url, nativeContent: nativeContent, savedURL: savedURL, symbol: symbol, faviconURL: faviconURL, iconAccent: iconAccent, storedIconMode: storedIconMode, placement: placement, folderID: folderID, splitGroupID: splitGroupID, lastActivatedAt: lastActivatedAt, positionModifiedAt: positionModifiedAt, customTitle: customTitle, titleModifiedAt: titleModifiedAt, keepsPageLoaded: keepsPageLoaded, iconMode: iconMode, displayTitle: displayTitle, isAwayFromSavedAddress: isAwayFromSavedAddress, pageIconIsCurrent: pageIconIsCurrent, surface: surface, nativeView: nativeView)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -19128,6 +19122,12 @@ extension TabState {
         writer.writeBool(isAwayFromSavedAddress)
         writer.writeBool(pageIconIsCurrent)
         surface.encode(into: &writer)
+        if let present0 = nativeView {
+            writer.writePresence(true)
+            present0.encode(into: &writer)
+        } else {
+            writer.writePresence(false)
+        }
     }
 }
 
@@ -20674,20 +20674,6 @@ extension PasskeyDeviceConfiguration {
     }
 }
 
-extension SavedTabClosePolicy {
-    init(from reader: inout WireReader) throws(WireError) {
-        let rawValue = try reader.readEnum()
-        guard let value = SavedTabClosePolicy(rawValue: rawValue) else {
-            throw WireError.malformed("Unknown SavedTabClosePolicy \(rawValue)")
-        }
-        self = value
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(rawValue)
-    }
-}
-
 extension SessionFlaw {
     init(from reader: inout WireReader) throws(WireError) {
         let rawValue = try reader.readEnum()
@@ -20803,20 +20789,6 @@ extension SpaceThemeMode {
         let rawValue = try reader.readEnum()
         guard let value = SpaceThemeMode(rawValue: rawValue) else {
             throw WireError.malformed("Unknown SpaceThemeMode \(rawValue)")
-        }
-        self = value
-    }
-
-    func encode(into writer: inout WireWriter) {
-        writer.writeEnum(rawValue)
-    }
-}
-
-extension StartupBehavior {
-    init(from reader: inout WireReader) throws(WireError) {
-        let rawValue = try reader.readEnum()
-        guard let value = StartupBehavior(rawValue: rawValue) else {
-            throw WireError.malformed("Unknown StartupBehavior \(rawValue)")
         }
         self = value
     }
@@ -21470,6 +21442,20 @@ extension MemoryPressureLevel {
     }
 }
 
+extension NativeView {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown NativeView \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
 extension NavigationError {
     init(from reader: inout WireReader) throws(WireError) {
         let tag = try reader.readEnum()
@@ -21638,6 +21624,20 @@ extension RehostReason {
     }
 }
 
+extension SavedTabClosePolicy {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown SavedTabClosePolicy \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
 extension SearchEngineFlaw {
     init(from reader: inout WireReader) throws(WireError) {
         let tag = try reader.readEnum()
@@ -21797,6 +21797,20 @@ extension SpaceAccent {
         let tag = try reader.readEnum()
         guard Self.all.indices.contains(tag) else {
             throw WireError.malformed("Unknown SpaceAccent \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
+extension StartupBehavior {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown StartupBehavior \(tag)")
         }
         self = Self.all[tag]
     }

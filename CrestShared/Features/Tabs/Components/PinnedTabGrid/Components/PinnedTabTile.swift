@@ -51,10 +51,10 @@ struct PinnedTabTile: View {
                 capabilities: grid.capabilities
             )
         )
-        .accessibilityLabel(tab.displayTitle)
+        .accessibilityLabel(tab.shownTitle)
         .accessibilityValue(BrowserChromeAccessibility.tabValue(isLoaded: loaded))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .help(tab.displayTitle)
+        .help(tab.shownTitle)
         .modifier(
             BrowserTabSelectionAccessibility(
                 tabID: tab.id, spaceID: assignment.spaceID, browser: context?.browser,

@@ -30,7 +30,7 @@ public sealed partial class NativeSessionAuthority {
             && (!intent.OutsideSplits || edited.SplitMembers(tab.Id).Count < 2));
         if (draft is null)
             return OpeningTab(basis, new OpenTab(intent.WorkspaceId, intent.WindowId, space.Id, intent.TabId,
-                new TabContent(Address: null, View: null, Title: null, Symbol: null), TabPlacement.Current,
+                new TabContent(Address: null, View: null, Title: null), TabPlacement.Current,
                 AfterTabId: followUp.Window?.Tab(space.Id), Shows: true), now);
         followUp.ShowTab(space.Id, draft.Id).ShowSpace(space.Id);
         var used = StoredSessionCodec.Date(StoredSessionCodec.Seconds(now));
@@ -47,7 +47,7 @@ public sealed partial class NativeSessionAuthority {
         var shown = followUp.Window?.Tab(space.Id) is { } shownId ? space.Tabs.FirstOrDefault(tab => tab.Id == shownId) : null;
         if (shown is not { IsStartPage: true })
             return OpeningTab(basis, new OpenTab(intent.WorkspaceId, intent.WindowId, space.Id, intent.TabId,
-                new TabContent(intent.Address, View: null, Title: null, Symbol: null), TabPlacement.Current, AfterTabId: shown?.Id,
+                new TabContent(intent.Address, View: null, Title: null), TabPlacement.Current, AfterTabId: shown?.Id,
                 Shows: true), now);
         var navigated = NavigatingTab(basis, new NavigateTab(intent.WorkspaceId, space.Id, shown.Id, intent.Address), allowsInternalPages);
         followUp.ShowTab(space.Id, shown.Id).ShowSpace(space.Id);
@@ -60,14 +60,12 @@ public sealed partial class NativeSessionAuthority {
     private static TabState NewTab(Guid id, TabContent content, TabPlacement placement, DateTimeOffset now) {
         if (content.Address is not null && content.View is not null)
             throw new ArgumentException("A tab shows a page or a native view, not both.", nameof(content));
-        var kind = content.View is { } view ? TabKind.Native(view.Kind, content.Title ?? "")
-            : content.Address is null ? TabKind.StartPage : TabKind.Web;
+        var kind = content.View is { } view ? TabKind.Of(view) : content.Address is null ? TabKind.StartPage : TabKind.Web;
         var address = content.Address is { } requested ? PageAddress(requested) : null;
-        var title = address is not null ? PageTitle(address, content.Title)
-            : content.View is not null ? content.Title ?? kind.Name : kind.Name;
-        var symbol = content.View is not null ? content.Symbol ?? kind.Symbol : kind.Symbol;
-        return new TabState(id, title, address?.OriginalString, content.View, placement.IsDurable ? address?.OriginalString : null,
-            symbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, placement, FolderId: null, SplitGroupId: null, now,
+        var title = address is not null ? PageTitle(address, content.Title) : kind.Name;
+        var native = content.View is { } shown ? new NativeTabContent(shown.Name) : null;
+        return new TabState(id, title, address?.OriginalString, native, placement.IsDurable ? address?.OriginalString : null,
+            kind.Symbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, placement, FolderId: null, SplitGroupId: null, now,
             PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null, KeepsPageLoaded: false);
     }
 

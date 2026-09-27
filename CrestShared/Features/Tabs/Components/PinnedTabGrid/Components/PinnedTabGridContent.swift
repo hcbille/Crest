@@ -112,7 +112,7 @@ struct PinnedTabGridContent: View {
     private func beginRenaming(_ tab: TabStateModel) {
         let assignment = runtimeAssignment(for: tab.id)
         guard isCurrentAndUnlocked(assignment) else { return }
-        draftTitle = tab.displayTitle
+        draftTitle = tab.shownTitle
         renamingAssignment = assignment
     }
 

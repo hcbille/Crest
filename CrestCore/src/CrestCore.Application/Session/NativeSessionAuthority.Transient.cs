@@ -33,7 +33,7 @@ public sealed partial class NativeSessionAuthority {
         var destination = Editable(basis, intent.SpaceId);
         var edited = BrowserTabCollection.Restore(destination);
         var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId));
-        var tab = BrowserTab.Restore(NewTab(ids.Next(), new TabContent(page.Address, View: null, page.Title, Symbol: null),
+        var tab = BrowserTab.Restore(NewTab(ids.Next(), new TabContent(page.Address, View: null, page.Title),
             intent.Placement, now));
         edited.InsertTab(tab, followUp.Window?.Tab(destination.Id) is { } shown ? edited.InsertionIndexAfter(shown) : null);
         followUp.ShowTab(destination.Id, tab.Id).ShowSpace(destination.Id);
@@ -51,7 +51,7 @@ public sealed partial class NativeSessionAuthority {
         var page = Known(intent.PageId, pages);
         if (page.SpaceId != space.Id || page.ProfileId != space.ProfileId) throw new Rejected(new PageProfileMismatch(page.Id, space.Id));
         var edited = BrowserTabCollection.Restore(space);
-        edited.ArchiveTransient(NewTab(ids.Next(), new TabContent(page.Address, View: null, page.Title, Symbol: null),
+        edited.ArchiveTransient(NewTab(ids.Next(), new TabContent(page.Address, View: null, page.Title),
             TabPlacement.Current, now), now);
         return new(Replacing(basis, edited.Capture(space)), SyncStaging.Edit, Completes: intent.PageId);
     }

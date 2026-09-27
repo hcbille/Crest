@@ -37,7 +37,7 @@ struct BrowserRootDragPreviewLayer: View {
         else { return nil }
         return BrowserSplitCardLiftPreviewContent(
             favicon: BrowserTabFaviconSubject(tab: tab, image: model.browser.core.state.favicons.icon(of: tab.id)),
-            title: tab.displayTitle,
+            title: tab.shownTitle,
             profileID: space.profileID,
             snapshot: lift.snapshot,
             origin: lift.previewOrigin,

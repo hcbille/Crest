@@ -34,7 +34,7 @@ public sealed partial class BrowserContractsTests {
 
     private static Guid[] TabOrder(NativeSessionAuthority core) => [.. core.Current.Spaces[0].Tabs.Select(tab => tab.Id)];
 
-    private static TabContent Page(string address, string? title = null) => new(address, View: null, title, Symbol: null);
+    private static TabContent Page(string address, string? title = null) => new(address, View: null, title);
 
     [Fact]
     public void AnOpenedTabLandsOutsideTheSplitItOpensFromAndOnlyTheAskingWindowShowsIt() {
@@ -58,7 +58,7 @@ public sealed partial class BrowserContractsTests {
         // An origin outside the Space leaves the tab where its section puts a
         // new one, and a tab that does not show leaves the window as it was.
         var start = Guid.NewGuid();
-        device.Send(Opening(start, new TabContent(null, null, null, null), Guid.NewGuid(), shows: false));
+        device.Send(Opening(start, new TabContent(null, null, null), Guid.NewGuid(), shows: false));
         Assert.Equal(start, TabOrder(core)[0]);
         Assert.Equal(opened, device.Tab(window, space));
         var startPage = core.Current.Spaces[0].Tabs[0];

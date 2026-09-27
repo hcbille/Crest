@@ -64,7 +64,7 @@ struct BrowserSplitGroupDragPreview: View {
         HStack(spacing: CrestSpacing.small) {
             TabStateFaviconView(tab: member, favicons: favicons, profileID: profileID, size: 18)
                 .frame(width: 20)
-            Text(member.displayTitle)
+            Text(member.shownTitle)
                 .lineLimit(1)
                 .foregroundStyle(.primary)
             Spacer(minLength: 0)

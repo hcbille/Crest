@@ -56,7 +56,7 @@ private struct BrowserSidebarTabCloseButton: View {
         )
         .disabled(!configuration.canClose || !configuration.isAvailableForDisplay)
         .allowsHitTesting(isVisible)
-        .accessibilityLabel("Close \(configuration.tab.displayTitle)")
+        .accessibilityLabel("Close \(configuration.tab.shownTitle)")
     }
 
     private var metrics: BrowserTabTrailingControlMetrics {
@@ -83,7 +83,7 @@ private struct BrowserSidebarTabUnloadButton: View {
         .opacity(isVisible ? 1 : 0)
         .disabled(!configuration.isLoaded || !configuration.isAvailableForDisplay)
         .allowsHitTesting(isVisible)
-        .accessibilityLabel("Unload \(configuration.tab.displayTitle)")
+        .accessibilityLabel("Unload \(configuration.tab.shownTitle)")
         .help("Unload Tab")
     }
 

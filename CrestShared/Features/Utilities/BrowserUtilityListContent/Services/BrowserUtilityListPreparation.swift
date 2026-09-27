@@ -85,7 +85,7 @@ enum BrowserUtilityListPreparation {
         guard !query.isEmpty else { return true }
         switch item {
         case .archive(let archived):
-            return archived.tab.displayTitle.localizedStandardContains(query)
+            return archived.tab.shownTitle.localizedStandardContains(query)
                 || archived.tab.url?.localizedStandardContains(query) == true
         case .history(let entry):
             return entry.title.localizedStandardContains(query)

@@ -16,12 +16,12 @@ struct BrowserNativeTabHost: View {
             if let content = tab.nativeTabContent,
                 let runtime = nativeTabs?.runtime(matching: assignment, content: content)
             {
-                switch content.kind {
-                case BrowserNativeTabContent.gettingStarted.kind:
+                switch tab.nativeView {
+                case .gettingStarted?:
                     BrowserGettingStartedTabAdapter(runtime: runtime, bottomChromeHeight: bottomChromeHeight) { url in
                         actions.openURL(assignment, content, url)
                     }
-                case BrowserNativeTabContent.settings.kind:
+                case .settings?:
                     if let settingsContent {
                         settingsContent.makeView(runtime)
                     } else {

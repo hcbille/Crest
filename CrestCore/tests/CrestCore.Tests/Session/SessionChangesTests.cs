@@ -314,7 +314,7 @@ public sealed partial class BrowserContractsTests {
         app.Send(new OpenWindow(window, workspace, Saved: false, CopyingWindowId: null, space.Id, [new(space.Id, space.Tabs[0].Id)],
             RestoresTabs: true));
         var opened = Guid.NewGuid();
-        authority.Handle(new OpenTab(workspace, window, space.Id, opened, new TabContent("https://opened.example/", null, "Opened", null),
+        authority.Handle(new OpenTab(workspace, window, space.Id, opened, new TabContent("https://opened.example/", null, "Opened"),
             TabPlacement.Current, AfterTabId: null, Shows: true), DateTimeOffset.UtcNow, new TestIds());
 
         var answered = app.Send(new ShowTab(window, space.Id, space.Tabs[0].Id));

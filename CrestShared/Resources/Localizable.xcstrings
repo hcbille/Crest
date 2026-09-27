@@ -8549,6 +8549,9 @@
     "Open in Space" : {
 
     },
+    "Open Last Active Tab" : {
+
+    },
     "Open Link in Another Space" : {
       "localizations" : {
         "ar" : {
@@ -11506,6 +11509,9 @@
 
     },
     "Show Sidebar Temporarily" : {
+
+    },
+    "Show Start Page" : {
 
     },
     "Show Tab" : {

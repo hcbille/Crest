@@ -6,7 +6,7 @@ struct BrowserDurableTabSettingsSection: View {
     var body: some View {
         Section {
             Picker("After closing", selection: $preferences.savedTabClosePolicy) {
-                ForEach(SavedTabClosePolicy.allCases, id: \.self) { policy in
+                ForEach(SavedTabClosePolicy.all, id: \.self) { policy in
                     Text(policy.title).tag(policy)
                 }
             }

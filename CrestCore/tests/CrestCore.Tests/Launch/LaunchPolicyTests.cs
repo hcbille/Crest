@@ -49,11 +49,11 @@ public sealed class LaunchPolicyTests {
     }
 
     [Theory]
-    [InlineData("desktop", false, StartupBehavior.ShowStartPage)]
-    [InlineData("desktop", true, StartupBehavior.LastActiveTab)]
-    [InlineData("mobile", false, StartupBehavior.ShowStartPage)]
-    public void WithoutASessionALaunchOpensTheDefaultUnlessSetupOwnsTheFirstWindow(string platform, bool gate, StartupBehavior expected) =>
-        Assert.Equal(expected, LaunchPolicy.Plan(Environment(), DevicePlatform.Named(platform)!, storedStartup: null, gate).Startup);
+    [InlineData("desktop", false, "showStartPage")]
+    [InlineData("desktop", true, "lastActiveTab")]
+    [InlineData("mobile", false, "showStartPage")]
+    public void WithoutASessionALaunchOpensTheDefaultUnlessSetupOwnsTheFirstWindow(string platform, bool gate, string expected) =>
+        Assert.Equal(expected, LaunchPolicy.Plan(Environment(), DevicePlatform.Named(platform)!, storedStartup: null, gate).Startup.Name);
 
     [Fact]
     public void IsolatedLaunchesRestoreTheirStagedTabExceptTheMobileShowcase() {

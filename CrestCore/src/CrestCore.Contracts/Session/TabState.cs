@@ -62,6 +62,11 @@ public sealed record TabState(
     [Resolved]
     public TabSurface Surface => TabSurface.Of(NativeContent, Url);
 
+    /// <summary>The native view the tab shows, or null for a web page, a Start Page or a
+    /// view another build added, which keeps its kind but has no member here.</summary>
+    [Resolved]
+    public NativeView? NativeView => NativeView.Named(NativeContent?.Kind);
+
     /// <summary>The tab is a Start Page: it shows neither a web page nor a native view,
     /// and no sidebar lists it.</summary>
     public bool IsStartPage => Surface == TabSurface.StartPage;

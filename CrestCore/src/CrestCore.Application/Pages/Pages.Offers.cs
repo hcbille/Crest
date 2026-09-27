@@ -52,7 +52,7 @@ internal sealed partial class Pages {
         var tabId = ids.Next();
         try {
             workspace.Handle(new OpenTab(workspaceId, windowId, space.Id, tabId,
-                new TabContent(offer.Url, View: null, Title: null, Symbol: null), TabPlacement.Current, afterTabId, offer.Foreground),
+                new TabContent(offer.Url, View: null, Title: null), TabPlacement.Current, afterTabId, offer.Foreground),
                 clock.Now, ids, this);
         } catch (Rejected) {
             // The Space's tabs are full, or the address is one no tab shows.

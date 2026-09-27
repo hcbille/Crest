@@ -20,6 +20,14 @@ extension TabStateModel {
         url.flatMap(URL.init(string:))
     }
 
+    /// The name the tab surfaces show, in the person's language: the
+    /// person's rename, the title of the native view the tab shows, or its
+    /// page's title.
+    var shownTitle: String {
+        guard let nativeView, BrowserShownTitle.resolve(customTitle) == nil else { return displayTitle }
+        return String(localized: nativeView.title)
+    }
+
     /// The native document the tab shows, in the vocabulary the views match.
     var nativeTabContent: BrowserNativeTabContent? {
         nativeContent.map { BrowserNativeTabContent(kind: $0.kind, resourceID: $0.resourceID) }
@@ -38,5 +46,14 @@ extension TabStateModel {
     /// Whether a person can replace or return to the address the tab keeps.
     var supportsSavedLocationEditing: Bool {
         placement.isDurable && (savedURL ?? url) != nil
+    }
+}
+
+extension TabState {
+    /// The name the tab surfaces show, in the person's language, as
+    /// `TabStateModel.shownTitle` reads it.
+    var shownTitle: String {
+        guard let nativeView, BrowserShownTitle.resolve(customTitle) == nil else { return displayTitle }
+        return String(localized: nativeView.title)
     }
 }

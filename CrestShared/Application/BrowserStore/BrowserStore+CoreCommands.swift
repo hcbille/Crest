@@ -177,18 +177,16 @@ extension BrowserStore {
 
 extension TabContent {
     /// The Start Page, which the core names.
-    static let startPage = TabContent(address: nil, view: nil, title: nil, symbol: nil)
+    static let startPage = TabContent(address: nil, view: nil, title: nil)
 
     /// The page at `url`, called `title` until it reports its own, or by its
     /// host when the core is given no title.
     static func page(_ url: URL, title: String? = nil) -> TabContent {
-        TabContent(address: url.absoluteString, view: nil, title: title, symbol: nil)
+        TabContent(address: url.absoluteString, view: nil, title: title)
     }
 
-    /// A native view, titled and drawn as this platform names it.
-    static func view(_ content: BrowserNativeTabContent, title: String, symbol: String) -> TabContent {
-        TabContent(
-            address: nil, view: NativeTabContent(kind: content.kind, resourceID: content.resourceID), title: title,
-            symbol: symbol)
+    /// A native view, which titles and draws its tab itself.
+    static func view(_ view: NativeView) -> TabContent {
+        TabContent(address: nil, view: view, title: nil)
     }
 }
