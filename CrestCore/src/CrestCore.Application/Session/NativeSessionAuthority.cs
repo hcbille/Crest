@@ -16,7 +16,7 @@ namespace CrestCore.Application;
 /// core names a revision. The session holds browsing data only: which Space and
 /// tab a window shows is window state, so selection fields in an older session are
 /// dropped here and never written. Intents read what the window shows as context.
-internal sealed partial class NativeSessionAuthority {
+public sealed partial class NativeSessionAuthority {
     #region Variables
 
     public const int MaximumBytes = 64 * 1024 * 1024;

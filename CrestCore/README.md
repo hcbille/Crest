@@ -7,9 +7,9 @@ responsibilities:
 | --- | --- |
 | `CrestCore.Domain` | Tab and Space behavior, durable state, navigation, and sync policy. No JSON or native dependencies. |
 | `CrestCore.Contracts` | The typed contract records (intents, changes, rejections, queries, engine commands and events, and the read models they carry), plus the JSON protocol validation policy requests use. |
-| `CrestCore.Application` | Session commands, the session file, imports, and sync transitions. It owns the JSON-backed native and persistence formats and the SQLite file they are stored in, calls typed domain rules, and handles each message family through its generated handler interface. |
+| `CrestCore.Application` | Session commands, the session file, imports, and sync transitions. It owns the JSON-backed native and persistence formats and the SQLite file they are stored in, and calls typed domain rules. |
 | `CrestCore.Native` | C exports that adapt native callers to the application layer, and the generated wire codec. |
-| `tools/CrestCore.Generator` | Generates the codec, the core's handler interfaces, the Swift models and handling protocols, the C tag header and the C++ engine codec from the contract records. |
+| `tools/CrestCore.Generator` | Generates the codec, the Swift models and the C tag header from the contract records. |
 | `CrestCore.Tests` | Behavioral contracts for the corresponding source areas. |
 
 Source folders follow the browser concepts they own. In the domain, `Tabs`
@@ -22,12 +22,9 @@ The application groups session operations, sync operations, and status
 separately, and gives each other browser area it serves, such as downloads,
 credentials, or portability, a folder of its own. A type with behavior has its
 own file, and partial classes keep related operations together under the
-owning type's name. An area that receives a family of messages implements
-that family's generated handler interface, and its per-case methods are the
-`Handle` overloads; a small record, such as `PageTurn`, carries what each call
-needs. Data-only records and enums share their concept's file, such as
-`Windows/WindowMessages.cs`, or sit in a `Types` region at the top of the one
-type that uses them.
+owning type's name. Data-only records and enums share their concept's file,
+such as `Windows/WindowMessages.cs`, or sit in a `Types` region at the top of
+the one type that uses them.
 
 Keep typed domain objects inside the control plane. Decode JSON at an input
 boundary, apply browser rules through domain objects, then encode JSON at an

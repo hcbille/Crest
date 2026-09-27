@@ -2,15 +2,7 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Application;
 
-#region Types
-
-/// What one engine report needs: the engine that sent it, and where what it
-/// changed is published before the core announces it.
-internal sealed record EngineEventTurn(Engine Engine, ChangeFeed Changes);
-
-#endregion
-
-public sealed partial class CrestApp : IEngineEventHandler<EngineEventTurn>, IEngineQuestionHandler<Engine> {
+public sealed partial class CrestApp {
     #region Variables
 
     /// The engine bindings pages open on.
@@ -82,58 +74,48 @@ public sealed partial class CrestApp : IEngineEventHandler<EngineEventTurn>, IEn
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(report);
         var changes = new ChangeFeed();
-        lock (gate) report.Dispatch(this, new EngineEventTurn(engine, changes));
+        lock (gate) {
+            if (Prompts.Concerns(report)) {
+                prompts.Report(engine, report, changes, Issue);
+            } else if (EngineDownloads.Concerns(report)) {
+                engineDownloads.Report(engine, report, changes, Issue, clock.Now);
+            } else if (ClosePreparations.Concerns(report)) {
+                closePreparations.Report(engine, report, changes, Issue);
+            } else if (DataDeletions.Concerns(report)) {
+                dataDeletions.Report(engine, report, changes);
+            } else {
+                pages.Report(engine, report, changes, Issue);
+                // A report that moved a page to another engine, or offered one
+                // that may be the first a registered engine hosts, changes what
+                // the engines offer.
+                PublishEngines(changes.Publish);
+                prompts.Prune(changes);
+                closePreparations.Prune(changes, Issue);
+            }
+        }
         foreach (var change in changes.Published) Announce(change);
         WakeIfOwed();
         WakeForRequestedTurn();
         Deliver();
     }
 
-    // Each report goes to the area it is about. The caller holds the lock.
-
-    void IEngineEventHandler<EngineEventTurn>.Handle(PageEvent report, EngineEventTurn turn) {
-        pages.Report(turn.Engine, report, turn.Changes, Issue);
-        AfterPageReport(turn.Changes);
-    }
-
-    void IEngineEventHandler<EngineEventTurn>.Handle(PageOffered offer, EngineEventTurn turn) {
-        pages.Report(turn.Engine, offer, turn.Changes, Issue);
-        AfterPageReport(turn.Changes);
-    }
-
-    void IEngineEventHandler<EngineEventTurn>.Handle(PromptEvent report, EngineEventTurn turn) => prompts.Report(turn.Engine, report, turn.Changes, Issue);
-
-    void IEngineEventHandler<EngineEventTurn>.Handle(EngineDownloadEvent report, EngineEventTurn turn) =>
-        engineDownloads.Report(turn.Engine, report, turn.Changes, Issue, clock.Now);
-
-    void IEngineEventHandler<EngineEventTurn>.Handle(BeforeUnloadAnswered answered, EngineEventTurn turn) =>
-        closePreparations.Report(turn.Engine, answered, turn.Changes, Issue);
-
-    void IEngineEventHandler<EngineEventTurn>.Handle(DataErased erased, EngineEventTurn turn) => dataDeletions.Report(turn.Engine, erased, turn.Changes);
-
-    /// A report that moved a page to another engine, or offered one that may
-    /// be the first a registered engine hosts, changes what the engines offer,
-    /// and what a page that went had asked no longer waits.
-    private void AfterPageReport(ChangeFeed changes) {
-        PublishEngines(changes.Publish);
-        prompts.Prune(changes);
-        closePreparations.Prune(changes, Issue);
-    }
-
     /// Answers what an engine asks about one of its pages while the engine
-    /// waits, from the state as it stands, changing nothing.
+    /// waits, from the state as it stands, changing nothing. A question about
+    /// a page the core does not host on that engine leaves the page to the
+    /// engine: its link loads in the page.
     public TAnswer Ask<TAnswer>(Engine engine, EngineQuestion<TAnswer> question) {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(question);
-        lock (gate) return question.Dispatch(this, engine);
+        lock (gate) {
+            object answer = question switch {
+                LinkActivation activation => ReferenceEquals(pages.Hosted(activation.PageId)?.Engine, engine)
+                    ? device.Answer(new LinkNavigation(activation.PageId, activation.Url, activation.Gesture), pages)
+                    : new LinkNavigationAnswer(LinkNavigationDecision.Navigate),
+                _ => throw new ArgumentOutOfRangeException(nameof(question), question.GetType().Name, "No area answers this question.")
+            };
+            return (TAnswer)answer;
+        }
     }
-
-    /// A question about a page the core does not host on that engine leaves
-    /// the page to the engine: its link loads in the page.
-    LinkNavigationAnswer IEngineQuestionHandler<Engine>.Handle(LinkActivation activation, Engine engine) =>
-        ReferenceEquals(pages.Hosted(activation.PageId)?.Engine, engine)
-            ? device.Answer(new LinkNavigation(activation.PageId, activation.Url, activation.Gesture), pages)
-            : new LinkNavigationAnswer(LinkNavigationDecision.Navigate);
 
     #endregion
 

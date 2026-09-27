@@ -3,7 +3,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-internal sealed partial class NativeSessionAuthority {
+public sealed partial class NativeSessionAuthority {
     #region Variables
 
     private readonly NativeSessionAuthority? borrowedSource;

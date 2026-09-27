@@ -24,6 +24,12 @@ public sealed partial class CrestApp {
         }
     }
 
+    private PendingUploadList Answer(PendingUploads query) => StoredSyncSession().Answer(query);
+
+    private UploadBatch Answer(RecordsToUpload query) => StoredSyncSession().Answer(query);
+
+    private CloudContentComparison Answer(CloudComparison query) => StoredSyncSession().Answer(query);
+
     /// Whether the session this core keeps in its file is still the disposable
     /// seed a first launch made.
     private bool StoredSessionIsDisposableSeed() => storedSession is { IsReleased: false, IsDisposableSeed: true };

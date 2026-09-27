@@ -1,7 +1,7 @@
 import Foundation
 
 extension CoreState {
-    func handle(_ change: DownloadUpdated) {
+    func apply(_ change: DownloadUpdated) {
         if let index = downloads.firstIndex(where: { $0.id == change.download.id }) {
             downloads[index] = change.download
         } else {
@@ -9,7 +9,7 @@ extension CoreState {
         }
     }
 
-    func handle(_ change: DownloadsRemoved) {
+    func apply(_ change: DownloadsRemoved) {
         let removed = Set(change.downloadIDs)
         downloads.removeAll { removed.contains($0.id) }
     }

@@ -10,19 +10,19 @@ internal sealed partial class Pages {
     /// same engine and profile as its source that has loaded nothing yet can
     /// take the link, whether or not its engine created it already; the
     /// engine checks the link still applies when the page loads.
-    public void Handle(StageLink intent, PageTurn turn) {
+    private void Stage(StageLink intent, Action<Engine, EngineCommand> issue) {
         var page = Known(intent.PageId);
         var source = Known(intent.SourcePageId);
         if (!ReferenceEquals(page.Engine, source.Engine) || page.ProfileId != source.ProfileId || !page.AwaitsFirstLoad)
             throw new Rejected(new StagedLinkElsewhere(page.Id, source.Id));
-        turn.Issue(page.Engine, new StageNavigation(page.Id, intent.StagedLinkId, intent.Url));
+        issue(page.Engine, new StageNavigation(page.Id, intent.StagedLinkId, intent.Url));
     }
 
     /// No page will load a staged link, so the engine of the page it was
     /// followed in forgets it. A source page that is gone took its links with it.
-    public void Handle(DiscardStagedLink intent, PageTurn turn) {
+    private void Discard(DiscardStagedLink intent, Action<Engine, EngineCommand> issue) {
         if (open.GetValueOrDefault(intent.SourcePageId) is { } source)
-            turn.Issue(source.Engine, new DropStagedLink(intent.StagedLinkId));
+            issue(source.Engine, new DropStagedLink(intent.StagedLinkId));
     }
 
     #endregion

@@ -14,16 +14,16 @@ extension CoreState {
         "The session could not be saved (\(failure))."
     }
 
-    func handle(_ change: Saved) {
+    func apply(_ change: Saved) {
         savedRevision = max(savedRevision, change.revision)
         storageFailure = nil
     }
 
-    func handle(_ change: StorageFailed) {
+    func apply(_ change: StorageFailed) {
         storageFailure = change.reason
     }
 
     /// The images an adopted session carried are native assets the launch
     /// stores; the read model keeps nothing of the adoption.
-    func handle(_ change: SessionAdopted) {}
+    func apply(_ change: SessionAdopted) {}
 }

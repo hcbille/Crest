@@ -3,7 +3,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-internal sealed partial class NativeSessionAuthority {
+public sealed partial class NativeSessionAuthority {
     #region Actions - Search engines
 
     /// `space` with its search choice edited by `edit`, through the rules a
@@ -14,30 +14,30 @@ internal sealed partial class NativeSessionAuthority {
             BrowsingPreferences = edit(SearchPreferences.Restore(settings.BrowsingPreferences)).Applied(settings.BrowsingPreferences)
         }, SyncStaging.Edit);
 
-    public SessionEdit Handle(AddSearchEngine intent, SessionTurn turn) {
+    private SessionEdit AddingSearchEngine(SessionState basis, AddSearchEngine intent) {
         RequireOwnedSpaces();
         var engine = Admitted(intent.Engine);
-        return Searching(turn.Basis, Editable(turn.Basis, intent.SpaceId), search => {
+        return Searching(basis, Editable(basis, intent.SpaceId), search => {
             var added = search.Add(engine);
             return intent.Selects ? added.Select(engine) : added;
         });
     }
 
-    public SessionEdit Handle(UpdateSearchEngine intent, SessionTurn turn) {
+    private SessionEdit UpdatingSearchEngine(SessionState basis, UpdateSearchEngine intent) {
         RequireOwnedSpaces();
         var engine = Admitted(intent.Engine);
-        return Searching(turn.Basis, Editable(turn.Basis, intent.SpaceId), search => search.Update(engine));
+        return Searching(basis, Editable(basis, intent.SpaceId), search => search.Update(engine));
     }
 
-    public SessionEdit Handle(RemoveSearchEngine intent, SessionTurn turn) {
+    private SessionEdit RemovingSearchEngine(SessionState basis, RemoveSearchEngine intent) {
         RequireOwnedSpaces();
-        return Searching(turn.Basis, Editable(turn.Basis, intent.SpaceId), search => search.Remove(intent.EngineId));
+        return Searching(basis, Editable(basis, intent.SpaceId), search => search.Remove(intent.EngineId));
     }
 
-    public SessionEdit Handle(SelectSearchEngine intent, SessionTurn turn) {
+    private SessionEdit SelectingSearchEngine(SessionState basis, SelectSearchEngine intent) {
         RequireOwnedSpaces();
-        var space = Editable(turn.Basis, intent.SpaceId);
-        return Searching(turn.Basis, space, search => (intent.BuiltIn, intent.CustomEngineId) switch {
+        var space = Editable(basis, intent.SpaceId);
+        return Searching(basis, space, search => (intent.BuiltIn, intent.CustomEngineId) switch {
             ( { } builtIn, null) => search.Select(builtIn.Provider()),
             (null, { } custom) => search.Select(custom),
             _ => throw new Rejected(new UnknownSearchEngine(intent.CustomEngineId))
@@ -102,9 +102,9 @@ internal sealed partial class NativeSessionAuthority {
     /// Sets the Space's browsing preferences apart from its search engines. A
     /// changed cleanup or retention sweeps the Space under the new rules in
     /// the same edit, which then stages as the records it expired.
-    public SessionEdit Handle(SetBrowsingPreferences intent, SessionTurn turn) {
+    private SessionEdit SettingBrowsingPreferences(SessionState basis, SetBrowsingPreferences intent, DateTimeOffset now) {
         RequireOwnedSpaces();
-        var space = Editable(turn.Basis, intent.SpaceId);
+        var space = Editable(basis, intent.SpaceId);
         var before = space.Settings.BrowsingPreferences;
         var preferences = before with {
             SearchSuggestionsEnabled = intent.SearchSuggestionsEnabled,
@@ -114,9 +114,9 @@ internal sealed partial class NativeSessionAuthority {
         };
         var configured = Configured(space, space.Settings with { BrowsingPreferences = preferences });
         if (before.CurrentTabCleanup == preferences.CurrentTabCleanup && before.DataRetention == preferences.DataRetention)
-            return new(Replacing(turn.Basis, configured), SyncStaging.Edit);
-        var swept = Expired(CleanedUp(configured, turn.Now, device?.ShownTabs(workspaceId)), turn.Now);
-        return new(Replacing(turn.Basis, swept), SameRecords(configured, swept) ? SyncStaging.Edit : SyncStaging.Expiry);
+            return new(Replacing(basis, configured), SyncStaging.Edit);
+        var swept = Expired(CleanedUp(configured, now, device?.ShownTabs(workspaceId)), now);
+        return new(Replacing(basis, swept), SameRecords(configured, swept) ? SyncStaging.Edit : SyncStaging.Expiry);
     }
 
     /// Whether two states of one Space hold the same tabs, history and archive.

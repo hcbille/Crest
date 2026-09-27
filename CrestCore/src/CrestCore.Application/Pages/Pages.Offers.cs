@@ -20,11 +20,7 @@ internal sealed partial class Pages {
     /// engine brought the page to the front. A Space that is locked, being
     /// deleted or of another profile, a window that is not open, or a tab the
     /// Space cannot take refuses the page, and the engine closes it.
-    public void Report(Engine engine, PageOffered offer, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
-        ArgumentNullException.ThrowIfNull(engine);
-        ArgumentNullException.ThrowIfNull(offer);
-        ArgumentNullException.ThrowIfNull(changes);
-        ArgumentNullException.ThrowIfNull(issue);
+    private void Offered(Engine engine, PageOffered offer, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         var source = offer.SourcePageId is { } sourceId && open.GetValueOrDefault(sourceId) is { } opener
             && ReferenceEquals(opener.Engine, engine) && opener.ProfileId == offer.ProfileId
                 ? opener

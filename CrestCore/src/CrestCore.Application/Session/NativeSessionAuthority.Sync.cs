@@ -6,16 +6,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-#region Types
-
-/// What one intent from the cloud transport needs: the sync component the
-/// session stages into, the time and the identities a repair gives, and the
-/// lock the host's intents take, which a merge or replacement commits holding.
-internal sealed record CloudSyncTurn(NativeSyncAuthority Sync, DateTimeOffset Now, IIdSource Ids, Lock CommitGate);
-
-#endregion
-
-internal sealed partial class NativeSessionAuthority : ICloudSyncIntentHandler<CloudSyncTurn, IReadOnlyList<Change>> {
+public sealed partial class NativeSessionAuthority {
     #region Static Variables
 
     /// How often a merge computed outside the lock is computed again when the
@@ -58,44 +49,34 @@ internal sealed partial class NativeSessionAuthority : ICloudSyncIntentHandler<C
     internal IReadOnlyList<Change> Handle(CloudSyncIntent intent, DateTimeOffset now, IIdSource ids, Lock commitGate) {
         ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(ids);
-        return intent.Dispatch(this, new CloudSyncTurn(AttachedSync(), now, ids, commitGate));
-    }
-
-    public IReadOnlyList<Change> Handle(MergeSyncRecords merge, CloudSyncTurn turn) {
-        var records = new IncomingSyncRecords(merge.Records);
-        if (!records.IsEmpty) Converging(turn.Sync, records, replacing: false, turn.Now, turn.Ids, turn.CommitGate);
-        return records.Receipt;
-    }
-
-    public IReadOnlyList<Change> Handle(MergeCloudSnapshot snapshot, CloudSyncTurn turn) {
-        var records = new IncomingSyncRecords(snapshot.Records);
-        records.RequireWhole();
-        if (!records.IsEmpty) Converging(turn.Sync, records, replacing: false, turn.Now, turn.Ids, turn.CommitGate);
-        return records.Receipt;
-    }
-
-    public IReadOnlyList<Change> Handle(ReplaceWithCloudRecords replacement, CloudSyncTurn turn) {
-        var records = new IncomingSyncRecords(replacement.Records);
-        Converging(turn.Sync, records, replacing: true, turn.Now, turn.Ids, turn.CommitGate);
-        return records.Receipt;
-    }
-
-    public IReadOnlyList<Change> Handle(ReplaceSeedWithCloudRecords replacement, CloudSyncTurn turn) {
-        var records = new IncomingSyncRecords(replacement.Records);
-        if (Current.DisposableSeedMarker is not null)
-            Converging(turn.Sync, records, replacing: true, turn.Now, turn.Ids, turn.CommitGate, seedOnly: true);
-        return records.Receipt;
-    }
-
-    public IReadOnlyList<Change> Handle(OverwriteCloud overwrite, CloudSyncTurn turn) {
-        var records = new IncomingSyncRecords(overwrite.Records);
-        Overwriting(turn.Sync, records, turn.Now);
-        return records.Receipt;
-    }
-
-    public IReadOnlyList<Change> Handle(AcknowledgeUploads acknowledgement, CloudSyncTurn turn) {
-        Acknowledging(turn.Sync, acknowledgement.Records);
-        return [];
+        var sync = AttachedSync();
+        IncomingSyncRecords? records = null;
+        switch (intent) {
+            case MergeSyncRecords merge:
+                records = new(merge.Records);
+                if (!records.IsEmpty) Converging(sync, records, replacing: false, now, ids, commitGate);
+                break;
+            case MergeCloudSnapshot snapshot:
+                records = new(snapshot.Records);
+                records.RequireWhole();
+                if (!records.IsEmpty) Converging(sync, records, replacing: false, now, ids, commitGate);
+                break;
+            case ReplaceWithCloudRecords replacement:
+                records = new(replacement.Records);
+                Converging(sync, records, replacing: true, now, ids, commitGate);
+                break;
+            case ReplaceSeedWithCloudRecords replacement:
+                records = new(replacement.Records);
+                if (Current.DisposableSeedMarker is not null) Converging(sync, records, replacing: true, now, ids, commitGate, seedOnly: true);
+                break;
+            case OverwriteCloud overwrite:
+                records = new(overwrite.Records);
+                Overwriting(sync, records, now);
+                break;
+            case AcknowledgeUploads acknowledgement: Acknowledging(sync, acknowledgement.Records); break;
+            default: throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The session does not handle this intent.");
+        }
+        return records?.Receipt ?? [];
     }
 
     /// The sync component this session stages into. Throws `Rejected` with

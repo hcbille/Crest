@@ -11,6 +11,11 @@ namespace CrestCore.Application;
 internal sealed class Portability(IReadOnlyList<ImportSpaceNames>? names, IClock clock, IIdSource ids) {
     #region Actions - Queries
 
+    public ImportData Answer(FindImportData query) {
+        ArgumentNullException.ThrowIfNull(query);
+        return InstalledBrowser.Of(query.Source).Find(query.Folder);
+    }
+
     public ImportedSpaces Answer(ReadImport query) {
         ArgumentNullException.ThrowIfNull(query);
         return new(InstalledBrowser.Of(query.Source).Read(query.Profiles, Names(query.Source), ids, clock.Now));

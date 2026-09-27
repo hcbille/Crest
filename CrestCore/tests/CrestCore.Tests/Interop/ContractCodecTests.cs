@@ -2,7 +2,6 @@ using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 
 using CrestCore.Application;
 using CrestCore.Contracts;
@@ -275,88 +274,6 @@ public sealed unsafe class ContractCodecTests {
         Assert.Contains("static func decodeMove(from reader: inout WireReader) throws(WireError) -> any Move {", swiftCodec,
             StringComparison.Ordinal);
         Assert.Contains("move.encodeIntent(into: &writer)", swiftCodec, StringComparison.Ordinal);
-    }
-
-    /// Each family's handler has one overload per case, a message reaches the
-    /// overload for its case, which a message of a family below reaches through
-    /// that family's case, and a returning handler's result comes back. Each
-    /// Swift handling protocol has one method per member of its root, dispatch
-    /// reaches each, and a fact a family declares is read from each member.
-    [Fact]
-    public void EachFamilysHandlerHasExactlyItsCasesAndDispatchReachesTheOneForEachMessage() {
-        var schema = ContractSchema.Load(Contracts);
-        var application = typeof(CrestApp).Assembly;
-        var dispatches = application.GetType("CrestCore.Application.ContractDispatch", throwOnError: true)!
-            .GetMethods(BindingFlags.Public | BindingFlags.Static);
-        foreach (var family in schema.Unions.Where(family => family.Root.CoreHandles)) {
-            string name = $"CrestCore.Application.{CSharpHandlerEmitter.Interface(family)}";
-            var handlers = family.Root.HasAnswer
-                ? [application.GetType($"{name}`1", throwOnError: true)!.MakeGenericType(typeof(object))]
-                : new[] {
-                    application.GetType($"{name}`1", throwOnError: true)!.MakeGenericType(typeof(object)),
-                    application.GetType($"{name}`2", throwOnError: true)!.MakeGenericType(typeof(object), typeof(object))
-                };
-            foreach (var handler in handlers) {
-                Assert.Equal(family.Cases, handler.GetMethods().Select(method => Definition(method.GetParameters()[0].ParameterType))
-                    .OrderBy(ContractFamily.NameOf, StringComparer.Ordinal));
-                var dispatch = dispatches.Single(method => Definition(method.GetParameters()[0].ParameterType) == family.Type
-                    && method.GetParameters()[1].ParameterType.GetGenericTypeDefinition() == handler.GetGenericTypeDefinition());
-                foreach (var member in schema.Members(family.Root).Select(member => member.Record.Type).Where(type => Derives(type, family.Type))) {
-                    var message = RuntimeHelpers.GetUninitializedObject(member);
-                    var proxy = DispatchProxy.Create(handler, typeof(RecordingHandler));
-                    var typed = family.Root.HasAnswer
-                        ? dispatch.MakeGenericMethod(family.Root.AnswerOf(member)!, typeof(object))
-                        : dispatch.MakeGenericMethod([.. dispatch.GetGenericArguments().Select(_ => typeof(object))]);
-                    var result = typed.Invoke(null, [message, proxy, null]);
-                    Assert.Equal((family.Cases.Single(@case => Derives(member, @case)), message), ((RecordingHandler)proxy).Reached);
-                    if (handler.GetGenericArguments().Length == 2) Assert.Same(RecordingHandler.Result, result);
-                }
-            }
-        }
-
-        string swift = SwiftEmitter.EmitContracts(schema);
-        foreach (var root in ContractRoot.All.Where(root => root.PlatformHandles)) {
-            var members = schema.Members(root).Select(member => member.Name).ToList();
-            string protocol = Regex.Match(swift, $@"protocol {root.Name}Handling \{{\n(.*?)\n\}}", RegexOptions.Singleline).Groups[1].Value;
-            Assert.Equal(members, Regex.Matches(protocol, @"func handle\(_ \w+: (\w+)\)").Select(match => match.Groups[1].Value));
-            foreach (var member in members)
-                Assert.Matches(root.PlatformSends
-                    ? $@"extension {member} \{{\n    @MainActor func dispatch\(to handler: some {root.Name}Handling\)[^{{]*\{{\n        handler\.handle\(self\)"
-                    : $@"case \.{Regex.Escape(Naming.SwiftMember(member))}\(let (\w+)\): handler\.handle\(\1\)\n", swift);
-            // A fact a family declares is read through the enum from each of its members.
-            foreach (var family in schema.Unions.Where(family => family.Root == root && !root.PlatformSends))
-                foreach (var field in family.Fields) {
-                    string property = Naming.SwiftMember(field.Name);
-                    string accessor = Regex.Match(swift, $@"enum {root.Name}\b.*?    var {property}: [^{{]*\{{\n        switch self \{{\n(.*?)\n        \}}",
-                        RegexOptions.Singleline).Groups[1].Value;
-                    Assert.Equal(schema.Members(root).Where(member => family.Type.IsAssignableFrom(member.Record.Type))
-                        .Select(member => $"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}"),
-                        accessor.Split('\n').Where(line => !line.Contains("default:", StringComparison.Ordinal)));
-                }
-        }
-    }
-
-    /// `type` or, for a constructed generic type, its definition.
-    private static Type Definition(Type type) => type.IsGenericType ? type.GetGenericTypeDefinition() : type;
-
-    /// Whether `type` is `family` or derives from it, through any answer.
-    private static bool Derives(Type type, Type family) {
-        for (Type? current = type; current is not null; current = current.BaseType)
-            if (Definition(current) == family) return true;
-        return false;
-    }
-
-    /// A handler of every case, which notes the case whose overload a message
-    /// reached and the message, and answers `Result` where it may.
-    public class RecordingHandler : DispatchProxy {
-        public static readonly object Result = new();
-
-        public (Type Case, object? Message)? Reached { get; private set; }
-
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) {
-            Reached = (Definition(targetMethod!.GetParameters()[0].ParameterType), args![0]);
-            return targetMethod.ReturnType == typeof(object) ? Result : null;
-        }
     }
 
     [Theory]

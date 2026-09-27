@@ -8,7 +8,7 @@ namespace CrestCore.Application;
 /// recovered with a full pull, when an account change waits for the person,
 /// and when this device's copy overwrites the cloud's. The transport runs its
 /// intents on its own thread; this takes its own lock, never the host's.
-internal sealed class CloudTransportStore : ICloudTransportIntentHandler<Func<bool>, IReadOnlyList<Change>> {
+internal sealed class CloudTransportStore {
     #region Variables
 
     private readonly Lock gate = new();
@@ -61,46 +61,44 @@ internal sealed class CloudTransportStore : ICloudTransportIntentHandler<Func<bo
     /// stored session's journal still holds records waiting to upload, once
     /// every stage queued before settled. Throws `Rejected`.
     public IReadOnlyList<Change> Handle(CloudTransportIntent intent, Func<bool> journalHoldsUploads) {
+        ArgumentNullException.ThrowIfNull(intent);
         ArgumentNullException.ThrowIfNull(journalHoldsUploads);
-        return intent.Dispatch(this, journalHoldsUploads);
-    }
-
-    public IReadOnlyList<Change> Handle(OpenCloudTransport open, Func<bool> journalHoldsUploads) => Saving(() => Open(open));
-
-    public IReadOnlyList<Change> Handle(SaveCloudEngineState engine, Func<bool> journalHoldsUploads) =>
-        Saving(() => Save(record with { EngineState = engine.Serialization }, fields: null));
-
-    public IReadOnlyList<Change> Handle(RecordCloudFields fields, Func<bool> journalHoldsUploads) =>
-        Saving(() => Save(next: null, new CloudFieldWrite(Clearing: false, fields.Updated, fields.Removed)));
-
-    public IReadOnlyList<Change> Handle(ForgetCloudZone zone, Func<bool> journalHoldsUploads) =>
-        Saving(() => Save(zone.Loss.RestoresLocalRecords ? record : record with { EngineState = null }, CloudFieldWrite.Cleared));
-
-    public IReadOnlyList<Change> Handle(ObserveCloudAccountChange change, Func<bool> journalHoldsUploads) => Saving(() => {
-        if (change.Transition.AlwaysPauses && !record.AwaitsAccountDecision) Save(record with { AwaitsAccountDecision = true }, fields: null);
-    });
-
-    public IReadOnlyList<Change> Handle(BeginCloudMerge begin, Func<bool> journalHoldsUploads) {
-        lock (gate) return Begin();
-    }
-
-    public IReadOnlyList<Change> Handle(FinishCloudMerge finish, Func<bool> journalHoldsUploads) => Saving(() => Finish(finish));
-
-    public IReadOnlyList<Change> Handle(ResetCloudTransport reset, Func<bool> journalHoldsUploads) => Saving(() => StartOver(reset.OverwritesCloud));
-
-    /// The overwrite settles once no record waits to upload. The journal is
-    /// read before the lock, since settling what was queued before waits.
-    public IReadOnlyList<Change> Handle(SettleCloudOverwrite settle, Func<bool> journalHoldsUploads) {
-        bool holdsUploads = journalHoldsUploads();
-        return Saving(() => {
-            if (record.OverwritesCloud && !holdsUploads) Save(record with { OverwritesCloud = false }, fields: null);
-        });
-    }
-
-    /// Runs `work` holding the lock, and answers the state it left.
-    private IReadOnlyList<Change> Saving(Action work) {
+        bool holdsUploads = intent is SettleCloudOverwrite && journalHoldsUploads();
         lock (gate) {
-            work();
+            switch (intent) {
+                case OpenCloudTransport open:
+                    Open(open);
+                    break;
+                case SaveCloudEngineState engine:
+                    Save(record with { EngineState = engine.Serialization }, fields: null);
+                    break;
+                case RecordCloudFields fields:
+                    Save(next: null, new CloudFieldWrite(Clearing: false, fields.Updated, fields.Removed));
+                    break;
+                case ForgetCloudZone zone:
+                    Save(zone.Loss.RestoresLocalRecords ? record : record with { EngineState = null }, CloudFieldWrite.Cleared);
+                    break;
+                case ObserveCloudAccountChange change when change.Transition.AlwaysPauses && !record.AwaitsAccountDecision:
+                    Save(record with { AwaitsAccountDecision = true }, fields: null);
+                    break;
+                case ObserveCloudAccountChange:
+                    break;
+                case BeginCloudMerge:
+                    return Begin();
+                case FinishCloudMerge finish:
+                    Finish(finish);
+                    break;
+                case ResetCloudTransport reset:
+                    StartOver(reset.OverwritesCloud);
+                    break;
+                case SettleCloudOverwrite when record.OverwritesCloud && !holdsUploads:
+                    Save(record with { OverwritesCloud = false }, fields: null);
+                    break;
+                case SettleCloudOverwrite:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "The transport does not handle this intent.");
+            }
             return [Changed()];
         }
     }

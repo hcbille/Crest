@@ -37,7 +37,45 @@ struct AttachedEnginePages {
 
     /// Hands a presentation to the page it is about, if that page is attached.
     func present(_ presentation: EnginePresentation) {
-        guard let pageID = presentation.pageID, let page = pages[pageID]?.page else { return }
-        presentation.dispatch(to: page)
+        guard let pageID = presentation.pageID else { return }
+        pages[pageID]?.page?.receive(presentation)
+    }
+}
+
+extension EnginePresentation {
+    /// The page the presentation is about, or none for a profile's.
+    var pageID: UUID? {
+        switch self {
+        case .extensionsChanged, .profilePrepared, .profileReleased:
+            nil
+        case .contentFullscreenChanged(let value): value.pageID
+        case .contentMessagePosted(let value): value.pageID
+        case .contentScriptEvaluated(let value): value.pageID
+        case .findFinished(let value): value.pageID
+        case .infoBarRemoved(let value): value.pageID
+        case .infoBarShown(let value): value.pageID
+        case .sidePanelRequested(let value): value.pageID
+        case .inspectorClosed(let value): value.pageID
+        case .inspectorLayoutChanged(let value): value.pageID
+        case .linkHovered(let value): value.pageID
+        case .mediaSessionChanged(let value): value.pageID
+        case .pageCaptured(let value): value.pageID
+        case .pageExported(let value): value.pageID
+        case .pageHistoryChanged(let value): value.pageID
+        case .pageInteracted(let value): value.pageID
+        case .pageLoadingChanged(let value): value.pageID
+        case .pageNavigationCommitted(let value): value.pageID
+        case .pageNavigationFailed(let value): value.pageID
+        case .pageNavigationStarted(let value): value.pageID
+        case .pageRendererGone(let value): value.pageID
+        case .pageThemeChanged(let value): value.pageID
+        case .pageViewClosed(let value): value.pageID
+        case .pageViewReady(let value): value.pageID
+        case .pageViewUnavailable(let value): value.pageID
+        case .peekRequested(let value): value.pageID
+        case .popupBlocked(let value): value.pageID
+        case .storeInstallRequested(let value): value.pageID
+        case .storeRemovalRequested(let value): value.pageID
+        }
     }
 }

@@ -3065,6 +3065,10 @@
     "chromium-commands-dispatch-by-type": {
       "category": "internal",
       "message": "Chromium's engine handles each command the core sends through its own handler, so a new command can't be silently ignored."
+    },
+    "generated-message-handlers-withdrawn": {
+      "category": "internal",
+      "message": "The core and the apps route their messages with the hand-written dispatch they used before the generated handlers, while each message family moves toward carrying its own behavior; nothing changes in behavior."
     }
   }
 }

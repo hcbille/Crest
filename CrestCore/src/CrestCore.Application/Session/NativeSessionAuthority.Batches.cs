@@ -3,7 +3,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-internal sealed partial class NativeSessionAuthority {
+public sealed partial class NativeSessionAuthority {
     #region Types
 
     /// A selection intent's work: the Space its window shows, that Space's
@@ -88,68 +88,68 @@ internal sealed partial class NativeSessionAuthority {
 
     #region Actions - Batches
 
-    public SessionEdit Handle(CloseTabs intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
-        batch.FollowUp.ShowTab(batch.Space.Id, batch.Edited.CloseSelected(batch.Selected, batch.Shown, batch.Fallback(), turn.Now));
-        return batch.Result(turn.Basis, SyncStaging.Batch);
+    private SessionEdit ClosingTabs(SessionState basis, CloseTabs intent, DateTimeOffset now) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
+        batch.FollowUp.ShowTab(batch.Space.Id, batch.Edited.CloseSelected(batch.Selected, batch.Shown, batch.Fallback(), now));
+        return batch.Result(basis, SyncStaging.Batch);
     }
 
-    public SessionEdit Handle(DeleteTabs intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
-        batch.FollowUp.ShowTab(batch.Space.Id, batch.Edited.DeleteSelected(batch.Selected, batch.Shown, batch.Fallback(), turn.Now));
-        return batch.Result(turn.Basis, SyncStaging.BatchDeletion);
+    private SessionEdit DeletingTabs(SessionState basis, DeleteTabs intent, DateTimeOffset now) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
+        batch.FollowUp.ShowTab(batch.Space.Id, batch.Edited.DeleteSelected(batch.Selected, batch.Shown, batch.Fallback(), now));
+        return batch.Result(basis, SyncStaging.BatchDeletion);
     }
 
-    public SessionEdit Handle(DuplicateTabs intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
-        var copies = batch.Edited.DuplicateSelected(batch.Selected, turn.Ids, turn.Now);
-        return batch.Result(turn.Basis, SyncStaging.Batch, StartingCopies(batch, copies, intent.WindowId, turn.Pages));
+    private SessionEdit DuplicatingTabs(SessionState basis, DuplicateTabs intent, DateTimeOffset now, IIdSource ids, Pages? pages) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
+        var copies = batch.Edited.DuplicateSelected(batch.Selected, ids, now);
+        return batch.Result(basis, SyncStaging.Batch, StartingCopies(batch, copies, intent.WindowId, pages));
     }
 
-    public SessionEdit Handle(SplitTabs intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
-        var (shown, copies) = batch.Edited.SplitSelected(batch.Selected, intent.TargetTabId, intent.Index, batch.Shown, turn.Ids, turn.Now);
+    private SessionEdit SplittingTabs(SessionState basis, SplitTabs intent, DateTimeOffset now, IIdSource ids, Pages? pages) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
+        var (shown, copies) = batch.Edited.SplitSelected(batch.Selected, intent.TargetTabId, intent.Index, batch.Shown, ids, now);
         batch.FollowUp.ShowTab(batch.Space.Id, shown);
-        return batch.Result(turn.Basis, SyncStaging.Batch, StartingCopies(batch, copies, intent.WindowId, turn.Pages));
+        return batch.Result(basis, SyncStaging.Batch, StartingCopies(batch, copies, intent.WindowId, pages));
     }
 
-    public SessionEdit Handle(SeparateSplits intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
-        batch.Edited.SeparateSelected(batch.Selected, turn.Now);
-        return batch.Result(turn.Basis, SyncStaging.Batch);
+    private SessionEdit SeparatingSplits(SessionState basis, SeparateSplits intent, DateTimeOffset now) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
+        batch.Edited.SeparateSelected(batch.Selected, now);
+        return batch.Result(basis, SyncStaging.Batch);
     }
 
-    public SessionEdit Handle(KeepTabsLoaded intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
+    private SessionEdit KeepingTabsLoaded(SessionState basis, KeepTabsLoaded intent) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
         batch.Edited.KeepSelectedLoaded(batch.Selected, intent.Keeps);
-        return batch.Result(turn.Basis, SyncStaging.Batch);
+        return batch.Result(basis, SyncStaging.Batch);
     }
 
     /// The window gives up its shown tab when it moved, and moves to the
     /// destination when the intent follows the tabs there.
-    public SessionEdit Handle(MoveTabsToSpace intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
+    private SessionEdit MovingTabsToSpace(SessionState basis, MoveTabsToSpace intent, DateTimeOffset now) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
         if (intent.DestinationSpaceId == intent.SpaceId) throw new Rejected(new AlreadyInSpace(intent.SpaceId));
-        var destination = Editable(turn.Basis, intent.DestinationSpaceId);
+        var destination = Editable(basis, intent.DestinationSpaceId);
         var receiving = BrowserTabCollection.Restore(destination);
         var (shown, shownThere) = batch.Edited.MoveSelected(batch.Selected, receiving, batch.Shown, batch.Fallback(),
-            batch.FollowUp.Window?.Tab(destination.Id), intent.Follows, turn.Now);
+            batch.FollowUp.Window?.Tab(destination.Id), intent.Follows, now);
         receiving.PruneSplitMetadata();
         batch.FollowUp.ShowTab(batch.Space.Id, shown).ShowTab(destination.Id, shownThere);
         if (intent.Follows) batch.FollowUp.ShowSpace(destination.Id);
-        return batch.Result(turn.Basis, SyncStaging.Batch, alsoEdited: receiving.Capture(destination));
+        return batch.Result(basis, SyncStaging.Batch, alsoEdited: receiving.Capture(destination));
     }
 
-    public SessionEdit Handle(FolderTabs intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
-        batch.Edited.FolderSelected(batch.Selected, intent.Placement, NewFolderTitle, FolderState.DefaultColor, turn.Ids, turn.Now);
-        return batch.Result(turn.Basis, SyncStaging.Batch);
+    private SessionEdit FoldingTabs(SessionState basis, FolderTabs intent, DateTimeOffset now, IIdSource ids) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
+        batch.Edited.FolderSelected(batch.Selected, intent.Placement, NewFolderTitle, FolderState.DefaultColor, ids, now);
+        return batch.Result(basis, SyncStaging.Batch);
     }
 
-    public SessionEdit Handle(FolderTabsAround intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
-        batch.Edited.FolderSelectedAround(batch.Selected, intent.TabId, NewFolderTitle, FolderState.DefaultColor, turn.Ids, turn.Now);
-        return batch.Result(turn.Basis, SyncStaging.Batch);
+    private SessionEdit FoldingTabsAround(SessionState basis, FolderTabsAround intent, DateTimeOffset now, IIdSource ids) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
+        batch.Edited.FolderSelectedAround(batch.Selected, intent.TabId, NewFolderTitle, FolderState.DefaultColor, ids, now);
+        return batch.Result(basis, SyncStaging.Batch);
     }
 
     #endregion

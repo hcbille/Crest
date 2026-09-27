@@ -2,7 +2,7 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Application;
 
-internal sealed partial class NativeSessionAuthority {
+public sealed partial class NativeSessionAuthority {
     #region Variables
 
     private NativeSyncAuthority? sync;

@@ -5,8 +5,8 @@ namespace CrestCore.Generator;
 /// Generates the contract codecs and models from the C# contract records.
 ///
 /// `dotnet run --project CrestCore/tools/CrestCore.Generator [-- --check] [--root PATH]`
-/// writes the C# codec, the core's handler interfaces, the two Swift files,
-/// the C tag header and the C++ engine codec. With `--check` it writes nothing and fails when any output is
+/// writes the C# codec, the two Swift files, the C tag header and the C++
+/// engine codec. With `--check` it writes nothing and fails when any output is
 /// stale. Either way it fails when a Swift source other than its own calls a
 /// wire initializer, or when a view source reads a read-model object's whole
 /// record.
@@ -27,7 +27,6 @@ internal static class Program {
             var schema = ContractSchema.Load(typeof(Intent).Assembly);
             var outputs = new Dictionary<string, string> {
                 ["CrestCore/src/CrestCore.Native/Generated/ContractCodec.g.cs"] = CSharpCodecEmitter.Emit(schema),
-                ["CrestCore/src/CrestCore.Application/Generated/ContractHandlers.g.cs"] = CSharpHandlerEmitter.Emit(schema),
                 ["CrestShared/Infrastructure/Core/Generated/CoreContracts.generated.swift"] = SwiftEmitter.EmitContracts(schema),
                 ["CrestShared/Infrastructure/Core/Generated/CoreCodec.generated.swift"] = SwiftEmitter.EmitCodec(schema),
                 ["CrestContracts/include/crest_contracts.h"] = CHeaderEmitter.Emit(schema),

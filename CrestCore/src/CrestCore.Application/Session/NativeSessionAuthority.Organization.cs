@@ -3,7 +3,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-internal sealed partial class NativeSessionAuthority {
+public sealed partial class NativeSessionAuthority {
     #region Variables
 
     /// What a folder created without a title is called.
@@ -14,66 +14,67 @@ internal sealed partial class NativeSessionAuthority {
     #region Actions - Folders
 
     /// Creates the folder and files its tabs in one edit.
-    public SessionEdit Handle(CreateFolder intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Creation, edited => {
+    private SessionEdit CreatingFolder(SessionState basis, CreateFolder intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Creation, edited => {
             edited.AddFolder(intent.FolderId, string.IsNullOrWhiteSpace(intent.Title) ? NewFolderTitle : intent.Title,
                 intent.Placement, intent.ParentId);
             if (intent.Color is { } color) edited.SetFolderColor(intent.FolderId, color);
             if (intent.Symbol is { } symbol) edited.SetFolderSymbol(intent.FolderId, symbol);
             if (intent.TabIds.Count > 0)
-                edited.FileTabs(intent.TabIds, intent.Placement, intent.FolderId, turn.Now, null, null, intent.LeavesSplits);
+                edited.FileTabs(intent.TabIds, intent.Placement, intent.FolderId, now, null, null, intent.LeavesSplits);
         });
 
-    public SessionEdit Handle(RenameFolder intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => edited.RenameFolder(intent.FolderId, intent.Title));
+    private SessionEdit RenamingFolder(SessionState basis, RenameFolder intent) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => edited.RenameFolder(intent.FolderId, intent.Title));
 
-    public SessionEdit Handle(CollapseFolder intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => edited.CollapseFolder(intent.FolderId, intent.Collapsed, turn.Now));
+    private SessionEdit CollapsingFolder(SessionState basis, CollapseFolder intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => edited.CollapseFolder(intent.FolderId, intent.Collapsed, now));
 
-    public SessionEdit Handle(SetFolderColor intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => edited.SetFolderColor(intent.FolderId, intent.Color));
+    private SessionEdit ColoringFolder(SessionState basis, SetFolderColor intent) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => edited.SetFolderColor(intent.FolderId, intent.Color));
 
-    public SessionEdit Handle(SetFolderSymbol intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => edited.SetFolderSymbol(intent.FolderId, intent.Symbol));
+    private SessionEdit SymbolizingFolder(SessionState basis, SetFolderSymbol intent) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => edited.SetFolderSymbol(intent.FolderId, intent.Symbol));
 
-    public SessionEdit Handle(MoveFolder intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited =>
-            edited.MoveFolder(intent.FolderId, intent.Placement, intent.ParentId, turn.Now, intent.BeforeFolderId, intent.BeforeTabId));
+    private SessionEdit MovingFolder(SessionState basis, MoveFolder intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited =>
+            edited.MoveFolder(intent.FolderId, intent.Placement, intent.ParentId, now, intent.BeforeFolderId, intent.BeforeTabId));
 
-    public SessionEdit Handle(DeleteFolder intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Deletion, edited => edited.DeleteFolder(intent.FolderId, turn.Now));
+    private SessionEdit DeletingFolder(SessionState basis, DeleteFolder intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Deletion, edited => edited.DeleteFolder(intent.FolderId, now));
 
     /// Files the selection, saved with its journal before the intent returns
     /// as every action on a selection is. Tabs taken out of their splits
     /// leave split metadata no tab uses, which goes with them.
-    public SessionEdit Handle(FileTabs intent, SessionTurn turn) {
-        var batch = Selecting(turn.Basis, intent.WindowId, intent.SpaceId, intent.Selection);
+    private SessionEdit Filing(SessionState basis, FileTabs intent, DateTimeOffset now) {
+        var batch = Selecting(basis, intent.WindowId, intent.SpaceId, intent.Selection);
         batch.Edited.FileSelected(batch.Selected, intent.Placement, intent.FolderId, intent.BeforeTabId, intent.BeforeFolderId,
-            intent.LeavesSplits, turn.Now);
-        return batch.Result(turn.Basis, SyncStaging.Batch);
+            intent.LeavesSplits, now);
+        return batch.Result(basis, SyncStaging.Batch);
     }
 
     #endregion
 
     #region Actions - Splits
 
-    public SessionEdit Handle(JoinSplit intent, SessionTurn turn) {
-        var space = Editable(turn.Basis, intent.SpaceId);
-        return Joining(turn.Basis, space, BrowserTabCollection.Restore(space), intent.WindowId, intent.TabId, intent.TargetTabId,
-            intent.Index, turn.Pages, turn.Now, turn.Ids);
+    private SessionEdit JoiningSplit(SessionState basis, JoinSplit intent, DateTimeOffset now, IIdSource ids, Pages? pages) {
+        var space = Editable(basis, intent.SpaceId);
+        return Joining(basis, space, BrowserTabCollection.Restore(space), intent.WindowId, intent.TabId, intent.TargetTabId,
+            intent.Index, pages, now, ids);
     }
 
     /// Opens the link as a new open tab and joins it to the target's split.
-    public SessionEdit Handle(OpenLinkInSplit intent, SessionTurn turn) {
-        var space = Editable(turn.Basis, intent.SpaceId);
-        if (turn.Basis.Spaces.Any(candidate => candidate.Tabs.Any(tab => tab.Id == intent.TabId)))
+    private SessionEdit OpeningLinkInSplit(SessionState basis, OpenLinkInSplit intent, DateTimeOffset now, IIdSource ids,
+        Pages? pages) {
+        var space = Editable(basis, intent.SpaceId);
+        if (basis.Spaces.Any(candidate => candidate.Tabs.Any(tab => tab.Id == intent.TabId)))
             throw new Rejected(new TabAlreadyExists(intent.TabId));
         var edited = BrowserTabCollection.Restore(space);
         edited.InsertTab(BrowserTab.Restore(new TabState(intent.TabId, intent.Title, intent.Address, NativeContent: null,
             SavedUrl: null, TabIconMode.WebSymbol, FaviconUrl: null, IconAccent: null, StoredIconMode: null, TabPlacement.Current,
-            FolderId: null, SplitGroupId: null, turn.Now, PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null,
+            FolderId: null, SplitGroupId: null, now, PositionModifiedAt: null, CustomTitle: null, TitleModifiedAt: null,
             KeepsPageLoaded: false)), null);
-        return Joining(turn.Basis, space, edited, intent.WindowId, intent.TabId, intent.TargetTabId, null, turn.Pages, turn.Now, turn.Ids);
+        return Joining(basis, space, edited, intent.WindowId, intent.TabId, intent.TargetTabId, null, pages, now, ids);
     }
 
     /// Joins `tabId` to the split of `targetId` in `edited`, the organization
@@ -96,29 +97,29 @@ internal sealed partial class NativeSessionAuthority {
             new([.. joined.Copies.Select(pair => new SessionTabCopy(pair.Source, pair.Copy))], null));
     }
 
-    public SessionEdit Handle(LeaveSplit intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => {
-            edited.LeaveSplit(intent.TabId, turn.Now);
+    private SessionEdit LeavingSplit(SessionState basis, LeaveSplit intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => {
+            edited.LeaveSplit(intent.TabId, now);
             edited.PruneSplitMetadata();
         });
 
-    public SessionEdit Handle(MoveSplitMember intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => edited.MoveSplitMember(intent.TabId, intent.Index, turn.Now));
+    private SessionEdit MovingSplitMember(SessionState basis, MoveSplitMember intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => edited.MoveSplitMember(intent.TabId, intent.Index, now));
 
-    public SessionEdit Handle(StepSplitMember intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => {
-            if (!edited.StepSplitMember(intent.TabId, intent.Offset, turn.Now)) throw new Rejected(new NoSplitStep(intent.TabId, intent.Offset));
+    private SessionEdit SteppingSplitMember(SessionState basis, StepSplitMember intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => {
+            if (!edited.StepSplitMember(intent.TabId, intent.Offset, now)) throw new Rejected(new NoSplitStep(intent.TabId, intent.Offset));
         });
 
-    public SessionEdit Handle(DissolveSplit intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited => {
-            edited.DissolveSplit(intent.GroupId, turn.Now);
+    private SessionEdit DissolvingSplit(SessionState basis, DissolveSplit intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited => {
+            edited.DissolveSplit(intent.GroupId, now);
             edited.PruneSplitMetadata();
         });
 
-    public SessionEdit Handle(MoveSplit intent, SessionTurn turn) =>
-        Organizing(turn.Basis, intent.SpaceId, SyncStaging.Edit, edited =>
-            edited.MoveSplitGroup(intent.GroupId, intent.Placement, intent.FolderId, intent.BeforeTabId, turn.Now));
+    private SessionEdit MovingSplit(SessionState basis, MoveSplit intent, DateTimeOffset now) =>
+        Organizing(basis, intent.SpaceId, SyncStaging.Edit, edited =>
+            edited.MoveSplitGroup(intent.GroupId, intent.Placement, intent.FolderId, intent.BeforeTabId, now));
 
     /// `space`'s organization after `edit`, with the Space's other records kept.
     private SessionEdit Organizing(SessionState basis, Guid spaceId, SyncStaging staging, Action<BrowserTabCollection> edit) {
@@ -133,21 +134,21 @@ internal sealed partial class NativeSessionAuthority {
     #region Actions - Split identity
 
     /// A blank name clears it; a name is kept trimmed.
-    public SessionEdit Handle(NameSplit intent, SessionTurn turn) =>
-        Identifying(turn.Basis, intent.SpaceId, intent.GroupId, turn.Now, group =>
+    private SessionEdit NamingSplit(SessionState basis, NameSplit intent, DateTimeOffset now) =>
+        Identifying(basis, intent.SpaceId, intent.GroupId, now, group =>
             group with { CustomTitle = string.IsNullOrWhiteSpace(intent.Name) ? null : intent.Name.Trim() },
             (group, changedAt) => group with { TitleModifiedAt = changedAt });
 
     /// An emoji icon is kept as the one character that presents as an emoji.
-    public SessionEdit Handle(SetSplitIcon intent, SessionTurn turn) {
+    private SessionEdit SettingSplitIcon(SessionState basis, SetSplitIcon intent, DateTimeOffset now) {
         string? symbol = intent.Emoji is null ? null
             : (EmojiIcon.Chosen(intent.Emoji) ?? throw new Rejected(new InvalidSplitIcon(intent.GroupId))).Symbol;
-        return Identifying(turn.Basis, intent.SpaceId, intent.GroupId, turn.Now, group => group with { CustomIconSymbol = symbol },
+        return Identifying(basis, intent.SpaceId, intent.GroupId, now, group => group with { CustomIconSymbol = symbol },
             (group, changedAt) => group with { IconModifiedAt = changedAt });
     }
 
-    public SessionEdit Handle(TintSplit intent, SessionTurn turn) =>
-        Identifying(turn.Basis, intent.SpaceId, intent.GroupId, turn.Now, group => group with { Tint = intent.Tint },
+    private SessionEdit TintingSplit(SessionState basis, TintSplit intent, DateTimeOffset now) =>
+        Identifying(basis, intent.SpaceId, intent.GroupId, now, group => group with { Tint = intent.Tint },
             (group, changedAt) => group with { TintModifiedAt = changedAt });
 
     /// A split's name, icon or tint, which only a split of two or more tabs

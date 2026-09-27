@@ -270,7 +270,70 @@
         /// What the binding presents of this page, as the page's events.
         func receive(_ presentation: EnginePresentation) {
             guard !disposed else { return }
-            presentation.dispatch(to: self)
+            switch presentation {
+            case .pageViewReady: viewReady()
+            case .pageViewUnavailable: creationFailed()
+            case .pageViewClosed: observer(.closeRequested)
+            case .pageNavigationStarted: observer(.navigationStarted)
+            case .pageNavigationCommitted(let committed):
+                currentURL = URL(string: committed.url)
+                mediaSessionLocation = committed.url
+                surface.layoutEngineView()
+                observer(.navigationCommitted(currentURL, isLoading: committed.isLoading))
+            case .pageNavigationFailed: observer(.navigationFailed)
+            case .pageRendererGone: observer(.webContentProcessTerminated)
+            case .pageLoadingChanged(let loading):
+                observer(.loadingChanged(loading.isLoading))
+                observer(.progressChanged(loading.isLoading ? 0.5 : 1))
+            case .pageHistoryChanged(let changed):
+                backHistory = history(changed.back)
+                forwardHistory = history(changed.forward)
+                canGoBack = !changed.back.isEmpty
+                canGoForward = !changed.forward.isEmpty
+            case .pageThemeChanged(let theme):
+                observer(
+                    .themeColorChanged(
+                        theme.color.map {
+                            NSColor(srgbRed: $0.red, green: $0.green, blue: $0.blue, alpha: $0.alpha)
+                        }))
+            case .pageInteracted: observer(.userActivity)
+            case .linkHovered(let hovered): observer(.linkHovered(hovered.url.flatMap(URL.init(string:))))
+            case .popupBlocked(let blocked):
+                if let url = URL(string: blocked.pageURL) { observer(.popupBlocked(pageURL: url)) }
+            case .contentFullscreenChanged(let fullscreen): observer(.contentFullscreenChanged(fullscreen.active))
+            case .infoBarShown(let shown):
+                guard
+                    let bar = BrowserEngineInfoBar(
+                        id: Int(shown.infoBarID), message: shown.message, acceptTitle: shown.acceptLabel ?? "",
+                        cancelTitle: shown.cancelLabel ?? "", isCloseable: shown.closeable)
+                else { return }
+                observer(.infoBarAdded(bar))
+            case .infoBarRemoved(let removed): observer(.infoBarRemoved(id: Int(removed.infoBarID)))
+            case .mediaSessionChanged(let session):
+                if let event = BrowserMediaSessionPageEvent(session) { observer(.mediaSession(event)) }
+            case .contentMessagePosted(let message): receive(message)
+            case .contentScriptEvaluated(let evaluated):
+                evaluations.removeValue(forKey: evaluated.evaluationID)?.resume(returning: evaluated.json)
+            case .storeInstallRequested(let request): performStoreRequest(request.extensionID, removes: false)
+            case .storeRemovalRequested(let request): performStoreRequest(request.extensionID, removes: true)
+            case .peekRequested(let requested):
+                guard let url = URL(string: requested.url) else { return }
+                observer(
+                    .peekRequested(
+                        url, decision: requested.decision,
+                        stagedLink: requested.stagedLinkID.map {
+                            BrowserEngineNavigation(
+                                implementation: registration.implementationId, token: $0.uuidString,
+                                sourcePageID: pageID)
+                        }))
+            case .inspectorLayoutChanged: refreshDevTools()
+            case .inspectorClosed: developerPanelDidClose()
+            case .extensionsChanged, .sidePanelRequested, .profilePrepared, .profileReleased:
+                break
+            case .findFinished, .pageCaptured, .pageExported:
+                // The page's shared direct path hears what it asked for.
+                break
+            }
         }
 
         /// A script dialog the core asks the person, answered once they answer it.
@@ -415,148 +478,6 @@
         func willDetach(from host: BrowserWebHostView) { page?.detach() }
         func presentationGeometryDidChange() { layoutEngineView() }
     }
-    // MARK: - Presentations
-
-    /// Each presentation of this page as the page's events. What the binding
-    /// presents about the extensions, a profile or a side panel is the
-    /// engine's, and what the page's shared direct path asked for is that
-    /// path's.
-    extension ChromiumNativePage: EnginePresentationHandling {
-        func handle(_ presentation: PageViewReady) {
-            viewReady()
-        }
-
-        func handle(_ presentation: PageViewUnavailable) {
-            creationFailed()
-        }
-
-        func handle(_ presentation: PageViewClosed) {
-            observer(.closeRequested)
-        }
-
-        func handle(_ presentation: PageNavigationStarted) {
-            observer(.navigationStarted)
-        }
-
-        func handle(_ committed: PageNavigationCommitted) {
-            currentURL = URL(string: committed.url)
-            mediaSessionLocation = committed.url
-            surface.layoutEngineView()
-            observer(.navigationCommitted(currentURL, isLoading: committed.isLoading))
-        }
-
-        func handle(_ presentation: PageNavigationFailed) {
-            observer(.navigationFailed)
-        }
-
-        func handle(_ presentation: PageRendererGone) {
-            observer(.webContentProcessTerminated)
-        }
-
-        func handle(_ loading: PageLoadingChanged) {
-            observer(.loadingChanged(loading.isLoading))
-            observer(.progressChanged(loading.isLoading ? 0.5 : 1))
-        }
-
-        func handle(_ changed: PageHistoryChanged) {
-            backHistory = history(changed.back)
-            forwardHistory = history(changed.forward)
-            canGoBack = !changed.back.isEmpty
-            canGoForward = !changed.forward.isEmpty
-        }
-
-        func handle(_ theme: PageThemeChanged) {
-            observer(
-                .themeColorChanged(
-                    theme.color.map {
-                        NSColor(srgbRed: $0.red, green: $0.green, blue: $0.blue, alpha: $0.alpha)
-                    }))
-        }
-
-        func handle(_ presentation: PageInteracted) {
-            observer(.userActivity)
-        }
-
-        func handle(_ hovered: LinkHovered) {
-            observer(.linkHovered(hovered.url.flatMap(URL.init(string:))))
-        }
-
-        func handle(_ blocked: PopupBlocked) {
-            if let url = URL(string: blocked.pageURL) { observer(.popupBlocked(pageURL: url)) }
-        }
-
-        func handle(_ fullscreen: ContentFullscreenChanged) {
-            observer(.contentFullscreenChanged(fullscreen.active))
-        }
-
-        func handle(_ shown: InfoBarShown) {
-            guard
-                let bar = BrowserEngineInfoBar(
-                    id: Int(shown.infoBarID), message: shown.message, acceptTitle: shown.acceptLabel ?? "",
-                    cancelTitle: shown.cancelLabel ?? "", isCloseable: shown.closeable)
-            else { return }
-            observer(.infoBarAdded(bar))
-        }
-
-        func handle(_ removed: InfoBarRemoved) {
-            observer(.infoBarRemoved(id: Int(removed.infoBarID)))
-        }
-
-        func handle(_ session: MediaSessionChanged) {
-            if let event = BrowserMediaSessionPageEvent(session) { observer(.mediaSession(event)) }
-        }
-
-        func handle(_ message: ContentMessagePosted) {
-            receive(message)
-        }
-
-        func handle(_ evaluated: ContentScriptEvaluated) {
-            evaluations.removeValue(forKey: evaluated.evaluationID)?.resume(returning: evaluated.json)
-        }
-
-        func handle(_ request: StoreInstallRequested) {
-            performStoreRequest(request.extensionID, removes: false)
-        }
-
-        func handle(_ request: StoreRemovalRequested) {
-            performStoreRequest(request.extensionID, removes: true)
-        }
-
-        func handle(_ requested: PeekRequested) {
-            guard let url = URL(string: requested.url) else { return }
-            observer(
-                .peekRequested(
-                    url, decision: requested.decision,
-                    stagedLink: requested.stagedLinkID.map {
-                        BrowserEngineNavigation(
-                            implementation: registration.implementationId, token: $0.uuidString,
-                            sourcePageID: pageID)
-                    }))
-        }
-
-        func handle(_ presentation: InspectorLayoutChanged) {
-            refreshDevTools()
-        }
-
-        func handle(_ presentation: InspectorClosed) {
-            developerPanelDidClose()
-        }
-
-        func handle(_ presentation: ExtensionsChanged) {}
-
-        func handle(_ presentation: SidePanelRequested) {}
-
-        func handle(_ presentation: ProfilePrepared) {}
-
-        func handle(_ presentation: ProfileReleased) {}
-
-        func handle(_ presentation: FindFinished) {}
-
-        func handle(_ presentation: PageCaptured) {}
-
-        func handle(_ presentation: PageExported) {}
-    }
-
     extension ChromiumNativePage: BrowserPageContentScripting {
         func install(_ script: BrowserContentScript, receive: @escaping @MainActor (BrowserContentMessage) -> Void)
             -> Bool

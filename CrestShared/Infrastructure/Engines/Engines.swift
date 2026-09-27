@@ -283,28 +283,17 @@ final class Engines {
     /// closes on this one and lives on, and its owner forgets it only when it
     /// lets it go.
     func run(_ command: EngineCommand, on kind: EngineKind) {
-        command.dispatch(to: Hosting(engines: self, kind: kind))
+        switch command {
+        case .createPage(let creation): hosts[creation.pageID] = kind
+        case .loadPage, .recoverPage, .settleScriptDialog, .settleAuthentication, .settlePermission,
+            .settleExtensionInstall, .settleDownloadDestination, .cancelEngineDownload, .removeEngineDownload,
+            .approveEngineDownload, .checkBeforeUnload, .eraseProfileData, .eraseSiteData, .adoptOfferedPage,
+            .rejectOfferedPage, .stageNavigation, .dropStagedLink:
+            break
+        case .closePage(let closing):
+            if hosts[closing.pageID] == kind { hosts[closing.pageID] = nil }
+        }
         bindings[kind]?.run(command)
-    }
-}
-
-// MARK: - Hosting
-
-extension Engines {
-    /// Notes which engine hosts each page as the core's commands reach it: the
-    /// engine asked to create a page, until it is asked to close it there. It
-    /// observes only those two commands.
-    private struct Hosting: EngineCommandObserving {
-        let engines: Engines
-        let kind: EngineKind
-
-        func handle(_ creation: CreatePage) {
-            engines.hosts[creation.pageID] = kind
-        }
-
-        func handle(_ closing: ClosePage) {
-            if engines.hosts[closing.pageID] == kind { engines.hosts[closing.pageID] = nil }
-        }
     }
 }
 

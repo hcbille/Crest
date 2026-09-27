@@ -5,7 +5,7 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-internal sealed partial class NativeSessionAuthority {
+public sealed partial class NativeSessionAuthority {
     #region Variables
 
     /// The device whose windows show this session, and the workspace it gave

@@ -225,7 +225,7 @@ public sealed partial class BrowserContractsTests {
         using var app = new CrestApp(new AppConfiguration(directory.Path, DevicePlatform.Desktop));
         app.Send(new AdoptLegacySession(new LegacySession(Core: null, WholeGraph: null, [], Journal: null), Seed: null));
 
-        foreach (var session in new[] { StoredSession(app).Current, new StandaloneAnswers().Query(new FirstInstallSession()) }) {
+        foreach (var session in new[] { StoredSession(app).Current, (SessionState)StandaloneAnswers.Answer(new FirstInstallSession()) }) {
             var space = Assert.Single(session.Spaces);
             Assert.Equal(("Personal", "person.fill", SpaceAccent.Indigo), (space.Settings.Name, space.Settings.Symbol, space.Settings.Accent));
             Assert.True(Assert.Single(space.Tabs).IsStartPage);

@@ -27,8 +27,6 @@ protocol PageRequest: Sendable {
     associatedtype Answer: Sendable
     func encodePageRequest(into writer: inout WireWriter)
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer
-    /// Hands the request to `handler`'s method for its case, which answers it.
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Answer
 }
 
 /// What an engine binding asks the core about one of its pages while the engine waits, answered at once.
@@ -104,7 +102,7 @@ protocol WindowIntent: Intent {}
 /// The members of `Intent` that derive from the core's `WorkspaceIntent`.
 protocol WorkspaceIntent: Intent {}
 
-/// Everything an intent can change. `CoreState` handles each to keep the read model current.
+/// Everything an intent can change. `CoreState.apply` keeps the read model current.
 enum Change: Equatable, Sendable {
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
@@ -426,696 +424,69 @@ enum EnginePresentation: Equatable, Sendable {
     case sidePanelRequested(SidePanelRequested)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
-
-    /// The `pageID` of a message of the core's `EnginePagePresentation`, or nil for any other.
-    var pageID: UUID? {
-        switch self {
-        case .contentFullscreenChanged(let value): value.pageID
-        case .contentMessagePosted(let value): value.pageID
-        case .contentScriptEvaluated(let value): value.pageID
-        case .findFinished(let value): value.pageID
-        case .infoBarRemoved(let value): value.pageID
-        case .infoBarShown(let value): value.pageID
-        case .inspectorClosed(let value): value.pageID
-        case .inspectorLayoutChanged(let value): value.pageID
-        case .linkHovered(let value): value.pageID
-        case .mediaSessionChanged(let value): value.pageID
-        case .pageCaptured(let value): value.pageID
-        case .pageExported(let value): value.pageID
-        case .pageHistoryChanged(let value): value.pageID
-        case .pageInteracted(let value): value.pageID
-        case .pageLoadingChanged(let value): value.pageID
-        case .pageNavigationCommitted(let value): value.pageID
-        case .pageNavigationFailed(let value): value.pageID
-        case .pageNavigationStarted(let value): value.pageID
-        case .pageRendererGone(let value): value.pageID
-        case .pageThemeChanged(let value): value.pageID
-        case .pageViewClosed(let value): value.pageID
-        case .pageViewReady(let value): value.pageID
-        case .pageViewUnavailable(let value): value.pageID
-        case .peekRequested(let value): value.pageID
-        case .popupBlocked(let value): value.pageID
-        case .sidePanelRequested(let value): value.pageID
-        case .storeInstallRequested(let value): value.pageID
-        case .storeRemovalRequested(let value): value.pageID
-        default: nil
-        }
-    }
 }
 
-// MARK: - Handlers
-
-/// Handles each case of `Change`, one method per case, which `change.dispatch(to:)` calls.
-/// A receiver that handles only some cases conforms to `ChangeObserving`.
-@MainActor
-protocol ChangeHandling {
-    func handle(_ change: AppPreferencesChanged)
-    func handle(_ change: ArchiveChanged)
-    func handle(_ change: AuthenticationAsked)
-    func handle(_ change: CloseReady)
-    func handle(_ change: CloudMergeBegan)
-    func handle(_ change: CloudSyncAdvanced)
-    func handle(_ change: CloudTransportChanged)
-    func handle(_ change: DataDeleted)
-    func handle(_ change: DownloadApprovalAsked)
-    func handle(_ change: DownloadDestinationAsked)
-    func handle(_ change: DownloadUpdated)
-    func handle(_ change: DownloadsRemoved)
-    func handle(_ change: EnginesChanged)
-    func handle(_ change: ExtensionInstallAsked)
-    func handle(_ change: FoldersChanged)
-    func handle(_ change: HistoryChanged)
-    func handle(_ change: LinkPreferencesChanged)
-    func handle(_ change: NavigationRecorded)
-    func handle(_ change: OfferedPageAdopted)
-    func handle(_ change: PageChanged)
-    func handle(_ change: PageOpened)
-    func handle(_ change: PageRehosted)
-    func handle(_ change: PageRemoved)
-    func handle(_ change: PageUnloaded)
-    func handle(_ change: PermissionAsked)
-    func handle(_ change: PromptSettled)
-    func handle(_ change: QuitWithDownloadsAsked)
-    func handle(_ change: Saved)
-    func handle(_ change: ScriptDialogAsked)
-    func handle(_ change: SessionAdopted)
-    func handle(_ change: SetupCompletedChanged)
-    func handle(_ change: SetupDraftChanged)
-    func handle(_ change: SetupFinished)
-    func handle(_ change: SetupFlowChanged)
-    func handle(_ change: ShortcutsChanged)
-    func handle(_ change: SidebarChanged)
-    func handle(_ change: SitePermissionsChanged)
-    func handle(_ change: SpaceLockChanged)
-    func handle(_ change: SpaceSettingsChanged)
-    func handle(_ change: SpacesChanged)
-    func handle(_ change: SplitGroupsChanged)
-    func handle(_ change: StorageFailed)
-    func handle(_ change: SyncJournalChanged)
-    func handle(_ change: SyncRecordsSkipped)
-    func handle(_ change: SyncStagingFailed)
-    func handle(_ change: TabCopied)
-    func handle(_ change: TabFaviconAssigned)
-    func handle(_ change: TabPagePutAway)
-    func handle(_ change: TabsChanged)
-    func handle(_ change: TabsImported)
-    func handle(_ change: TransientPagePromoted)
-    func handle(_ change: WindowChanged)
-    func handle(_ change: WindowClosed)
-    func handle(_ change: WindowRecordsAdopted)
-    func handle(_ change: WorkspaceChanged)
-    func handle(_ change: WorkspaceClosed)
-    func handle(_ change: WorkspaceOpened)
-}
-
-/// A `ChangeHandling` that observes only some cases: each case it does not handle does nothing.
-@MainActor
-protocol ChangeObserving: ChangeHandling {}
-
-extension ChangeObserving {
-    func handle(_ change: AppPreferencesChanged) {}
-    func handle(_ change: ArchiveChanged) {}
-    func handle(_ change: AuthenticationAsked) {}
-    func handle(_ change: CloseReady) {}
-    func handle(_ change: CloudMergeBegan) {}
-    func handle(_ change: CloudSyncAdvanced) {}
-    func handle(_ change: CloudTransportChanged) {}
-    func handle(_ change: DataDeleted) {}
-    func handle(_ change: DownloadApprovalAsked) {}
-    func handle(_ change: DownloadDestinationAsked) {}
-    func handle(_ change: DownloadUpdated) {}
-    func handle(_ change: DownloadsRemoved) {}
-    func handle(_ change: EnginesChanged) {}
-    func handle(_ change: ExtensionInstallAsked) {}
-    func handle(_ change: FoldersChanged) {}
-    func handle(_ change: HistoryChanged) {}
-    func handle(_ change: LinkPreferencesChanged) {}
-    func handle(_ change: NavigationRecorded) {}
-    func handle(_ change: OfferedPageAdopted) {}
-    func handle(_ change: PageChanged) {}
-    func handle(_ change: PageOpened) {}
-    func handle(_ change: PageRehosted) {}
-    func handle(_ change: PageRemoved) {}
-    func handle(_ change: PageUnloaded) {}
-    func handle(_ change: PermissionAsked) {}
-    func handle(_ change: PromptSettled) {}
-    func handle(_ change: QuitWithDownloadsAsked) {}
-    func handle(_ change: Saved) {}
-    func handle(_ change: ScriptDialogAsked) {}
-    func handle(_ change: SessionAdopted) {}
-    func handle(_ change: SetupCompletedChanged) {}
-    func handle(_ change: SetupDraftChanged) {}
-    func handle(_ change: SetupFinished) {}
-    func handle(_ change: SetupFlowChanged) {}
-    func handle(_ change: ShortcutsChanged) {}
-    func handle(_ change: SidebarChanged) {}
-    func handle(_ change: SitePermissionsChanged) {}
-    func handle(_ change: SpaceLockChanged) {}
-    func handle(_ change: SpaceSettingsChanged) {}
-    func handle(_ change: SpacesChanged) {}
-    func handle(_ change: SplitGroupsChanged) {}
-    func handle(_ change: StorageFailed) {}
-    func handle(_ change: SyncJournalChanged) {}
-    func handle(_ change: SyncRecordsSkipped) {}
-    func handle(_ change: SyncStagingFailed) {}
-    func handle(_ change: TabCopied) {}
-    func handle(_ change: TabFaviconAssigned) {}
-    func handle(_ change: TabPagePutAway) {}
-    func handle(_ change: TabsChanged) {}
-    func handle(_ change: TabsImported) {}
-    func handle(_ change: TransientPagePromoted) {}
-    func handle(_ change: WindowChanged) {}
-    func handle(_ change: WindowClosed) {}
-    func handle(_ change: WindowRecordsAdopted) {}
-    func handle(_ change: WorkspaceChanged) {}
-    func handle(_ change: WorkspaceClosed) {}
-    func handle(_ change: WorkspaceOpened) {}
-}
-
-extension Change {
-    /// Hands the change to `handler`'s method for its case.
-    @MainActor func dispatch(to handler: some ChangeHandling) {
-        switch self {
-        case .appPreferencesChanged(let change): handler.handle(change)
-        case .archiveChanged(let change): handler.handle(change)
-        case .authenticationAsked(let change): handler.handle(change)
-        case .closeReady(let change): handler.handle(change)
-        case .cloudMergeBegan(let change): handler.handle(change)
-        case .cloudSyncAdvanced(let change): handler.handle(change)
-        case .cloudTransportChanged(let change): handler.handle(change)
-        case .dataDeleted(let change): handler.handle(change)
-        case .downloadApprovalAsked(let change): handler.handle(change)
-        case .downloadDestinationAsked(let change): handler.handle(change)
-        case .downloadUpdated(let change): handler.handle(change)
-        case .downloadsRemoved(let change): handler.handle(change)
-        case .enginesChanged(let change): handler.handle(change)
-        case .extensionInstallAsked(let change): handler.handle(change)
-        case .foldersChanged(let change): handler.handle(change)
-        case .historyChanged(let change): handler.handle(change)
-        case .linkPreferencesChanged(let change): handler.handle(change)
-        case .navigationRecorded(let change): handler.handle(change)
-        case .offeredPageAdopted(let change): handler.handle(change)
-        case .pageChanged(let change): handler.handle(change)
-        case .pageOpened(let change): handler.handle(change)
-        case .pageRehosted(let change): handler.handle(change)
-        case .pageRemoved(let change): handler.handle(change)
-        case .pageUnloaded(let change): handler.handle(change)
-        case .permissionAsked(let change): handler.handle(change)
-        case .promptSettled(let change): handler.handle(change)
-        case .quitWithDownloadsAsked(let change): handler.handle(change)
-        case .saved(let change): handler.handle(change)
-        case .scriptDialogAsked(let change): handler.handle(change)
-        case .sessionAdopted(let change): handler.handle(change)
-        case .setupCompletedChanged(let change): handler.handle(change)
-        case .setupDraftChanged(let change): handler.handle(change)
-        case .setupFinished(let change): handler.handle(change)
-        case .setupFlowChanged(let change): handler.handle(change)
-        case .shortcutsChanged(let change): handler.handle(change)
-        case .sidebarChanged(let change): handler.handle(change)
-        case .sitePermissionsChanged(let change): handler.handle(change)
-        case .spaceLockChanged(let change): handler.handle(change)
-        case .spaceSettingsChanged(let change): handler.handle(change)
-        case .spacesChanged(let change): handler.handle(change)
-        case .splitGroupsChanged(let change): handler.handle(change)
-        case .storageFailed(let change): handler.handle(change)
-        case .syncJournalChanged(let change): handler.handle(change)
-        case .syncRecordsSkipped(let change): handler.handle(change)
-        case .syncStagingFailed(let change): handler.handle(change)
-        case .tabCopied(let change): handler.handle(change)
-        case .tabFaviconAssigned(let change): handler.handle(change)
-        case .tabPagePutAway(let change): handler.handle(change)
-        case .tabsChanged(let change): handler.handle(change)
-        case .tabsImported(let change): handler.handle(change)
-        case .transientPagePromoted(let change): handler.handle(change)
-        case .windowChanged(let change): handler.handle(change)
-        case .windowClosed(let change): handler.handle(change)
-        case .windowRecordsAdopted(let change): handler.handle(change)
-        case .workspaceChanged(let change): handler.handle(change)
-        case .workspaceClosed(let change): handler.handle(change)
-        case .workspaceOpened(let change): handler.handle(change)
-        }
-    }
-}
-
-/// Handles each case of `EngineCommand`, one method per case, which `command.dispatch(to:)` calls.
-/// A receiver that handles only some cases conforms to `EngineCommandObserving`.
-@MainActor
-protocol EngineCommandHandling {
-    func handle(_ command: AdoptOfferedPage)
-    func handle(_ command: ApproveEngineDownload)
-    func handle(_ command: CancelEngineDownload)
-    func handle(_ command: CheckBeforeUnload)
-    func handle(_ command: ClosePage)
-    func handle(_ command: CreatePage)
-    func handle(_ command: DropStagedLink)
-    func handle(_ command: EraseProfileData)
-    func handle(_ command: EraseSiteData)
-    func handle(_ command: LoadPage)
-    func handle(_ command: RecoverPage)
-    func handle(_ command: RejectOfferedPage)
-    func handle(_ command: RemoveEngineDownload)
-    func handle(_ command: SettleAuthentication)
-    func handle(_ command: SettleDownloadDestination)
-    func handle(_ command: SettleExtensionInstall)
-    func handle(_ command: SettlePermission)
-    func handle(_ command: SettleScriptDialog)
-    func handle(_ command: StageNavigation)
-}
-
-/// A `EngineCommandHandling` that observes only some cases: each case it does not handle does nothing.
-@MainActor
-protocol EngineCommandObserving: EngineCommandHandling {}
-
-extension EngineCommandObserving {
-    func handle(_ command: AdoptOfferedPage) {}
-    func handle(_ command: ApproveEngineDownload) {}
-    func handle(_ command: CancelEngineDownload) {}
-    func handle(_ command: CheckBeforeUnload) {}
-    func handle(_ command: ClosePage) {}
-    func handle(_ command: CreatePage) {}
-    func handle(_ command: DropStagedLink) {}
-    func handle(_ command: EraseProfileData) {}
-    func handle(_ command: EraseSiteData) {}
-    func handle(_ command: LoadPage) {}
-    func handle(_ command: RecoverPage) {}
-    func handle(_ command: RejectOfferedPage) {}
-    func handle(_ command: RemoveEngineDownload) {}
-    func handle(_ command: SettleAuthentication) {}
-    func handle(_ command: SettleDownloadDestination) {}
-    func handle(_ command: SettleExtensionInstall) {}
-    func handle(_ command: SettlePermission) {}
-    func handle(_ command: SettleScriptDialog) {}
-    func handle(_ command: StageNavigation) {}
-}
-
-extension EngineCommand {
-    /// Hands the command to `handler`'s method for its case.
-    @MainActor func dispatch(to handler: some EngineCommandHandling) {
-        switch self {
-        case .adoptOfferedPage(let command): handler.handle(command)
-        case .approveEngineDownload(let command): handler.handle(command)
-        case .cancelEngineDownload(let command): handler.handle(command)
-        case .checkBeforeUnload(let command): handler.handle(command)
-        case .closePage(let command): handler.handle(command)
-        case .createPage(let command): handler.handle(command)
-        case .dropStagedLink(let command): handler.handle(command)
-        case .eraseProfileData(let command): handler.handle(command)
-        case .eraseSiteData(let command): handler.handle(command)
-        case .loadPage(let command): handler.handle(command)
-        case .recoverPage(let command): handler.handle(command)
-        case .rejectOfferedPage(let command): handler.handle(command)
-        case .removeEngineDownload(let command): handler.handle(command)
-        case .settleAuthentication(let command): handler.handle(command)
-        case .settleDownloadDestination(let command): handler.handle(command)
-        case .settleExtensionInstall(let command): handler.handle(command)
-        case .settlePermission(let command): handler.handle(command)
-        case .settleScriptDialog(let command): handler.handle(command)
-        case .stageNavigation(let command): handler.handle(command)
-        }
-    }
-}
-
-/// Handles each case of `PageRequest`, one method per case, which `request.dispatch(to:)` calls. Each answers its request.
-@MainActor
-protocol PageRequestHandling {
-    func handle(_ request: ActivateMediaSession) -> Bool
-    func handle(_ request: AddContentScript) -> Bool
-    func handle(_ request: AnswerInfoBar) -> Bool
-    func handle(_ request: CapturePage) -> Bool
-    func handle(_ request: ChangeExtension) -> Bool
-    func handle(_ request: CloseInspector) -> Bool
-    func handle(_ request: EnterPictureInPicture) -> Bool
-    func handle(_ request: EvaluateContentScript) -> Bool
-    func handle(_ request: ExportPage) -> Bool
-    func handle(_ request: FindInPage) -> Bool
-    func handle(_ request: GoToHistoryOffset) -> Bool
-    func handle(_ request: HasSidePanel) -> Bool
-    func handle(_ request: HidePage) -> Bool
-    func handle(_ request: InstalledExtensions) -> InstalledExtensionList
-    func handle(_ request: LayoutInspector) -> InspectorLayout
-    func handle(_ request: MovePageToWindow) -> Bool
-    func handle(_ request: MuteMediaSession) -> Bool
-    func handle(_ request: OpenInspector) -> Bool
-    func handle(_ request: PageCertificates) -> CertificateChain
-    func handle(_ request: PageExtensions) -> ExtensionActionList
-    func handle(_ request: PageIcon) -> PageIconImage
-    func handle(_ request: PageInspected) -> Bool
-    func handle(_ request: PageMedia) -> PageMediaState
-    func handle(_ request: PerformMediaAction) -> Bool
-    func handle(_ request: PinnedExtensions) -> ExtensionActionList
-    func handle(_ request: PrepareProfile) -> Bool
-    func handle(_ request: RefreshPageIcon) -> Bool
-    func handle(_ request: RefreshStoreListing) -> Bool
-    func handle(_ request: ReloadPage) -> Bool
-    func handle(_ request: RestoreInteractionState) -> Bool
-    func handle(_ request: SaveInteractionState) -> InteractionState
-    func handle(_ request: SetSitePermission) -> Bool
-    func handle(_ request: ShowBlockedPopups) -> Bool
-    func handle(_ request: ShowPage) -> Bool
-    func handle(_ request: StopLoading) -> Bool
-    func handle(_ request: StopMediaCapture) -> Bool
-    func handle(_ request: WatchPage) -> Bool
-    func handle(_ request: ZoomPage) -> Bool
-}
-
-extension ActivateMediaSession {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension AddContentScript {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension AnswerInfoBar {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension CapturePage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension ChangeExtension {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension CloseInspector {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension EnterPictureInPicture {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension EvaluateContentScript {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension ExportPage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension FindInPage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension GoToHistoryOffset {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension HasSidePanel {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension HidePage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension InstalledExtensions {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> InstalledExtensionList {
-        handler.handle(self)
-    }
-}
-
-extension LayoutInspector {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> InspectorLayout {
-        handler.handle(self)
-    }
-}
-
-extension MovePageToWindow {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension MuteMediaSession {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension OpenInspector {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension PageCertificates {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> CertificateChain {
-        handler.handle(self)
-    }
-}
-
-extension PageExtensions {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> ExtensionActionList {
-        handler.handle(self)
-    }
-}
-
-extension PageIcon {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> PageIconImage {
-        handler.handle(self)
-    }
-}
-
-extension PageInspected {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension PageMedia {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> PageMediaState {
-        handler.handle(self)
-    }
-}
-
-extension PerformMediaAction {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension PinnedExtensions {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> ExtensionActionList {
-        handler.handle(self)
-    }
-}
-
-extension PrepareProfile {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension RefreshPageIcon {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension RefreshStoreListing {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension ReloadPage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension RestoreInteractionState {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension SaveInteractionState {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> InteractionState {
-        handler.handle(self)
-    }
-}
-
-extension SetSitePermission {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension ShowBlockedPopups {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension ShowPage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension StopLoading {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension StopMediaCapture {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension WatchPage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-extension ZoomPage {
-    @MainActor func dispatch(to handler: some PageRequestHandling) -> Bool {
-        handler.handle(self)
-    }
-}
-
-/// Handles each case of `EnginePresentation`, one method per case, which `presentation.dispatch(to:)` calls.
-/// A receiver that handles only some cases conforms to `EnginePresentationObserving`.
-@MainActor
-protocol EnginePresentationHandling {
-    func handle(_ presentation: ContentFullscreenChanged)
-    func handle(_ presentation: ContentMessagePosted)
-    func handle(_ presentation: ContentScriptEvaluated)
-    func handle(_ presentation: ExtensionsChanged)
-    func handle(_ presentation: FindFinished)
-    func handle(_ presentation: InfoBarRemoved)
-    func handle(_ presentation: InfoBarShown)
-    func handle(_ presentation: InspectorClosed)
-    func handle(_ presentation: InspectorLayoutChanged)
-    func handle(_ presentation: LinkHovered)
-    func handle(_ presentation: MediaSessionChanged)
-    func handle(_ presentation: PageCaptured)
-    func handle(_ presentation: PageExported)
-    func handle(_ presentation: PageHistoryChanged)
-    func handle(_ presentation: PageInteracted)
-    func handle(_ presentation: PageLoadingChanged)
-    func handle(_ presentation: PageNavigationCommitted)
-    func handle(_ presentation: PageNavigationFailed)
-    func handle(_ presentation: PageNavigationStarted)
-    func handle(_ presentation: PageRendererGone)
-    func handle(_ presentation: PageThemeChanged)
-    func handle(_ presentation: PageViewClosed)
-    func handle(_ presentation: PageViewReady)
-    func handle(_ presentation: PageViewUnavailable)
-    func handle(_ presentation: PeekRequested)
-    func handle(_ presentation: PopupBlocked)
-    func handle(_ presentation: ProfilePrepared)
-    func handle(_ presentation: ProfileReleased)
-    func handle(_ presentation: SidePanelRequested)
-    func handle(_ presentation: StoreInstallRequested)
-    func handle(_ presentation: StoreRemovalRequested)
-}
-
-/// A `EnginePresentationHandling` that observes only some cases: each case it does not handle does nothing.
-@MainActor
-protocol EnginePresentationObserving: EnginePresentationHandling {}
-
-extension EnginePresentationObserving {
-    func handle(_ presentation: ContentFullscreenChanged) {}
-    func handle(_ presentation: ContentMessagePosted) {}
-    func handle(_ presentation: ContentScriptEvaluated) {}
-    func handle(_ presentation: ExtensionsChanged) {}
-    func handle(_ presentation: FindFinished) {}
-    func handle(_ presentation: InfoBarRemoved) {}
-    func handle(_ presentation: InfoBarShown) {}
-    func handle(_ presentation: InspectorClosed) {}
-    func handle(_ presentation: InspectorLayoutChanged) {}
-    func handle(_ presentation: LinkHovered) {}
-    func handle(_ presentation: MediaSessionChanged) {}
-    func handle(_ presentation: PageCaptured) {}
-    func handle(_ presentation: PageExported) {}
-    func handle(_ presentation: PageHistoryChanged) {}
-    func handle(_ presentation: PageInteracted) {}
-    func handle(_ presentation: PageLoadingChanged) {}
-    func handle(_ presentation: PageNavigationCommitted) {}
-    func handle(_ presentation: PageNavigationFailed) {}
-    func handle(_ presentation: PageNavigationStarted) {}
-    func handle(_ presentation: PageRendererGone) {}
-    func handle(_ presentation: PageThemeChanged) {}
-    func handle(_ presentation: PageViewClosed) {}
-    func handle(_ presentation: PageViewReady) {}
-    func handle(_ presentation: PageViewUnavailable) {}
-    func handle(_ presentation: PeekRequested) {}
-    func handle(_ presentation: PopupBlocked) {}
-    func handle(_ presentation: ProfilePrepared) {}
-    func handle(_ presentation: ProfileReleased) {}
-    func handle(_ presentation: SidePanelRequested) {}
-    func handle(_ presentation: StoreInstallRequested) {}
-    func handle(_ presentation: StoreRemovalRequested) {}
-}
-
-extension EnginePresentation {
-    /// Hands the presentation to `handler`'s method for its case.
-    @MainActor func dispatch(to handler: some EnginePresentationHandling) {
-        switch self {
-        case .contentFullscreenChanged(let presentation): handler.handle(presentation)
-        case .contentMessagePosted(let presentation): handler.handle(presentation)
-        case .contentScriptEvaluated(let presentation): handler.handle(presentation)
-        case .extensionsChanged(let presentation): handler.handle(presentation)
-        case .findFinished(let presentation): handler.handle(presentation)
-        case .infoBarRemoved(let presentation): handler.handle(presentation)
-        case .infoBarShown(let presentation): handler.handle(presentation)
-        case .inspectorClosed(let presentation): handler.handle(presentation)
-        case .inspectorLayoutChanged(let presentation): handler.handle(presentation)
-        case .linkHovered(let presentation): handler.handle(presentation)
-        case .mediaSessionChanged(let presentation): handler.handle(presentation)
-        case .pageCaptured(let presentation): handler.handle(presentation)
-        case .pageExported(let presentation): handler.handle(presentation)
-        case .pageHistoryChanged(let presentation): handler.handle(presentation)
-        case .pageInteracted(let presentation): handler.handle(presentation)
-        case .pageLoadingChanged(let presentation): handler.handle(presentation)
-        case .pageNavigationCommitted(let presentation): handler.handle(presentation)
-        case .pageNavigationFailed(let presentation): handler.handle(presentation)
-        case .pageNavigationStarted(let presentation): handler.handle(presentation)
-        case .pageRendererGone(let presentation): handler.handle(presentation)
-        case .pageThemeChanged(let presentation): handler.handle(presentation)
-        case .pageViewClosed(let presentation): handler.handle(presentation)
-        case .pageViewReady(let presentation): handler.handle(presentation)
-        case .pageViewUnavailable(let presentation): handler.handle(presentation)
-        case .peekRequested(let presentation): handler.handle(presentation)
-        case .popupBlocked(let presentation): handler.handle(presentation)
-        case .profilePrepared(let presentation): handler.handle(presentation)
-        case .profileReleased(let presentation): handler.handle(presentation)
-        case .sidePanelRequested(let presentation): handler.handle(presentation)
-        case .storeInstallRequested(let presentation): handler.handle(presentation)
-        case .storeRemovalRequested(let presentation): handler.handle(presentation)
+extension CoreState {
+    /// Applies one change through the hand-written applier for its type.
+    func apply(_ change: Change) {
+        switch change {
+        case .appPreferencesChanged(let change): apply(change)
+        case .archiveChanged(let change): apply(change)
+        case .authenticationAsked(let change): apply(change)
+        case .closeReady(let change): apply(change)
+        case .cloudMergeBegan(let change): apply(change)
+        case .cloudSyncAdvanced(let change): apply(change)
+        case .cloudTransportChanged(let change): apply(change)
+        case .dataDeleted(let change): apply(change)
+        case .downloadApprovalAsked(let change): apply(change)
+        case .downloadDestinationAsked(let change): apply(change)
+        case .downloadUpdated(let change): apply(change)
+        case .downloadsRemoved(let change): apply(change)
+        case .enginesChanged(let change): apply(change)
+        case .extensionInstallAsked(let change): apply(change)
+        case .foldersChanged(let change): apply(change)
+        case .historyChanged(let change): apply(change)
+        case .linkPreferencesChanged(let change): apply(change)
+        case .navigationRecorded(let change): apply(change)
+        case .offeredPageAdopted(let change): apply(change)
+        case .pageChanged(let change): apply(change)
+        case .pageOpened(let change): apply(change)
+        case .pageRehosted(let change): apply(change)
+        case .pageRemoved(let change): apply(change)
+        case .pageUnloaded(let change): apply(change)
+        case .permissionAsked(let change): apply(change)
+        case .promptSettled(let change): apply(change)
+        case .quitWithDownloadsAsked(let change): apply(change)
+        case .saved(let change): apply(change)
+        case .scriptDialogAsked(let change): apply(change)
+        case .sessionAdopted(let change): apply(change)
+        case .setupCompletedChanged(let change): apply(change)
+        case .setupDraftChanged(let change): apply(change)
+        case .setupFinished(let change): apply(change)
+        case .setupFlowChanged(let change): apply(change)
+        case .shortcutsChanged(let change): apply(change)
+        case .sidebarChanged(let change): apply(change)
+        case .sitePermissionsChanged(let change): apply(change)
+        case .spaceLockChanged(let change): apply(change)
+        case .spaceSettingsChanged(let change): apply(change)
+        case .spacesChanged(let change): apply(change)
+        case .splitGroupsChanged(let change): apply(change)
+        case .storageFailed(let change): apply(change)
+        case .syncJournalChanged(let change): apply(change)
+        case .syncRecordsSkipped(let change): apply(change)
+        case .syncStagingFailed(let change): apply(change)
+        case .tabCopied(let change): apply(change)
+        case .tabFaviconAssigned(let change): apply(change)
+        case .tabPagePutAway(let change): apply(change)
+        case .tabsChanged(let change): apply(change)
+        case .tabsImported(let change): apply(change)
+        case .transientPagePromoted(let change): apply(change)
+        case .windowChanged(let change): apply(change)
+        case .windowClosed(let change): apply(change)
+        case .windowRecordsAdopted(let change): apply(change)
+        case .workspaceChanged(let change): apply(change)
+        case .workspaceClosed(let change): apply(change)
+        case .workspaceOpened(let change): apply(change)
         }
     }
 }

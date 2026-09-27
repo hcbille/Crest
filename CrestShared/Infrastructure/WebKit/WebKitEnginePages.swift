@@ -31,18 +31,75 @@ final class WebKitEnginePages: EnginePages {
     /// gone answers that nothing was done.
     @discardableResult
     func request<Request: PageRequest>(_ request: Request) -> Request.Answer {
-        request.dispatch(to: self)
+        switch request {
+        case let going as GoToHistoryOffset:
+            return answer(page(going.pageID).map { $0.engine.navigateHistory(by: going.offset) } != nil)
+        case let reloading as ReloadPage:
+            let reloaded = page(reloading.pageID)
+            reloaded?.engine.reload(bypassingCache: reloading.bypassesCache)
+            return answer(reloaded != nil)
+        case let stopping as StopLoading:
+            return answer(page(stopping.pageID).map { $0.webView.stopLoading() } != nil)
+        case let zooming as ZoomPage:
+            return answer(page(zooming.pageID).map { $0.webView.pageZoom = CGFloat(zooming.factor) } != nil)
+        case let finding as FindInPage:
+            return answer(find(finding))
+        case let saving as SaveInteractionState:
+            return answer(InteractionState(state: page(saving.pageID)?.engine.savedHistory()))
+        case let restoring as RestoreInteractionState:
+            return answer(page(restoring.pageID)?.engine.restoreHistory(restoring.state) ?? false)
+        case let capturing as CapturePage:
+            return answer(capture(capturing))
+        case let exporting as ExportPage:
+            return answer(export(exporting))
+        case let asking as PageCertificates:
+            return answer(CertificateChain(certificates: page(asking.pageID).map(certificates) ?? []))
+        case let opening as OpenInspector:
+            return answer(openInspector(opening))
+        case let closing as CloseInspector:
+            return answer(closeInspector(closing.pageID))
+        case let asking as PageInspected:
+            return answer(isInspected(asking.pageID))
+        case is LayoutInspector:
+            // WebKit's inspector lays itself out beside the page.
+            return answer(InspectorLayout(inspector: nil, page: nil))
+        case let setting as SetSitePermission:
+            return answer(setSitePermission(setting))
+        case let stopping as StopMediaCapture:
+            return answer(stopCapture(stopping))
+        case let asking as PageMedia:
+            return answer(PageMediaState(activity: page(asking.pageID).map(mediaActivity) ?? []))
+        case let moving as MovePageToWindow:
+            // A web view travels with its page from window to window.
+            return answer(page(moving.pageID) != nil)
+        case is ShowBlockedPopups, is AnswerInfoBar, is RefreshPageIcon, is EnterPictureInPicture,
+            is ActivateMediaSession, is PerformMediaAction, is MuteMediaSession:
+            // WebKit keeps no blocked popups or bars of its own. Crest fetches
+            // its pages' icons, and runs their Media Session and Picture in
+            // Picture through its own bridges in the page.
+            return answer(false)
+        default:
+            preconditionFailure("WebKit answers no \(Request.self).")
+        }
     }
 
     private func page(_ pageID: UUID) -> WebKitEnginePage? {
         binding.page(pageID)
     }
 
+    /// The answer a request's own type names, which each case above builds.
+    private func answer<Answer>(_ value: Any) -> Answer {
+        guard let typed = value as? Answer else {
+            preconditionFailure("WebKit built the wrong answer for \(Answer.self).")
+        }
+        return typed
+    }
+
     // MARK: - Actions - Documents
 
     /// Snapshots what the page's web view shows, and presents it as a PNG
     /// once WebKit has it.
-    func handle(_ capturing: CapturePage) -> Bool {
+    private func capture(_ capturing: CapturePage) -> Bool {
         #if os(macOS)
             guard let page = page(capturing.pageID) else { return false }
             let configuration = WKSnapshotConfiguration()
@@ -67,7 +124,7 @@ final class WebKitEnginePages: EnginePages {
     /// Makes the page's document as the export asks, and presents it once
     /// WebKit made it. WebKit keeps its archives as web archives, never as
     /// MHTML.
-    func handle(_ exporting: ExportPage) -> Bool {
+    private func export(_ exporting: ExportPage) -> Bool {
         #if os(macOS)
             guard let page = page(exporting.pageID), exporting.format != .mhtml else { return false }
             let webView = page.webView
@@ -166,7 +223,7 @@ final class WebKitEnginePages: EnginePages {
 
     // MARK: - Actions - Inspector
 
-    func handle(_ opening: OpenInspector) -> Bool {
+    private func openInspector(_ opening: OpenInspector) -> Bool {
         #if os(macOS)
             guard let webView = page(opening.pageID)?.webView else { return false }
             return BrowserWebInspectorAccess.open(
@@ -198,7 +255,7 @@ final class WebKitEnginePages: EnginePages {
 
     /// WebKit has no popup blocker of its own to tell: the page's preferences
     /// carry Crest's popup decision. Crest's own prompts enforce the rest.
-    func handle(_ setting: SetSitePermission) -> Bool {
+    private func setSitePermission(_ setting: SetSitePermission) -> Bool {
         guard setting.permission == .popups, let page = page(setting.pageID) else { return false }
         page.webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically = setting.allowed == true
         return true
@@ -206,7 +263,7 @@ final class WebKitEnginePages: EnginePages {
 
     /// WebKit leaves capture running after Crest withdraws a grant; Crest's
     /// own prompt decided it, so Crest ends it.
-    func handle(_ stopping: StopMediaCapture) -> Bool {
+    private func stopCapture(_ stopping: StopMediaCapture) -> Bool {
         guard let webView = page(stopping.pageID)?.webView else { return false }
         if stopping.permission.devices.contains(.camera) {
             webView.setCameraCaptureState(.none, completionHandler: nil)
@@ -227,7 +284,7 @@ final class WebKitEnginePages: EnginePages {
     // MARK: - Actions - Find
 
     /// Finds text in the page, and presents its count once WebKit has it.
-    func handle(_ finding: FindInPage) -> Bool {
+    private func find(_ finding: FindInPage) -> Bool {
         guard let page = page(finding.pageID) else { return false }
         let configuration = BrowserFindConfiguration(backwards: finding.backwards, caseSensitive: finding.caseSensitive)
         page.webView.performFind(finding.query, configuration: configuration) { [weak self] result in
@@ -237,123 +294,4 @@ final class WebKitEnginePages: EnginePages {
         }
         return true
     }
-}
-
-// MARK: - Requests
-
-/// The rest of the requests a page makes of WebKit. What WebKit keeps nothing
-/// of, such as blocked popups or its own bars, answers that nothing was done;
-/// what only Chromium runs, such as extensions and content scripts, never
-/// reaches a WebKit page.
-extension WebKitEnginePages: PageRequestHandling {
-    func handle(_ going: GoToHistoryOffset) -> Bool {
-        page(going.pageID).map { $0.engine.navigateHistory(by: going.offset) } != nil
-    }
-
-    func handle(_ reloading: ReloadPage) -> Bool {
-        let reloaded = page(reloading.pageID)
-        reloaded?.engine.reload(bypassingCache: reloading.bypassesCache)
-        return reloaded != nil
-    }
-
-    func handle(_ stopping: StopLoading) -> Bool {
-        page(stopping.pageID).map { $0.webView.stopLoading() } != nil
-    }
-
-    func handle(_ zooming: ZoomPage) -> Bool {
-        page(zooming.pageID).map { $0.webView.pageZoom = CGFloat(zooming.factor) } != nil
-    }
-
-    func handle(_ saving: SaveInteractionState) -> InteractionState {
-        InteractionState(state: page(saving.pageID)?.engine.savedHistory())
-    }
-
-    func handle(_ restoring: RestoreInteractionState) -> Bool {
-        page(restoring.pageID)?.engine.restoreHistory(restoring.state) ?? false
-    }
-
-    func handle(_ asking: PageCertificates) -> CertificateChain {
-        CertificateChain(certificates: page(asking.pageID).map(certificates) ?? [])
-    }
-
-    func handle(_ closing: CloseInspector) -> Bool {
-        closeInspector(closing.pageID)
-    }
-
-    func handle(_ asking: PageInspected) -> Bool {
-        isInspected(asking.pageID)
-    }
-
-    /// WebKit's inspector lays itself out beside the page.
-    func handle(_ request: LayoutInspector) -> InspectorLayout {
-        InspectorLayout(inspector: nil, page: nil)
-    }
-
-    func handle(_ asking: PageMedia) -> PageMediaState {
-        PageMediaState(activity: page(asking.pageID).map(mediaActivity) ?? [])
-    }
-
-    /// A web view travels with its page from window to window.
-    func handle(_ moving: MovePageToWindow) -> Bool {
-        page(moving.pageID) != nil
-    }
-
-    /// WebKit keeps no blocked popups of its own.
-    func handle(_ request: ShowBlockedPopups) -> Bool { false }
-
-    /// WebKit shows no bars of its own.
-    func handle(_ request: AnswerInfoBar) -> Bool { false }
-
-    /// Crest fetches its WebKit pages' icons itself.
-    func handle(_ request: RefreshPageIcon) -> Bool { false }
-
-    // Crest runs its WebKit pages' Media Session and Picture in Picture
-    // through its own bridges in the page.
-
-    func handle(_ request: EnterPictureInPicture) -> Bool { false }
-
-    func handle(_ request: ActivateMediaSession) -> Bool { false }
-
-    func handle(_ request: PerformMediaAction) -> Bool { false }
-
-    func handle(_ request: MuteMediaSession) -> Bool { false }
-
-    // Only Chromium runs extensions, content scripts, profiles it prepares,
-    // icons it keeps and pages it shows, hides or watches itself.
-
-    func handle(_ request: AddContentScript) -> Bool { preconditionFailure("WebKit answers no AddContentScript.") }
-
-    func handle(_ request: EvaluateContentScript) -> Bool {
-        preconditionFailure("WebKit answers no EvaluateContentScript.")
-    }
-
-    func handle(_ request: ChangeExtension) -> Bool { preconditionFailure("WebKit answers no ChangeExtension.") }
-
-    func handle(_ request: HasSidePanel) -> Bool { preconditionFailure("WebKit answers no HasSidePanel.") }
-
-    func handle(_ request: InstalledExtensions) -> InstalledExtensionList {
-        preconditionFailure("WebKit answers no InstalledExtensions.")
-    }
-
-    func handle(_ request: PageExtensions) -> ExtensionActionList {
-        preconditionFailure("WebKit answers no PageExtensions.")
-    }
-
-    func handle(_ request: PinnedExtensions) -> ExtensionActionList {
-        preconditionFailure("WebKit answers no PinnedExtensions.")
-    }
-
-    func handle(_ request: RefreshStoreListing) -> Bool {
-        preconditionFailure("WebKit answers no RefreshStoreListing.")
-    }
-
-    func handle(_ request: PrepareProfile) -> Bool { preconditionFailure("WebKit answers no PrepareProfile.") }
-
-    func handle(_ request: PageIcon) -> PageIconImage { preconditionFailure("WebKit answers no PageIcon.") }
-
-    func handle(_ request: ShowPage) -> Bool { preconditionFailure("WebKit answers no ShowPage.") }
-
-    func handle(_ request: HidePage) -> Bool { preconditionFailure("WebKit answers no HidePage.") }
-
-    func handle(_ request: WatchPage) -> Bool { preconditionFailure("WebKit answers no WatchPage.") }
 }

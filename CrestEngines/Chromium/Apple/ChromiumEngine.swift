@@ -59,12 +59,49 @@
         /// pages show. Its downloads' questions are the app's to answer.
         func follow(_ core: CrestCore) {
             self.core = core
-            core.followChanges(self)
+            core.followPrompts(self) { [weak self] change in self?.ask(change) }
         }
 
         /// Sends the person's answer to a question the core asked.
         func answer(_ intent: some PromptIntent) {
             _ = try? core?.send(intent)
+        }
+
+        /// Shows a question the core asks on the page that asked it, and closes
+        /// it once the core settles it. One no page of this engine can show any
+        /// more is declined; one about a page another engine hosts is that
+        /// engine's to show.
+        private func ask(_ change: Change) {
+            switch change {
+            case .scriptDialogAsked(let asked):
+                guard let page = hosted[asked.pageID]?.page else {
+                    guard !isAnotherEnginesPage(asked.pageID) else { return }
+                    return answer(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
+                }
+                page.ask(asked, dismissal: dismissal(for: asked.promptID))
+            case .authenticationAsked(let asked):
+                guard let page = hosted[asked.pageID]?.page else {
+                    guard !isAnotherEnginesPage(asked.pageID) else { return }
+                    return answer(AnswerAuthentication(promptID: asked.promptID, credential: nil))
+                }
+                page.ask(asked, dismissal: dismissal(for: asked.promptID))
+            case .permissionAsked(let asked):
+                guard let page = hosted[asked.pageID]?.page else {
+                    guard !isAnotherEnginesPage(asked.pageID) else { return }
+                    return answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
+                }
+                page.ask(asked, dismissal: dismissal(for: asked.promptID))
+            case .extensionInstallAsked(let asked):
+                CrestChromiumRoot.extensions.review(asked) { [weak self] accepted, withholds in
+                    self?.answer(
+                        AnswerExtensionInstall(
+                            promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
+                }
+            case .promptSettled(let settled):
+                dismissals.removeValue(forKey: settled.promptID)?.dismiss()
+            default:
+                break
+            }
         }
 
         /// Whether the core hosts `pageID` on another engine.
@@ -140,80 +177,19 @@
             hosted[native.pageID] = WeakNativePage(page: native)
         }
 
-        /// Hands a presentation to what it is about: the extensions, a profile
-        /// or a side panel here, and one about a page to that page. One for a
-        /// page that is gone changes nothing.
+        /// Hands a presentation to the page it names; one for a page that is
+        /// gone changes nothing.
         private func present(_ presentation: EnginePresentation) {
-            presentation.dispatch(to: self)
-            guard let pageID = presentation.pageID else { return }
-            hosted[pageID]?.page?.receive(presentation)
-        }
-    }
-
-    // MARK: - Prompts
-
-    /// Shows a question the core asks on the page that asked it, and closes it
-    /// once the core settles it. One no page of this engine can show any more
-    /// is declined; one about a page another engine hosts is that engine's to
-    /// show. It observes only the questions Chromium's pages and extensions ask.
-    extension ChromiumEngine: ChangeObserving {
-        func handle(_ asked: ScriptDialogAsked) {
-            guard let page = hosted[asked.pageID]?.page else {
-                guard !isAnotherEnginesPage(asked.pageID) else { return }
-                return answer(AnswerScriptDialog(promptID: asked.promptID, accepted: false, text: nil))
+            switch presentation {
+            case .extensionsChanged: CrestChromiumRoot.extensions.refresh()
+            case .profilePrepared(let prepared):
+                preparations.removeValue(forKey: prepared.preparationID)?.resume(returning: prepared.ready)
+            case .profileReleased(let released): CrestChromiumRoot.profileReleased(released)
+            case .sidePanelRequested(let requested): CrestChromiumRoot.routeSidePanel(requested)
+            default:
+                guard let pageID = presentation.pageID else { return }
+                hosted[pageID]?.page?.receive(presentation)
             }
-            page.ask(asked, dismissal: dismissal(for: asked.promptID))
-        }
-
-        func handle(_ asked: AuthenticationAsked) {
-            guard let page = hosted[asked.pageID]?.page else {
-                guard !isAnotherEnginesPage(asked.pageID) else { return }
-                return answer(AnswerAuthentication(promptID: asked.promptID, credential: nil))
-            }
-            page.ask(asked, dismissal: dismissal(for: asked.promptID))
-        }
-
-        func handle(_ asked: PermissionAsked) {
-            guard let page = hosted[asked.pageID]?.page else {
-                guard !isAnotherEnginesPage(asked.pageID) else { return }
-                return answer(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
-            }
-            page.ask(asked, dismissal: dismissal(for: asked.promptID))
-        }
-
-        func handle(_ asked: ExtensionInstallAsked) {
-            CrestChromiumRoot.extensions.review(asked) { [weak self] accepted, withholds in
-                self?.answer(
-                    AnswerExtensionInstall(promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds)
-                )
-            }
-        }
-
-        func handle(_ settled: PromptSettled) {
-            dismissals.removeValue(forKey: settled.promptID)?.dismiss()
-        }
-    }
-
-    // MARK: - Presentations
-
-    /// What the binding presents about the extensions, a profile or a side
-    /// panel, which the engine handles itself; it observes only these, and
-    /// hands what it presents about a page to that page.
-    extension ChromiumEngine: EnginePresentationObserving {
-        func handle(_ presentation: ExtensionsChanged) {
-            CrestChromiumRoot.extensions.refresh()
-        }
-
-        func handle(_ prepared: ProfilePrepared) {
-            preparations.removeValue(forKey: prepared.preparationID)?.resume(returning: prepared.ready)
-        }
-
-        func handle(_ released: ProfileReleased) {
-            CrestChromiumRoot.profileReleased(released)
-        }
-
-        func handle(_ requested: SidePanelRequested) {
-            CrestChromiumRoot.routeSidePanel(requested)
         }
     }
 

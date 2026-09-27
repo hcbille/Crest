@@ -12,5 +12,5 @@ extension DeleteSiteData: DataDeletionRequest {}
 
 extension CoreState {
     /// A data deletion's end changes no model: `CrestCore.deleteData` hears it.
-    func handle(_ change: DataDeleted) {}
+    func apply(_ change: DataDeleted) {}
 }

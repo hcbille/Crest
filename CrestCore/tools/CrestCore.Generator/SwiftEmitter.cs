@@ -54,9 +54,17 @@ internal static class SwiftEmitter {
             code.Append($"protocol {family.Base!.Name}: {family.Root} {{}}\n");
         }
         foreach (var root in ContractRoot.All.Where(root => !root.PlatformSends)) EmitUnion(code, schema, root, equatable);
-        var handled = ContractRoot.All.Where(root => root.PlatformHandles).ToList();
-        if (handled.Count > 0) code.Append("\n// MARK: - Handlers\n");
-        foreach (var root in handled) EmitHandling(code, schema, root);
+        code.Append("""
+
+            extension CoreState {
+                /// Applies one change through the hand-written applier for its type.
+                func apply(_ change: Change) {
+                    switch change {
+
+            """);
+        foreach (var member in schema.Members(ContractRoot.Change))
+            code.Append($"        case .{Naming.SwiftMember(member.Name)}(let change): apply(change)\n");
+        code.Append("        }\n    }\n}\n");
 
         var roots = new Dictionary<Type, (ContractRoot Root, ContractMember Member)>();
         foreach (var root in ContractRoot.All)
@@ -276,72 +284,18 @@ internal static class SwiftEmitter {
 
     /// A root the platform sends becomes the protocol its messages conform to,
     /// each encoding itself with its tag; a question also decodes its answer.
-    /// One a Swift receiver handles also hands itself to its handler.
     private static void EmitProtocol(StringBuilder code, ContractRoot root) {
         code.Append('\n').Append($"/// {root.SwiftDocumentation}\n");
         code.Append($"protocol {root.Name}: Sendable {{\n");
         if (root.HasAnswer) code.Append("    associatedtype Answer: Sendable\n");
         code.Append($"    func encode{root.Name}(into writer: inout WireWriter)\n");
         if (root.HasAnswer) code.Append("    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer\n");
-        if (root.PlatformHandles) {
-            code.Append($"    /// Hands the {Parameter(root)} to `handler`'s method for its case{(root.HasAnswer ? ", which answers it" : "")}.\n");
-            code.Append($"    @MainActor func dispatch(to handler: some {Handling(root)}){(root.HasAnswer ? " -> Answer" : "")}\n");
-        }
         code.Append("}\n");
     }
-
-    /// A root a Swift receiver handles case by case gets a `<Root>Handling`
-    /// protocol with one `handle(_:)` per member, and `dispatch(to:)`, which
-    /// calls the one for the message's case: a switch over a received union,
-    /// or each sent message's own method. A receiver that handles every case
-    /// conforms to it, so a new member it does not handle fails to compile. A
-    /// union that answers nothing also gets `<Root>Observing`, whose cases do
-    /// nothing until a receiver that watches for only some of them handles them.
-    private static void EmitHandling(StringBuilder code, ContractSchema schema, ContractRoot root) {
-        var members = schema.Members(root);
-        string handling = Handling(root);
-        string parameter = Parameter(root);
-        code.Append('\n').Append($"/// Handles each case of `{root.Name}`, one method per case, which `{parameter}.dispatch(to:)` calls.");
-        code.Append(root.HasAnswer ? " Each answers its request.\n" : $"\n/// A receiver that handles only some cases conforms to `{Observing(root)}`.\n");
-        code.Append($"@MainActor\nprotocol {handling} {{\n");
-        foreach (var member in members)
-            code.Append($"    func handle(_ {parameter}: {member.Name}){(root.HasAnswer ? $" -> {TypeName(member.Answer!)}" : "")}\n");
-        code.Append("}\n");
-        if (root.PlatformSends) {
-            foreach (var member in members) {
-                string answer = root.HasAnswer ? $" -> {TypeName(member.Answer!)}" : "";
-                code.Append('\n').Append($"extension {member.Name} {{\n");
-                code.Append($"    @MainActor func dispatch(to handler: some {handling}){answer} {{\n");
-                code.Append("        handler.handle(self)\n    }\n}\n");
-            }
-            return;
-        }
-        code.Append('\n').Append($"/// A `{handling}` that observes only some cases: each case it does not handle does nothing.\n");
-        code.Append($"@MainActor\nprotocol {Observing(root)}: {handling} {{}}\n");
-        code.Append('\n').Append($"extension {Observing(root)} {{\n");
-        foreach (var member in members) code.Append($"    func handle(_ {parameter}: {member.Name}) {{}}\n");
-        code.Append("}\n");
-        code.Append('\n').Append($"extension {root.Name} {{\n");
-        code.Append($"    /// Hands the {parameter} to `handler`'s method for its case.\n");
-        code.Append($"    @MainActor func dispatch(to handler: some {handling}) {{\n        switch self {{\n");
-        foreach (var member in members)
-            code.Append($"        case .{Naming.SwiftMember(member.Name)}(let {parameter}): handler.handle({parameter})\n");
-        code.Append("        }\n    }\n}\n");
-    }
-
-    /// `Change`'s handling protocol is `ChangeHandling`.
-    private static string Handling(ContractRoot root) => $"{root.Name}Handling";
-
-    private static string Observing(ContractRoot root) => $"{root.Name}Observing";
-
-    /// What a message of `root` is called in its handler: the last word of
-    /// the root's name, as `command` for `EngineCommand`.
-    private static string Parameter(ContractRoot root) => Naming.Words(root.Name)[^1].ToLowerInvariant();
 
     /// A root the platform receives becomes an enum with a case per message.
-    /// Each text some of its messages carry, and each fact a family of them
-    /// declares, is read through the enum as an optional, nil for a message
-    /// without it, or as it is when every message carries it.
+    /// Each text some of its messages carry is read through the enum as an
+    /// optional, nil for a message without it.
     private static void EmitUnion(StringBuilder code, ContractSchema schema, ContractRoot root, HashSet<Type> equatable) {
         var members = schema.Members(root);
         bool isEquatable = members.All(member => equatable.Contains(member.Record.Type));
@@ -355,22 +309,6 @@ internal static class SwiftEmitter {
             foreach (var member in carriers)
                 code.Append($"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}\n");
             if (carriers.Count < members.Count) code.Append("        default: nil\n");
-            code.Append("        }\n    }\n");
-        }
-        foreach (var fact in schema.Unions.Where(family => family.Root == root).SelectMany(family => family.Fields.Select(field =>
-            (Field: field, Family: family))).GroupBy(fact => fact.Field.Name, StringComparer.Ordinal).OrderBy(fact => fact.Key, StringComparer.Ordinal)) {
-            var type = fact.First().Field.Type;
-            if (fact.Any(declared => declared.Field.Type != type))
-                throw new ContractSchemaException($"{fact.Key}: every family of {root} that declares it gives it the same type.");
-            var carriers = members.Where(member => fact.Any(declared => declared.Family.Type.IsAssignableFrom(member.Record.Type))).ToList();
-            bool everyMember = carriers.Count == members.Count;
-            string property = Local(fact.Key);
-            string families = string.Join(" and ", fact.Select(declared => $"`{declared.Family.Name}`"));
-            code.Append('\n').Append($"    /// The `{property}` of a message of the core's {families}{(everyMember ? "" : ", or nil for any other")}.\n");
-            code.Append($"    var {property}: {TypeName(type)}{(everyMember || type is OptionalField ? "" : "?")} {{\n        switch self {{\n");
-            foreach (var member in carriers)
-                code.Append($"        case .{Naming.SwiftMember(member.Name)}(let value): value.{property}\n");
-            if (!everyMember) code.Append("        default: nil\n");
             code.Append("        }\n    }\n");
         }
         code.Append("}\n");

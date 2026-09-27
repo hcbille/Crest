@@ -9,7 +9,7 @@ internal sealed partial class Device {
     /// store once, saving them before returning. Older records fold in the
     /// selection that release kept in the session. A device without a file,
     /// or one that adopted them before, publishes nothing.
-    public void Handle(AdoptWindowRecords intent, ChangeFeed changes) {
+    private void Adopt(AdoptWindowRecords intent, ChangeFeed changes) {
         Guid workspaceId;
         if (storage is not { } target) return;
         lock (gate) {

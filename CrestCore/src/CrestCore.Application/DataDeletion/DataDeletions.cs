@@ -3,14 +3,6 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-#region Types
-
-/// What one data deletion intent needs: where it publishes, and where it hands
-/// the commands that ask each engine to erase its part.
-internal sealed record DeletionTurn(ChangeFeed Changes, Action<Engine, EngineCommand> Issue);
-
-#endregion
-
 /// Erases what the engines keep for a profile: all of it, or one site's. Every
 /// registered engine is asked, whether or not it has started or shows any
 /// page, since a profile's store outlives the run that filled it. A deletion
@@ -18,7 +10,7 @@ internal sealed record DeletionTurn(ChangeFeed Changes, Action<Engine, EngineCom
 /// when every one of them erased everything. A profile whose data this run
 /// erased may finish its Space's deletion; a relaunch erases it again before
 /// that deletion finishes. Nothing here is saved.
-internal sealed class DataDeletions(Engines engines, IIdSource ids) : IDataDeletionIntentHandler<DeletionTurn> {
+internal sealed class DataDeletions(Engines engines, IIdSource ids) {
     #region Static Variables
 
     /// The longest host a site can have.
@@ -50,19 +42,26 @@ internal sealed class DataDeletions(Engines engines, IIdSource ids) : IDataDelet
 
     #region Actions - Intents
 
-    public void Handle(DataDeletionIntent intent, DeletionTurn turn) => intent.Dispatch(this, turn);
-
-    public void Handle(DeleteProfileData deleting, DeletionTurn turn) {
-        // Until every engine erases it again, the profile's data is not known gone.
-        erasedProfiles.Remove(deleting.ProfileId);
-        Start(new(deleting.RequestId, deleting.ProfileId), erasure => new EraseProfileData(deleting.ProfileId, deleting.Ephemeral, erasure),
-            turn.Changes, turn.Issue);
-    }
-
-    public void Handle(DeleteSiteData deleting, DeletionTurn turn) {
-        if (deleting.Host.Trim() is not { Length: > 0 and <= MaximumHostLength } host) throw new Rejected(new InvalidSiteHost());
-        Start(new(deleting.RequestId, profileId: null),
-            erasure => new EraseSiteData(deleting.ProfileId, deleting.Ephemeral, host.ToLowerInvariant(), erasure), turn.Changes, turn.Issue);
+    public void Handle(DataDeletionIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+        ArgumentNullException.ThrowIfNull(intent);
+        ArgumentNullException.ThrowIfNull(changes);
+        ArgumentNullException.ThrowIfNull(issue);
+        switch (intent) {
+            case DeleteProfileData deleting:
+                // Until every engine erases it again, the profile's data is not known gone.
+                erasedProfiles.Remove(deleting.ProfileId);
+                Start(new(deleting.RequestId, deleting.ProfileId),
+                    erasure => new EraseProfileData(deleting.ProfileId, deleting.Ephemeral, erasure), changes, issue);
+                break;
+            case DeleteSiteData deleting:
+                if (deleting.Host.Trim() is not { Length: > 0 and <= MaximumHostLength } host) throw new Rejected(new InvalidSiteHost());
+                Start(new(deleting.RequestId, profileId: null),
+                    erasure => new EraseSiteData(deleting.ProfileId, deleting.Ephemeral, host.ToLowerInvariant(), erasure), changes,
+                    issue);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(intent), intent.GetType().Name, "Data deletions do not handle this intent.");
+        }
     }
 
     /// Asks every registered engine for its part of `deletion`.
@@ -81,13 +80,15 @@ internal sealed class DataDeletions(Engines engines, IIdSource ids) : IDataDelet
 
     #region Actions - Reports
 
+    /// Whether the report answers an erasure.
+    public static bool Concerns(EngineEvent report) => report is DataErased;
+
     /// One engine answered its part of a deletion; an answer from another
     /// engine, or to an erasure nobody waits on, changes nothing.
-    public void Report(Engine engine, DataErased erased, ChangeFeed changes) {
+    public void Report(Engine engine, EngineEvent report, ChangeFeed changes) {
         ArgumentNullException.ThrowIfNull(engine);
-        ArgumentNullException.ThrowIfNull(erased);
         ArgumentNullException.ThrowIfNull(changes);
-        if (!byErasure.TryGetValue(erased.ErasureId, out var deletion)
+        if (report is not DataErased erased || !byErasure.TryGetValue(erased.ErasureId, out var deletion)
             || !ReferenceEquals(deletion.Waiting[erased.ErasureId], engine))
             return;
         byErasure.Remove(erased.ErasureId);

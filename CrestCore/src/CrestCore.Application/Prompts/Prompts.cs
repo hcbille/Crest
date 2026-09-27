@@ -3,15 +3,6 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-#region Types
-
-/// What one prompt report needs: the engine that raised or withdrew the
-/// question, where the report publishes, and where it hands the command that
-/// answers the engine at once.
-internal sealed record PromptEventTurn(Engine Engine, ChangeFeed Changes, Action<Engine, EngineCommand> Issue);
-
-#endregion
-
 /// The questions waiting on the person. An engine raises each one, and the
 /// core answers a site's permission request from its Space's choices when they
 /// hold one, publishing only what the person must answer. A prompt settles
@@ -19,7 +10,7 @@ internal sealed record PromptEventTurn(Engine Engine, ChangeFeed Changes, Action
 /// answer passes to the engine that asked and is never kept, so a credential
 /// that answers a server is in no state, change or saved file. Never saved or
 /// synced.
-internal sealed class Prompts(Device device, Pages pages) : IPromptEventHandler<PromptEventTurn> {
+internal sealed class Prompts(Device device, Pages pages) {
     #region Types
 
     /// A prompt waiting on the person: the engine that asked it, the page that
@@ -68,7 +59,7 @@ internal sealed class Prompts(Device device, Pages pages) : IPromptEventHandler<
             var decision = chosen.Grants ? SitePermissionDecision.GrantPersistently : SitePermissionDecision.DenyPersistently;
             try {
                 device.Handle(new DecideSitePermission(page.SpaceId, permission.Origin, permission.Permission, Detail: null, decision),
-                    new SitePermissionTurn(changes, now, ids));
+                    changes, now, ids);
             } catch (Rejected) {
                 // A Space that locked keeps nothing; the request is still answered.
             }
@@ -81,58 +72,55 @@ internal sealed class Prompts(Device device, Pages pages) : IPromptEventHandler<
 
     #region Actions - Reports
 
+    /// Whether the report is one of the prompts' own.
+    public static bool Concerns(EngineEvent report) =>
+        report is ScriptDialogOpened or AuthenticationChallenged or PermissionRequested or ExtensionInstallRequested or PromptWithdrawn;
+
     /// Applies an engine's prompt report. A question from a page the core does
     /// not host on that engine is declined at once, and a permission request
     /// the Space's choices answer is answered without asking.
-    public void Report(Engine engine, PromptEvent report, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+    public void Report(Engine engine, EngineEvent report, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(issue);
-        report.Dispatch(this, new PromptEventTurn(engine, changes, issue));
-    }
-
-    public void Handle(ScriptDialogOpened opened, PromptEventTurn turn) {
-        if (Raised(turn, opened.PromptId, opened.PageId, opened.Question))
-            turn.Changes.Publish(new ScriptDialogAsked(opened.PromptId, opened.PageId, opened.Question));
-    }
-
-    public void Handle(AuthenticationChallenged challenged, PromptEventTurn turn) {
-        if (Raised(turn, challenged.PromptId, challenged.PageId, challenged.Question))
-            turn.Changes.Publish(new AuthenticationAsked(challenged.PromptId, challenged.PageId, challenged.Question));
-    }
-
-    public void Handle(PermissionRequested requested, PromptEventTurn turn) {
-        if (Raised(turn, requested.PromptId, requested.PageId, requested.Question))
-            turn.Changes.Publish(new PermissionAsked(requested.PromptId, requested.PageId, requested.Question));
-    }
-
-    public void Handle(ExtensionInstallRequested requested, PromptEventTurn turn) {
-        if (Raised(turn, requested.PromptId, pageId: null, requested.Question))
-            turn.Changes.Publish(new ExtensionInstallAsked(requested.PromptId, requested.WindowId, requested.Question));
-    }
-
-    public void Handle(PromptWithdrawn withdrawn, PromptEventTurn turn) {
-        if (waiting.TryGetValue(withdrawn.PromptId, out var prompt) && ReferenceEquals(prompt.Engine, turn.Engine))
-            Settle(withdrawn.PromptId, turn.Changes);
+        switch (report) {
+            case ScriptDialogOpened opened when Raised(engine, opened.PromptId, opened.PageId, opened.Question, issue):
+                changes.Publish(new ScriptDialogAsked(opened.PromptId, opened.PageId, opened.Question));
+                break;
+            case AuthenticationChallenged challenged when Raised(engine, challenged.PromptId, challenged.PageId, challenged.Question, issue):
+                changes.Publish(new AuthenticationAsked(challenged.PromptId, challenged.PageId, challenged.Question));
+                break;
+            case PermissionRequested requested when Raised(engine, requested.PromptId, requested.PageId, requested.Question, issue):
+                changes.Publish(new PermissionAsked(requested.PromptId, requested.PageId, requested.Question));
+                break;
+            case ExtensionInstallRequested requested when Raised(engine, requested.PromptId, pageId: null, requested.Question, issue):
+                changes.Publish(new ExtensionInstallAsked(requested.PromptId, requested.WindowId, requested.Question));
+                break;
+            case PromptWithdrawn withdrawn:
+                if (waiting.TryGetValue(withdrawn.PromptId, out var prompt) && ReferenceEquals(prompt.Engine, engine))
+                    Settle(withdrawn.PromptId, changes);
+                break;
+            case ScriptDialogOpened or AuthenticationChallenged or PermissionRequested or ExtensionInstallRequested: break;
+            default: throw new ArgumentOutOfRangeException(nameof(report), report.GetType().Name, "Prompts do not handle this report.");
+        }
     }
 
     /// Answers whether a question waits on the person now. A repeated report
     /// changes nothing; a question from a page the core does not host on that
     /// engine is declined, and a permission the Space's choices answer is
     /// answered, both at once and without asking.
-    private bool Raised(PromptEventTurn turn, Guid promptId, Guid? pageId, object question) {
-        var engine = turn.Engine;
+    private bool Raised(Engine engine, Guid promptId, Guid? pageId, object question, Action<Engine, EngineCommand> issue) {
         if (waiting.ContainsKey(promptId)) return false;
         var page = Asking(pageId);
         if (pageId is not null && (page is null || !ReferenceEquals(page.Engine, engine))) {
-            turn.Issue(engine, Declining(promptId, question));
+            issue(engine, Declining(promptId, question));
             return false;
         }
         if (question is PermissionQuestion permission && page is not null) {
             var decision = Decision(page.SpaceId, permission);
             if (decision.Verdict != SitePermissionVerdict.Ask) {
-                turn.Issue(engine, new SettlePermission(promptId, decision.Grants, decision.IsPersistent));
+                issue(engine, new SettlePermission(promptId, decision.Grants, decision.IsPersistent));
                 return false;
             }
         }

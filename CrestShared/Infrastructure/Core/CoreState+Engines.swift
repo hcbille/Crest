@@ -3,7 +3,7 @@ import Foundation
 extension CoreState {
     // MARK: - Actions - Changes
 
-    func handle(_ change: EnginesChanged) {
+    func apply(_ change: EnginesChanged) {
         engines = change.roster
     }
 
