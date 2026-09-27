@@ -366,10 +366,8 @@ engine no page used or an engine's last page went. Menus, the launcher, the
 settings and the shortcut settings offer what the device offers, and the page
 a command acts on enables it through its own engine. A capability an engine
 lacks has explicit product behavior, declared in `BrowserEngineRegistration`.
-
-TRANSITIONAL until the Chromium menu reads the read model: the
-Chromium product's own menu (`CrestChromiumMenu`) still offers commands by its
-composition's engine through `ShortcutCommand.isOfferedByCurrentEngine`.
+The Chromium product's own AppKit menu (`CrestChromiumMenu`) reads the same
+answer and hides what the device does not offer.
 
 ### Chromium's binding
 

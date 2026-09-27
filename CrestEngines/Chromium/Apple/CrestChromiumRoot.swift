@@ -139,6 +139,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         recoveryWindow?.close()
         recoveryWindow = nil
         root.browserMenu = CrestChromiumMenu(shortcuts: root.application.shortcuts,
+            state: root.application.browser.core.state,
             actions: { [weak root] in root?.actions },
             perform: { [weak root] in root?.perform($0) },
             canPerform: { [weak root] in root?.canPerform($0) == true },

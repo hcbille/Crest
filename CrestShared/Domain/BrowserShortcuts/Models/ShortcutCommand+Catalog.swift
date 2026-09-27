@@ -6,12 +6,6 @@ import Foundation
 extension ShortcutCommand {
     // MARK: - Variables
 
-    /// TRANSITIONAL until the Chromium menu reads `isOffered(in:)`: whether
-    /// the composition's own engine offers the command.
-    var isOfferedByCurrentEngine: Bool {
-        requiredCapability.map(BrowserEngineRegistration.current.supports) ?? true
-    }
-
     /// Crest's default keys for the command on this device.
     var defaultShortcut: BrowserShortcut? {
         defaultShortcuts.first { $0.platform == .current }.map { BrowserShortcut($0.keys) }

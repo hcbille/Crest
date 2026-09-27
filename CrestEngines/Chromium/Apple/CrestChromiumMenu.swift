@@ -5,25 +5,34 @@ import SwiftUI
 
 /// AppKit presentation of the existing Crest commands. Chromium keeps its page
 /// context menus; browser menu actions always use the native Crest workspace.
+///
+/// The menus show the commands the device offers, as the read model says: a
+/// command whose feature neither the default engine nor an engine a page is
+/// open on supports is hidden, and it appears once such a page opens. The page
+/// a command acts on enables it through its own engine.
 @MainActor
 final class CrestChromiumMenu: NSObject, NSMenuDelegate, NSMenuItemValidation {
     enum ApplicationAction: String {
         case about, updates, settings, gettingStarted
     }
     private let shortcuts: BrowserShortcutStore
+    private let state: CoreState
     private let actions: () -> BrowserCommandActions?
     private let perform: (ShortcutCommand) -> Void
     private let canPerform: (ShortcutCommand) -> Bool
     private let applicationAction: (ApplicationAction) -> Void
     private let canCheckForUpdates: () -> Bool
     private var commandItems: [(ShortcutCommand, NSMenuItem)] = []
+    /// The menus that hold commands, whose separators follow what is offered.
+    private var commandMenus: [NSMenu] = []
 
-    init(shortcuts: BrowserShortcutStore, actions: @escaping () -> BrowserCommandActions?,
+    init(shortcuts: BrowserShortcutStore, state: CoreState, actions: @escaping () -> BrowserCommandActions?,
          perform: @escaping (ShortcutCommand) -> Void,
          canPerform: @escaping (ShortcutCommand) -> Bool,
          applicationAction: @escaping (ApplicationAction) -> Void,
          canCheckForUpdates: @escaping () -> Bool) {
         self.shortcuts = shortcuts
+        self.state = state
         self.actions = actions
         self.perform = perform
         self.canPerform = canPerform
@@ -76,10 +85,11 @@ final class CrestChromiumMenu: NSObject, NSMenuDelegate, NSMenuItemValidation {
         let spaces = submenu("Spaces", in: bar)
         commands([.previousSpace, .nextSpace, nil], in: spaces)
         commands(ShortcutCommand.all.filter { $0.selects == .space }, in: spaces)
-        // The menus list the same commands as every other shell; `commands(_:in:)`
-        // leaves out what this engine declares absent (Reader, whole-page
-        // translation, Crest's own content blocking). Selection translation stays
-        // on Chromium's own page context menu, and blocking comes from an extension.
+        // The menus list the same commands as every other shell; what the device
+        // does not offer (Reader, whole-page translation, Crest's own content
+        // blocking while no WebKit page is open) stays hidden. Selection
+        // translation stays on Chromium's own page context menu, and blocking
+        // comes from an extension.
         commands([.toggleReaderMode, .toggleContentBlocking, nil, .findInPage, nil, .zoomIn, .zoomOut, .actualSize, nil, .copyPageLink,
                   .copyPageLinkAsMarkdown, .sharePage, .exportPDF, .saveWebArchive],
                  in: submenu("Page", in: bar))
@@ -94,10 +104,13 @@ final class CrestChromiumMenu: NSObject, NSMenuDelegate, NSMenuItemValidation {
         special("Getting Started with Crest", .gettingStarted, in: help)
         NSApp.helpMenu = help
         NSApp.mainMenu = bar
-        observeShortcuts()
+        observeReadModel()
     }
 
-    func menuNeedsUpdate(_ menu: NSMenu) { refreshBindings() }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        refreshBindings()
+        refreshOffers()
+    }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         guard let value = item.representedObject as? String else { return true }
@@ -123,11 +136,13 @@ final class CrestChromiumMenu: NSObject, NSMenuDelegate, NSMenuItemValidation {
         applicationAction(action)
     }
 
-    private func observeShortcuts() {
+    /// Follows each command's chord and whether the device offers it.
+    private func observeReadModel() {
         withObservationTracking {
             refreshBindings()
+            refreshOffers()
         } onChange: { [weak self] in
-            Task { @MainActor in self?.observeShortcuts() }
+            Task { @MainActor in self?.observeReadModel() }
         }
     }
 
@@ -139,15 +154,30 @@ final class CrestChromiumMenu: NSObject, NSMenuDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Hides each command the device does not offer, which also takes its
+    /// chord out of key equivalent matching, then each separator left leading
+    /// a menu, following another or ending it.
+    private func refreshOffers() {
+        for (command, item) in commandItems {
+            item.isHidden = !command.isOffered(in: state)
+        }
+        for menu in commandMenus {
+            var lastShown: NSMenuItem?
+            for item in menu.items {
+                if item.isSeparatorItem { item.isHidden = lastShown?.isSeparatorItem ?? true }
+                if !item.isHidden { lastShown = item }
+            }
+            if let lastShown, lastShown.isSeparatorItem { lastShown.isHidden = true }
+        }
+    }
+
     private func commands(_ commands: [ShortcutCommand?], in menu: NSMenu) {
+        if !commandMenus.contains(where: { $0 === menu }) { commandMenus.append(menu) }
         for command in commands {
             guard let command else {
-                // A separator never leads a menu or doubles up when the
-                // commands around it are not offered on this engine.
                 if let last = menu.items.last, !last.isSeparatorItem { menu.addItem(.separator()) }
                 continue
             }
-            guard command.isOfferedByCurrentEngine else { continue }
             let item = NSMenuItem(
                 title: String(localized: command.menuTitle ?? command.title), action: #selector(runCommand(_:)),
                 keyEquivalent: "")

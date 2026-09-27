@@ -2949,6 +2949,10 @@
     "delete-unread-policy-flags-dead-core-rules": {
       "category": "internal",
       "message": "Unread policy flags and unused core rules removed"
+    },
+    "chromium-menu-reads-offered-commands": {
+      "category": "internal",
+      "message": "The Chromium menu bar shows the commands the open pages' engines offer"
     }
   }
 }

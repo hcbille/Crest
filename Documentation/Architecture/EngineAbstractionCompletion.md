@@ -166,7 +166,7 @@ Remaining, as the Chromium registration declares:
 - Chromium delivers web notifications itself. Delivery through Crest,
   source-tab activation and withdrawal after revocation need a host hook.
 
-### WP6. Capability truth and UI hygiene. Done, with one gap
+### WP6. Capability truth and UI hygiene. Done
 
 - The core publishes the registered engines and what the device offers as
   `EnginesChanged`. Menus, the launcher, settings and the shortcut settings
@@ -179,10 +179,6 @@ Remaining, as the Chromium registration declares:
 - Internal pages follow the `internal-pages` capability.
 - Every declared capability gates UI or services, or belongs to
   `EngineCapability.Required`.
-
-Remaining, TRANSITIONAL until it reads the read model: the Chromium
-product's own menu (`CrestChromiumMenu`) offers commands by its composition's
-engine.
 
 ### WP7. WebKit symmetry. Done
 
