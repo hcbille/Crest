@@ -298,7 +298,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.externalSchemeCoordinator = externalSchemeCoordinator
         self.openNewTab = openNewTab
         super.init()
-        corePage.appLoad = { [weak self] in self?.load($0) }
         corePage.engineMoved = { [weak self] in self?.moveToNewEngine() }
         installEngine()
     }

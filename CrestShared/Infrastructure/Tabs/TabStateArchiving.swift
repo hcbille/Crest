@@ -1,9 +1,11 @@
 import Dispatch
 import Foundation
 
-/// Stores per-tab `WKWebView.interactionState` blobs so a tab that lost its web
-/// view — to residency trimming, to a relaunch — comes back with its
-/// back/forward list and scroll positions instead of a bare reload.
+/// Stores each tab's engine history on disk, so a tab that lost its page to a
+/// relaunch comes back with its back/forward list and scroll positions instead
+/// of a bare reload. The core hands a page it unloads back its state within a
+/// run, but keeps it in memory only, never in a saved file, so this archive is
+/// what survives a relaunch.
 ///
 /// Blobs run to hundreds of kilobytes, so they are kept out of the session JSON
 /// and written as one file per tab, off the main thread. Nothing here decides

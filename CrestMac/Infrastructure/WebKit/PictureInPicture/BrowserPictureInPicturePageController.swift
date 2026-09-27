@@ -1,7 +1,9 @@
 import WebKit
 
 @MainActor
-final class BrowserPictureInPicturePageController: BrowserPagePictureInPictureController, BrowserAutomaticPictureInPictureClient {
+final class BrowserPictureInPicturePageController: BrowserPagePictureInPictureController,
+    BrowserAutomaticPictureInPictureClient
+{
     private struct FrameCandidate {
         let frame: WKFrameInfo
         let documentID: String
@@ -17,12 +19,24 @@ final class BrowserPictureInPicturePageController: BrowserPagePictureInPictureCo
     private weak var webView: WKWebView?
     private let coordinator: BrowserAutomaticPictureInPictureCoordinator
     private var candidates: [String: FrameCandidate] = [:]
-    private var activeDocuments: Set<String> = []
-    private var nativeIsActive = false
+    private var activeDocuments: Set<String> = [] {
+        didSet { residencyProtectionMayHaveChanged() }
+    }
+    private var nativeIsActive = false {
+        didSet { residencyProtectionMayHaveChanged() }
+    }
     private var acceptsEvents = true
     private var automaticRequest: AutomaticRequest?
-    private var completion: (@MainActor (Bool) -> Void)?
+    private var completion: (@MainActor (Bool) -> Void)? {
+        didSet { residencyProtectionMayHaveChanged() }
+    }
     private var timeout: Task<Void, Never>?
+    /// Whether the controller kept the page's video on screen when it last
+    /// said so.
+    private var reportedResidencyProtection = false
+    /// Runs when the controller starts or stops keeping the page's video on
+    /// screen, so the page reports its media to the core.
+    var residencyProtectionChanged: (@MainActor () -> Void)?
 
     var isPictureInPictureActive: Bool { nativeIsActive || !activeDocuments.isEmpty }
     var canRestoreSource: Bool { acceptsEvents && isPictureInPictureActive }
@@ -39,6 +53,12 @@ final class BrowserPictureInPicturePageController: BrowserPagePictureInPictureCo
     }
 
     func leaveTab() { coordinator.request(from: self) }
+
+    private func residencyProtectionMayHaveChanged() {
+        guard protectsPageResidency != reportedResidencyProtection else { return }
+        reportedResidencyProtection = protectsPageResidency
+        residencyProtectionChanged?()
+    }
 
     func returnToTab() {
         coordinator.cancel(self)

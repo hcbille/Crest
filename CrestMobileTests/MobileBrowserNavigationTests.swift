@@ -1064,7 +1064,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
 
         let activePage = try XCTUnwrap(pages.activePage)
         pages.handleMemoryPressure(.warning)
-        await pages.waitForPendingMemoryPressureResponse()
 
         XCTAssertEqual(pages.residentPageCount, tabs.count)
         XCTAssertTrue(pages.containsResidentPage(for: tabs[3].id))
@@ -1109,7 +1108,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
         }
 
         pages.handleMemoryPressure(.critical, at: squeeze)
-        await pages.waitForPendingMemoryPressureResponse()
 
         XCTAssertEqual(pages.residentPageCount, tabs.count - 1)
         XCTAssertFalse(pages.containsResidentPage(for: tabs[0].id))
@@ -1164,13 +1162,73 @@ final class MobileBrowserNavigationTests: XCTestCase {
         XCTAssertEqual(pages.residentPageCount, 5)
 
         pages.handleMemoryPressure(.critical)
-        await pages.waitForPendingMemoryPressureResponse()
 
         XCTAssertEqual(pages.residentPageCount, 4)
         XCTAssertTrue(pages.containsResidentPage(for: pinned[0].id))
         XCTAssertFalse(pages.containsResidentPage(for: pinned[1].id))
         XCTAssertTrue(pages.containsResidentPage(for: current[2].id))
         XCTAssertEqual(pages.activePage?.tabID, current[2].id)
+    }
+
+    /// A page the core closes keeping its state hands the core WebKit's
+    /// history, which the tab's next page brings back in place of its first
+    /// load, though nothing reaches a disk archive.
+    func testAnUnloadedPageComesBackWithTheHistoryItHandedTheCore() async throws {
+        let stateful = TabState.Seed(
+            id: fixedUUID(520), title: "Stateful", url: nil, symbol: "globe", placement: .current)
+        let other = TabState.Seed(id: fixedUUID(521), title: "Other", url: nil, symbol: "globe", placement: .current)
+        let space = SpaceState.Seed(
+            id: fixedUUID(522), profileID: fixedUUID(523), name: "Restore", symbol: "globe", accent: .teal,
+            folders: [], tabs: [stateful, other])
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [space]), showing: space.id,
+            tabs: shownTabs(in: [space], tabs: [space.id: stateful.id]))
+        let pages = MobileBrowserPageStore(browser: browser, usesEphemeralWebsiteDataStores: true)
+        let firstURL = try XCTUnwrap(URL(string: "https://restore.crest.test/one"))
+        let secondURL = try XCTUnwrap(URL(string: "https://restore.crest.test/two"))
+        pages.select()
+        let page = try XCTUnwrap(pages.activePage)
+        for url in [firstURL, secondURL] {
+            page.webView.loadSimulatedRequest(URLRequest(url: url), responseHTML: "<title>\(url.path)</title>")
+            try await waitUntil(timeout: .seconds(5)) {
+                browser.spaceModel(space.id)?.tabs.model(stateful.id)?.url == url.absoluteString
+                    && !page.corePage.live.isLoading
+            }
+        }
+        XCTAssertTrue(page.webView.canGoBack)
+
+        browser.selectTab(other.id)
+        pages.select()
+        pages.unloadPage(for: stateful.id)
+        XCTAssertFalse(pages.containsResidentPage(for: stateful.id))
+        browser.selectTab(stateful.id)
+        pages.select()
+        let restored = try XCTUnwrap(pages.activePage)
+
+        XCTAssertFalse(restored === page)
+        XCTAssertEqual(restored.webView.url, secondURL)
+        XCTAssertEqual(restored.webView.backForwardList.backList.map(\.url), [firstURL])
+        pages.reconcile(validTabIDs: [])
+    }
+
+    /// Media starting in a WebKit page reaches the page's host, which asks
+    /// WebKit what the page runs and tells the core, so memory pressure never
+    /// decides on media the core has not heard of.
+    func testMediaStartingInAPageTellsItsHost() async throws {
+        let space = makeSpace(index: 53)
+        let tab = try XCTUnwrap(space.tabs.first)
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
+        let opened = try XCTUnwrap(browser.openWebKitPage(in: space.id, for: tab.id))
+        defer { opened.core.release(keepingState: false) }
+        let host = MediaActivityHost()
+        opened.webKit.attach(host)
+        let webView = opened.webKit.webView
+        webView.loadSimulatedRequest(
+            URLRequest(url: try XCTUnwrap(URL(string: "https://media.crest.test/"))), responseHTML: "<p>Media</p>")
+        try await waitUntil(timeout: .seconds(5)) { webView.url != nil && !webView.isLoading }
+
+        _ = try await webView.evaluateJavaScript("document.dispatchEvent(new Event('play')); true")
+        try await waitUntil(timeout: .seconds(5)) { host.mediaChanges > 0 }
     }
 
     /// Has `page` show a document of its own, which the core then holds,
@@ -1440,5 +1498,24 @@ private final class RecordingMobileWebsiteDataStoreRemover:
 
     func removeProfile(_ profile: BrowsingProfile, ephemeral: Bool) async throws {
         removedProfileIDs.append(profile.id)
+    }
+}
+
+/// A WebKit page's host that counts how often the page said its media may
+/// have changed.
+@MainActor
+private final class MediaActivityHost: WebKitPageHosting {
+    private(set) var mediaChanges = 0
+
+    func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {}
+
+    func ask(_ asked: AuthenticationAsked, dismissal: BrowserPromptDismissal) {}
+
+    func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {}
+
+    func prepareToLoad(_ url: URL) {}
+
+    func mediaActivityMayHaveChanged() {
+        mediaChanges += 1
     }
 }

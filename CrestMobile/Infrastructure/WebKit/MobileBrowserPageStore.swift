@@ -70,8 +70,6 @@ final class MobileBrowserPageStore:
     @ObservationIgnored private let openNewTab: (URL) -> Void
     @ObservationIgnored private let openModifiedLink: ModifiedLinkOpener
     @ObservationIgnored private let openPeek: (BrowserPeekRequest) -> Void
-    /// Tells the core of the latest squeeze, once the pages' media is fresh.
-    @ObservationIgnored private var memoryPressureReport: Task<Void, Never>?
     @ObservationIgnored private let browsingMode: BrowserBrowsingMode
     @ObservationIgnored let usesEphemeralWebsiteDataStores: Bool
     @ObservationIgnored private let pageZoomPreferences: BrowserDefaultPageZoomStore
@@ -146,7 +144,6 @@ final class MobileBrowserPageStore:
     }
 
     deinit {
-        memoryPressureReport?.cancel()
         memoryPressureSource?.cancel()
     }
 
@@ -342,8 +339,6 @@ final class MobileBrowserPageStore:
     /// Spaces `spaces` names, as its scene closes.
     func closePrivateBrowsingSession(_ spaces: [BrowserSpaceRuntimeAssignment]) {
         guard browsingMode.isPrivate else { return }
-        memoryPressureReport?.cancel()
-        memoryPressureReport = nil
         activePage = nil
         presentedTabIDs = []
         releasePrivateBrowsingData(in: spaces)
@@ -594,30 +589,17 @@ final class MobileBrowserPageStore:
     }
 
     /// Relieves one squeeze at `level`, once however many signals it sends:
-    /// the host lets go of what the core does not decide, then the core,
-    /// once each page's media is fresh, unloads the tab pages off screen
-    /// longest, as many as a phone or tablet gives back at that level.
+    /// the host lets go of what the core does not decide, then the core
+    /// unloads the tab pages off screen longest, as many as a phone or tablet
+    /// gives back at that level, from what each page last told it about its
+    /// media.
     func handleMemoryPressure(
         _ level: MemoryPressureLevel,
         at time: Date = .now
     ) {
         guard memoryPressureCoalescer.shouldHandle(level, at: time) else { return }
         host.relieveMemoryPressure(level, presenting: presentedTabIDs)
-        memoryPressureReport?.cancel()
-        memoryPressureReport = Task { @MainActor [weak self] in
-            // TRANSITIONAL until WebKit reports its pages' media itself: each
-            // page is asked now, so the core decides on fresh media.
-            for page in self?.host.residentPages ?? [] {
-                await page.reportMediaActivity()
-            }
-            guard !Task.isCancelled, let core = self?.browser.core else { return }
-            _ = try? core.send(ReportMemoryPressure(level: level))
-        }
-    }
-
-    /// Waits until the core heard the latest squeeze.
-    func waitForPendingMemoryPressureResponse() async {
-        await memoryPressureReport?.value
+        _ = try? browser.core.send(ReportMemoryPressure(level: level))
     }
 
     /// Handles one kernel pressure event. The raw event has to be captured inside
@@ -648,6 +630,9 @@ final class MobileBrowserPageStore:
             let opening = browser.openPage(
                 in: space.id, for: tab.id, popup: adoptedConfiguration.map(WebKitPopup.init(configuration:)))
         else { return nil }
+        // A page the core brings back shows itself heading to what it kept,
+        // and restores that in place of its first load.
+        let loadsInitialURL = loadsInitialURL && opening.page.live.pendingURL == nil
         // Restoring WebKit's session state performs its own navigation, so the
         // page must not also start the tab's URL: whichever path runs, exactly one
         // navigation begins. Read only once the core opened the page, so a

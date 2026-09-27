@@ -429,6 +429,20 @@ page with the rules its Space's protection applies; each page owner still
 applies a changed protection to its live pages. A popup WebKit makes keeps the
 configuration WebKit derived from its opener's.
 
+The binding runs each `LoadPage` in its page once the page's host is ready
+for it. A page the core closes keeping its state reports `PageClosed` with
+WebKit's history and the address it shows; a popup and a private page keep
+nothing. A tab's next page gets that back through `CreatePage` and restores
+it in place of its first load, when its host attaches. Every page it builds
+carries a media bridge in an isolated world, which tells the binding when
+media in any frame starts, stops or ends; the page then asks WebKit what it
+runs and reports it, as it does for capture and Picture in Picture, so the
+core decides residency on current media. Each tab's history also goes to a
+Swift archive on disk (`BrowserTabStateArchive`) when its page goes and when
+its scene stops being active, because the core keeps restore state in memory
+only: a relaunch, or a tab whose state the core no longer holds, restores
+from there.
+
 `BrowserPageHost` keeps a workspace's pages on the Mac, iPhone and iPad: each
 tab's resident page, the Quick Window and Peek leases, and the state a tab's
 page leaves behind. Every Mac window over a workspace shares one host through
@@ -442,11 +456,6 @@ of the window that opened the tab, whichever engine opened it. What a page
 owner does beyond that is shared too (`BrowserPageOwner`): `BrowserPagePool`
 (Mac) and `MobileBrowserPageStore` (iPhone and iPad) keep only presentation
 and each platform's own commands.
-
-TRANSITIONAL:
-
-- A WebKit page the core unloads hands it no restore state; its owner archives
-  WebKit's interaction state itself.
 
 ### Multiple engines
 
@@ -553,8 +562,7 @@ address and search rules before it issues `LoadPage`.
   may proceed; it may not when a page that agreed has shown another document
   since.
 - **Residency.** Every device reports memory pressure with
-  `ReportMemoryPressure`, after asking each WebKit page for its media, and the
-  core unloads the tab pages off screen longest, as many as the device's
+  `ReportMemoryPressure`, and the core unloads the tab pages off screen longest, as many as the device's
   platform gives back: never one a window shows, one showing no document yet,
   one whose tab keeps its page loaded, or one playing, capturing or in Picture
   in Picture. It holds each unloaded page's engine restore state in memory,

@@ -181,7 +181,7 @@ final class MobileBrowserInteropTests: XCTestCase {
         )
         // The page's host answers the core's question with the member's sign-in.
         let host = SigningInPromptHost(core: browser.core)
-        page.webKitPage.presenter = host
+        page.webKitPage.attach(host)
         defer {
             server.stop()
             try? FileManager.default.removeItem(at: destination)
@@ -568,7 +568,7 @@ final class MobileBrowserInteropTests: XCTestCase {
     private func makePopupSpace() -> SpaceState.Seed {
         let openerTab = TabState.Seed(title: "Opener", url: nil, placement: .current)
         return SpaceState.Seed(
-                        name: "Popups",
+            name: "Popups",
             symbol: "macwindow.on.rectangle",
             accent: .teal,
             folders: [],
@@ -753,7 +753,7 @@ private final class MobileDownloadHTTPServer: @unchecked Sendable {
 /// A page's host that answers a server's sign-in question through the core
 /// with one member's credential, and remembers what it was asked.
 @MainActor
-private final class SigningInPromptHost: BrowserPromptPresenting {
+private final class SigningInPromptHost: WebKitPageHosting {
     private let core: CrestCore
     private(set) var asked: [AuthenticationAsked] = []
 
@@ -776,4 +776,8 @@ private final class SigningInPromptHost: BrowserPromptPresenting {
     func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {
         _ = try? core.send(AnswerPermission(promptID: asked.promptID, grants: false, remembers: false))
     }
+
+    func prepareToLoad(_ url: URL) {}
+
+    func mediaActivityMayHaveChanged() {}
 }

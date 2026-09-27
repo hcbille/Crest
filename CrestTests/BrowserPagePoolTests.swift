@@ -422,7 +422,6 @@ final class BrowserPagePoolTests: XCTestCase {
         )
 
         monitor.handle([.critical])
-        await monitor.waitForReport()
 
         XCTAssertNil(
             activeLease.page,
@@ -484,6 +483,7 @@ final class BrowserPagePoolTests: XCTestCase {
                 .map(\.source),
             [
                 BrowserPictureInPictureScript.source,
+                WebKitMediaActivityBridge.source,
                 BrowserLinkHoverContentBridge.source,
                 BrowserLinkDragContentBridge.source,
                 BrowserLinkContextContentBridge.source,
@@ -1621,7 +1621,8 @@ final class BrowserPagePoolTests: XCTestCase {
     ) -> SpaceState.Seed {
         showing(
             selectedTabID,
-            in: SpaceState.Seed(name: "Test", symbol: "circle", accent: .indigo, tabs: tabs, accessPolicy: accessPolicy))
+            in: SpaceState.Seed(name: "Test", symbol: "circle", accent: .indigo, tabs: tabs, accessPolicy: accessPolicy)
+        )
     }
 
     /// Which tab each fixture Space shows. Selection is window state, so the

@@ -279,7 +279,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
 
         super.init()
-        webKitPage.presenter = self
         if normalizedDefaultPageZoom != BrowserPageZoomPolicy.defaultLevel {
             webView.pageZoom = normalizedDefaultPageZoom
         }
@@ -371,8 +370,10 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         // Observe permission changes from the start, not from the first grant.
         _ = sitePermissionSession
 
-        corePage.appLoad = { [weak self] in self?.load($0) }
-        if loadsInitialURL, let url = tab.url {
+        // Last, so a page the core brings back restores into a page that
+        // hears its navigations.
+        webKitPage.attach(self)
+        if loadsInitialURL, webView.url == nil, let url = tab.url {
             load(url)
         }
     }
@@ -386,10 +387,26 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// the app replays. An address the person asked for goes through the
     /// core's `Navigate`, never here.
     func load(_ request: URLRequest) {
-        appInitiatedNavigationCount &+= 1
-        appInitiatedURL = request.url
-        prepareForNavigation(to: request.url)
+        if let url = request.url {
+            prepareToLoad(url)
+        } else {
+            appInitiatedNavigationCount &+= 1
+            appInitiatedURL = nil
+            prepareForNavigation(to: nil)
+        }
         pageEngine.load(request)
+    }
+
+    /// The page shows itself heading to `url`, which only an app-initiated
+    /// load may reach when it is a local file.
+    func prepareToLoad(_ url: URL) {
+        appInitiatedNavigationCount &+= 1
+        appInitiatedURL = url
+        prepareForNavigation(to: url)
+    }
+
+    func mediaActivityMayHaveChanged() {
+        refreshMediaActivity()
     }
 
     func routeModifiedLink(_ url: URL, selecting: Bool) {
@@ -1128,3 +1145,5 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
 #if CREST_PHYSICAL_VALIDATION
 #endif
+
+extension MobileBrowserPage: WebKitPageHosting {}

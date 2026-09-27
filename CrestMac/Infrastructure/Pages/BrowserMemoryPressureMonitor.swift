@@ -3,7 +3,8 @@ import Foundation
 
 /// The app's one memory pressure source on the Mac. Each squeeze first
 /// releases what the page pools keep themselves, then tells the core, which
-/// unloads the tab pages off screen longest.
+/// unloads the tab pages off screen longest from what each page last told it
+/// about its media.
 @MainActor
 final class BrowserMemoryPressureMonitor {
     // MARK: - Variables
@@ -12,7 +13,6 @@ final class BrowserMemoryPressureMonitor {
     private let pools: BrowserPagePoolRegistry
     private var source: (any DispatchSourceMemoryPressure)?
     private var coalescer = BrowserMemoryPressureCoalescer()
-    private var report: Task<Void, Never>?
 
     // MARK: - Initializers
 
@@ -50,25 +50,8 @@ final class BrowserMemoryPressureMonitor {
     /// Relieves one squeeze at `level`, once however many signals it sends.
     func relieve(_ level: MemoryPressureLevel, at time: Date = .now) {
         guard coalescer.shouldHandle(level, at: time) else { return }
-        let pools = pools.livePools
-        for pool in pools { pool.relieveMemoryPressure(level) }
-        report?.cancel()
-        report = Task { @MainActor [weak self] in
-            // TRANSITIONAL until WP C (j1): WebKit tells the core what media a
-            // page runs only when the page's Media Session bridge speaks, so
-            // each WebKit page is asked now and the core decides on fresh media.
-            var asked = Set<ObjectIdentifier>()
-            for page in pools.flatMap(\.residentPages) where asked.insert(ObjectIdentifier(page)).inserted {
-                await page.reportMediaActivity()
-            }
-            guard !Task.isCancelled, let core = self?.core else { return }
-            _ = try? core.send(ReportMemoryPressure(level: level))
-        }
-    }
-
-    /// Waits until the core heard the latest squeeze.
-    func waitForReport() async {
-        await report?.value
+        for pool in pools.livePools { pool.relieveMemoryPressure(level) }
+        _ = try? core?.send(ReportMemoryPressure(level: level))
     }
 
     deinit {

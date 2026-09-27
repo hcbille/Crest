@@ -9,16 +9,18 @@ import WebKit
 /// page's profile, and every profile of a launch that keeps nothing on disk,
 /// lives in a store of its own in memory, which goes when the core erases the
 /// profile, as private browsing ending does; any other profile opens its
-/// store on disk. It loads an address through the owner's own load, which
-/// prepares the page for it. The owner tears the web view down when it
-/// releases the page, so closing only tells the core the page is gone. The
-/// questions a page's document asks go to the core, which the page's host
-/// shows the person, and come back as the core settles them. The files its
-/// pages download run as WebKit's own downloads, which it reports to the core.
-/// It erases what WebKit keeps for a profile when the core asks, whether or
-/// not any page of it opened this run.
-/// TRANSITIONAL until WP C (j1): a page the core unloads hands it no restore
-/// state; its owner archives WebKit's state from the live web view instead.
+/// store on disk. It runs each load the core asks for in the page, once the
+/// page's host is ready for it. A page the core closes keeping its state hands
+/// the core WebKit's history and the address it shows, which the tab's next
+/// page brings back in place of its first load; a popup and a private page
+/// keep nothing. The owner tears the web view down when it releases the page.
+/// Each page tells the binding when its media starts or stops, so the page
+/// reports the media it runs to the core as that changes. The questions a
+/// page's document asks go to the core, which the page's host shows the
+/// person, and come back as the core settles them. The files its pages
+/// download run as WebKit's own downloads, which it reports to the core. It
+/// erases what WebKit keeps for a profile when the core asks, whether or not
+/// any page of it opened this run.
 @MainActor
 final class WebKitEngineBinding: EngineBinding {
     // MARK: - Types
@@ -140,12 +142,14 @@ final class WebKitEngineBinding: EngineBinding {
             engines.report(PageCreated(pageID: creation.pageID), from: self)
         case .loadPage(let loading):
             guard let url = URL(string: loading.url) else { return }
-            (engines.page(loading.pageID) ?? engines.request(loading.pageID)?.page)?.appLoad?(url)
+            pages[loading.pageID]?.value?.load(url)
         case .closePage(let closing):
-            pages[closing.pageID] = nil
+            let page = pages.removeValue(forKey: closing.pageID)?.value
             // WebKit requires an answer to every question it asked.
             declinePrompts(of: closing.pageID)
-            engines.report(PageClosed(pageID: closing.pageID, restoreState: nil), from: self)
+            engines.report(
+                PageClosed(pageID: closing.pageID, restoreState: closing.keepsState ? page?.restoreState : nil),
+                from: self)
         case .checkBeforeUnload(let check):
             prepareToClose(check.pageID)
         case .recoverPage(let recovery):
@@ -216,7 +220,9 @@ final class WebKitEngineBinding: EngineBinding {
     /// The page for `creation` in `space`: a popup's with the configuration
     /// WebKit derived from its opener's, as `popup` gives it, and any other's
     /// assembled for its profile's store and its Space's content rules with
-    /// the platform's own settings.
+    /// the platform's own settings, telling the binding when its media starts
+    /// or stops. A page the core asked to bring back restores what it kept
+    /// once its host attaches.
     private func build(_ creation: CreatePage, in space: SpaceModel?, popup: WebKitPopup?) -> WebKitEnginePage {
         let contentRuleLists =
             space.map { contentRules.ruleLists(for: $0.settings.browsingPreferences.contentBlocking) }
@@ -229,12 +235,29 @@ final class WebKitEngineBinding: EngineBinding {
                 contentRuleLists: contentRuleLists,
                 preferredContentMode: BrowserPlatformWebKit.preferredContentMode,
                 decorate: BrowserPlatformWebKit.decorate)
+        if popup == nil {
+            // A popup shares its opener's controller, whose bridge already
+            // runs in it and posts through the opener's handler.
+            _ = WebKitMediaActivityBridge.install(in: configuration.userContentController) { [weak self] message in
+                self?.mediaActivityMayHaveChanged(in: message.webView)
+            }
+        }
         return WebKitEnginePage(
             id: creation.pageID,
             profileID: creation.profileID,
             webView: BrowserPlatformWebKit.makeWebView(configuration: configuration),
             contentRuleLists: contentRuleLists,
-            ownsUserContentController: popup == nil)
+            ownsUserContentController: popup == nil,
+            isPrivate: creation.isPrivate,
+            restoring: creation.restoreState)
+    }
+
+    /// Media in the page whose web view is `webView` started or stopped, so
+    /// its host asks WebKit what the page runs now.
+    private func mediaActivityMayHaveChanged(in webView: WKWebView?) {
+        guard let webView, let page = pages.values.lazy.compactMap(\.value).first(where: { $0.webView === webView })
+        else { return }
+        page.host?.mediaActivityMayHaveChanged()
     }
 
     /// The website data store the page `creation` asks for browses in: its
@@ -373,7 +396,7 @@ final class WebKitEngineBinding: EngineBinding {
         _ promptID: UUID, on pageID: UUID, _ show: (any BrowserPromptPresenting, BrowserPromptDismissal) -> Void
     ) {
         guard let prompt = prompts[promptID] else { return }
-        guard let presenter = pages[pageID]?.value?.presenter else {
+        guard let presenter = pages[pageID]?.value?.host else {
             _ = try? engines?.core.send(prompt.declining(promptID))
             return
         }

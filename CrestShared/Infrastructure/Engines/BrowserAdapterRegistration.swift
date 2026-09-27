@@ -43,11 +43,6 @@ struct BrowserAdapterRegistration: Sendable {
         capabilities[capability]?.isAvailable == true
     }
 
-    /// Whether the engine's binding hands the core what brings back a page
-    /// the core unloads. TRANSITIONAL until WP C (j1): WebKit's does not yet,
-    /// so the page's owner archives WebKit's state before letting it go.
-    var handsRestoreStateToCore: Bool { kind != .webKit }
-
     /// What the engine's binding registers with the core: the capabilities it
     /// supports, in the core's order.
     func registration(isDefault: Bool) -> EngineRegistration {

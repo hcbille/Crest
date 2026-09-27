@@ -3,7 +3,9 @@ import WebKit
 /// A page WebKit's binding built for a page the core opened: its web view,
 /// built for the page's profile with the platform's own settings, and WebKit's
 /// page port over it. The page's owner hosts the web view and answers its
-/// delegates until the binding does (WP C (j1)).
+/// delegates; the binding runs the core's loads in it, brings back the history
+/// the core handed it, and keeps what brings it back when the core closes it
+/// keeping its state.
 @MainActor
 final class WebKitEnginePage {
     // MARK: - Variables
@@ -22,12 +24,18 @@ final class WebKitEnginePage {
     /// Installing the same script message handler twice on it throws, and
     /// removing one would strip it from the opener.
     let ownsUserContentController: Bool
+    /// Whether the page browses in private, keeping nothing once it closes.
+    let isPrivate: Bool
     /// The platform's page hosting this one, which shows the person the
-    /// core's questions about it.
-    weak var presenter: (any BrowserPromptPresenting)?
+    /// core's questions about it and gets ready for the loads the binding
+    /// runs in it.
+    private(set) weak var host: (any WebKitPageHosting)?
     /// The binding that built the page, which raises its questions with the
     /// core.
     weak var binding: WebKitEngineBinding?
+    /// What an earlier page of the page's tab kept, which the core handed the
+    /// binding to bring back once the page's host attaches.
+    private var restoring: PageRestoreState?
 
     /// The platform's direct path to the page: going back, reloading, zooming,
     /// finding text and keeping its history.
@@ -44,7 +52,7 @@ final class WebKitEnginePage {
 
     init(
         id: UUID, profileID: UUID, webView: WKWebView, contentRuleLists: [WKContentRuleList],
-        ownsUserContentController: Bool
+        ownsUserContentController: Bool, isPrivate: Bool = false, restoring: PageRestoreState? = nil
     ) {
         self.id = id
         self.profileID = profileID
@@ -52,6 +60,40 @@ final class WebKitEnginePage {
         engine = BrowserWebKitPageEngine(webView: webView)
         self.contentRuleLists = contentRuleLists
         self.ownsUserContentController = ownsUserContentController
+        self.isPrivate = isPrivate
+        self.restoring = restoring
+    }
+
+    // MARK: - Actions - Hosting
+
+    /// Gives the page to `host`, once it is ready to hear the page's
+    /// navigations. A page the core asked to bring back restores its history
+    /// now, in place of its first load, and loads the address it kept when
+    /// WebKit refuses that history.
+    func attach(_ host: any WebKitPageHosting) {
+        self.host = host
+        guard let restoring else { return }
+        self.restoring = nil
+        guard let url = URL(string: restoring.url) else { return }
+        host.prepareToLoad(url)
+        if !engine.restoreHistory(restoring.state) { engine.load(URLRequest(url: url)) }
+    }
+
+    // MARK: - Actions - Navigation
+
+    /// Loads `url` as the app's own load, once the page's host is ready for it.
+    func load(_ url: URL) {
+        host?.prepareToLoad(url)
+        engine.load(URLRequest(url: url))
+    }
+
+    /// What brings the page back as it is: WebKit's history, at the address
+    /// the page shows. A popup and a private page keep nothing, and neither
+    /// does a page that never committed a document.
+    var restoreState: PageRestoreState? {
+        guard ownsUserContentController, !isPrivate, let url = webView.url, let state = engine.savedHistory()
+        else { return nil }
+        return PageRestoreState(url: url.absoluteString, state: state)
     }
 
     // MARK: - Actions - Prompts

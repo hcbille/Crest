@@ -176,3 +176,18 @@ extension BrowserPage {
         )
     }
 }
+
+// MARK: - WebKit hosting
+
+extension BrowserPage: WebKitPageHosting {
+    /// The page shows itself heading to `url`, which only an app-initiated
+    /// load may reach when it is a local file.
+    func prepareToLoad(_ url: URL) {
+        appInitiatedURL = url
+        prepareForNavigation(to: url)
+    }
+
+    func mediaActivityMayHaveChanged() {
+        refreshMediaActivity()
+    }
+}

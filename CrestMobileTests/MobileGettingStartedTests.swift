@@ -24,7 +24,6 @@ final class MobileGettingStartedTests: XCTestCase {
         pages.select()
         XCTAssertEqual(state.lesson, 2)
         pages.handleMemoryPressure(.critical)
-        await pages.waitForPendingMemoryPressureResponse()
         XCTAssertTrue(pages.nativeTabs.contains(assignment))
         XCTAssertFalse(
             pages.closeDurablePage(

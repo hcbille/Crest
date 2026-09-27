@@ -22,7 +22,10 @@ final class BrowserPageHost {
     @ObservationIgnored var runtimes: [TabID: BrowserTabRuntime] = [:]
     /// Moves whenever a tab gains or loses its page, for what reads residency.
     var revision = 0
-    /// Where tabs' pages leave their engine state when they go.
+    /// Where tabs' pages leave their engine state on disk when they go, and
+    /// when their scene stops being active. The core keeps what brings an
+    /// unloaded page back in memory only, so a relaunch restores each tab's
+    /// history from here, as does a tab whose state the core no longer holds.
     let tabState: BrowserTabStateCoordinator
     let nativeTabs = BrowserNativeTabStore()
     /// The Spaces whose pages are being let go or whose data is being deleted.
@@ -251,7 +254,8 @@ final class BrowserPageHost {
     /// `assignment` names; false when it does not.
     @discardableResult
     func unloadPage(for tabID: TabID, matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {
-        let tab = BrowserTabRuntimeAssignment(tabID: tabID, spaceID: assignment.spaceID, profileID: assignment.profileID)
+        let tab = BrowserTabRuntimeAssignment(
+            tabID: tabID, spaceID: assignment.spaceID, profileID: assignment.profileID)
         if nativeTabs.contains(tab) {
             unloadPage(for: tabID)
             return true
@@ -317,18 +321,12 @@ final class BrowserPageHost {
         return probes
     }
 
-    /// The core unloaded the tab's page under memory pressure and closed what
-    /// its engine held. TRANSITIONAL until WebKit's close hands the core its
-    /// restore state: a WebKit page's state is kept from its web view here
-    /// first, with the web view's own address, since the core no longer holds
-    /// the page's.
+    /// The core unloaded the tab's page under memory pressure: its engine
+    /// already closed the page, handing the core what brings it back, which
+    /// the tab's next page restores.
     func pageUnloaded(_ unloaded: PageUnloaded) {
         let tabID = unloaded.tabID
         guard let runtime = runtimes[tabID], runtime.page.corePage.id == unloaded.pageID else { return }
-        let page = runtime.page
-        if !page.pageEngine.registration.handsRestoreStateToCore {
-            tabState.archivePage(page, showing: page.webKitView?.url, for: tabID)
-        }
         runtimes.removeValue(forKey: tabID)
         dropPresentation(tabID)
         runtime.unloaded()
@@ -451,7 +449,8 @@ final class BrowserPageHost {
     /// readied it and the core gave it to the tab through `browser`; nil when
     /// the lease holds no page of that Space, or either refused.
     func adoptTransientPage(
-        _ lease: BrowserPlatformTransientPageLease, as tabID: TabID, in space: SpaceModel, through browser: BrowserStore,
+        _ lease: BrowserPlatformTransientPageLease, as tabID: TabID, in space: SpaceModel,
+        through browser: BrowserStore,
         prepare: (BrowserPlatformPage) -> Bool
     ) -> BrowserPlatformPage? {
         guard let page = lease.page else { return nil }

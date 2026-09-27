@@ -2993,6 +2993,10 @@
     "webkit-binding-keeps-stores-and-rules": {
       "category": "internal",
       "message": "WebKit keeps each profile's website data and its pages' content rules itself, and private browsing drops its in-memory data when it ends"
+    },
+    "webkit-hands-core-restore-state-and-media": {
+      "category": "internal",
+      "message": "WebKit hands the core the history of a page it unloads and reports each page's media as it changes, so memory pressure never asks pages first"
     }
   }
 }

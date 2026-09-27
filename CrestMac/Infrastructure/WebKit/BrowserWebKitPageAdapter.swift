@@ -50,8 +50,13 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     /// begins with each navigation.
     var hostedNotificationDocumentIdentifier = UUID().uuidString
 
-    private(set) lazy var pictureInPicture: (any BrowserPagePictureInPictureController)? =
-        BrowserPictureInPicturePageController(webView: webView)
+    /// Crest's own Picture in Picture, which reports the page's media again
+    /// whenever it starts or stops keeping the page's video on screen.
+    private(set) lazy var pictureInPicture: (any BrowserPagePictureInPictureController)? = {
+        let controller = BrowserPictureInPicturePageController(webView: webView)
+        controller.residencyProtectionChanged = { [weak self] in self?.reporter?.stateChanged() }
+        return controller
+    }()
     private(set) lazy var linkHover: BrowserLinkHoverController? = BrowserLinkHoverController(webView: webView)
     private(set) lazy var linkDrag: BrowserLinkDragController? = BrowserLinkDragController(
         webView: webView,
@@ -124,7 +129,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
 
     func attach(to page: BrowserPage, allowsCredentialAccess: Bool) {
         self.page = page
-        webKitPage.presenter = page
         reporter = EnginePageReporter(page: page.corePage) { [weak self] pendingURL in
             self?.snapshot(pendingURL: pendingURL)
                 ?? PageSnapshot(
@@ -187,6 +191,9 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
                 page?.receiveHostedWebNotificationMessage(message)
             }
         }
+        // Last, so a page the core brings back restores into a page that
+        // hears its navigations.
+        webKitPage.attach(page)
     }
 
     func detach(from page: BrowserPage) {

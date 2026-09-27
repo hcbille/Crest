@@ -12,7 +12,7 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
     func testAScriptDialogReachesItsHostThroughTheCoreAndItsAnswerReachesWebKit() throws {
         let (browser, opened) = try openPage()
         let host = PromptHost()
-        opened.webKit.presenter = host
+        opened.webKit.attach(host)
         var answer: (accepted: Bool, text: String?)?
 
         opened.webKit.ask(
@@ -33,7 +33,7 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
     func testAPageThatClosesAnswersWhatItStillAsksAsDeclined() throws {
         let (browser, opened) = try openPage()
         let host = PromptHost()
-        opened.webKit.presenter = host
+        opened.webKit.attach(host)
         var answer: (accepted: Bool, text: String?)?
         opened.webKit.ask(
             ScriptDialogQuestion(
@@ -52,7 +52,7 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
     func testASignInReachesItsHostThroughTheCoreAndItsCredentialReachesWebKit() throws {
         let (browser, opened) = try openPage()
         let host = PromptHost()
-        opened.webKit.presenter = host
+        opened.webKit.attach(host)
         var answer: AuthenticationCredential??
         opened.webKit.ask(
             AuthenticationQuestion(
@@ -73,7 +73,7 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
     func testAPermissionRequestReachesItsHostThroughTheCoreAndTheAnswerReachesWebKit() throws {
         let (browser, opened) = try openPage()
         let host = PromptHost()
-        opened.webKit.presenter = host
+        opened.webKit.attach(host)
         let origin = SiteOrigin(scheme: "https", host: "camera.crest.test", port: 443)
         var answer: Bool?
         opened.webKit.ask(PermissionQuestion(permission: .camera, origin: origin, topLevelOrigin: origin)) {
@@ -101,7 +101,7 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
 
 /// Records the questions the core asks the person about a page.
 @MainActor
-private final class PromptHost: BrowserPromptPresenting {
+private final class PromptHost: WebKitPageHosting {
     private(set) var asked: [ScriptDialogAsked] = []
     private(set) var signIns: [AuthenticationAsked] = []
     private(set) var permissions: [PermissionAsked] = []
@@ -117,4 +117,8 @@ private final class PromptHost: BrowserPromptPresenting {
     func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {
         permissions.append(asked)
     }
+
+    func prepareToLoad(_ url: URL) {}
+
+    func mediaActivityMayHaveChanged() {}
 }
