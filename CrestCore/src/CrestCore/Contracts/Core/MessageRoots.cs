@@ -2,7 +2,16 @@ namespace CrestCore.Contracts;
 
 /// What an intent changed. A change carries the resulting values, never an
 /// instruction the caller has to work out again.
-public abstract record Change;
+public abstract record Change {
+    #region Actions - Sync
+
+    /// The names of the sync records this change removed from `previous`,
+    /// the session it replaced. A change that removes no Space, folder, tab,
+    /// archived tab or history entry removes none.
+    internal virtual IEnumerable<string> RemovedRecords(SessionState previous) => [];
+
+    #endregion
+}
 
 /// The rule that refused an intent or a query.
 public abstract record Rejection;

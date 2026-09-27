@@ -147,45 +147,29 @@ final class ChromiumExtensionStore {
         guard installed[space.profileID] == nil, authorized(space, in: browser) else { return }
         await load(space, in: browser)
     }
+    /// Runs `command` for the extension `extensionID` names in `space`: opens
+    /// the page it names in `window`, or makes its change and restates what
+    /// the store lists. False when the Space is not one this window may
+    /// change, or when the command has nothing to open and no change to make.
     @discardableResult
     func command(
-        _ command: String, extensionID: String = "", space: BrowserSpaceIdentity, window: NSWindow? = nil
+        _ command: ExtensionCommand, extensionID: String = "", space: BrowserSpaceIdentity, window: NSWindow? = nil
     ) -> Bool {
         guard authorized(space), let pages = CrestChromiumRoot.chromiumEngine?.pages,
             let window = window ?? CrestChromiumRoot.activeNativeWindow
         else { return false }
-        let destination: String?
-        switch command {
-        case "store":
-            destination =
-                extensionID.isEmpty
-                ? "https://chromewebstore.google.com/"
-                : "https://chromewebstore.google.com/detail/\(extensionID)"
-        case "manage": destination = "chrome://extensions/"
-        case "shortcuts": destination = "chrome://extensions/shortcuts"
-        case "details": destination = "chrome://extensions/?id=\(extensionID)"
-        case "options": destination = installed[space.profileID]?.first { $0.id == extensionID }?.options
-        default: destination = nil
-        }
-        if let destination, let url = URL(string: destination) {
+        let options = installed[space.profileID]?.first { $0.id == extensionID }?.options
+        if let destination = command.destination(extensionID, options), let url = URL(string: destination) {
             return CrestChromiumRoot.openExtensionURL(url, in: space, window: window)
         }
-        let change: ExtensionChange
-        switch command {
-        case "enable": change = .enable
-        case "disable": change = .disable
-        case "remove": change = .remove
-        case "pin": change = .pin
-        case "unpin": change = .unpin
-        default: return false
-        }
+        guard let change = command.change else { return false }
         let accepted = pages.request(
             ChangeExtension(profileID: space.profileID, extensionID: extensionID, change: change))
         refresh()
         return accepted
     }
     func togglePin(_ action: BrowserExtensionActionPresentation, space: BrowserSpaceIdentity) {
-        _ = command(action.isPinned ? "unpin" : "pin", extensionID: action.id, space: space)
+        _ = command(action.isPinned ? .unpin : .pin, extensionID: action.id, space: space)
     }
     /// Reports the installed record backing an action so the menu can offer only
     /// the verbs the extension actually supports. The profile is already prepared
@@ -221,7 +205,7 @@ final class ChromiumExtensionStore {
             if record.map({ !$0.options.isEmpty && $0.enabled }) ?? true {
                 menu.addItem(
                     handler.item(String(localized: "Extension Settings…")) { [weak self] in
-                        self?.command("options", extensionID: action.id, space: space)
+                        self?.command(.options, extensionID: action.id, space: space)
                     })
             }
             menu.addItem(
@@ -237,23 +221,23 @@ final class ChromiumExtensionStore {
                         record.enabled
                             ? String(localized: "Disable Extension") : String(localized: "Enable Extension")
                     ) { [weak self] in
-                        self?.command(record.enabled ? "disable" : "enable", extensionID: action.id, space: space)
+                        self?.command(record.enabled ? .disable : .enable, extensionID: action.id, space: space)
                     })
             }
             menu.addItem(.separator())
         }
         menu.addItem(
             handler.item(String(localized: "Manage Extension…")) { [weak self] in
-                self?.command("details", extensionID: action.id, space: space)
+                self?.command(.details, extensionID: action.id, space: space)
             })
         menu.addItem(
             handler.item(String(localized: "Manage Extensions…")) { [weak self] in
-                self?.command("manage", space: space)
+                self?.command(.manage, space: space)
             })
         if record?.webStore ?? false {
             menu.addItem(
                 handler.item(String(localized: "View on Chrome Web Store")) { [weak self] in
-                    self?.command("store", extensionID: action.id, space: space)
+                    self?.command(.store, extensionID: action.id, space: space)
                 })
         }
         if !isPrivate, let record {
@@ -309,7 +293,7 @@ final class ChromiumExtensionStore {
                 MainActor.assumeIsolated {
                     defer { completion?() }
                     guard response == .alertFirstButtonReturn else { return }
-                    guard self.command("remove", extensionID: record.id, space: space) else {
+                    guard self.command(.remove, extensionID: record.id, space: space) else {
                         self.reportFailure()
                         return
                     }

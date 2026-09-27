@@ -1,5 +1,4 @@
 using CrestCore.Contracts;
-using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
@@ -44,47 +43,10 @@ internal sealed record SyncRemovals(IReadOnlyList<SyncRemovals.Edit> Edits) {
         return reasons;
     }
 
-    /// The records `next` no longer holds that `previous` did, by the removals
-    /// the session's change feed reports. A Space that is gone takes every
-    /// record it held with it.
-    private static IEnumerable<string> Removed(SessionState previous, SessionState next) {
-        foreach (var change in SessionChanges.Publish(Guid.Empty, previous, next)) {
-            switch (change) {
-                case SpacesChanged spaces:
-                    foreach (var id in spaces.Removed) {
-                        var old = previous.Spaces.Single(space => space.Id == id);
-                        // A Space the feed sends again whole names only the records it lost.
-                        var resent = spaces.Added.FirstOrDefault(space => space.Id == id);
-                        HashSet<string> kept = resent is null ? [] : Records(resent).ToHashSet(StringComparer.Ordinal);
-                        if (resent is null) yield return Name(SyncRecordKind.Space, id);
-                        foreach (var name in Records(old).Where(name => !kept.Contains(name))) yield return name;
-                    }
-                    break;
-                case FoldersChanged folders:
-                    foreach (var id in folders.Removed) yield return Name(SyncRecordKind.Folder, id);
-                    break;
-                case TabsChanged tabs:
-                    foreach (var id in tabs.Removed) yield return Name(SyncRecordKind.Tab, id);
-                    break;
-                case ArchiveChanged archive:
-                    foreach (var id in archive.Removed) yield return Name(SyncRecordKind.Archive, id);
-                    break;
-                case HistoryChanged history:
-                    foreach (var id in history.Removed) yield return Name(SyncRecordKind.History, id);
-                    break;
-            }
-        }
-    }
-
-    /// The names of the records a Space holds besides its own.
-    private static IEnumerable<string> Records(SpaceState space) =>
-        space.Folders.Select(folder => Name(SyncRecordKind.Folder, folder.Id))
-            .Concat(space.Tabs.Select(tab => Name(SyncRecordKind.Tab, tab.Id)))
-            .Concat(space.ArchivedTabs.Select(archived => Name(SyncRecordKind.Archive, archived.Tab.Id)))
-            .Concat(space.History.Select(entry => Name(SyncRecordKind.History, entry.Id)));
-
-    /// A record's name in the journal.
-    private static string Name(SyncRecordKind kind, Guid id) => kind.Name + ":" + id.ToString("D");
+    /// The records `next` no longer holds that `previous` did, as the changes
+    /// the session's change feed reports name them.
+    private static IEnumerable<string> Removed(SessionState previous, SessionState next) =>
+        SessionChanges.Publish(Guid.Empty, previous, next).SelectMany(change => change.RemovedRecords(previous));
 
     #endregion
 }

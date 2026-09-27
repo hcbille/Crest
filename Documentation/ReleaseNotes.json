@@ -3097,6 +3097,10 @@
     "swift-messages-carry-their-logic": {
       "category": "internal",
       "message": "In the apps, each change the core publishes, each command WebKit runs, each request its pages answer and each presentation Chromium shows now carries its own logic, so a new one that lacks it fails to build; nothing changes in behavior."
+    },
+    "sync-removals-and-extension-commands": {
+      "category": "internal",
+      "message": "Each session change now names the synced records it removes, and the extension menu and settings ask the store with typed commands instead of words; nothing changes in behavior."
     }
   }
 }

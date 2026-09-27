@@ -52,15 +52,15 @@ struct BrowserExtensionsView: View {
         Group {
             if !usesLiveSidebar { installedExtensions }
             Section("Add Extensions", systemImage: "plus.app") {
-                Button("Open Chrome Web Store", systemImage: "arrow.up.right.square") { run("store") }
+                Button("Open Chrome Web Store", systemImage: "arrow.up.right.square") { run(.store) }
                 Text(
                     "Choose an extension, then use Install Extension in Site Controls to review its permissions and select Spaces."
                 )
                 .font(.callout).foregroundStyle(.secondary)
-                Button("Open Chromium Extension Manager", systemImage: "arrow.up.right.square") { run("manage") }
+                Button("Open Chromium Extension Manager", systemImage: "arrow.up.right.square") { run(.manage) }
                 // Extension shortcuts are the engine's own bindings: Crest routes an
                 // unclaimed key equivalent to them but does not own their list.
-                Button("Keyboard Shortcuts…", systemImage: "keyboard") { run("shortcuts") }
+                Button("Keyboard Shortcuts…", systemImage: "keyboard") { run(.shortcuts) }
             }
             if usesLiveSidebar { installedExtensions }
         }
@@ -79,7 +79,7 @@ struct BrowserExtensionsView: View {
             presenting: pendingRemoval
         ) { item in
             Button("Remove from \(space.name)", role: .destructive) {
-                run("remove", item.id)
+                run(.remove, item.id)
                 pendingRemoval = nil
             }
             Button("Cancel", role: .cancel) { pendingRemoval = nil }
@@ -101,14 +101,14 @@ struct BrowserExtensionsView: View {
             } else {
                 ForEach(extensions) { item in
                     BrowserExtensionRow(
-                        item: item, setEnabled: { run($0 ? "enable" : "disable", item.id) },
-                        options: { run("options", item.id) }, manage: { run("details", item.id) },
+                        item: item, setEnabled: { run($0 ? .enable : .disable, item.id) },
+                        options: { run(.options, item.id) }, manage: { run(.details, item.id) },
                         remove: { pendingRemoval = item }, copy: { pendingCopy = item })
                 }
             }
         }.containerValue(\.settingsFullWidth, true)
     }
-    private func run(_ command: String, _ id: String = "") {
+    private func run(_ command: ExtensionCommand, _ id: String = "") {
         if !store.command(command, extensionID: id, space: space) {
             failure =
                 "Chromium could not complete this action. Check the extension’s details for policy or permission requirements."

@@ -45,5 +45,8 @@ public sealed class SyncRecordKind {
 
     public static SyncRecordKind? Named(string? name) => All.FirstOrDefault(kind => kind.Name == name);
 
+    /// The journal's name for the record of this kind `id` names.
+    internal string RecordName(Guid id) => Name + ":" + id.ToString("D");
+
     #endregion
 }

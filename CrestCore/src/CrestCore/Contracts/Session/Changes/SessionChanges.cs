@@ -28,16 +28,6 @@ public sealed record SpaceLockChanged(Guid SpaceId, Guid ProfileId, bool IsUnloc
 /// <summary>A Space's settings now read as <see cref="Settings"/>.</summary>
 public sealed record SpaceSettingsChanged(Guid WorkspaceId, Guid SpaceId, SpaceSettings Settings) : Change;
 
-/// <summary>
-/// A workspace's Spaces changed membership or order. <see cref="Removed"/> Spaces are
-/// gone, and each <see cref="Added"/> Space arrives whole and goes after the Spaces
-/// that stay. <see cref="Order"/> names every Space in its new order, and is present
-/// only when that order differs from the one those two steps leave. A Space that
-/// arrives again whole is named in both <see cref="Removed"/> and <see cref="Added"/>.
-/// </summary>
-public sealed record SpacesChanged(Guid WorkspaceId, IReadOnlyList<SpaceState> Added, IReadOnlyList<Guid> Removed,
-    IReadOnlyList<Guid>? Order) : Change;
-
 #endregion
 
 #region Tabs
@@ -58,16 +48,6 @@ public sealed record TabFaviconAssigned(Guid WorkspaceId, Guid TabId, bool Adopt
 /// to its saved address and nothing of its page is kept.
 public sealed record TabPagePutAway(Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId, bool KeepsState) : Change;
 
-/// <summary>
-/// A Space's tabs changed. <see cref="Removed"/> tabs are gone. Each tab in
-/// <see cref="Updated"/> replaces the tab with its identity where that tab stands, or
-/// goes after the others when it is new. <see cref="Order"/> names every tab in its
-/// new order, and is present only when that order differs from the one those steps
-/// leave.
-/// </summary>
-public sealed record TabsChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyList<TabState> Updated, IReadOnlyList<Guid> Removed,
-    IReadOnlyList<Guid>? Order) : Change;
-
 /// An import placed these tabs, open or archived, each from a tab of the Spaces
 /// it brought, so each wears the image its importer holds for the tab it came
 /// from.
@@ -83,16 +63,6 @@ public sealed record TransientPagePromoted(Guid WorkspaceId, Guid PageId, Guid T
 #region Organization
 
 /// <summary>
-/// A Space's folders changed. <see cref="Removed"/> folders are gone. Each folder in
-/// <see cref="Updated"/> replaces the folder with its identity where that folder
-/// stands, or goes after the others when it is new. <see cref="Order"/> names every
-/// folder in its new order, and is present only when that order differs from the one
-/// those steps leave.
-/// </summary>
-public sealed record FoldersChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyList<FolderState> Updated,
-    IReadOnlyList<Guid> Removed, IReadOnlyList<Guid>? Order) : Change;
-
-/// <summary>
 /// A Space's sidebar lists changed. Each list in <see cref="Lists"/> replaces the list of
 /// its section's top level, or of its folder's inside, and the lists of
 /// <see cref="RemovedFolderIds"/> are gone with their folders. Every other list is as it
@@ -103,29 +73,6 @@ public sealed record SidebarChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyLis
 
 /// <summary>A Space's split metadata now reads as <see cref="Groups"/>.</summary>
 public sealed record SplitGroupsChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyList<SplitGroupState> Groups) : Change;
-
-#endregion
-
-#region Records
-
-/// <summary>
-/// A Space's archive changed. The archived tabs <see cref="Removed"/> names are gone.
-/// Each entry in <see cref="Archived"/> replaces the entry for its tab where that
-/// entry stands, or goes after the others when it is new. <see cref="Order"/> names
-/// every archived tab in its new order, and is present only when that order differs
-/// from the one those steps leave.
-/// </summary>
-public sealed record ArchiveChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyList<ArchivedTabState> Archived,
-    IReadOnlyList<Guid> Removed, IReadOnlyList<Guid>? Order) : Change;
-
-/// <summary>
-/// A Space's history changed. <see cref="Removed"/> entries are gone. The entries in
-/// <see cref="Recorded"/>, newest first, replace the entries with their identities
-/// and go before every other entry. <see cref="Order"/> names every entry in its new
-/// order, and is present only when that order differs from the one those steps leave.
-/// </summary>
-public sealed record HistoryChanged(Guid WorkspaceId, Guid SpaceId, IReadOnlyList<HistoryEntryState> Recorded,
-    IReadOnlyList<Guid> Removed, IReadOnlyList<Guid>? Order) : Change;
 
 #endregion
 

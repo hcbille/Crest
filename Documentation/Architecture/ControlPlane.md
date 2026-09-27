@@ -306,6 +306,9 @@ records, merging, ordering, scheduling and the payload codec.
   from the revision's immutable state. Each intent carries the reason its
   removals are deleted for and how soon it stages. A burst of edits stages
   once, and each removed record keeps the reason of the edit that removed it.
+  Each session change that removes records names them itself
+  (`Change.RemovedRecords`): a Space that is gone takes its folders, tabs,
+  archive and history with it.
 - `NativeSyncJournal` updates immutable journal snapshots through `Stage`,
   `Merge`, `Replace`, `Overwrite` and `Acknowledge`. The rules that differ by
   kind of record belong to that kind's `SyncPayloadType`. A failed update
