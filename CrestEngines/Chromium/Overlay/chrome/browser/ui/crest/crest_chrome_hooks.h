@@ -25,6 +25,8 @@ namespace crest {
 inline constexpr int kContentWorldID = (1 << 29) - 1;
 // Enabled only by the explicitly selected Crest host command-line switch.
 bool IsEnabled();
+// The platform's BrowserWindow for `browser` was created or destroyed. The
+// engine binding keeps the Browser (see EngineBrowsers).
 void OnBrowserWindowCreated(Browser* browser);
 void OnBrowserWindowDestroyed(Browser* browser);
 // A Browser the engine created for itself was shown. Crest opens the window it

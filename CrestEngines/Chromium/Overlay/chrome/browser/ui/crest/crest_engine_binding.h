@@ -32,6 +32,7 @@ struct OpenURLParams;
 
 namespace crest {
 
+class EngineBrowsers;
 class EngineDownloads;
 class EngineExtensions;
 class EnginePage;
@@ -42,8 +43,10 @@ class EnginePrompts;
 // C++ and Chromium's own types with no Objective-C, so it serves every
 // platform. It implements crest_engine.h. The core hands it commands through
 // the table's `run` and it reports what the engine does with each page
-// straight to the core, through the function `attach` gave it. Each
-// platform's shell embeds the pages' views and does what only the operating
+// straight to the core, through the function `attach` gave it. It keeps
+// Chromium's Browsers too (see EngineBrowsers): which Browser each page is
+// in, and when each opens and closes. Each platform's shell makes the windows
+// they are built on, embeds the pages' views and does what only the operating
 // system can.
 //
 // The platform reaches the binding directly through a second table,
@@ -68,35 +71,39 @@ class EnginePrompts;
 // loads it or it is dropped.
 class EngineBinding {
  public:
-  // What the platform shell does for the binding. TRANSITIONAL: the shell
-  // keeps the Browsers, each built on its platform BrowserWindow, until the
-  // binding owns Browser lifetime and asks the shell only for the window.
+  // Where a Browser the engine created for itself belongs: the Crest window
+  // the platform reserved for it and the Space its tabs join.
+  struct WindowPlacement {
+    std::string window;
+    std::string space;
+  };
+
+  // What only the platform does for the binding: its windows and the views
+  // it hosts. Each Browser the binding keeps is built on the platform's own
+  // BrowserWindow, which Chromium's window factory makes for it, since a
+  // Browser takes no window from its creator outside tests; the shell makes
+  // and opens the Crest windows those BrowserWindows show in.
   class Shell {
    public:
     virtual ~Shell() = default;
-    // Creates `page`'s WebContents in `profile`, which `profile_id` names,
-    // inside the Browser of `window`, and answers it, or nullptr when it
-    // cannot.
-    virtual content::WebContents* CreateContents(const std::string& page,
-                                                 Profile* profile,
-                                                 const std::string& profile_id,
-                                                 const std::string& window) = 0;
-    // Follows `contents`, which the engine opened by itself in `profile` and
-    // the core adopted, as `page`, and answers whether a Browser holds it.
-    virtual bool AdoptContents(const std::string& page, content::WebContents* contents, const std::string& profile) = 0;
-    // Closes `contents`, which the engine opened by itself and the core
-    // refused.
-    virtual void CloseOffered(content::WebContents* contents) = 0;
-    // Destroys `page`'s WebContents, which the binding has let go of.
-    virtual void DestroyContents(const std::string& page) = 0;
-    // Moves `page`'s WebContents into the Browser of `window`, which the shell
-    // keeps with the other Browsers.
-    virtual bool MoveToWindow(const std::string& page, const std::string& window) = 0;
+    // Reserves the Crest window a Browser the engine created for itself in
+    // `profile` belongs in, and names the Space its tabs join. Crest is one
+    // window: only a Browser `chrome.windows.create` asked for (`own_window`)
+    // gets another, and any other joins the window the person is using. None
+    // when no Space can host the profile's tabs.
+    virtual std::optional<WindowPlacement> ReserveWindow(const std::string& profile, bool own_window) = 0;
+    // Opens the window reserved as `placement`, showing its Space, just before
+    // its first tab is offered; in front when `focused`.
+    virtual void PresentWindow(const WindowPlacement& placement, bool focused) = 0;
+    // Drops the views the shell hosts beside `page`, whose WebContents the
+    // binding destroys next.
+    virtual void ReleasePage(const std::string& page) = 0;
     // Hosts the view of the inspector docked on `page`, or none when
     // `frontend` is null.
     virtual void DockInspector(const std::string& page, content::WebContents* frontend) = 0;
-    // Closes the pages and Browsers of the profiles being let go of.
-    virtual void ReleaseProfiles(const std::set<std::string>& profiles) = 0;
+    // Closes what the shell hosts for `profile`, which is being let go of,
+    // apart from its pages.
+    virtual void ReleaseProfile(const std::string& profile) = 0;
     // Closes the side panels the shell hosts for `extension` in `profile`'s
     // pages, or only for the tab `tab` names.
     virtual void RetractSidePanels(Profile* profile, const std::string& extension, std::optional<int> tab) = 0;
@@ -115,8 +122,10 @@ class EngineBinding {
   crest_engine_pages_t Pages();
 
   void SetShell(Shell* shell);
-  // The engine is shutting down: nothing more is reported, and every page is
-  // let go of without a report.
+  // The platform's shell, or nullptr before it hosts Crest.
+  Shell* shell() const { return shell_; }
+  // The engine is shutting down: nothing more is reported, every page is let
+  // go of without a report, the Browsers close and the profiles go.
   void Dispose();
 
   // The engine opened `contents` by itself, in the Browser of the Crest
@@ -139,6 +148,18 @@ class EngineBinding {
   // The page that follows `contents`, for the engine's own hooks, or nullptr
   // when no page does.
   EnginePage* PageFor(content::WebContents* contents);
+  // The page the platform names `page`, or nullptr.
+  EnginePage* Find(const std::string& page);
+  // Lets `page`'s WebContents go at once, as a closing window does: the shell
+  // drops the views beside it and its Browser deletes it, and the page hears
+  // it is gone as if the engine had closed it.
+  void DestroyPage(const std::string& page);
+  // Lets a profile go, as a closing private window does: its Browsers close
+  // with every page in them, its extensions are forgotten and the engine
+  // releases it, destroying a private one.
+  void ReleaseProfile(const std::string& profile);
+  // The Browsers the binding keeps.
+  EngineBrowsers& Browsers();
   // The engine's extensions changed, which Chrome Web Store listings show.
   void RefreshStoreListings();
   // The shell hosts the view of the inspector docked on `page`, or none.
@@ -274,9 +295,11 @@ class EngineBinding {
   void Erase(const engine::EraseProfileData& erasing);
   void Erase(const engine::EraseSiteData& erasing);
   void Forget(const std::string& page);
+  // Destroys `contents`, the WebContents of `page`, after the shell drops
+  // the views beside it.
+  void DestroyContents(const std::string& page, content::WebContents* contents);
   void ScheduleFlush();
   void Flush();
-  EnginePage* Find(const std::string& page);
 
   raw_ptr<Shell> shell_ = nullptr;
   uint64_t app_ = 0;
@@ -295,6 +318,7 @@ class EngineBinding {
   std::map<std::string, OfferedPage> offers_;
   std::map<std::string, std::unique_ptr<StagedLink>> staged_links_;
   std::unique_ptr<EngineProfiles> profiles_;
+  std::unique_ptr<EngineBrowsers> browsers_;
   std::unique_ptr<EngineExtensions> extensions_;
   std::unique_ptr<EngineDownloads> downloads_;
   std::unique_ptr<EnginePrompts> prompts_;

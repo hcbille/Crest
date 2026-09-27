@@ -380,11 +380,23 @@ the binding directly and the binding reports to the core itself, with no Swift
 or Objective-C between them. `CreatePage` names the page's window, so Chromium
 creates the page in that window's `Browser` as soon as the core asks.
 
+The binding also keeps Chromium's `Browser`s (`EngineBrowsers`): one for each
+profile whose pages a Crest window shows, and those the engine creates for
+itself for `chrome.windows.create`, a renderer's popup or an extension's app
+window. It creates, finds and closes them, moves a page's tab between them
+when its view attaches in another window, offers the tabs the engine opens
+by itself, and closes a profile's `Browser`s when its Space is deleted or its
+private window closes.
+
 Chromium's Mac shell (`crest_chrome_host.mm` behind the typed `CrestMacShell`
 and `CrestMacUI` protocols in `CrestChromiumHost.h`) does only what AppKit
-must: it hosts each page's view and the views an extension or the inspector
-puts beside it, shows extension popups, runs system sign-in, and answers the
-close and quit preflight. Objects and blocks never enter .NET.
+must: it reserves and opens the Crest windows the binding's `Browser`s show
+in, hosts each page's view and the views an extension or the inspector puts
+beside it, shows extension popups, runs system sign-in, and answers the close
+and quit preflight. Each `Browser` is built on the shell's
+`CrestBrowserWindow`, which Chromium's window factory makes for it, since
+Chromium gives a `Browser` its window from its creator only in tests. Objects
+and blocks never enter .NET.
 
 A private window works like incognito and shares nothing with any Space. Its
 Space gets a new profile each time private browsing opens
@@ -394,10 +406,6 @@ from the engine's own startup profile, which no Space owns and no page browses
 in, and destroys it when the window closes and the profile is released. No
 extension a person installed runs in a private profile, whatever its own
 setting.
-
-TRANSITIONAL: the shell also keeps the `Browser`s, each built on its
-`CrestBrowserWindow`, until the binding owns their lifetime and asks the shell
-only for a window.
 
 ### WebKit's binding
 

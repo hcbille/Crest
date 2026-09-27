@@ -156,7 +156,7 @@
        // If the web authentication request is still pending, remove it from the
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -3448,6 +3448,39 @@
+@@ -3448,6 +3448,41 @@
        "browser_mac.h",
        "fullscreen_util_mac.cc",
        "fullscreen_util_mac.h",
@@ -169,6 +169,8 @@
 +      "crest/crest_engine.h",
 +      "crest/crest_engine_binding.cc",
 +      "crest/crest_engine_binding.h",
++      "crest/crest_engine_browsers.cc",
++      "crest/crest_engine_browsers.h",
 +      "crest/crest_engine_content.cc",
 +      "crest/crest_engine_content.h",
 +      "crest/crest_engine_contract.h",
@@ -196,7 +198,7 @@
        "views/certificate_viewer_mac_views.mm",
        "views/frame/browser_frame_view_factory_mac.mm",
        "views/frame/browser_frame_view_mac.h",
-@@ -3487,6 +3520,13 @@
+@@ -3487,6 +3522,13 @@
        "//ui/accelerated_widget_mac",
      ]
      include_dirs = [ "$target_gen_dir" ]

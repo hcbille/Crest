@@ -16,11 +16,14 @@
 #include "chrome/browser/ui/crest/crest_download_hooks.h"
 #include "chrome/browser/download/download_confirmation_result.h"
 #include "ui/shell_dialogs/selected_file_info.h"
+#include "chrome/browser/ui/crest/crest_engine_browsers.h"
 #include "chrome/browser/ui/crest/crest_engine_downloads.h"
 #include "chrome/browser/ui/crest/crest_engine_extensions.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
 #include "chrome/browser/ui/crest/crest_engine_profiles.h"
 #include "chrome/browser/ui/crest/crest_engine_prompts.h"
+#include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "net/base/auth.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -73,6 +76,24 @@ engine::LinkGesture Clicked(uint32_t modifiers) {
 bool OpensPeek(engine::LinkNavigationDecision decision) {
   return decision == engine::LinkNavigationDecision::kPeekModifier ||
          decision == engine::LinkNavigationDecision::kPeekSavedSite;
+}
+
+// Crest's vault owns credentials in every window, so the engine's own password
+// manager never saves, offers fills or shows its bubbles, in a private window
+// as much as in a Space, whether or not a credential bridge is installed. A
+// private profile keeps its preferences in memory and a private password
+// store reads its original profile's settings, so both are turned off.
+void DisableEnginePasswordManager(content::WebContents* contents) {
+  auto* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
+  if (!profile) {
+    return;
+  }
+  for (Profile* target : {profile, profile->GetOriginalProfile()}) {
+    PrefService* prefs = target ? target->GetPrefs() : nullptr;
+    if (prefs && prefs->GetBoolean(password_manager::prefs::kCredentialsEnableService)) {
+      prefs->SetBoolean(password_manager::prefs::kCredentialsEnableService, false);
+    }
+  }
 }
 
 // Stops a person's plain click on a link in one of Crest's pages from loading
@@ -189,12 +210,14 @@ void EngineBinding::Dispose() {
   extensions_.reset();
   prompts_.reset();
   downloads_.reset();
-  // The shell lets the profiles go once its Browsers are gone.
   Profiles().Dispose();
   for (auto& [key, page] : pages_) {
     page->Stop();
   }
   pages_.clear();
+  // The profiles go once the Browsers, and every tab in them, are gone.
+  Browsers().CloseAll();
+  Profiles().ReleaseAll();
 }
 
 // The core's side.
@@ -337,15 +360,15 @@ void EngineBinding::ProfileLoaded(const std::string& key, Profile* profile) {
   if (!page || page->phase() != EnginePage::Phase::kCreating || !shell_ || disposing_) {
     return;
   }
-  Created(key, profile ? shell_->CreateContents(key, profile, page->profile(), page->window()) : nullptr);
+  Created(key, profile ? Browsers().CreateContents(profile, page->profile(), page->window()) : nullptr);
 }
 
 void EngineBinding::Created(const std::string& key, content::WebContents* contents) {
   EnginePage* page = Find(key);
   if (!page || page->phase() != EnginePage::Phase::kCreating) {
     // The page closed while its profile loaded.
-    if (contents && shell_) {
-      shell_->DestroyContents(key);
+    if (contents) {
+      DestroyContents(key, contents);
     }
     return;
   }
@@ -364,8 +387,10 @@ void EngineBinding::Created(const std::string& key, content::WebContents* conten
 }
 
 // The page the core adopted is the WebContents the engine offered, in the
-// profile it opened in; one that is gone, or of another profile, fails, and
-// the WebContents, which no page follows, closes.
+// profile it opened in, which stays in the Browser the engine opened it in
+// until its view attaches in its own window. One that is gone, of another
+// profile or in no Browser the binding keeps fails, and the WebContents,
+// which no page follows, closes.
 void EngineBinding::Adopt(const engine::AdoptOfferedPage& adoption) {
   const std::string key = GuidText(adoption.page_id);
   if (pages_.contains(key)) {
@@ -375,9 +400,9 @@ void EngineBinding::Adopt(const engine::AdoptOfferedPage& adoption) {
   const std::string profile = GuidText(adoption.profile_id);
   auto offer = offers_.extract(GuidText(adoption.offer_id));
   content::WebContents* contents = offer ? offer.mapped().contents.get() : nullptr;
-  if (!contents || offer.mapped().profile != profile || !shell_ || !shell_->AdoptContents(key, contents, profile)) {
-    if (contents && shell_) {
-      shell_->CloseOffered(contents);
+  if (!contents || offer.mapped().profile != profile || !Browsers().Holding(contents)) {
+    if (contents) {
+      Browsers().Destroy(contents);
     }
     failed_.insert(key);
     Present(engine::PageViewUnavailable{.page_id = adoption.page_id});
@@ -398,8 +423,8 @@ void EngineBinding::Adopt(const engine::AdoptOfferedPage& adoption) {
 // The page the core refused closes.
 void EngineBinding::Reject(const engine::RejectOfferedPage& rejection) {
   auto offer = offers_.extract(GuidText(rejection.offer_id));
-  if (offer && offer.mapped().contents && shell_) {
-    shell_->CloseOffered(offer.mapped().contents.get());
+  if (offer && offer.mapped().contents) {
+    Browsers().Destroy(offer.mapped().contents.get());
   }
 }
 
@@ -416,6 +441,7 @@ void EngineBinding::Stage(const engine::StageNavigation& staging) {
 // The page has its WebContents: the platform hears its view is ready, the
 // core hears the page is live, and then it loads what it was asked to.
 void EngineBinding::Live(EnginePage& page, content::WebContents* contents) {
+  DisableEnginePasswordManager(contents);
   page.Start(contents);
   if (!page.standalone()) {
     Report(engine::PageCreated{.page_id = page.id()});
@@ -427,7 +453,9 @@ void EngineBinding::Live(EnginePage& page, content::WebContents* contents) {
 void EngineBinding::Close(const engine::ClosePage& closing) {
   const std::string key = GuidText(closing.page_id);
   std::optional<engine::PageRestoreState> restore_state;
+  content::WebContents* contents = nullptr;
   if (auto page = pages_.extract(key)) {
+    contents = page.mapped()->web_contents();
     if (closing.keeps_state) {
       restore_state = page.mapped()->RestoreState();
     }
@@ -442,9 +470,7 @@ void EngineBinding::Close(const engine::ClosePage& closing) {
   if (prompts_) {
     prompts_->Forget(closing.page_id);
   }
-  if (shell_) {
-    shell_->DestroyContents(key);
-  }
+  DestroyContents(key, contents);
   Report(engine::PageClosed{.page_id = closing.page_id, .restore_state = std::move(restore_state)});
 }
 
@@ -831,7 +857,8 @@ bool EngineBinding::Handle(const engine::MovePageToWindow& request) {
   const std::string key = GuidText(request.page_id);
   EnginePage* page = Find(key);
   const std::string window = GuidText(request.window_id);
-  if (!page || page->phase() != EnginePage::Phase::kLive || !shell_ || !shell_->MoveToWindow(key, window)) {
+  if (!page || page->phase() != EnginePage::Phase::kLive ||
+      !Browsers().MoveToWindow(page->web_contents(), page->profile(), window)) {
     return false;
   }
   page->set_window(window);
@@ -875,12 +902,11 @@ bool EngineBinding::Handle(const engine::CloseStandalonePage& request) {
   if (!page || !page->standalone()) {
     return false;
   }
+  content::WebContents* contents = page->web_contents();
   page->Stop();
   pages_.erase(key);
   std::erase(due_, key);
-  if (shell_) {
-    shell_->DestroyContents(key);
-  }
+  DestroyContents(key, contents);
   return true;
 }
 
@@ -1053,10 +1079,19 @@ void EngineBinding::Erase(const engine::EraseProfileData& erasing) {
     return;
   }
   if (shell_) {
-    shell_->ReleaseProfiles({id});
+    shell_->ReleaseProfile(id);
   }
-  Extensions().Forget(id);
-  Profiles().Release(id);
+  // Its pages close first, each with the views beside it, then its Browsers.
+  std::vector<std::string> closing;
+  for (const auto& [key, page] : pages_) {
+    if (page->profile() == id && page->web_contents()) {
+      closing.push_back(key);
+    }
+  }
+  for (const std::string& key : closing) {
+    DestroyPage(key);
+  }
+  ReleaseProfile(id);
   Present(engine::ProfileReleased{.profile_id = erasing.profile_id});
   Profiles().Delete(id, erasing.ephemeral,
                     base::BindOnce(
@@ -1172,6 +1207,39 @@ void EngineBinding::Flush() {
 EnginePage* EngineBinding::Find(const std::string& key) {
   auto found = pages_.find(key);
   return found == pages_.end() ? nullptr : found->second.get();
+}
+
+void EngineBinding::DestroyPage(const std::string& key) {
+  EnginePage* page = Find(key);
+  if (content::WebContents* contents = page ? page->web_contents() : nullptr) {
+    DestroyContents(key, contents);
+  }
+}
+
+void EngineBinding::DestroyContents(const std::string& key, content::WebContents* contents) {
+  if (shell_) {
+    shell_->ReleasePage(key);
+  }
+  Browsers().Destroy(contents);
+}
+
+void EngineBinding::ReleaseProfile(const std::string& id) {
+  if (disposing_) {
+    return;
+  }
+  // Pages still offered to the core close with their Browsers.
+  if (Profile* profile = Profiles().Find(id)) {
+    Browsers().CloseProfile(profile);
+  }
+  Extensions().Forget(id);
+  Profiles().Release(id);
+}
+
+EngineBrowsers& EngineBinding::Browsers() {
+  if (!browsers_) {
+    browsers_ = std::make_unique<EngineBrowsers>(*this);
+  }
+  return *browsers_;
 }
 
 // The engine's own hooks, for the pages that follow the WebContents they name.

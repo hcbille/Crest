@@ -129,6 +129,7 @@
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/crest/crest_chrome_hooks.h"
 #include "chrome/browser/ui/crest/crest_engine_binding.h"
+#include "chrome/browser/ui/crest/crest_engine_browsers.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
 #include "chrome/browser/ui/crest/crest_engine_prompts.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -482,23 +483,16 @@ class NativePermissionPrompt final : public permissions::PermissionPrompt {
   bool responded_ = false;
   base::WeakPtrFactory<NativePermissionPrompt> weak_factory_{this};
 };
-struct Page;
-struct BrowserOwner;
+struct PageViews;
 struct HostState {
   const base::Time started_at = base::Time::Now();
   // Crest's own UI, which the framework attaches when it starts.
   id<CrestMacUI> ui = nil;
-  Browser* bootstrap = nullptr;
   bool started = false;
   bool disposing = false;
   bool quitting = false;
-  std::string creating_window;
-  // The profile `chrome.windows.create` is about to create a Browser in, for
-  // the one turn between asking and creating: that Browser gets a Crest window
-  // of its own. Every other Browser the engine creates joins an open window.
-  Profile* own_window_profile = nullptr;
-  std::map<std::string, std::unique_ptr<BrowserOwner>> browsers;
-  std::map<std::string, std::unique_ptr<Page>> pages;
+  // The views the shell hosts beside each page, by page.
+  std::map<std::string, std::unique_ptr<PageViews>> views;
   // The action popup opened from a Space that has no page. A page's own popup
   // lives on the page; this one has no page to live on and only one can be
   // open at a time, because an action popup is transient.
@@ -579,36 +573,11 @@ void StartAuthenticationSession(ASWebAuthenticationSessionRequest* request) {
   if (![UI() openAuthenticationSession:request.URL window:window]) EndAuthenticationSession(key, nil, false);
 }
 
-// Crest's vault owns credentials in every window, so the engine's own password
-// manager never saves, offers fills or shows its bubbles — in a private window
-// as much as in a Space, whether or not a credential bridge is installed. A
-// private profile keeps its preferences in memory and a private password
-// store reads its original profile's settings, so both are turned off.
-void DisableEnginePasswordManager(content::WebContents* contents) {
-  auto* profile = contents ? Profile::FromBrowserContext(contents->GetBrowserContext()) : nullptr;
-  if (!profile) return;
-  for (Profile* target : {profile, profile->GetOriginalProfile()}) {
-    auto* prefs = target ? target->GetPrefs() : nullptr;
-    if (prefs && prefs->GetBoolean(password_manager::prefs::kCredentialsEnableService))
-      prefs->SetBoolean(password_manager::prefs::kCredentialsEnableService, false);
-  }
-}
-
-// The shell's side of a page: the Browser that holds its WebContents and the
-// views it hosts over it.
-struct Page final : content::WebContentsObserver {
-  Page(content::WebContents* contents, Browser* owner, std::string profile_id)
-      : content::WebContentsObserver(contents), browser(owner), profile(std::move(profile_id)) {
-    DisableEnginePasswordManager(contents);
-  }
-  // The page's identity, as the platform spells it.
-  std::string Key() const {
-    for (const auto& [id, page] : State().pages)
-      if (page.get() == this) return id;
-    return std::string();
-  }
-  Browser* browser;
-  std::string profile;
+// The views the shell hosts beside a page: an extension action's popup, an
+// extension's side panel and a docked inspector. They go with the page's
+// WebContents, or before it when the binding lets the page go.
+struct PageViews final : content::WebContentsObserver {
+  explicit PageViews(content::WebContents* contents) : content::WebContentsObserver(contents) {}
   std::unique_ptr<ExtensionPopup> extension_popup;
   std::unique_ptr<ExtensionSidePanel> side_panel;
   std::unique_ptr<DevToolsPanel> devtools;
@@ -620,264 +589,88 @@ struct Page final : content::WebContentsObserver {
   }
 };
 
-
-void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foreground);
-
-
-
-struct BrowserOwner final : TabStripModelObserver {
-  BrowserOwner(Browser* value, std::string native_window)
-      : browser(value), window(std::move(native_window)), strip(value->tab_strip_model()) {
-    strip->AddObserver(this);
-  }
-  ~BrowserOwner() override { if (strip) strip->RemoveObserver(this); }
-  Browser* browser;
-  std::string window;
-  TabStripModel* strip;
-  // Set only for a Browser the engine created for itself. `space` names the
-  // Crest Space that reserved `window`; the window itself is opened lazily,
-  // when the first tab that cannot join an opener is offered.
-  std::string space;
-  bool engine_window = false;
-  bool presented = false;
-  bool focused = true;
-  void OnTabStripModelChanged(TabStripModel*, const TabStripModelChange& change,
-                             const TabStripSelectionChange& selection) override {
-    if (change.type() != TabStripModelChange::kInserted || State().disposing) return;
-    for (const auto& inserted : change.GetInsert()->contents) {
-      auto weak = inserted.contents->GetWeakPtr();
-      const bool foreground = selection.new_contents == inserted.contents;
-      // Core-created pages are registered before this next UI-thread turn.
-      dispatch_async(dispatch_get_main_queue(), ^{ OfferNativePage(weak, foreground); });
-    }
-  }
-  void OnTabStripModelDestroyed(TabStripModel*) override { strip = nullptr; }
-};
-
-// Offers the core a tab the engine opened by itself, in the Crest window its
-// Browser belongs to. The binding reports the offer; the core adopts it for a
-// tab of its own or refuses it.
-void OfferNativePage(base::WeakPtr<content::WebContents> contents, bool foreground) {
-  auto& state = State();
-  auto& binding = crest::EngineBinding::Get();
-  if (!contents || state.disposing || binding.disposing()) return;
-  for (const auto& [id, page] : state.pages) if (page->web_contents() == contents.get()) return;
-  BrowserOwner* host = nullptr;
-  for (const auto& [id, owner] : state.browsers)
-    if (owner->strip && owner->strip->GetIndexOfWebContents(contents.get()) >= 0) { host = owner.get(); break; }
-  // A window the engine created for itself (chrome.windows.create, an
-  // extension app window) has no Crest window until one of its tabs needs it.
-  // A renderer popup keeps its opener's window instead: the core opens its
-  // tab beside the page that opened it.
-  content::RenderFrameHost* opener = contents->GetOpener();
-  const bool opened_by_page = opener && binding.PageFor(content::WebContents::FromRenderFrameHost(opener));
-  if (host && host->engine_window && !host->presented && !opened_by_page) {
-    host->presented = true;
-    NSUUID* window = UUIDFor(host->window);
-    NSUUID* space = UUIDFor(host->space);
-    if (window && space) [UI() presentEngineWindow:window space:space focused:host->focused ? YES : NO];
-  }
-  binding.Offer(contents.get(), host ? host->window : std::string(), host ? host->space : std::string(), foreground);
+// The WebContents of the page the platform names `pageID`, or null.
+content::WebContents* PageContents(NSUUID* pageID) {
+  crest::EnginePage* page = crest::EngineBinding::Get().Find(KeyFor(pageID));
+  return page ? page->web_contents() : nullptr;
 }
 
-Browser* BrowserFor(const std::string& profile_id, const std::string& window_id) {
-  auto& state = State();
-  const std::string key = profile_id + "/" + window_id;
-  if (auto found = state.browsers.find(key); found != state.browsers.end())
-    return found->second->browser;
-  Profile* profile = crest::EngineBinding::Get().Profiles().Find(profile_id);
-  if (!profile) return nullptr;
-  // Named before the status check as well as the creation: a window the core is
-  // opening for itself is never subject to `CanCreateEngineBrowser`.
-  state.creating_window = window_id;
-  if (Browser::GetCreationStatusForProfile(profile) != BrowserWindowInterface::CreationStatus::kOk) {
-    state.creating_window.clear();
-    return nullptr;
-  }
-  Browser* browser = Browser::Create(Browser::CreateParams(profile, false));
-  state.creating_window.clear();
-  state.browsers.emplace(key, std::make_unique<BrowserOwner>(browser, window_id));
-  return browser;
+// The views beside `page`, which shows `contents`, made when it has none.
+PageViews& ViewsFor(const std::string& page, content::WebContents* contents) {
+  auto& views = State().views;
+  // Reclaim entries only after their WebContents destruction callback returned.
+  std::erase_if(views, [](const auto& entry) { return !entry.second->web_contents(); });
+  auto& entry = views[page];
+  if (!entry || entry->web_contents() != contents) entry = std::make_unique<PageViews>(contents);
+  return *entry;
 }
 
-// Reserves the Crest window that will host a Browser the engine created for
-// itself, so `WindowForBrowser` resolves and its tabs can be offered with a
-// window the core recognizes. The window is opened only once a tab needs it.
-// A profile with no Space to host it is declined rather than routed into an
-// unrelated Space; an off-the-record profile belongs to the private window
-// composition and is declined when that window is closed.
-bool RegisterEngineBrowser(Browser* browser) {
-  auto& state = State();
-  const bool own_window = state.own_window_profile == browser->GetProfile();
-  state.own_window_profile = nullptr;
-  const auto& profiles = crest::EngineBinding::Get().Profiles();
-  const std::string profile_id = profiles.IdFor(browser->GetProfile());
-  if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
-  NSUUID* profile = UUIDFor(profile_id);
-  id<CrestEngineWindowPlacement> placement =
-      profile ? [UI() reserveEngineWindowForProfile:profile ownWindow:own_window ? YES : NO] : nil;
-  if (!placement) return false;
-  const std::string window = base::SysNSStringToUTF8(placement.window.UUIDString);
-  // A window that already has a Browser keeps it for its own pages. This one
-  // is keyed apart, and each tab it offers moves into that Browser once the
-  // window adopts it.
-  std::string key = profile_id + "/" + window;
-  if (state.browsers.contains(key)) key = "engine/" + base::Uuid::GenerateRandomV4().AsLowercaseString();
-  auto owner = std::make_unique<BrowserOwner>(browser, window);
-  owner->space = base::SysNSStringToUTF8(placement.space.UUIDString);
-  owner->engine_window = true;
-  state.browsers.emplace(key, std::move(owner));
-  return true;
+PageViews* FindViews(const std::string& page) {
+  auto found = State().views.find(page);
+  return found == State().views.end() ? nullptr : found->second.get();
 }
 
-Page* FindPage(NSString* identifier) {
-  auto found = State().pages.find(base::SysNSStringToUTF8(identifier));
-  return found == State().pages.end() ? nullptr : found->second.get();
-}
-
-// Lets a page go: the shell forgets it, then its WebContents is destroyed.
-void DisposePage(const std::string& id) {
-  auto& state = State();
-  auto found = state.pages.find(id);
-  if (found == state.pages.end()) return;
-  auto* contents = found->second->web_contents();
-  Browser* browser = found->second->browser;
-  state.pages.erase(found);  // Remove callbacks before destroying WebContents.
-  if (!contents) return;
-  TabStripModel* strip = browser->tab_strip_model();
-  const int index = strip->GetIndexOfWebContents(contents);
-  if (index >= 0) strip->DetachAndDeleteWebContentsAt(index);
-}
-
-// Closes every Browser of `profile`: an empty one at once, and one with tabs
-// by closing its tabs, which closes the Browser.
-void CloseBrowsers(Profile* profile) {
-  auto& state = State();
-  for (;;) {
-    auto owner = std::find_if(state.browsers.begin(), state.browsers.end(),
-        [&](const auto& entry) { return entry.second->browser->GetProfile() == profile; });
-    if (owner == state.browsers.end()) break;
-    Browser* browser = owner->second->browser;
-    TabStripModel* strip = browser->tab_strip_model();
-    if (strip->empty()) browser->SynchronouslyDestroyBrowser();
-    else for (int index = strip->count() - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
-  }
-}
-
-// What the Mac shell does for the portable binding. TRANSITIONAL: it keeps
-// the Browsers, each built on a CrestBrowserWindow, until the binding owns
-// Browser lifetime and asks the shell only for the window.
+// What only AppKit does for the portable binding: the Crest windows its
+// Browsers show in, and the views beside each page. The binding keeps the
+// Browsers themselves.
 class MacShell final : public crest::EngineBinding::Shell {
  public:
-  // The WebContents goes in its window's Browser. The controller keeps its
-  // initial entry until the binding supplies the first address or restored
-  // history: navigating to about:blank here would race restoration and can
-  // leave a spurious Back entry.
-  content::WebContents* CreateContents(const std::string& page, Profile* profile, const std::string& profile_id,
-                                       const std::string& window) override {
-    auto& state = State();
-    if (state.disposing || state.pages.contains(page)) return nullptr;
-    // Reclaim observers only after their WebContents destruction callback returned.
-    std::erase_if(state.pages, [](const auto& pair) { return !pair.second->web_contents(); });
-    Browser* browser = BrowserFor(profile_id, window);
-    if (!browser) return nullptr;
-    content::WebContents::CreateParams params(profile);
-    params.initially_hidden = true;
-    params.desired_renderer_state = content::WebContents::CreateParams::kNoRendererProcess;
-    auto owned_contents = content::WebContents::Create(params);
-    auto* contents = owned_contents.get();
-    browser->tab_strip_model()->AddWebContents(std::move(owned_contents), -1, ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
-                                               AddTabTypes::ADD_NONE);
-    state.pages.emplace(page, std::make_unique<Page>(contents, browser, profile_id));
-    return contents;
+  std::optional<crest::EngineBinding::WindowPlacement> ReserveWindow(const std::string& profile,
+                                                                      bool own_window) override {
+    NSUUID* identifier = UUIDFor(profile);
+    id<CrestEngineWindowPlacement> placement =
+        identifier ? [UI() reserveEngineWindowForProfile:identifier ownWindow:own_window ? YES : NO] : nil;
+    if (!placement) return std::nullopt;
+    return crest::EngineBinding::WindowPlacement{.window = KeyFor(placement.window), .space = KeyFor(placement.space)};
   }
 
-  // The page stays in the Browser the engine opened it in until its view
-  // attaches, which moves it into its window's Browser.
-  bool AdoptContents(const std::string& page, content::WebContents* contents, const std::string& profile) override {
-    auto& state = State();
-    if (state.disposing || state.pages.contains(page)) return false;
-    Browser* browser = nullptr;
-    for (const auto& [id, owner] : state.browsers)
-      if (owner->strip && owner->strip->GetIndexOfWebContents(contents) >= 0) { browser = owner->browser; break; }
-    if (!browser) return false;
-    state.pages.emplace(page, std::make_unique<Page>(contents, browser, profile));
-    return true;
+  void PresentWindow(const crest::EngineBinding::WindowPlacement& placement, bool focused) override {
+    NSUUID* window = UUIDFor(placement.window);
+    NSUUID* space = UUIDFor(placement.space);
+    if (window && space) [UI() presentEngineWindow:window space:space focused:focused ? YES : NO];
   }
 
-  void CloseOffered(content::WebContents* contents) override {
-    for (const auto& [id, owner] : State().browsers) {
-      const int index = owner->strip ? owner->strip->GetIndexOfWebContents(contents) : -1;
-      if (index >= 0) {
-        owner->strip->DetachAndDeleteWebContentsAt(index);
-        return;
-      }
-    }
-  }
+  void ReleasePage(const std::string& page) override { State().views.erase(page); }
 
-  void DestroyContents(const std::string& page) override { DisposePage(page); }
-
-  bool MoveToWindow(const std::string& page_id, const std::string& window_id) override {
-    Page* page = FindPage(base::SysUTF8ToNSString(page_id));
-    if (!page || !page->web_contents()) return false;
-    Browser* target = BrowserFor(page->profile, window_id);
-    if (!target) return false;
-    if (page->browser != target) {
-      TabStripModel* source = page->browser->tab_strip_model();
-      const int index = source->GetIndexOfWebContents(page->web_contents());
-      if (index < 0) return false;
-      // Preserve TabModel, navigation history, renderer and extension identity.
-      auto tab = source->DetachTabAtForInsertion(index);
-      page->browser = target;
-      target->tab_strip_model()->InsertDetachedTabAt(
-          target->tab_strip_model()->count(), std::move(tab), AddTabTypes::ADD_ACTIVE);
-    }
-    const int index = target->tab_strip_model()->GetIndexOfWebContents(page->web_contents());
-    if (index < 0) return false;
-    target->tab_strip_model()->ActivateTabAt(index);
-    return true;
-  }
-
-  // The profiles' pages and Browsers close; the binding lets the profiles go.
-  void ReleaseProfiles(const std::set<std::string>& profiles) override {
-    auto& state = State();
-    state.space_extension_popup.reset();
-    std::vector<std::string> pages;
-    for (const auto& [key, page] : state.pages)
-      if (profiles.contains(page->profile)) pages.push_back(key);
-    for (const auto& key : pages) DisposePage(key);
-    for (const auto& id : profiles) {
-      Profile* profile = crest::EngineBinding::Get().Profiles().Find(id);
-      if (profile) CloseBrowsers(profile);
-    }
-  }
+  // A Space-scoped popup may be anchored in the profile being let go of.
+  void ReleaseProfile(const std::string&) override { State().space_extension_popup.reset(); }
 
   // Drops any open panel card for `extension_id` in `profile`, for one tab or
   // for all of them. An extension that unloads or turns its entry off has no
   // panel left to show.
   void RetractSidePanels(Profile* profile, const std::string& extension_id, std::optional<int> tab_id) override {
     if (!profile) return;
-    for (const auto& [id, page] : State().pages) {
-      if (!page->side_panel || page->side_panel->extension_id() != extension_id) continue;
-      auto* contents = page->web_contents();
-      if (!contents || !page->browser) continue;
-      // A private window's pages run in the off-the-record profile, while the
-      // registry and panel options belong to the profile it was derived from.
-      if (page->browser->GetProfile()->GetOriginalProfile() != profile->GetOriginalProfile()) continue;
+    std::vector<std::string> retracting;
+    for (const auto& [page, views] : State().views) {
+      if (!views->side_panel || views->side_panel->extension_id() != extension_id) continue;
+      auto* contents = views->web_contents();
+      if (!contents) continue;
+      // An off-the-record page's extensions are its original profile's.
+      if (Profile::FromBrowserContext(contents->GetBrowserContext())->GetOriginalProfile() !=
+          profile->GetOriginalProfile()) continue;
       if (tab_id && sessions::SessionTabHelper::IdForTab(contents).id() != *tab_id) continue;
-      page->side_panel->Retract();
-      page->side_panel.reset();
+      retracting.push_back(page);
+    }
+    // A retracted card hands its dismissal to the platform, which may change
+    // what the shell hosts, so each is found again.
+    for (const std::string& page : retracting) {
+      PageViews* views = FindViews(page);
+      if (!views || !views->side_panel) continue;
+      views->side_panel->Retract();
+      views->side_panel.reset();
     }
   }
 
-  void DockInspector(const std::string& page_id, content::WebContents* frontend) override {
-    Page* page = FindPage(base::SysUTF8ToNSString(page_id));
-    if (!page) return;
+  void DockInspector(const std::string& page, content::WebContents* frontend) override {
     if (!frontend) {
-      page->devtools.reset();
-    } else if (!page->devtools || !page->devtools->hosts(frontend)) {
-      page->devtools = std::make_unique<DevToolsPanel>(frontend);
+      if (PageViews* views = FindViews(page)) views->devtools.reset();
+      return;
     }
+    crest::EnginePage* engine_page = crest::EngineBinding::Get().Find(page);
+    content::WebContents* contents = engine_page ? engine_page->web_contents() : nullptr;
+    if (!contents) return;
+    PageViews& views = ViewsFor(page, contents);
+    if (!views.devtools || !views.devtools->hosts(frontend)) views.devtools = std::make_unique<DevToolsPanel>(frontend);
   }
 };
 // chrome.commands. Crest owns the key-equivalent path, so an event the core
@@ -926,28 +719,28 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
 @implementation CrestChromiumMacShell
 - (NSView*)viewForPage:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID.UUIDString);
-  return page && page->web_contents() ? page->web_contents()->GetNativeView().GetNativeNSView() : nil;
+  content::WebContents* contents = PageContents(pageID);
+  return contents ? contents->GetNativeView().GetNativeNSView() : nil;
 }
 - (BOOL)runExtension:(NSString*)extensionID page:(NSUUID*)pageID
          anchorView:(NSView*)anchorView anchorRect:(NSRect)anchorRect {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID.UUIDString);
-  if (!page || !page->web_contents() || !anchorView.window ||
-      anchorView.window != crest::WindowForBrowser(page->browser)) return NO;
-  Profile* profile = page->browser->GetProfile();
+  auto& binding = crest::EngineBinding::Get();
+  const std::string key = KeyFor(pageID);
+  crest::EnginePage* page = binding.Find(key);
+  content::WebContents* contents = page ? page->web_contents() : nullptr;
+  Browser* browser = binding.Browsers().Holding(contents);
+  if (!browser || !anchorView.window || anchorView.window != crest::WindowForBrowser(browser)) return NO;
+  Profile* profile = browser->GetProfile();
   const auto id = base::SysNSStringToUTF8(extensionID);
   const auto* extension = extensions::ExtensionRegistry::Get(profile)->enabled_extensions().GetByID(id);
   if (!extension || (profile->IsOffTheRecord() && !extensions::util::IsIncognitoEnabled(id, profile))) return NO;
   // Declined rather than navigated: an extension whose files are gone would
   // otherwise show Chromium's own ERR_FILE_NOT_FOUND page inside Crest's
   // popup window. The core states this as an unavailable action instead.
-  if (!crest::EngineBinding::Get().Extensions().For(profile, page->profile).IsAvailable(*extension,
+  if (!binding.Extensions().For(profile, page->profile()).IsAvailable(*extension,
           extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(*extension))) return NO;
-  auto* contents = page->web_contents();
-  const int index = page->browser->tab_strip_model()->GetIndexOfWebContents(contents);
-  if (index < 0) return NO;
-  page->browser->tab_strip_model()->ActivateTabAt(index);
+  if (!binding.Browsers().Activate(contents)) return NO;
   auto* runner = extensions::ExtensionActionRunner::GetForWebContents(contents);
   if (!runner) return NO;
   // This path is invoked only by the user's native extension action button.
@@ -956,17 +749,16 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
   if (result == extensions::ExtensionAction::ShowAction::kToggleSidePanel) {
     // The action opens a panel instead of a popup. The card belongs to the
     // platform, so the click toggles the one this page is already showing.
-    crest::EngineBinding::Get().RequestSidePanel(KeyFor(pageID), id,
-                                                crest::engine::SidePanelRequest::kToggle);
+    binding.RequestSidePanel(key, id, crest::engine::SidePanelRequest::kToggle);
     return YES;
   }
   if (result != extensions::ExtensionAction::ShowAction::kShowPopup) return NO;
   auto* action = extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(*extension);
   if (!action) return NO;
   auto popup = extensions::ExtensionViewHostFactory::CreatePopupHost(*extension,
-      action->GetPopupUrl(sessions::SessionTabHelper::IdForTab(contents).id()), page->browser);
+      action->GetPopupUrl(sessions::SessionTabHelper::IdForTab(contents).id()), browser);
   if (!popup) return NO;
-  page->extension_popup = std::make_unique<ExtensionPopup>(std::move(popup), anchorView, anchorRect);
+  ViewsFor(key, contents).extension_popup = std::make_unique<ExtensionPopup>(std::move(popup), anchorView, anchorRect);
   return YES;
 }
 - (BOOL)runExtension:(NSString*)extensionID profile:(NSUUID*)profileID window:(NSUUID*)windowID
@@ -991,7 +783,7 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
   if (action->action_type() == extensions::ActionInfo::Type::kPage) return NO;
   const GURL popup_url = action->GetPopupUrl(extensions::ExtensionAction::kDefaultTabId);
   if (!popup_url.is_valid()) return NO;
-  Browser* browser = BrowserFor(profile_id, KeyFor(windowID));
+  Browser* browser = crest::EngineBinding::Get().Browsers().ForWindow(profile_id, KeyFor(windowID));
   if (!browser || anchorView.window != crest::WindowForBrowser(browser)) return NO;
   auto popup = extensions::ExtensionViewHostFactory::CreatePopupHost(*extension, popup_url, browser);
   if (!popup) return NO;
@@ -1000,40 +792,41 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
 }
 - (NSView*)openSidePanel:(NSString*)extensionID page:(NSUUID*)pageID closed:(void (^)(void))closed {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID.UUIDString);
-  const auto* extension = page ? crest::EngineExtensions::SidePanelExtension(
-      page->web_contents(), base::SysNSStringToUTF8(extensionID)) : nullptr;
+  const std::string key = KeyFor(pageID);
+  content::WebContents* contents = PageContents(pageID);
+  Browser* browser = crest::EngineBinding::Get().Browsers().Holding(contents);
+  const auto* extension = browser ? crest::EngineExtensions::SidePanelExtension(
+      contents, base::SysNSStringToUTF8(extensionID)) : nullptr;
   if (!extension) return nil;
-  auto* service = extensions::SidePanelService::Get(page->browser->GetProfile());
-  auto* contents = page->web_contents();
+  auto* service = extensions::SidePanelService::Get(browser->GetProfile());
   auto options = service->GetOptions(*extension, sessions::SessionTabHelper::IdForTab(contents).id());
   if (!options.path || options.path->empty() || options.enabled == false) return nil;
   const GURL url = extension->ResolveExtensionURL(*options.path);
   if (!url.is_valid()) return nil;
   auto panel = extensions::ExtensionViewHostFactory::CreateSidePanelHost(*extension, url,
-      page->browser, page->browser->tab_strip_model()->GetTabForWebContents(contents));
+      browser, browser->tab_strip_model()->GetTabForWebContents(contents));
   if (!panel) return nil;
-  page->side_panel = std::make_unique<ExtensionSidePanel>(std::move(panel), extension->id(), closed);
-  return page->side_panel->container();
+  PageViews& views = ViewsFor(key, contents);
+  views.side_panel = std::make_unique<ExtensionSidePanel>(std::move(panel), extension->id(), closed);
+  return views.side_panel->container();
 }
 - (void)closeSidePanelForPage:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID.UUIDString);
-  if (!page) return;
-  page->side_panel.reset();
+  if (PageViews* views = FindViews(KeyFor(pageID))) views->side_panel.reset();
 }
 - (NSView*)devToolsViewForPage:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID.UUIDString);
-  return page && page->devtools ? page->devtools->container() : nil;
+  PageViews* views = FindViews(KeyFor(pageID));
+  return views && views->devtools ? views->devtools->container() : nil;
 }
 - (id<CrestExtensionShortcut>)dispatchExtensionShortcut:(NSEvent*)event page:(NSUUID*)pageID {
   CHECK(NSThread.isMainThread);
-  Page* page = FindPage(pageID.UUIDString);
-  if (!page || !page->web_contents() || State().disposing) return nil;
+  content::WebContents* contents = PageContents(pageID);
+  Browser* browser = crest::EngineBinding::Get().Browsers().Holding(contents);
+  if (!browser || State().disposing) return nil;
   const ui::Accelerator accelerator = ShortcutAccelerator(event);
   if (accelerator.key_code() == ui::VKEY_UNKNOWN) return nil;
-  Profile* profile = page->browser->GetProfile();
+  Profile* profile = browser->GetProfile();
   auto* commands = extensions::CommandService::Get(profile);
   if (!commands) return nil;
   for (const auto& extension : extensions::ExtensionRegistry::Get(profile)->enabled_extensions()) {
@@ -1055,7 +848,7 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
                                     extensions::CommandService::REGULAR, &named)) continue;
     for (const auto& [name, command] : named) {
       if (command.accelerator() != accelerator) continue;
-      DeliverExtensionCommand(profile, *extension, name, page->web_contents());
+      DeliverExtensionCommand(profile, *extension, name, contents);
       return [[CrestExtensionShortcutResult alloc] init];
     }
   }
@@ -1091,57 +884,29 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
 - (void)disposePages:(NSArray<NSUUID*>*)pageIDs windows:(NSArray<NSUUID*>*)windowIDs
     releaseProfiles:(NSArray<NSUUID*>*)profileIDs {
   CHECK(NSThread.isMainThread);
-  auto& state = State();
+  auto& binding = crest::EngineBinding::Get();
   // A Space-scoped popup is anchored in one of the windows or profiles being
   // released, and nothing else would close it.
-  if (windowIDs.count || profileIDs.count) state.space_extension_popup.reset();
-  for (NSUUID* identifier in pageIDs) DisposePage(KeyFor(identifier));
+  if (windowIDs.count || profileIDs.count) State().space_extension_popup.reset();
+  for (NSUUID* identifier in pageIDs) binding.DestroyPage(KeyFor(identifier));
   for (NSUUID* identifier in windowIDs) {
     const auto id = KeyFor(identifier);
     // A sign-in window closed before its page reached the callback.
     EndAuthenticationSession(id, nil, false);
-    for (;;) {
-      auto owner = std::find_if(state.browsers.begin(), state.browsers.end(),
-          [&](const auto& entry) { return entry.second->window == id; });
-      if (owner == state.browsers.end()) break;
-      Browser* browser = owner->second->browser;
-      TabStripModel* strip = browser->tab_strip_model();
-      if (strip->empty()) browser->SynchronouslyDestroyBrowser();
-      else for (int index = strip->count() - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
-    }
+    binding.Browsers().CloseWindow(id);
   }
-  auto& binding = crest::EngineBinding::Get();
-  for (NSUUID* identifier in profileIDs) {
-    const std::string id = KeyFor(identifier);
-    Profile* profile = binding.Profiles().Find(id);
-    if (!profile) continue;
-    // Pages still offered to the core close with their Browsers.
-    CloseBrowsers(profile);
-    binding.Extensions().Forget(id);
-    binding.Profiles().Release(id);
-  }
+  for (NSUUID* identifier in profileIDs) binding.ReleaseProfile(KeyFor(identifier));
 }
 - (void)disposePages {
   CHECK(NSThread.isMainThread);
   auto& state = State();
   state.disposing = true;
-  crest::EngineBinding::Get().Dispose();
   CancelAllAuthenticationSessions();
   state.space_extension_popup.reset();
-  state.pages.clear();
-  // The core has stopped accepting work. Observer teardown precedes native destruction.
-  while (!state.browsers.empty()) {
-    Browser* browser = state.browsers.begin()->second->browser;
-    TabStripModel* strip = browser->tab_strip_model();
-    if (strip->empty()) {
-      browser->SynchronouslyDestroyBrowser();
-    } else {
-      const int count = strip->count();
-      for (int index = count - 1; index >= 0; --index) strip->DetachAndDeleteWebContentsAt(index);
-    }
-  }
-  crest::EngineBinding::Get().Extensions().Clear();
-  crest::EngineBinding::Get().Profiles().ReleaseAll();
+  state.views.clear();
+  // The core has stopped accepting work: the binding lets every page go,
+  // closes its Browsers and releases the profiles.
+  crest::EngineBinding::Get().Dispose();
 }
 - (void)cancelAuthenticationSessionForWindow:(NSUUID*)windowID {
   CHECK(NSThread.isMainThread);
@@ -1200,23 +965,19 @@ class AuthenticationSessionThrottle final : public content::NavigationThrottle {
     auto* navigation = navigation_handle();
     if (state.authentication_sessions.empty() || state.disposing || !navigation->IsInPrimaryMainFrame())
       return PROCEED;
-    Browser* browser = nullptr;
-    for (const auto& [id, page] : state.pages)
-      if (page->web_contents() == navigation->GetWebContents()) { browser = page->browser; break; }
-    if (!browser) return PROCEED;
-    for (const auto& [key, owner] : state.browsers) {
-      if (owner->browser != browser) continue;
-      auto session = state.authentication_sessions.find(owner->window);
-      if (session == state.authentication_sessions.end() ||
-          !MatchesAuthenticationCallback(session->second, navigation->GetURL())) return PROCEED;
-      // Completing closes the window and destroys this navigation's page, so
-      // it happens after the navigation stack has unwound.
-      NSURL* callback = net::NSURLWithGURL(navigation->GetURL());
-      const std::string window = owner->window;
-      dispatch_async(dispatch_get_main_queue(), ^{ EndAuthenticationSession(window, callback, true); });
-      return CANCEL_AND_IGNORE;
-    }
-    return PROCEED;
+    // Only a page of the Quick Window running the sign-in completes it.
+    auto& binding = crest::EngineBinding::Get();
+    content::WebContents* contents = navigation->GetWebContents();
+    if (!binding.PageFor(contents)) return PROCEED;
+    const std::string window = binding.Browsers().WindowOf(binding.Browsers().Holding(contents));
+    auto session = state.authentication_sessions.find(window);
+    if (window.empty() || session == state.authentication_sessions.end() ||
+        !MatchesAuthenticationCallback(session->second, navigation->GetURL())) return PROCEED;
+    // Completing closes the window and destroys this navigation's page, so
+    // it happens after the navigation stack has unwound.
+    NSURL* callback = net::NSURLWithGURL(navigation->GetURL());
+    dispatch_async(dispatch_get_main_queue(), ^{ EndAuthenticationSession(window, callback, true); });
+    return CANCEL_AND_IGNORE;
   }
 };
 }  // namespace
@@ -1383,24 +1144,6 @@ bool IsEnabled() {
       IsProductBundle() || base::CommandLine::ForCurrentProcess()->HasSwitch("crest-control-plane");
   return enabled;
 }
-void OnBrowserWindowCreated(Browser* browser) {
-  if (!State().bootstrap) {
-    State().bootstrap = browser;
-    crest::EngineBinding::Get().Profiles().SetRoot(browser->GetProfile()->GetOriginalProfile());
-  }
-  if (!State().started || !State().creating_window.empty()) return;
-  if (RegisterEngineBrowser(browser)) return;
-  // `CanCreateEngineBrowser` refuses these before they are created, so this is
-  // only reached by a creation path that does not consult it. The Browser is
-  // still tracked so its tabs are offered and then declined, rather than left
-  // running unowned.
-  const std::string key = "native/" + base::Uuid::GenerateRandomV4().AsLowercaseString();
-  State().browsers.emplace(key, std::make_unique<BrowserOwner>(browser, std::string()));
-}
-void OnBrowserWindowDestroyed(Browser* browser) {
-  if (State().bootstrap == browser) State().bootstrap = nullptr;
-  std::erase_if(State().browsers, [browser](const auto& pair) { return pair.second->browser == browser; });
-}
 void EnsureCrestUIStarted(Browser* browser) {
   CHECK(NSThread.isMainThread);
   if (State().started) return;
@@ -1441,45 +1184,27 @@ void EnsureCrestUIStarted(Browser* browser) {
 id<CrestMacUI> MacUI() {
   return UI();
 }
-void OnEngineWindowShown(Browser* browser, bool focused) {
-  if (!State().started) return;
-  for (const auto& [key, owner] : State().browsers) {
-    if (owner->browser != browser || !owner->engine_window || owner->presented) continue;
-    // `chrome.windows.create` with `focused: false` reaches ShowInactive().
-    owner->focused = focused;
-    return;
-  }
-}
+// Whether AppKit is hosting Crest is the shell's to say: before Crest's UI
+// runs, and once it is shutting down or a quit has been accepted, the engine's
+// own answer stands. Otherwise the binding decides, since it keeps the
+// Browsers.
 bool CanCreateEngineBrowser(Profile* profile) {
-  // Before the core runs, and for the window the core is creating for itself,
-  // the engine's own answer stands.
-  if (!IsEnabled() || !State().started || !State().creating_window.empty()) return true;
-  if (State().disposing || State().quitting) return true;
-  const auto& profiles = crest::EngineBinding::Get().Profiles();
-  const std::string profile_id = profiles.IdFor(profile);
-  if (profile_id.empty() || profiles.IsDeleting(profile_id)) return false;
-  NSUUID* space_profile = UUIDFor(profile_id);
-  if (!space_profile || ![UI() reserveEngineWindowForProfile:space_profile ownWindow:YES]) return false;
-  // The Browser is created in this same turn; a creation that fails leaves
-  // nothing to hand the window to.
-  State().own_window_profile = profile;
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce([] { State().own_window_profile = nullptr; }));
-  return true;
+  if (!IsEnabled() || !State().started || State().disposing || State().quitting) return true;
+  return crest::EngineBinding::Get().Browsers().MayCreate(profile);
 }
 NSWindow* WindowForBrowser(Browser* browser) {
   if (!State().started) return nil;
-  for (const auto& [key, owner] : State().browsers) {
-    if (owner->browser != browser || owner->window.empty()) continue;
-    // A reserved engine window has an identifier before it has a window: a
-    // renderer popup never opens the one reserved for it, because its tab is
-    // adopted into the opener's window. Those Browsers keep the same fallback
-    // they had before they carried an identifier at all.
-    if (NSWindow* window = [UI() windowWithID:UUIDFor(owner->window)]) return window;
-    break;
+  const auto& browsers = crest::EngineBinding::Get().Browsers();
+  // A reserved engine window has an identifier before it has a window: a
+  // renderer popup never opens the one reserved for it, because its tab is
+  // adopted into the opener's window. Those Browsers keep the same fallback
+  // they had before they carried an identifier at all.
+  if (NSUUID* identifier = UUIDFor(browsers.WindowOf(browser))) {
+    if (NSWindow* window = [UI() windowWithID:identifier]) return window;
   }
-  if (!State().creating_window.empty()) return [UI() windowWithID:UUIDFor(State().creating_window)];
-  return [UI() windowWithID:nil];
+  // The window a Browser is being created for, or with none, the window an
+  // engine surface with no window of its own is shown in.
+  return [UI() windowWithID:UUIDFor(browsers.creating_window())];
 }
 bool DeferQuit() {
   return IsEnabled() && State().started && !State().quitting && [UI() deferQuit];

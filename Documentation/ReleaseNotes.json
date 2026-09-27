@@ -2969,6 +2969,10 @@
     "chromium-private-window-starts-fresh": {
       "category": "internal",
       "message": "Chromium private windows start fresh each time, share nothing with any Space and run no extensions"
+    },
+    "chromium-engine-keeps-its-browsers": {
+      "category": "internal",
+      "message": "The Chromium engine keeps track of its own browser windows and tabs, and the Mac app only hosts their windows"
     }
   }
 }

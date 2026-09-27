@@ -52,8 +52,9 @@ experimental update channel, with WebKit registered beside it. The WebKit
 `Crest` target is published as the alternate desktop build, and `CrestMobile`
 runs WebKit on iPhone and iPad.
 
-Chromium's binding is portable C++ inside the engine and reports to the core
-directly; its Mac shell only hosts views, popups and system sign-in. WebKit's
+Chromium's binding is portable C++ inside the engine, keeps Chromium's
+`Browser`s and reports to the core directly; its Mac shell only makes and
+hosts windows, views, popups and system sign-in. WebKit's
 binding is Swift, shared by macOS and iOS. `BrowserPage`
 (`CrestMac/Infrastructure/Pages`) holds an `any BrowserPageEngineAdapter` and
 names no engine type. `project.yml` selects each composition's entry point,
