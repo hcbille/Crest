@@ -1,0 +1,191 @@
+namespace CrestCore.Contracts;
+
+/// What an engine binding tells the platform directly about one of its pages:
+/// presentation that no browser rule reads, such as how many matches a find
+/// counted, and the results of requests that finish later. The core never
+/// sees these.
+public abstract record EnginePresentation;
+
+#region Pages
+
+/// The page's latest find counted `Matches` matches and selected the
+/// `ActiveMatch`th, counted from 1; none found when `Matches` is 0. An engine
+/// that finds a match but cannot count them leaves `Matches` null.
+public sealed record FindFinished(Guid PageId, int? Matches, int ActiveMatch) : EnginePresentation;
+
+/// The link under the pointer in the page, or none when the pointer left it.
+public sealed record LinkHovered(Guid PageId, string? Url) : EnginePresentation;
+
+/// The capture `CaptureId` asked for, as a PNG, or nothing when the page's
+/// view showed nothing to capture.
+public sealed record PageCaptured(Guid PageId, Guid CaptureId, byte[]? Png) : EnginePresentation;
+
+/// The export `ExportId` asked for: its document, or why there is none.
+public sealed record PageExported(Guid PageId, Guid ExportId, byte[]? Document, PageExportFailure? Failure) : EnginePresentation;
+
+/// The entries the page can go back and forward to, nearest first, for the
+/// back and forward menus.
+public sealed record PageHistoryChanged(Guid PageId, IReadOnlyList<PageHistoryEntry> Back,
+    IReadOnlyList<PageHistoryEntry> Forward) : EnginePresentation;
+
+/// One entry of a page's history: its address and the title it had.
+public sealed record PageHistoryEntry(string Url, string Title);
+
+/// The person typed, clicked or scrolled in the page. Presented at most once a
+/// second, for timers that close pages left idle.
+public sealed record PageInteracted(Guid PageId) : EnginePresentation;
+
+/// The page started or stopped loading.
+public sealed record PageLoadingChanged(Guid PageId, bool IsLoading) : EnginePresentation;
+
+/// The page now shows the document at `Url`, a new one or a move within the
+/// same one, and is still loading it when `IsLoading`.
+public sealed record PageNavigationCommitted(Guid PageId, string Url, bool IsLoading) : EnginePresentation;
+
+/// The page's navigation failed; the engine shows its own error page.
+public sealed record PageNavigationFailed(Guid PageId) : EnginePresentation;
+
+/// The page began loading a new document; what the platform keeps for the
+/// document it shows now is about to go stale.
+public sealed record PageNavigationStarted(Guid PageId) : EnginePresentation;
+
+/// The process that drew the page stopped, so the page shows nothing until it
+/// loads again.
+public sealed record PageRendererGone(Guid PageId) : EnginePresentation;
+
+/// The colour the page's document declared for its surroundings, or none.
+public sealed record PageThemeChanged(Guid PageId, BrandColor? Color) : EnginePresentation;
+
+/// The engine closed the page on its own, as a script's `window.close()` does.
+public sealed record PageViewClosed(Guid PageId) : EnginePresentation;
+
+/// The engine created the page, so its view can be shown.
+public sealed record PageViewReady(Guid PageId) : EnginePresentation;
+
+/// The engine could not create the page, so it has no view to show.
+public sealed record PageViewUnavailable(Guid PageId) : EnginePresentation;
+
+/// A link in the page asked to open in Peek, as the core decided (`Decision`),
+/// and the engine kept the page where it was. `StagedLinkId` names the link the
+/// engine staged for the Peek's first load, which keeps its referrer and
+/// initiator; without one the Peek loads `Url` afresh. A Peek that does not
+/// open discards the staged link.
+public sealed record PeekRequested(Guid PageId, string Url, LinkNavigationDecision Decision, Guid? StagedLinkId)
+    : EnginePresentation;
+
+/// The engine blocked a pop-up the document at `PageUrl` opened.
+public sealed record PopupBlocked(Guid PageId, string PageUrl) : EnginePresentation;
+
+#endregion
+
+#region Content
+
+/// The page's content entered or left fullscreen. The page still owns its
+/// fullscreen and leaves it on Escape.
+public sealed record ContentFullscreenChanged(Guid PageId, bool Active) : EnginePresentation;
+
+/// A Crest content script in `Frame` posted `Body`, as JSON, to `Handler`.
+public sealed record ContentMessagePosted(Guid PageId, string Handler, string Body, ContentFrame Frame)
+    : EnginePresentation;
+
+/// A frame of a page's document: the identity `EvaluateContentScript` takes,
+/// whether it is the main frame, and the origin of what it shows.
+public sealed record ContentFrame(string Id, bool IsMainFrame, string Protocol, string Host, int Port);
+
+/// What `EvaluateContentScript` answered, as JSON, or nothing when its
+/// document went away first.
+public sealed record ContentScriptEvaluated(Guid PageId, Guid EvaluationId, string? Json) : EnginePresentation;
+
+#endregion
+
+#region Info Bars
+
+/// The bar `InfoBarShown` presented is gone.
+public sealed record InfoBarRemoved(Guid PageId, int InfoBarId) : EnginePresentation;
+
+/// The engine asks the person something in a bar over the page: a message and
+/// the labels of the buttons it has. The person's answer is `AnswerInfoBar`.
+public sealed record InfoBarShown(Guid PageId, int InfoBarId, string Message, string? AcceptLabel, string? CancelLabel,
+    bool Closeable) : EnginePresentation;
+
+#endregion
+
+#region Extensions
+
+/// The extensions of the profile `ProfileId` names changed: one was added,
+/// removed, enabled or pinned, or an action's state or icon changed.
+public sealed record ExtensionsChanged(Guid ProfileId) : EnginePresentation;
+
+/// The engine asks for the extension's side panel beside the page: its
+/// `chrome.sidePanel.open()` or `close()`, or an action click that toggles
+/// the panel instead of opening a popup. A panel is a card beside the page,
+/// so the engine never opens or closes one itself.
+public sealed record SidePanelRequested(Guid PageId, string ExtensionId, SidePanelRequest Request)
+    : EnginePresentation;
+
+/// What the engine asks of an extension's side panel.
+public enum SidePanelRequest {
+    Open,
+    Close,
+    Toggle
+}
+
+/// The Chrome Web Store listing the page shows asked to install the extension
+/// it is about. The engine checked the listing names `ExtensionId`.
+public sealed record StoreInstallRequested(Guid PageId, string ExtensionId) : EnginePresentation;
+
+/// The Chrome Web Store listing the page shows asked to remove the extension
+/// it is about. The engine checked the listing names `ExtensionId`.
+public sealed record StoreRemovalRequested(Guid PageId, string ExtensionId) : EnginePresentation;
+
+#endregion
+
+#region Media
+
+/// What a media session can be asked to do.
+public enum MediaSessionAction {
+    Play,
+    Pause,
+    PreviousTrack,
+    NextTrack
+}
+
+/// The page's media session as Crest shows it for `Document`: what plays, how,
+/// and what it can be asked to do. `Sequence` counts up with each change so a
+/// late one never replaces a newer one.
+public sealed record MediaSessionChanged(Guid PageId, string Document, long Sequence, string Location, bool Active,
+    string? Title, string? Artist, string? Album, MediaPlayback Playback, bool Audible, bool Muted,
+    IReadOnlyList<MediaSessionAction> Actions) : EnginePresentation;
+
+/// Whether a media session plays.
+public enum MediaPlayback {
+    /// It has nothing to play.
+    None,
+
+    Playing,
+    Paused
+}
+
+#endregion
+
+#region Inspectors
+
+/// The inspector on the page is going away, whichever way it was closed.
+public sealed record InspectorClosed(Guid PageId) : EnginePresentation;
+
+/// The docked inspector on the page appeared, moved to another side, changed
+/// size or went away, so the page's card lays out again.
+public sealed record InspectorLayoutChanged(Guid PageId) : EnginePresentation;
+
+#endregion
+
+#region Profiles
+
+/// Whether the profile `PrepareProfile` asked for is ready.
+public sealed record ProfilePrepared(Guid PreparationId, bool Ready) : EnginePresentation;
+
+/// The engine let go of the profile `ProfileId` names: its pages and windows
+/// closed and its extensions are gone.
+public sealed record ProfileReleased(Guid ProfileId) : EnginePresentation;
+
+#endregion

@@ -18,9 +18,13 @@ contains Space ownership and preferences; `State` contains durable snapshots;
 `Sync` contains portable record policy; `Navigation` contains URL, link, and
 history rules; and `Identity` contains shared time and ID sources. Domain
 objects use named `Guid` properties for identities without adding one-field wrappers.
-The application groups session operations, sync operations, policy evaluation,
-and status separately. Public types have their own files, while partial classes
-keep related operations together under the owning type's name.
+The application groups session operations, sync operations, and status
+separately, and gives each other browser area it serves, such as downloads,
+credentials, or portability, a folder of its own. A type with behavior has its
+own file, and partial classes keep related operations together under the
+owning type's name. Data-only records and enums share their concept's file,
+such as `Windows/WindowMessages.cs`, or sit in a `Types` region at the top of
+the one type that uses them.
 
 Keep typed domain objects inside the control plane. Decode JSON at an input
 boundary, apply browser rules through domain objects, then encode JSON at an

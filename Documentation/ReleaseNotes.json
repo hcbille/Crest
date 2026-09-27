@@ -3013,6 +3013,10 @@
     "native-views-and-preference-choices-describe-themselves": {
       "category": "internal",
       "message": "Settings and Getting Started tabs take their title and symbol from the core, and startup and saved-tab close choices carry their own titles"
+    },
+    "contract-records-share-concept-files": {
+      "category": "internal",
+      "message": "Contract records that only carry data share one file per concept, grouped in regions by message family and subject, instead of one file each"
     }
   }
 }
