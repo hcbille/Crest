@@ -1,5 +1,4 @@
 import Foundation
-import os
 
 /// The platform's side of the core's shortcut bindings.
 ///
@@ -11,7 +10,7 @@ import os
 final class BrowserShortcutStore {
     // MARK: - Static Variables
 
-    private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "Shortcuts")
+    private static let log = DiagnosticLog.shortcuts
 
     // MARK: - Variables
 
@@ -38,8 +37,8 @@ final class BrowserShortcutStore {
         do {
             try core.send(AdoptShortcuts(overrides: legacyOverrides))
         } catch {
-            Self.logger.error(
-                "The core could not adopt the saved shortcuts: \(String(describing: error), privacy: .public)")
+            Self.log.error(
+                "The core could not adopt the saved shortcuts: \(String(describing: error))")
         }
     }
 
@@ -97,8 +96,8 @@ final class BrowserShortcutStore {
         } catch .invalidShortcut {
             return .invalid
         } catch {
-            Self.logger.error(
-                "The core refused \(String(describing: type(of: intent)), privacy: .public): \(String(describing: error), privacy: .public)"
+            Self.log.error(
+                "The core refused \(String(describing: type(of: intent))): \(String(describing: error))"
             )
             return .invalid
         }

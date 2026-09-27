@@ -1,5 +1,4 @@
 import Foundation
-import os
 
 /// The platform's side of this device's link preferences.
 ///
@@ -12,7 +11,7 @@ import os
 final class BrowserLinkPreferenceStore {
     // MARK: - Static Variables
 
-    private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "Links")
+    private static let log = DiagnosticLog.links
 
     // MARK: - Variables
 
@@ -97,8 +96,8 @@ final class BrowserLinkPreferenceStore {
         do {
             try core.send(intent)
         } catch {
-            Self.logger.error(
-                "The core refused \(String(describing: type(of: intent)), privacy: .public): \(String(describing: error), privacy: .public)"
+            Self.log.error(
+                "The core refused \(String(describing: type(of: intent))): \(String(describing: error))"
             )
         }
     }

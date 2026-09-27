@@ -3037,6 +3037,10 @@
     "extensions-live-with-their-owners": {
       "category": "internal",
       "message": "Extensions now live in files named for the type they extend, so each type's behaviour is found in one place."
+    },
+    "platform-seams-stay-in-platform-layers": {
+      "category": "internal",
+      "message": "Shared browser code no longer depends on AppKit, UIKit or the logging framework directly; each platform supplies its own pieces, with no change in behaviour."
     }
   }
 }

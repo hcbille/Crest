@@ -11,7 +11,8 @@ struct MobileBrowserWindowScene: View {
     private let sidebarWidgets: BrowserSidebarWidgetRuntime
     @Bindable private var onboardingCoordinator: BrowserOnboardingCoordinator
 
-    @StateObject private var runtime: Runtime
+    @State private var runtime = Runtime()
+    private let makeModel: @MainActor () -> MobileBrowserWindowSceneModel
     @State private var browsingMode: BrowserBrowsingMode = .standard
     @State private var hasPresentedAutomaticOnboarding = false
 
@@ -38,37 +39,42 @@ struct MobileBrowserWindowScene: View {
         self.onboardingCoordinator = onboardingCoordinator
         self.automaticallyPresentsOnboarding = automaticallyPresentsOnboarding
         self.sidebarWidgets = sidebarWidgets
-        _runtime = StateObject(
-            wrappedValue: Runtime(
-                model: MobileBrowserWindowSceneModel(
-                    id: id,
-                    rootBrowser: rootBrowser,
-                    permissionCenter: permissionCenter,
-                    pageStoreRegistry: pageStoreRegistry,
-                    spaceAccess: spaceAccess,
-                    tabStateArchive: tabStateArchive,
-                    windowLayouts: windowLayouts,
-                    startupBehavior: startupBehavior,
-                    monitorsMemoryPressure: monitorsMemoryPressure,
-                    usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
-                    mediaSessionStore: mediaSessions,
-                    downloads: downloads,
-                    privateDownloads: privateDownloads
-                ))
-        )
+        makeModel = {
+            MobileBrowserWindowSceneModel(
+                id: id,
+                rootBrowser: rootBrowser,
+                permissionCenter: permissionCenter,
+                pageStoreRegistry: pageStoreRegistry,
+                spaceAccess: spaceAccess,
+                tabStateArchive: tabStateArchive,
+                windowLayouts: windowLayouts,
+                startupBehavior: startupBehavior,
+                monitorsMemoryPressure: monitorsMemoryPressure,
+                usesEphemeralWebsiteDataStores: usesEphemeralWebsiteDataStores,
+                mediaSessionStore: mediaSessions,
+                downloads: downloads,
+                privateDownloads: privateDownloads
+            )
+        }
     }
 
-    private var model: MobileBrowserWindowSceneModel { runtime.model }
+    private var model: MobileBrowserWindowSceneModel { runtime.model(makingWith: makeModel) }
 
-    /// Scene construction registers stores and reads shared observed state.
-    /// StateObject's deferred initializer runs that work once per mounted scene,
-    /// outside its parent's body evaluation. The model keeps Observation for UI updates.
+    /// Scene construction registers stores and reads shared observed state, so
+    /// the holder builds the model the first time the scene reads it: once per
+    /// mounted scene, in the scene's own update rather than its parent's body
+    /// evaluation. The holder is the state's own default rather than a value
+    /// `init` assigns, which would make SwiftUI update the scene each time its
+    /// parent does. The model keeps Observation for UI updates.
     @MainActor
-    private final class Runtime: ObservableObject {
-        let model: MobileBrowserWindowSceneModel
+    private final class Runtime {
+        private var built: MobileBrowserWindowSceneModel?
 
-        init(model: MobileBrowserWindowSceneModel) {
-            self.model = model
+        func model(makingWith make: @MainActor () -> MobileBrowserWindowSceneModel) -> MobileBrowserWindowSceneModel {
+            if let built { return built }
+            let model = make()
+            built = model
+            return model
         }
     }
 

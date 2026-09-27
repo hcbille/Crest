@@ -1,9 +1,5 @@
 import Foundation
 
-#if os(macOS)
-    import AppKit
-#endif
-
 /// One tab's resident page, and on the Mac which window presents it.
 @MainActor
 final class BrowserTabRuntime {
@@ -13,7 +9,7 @@ final class BrowserTabRuntime {
         var presentationWindowID: UUID?
         var routingWindowID: UUID?
         var snapshotGeneration = 0
-        var snapshot: NSImage?
+        var snapshot: BrowserPageSnapshotImage?
     #endif
 
     var allPages: [BrowserPlatformPage] { [page] }

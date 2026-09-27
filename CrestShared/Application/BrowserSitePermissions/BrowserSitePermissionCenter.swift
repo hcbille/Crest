@@ -1,5 +1,4 @@
 import Foundation
-import os
 
 struct BrowserSitePermissionChange {
     var spaceID: UUID?
@@ -34,7 +33,7 @@ protocol BrowserSitePermissionObserver: AnyObject {
 final class BrowserSitePermissionCenter {
     // MARK: - Static Variables
 
-    private static let logger = Logger(subsystem: "com.pauldavis.crest", category: "SitePermissions")
+    private static let log = DiagnosticLog.sitePermissions
 
     // MARK: - Types
 
@@ -70,8 +69,8 @@ final class BrowserSitePermissionCenter {
         do {
             try core.send(AdoptSitePermissions(records: document))
         } catch {
-            Self.logger.error(
-                "The core could not adopt the saved site permissions: \(String(describing: error), privacy: .public)")
+            Self.log.error(
+                "The core could not adopt the saved site permissions: \(String(describing: error))")
         }
     }
 
@@ -155,8 +154,8 @@ final class BrowserSitePermissionCenter {
         do {
             try core.send(intent)
         } catch {
-            Self.logger.notice(
-                "The core refused \(String(describing: type(of: intent)), privacy: .public): \(String(describing: error), privacy: .public)"
+            Self.log.notice(
+                "The core refused \(String(describing: type(of: intent))): \(String(describing: error))"
             )
         }
     }

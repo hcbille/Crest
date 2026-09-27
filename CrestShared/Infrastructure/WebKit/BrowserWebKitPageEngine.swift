@@ -203,11 +203,6 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
             closeCompletion = nil
             completion?(allowed)
         }
-
-        /// WebKit prints the web view itself, a page at a time.
-        func printOperation(with info: NSPrintInfo) -> NSPrintOperation? {
-            webView.printOperation(with: info)
-        }
     #endif
 
 }

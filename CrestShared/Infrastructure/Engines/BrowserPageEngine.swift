@@ -1,13 +1,5 @@
 import Foundation
 
-#if os(macOS)
-    import AppKit
-    typealias BrowserEngineView = NSView
-#else
-    import UIKit
-    typealias BrowserEngineView = UIView
-#endif
-
 /// The native page port used by the existing UI: the engine's view and what it
 /// shows. Everything the platform asks of the page's engine goes through its
 /// `EnginePage`; portable session commands never receive a platform view.
@@ -39,11 +31,6 @@ protocol BrowserPageEngine: AnyObject {
     /// Runs `body` as an async function in a world of the main frame's current
     /// document that the page cannot see; nil when it produced no value.
     func evaluateInMainFrame(_ body: String) async -> Any?
-    #if os(macOS)
-        /// The engine's own print operation for its view, a page at a time; nil
-        /// when the page prints from the PDF its engine exports.
-        func printOperation(with info: NSPrintInfo) -> NSPrintOperation?
-    #endif
 }
 
 extension BrowserPageEngine {
@@ -54,9 +41,6 @@ extension BrowserPageEngine {
     func evaluateInMainFrame(_ body: String) async -> Any? {
         await contentScripting?.callAsyncJavaScriptInMainFrame(body)
     }
-    #if os(macOS)
-        func printOperation(with info: NSPrintInfo) -> NSPrintOperation? { nil }
-    #endif
 }
 
 /// A link an engine staged for a new page's first load, which keeps the

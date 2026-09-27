@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 
 /// Every window's sidebar layout on this device, kept in `defaults`, or in
 /// memory without them.
@@ -59,8 +58,7 @@ final class BrowserWindowLayouts {
         do {
             changes = try core.send(AdoptWindowRecords(records: defaults?.data(forKey: Self.legacyRecordsKey)))
         } catch {
-            Logger(subsystem: "com.pauldavis.crest", category: "Windows")
-                .error("The core could not adopt the window records: \(String(describing: error), privacy: .public)")
+            DiagnosticLog.windows.error("The core could not adopt the window records: \(String(describing: error))")
             return
         }
         for case .windowRecordsAdopted(let adopted) in changes {

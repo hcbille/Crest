@@ -916,7 +916,9 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// The engine's own print operation for its view, or one over the PDF
     /// the engine exports.
     private func printOperation(with info: NSPrintInfo) async throws -> NSPrintOperation {
-        if let operation = pageEngine.printOperation(with: info) { return operation }
+        if let operation = (pageEngine as? any BrowserPrintingPageEngine)?.printOperation(with: info) {
+            return operation
+        }
         guard let document = PDFDocument(data: try await pdfData()),
             let operation = document.printOperation(for: info, scalingMode: .pageScaleToFit, autoRotate: true)
         else {
