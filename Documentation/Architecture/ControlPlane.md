@@ -66,7 +66,7 @@ Everything that crosses the boundary is a C# record or fixed set in
 - **Intents** change state (`OpenTab`, `ChooseSiteEngine`).
 - **Queries** answer without changing it (`PaletteSuggestions`, `SiteDecision`).
   A query that needs no session, such as `LaunchIsolation` or `NormalizeBranding`,
-  is answered by `crest_core_answer` without an app.
+  is a `StandaloneQuery`, which `crest_core_answer` answers without an app.
 - **Changes** carry the state an intent or the core's own work produced
   (`TabsChanged`, `EnginesChanged`), or name an event the UI reacts to
   (`PageRehosted`).
@@ -97,6 +97,42 @@ the generated files are stale.
   secret, and a containment test proves no change, intent, stored session,
   device record or sync journal reaches it. An answer buffer is cleared when
   it is freed.
+
+### Handling messages
+
+A message is data, and the receiver that owns what it is about does the work,
+one method per case. A union family is a root or an abstract record some of
+its members derive from (`PageIntent`, `SessionIntent`, `PageEvent`,
+`StandaloneQuery<TAnswer>`), and the generator gives each family a handler, so
+a new case without one fails to build.
+
+- In the core, `I<Family>Handler<TContext>` has one `Handle(Case, TContext)`
+  per case, and `I<Family>Handler<TContext, TResult>` answers a result of the
+  receiver's choice, such as the `SessionEdit` each session intent makes. A
+  question family answers each case with its own answer.
+  `message.Dispatch(handler, context)` routes a message to its case, and a case
+  that is a family goes on to that family's handler. The context is a small
+  record of what every case of one receiver needs for one call, such as
+  `PageTurn(Changes, Issue)`.
+- `CrestApp` handles the roots and hands each family to the area that owns
+  it: `Pages` handles page intents and `PageEvent`, the session authority
+  `SessionIntent`, the device its window, link, shortcut, setup and site
+  permission intents, `Prompts` `PromptEvent`, and `StandaloneAnswers` the
+  standalone queries. A public receiver implements its handlers explicitly,
+  so they stay off its public API and behind the entry point's lock.
+- In Swift, `<Root>Handling` has one `handle(_:)` per member of each root the
+  apps receive (changes, engine commands, page requests and engine
+  presentations), and `dispatch(to:)` calls the one for the message's case.
+  `CoreState` handles every change and WebKit's binding every command. A
+  receiver that watches for only some cases conforms to `<Root>Observing`
+  instead, whose other cases do nothing, such as `CrestCore`'s change
+  followers and `EnginePage`.
+- In C++, the engine codec decodes each root into a `std::variant`, which a
+  receiver visits with its overload set.
+- A fact a routing switch would pick per case, such as the page an event or a
+  presentation is about, is a field its family declares (`PageEvent.PageId`),
+  which shared work reads once. A Swift enum reads such a fact as a property
+  (`EnginePresentation.pageID`).
 
 ### Resolved values and seeds
 
@@ -139,13 +175,14 @@ merge, an engine event) arrive through a payload-free wake callback that the
 UI answers by draining the pending batch, at most once per main-queue turn.
 
 `CoreState` is the Swift read model. Only the changes `CrestCore` receives
-update it, each through its applier in a `CoreState+Area.swift` file. It is
-observable per entity: each workspace, Space, tab, folder, window and page is
-an object that notifies only when one of its values really changes, so a tab's
-new title redraws that tab's row and nothing else. Every value is stored
-before it is announced (`BrowserStoreFirstObservable`), so a view rendering
-during an announcement reads the new value. A generator check refuses views
-that read a whole read-model list's `.values`.
+update it: it is the `ChangeHandling` every change reaches, through its
+`handle(_:)` in a `CoreState+Area.swift` file. It is observable per entity:
+each workspace, Space, tab, folder, window and page is an object that notifies
+only when one of its values really changes, so a tab's new title redraws that
+tab's row and nothing else. Every value is stored before it is announced
+(`BrowserStoreFirstObservable`), so a view rendering during an announcement
+reads the new value. A generator check refuses views that read a whole
+read-model list's `.values`.
 
 Views, engine glue and page hosts read the read model directly. `BrowserStore`
 is the per-window facade that sends intents and answers what a window shows;

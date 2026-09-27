@@ -3057,6 +3057,10 @@
     "app-receivers-use-message-handlers": {
       "category": "internal",
       "message": "The apps' read model, engine bindings, pages and prompt followers now handle the core's changes, commands, requests and presentations through generated handling protocols, with no change in behaviour."
+    },
+    "message-handling-documented": {
+      "category": "internal",
+      "message": "The architecture notes now describe how each receiver handles the core's messages through the generated handlers."
     }
   }
 }

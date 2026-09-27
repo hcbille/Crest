@@ -103,9 +103,11 @@ for `EnginePage` lists every direct engine call.
 
    A nested `Kinds` enum is used only where a switch cannot be avoided. Plain
    enums remain only for sets whose members carry nothing. Unions of message
-   types (changes, events, rejections) are not fixed sets, so the one place
-   that handles them switches over them. Capability sets are flags. No
-   capability is a string.
+   types (intents, changes, events, commands, queries) are not fixed sets: the
+   receiver that owns the state handles each case through the handler the
+   generator emits for the union's family, and a fact a switch would pick per
+   case is a field of the family. Capability sets are flags. No capability is
+   a string.
 4. Identifiers are plain `Guid` in C# and `UUID` in Swift, and they appear only
    at boundaries. Inside the core, methods take the objects themselves
    (`window.Show(space, tab)`), not their identifiers. Crest does not wrap a
