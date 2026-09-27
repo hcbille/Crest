@@ -13,7 +13,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         page.webView.loadHTMLString("<title>Quick page</title>", baseURL: context.model.presentedRequest.url)
         try await waitUntil { page.live.title == "Quick page" && !page.live.isLoading }
         XCTAssertEqual(context.model.windowTitle(for: context.requestBinding.request), "Quick page")
-        let selected = try XCTUnwrap(context.browser.selectedTab)
+        let selected = try XCTUnwrap(context.browser.shownTab)
         XCTAssertTrue(
             context.browser.setTabCustomTitle("Unrelated selected tab", for: selected.id, in: context.source.id))
         XCTAssertEqual(context.model.windowTitle(for: context.requestBinding.request), "Quick page")
@@ -47,7 +47,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         let lease = try XCTUnwrap(context.model.pageLease)
         let page = try XCTUnwrap(lease.page)
         let tabCount = try XCTUnwrap(
-            context.browser.selectedSpace?.tabs.count
+            context.browser.shownSpace?.tabs.models.count
         )
         let destination = try XCTUnwrap(
             URL(string: "https://quick-target-blank.crest.test/destination")
@@ -62,7 +62,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         XCTAssertTrue(context.model.pageLease === lease)
         XCTAssertTrue(context.model.page === page)
         XCTAssertEqual(page.navigationReporter?.pendingURL, destination)
-        XCTAssertEqual(context.browser.selectedSpace?.tabs.count, tabCount)
+        XCTAssertEqual(context.browser.shownSpace?.tabs.models.count, tabCount)
         XCTAssertEqual(
             context.model.presentedRequest.id,
             context.requestBinding.request.id
@@ -82,16 +82,16 @@ final class BrowserQuickWindowModelTests: XCTestCase {
 
         XCTAssertFalse(model.archivePageIfNeeded())
         XCTAssertTrue(
-            context.browser.session.space(id: context.source.id)?.history
-                .isEmpty == true
+            context.browser.spaceModel(context.source.id)?.history
+                .entries.isEmpty == true
         )
         XCTAssertTrue(
-            context.browser.session.space(id: context.destination.id)?.history
-                .isEmpty == true
+            context.browser.spaceModel(context.destination.id)?.history
+                .entries.isEmpty == true
         )
         XCTAssertTrue(
-            context.browser.session.space(id: context.destination.id)?
-                .archivedTabs.isEmpty == true
+            context.browser.spaceModel(context.destination.id)?
+                .archive.entries.isEmpty == true
         )
     }
 
@@ -103,13 +103,13 @@ final class BrowserQuickWindowModelTests: XCTestCase {
 
         XCTAssertTrue(model.archivePageIfNeeded())
         XCTAssertEqual(
-            context.browser.session.space(id: context.source.id)?
-                .archivedTabs.count,
+            context.browser.spaceModel(context.source.id)?
+                .archive.entries.count,
             1
         )
         XCTAssertTrue(
-            context.browser.session.space(id: context.destination.id)?
-                .archivedTabs.isEmpty == true
+            context.browser.spaceModel(context.destination.id)?
+                .archive.entries.isEmpty == true
         )
     }
 
@@ -120,7 +120,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         model.preparePage(isActive: true)
         let lease = try XCTUnwrap(model.pageLease)
         context.browser.replaceProfileForTesting(of: context.source.id)
-        let replacement = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let replacement = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         model.preparePage(isActive: true)
 
@@ -177,7 +177,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         context.model.releaseForDismissal()
 
         XCTAssertEqual(
-            context.browser.session.space(id: context.source.id)?.archivedTabs.count,
+            context.browser.spaceModel(context.source.id)?.archive.entries.count,
             1
         )
         XCTAssertNil(context.model.releasedPageSnapshot)
@@ -194,7 +194,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         context.model.releaseForDismissal()
 
         XCTAssertTrue(
-            context.browser.session.space(id: context.source.id)?.archivedTabs.isEmpty
+            context.browser.spaceModel(context.source.id)?.archive.entries.isEmpty
                 == true
         )
         XCTAssertNil(context.model.releasedPageSnapshot)
@@ -205,7 +205,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         context.model.preparePage(isActive: true)
         let originalLease = try XCTUnwrap(context.model.pageLease)
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.source.id)
-        let lockedSource = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let lockedSource = try XCTUnwrap(context.browser.spaceModel(context.source.id))
         context.model.releaseForUnavailableSpace()
 
         context.model.preparePage(isActive: true)
@@ -237,7 +237,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
 
         XCTAssertFalse(context.model.promote(to: BrowserSpaceRuntimeAssignment(space: context.destination)))
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             context.destination.tabs.count
         )
 
@@ -277,18 +277,18 @@ final class BrowserQuickWindowModelTests: XCTestCase {
             baseURL: historyURL
         )
         try await waitUntil(timeout: .seconds(8)) {
-            context.browser.session.space(id: context.source.id)?.history.isEmpty == false
+            context.browser.spaceModel(context.source.id)?.history.entries.isEmpty == false
         }
         XCTAssertGreaterThan(context.model.activityClock.revision, activity)
 
         let sourceHistory = try XCTUnwrap(
-            context.browser.session.space(id: context.source.id)?.history
+            context.browser.spaceModel(context.source.id)?.history
         )
-        XCTAssertEqual(sourceHistory.count, 1)
-        XCTAssertEqual(sourceHistory.first?.url.host(), historyURL.host())
-        XCTAssertEqual(sourceHistory.first?.visitCount, 1)
+        XCTAssertEqual(sourceHistory.entries.count, 1)
+        XCTAssertEqual(sourceHistory.entries.first.flatMap { URL(string: $0.url) }?.host(), historyURL.host())
+        XCTAssertEqual(sourceHistory.entries.first?.visitCount, 1)
         XCTAssertTrue(
-            context.browser.session.space(id: context.destination.id)?.history.isEmpty
+            context.browser.spaceModel(context.destination.id)?.history.entries.isEmpty
                 == true
         )
     }
@@ -313,7 +313,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         let context = try makeContext()
         context.model.preparePage(isActive: true)
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.destination.id)
-        let protectedDestination = try XCTUnwrap(context.browser.session.space(id: context.destination.id))
+        let protectedDestination = try XCTUnwrap(context.browser.spaceModel(context.destination.id))
 
         XCTAssertFalse(
             context.model.availableSpaceModels.contains {
@@ -327,8 +327,8 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         )
         XCTAssertFalse(context.model.promote(to: BrowserSpaceRuntimeAssignment(space: protectedDestination)))
         XCTAssertEqual(
-            context.browser.session.space(id: protectedDestination.id)?.tabs.count,
-            protectedDestination.tabs.count
+            context.browser.spaceModel(protectedDestination.id)?.tabs.models.count,
+            protectedDestination.tabs.models.count
         )
         XCTAssertEqual(context.browser.selectedSpaceID, context.source.id)
     }
@@ -357,11 +357,11 @@ final class BrowserQuickWindowModelTests: XCTestCase {
 
         XCTAssertFalse(context.model.promote(to: BrowserSpaceRuntimeAssignment(space: context.destination)))
         XCTAssertEqual(
-            context.browser.session.space(id: context.source.id)?.tabs.count,
+            context.browser.spaceModel(context.source.id)?.tabs.models.count,
             context.source.tabs.count
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             context.destination.tabs.count
         )
         XCTAssertEqual(context.browser.selectedSpaceID, context.source.id)
@@ -381,7 +381,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         XCTAssertFalse(model.promote(to: BrowserSpaceRuntimeAssignment(space: context.source)))
         model.releaseForDismissal()
         XCTAssertEqual(context.browser.session.tabIDs, tabs)
-        XCTAssertTrue(context.browser.session.space(id: context.source.id)?.archivedTabs.isEmpty == true)
+        XCTAssertTrue(context.browser.spaceModel(context.source.id)?.archive.entries.isEmpty == true)
     }
 
     func testEmptyPromotionSelectsTheExactDestinationWithoutOpeningATab() throws {
@@ -396,11 +396,11 @@ final class BrowserQuickWindowModelTests: XCTestCase {
             context.destination.id
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.source.id)?.tabs.count,
+            context.browser.spaceModel(context.source.id)?.tabs.models.count,
             sourceTabCount
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             destinationTabCount
         )
     }
@@ -487,11 +487,11 @@ final class BrowserQuickWindowModelTests: XCTestCase {
             BrowserSpaceRuntimeAssignment(space: context.source)
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.source.id)?.tabs.count,
+            context.browser.spaceModel(context.source.id)?.tabs.models.count,
             sourceTabs
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             destinationTabs
         )
         XCTAssertNil(context.model.pageLease)
@@ -501,7 +501,7 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         context.model.releaseForDismissal()
 
         XCTAssertEqual(
-            context.browser.session.space(id: context.source.id)?.archivedTabs.count,
+            context.browser.spaceModel(context.source.id)?.archive.entries.count,
             1
         )
         XCTAssertTrue(

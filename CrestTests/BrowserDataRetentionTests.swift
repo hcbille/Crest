@@ -74,7 +74,7 @@ final class BrowserDataRetentionTests: XCTestCase {
         let browser = BrowserStore(session: session)
 
         browser.sweepExpiredBrowsingData()
-        let swept = browser.session
+        let swept = browser.sessionSeed
         XCTAssertEqual(
             try XCTUnwrap(swept.space(id: cleanedSpaceID)).history.map(\.title),
             ["Recent"]

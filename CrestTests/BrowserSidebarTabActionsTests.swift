@@ -24,12 +24,12 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
             let action = BrowserTabOrganizationAction(browser: context.browser, spaceAccess: context.access)
             XCTAssertTrue(action.setPinnedTabEmoji("🌙", for: assignment))
             invalidate(context)
-            let before = context.browser.session
+            let before = context.browser.sessionSeed
 
             XCTAssertFalse(action.canCustomizePinnedIcon(for: assignment))
             XCTAssertFalse(action.setPinnedTabEmoji("⭐️", for: assignment))
             XCTAssertFalse(action.clearPinnedTabIcon(for: assignment))
-            XCTAssertEqual(context.browser.session, before)
+            XCTAssertEqual(context.browser.sessionSeed, before)
         }
     }
 
@@ -64,13 +64,13 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         XCTAssertEqual(host.otherSpaces(from: source).map(\.id), [context.otherSpace.id])
         XCTAssertTrue(host.openLink(url, from: source, in: destination))
 
-        XCTAssertEqual(context.browser.session.spaces.count, 2)
-        XCTAssertEqual(context.browser.session.space(id: context.space.id)?.tabs.map(\.seed), context.space.tabs)
-        let selected = try XCTUnwrap(context.browser.selectedSpace)
+        XCTAssertEqual(context.browser.spaceModels.count, 2)
+        XCTAssertEqual(context.browser.spaceModel(context.space.id)?.tabs.values.map(\.seed), context.space.tabs)
+        let selected = try XCTUnwrap(context.browser.shownSpace)
         XCTAssertEqual(selected.id, destination.spaceID)
-        XCTAssertEqual(selected.profile.id, destination.profileID)
-        XCTAssertEqual(context.browser.selectedTab?.url, url)
-        XCTAssertNotEqual(context.browser.selectedTab?.id, context.tab.id)
+        XCTAssertEqual(selected.profileID, destination.profileID)
+        XCTAssertEqual(context.browser.shownTab?.address, url)
+        XCTAssertNotEqual(context.browser.shownTab?.id, context.tab.id)
     }
 
     func testLinkDestinationRejectsAStaleSourceAndLockedDestination() throws {
@@ -89,9 +89,9 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         XCTAssertFalse(host.openLink(url, from: source, in: destination))
         context.browser.updateSpaceAccessPolicy(.open, in: context.otherSpace.id)
         context.browser.replaceProfileForTesting(of: context.space.id, with: Self.uuid(4))
-        let destinationTabs = context.browser.session.space(id: destination.spaceID)?.tabs
+        let destinationTabs = context.browser.spaceModel(destination.spaceID)?.tabs.values
         XCTAssertFalse(host.openLink(url, from: source, in: destination))
-        XCTAssertEqual(context.browser.session.space(id: destination.spaceID)?.tabs, destinationTabs)
+        XCTAssertEqual(context.browser.spaceModel(destination.spaceID)?.tabs.values, destinationTabs)
     }
 
     func testSelectionSearchRejectsEmptyOrInvalidatedSources() throws {
@@ -112,12 +112,12 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
             XCTAssertNil(host.selectionSearch(for: " \n ", from: source))
             let search = try XCTUnwrap(host.selectionSearch(for: "selected words", from: source))
             invalidate(context)
-            let before = context.browser.session
+            let before = context.browser.sessionSeed
 
             XCTAssertNil(host.selectionSearch(for: "selected words", from: source))
             XCTAssertFalse(
                 host.openLink(search.url, from: search.source, in: BrowserSpaceRuntimeAssignment(space: context.space)))
-            XCTAssertEqual(context.browser.session, before)
+            XCTAssertEqual(context.browser.sessionSeed, before)
         }
     }
 
@@ -142,11 +142,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
 
         let didPullIcon = await action.pullNewIcon(for: context.tab.id)
         XCTAssertFalse(didPullIcon)
-        XCTAssertNil(
-            try XCTUnwrap(context.browser.session.space(id: context.space.id))
-                .tabs.first(where: { $0.id == context.tab.id })?
-                .faviconData
-        )
+        XCTAssertNil(context.browser.core.state.favicons.image(of: context.tab.id))
     }
 
     func testFaviconPullCannotWriteAfterProtectedSpaceRelocksDuringAwait() async throws {
@@ -160,11 +156,7 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
 
         let didPullIcon = await action.pullNewIcon(for: context.tab.id)
         XCTAssertFalse(didPullIcon)
-        XCTAssertNil(
-            try XCTUnwrap(context.browser.selectedSpace)
-                .tabs.first(where: { $0.id == context.tab.id })?
-                .faviconData
-        )
+        XCTAssertNil(context.browser.core.state.favicons.image(of: context.tab.id))
     }
 
     func testExactAssignmentAcceptsPulledFavicon() async throws {
@@ -182,12 +174,12 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         let didPullIcon = await action.pullNewIcon(for: context.tab.id)
         XCTAssertTrue(didPullIcon)
         let tab = try XCTUnwrap(
-            context.browser.selectedSpace?.tabs.first(where: {
+            context.browser.shownSpace?.tabs.models.first(where: {
                 $0.id == context.tab.id
             })
         )
-        XCTAssertEqual(tab.faviconData, expectedData)
-        XCTAssertEqual(tab.iconAccent, expectedAccent)
+        XCTAssertEqual(context.browser.core.state.favicons.image(of: tab.id), expectedData)
+        XCTAssertEqual(tab.iconTint, expectedAccent)
     }
 
     /// Clearing archives the Space's current tabs and then, once, tells the page
@@ -205,10 +197,10 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         XCTAssertTrue(action.clearCurrentTabs())
 
         let space = try XCTUnwrap(
-            context.browser.session.space(id: context.space.id)
+            context.browser.spaceModel(context.space.id)
         )
-        XCTAssertFalse(space.tabs.contains(where: { $0.placement == .current }))
-        XCTAssertTrue(space.tabs.contains(where: { $0.id == context.tab.id }))
+        XCTAssertFalse(space.tabs.models.contains(where: { $0.placement == .current }))
+        XCTAssertTrue(space.tabs.models.contains(where: { $0.id == context.tab.id }))
         XCTAssertEqual(syncCount, 1)
     }
 
@@ -228,8 +220,8 @@ final class BrowserSidebarTabActionsTests: XCTestCase {
         XCTAssertFalse(action.clearCurrentTabs())
 
         XCTAssertTrue(
-            try XCTUnwrap(context.browser.session.space(id: context.space.id))
-                .tabs.contains(where: { $0.placement == .current })
+            try XCTUnwrap(context.browser.spaceModel(context.space.id))
+                .tabs.models.contains(where: { $0.placement == .current })
         )
         XCTAssertEqual(syncCount, 0)
     }

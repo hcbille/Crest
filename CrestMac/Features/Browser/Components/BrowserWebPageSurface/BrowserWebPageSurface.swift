@@ -50,9 +50,9 @@ struct BrowserWebPageSurface: View {
 
             BrowserWebPageFailureOverlay(
                 page: page,
-                branding: browser.space(
-                    matching: BrowserSpaceRuntimeAssignment(
-                        spaceID: page.spaceID, profileID: page.profileID))?.branding,
+                branding: browser.spaceModel(
+                    matching: BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
+                ).map { BrowserSpaceBranding(look: $0.settings.look) },
                 pagePresentation: pagePresentation
             )
 

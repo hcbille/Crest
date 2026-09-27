@@ -25,9 +25,7 @@ extension BrowserStore {
         _ id: SpaceID,
         dataDeleter: any BrowserSpaceDataDeleting
     ) async throws {
-        // The page engines still erase a profile from the session's copy of
-        // the Space; TRANSITIONAL until Lane 2 moves them to the read model.
-        guard spaceModel(id) != nil, let space = session.space(id: id) else {
+        guard let space = spaceModel(id).map(BrowserSpaceRuntimeAssignment.init(space:)) else {
             throw BrowserSpaceDeletionError.missingSpace
         }
         guard family.beginDeletingSpace(id) else {

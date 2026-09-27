@@ -33,7 +33,7 @@ extension MobileBrowserPage: WKUIDelegate {
                 && self.navigationContext?.tabID == source.tabID
                 && self.navigationContext?.assignment
                     == BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID)
-                && self.linkDestinationHost.browser?.selectedTab?.id == source.tabID
+                && self.linkDestinationHost.browser?.shownTab?.id == source.tabID
                 && self.linkDestinationHost.canOpenLink(from: source)
         }
         let open: (BrowserSpaceRuntimeAssignment) -> Void = { [weak self] destination in

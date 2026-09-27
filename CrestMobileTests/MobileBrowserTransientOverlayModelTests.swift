@@ -30,7 +30,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         context.model.preparePage(isActive: true)
         let lease = try XCTUnwrap(context.model.pageLease)
         context.browser.replaceProfileForTesting(of: context.source.id)
-        let replacement = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let replacement = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         context.model.setSourceAvailable(context.model.spaceModel != nil)
         XCTAssertNil(lease.page)
@@ -44,12 +44,12 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         context.model.preparePage(isActive: true)
         let lease = try XCTUnwrap(context.model.pageLease)
         context.browser.replaceProfileForTesting(of: context.source.id)
-        let replacement = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let replacement = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         XCTAssertFalse(context.model.promote(to: context.request.assignment))
         XCTAssertEqual(
             context.browser.session.space(id: replacement.id)?.tabs.count,
-            replacement.tabs.count
+            replacement.tabs.models.count
         )
         XCTAssertEqual(
             context.browser.session.space(id: context.destination.id)?.tabs.count,
@@ -207,7 +207,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         context.model.preparePage(isActive: true)
         let lease = try XCTUnwrap(context.model.pageLease)
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.source.id)
-        let lockedSource = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let lockedSource = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         XCTAssertFalse(
             context.model.promote(
@@ -456,7 +456,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         let context = try makeQuickWindowContext(browsingMode: .standard)
         context.model.preparePage(isActive: true)
         context.browser.replaceProfileForTesting(of: context.source.id)
-        let replacement = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let replacement = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         XCTAssertFalse(context.model.preparePage(isActive: true))
         context.model.handleDisappearance()
@@ -496,7 +496,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
         context.model.preparePage(isActive: true)
         let originalLease = try XCTUnwrap(context.model.pageLease)
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.source.id)
-        let lockedSource = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let lockedSource = try XCTUnwrap(context.browser.spaceModel(context.source.id))
         context.model.setSourceLocked(true)
 
         XCTAssertFalse(context.model.preparePage(isActive: true))
@@ -535,7 +535,7 @@ final class MobileBrowserTransientOverlayModelTests: XCTestCase {
                 && page.live.documentURL?.host() == currentURL.host()
         }
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.source.id)
-        let lockedSource = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let lockedSource = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         context.model.setActive(false)
 

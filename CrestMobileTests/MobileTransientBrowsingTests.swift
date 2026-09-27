@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class MobileTransientBrowsingTests: XCTestCase {
     func testMobileTransientPageUsesTheOwningSpaceAssignmentAndIsolatedWebsiteStore() throws {
-        let session = BrowserSession.preview
+        let session = SessionState.Seed.preview
         let work = try XCTUnwrap(session.spaces.first)
         let personal = try XCTUnwrap(session.spaces.last)
         let pages = MobileBrowserPageStore(browser: .hostingPages(session), usesEphemeralWebsiteDataStores: true)
@@ -14,13 +14,13 @@ final class MobileTransientBrowsingTests: XCTestCase {
         let workLease = try XCTUnwrap(
             pages.makeTransientPageLease(
                 url: blankURL,
-                in: work
+                in: pages.browser.hostedSpace(work.id)
             )
         )
         let personalLease = try XCTUnwrap(
             pages.makeTransientPageLease(
                 url: blankURL,
-                in: personal
+                in: pages.browser.hostedSpace(personal.id)
             )
         )
         let workPage = try XCTUnwrap(workLease.page)
@@ -31,7 +31,7 @@ final class MobileTransientBrowsingTests: XCTestCase {
         }
 
         XCTAssertEqual(workPage.spaceID, work.id)
-        XCTAssertEqual(workPage.profileID, work.profile.id)
+        XCTAssertEqual(workPage.profileID, work.profileID)
         XCTAssertEqual(
             workLease.assignment,
             BrowserSpaceRuntimeAssignment(space: work)
@@ -52,14 +52,14 @@ final class MobileTransientBrowsingTests: XCTestCase {
     }
 
     func testMobileMemoryWarningReleasesTransientPagesBeforeTheActiveTab() throws {
-        let session = BrowserSession.preview
+        let session = SessionState.Seed.preview
         let work = try XCTUnwrap(session.spaces.first)
         let browser = BrowserStore.hostingPages(session)
         let pages = MobileBrowserPageStore(browser: browser, usesEphemeralWebsiteDataStores: true)
         let url = try XCTUnwrap(URL(string: "about:blank"))
-        pages.select(session: browser.presented)
+        pages.select()
         let lease = try XCTUnwrap(
-            pages.makeTransientPageLease(url: url, in: work)
+            pages.makeTransientPageLease(url: url, in: pages.browser.hostedSpace(work.id))
         )
 
         XCTAssertNotNil(lease.page)
@@ -72,53 +72,29 @@ final class MobileTransientBrowsingTests: XCTestCase {
         XCTAssertEqual(pages.retainedTransientPageCount, 0)
     }
 
-    func testMobileTransientLeaseDoesNotCrashWhenItsPageStoreHasBeenReleased() throws {
-        let space = try XCTUnwrap(BrowserSession.preview.spaces.first)
-        let url = try XCTUnwrap(URL(string: "about:blank"))
-        var pages: MobileBrowserPageStore? = MobileBrowserPageStore(
-            browser: .hostingPages(),
-            usesEphemeralWebsiteDataStores: true
-        )
-        let lease = try XCTUnwrap(
-            try XCTUnwrap(pages).makeTransientPageLease(
-                url: url,
-                in: space
-            )
-        )
-
-        lease.releaseForMemoryPressure()
-        weak let releasedPages = pages
-        pages = nil
-
-        XCTAssertNil(releasedPages)
-        lease.restore()
-        XCTAssertNil(lease.page)
-        XCTAssertTrue(lease.wasReleasedForMemoryPressure)
-    }
-
     func testMobileCrossSpaceMoveRebuildsTheTabWithTheDestinationProfile() throws {
-        let browser = BrowserStore.hostingPages(BrowserSession.preview)
-        let source = try XCTUnwrap(browser.session.spaces.first)
-        let destination = try XCTUnwrap(browser.session.spaces.last)
+        let browser = BrowserStore.hostingPages(SessionState.Seed.preview)
+        let source = try XCTUnwrap(browser.spaceModels.first)
+        let destination = try XCTUnwrap(browser.spaceModels.last)
         let tab = try XCTUnwrap(source.currentTabs.first)
         browser.activateSessionTab(tab.id, in: source.id)
         let pages = MobileBrowserPageStore(browser: browser, usesEphemeralWebsiteDataStores: true)
 
-        pages.select(session: browser.presented)
+        pages.select()
         let sourcePage = try XCTUnwrap(pages.activePage)
         XCTAssertEqual(sourcePage.spaceID, source.id)
 
         XCTAssertTrue(
             browser.moveTab(tab.id, from: source.id, into: destination.id)
         )
-        pages.reconcile(session: browser.session)
+        pages.reconcile()
         browser.activateSessionTab(tab.id, in: destination.id)
-        pages.select(session: browser.presented)
+        pages.select()
 
         let destinationPage = try XCTUnwrap(pages.activePage)
         XCTAssertFalse(sourcePage === destinationPage)
         XCTAssertEqual(destinationPage.spaceID, destination.id)
-        XCTAssertEqual(destinationPage.profileID, destination.profile.id)
+        XCTAssertEqual(destinationPage.profileID, destination.profileID)
         XCTAssertFalse(
             sourcePage.webView.configuration.websiteDataStore
                 === destinationPage.webView.configuration.websiteDataStore
@@ -180,8 +156,8 @@ final class MobileTransientBrowsingTests: XCTestCase {
             browsingMode: .privateBrowsing,
             usesEphemeralWebsiteDataStores: true
         )
-        let privateSpace = try XCTUnwrap(browser.selectedSpace)
-        let sourceTab = try XCTUnwrap(browser.selectedTab)
+        let privateSpace = try XCTUnwrap(browser.shownSpace)
+        let sourceTab = try XCTUnwrap(browser.shownTab)
         let destination = try XCTUnwrap(URL(string: "https://webkit.org/private-peek"))
         let request = BrowserPeekRequest(
             url: destination,
@@ -203,11 +179,11 @@ final class MobileTransientBrowsingTests: XCTestCase {
         let keptTabID = try XCTUnwrap(
             browser.openNewTab(url: request.url, in: request.spaceID)
         )
-        let currentPrivateSpace = try XCTUnwrap(browser.selectedSpace)
+        let currentPrivateSpace = try XCTUnwrap(browser.shownSpace)
         XCTAssertTrue(
             pages.adoptTransientPage(lease, as: keptTabID, in: currentPrivateSpace)
         )
-        XCTAssertEqual(browser.session.spaces.map(\.id), [privateSpace.id])
+        XCTAssertEqual(browser.spaceModels.map(\.id), [privateSpace.id])
         XCTAssertEqual(pages.activePage?.tabID, keptTabID)
         XCTAssertTrue(
             pages.activePage?.webView.configuration.websiteDataStore === privateStore

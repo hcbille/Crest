@@ -189,19 +189,17 @@ final class BrowserPageNavigationMarkerTests: XCTestCase {
     }
 
     private func makePage() throws -> BrowserPage {
-        let tab = BrowserTab.startPage()
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Marker",
+        let tab = TabState.Seed.startPage()
+        let space = SpaceState.Seed(
+                        name: "Marker",
             symbol: "circle",
             accent: .indigo,
             folders: [],
             tabs: [tab]
         )
-        let pool = BrowserPagePool(browser: .hostingPages(BrowserSession(spaces: [space])))
+        let pool = BrowserPagePool(browser: .hostingPages(SessionState.Seed(spaces: [space])))
         self.pool = pool
-        pool.select(tab: tab, space: space)
+        pool.present(tab: tab.id, in: space.id)
         return try XCTUnwrap(pool.activePage)
     }
 

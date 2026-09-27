@@ -112,11 +112,11 @@ final class BrowserDefaultPageZoomStoreTests: XCTestCase {
 @MainActor
 final class BrowserPageActionsTests: XCTestCase {
     func testDeveloperPreviewBelongsToTheLivePageAndHidingToolbarRestoresNormalMode() throws {
-        let first = BrowserTab(title: "Preview", url: nil, placement: .current)
-        let second = BrowserTab(title: "Other", url: nil, placement: .current)
+        let first = TabState.Seed(title: "Preview", url: nil, placement: .current)
+        let second = TabState.Seed(title: "Other", url: nil, placement: .current)
         let space = makeSpace(tabs: [first, second])
-        let pool = BrowserPagePool(browser: .hostingPages(BrowserSession(spaces: [space])))
-        pool.select(tab: first, space: space)
+        let pool = BrowserPagePool(browser: .hostingPages(SessionState.Seed(spaces: [space])))
+        pool.present(tab: first.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
         let webView = page.webView
         page.zoomIn()
@@ -128,9 +128,9 @@ final class BrowserPageActionsTests: XCTestCase {
         XCTAssertFalse(page.zoomOut())
         XCTAssertFalse(page.resetZoom())
         page.prepareForNavigation(to: URL(string: "https://example.com"))
-        pool.select(tab: second, space: space)
+        pool.present(tab: second.id, in: space.id)
         XCTAssertNil(pool.activePage?.developerViewport)
-        pool.select(tab: first, space: space)
+        pool.present(tab: first.id, in: space.id)
         XCTAssertTrue(pool.activePage === page)
         XCTAssertTrue(page.webView === webView)
         XCTAssertEqual(page.developerViewport, .phone)
@@ -146,12 +146,12 @@ final class BrowserPageActionsTests: XCTestCase {
         let preferences = BrowserDefaultPageZoomStore(
             persistence: InMemoryBrowserDefaultPageZoomPersistence(zoom: 1.00001)
         )
-        let first = BrowserTab(
+        let first = TabState.Seed(
             title: "First",
             url: URL(string: "about:blank"),
             placement: .current
         )
-        let second = BrowserTab(
+        let second = TabState.Seed(
             title: "Second",
             url: URL(string: "about:blank"),
             placement: .current
@@ -160,17 +160,17 @@ final class BrowserPageActionsTests: XCTestCase {
             tabs: [first, second]
         )
         let pool = BrowserPagePool(
-            browser: .hostingPages(BrowserSession(spaces: [space])), pageZoomPreferences: preferences)
+            browser: .hostingPages(SessionState.Seed(spaces: [space])), pageZoomPreferences: preferences)
 
-        pool.select(tab: first, space: space)
+        pool.present(tab: first.id, in: space.id)
         let firstPage = try XCTUnwrap(pool.activePage)
         XCTAssertEqual(firstPage.pageZoom, 1.00001)
         XCTAssertEqual(firstPage.webView.pageZoom, 1.00001)
 
-        pool.select(tab: second, space: space)
+        pool.present(tab: second.id, in: space.id)
         let secondPage = try XCTUnwrap(pool.activePage)
         XCTAssertEqual(secondPage.pageZoom, 1.00001)
-        pool.select(tab: first, space: space)
+        pool.present(tab: first.id, in: space.id)
 
         for zoom: CGFloat in [0.25, 5, 1.50001, 1.50002] {
             preferences.defaultZoom = zoom
@@ -208,23 +208,23 @@ final class BrowserPageActionsTests: XCTestCase {
         pool.resetZoom()
         XCTAssertEqual(firstPage.pageZoom, 2)
 
-        pool.select(tab: second, space: space)
+        pool.present(tab: second.id, in: space.id)
         XCTAssertTrue(pool.activePage === secondPage)
         XCTAssertEqual(secondPage.pageZoom, 2)
         pool.zoomOut()
         XCTAssertEqual(secondPage.pageZoom, 1.75)
 
         pool.unloadPage(for: second.id)
-        pool.select(tab: second, space: space)
+        pool.present(tab: second.id, in: space.id)
         XCTAssertEqual(pool.activePage?.pageZoom, 2)
         XCTAssertFalse(pool.activePage === secondPage)
     }
 
     func testFindUsesNativeWebKitSearchAndClearsItsStateOnDismiss() async throws {
-        let tab = BrowserTab(title: "Find", url: nil, placement: .current)
+        let tab = TabState.Seed(title: "Find", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab])
-        let pool = BrowserPagePool(browser: .hostingPages(BrowserSession(spaces: [space])))
-        pool.select(tab: tab, space: space)
+        let pool = BrowserPagePool(browser: .hostingPages(SessionState.Seed(spaces: [space])))
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
 
         page.webView.loadHTMLString(
@@ -277,10 +277,10 @@ final class BrowserPageActionsTests: XCTestCase {
     }
 
     func testReaderModeCreatesAReversibleSanitizedViewInTheExistingSpacePage() async throws {
-        let tab = BrowserTab(title: "Reader", url: nil, placement: .current)
+        let tab = TabState.Seed(title: "Reader", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab])
-        let pool = BrowserPagePool(browser: .hostingPages(BrowserSession(spaces: [space])))
-        pool.select(tab: tab, space: space)
+        let pool = BrowserPagePool(browser: .hostingPages(SessionState.Seed(spaces: [space])))
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
         let originalWebView = page.webView
         let originalDataStore = page.webView.configuration.websiteDataStore
@@ -342,10 +342,10 @@ final class BrowserPageActionsTests: XCTestCase {
     }
 
     func testLoadedPageCreatesARealPDFDocument() async throws {
-        let tab = BrowserTab(title: "PDF", url: nil, placement: .current)
+        let tab = TabState.Seed(title: "PDF", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab])
-        let pool = BrowserPagePool(browser: .hostingPages(BrowserSession(spaces: [space])))
-        pool.select(tab: tab, space: space)
+        let pool = BrowserPagePool(browser: .hostingPages(SessionState.Seed(spaces: [space])))
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
         page.webView.frame = CGRect(x: 0, y: 0, width: 800, height: 600)
         page.webView.loadHTMLString(
@@ -364,10 +364,10 @@ final class BrowserPageActionsTests: XCTestCase {
     }
 
     func testLoadedPageCreatesARealWebKitWebArchive() async throws {
-        let tab = BrowserTab(title: "Archive", url: nil, placement: .current)
+        let tab = TabState.Seed(title: "Archive", url: nil, placement: .current)
         let space = makeSpace(tabs: [tab])
-        let pool = BrowserPagePool(browser: .hostingPages(BrowserSession(spaces: [space])))
-        pool.select(tab: tab, space: space)
+        let pool = BrowserPagePool(browser: .hostingPages(SessionState.Seed(spaces: [space])))
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
         page.webView.loadHTMLString(
             "<html><body><h1>Crest Web Archive</h1><p>Rendered by WebKit.</p></body></html>",
@@ -389,11 +389,9 @@ final class BrowserPageActionsTests: XCTestCase {
         XCTAssertTrue(String(decoding: resourceData, as: UTF8.self).contains("Crest Web Archive"))
     }
 
-    private func makeSpace(tabs: [BrowserTab]) -> BrowserSpace {
-        BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Test",
+    private func makeSpace(tabs: [TabState.Seed]) -> SpaceState.Seed {
+        SpaceState.Seed(
+                        name: "Test",
             symbol: "circle",
             accent: .indigo,
             folders: [],

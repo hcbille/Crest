@@ -197,12 +197,6 @@ struct BrowserTab: Codable, Identifiable, Sendable {
         return abs(normalized.timeIntervalSince(date)) < 0.000_001 ? normalized : date
     }
 
-    /// TRANSITIONAL until the page hosts leave the copy with WP C j2: the
-    /// rule lives on `BrowserShownTitle`.
-    static func resolvedCustomTitle(_ title: String?) -> String? {
-        BrowserShownTitle.resolve(title)
-    }
-
     var displayFaviconData: Data? {
         iconMode.showsFavicon ? faviconData : nil
     }

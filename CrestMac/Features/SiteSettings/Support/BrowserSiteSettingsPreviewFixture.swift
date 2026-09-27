@@ -22,36 +22,24 @@ enum BrowserSiteSettingsPreviewFixture {
         page: BrowserPage,
         permissionCenter: BrowserSitePermissionCenter
     ) {
-        let tab = BrowserTab(
-            id: tabID,
-            title: "Example",
-            url: pageURL,
-            symbol: "globe",
-            placement: .current,
-            lastActivatedAt: fixedDate
-        )
-        let space = BrowserSpace(
-            id: spaceID,
-            profile: BrowsingProfile(id: profileID),
-            name: "Preview",
-            symbol: "globe",
-            accent: .teal,
-            branding: .initial(accent: .teal, symbol: "globe"),
-            folders: [],
-            tabs: [tab]
-        )
+        let tab = TabState.Seed(
+            id: tabID, title: "Example", url: pageURL, symbol: "globe", placement: .current,
+            lastActivatedAt: fixedDate)
+        let space = SpaceState.Seed(
+            id: spaceID, profileID: profileID, name: "Preview", symbol: "globe", accent: .teal,
+            branding: BrowserSpaceBranding.initial(accent: .teal, symbol: "globe").core, tabs: [tab])
         let permissionCenter = BrowserSitePermissionCenter()
         let core = CrestCore()
         core.engines.register(WebKitEngineBinding(), isDefault: true)
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: tab.id], core: core)
+            seed: SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id], core: core)
         let pages = BrowserPagePool(
             browser: browser,
             browsingMode: .privateBrowsing,
             usesEphemeralWebsiteDataStores: true,
             permissionCenter: permissionCenter
         )
-        pages.select(tab: tab, space: space, at: fixedDate)
+        pages.select(at: fixedDate)
         guard let page = pages.activePage else {
             preconditionFailure("The Site Settings preview page is missing.")
         }

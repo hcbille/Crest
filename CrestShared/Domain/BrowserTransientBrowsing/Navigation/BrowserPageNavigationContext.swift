@@ -14,16 +14,19 @@ struct BrowserPageNavigationContext: Equatable, Sendable {
 
     var assignment: BrowserSpaceRuntimeAssignment { spaceAssignment }
 
+    /// The context of `tab` as the core published it, in the Space and
+    /// profile its page runs in. A durable tab with no address of its own to
+    /// return to keeps the one it shows.
     init(
-        tab: BrowserTab,
+        tab: TabState,
         spaceID: SpaceID,
         profileID: UUID
     ) {
         tabID = tab.id
         title = tab.displayTitle
-        customTitle = BrowserTab.resolvedCustomTitle(tab.customTitle)
+        customTitle = BrowserShownTitle.resolve(tab.customTitle)
         placement = tab.placement
-        savedURL = tab.savedSiteURL
+        savedURL = (tab.savedURL ?? (tab.placement.isDurable ? tab.url : nil)).flatMap(URL.init(string:))
         iconMode = tab.iconMode
         spaceAssignment = BrowserSpaceRuntimeAssignment(
             spaceID: spaceID,
@@ -37,7 +40,7 @@ struct BrowserPageNavigationContext: Equatable, Sendable {
     /// the tab, including while that page is playing in another Space.
     func mediaSessionOwnerTitle(observedPageTitle: String?) -> String? {
         customTitle
-            ?? BrowserTab.resolvedCustomTitle(observedPageTitle)
-            ?? BrowserTab.resolvedCustomTitle(title)
+            ?? BrowserShownTitle.resolve(observedPageTitle)
+            ?? BrowserShownTitle.resolve(title)
     }
 }

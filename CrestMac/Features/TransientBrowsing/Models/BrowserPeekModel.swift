@@ -71,7 +71,7 @@ final class BrowserPeekModel {
 
     @discardableResult
     func preparePage(isActive: Bool) -> Bool {
-        let space: BrowserSpace
+        let space: SpaceModel
         switch sourceDisposition {
         case .notPresented:
             releaseLease()
@@ -216,15 +216,13 @@ final class BrowserPeekModel {
     }
 
     /// Whether the page may be kept in the Space `assignment` names, and the
-    /// Space the page pool opens it in. The pool still takes the session
-    /// copy's Space; TRANSITIONAL until Lane 2's page hosts take the read
-    /// model's.
+    /// Space of the read model its page opens in.
     private func disposition(
         ofSpaceMatching assignment: BrowserSpaceRuntimeAssignment
     ) -> BrowserTransientLeaseDisposition {
         BrowserTransientSessionPolicy.disposition(
             isPresentingRequest: isCurrentRequest,
-            space: request.hasSource(in: browser) ? browser.space(matching: assignment) : nil,
+            space: request.hasSource(in: browser) ? browser.spaceModel(matching: assignment) : nil,
             isLocked: spaceAccess.isLocked
         )
     }

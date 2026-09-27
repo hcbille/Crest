@@ -7,13 +7,13 @@ import XCTest
 final class BrowserVisitedLinkStylerTests: XCTestCase {
     func testVisitedURLPayloadUsesOnlyNormalizedWebHistory() throws {
         let history = [
-            BrowserHistoryEntry(
+            HistoryEntryState(
                 url: try XCTUnwrap(URL(string: "https://arc.net/#download")),
                 title: "Arc",
                 firstVisitedAt: .now,
                 lastVisitedAt: .now
             ),
-            BrowserHistoryEntry(
+            HistoryEntryState(
                 url: try XCTUnwrap(URL(string: "file:///tmp/private")),
                 title: "Local",
                 firstVisitedAt: .now,
@@ -49,7 +49,7 @@ final class BrowserVisitedLinkStylerTests: XCTestCase {
 
         await BrowserVisitedLinkStyler.apply(
             history: [
-                BrowserHistoryEntry(
+                HistoryEntryState(
                     url: visitedURL,
                     title: "Visited result",
                     firstVisitedAt: .now,
@@ -89,7 +89,7 @@ final class BrowserVisitedLinkStylerTests: XCTestCase {
 
         await BrowserVisitedLinkStyler.apply(
             history: [
-                BrowserHistoryEntry(
+                HistoryEntryState(
                     url: visitedURL,
                     title: "Visited result",
                     firstVisitedAt: .now,

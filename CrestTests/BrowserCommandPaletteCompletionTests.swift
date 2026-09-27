@@ -99,12 +99,12 @@ final class BrowserCommandPaletteCompletionTests: XCTestCase {
         await model.waitForPendingResults()
         XCTAssertNotNil(model.urlCompletion)
         XCTAssertTrue(model.acceptURLCompletion())
-        XCTAssertNil(browser.selectedTab)
+        XCTAssertNil(browser.shownTab)
         XCTAssertEqual(explicitSelectionCount, 0)
         model.activateSelectedResult()
-        XCTAssertEqual(browser.selectedTab?.url?.absoluteString, "https://example.com/path")
+        XCTAssertEqual(browser.shownTab?.address?.absoluteString, "https://example.com/path")
         XCTAssertEqual(explicitSelectionCount, 1)
-        XCTAssertEqual(browser.selectedSpace?.tabs.count, 2)
+        XCTAssertEqual(browser.shownSpace?.tabs.models.count, 2)
     }
 
     private func makeSpace(_ tab: TabState.Seed) -> SpaceState.Seed {

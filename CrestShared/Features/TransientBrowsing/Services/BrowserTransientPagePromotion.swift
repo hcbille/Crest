@@ -24,7 +24,7 @@ struct BrowserTransientPagePromotion {
     func perform(
         in browser: BrowserStore,
         isLocked: @MainActor (SpaceModel) -> Bool,
-        adoptPage: (TabID, BrowserSpace) -> Bool
+        adoptPage: (TabID, SpaceModel) -> Bool
     ) -> Outcome? {
         guard let destination = browser.spaceModel(matching: destinationAssignment) else { return nil }
         guard let url else {
@@ -32,10 +32,8 @@ struct BrowserTransientPagePromotion {
             browser.selectSpace(destination.id)
             return .selectedSpace
         }
-        // The page pools adopt a page into the session copy's Space;
-        // TRANSITIONAL until Lane 2's page hosts take the read model's.
         guard let page, let promoted = browser.promoteTransientPage(page, into: destination.id),
-            let currentDestination = browser.space(matching: destinationAssignment)
+            let currentDestination = browser.spaceModel(matching: destinationAssignment)
         else { return nil }
         let adoptedLivePage =
             supportsLiveAdoption && promoted.adoptsPage

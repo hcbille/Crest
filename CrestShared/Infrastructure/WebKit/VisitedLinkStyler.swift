@@ -16,17 +16,17 @@ enum BrowserVisitedLinkStyler {
     }
 
     nonisolated static func normalizedVisitedURLStrings(
-        _ history: [BrowserHistoryEntry]
+        _ history: [HistoryEntryState]
     ) -> [String] {
         // The core names the address history keeps for each entry, and none
         // for one it does not keep, such as a local file, in one call.
-        let addresses = history.prefix(maximumVisitedURLCount).map(\.url.absoluteString)
+        let addresses = history.prefix(maximumVisitedURLCount).map(\.url)
         let kept = (try? CrestCore.answer(HistoryAddresses(addresses: addresses)))?.normalized ?? []
         return kept.compactMap { $0 }
     }
 
     static func apply(
-        history: [BrowserHistoryEntry],
+        history: [HistoryEntryState],
         to webView: WKWebView
     ) async {
         guard let pageURL = webView.url, supports(pageURL) else { return }

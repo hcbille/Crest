@@ -1,22 +1,19 @@
 extension BrowserPagePool {
     /// Lets a store observer recognize a selection already performed by the
-    /// initiating command. Every card must match, including its runtime and
-    /// any first navigation still owed after extension preparation.
-    func isPresentingSelection(in session: BrowserPresentedSession) -> Bool {
-        guard let space = session.selectedSpace,
-            let tab = session.selectedTab,
+    /// initiating command. Every card the window shows must match, including
+    /// its runtime and any first navigation still owed after extension
+    /// preparation.
+    func isPresentingSelection() -> Bool {
+        guard let space = browser.shownSpace,
+            let tab = browser.shownTab,
             activeTabID == tab.id
         else { return false }
-        let members = space.presentedSplitMembers(for: tab.id)
+        let members = presentedMembers(for: tab, in: space)
         guard presentedTabIDs == members.map(\.id) else { return false }
         return members.allSatisfy { member in
             guard
                 let page = presentedPage(
-                    matching: BrowserTabRuntimeAssignment(
-                        tabID: member.id,
-                        spaceID: space.id,
-                        profileID: space.profile.id
-                    )
+                    matching: BrowserTabRuntimeAssignment(tabID: member.id, spaceID: space.id, profileID: space.profileID)
                 )
             else { return false }
             return member.url == nil || page.live.documentURL != nil

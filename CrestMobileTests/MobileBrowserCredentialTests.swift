@@ -7,7 +7,7 @@ import XCTest
 final class MobileBrowserCredentialTests: XCTestCase {
     func testMobilePageInstallsTheSharedCredentialBridgeInEveryFrame() throws {
         let space = makeSpace(index: 1)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let page = try openPage(in: space, through: browser)
         let scripts = page.webView.configuration.userContentController.userScripts
 
@@ -21,7 +21,7 @@ final class MobileBrowserCredentialTests: XCTestCase {
 
     func testMobilePageReceivesASuccessfulIsolatedWorldFormSubmission() async throws {
         let space = makeSpace(index: 7)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let page = try openPage(in: space, through: browser)
         let request = URLRequest(url: URL(string: "https://forms.crest.test/login")!)
         page.webView.loadSimulatedRequest(
@@ -68,25 +68,27 @@ final class MobileBrowserCredentialTests: XCTestCase {
 
     /// Opens the page for `space`'s first tab through `browser`'s core, as a
     /// page store opens one. Keep `browser` alive while the page is in use.
-    private func openPage(in space: BrowserSpace, through browser: BrowserStore) throws -> MobileBrowserPage {
+    private func openPage(in space: SpaceState.Seed, through browser: BrowserStore) throws -> MobileBrowserPage {
         let tab = try XCTUnwrap(space.tabs.first)
         return try XCTUnwrap(
             browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
-                MobileBrowserPage(corePage: opened.core, webKitPage: opened.webKit, tab: tab, space: space, openNewTab: { _ in })
+                MobileBrowserPage(
+                    corePage: opened.core, webKitPage: opened.webKit, tab: browser.pageTab(tab.id, in: space.id),
+                    space: browser.hostedSpace(space.id), openNewTab: { _ in })
             }
         )
     }
 
-    private func makeSpace(index: Int) -> BrowserSpace {
-        let tab = BrowserTab(
+    private func makeSpace(index: Int) -> SpaceState.Seed {
+        let tab = TabState.Seed(
             id: fixedUUID(index * 10 + 1),
             title: "New Tab",
             url: nil,
             placement: .current
         )
-        return BrowserSpace(
+        return SpaceState.Seed(
             id: fixedUUID(index * 10 + 2),
-            profile: BrowsingProfile(id: fixedUUID(index * 10 + 3)),
+            profileID: fixedUUID(index * 10 + 3),
             name: "Space \(index)",
             symbol: "circle",
             accent: .indigo,

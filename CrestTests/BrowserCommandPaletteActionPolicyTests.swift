@@ -18,12 +18,12 @@ final class BrowserCommandPaletteActionPolicyTests: XCTestCase {
         XCTAssertFalse(actions.selectTab(try assignment(for: other)))
 
         func assertUnavailable(line: UInt = #line) {
-            let session = browser.session
+            let session = browser.sessionSeed
             let window = browser.window
             XCTAssertFalse(actions.isAvailable, line: line)
             XCTAssertFalse(actions.selectTab(target), line: line)
             XCTAssertFalse(actions.openURL(URL(string: "about:blank")!), line: line)
-            XCTAssertEqual(browser.session, session, line: line)
+            XCTAssertEqual(browser.sessionSeed, session, line: line)
             XCTAssertEqual(browser.window, window, line: line)
         }
 

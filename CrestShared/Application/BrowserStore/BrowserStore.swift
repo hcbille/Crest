@@ -40,11 +40,6 @@ final class BrowserStore {
         window.shownTabID(in: spaceID)
     }
 
-    /// The session as this window renders it: the core's data and what the
-    /// core says this window shows.
-    var presented: BrowserPresentedSession {
-        BrowserPresentedSession(session: session, window: window)
-    }
     var isPrivateBrowsing: Bool { browsingMode.isPrivate }
     var isTemporaryWorkspace: Bool { temporarySourceAssignment != nil }
     var temporarySourceAssignment: BrowserSpaceRuntimeAssignment? { family.temporarySourceAssignment }

@@ -62,7 +62,7 @@ final class BrowserChromeLayoutTests: XCTestCase {
     @MainActor
     func testSettingsPresentationRejectsAReplacementBrowsingProfile() throws {
         let browser = BrowserStore(seed: .preview)
-        let original = try XCTUnwrap(browser.selectedSpace)
+        let original = try XCTUnwrap(browser.shownSpace)
         let presentation = BrowserSpaceSettingsPresentationState()
         presentation.present(
             assignment: BrowserSpaceRuntimeAssignment(space: original)
@@ -96,20 +96,20 @@ final class BrowserChromeLayoutTests: XCTestCase {
     @MainActor
     func testSidebarClearHistoryKeepsTheInitiatingSpaceAfterSelectionChanges() throws {
         let browser = BrowserStore(seed: .preview)
-        let initiatingSpace = try XCTUnwrap(browser.selectedSpace)
+        let initiatingSpace = try XCTUnwrap(browser.shownSpace)
         let laterSelectedSpace = try XCTUnwrap(
-            browser.session.spaces.first { $0.id != initiatingSpace.id }
+            browser.spaceModels.first { $0.id != initiatingSpace.id }
         )
         let clearHistory = BrowserSidebarClearHistoryConfirmation(
             assignment: BrowserSpaceRuntimeAssignment(space: initiatingSpace),
-            spaceName: initiatingSpace.name
+            spaceName: initiatingSpace.settings.name
         )
 
         browser.selectSpace(laterSelectedSpace.id)
 
         XCTAssertEqual(browser.selectedSpaceID, laterSelectedSpace.id)
         XCTAssertEqual(clearHistory.spaceID, initiatingSpace.id)
-        XCTAssertEqual(clearHistory.spaceName, initiatingSpace.name)
+        XCTAssertEqual(clearHistory.spaceName, initiatingSpace.settings.name)
     }
 
     @MainActor
@@ -412,7 +412,7 @@ extension BrowserChromeLayoutTests {
                 SessionState.Seed(spaces: [space]),
                 showing: space.id, tabs: [space.id: selectedTabID])
             let pages = BrowserPagePool(browser: browser)
-            pages.select(session: browser.presented)
+            pages.select()
             let model = BrowserRootModel(
                 browser: browser, pages: pages, chrome: BrowserChromeState(sidebarIsPresented: true),
                 spaceAccess: BrowserSpaceAccessController(), windowState: nil, startupBehavior: .showStartPage,
@@ -468,7 +468,7 @@ extension BrowserChromeLayoutTests {
                 host.layoutSubtreeIfNeeded()
                 try await Task.sleep(for: .milliseconds(300))
                 XCTAssertEqual(browser.selectedSpaceID, space.id)
-                XCTAssertEqual(browser.selectedTab?.id, selectedTabID)
+                XCTAssertEqual(browser.shownTab?.id, selectedTabID)
                 for (index, page) in livePages.enumerated() {
                     XCTAssertTrue(
                         page.webView.superview === parents[index], "A chrome change must not detach the live web view")
@@ -490,7 +490,7 @@ extension BrowserChromeLayoutTests {
                     persistedFractions: [0.8, 0.2])
                 for focusedIndex in [1, 0, 1] {
                     model.focusSplitCard(space.tabs[focusedIndex].id)
-                    pages.select(session: browser.presented)
+                    pages.select()
                     host.layoutSubtreeIfNeeded()
                     try await Task.sleep(for: .milliseconds(300))
                     for (index, livePage) in livePages.enumerated() {

@@ -78,9 +78,9 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
     /// Releases every window's pages in the Space, then its data. The Space's
     /// deletion is already recorded in the session, so the core opens no new
     /// page there while this runs.
-    func deleteData(for space: BrowserSpace) async throws {
-        guard spacesDeletingData.insert(space.id).inserted else { return }
-        defer { spacesDeletingData.remove(space.id) }
+    func deleteData(for space: BrowserSpaceRuntimeAssignment) async throws {
+        guard spacesDeletingData.insert(space.spaceID).inserted else { return }
+        defer { spacesDeletingData.remove(space.spaceID) }
 
         for pool in livePools where pool !== primary {
             await pool.releaseWindowRuntime(for: space)
@@ -101,8 +101,7 @@ extension BrowserPagePoolRegistry: BrowserPageDismissalAuthorizing {
         }
         func isAvailable() -> Bool {
             assignments.allSatisfy { assignment in
-                guard let space = browser.space(matching: BrowserSpaceRuntimeAssignment(
-                    spaceID: assignment.spaceID, profileID: assignment.profileID)),
+                guard let space = browser.spaceModel(matching: assignment.spaceAssignment),
                     !spacesDeletingData.contains(space.id) else { return false }
                 return spaceAccess?.isLocked(space) != true
             }
@@ -122,9 +121,9 @@ extension BrowserPagePoolRegistry: BrowserPageDismissalAuthorizing {
             committed = operation()
             guard committed else { return }
             for runtime in self.windowRuntimes.values where runtime.browser?.family === browser.family {
-                guard let store = runtime.browser, let pool = runtime.pages else { continue }
-                pool.reconcile(session: store.session)
-                pool.select(session: store.presented)
+                guard runtime.browser != nil, let pool = runtime.pages else { continue }
+                pool.reconcile()
+                pool.select()
             }
         }
         return committed

@@ -72,11 +72,9 @@ final class BrowserQuickWindowModel {
             in: browser, requestSpaceID: selectedAssignment.spaceID, isLocked: spaceAccess.isLocked)
     }
 
-    /// The Space the page pool opens the Quick Window's page in, as the
-    /// session copy holds it. TRANSITIONAL until Lane 2's page pool takes the
-    /// read model's Space.
-    private var leaseSpace: BrowserSpace? {
-        browser.space(matching: selectedAssignment)
+    /// The Space the page pool opens the Quick Window's page in.
+    private var leaseSpace: SpaceModel? {
+        browser.spaceModel(matching: selectedAssignment)
     }
 
     var page: BrowserPage? {

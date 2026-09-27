@@ -178,7 +178,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             guard let self else { return nil }
             let title = self.live.title
             return self.navigationContext?.mediaSessionOwnerTitle(observedPageTitle: title)
-                ?? BrowserTab.resolvedCustomTitle(title)
+                ?? BrowserShownTitle.resolve(title)
         }
     }
 
@@ -420,7 +420,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         engineAdapter.monitorUserActivity(for: self)
     }
 
-    func styleVisitedLinks(history: [BrowserHistoryEntry]) async {
+    func styleVisitedLinks(history: [HistoryEntryState]) async {
         await engineAdapter.styleVisitedLinks(history: history)
     }
 
@@ -428,22 +428,23 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         userActivityHandler = nil
     }
 
-    func updateNavigationContext(tab: BrowserTab) {
+    /// Takes the tab's current context: its title, placement and icon.
+    func updateNavigationContext(tab: BrowserPageTab) {
         let previousTitle = navigationContext?.title
         let shouldRefreshAutomaticIcon =
-            tab.iconMode.followsPage
+            tab.state.iconMode.followsPage
             && !tab.hasCurrentAutomaticFavicon
             && live.url != nil
             && !live.isLoading
         if faviconData != tab.displayFaviconData
-            || navigationContext?.iconMode != tab.iconMode
+            || navigationContext?.iconMode != tab.state.iconMode
             || navigationContext?.tabID != tab.id
         {
             faviconSession?.invalidate()
             faviconData = tab.displayFaviconData
         }
         navigationContext = BrowserPageNavigationContext(
-            tab: tab,
+            tab: tab.state,
             spaceID: spaceID,
             profileID: profileID
         )

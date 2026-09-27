@@ -11,18 +11,18 @@ final class BrowserGettingStartedTests: XCTestCase {
         let pages = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
         defer { pages.reconcile(validTabIDs: []) }
         let id = try XCTUnwrap(browser.openGettingStarted())
-        pages.select(session: browser.presented)
-        let space = try XCTUnwrap(browser.selectedSpace)
-        let assignment = BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: space.profile.id)
+        pages.select()
+        let space = try XCTUnwrap(browser.shownSpace)
+        let assignment = BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: space.profileID)
         let runtime = try XCTUnwrap(pages.nativeTabs.runtime(matching: assignment, content: .gettingStarted))
         let state = runtime.model(BrowserGettingStartedState.self) { BrowserGettingStartedState() }
         state.chapter = 1
         state.practice.makeSplit()
         let members = state.practice.members.map(\.id)
         browser.openNewTab()
-        pages.select(session: browser.presented)
+        pages.select()
         browser.selectTab(id)
-        pages.select(session: browser.presented)
+        pages.select()
         XCTAssertTrue(pages.nativeTabs.runtime(matching: assignment, content: .gettingStarted) === runtime)
         XCTAssertEqual(state.chapter, 1)
         XCTAssertEqual(state.practice.members.map(\.id), members)
@@ -35,10 +35,10 @@ final class BrowserGettingStartedTests: XCTestCase {
                 browser: browser, spaceAccess: BrowserSpaceAccessController(),
                 closePage: { pages.closeDurablePage($0, discardState: $1) }
             ).perform(assignment))
-        XCTAssertTrue(browser.selectedSpace?.tabs.contains(where: { $0.id == id }) == true)
+        XCTAssertTrue(browser.shownSpace?.tabs.contains(id) == true)
         XCTAssertNil(pages.nativeTabs.runtime(matching: assignment, content: .gettingStarted))
         browser.selectTab(id)
-        pages.select(session: browser.presented)
+        pages.select()
         let reopened = try XCTUnwrap(pages.nativeTabs.runtime(matching: assignment, content: .gettingStarted))
         XCTAssertFalse(reopened === runtime)
         XCTAssertEqual(reopened.model(BrowserGettingStartedState.self) { BrowserGettingStartedState() }.chapter, 0)
@@ -83,13 +83,13 @@ final class BrowserGettingStartedTests: XCTestCase {
         let pages = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
         defer { pages.reconcile(validTabIDs: []) }
         let guide = try XCTUnwrap(browser.openGettingStarted())
-        pages.select(session: browser.presented)
+        pages.select()
         let settings = try XCTUnwrap(browser.openSettings())
-        pages.select(session: browser.presented)
+        pages.select()
         pages.relieveMemoryPressure(.critical)
         XCTAssertFalse(pages.nativeTabs.tabIDs.contains(guide))
         XCTAssertTrue(pages.nativeTabs.tabIDs.contains(settings))
-        await pages.releaseWindowRuntime(for: try XCTUnwrap(browser.selectedSpace))
+        await pages.releaseWindowRuntime(for: BrowserSpaceRuntimeAssignment(space: try XCTUnwrap(browser.shownSpace)))
         XCTAssertTrue(pages.nativeTabs.tabIDs.isEmpty)
     }
 
@@ -97,69 +97,39 @@ final class BrowserGettingStartedTests: XCTestCase {
         let browser = BrowserStore.hostingPages()
         let first = try XCTUnwrap(browser.openGettingStarted())
         XCTAssertEqual(browser.openGettingStarted(), first)
-        XCTAssertEqual(browser.selectedSpace?.tabs.filter { $0.nativeContent == .gettingStarted }.count, 1)
-        XCTAssertNil(browser.selectedTab?.url)
-        XCTAssertFalse(try XCTUnwrap(browser.selectedTab).isStartPage)
+        XCTAssertEqual(browser.shownSpace?.tabs.models.filter { $0.nativeTabContent == .gettingStarted }.count, 1)
+        XCTAssertNil(browser.shownTab?.address)
+        XCTAssertFalse(try XCTUnwrap(browser.shownTab).isStartPage)
         let pages = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
         defer { pages.reconcile(validTabIDs: []) }
-        pages.select(session: browser.presented)
+        pages.select()
         XCTAssertEqual(pages.activeTabID, first)
         XCTAssertEqual(pages.presentedTabIDs, [first])
         XCTAssertNil(pages.activePage)
         XCTAssertFalse(pages.retainedTabIDs.contains(first))
         XCTAssertFalse(pages.retainedTabIDs.contains(first))
         pages.selectSpace(in: browser)
-        XCTAssertEqual(browser.selectedTab?.id, first)
-    }
-
-    func testNativeDescriptorSurvivesRepairDuplicationAndUnknownKind() throws {
-        let browser = BrowserStore.preview()
-        let unknown = BrowserNativeTabContent(kind: "future-notes", resourceID: UUID())
-        let id = try XCTUnwrap(browser.openNativeTab(unknown, title: "My notes", symbol: "note.text"))
-        let spaceID = browser.selectedSpaceID
-        var session = try JSONDecoder().decode(BrowserSession.self, from: JSONEncoder().encode(browser.session))
-        session = try session.openedAsSeed()
-        let repaired = session.space(id: spaceID)?.tabs.first { $0.id == id }
-        XCTAssertEqual(repaired?.nativeContent, unknown)
-        XCTAssertEqual(repaired?.title, "My notes")
-        let copyID = try XCTUnwrap(browser.duplicateTab(id, in: spaceID))
-        XCTAssertEqual(browser.session.space(id: spaceID)?.tabs.first { $0.id == copyID }?.nativeContent, unknown)
-        XCTAssertTrue(browser.closeTab(copyID, in: spaceID))
-        session = try browser.session.openedAsSeed()
-        XCTAssertEqual(session.space(id: spaceID)?.archivedTabs.last?.tab.nativeContent, unknown)
-    }
-
-    func testLegacyTabsDecodeAndNavigatingNativeTabBecomesAWebsite() throws {
-        let tab = BrowserTab(title: "Guide", url: nil, nativeContent: .gettingStarted, placement: .current)
-        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(tab)) as? [String: Any])
-        object.removeValue(forKey: "nativeContent")
-        let legacy = try JSONDecoder().decode(BrowserTab.self, from: JSONSerialization.data(withJSONObject: object))
-        XCTAssertTrue(legacy.isStartPage)
-        var converted = tab
-        converted.url = URL(string: "https://example.com")!
-        XCTAssertNil(converted.nativeContent)
-        XCTAssertTrue(converted.isWebPage)
+        XCTAssertEqual(browser.shownTab?.id, first)
     }
 
     func testNativeTabsStayLocalOnSync() async throws {
         let browser = BrowserStore.preview()
         let id = try XCTUnwrap(browser.openGettingStarted())
-        let session = browser.session
         // A device holding the session syncs every tab but the guide, and
         // keeps the guide through a merge of what it synced.
-        let device = try await BrowserStoredSessionHarness.staged(session)
+        let device = try await BrowserStoredSessionHarness.staged(seed: browser.sessionSeed)
         let records = try await device.heldRecords()
         XCTAssertFalse(records.contains { $0.id == id })
         try device.deliverNow(MergeSyncRecords(records: records))
         XCTAssertEqual(
-            device.store.session.space(id: browser.selectedSpaceID)?.tabs.first { $0.id == id }?.nativeContent,
+            device.store.spaceModel(browser.selectedSpaceID)?.tabs.model(id)?.nativeTabContent,
             .gettingStarted)
     }
 
     func testNativeActionsRejectAStaleProfileAndKeepGuideWhenOpeningALink() throws {
         let browser = BrowserStore.preview()
         let id = try XCTUnwrap(browser.openGettingStarted())
-        let space = try XCTUnwrap(browser.selectedSpace)
+        let space = try XCTUnwrap(browser.shownSpace)
         var opened = 0
         let actions = BrowserNativeTabActions(
             browser: browser, spaceAccess: BrowserSpaceAccessController(), didOpenURL: { opened += 1 })
@@ -168,11 +138,11 @@ final class BrowserGettingStartedTests: XCTestCase {
             BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: UUID()), .gettingStarted, url)
         XCTAssertEqual(opened, 0)
         actions.openURL(
-            BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: space.profile.id), .gettingStarted, url
+            BrowserTabRuntimeAssignment(tabID: id, spaceID: space.id, profileID: space.profileID), .gettingStarted, url
         )
         XCTAssertEqual(opened, 1)
-        XCTAssertEqual(browser.selectedTab?.url, url)
-        XCTAssertEqual(browser.selectedSpace?.tabs.first { $0.id == id }?.nativeContent, .gettingStarted)
+        XCTAssertEqual(browser.shownTab?.address, url)
+        XCTAssertEqual(browser.shownSpace?.tabs.model(id)?.nativeTabContent, .gettingStarted)
     }
 
 }

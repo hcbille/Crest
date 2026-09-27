@@ -45,13 +45,13 @@ final class BrowserPagePool:
         }
     }
 
-    /// Every card the content area is presenting, in session member order.
+    /// Every card the content area is presenting, in column order.
     ///
-    /// Derived from `BrowserSpace.presentedSplitMembers(for:)` — the same
-    /// source the sidebar folds its group row from, so the two can never
-    /// disagree about who is on screen. A tab outside a renderable split
-    /// presents alone, which is one element rather than a special case, and
-    /// `activeTabID` is always a member while anything is presented.
+    /// Derived from the cards the core shows in this window, the same source
+    /// the content area lays out, so the two can never disagree about who is
+    /// on screen. A tab outside a shown split presents alone, which is one
+    /// element rather than a special case, and `activeTabID` is always a
+    /// member while anything is presented.
     ///
     /// Deliberately observable: a card mount reads it through
     /// `presentedPage(for:)` and has to re-render when membership changes.
@@ -102,10 +102,9 @@ final class BrowserPagePool:
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored private let hostedNotificationCenter: (any BrowserHostedWebNotificationCentering)?
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
-    @ObservationIgnored private var selectPictureInPictureSource:
-        (BrowserTabRuntimeAssignment) -> BrowserPresentedSession? = {
-            _ in nil
-        }
+    /// Shows the tab a Picture in Picture source page belongs to in this
+    /// window, answering whether it could.
+    @ObservationIgnored private var selectPictureInPictureSource: (BrowserTabRuntimeAssignment) -> Bool = { _ in false }
     @ObservationIgnored private let activateHostedNotificationSource: (SpaceID, TabID) -> Void
     @ObservationIgnored private let loadHTTPAuthenticationCredential: HTTPAuthenticationCredentialLoader
     @ObservationIgnored private let saveHTTPAuthenticationCredential: HTTPAuthenticationCredentialSaver
@@ -241,10 +240,10 @@ final class BrowserPagePool:
     func transferTabRuntime(
         from source: BrowserPagePool,
         matching assignment: BrowserTabRuntimeAssignment,
-        as tab: BrowserTab,
-        in space: BrowserSpace
+        as tab: BrowserPageTab,
+        in space: SpaceModel
     ) -> Bool {
-        guard canTransferTabRuntime(from: source, matching: assignment, as: tab, in: space) else { return false }
+        guard canTransferTabRuntime(from: source, matching: assignment, in: space) else { return false }
         guard source.runtimeStore !== runtimeStore else { return true }
         if source.nativeTabs.contains(assignment) {
             guard source.nativeTabs.transfer(matching: assignment, to: nativeTabs) else { return false }
@@ -253,8 +252,7 @@ final class BrowserPagePool:
         }
         guard let runtime = source.tabRuntimes[tab.id] else {
             if let url = tab.url,
-                let state = source.host.archivedInteractionState(
-                    for: tab, spaceID: space.id, profileID: space.profile.id, expecting: url)
+                let state = source.host.archivedInteractionState(for: assignment, expecting: url)
             {
                 host.tabState.prepareCopy(state, url: url, for: assignment)
             }
@@ -280,19 +278,17 @@ final class BrowserPagePool:
     func canTransferTabRuntime(
         from source: BrowserPagePool,
         matching assignment: BrowserTabRuntimeAssignment,
-        as tab: BrowserTab,
-        in space: BrowserSpace
+        in space: SpaceModel
     ) -> Bool {
         // The core's tear-off question already refused a Space being deleted
         // or locked, and moving the page asks the core again.
-        guard assignment.tabID == tab.id, assignment.spaceID == space.id,
-            assignment.profileID == space.profile.id
-        else { return false }
+        guard assignment.spaceID == space.id, assignment.profileID == space.profileID else { return false }
+        let tabID = assignment.tabID
         guard source.runtimeStore !== runtimeStore else { return true }
-        guard tabRuntimes[tab.id] == nil, !nativeTabs.tabIDs.contains(tab.id) else { return false }
-        if source.nativeTabs.tabIDs.contains(tab.id) { return source.nativeTabs.contains(assignment) }
-        guard let runtime = source.tabRuntimes[tab.id] else { return true }
-        return runtime.page.spaceID == space.id && runtime.page.profileID == space.profile.id
+        guard tabRuntimes[tabID] == nil, !nativeTabs.tabIDs.contains(tabID) else { return false }
+        if source.nativeTabs.tabIDs.contains(tabID) { return source.nativeTabs.contains(assignment) }
+        guard let runtime = source.tabRuntimes[tabID] else { return true }
+        return runtime.page.spaceID == space.id && runtime.page.profileID == space.profileID
     }
 
     /// Temporary windows end the lifetime of their own workspace. Normal
@@ -342,11 +338,7 @@ final class BrowserPagePool:
             popupTabHost: browser.popupTabHost,
             openNewTab: { [weak browser] url in browser?.openNewTab(url: url) },
             openModifiedLink: { [weak browser] url, spaceID, selecting in
-                guard let browser, let tabID = browser.openNewTab(url: url, in: spaceID, selecting: selecting),
-                    let space = browser.session.space(id: spaceID),
-                    let tab = space.tabs.first(where: { $0.id == tabID })
-                else { return nil }
-                return BrowserModifiedLinkRegistration(tab: tab, space: space, session: browser.presented)
+                browser?.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
             openPeek: { [weak transientBrowsing] in transientBrowsing?.presentPeek($0) },
             handleLinkDrag: { [weak transientBrowsing] in transientBrowsing?.handleLinkDrag($0) },
@@ -374,10 +366,10 @@ final class BrowserPagePool:
                     matching: BrowserSpaceRuntimeAssignment(spaceID: source.spaceID, profileID: source.profileID),
                     in: browser, accessController: spaceAccess),
                 space.tabs.model(source.tabID) != nil
-            else { return nil }
+            else { return false }
             browser.selectSpace(space.id)
             browser.selectTab(source.tabID)
-            return browser.presented
+            return true
         }
     }
 
@@ -470,23 +462,20 @@ final class BrowserPagePool:
         readerModeState.isActive ? "Hide Reader" : "Show Reader"
     }
 
-    func select(
-        tab: BrowserTab?,
-        space: BrowserSpace?,
-        at time: Date = .now
-    ) {
-        startInitialNavigations(
-            presentCards(tab: tab, space: space, at: time)
-        )
+    /// Presents what the window shows: the tab it shows and the cards beside
+    /// it, each on the page the core opens for it.
+    func select(at time: Date = .now) {
+        startInitialNavigations(presentCards(tab: browser.shownTab, space: browser.shownSpace, at: time))
+        reconcileCredentialAccess()
     }
 
     /// Builds and presents the cards `tab` brings on screen without navigating
     /// any of them, answering the cards whose first load is still owed.
     private func presentCards(
-        tab: BrowserTab?,
-        space: BrowserSpace?,
+        tab: TabStateModel?,
+        space: SpaceModel?,
         at time: Date
-    ) -> [(tab: BrowserTab, page: BrowserPage)] {
+    ) -> [(tab: BrowserPageTab, page: BrowserPage)] {
         let interval = Self.lifecycleSignposter.beginInterval("Select Browser Page")
         defer {
             Self.lifecycleSignposter.endInterval("Select Browser Page", interval)
@@ -510,15 +499,17 @@ final class BrowserPagePool:
         for member in members { nativeTabs.load(tab: member, space: space, at: time) }
         // A card the core refuses a page, such as one in a locked Space,
         // presents without one.
+        let images = browser.core.state.favicons
         let memberPages = members.filter { $0.nativeContent == nil }.compactMap { member in
-            page(for: member, space: space).map { (tab: member, page: $0) }
+            let pageTab = BrowserPageTab(member, images: images)
+            return page(for: pageTab, space: space).map { (tab: pageTab, page: $0) }
         }
         activate(tab.id, presenting: members.map(\.id))
         return memberPages
     }
 
     private func startInitialNavigations(
-        _ cards: [(tab: BrowserTab, page: BrowserPage)]
+        _ cards: [(tab: BrowserPageTab, page: BrowserPage)]
     ) {
         for card in cards {
             loadInitialURL(for: card.tab, into: card.page)
@@ -532,45 +523,21 @@ final class BrowserPagePool:
     ) {
         guard let url = request.url,
             let registration = openModifiedLink(url, spaceID, selecting),
-            let page = page(for: registration.tab, space: registration.space)
+            let page = page(
+                for: BrowserPageTab(registration.tab, images: browser.core.state.favicons), space: registration.space)
         else {
             return
         }
         page.load(request)
-        if selecting { select(session: registration.session) }
-        reconcileCredentialAccess(in: registration.session.session)
+        if selecting { select() }
+        reconcileCredentialAccess()
     }
 
-    /// The cards `tab` brings on screen, with the caller's own tab value in
-    /// place of the Space's copy of it.
-    ///
-    /// Selection can hand over a tab the store has already moved on from — a
-    /// restored saved location, say — and that fresher value is the one whose
-    /// URL the initial load has to use. A tab the Space does not carry at all
-    /// presents alone rather than not at all.
-    private func presentedMembers(
-        for tab: BrowserTab,
-        in space: BrowserSpace
-    ) -> [BrowserTab] {
-        let members = space.presentedSplitMembers(for: tab.id)
-        guard members.contains(where: { $0.id == tab.id }) else { return [tab] }
-        return members.map { $0.id == tab.id ? tab : $0 }
-    }
-
-    /// Presents what the window selects. `session` pairs the core's data with
-    /// that window's own selection.
-    func select(session: BrowserPresentedSession) {
-        select(session: session, at: .now)
-    }
-
-    func select(session: BrowserPresentedSession, at time: Date) {
-        let cards = presentCards(
-            tab: session.selectedTab,
-            space: session.selectedSpace,
-            at: time
-        )
-        startInitialNavigations(cards)
-        reconcileCredentialAccess(in: session.session)
+    /// The cards `tab` brings on screen: the ones the core shows beside it in
+    /// this window, or the tab alone when the window shows it in none.
+    func presentedMembers(for tab: TabStateModel, in space: SpaceModel) -> [TabStateModel] {
+        let members = browser.cards(in: space)
+        return members.contains { $0.id == tab.id } ? members : [tab]
     }
 
     /// An unlocked empty Space or start page is an ordinary departure. Keep
@@ -616,12 +583,22 @@ final class BrowserPagePool:
         presentedTabIDs = presentedTabIDs.filter { validTabIDs.contains($0) }
     }
 
-    func reconcile(session: BrowserSession) {
-        host.reconcile(session: session)
+    /// Releases the pages of tabs the window's workspace no longer holds and
+    /// keeps the rest current.
+    func reconcile() {
+        host.reconcile(workspace: browser.workspaceModel, images: browser.core.state.favicons)
     }
 
-    func reconcileCredentialAccess(in session: BrowserSession) {
-        host.reconcileCredentialAccess(in: session)
+    /// Gives every page its Space's password preference.
+    func reconcileCredentialAccess() {
+        host.reconcileCredentialAccess(in: browser.workspaceModel)
+    }
+
+    /// What the pool's runtime state follows in the window's workspace: tab
+    /// icons, content blocking and credential access, compared between
+    /// changes so each is reconciled only when it moved.
+    var runtimeProjection: BrowserRuntimeSessionProjection {
+        BrowserRuntimeSessionProjection(workspace: browser.workspaceModel, images: browser.core.state.favicons)
     }
 
     /// Writes out the engine session state of every resident page this window
@@ -637,47 +614,42 @@ final class BrowserPagePool:
         await host.flushPendingTabStateWrites()
     }
 
-    func reconcileTabIcons(in session: BrowserSession) {
-        host.reconcileTabIcons(in: session)
+    /// Gives each resident page its tab's current context, such as its icon.
+    func reconcileTabIcons() {
+        host.reconcileTabIcons(in: browser.workspaceModel, images: browser.core.state.favicons)
     }
 
-    func deleteData(for space: BrowserSpace) async throws {
+    func deleteData(for space: BrowserSpaceRuntimeAssignment) async throws {
         try await host.deleteData(for: space, on: browser.core, ephemeral: usesEphemeralWebsiteDataStores) {
             await releaseWindowRuntime(for: space)
-            serverTrustOverrides.removeApprovals(for: space.profile.id)
+            serverTrustOverrides.removeApprovals(for: space.profileID)
         }
-        permissionCenter.reset(spaceID: space.id)
+        permissionCenter.reset(spaceID: space.spaceID)
     }
 
-    func releaseWindowRuntime(for space: BrowserSpace) async {
-        guard host.spacesReleasingData.insert(space.id).inserted else {
-            nativeTabs.remove(in: space.id)
+    func releaseWindowRuntime(for space: BrowserSpaceRuntimeAssignment) async {
+        guard host.spacesReleasingData.insert(space.spaceID).inserted else {
+            nativeTabs.remove(in: space.spaceID)
             return
         }
-        defer { host.spacesReleasingData.remove(space.id) }
+        defer { host.spacesReleasingData.remove(space.spaceID) }
         await host.releasePages(of: space)
-        downloadCenter.deleteRecords(
-            profileID: space.profile.id,
-            spaceID: space.id
-        )
+        downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
         if usesEphemeralWebsiteDataStores {
-            profileDataStores.releaseEphemeralStore(for: space.profile.id)
+            profileDataStores.releaseEphemeralStore(for: space.profileID)
         }
     }
 
-    func closePrivateBrowsingSession(_ session: BrowserSession) {
+    /// Lets go of everything the private workspace kept, in each of the
+    /// Spaces `spaces` names, as its last window closes.
+    func closePrivateBrowsingSession(_ spaces: [BrowserSpaceRuntimeAssignment]) {
         guard browsingMode.isPrivate else { return }
         host.closePrivateBrowsingSession()
-        for space in session.spaces {
-            downloadCenter.deleteRecords(
-                profileID: space.profile.id,
-                spaceID: space.id
-            )
-            permissionCenter.reset(spaceID: space.id)
+        for space in spaces {
+            downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
+            permissionCenter.reset(spaceID: space.spaceID)
             Task {
-                await BrowserFaviconFallbackLoader.shared.removeAll(
-                    for: space.profile.id
-                )
+                await BrowserFaviconFallbackLoader.shared.removeAll(for: space.profileID)
             }
         }
         profileDataStores.releaseAllEphemeralStores()
@@ -699,20 +671,21 @@ final class BrowserPagePool:
     /// where popup adoption has activated a tab the presented list has not caught
     /// up with, and pages belonging to another Space or profile are excluded — the
     /// history being applied is this Space's.
-    func visitedLinkStylingTabIDs(in space: BrowserSpace) -> [TabID] {
+    func visitedLinkStylingTabIDs(in space: SpaceModel) -> [TabID] {
         _ = residencyRevision
         var seen: Set<TabID> = []
         return (presentedTabIDs + [activeTabID].compactMap { $0 }).filter { tabID in
             guard seen.insert(tabID).inserted, let page = tabRuntimes[tabID]?.page else {
                 return false
             }
-            return page.spaceID == space.id && page.profileID == space.profile.id
+            return page.spaceID == space.id && page.profileID == space.profileID
         }
     }
 
-    func styleVisitedLinks(in space: BrowserSpace) async {
+    func styleVisitedLinks(in space: SpaceModel) async {
+        let history = space.history.entries
         for tabID in visitedLinkStylingTabIDs(in: space) {
-            await tabRuntimes[tabID]?.page.styleVisitedLinks(history: space.history)
+            await tabRuntimes[tabID]?.page.styleVisitedLinks(history: history)
         }
     }
 
@@ -723,14 +696,14 @@ final class BrowserPagePool:
         let workspace = browser.window.workspaceID
         let spaceIDs = Set(records.navigations.filter { $0.workspaceID == workspace }.map(\.spaceID))
         for spaceID in spaceIDs {
-            guard let space = browser.session.space(id: spaceID) else { continue }
+            guard let space = browser.spaceModel(spaceID) else { continue }
             Task { @MainActor [weak self] in await self?.styleVisitedLinks(in: space) }
         }
     }
 
     func makePeekPageLease(
         request: BrowserPeekRequest,
-        in space: BrowserSpace,
+        in space: SpaceModel,
         onDownloadOnlyNavigation: @escaping () -> Void
     ) -> BrowserTransientPageLease? {
         guard request.assignment == BrowserSpaceRuntimeAssignment(space: space) else { return nil }
@@ -748,7 +721,7 @@ final class BrowserPagePool:
 
     func makeTransientPageLease(
         url: URL,
-        in space: BrowserSpace,
+        in space: SpaceModel,
         presentation: TransientPresentation = .quickWindow,
         engineNavigation: BrowserEngineNavigation? = nil,
         onUserActivity: @escaping () -> Void = {},
@@ -767,7 +740,7 @@ final class BrowserPagePool:
     func adoptTransientPage(
         _ lease: BrowserTransientPageLease,
         as tabID: TabID,
-        in space: BrowserSpace
+        in space: SpaceModel
     ) -> Bool {
         // Move the renderer before Quick Window dismissal destroys its old
         // host. SwiftUI attaches the retained native view on a later update.
@@ -784,8 +757,8 @@ final class BrowserPagePool:
         retainResidentPage(page, for: tabID)
         residencyRevision &+= 1
         activate(tabID)
-        if let tab = space.tabs.first(where: { $0.id == tabID }) {
-            page.updateNavigationContext(tab: tab)
+        if let tab = space.tabs.model(tabID) {
+            page.updateNavigationContext(tab: BrowserPageTab(tab, images: browser.core.state.favicons))
         }
         return true
     }
@@ -822,13 +795,13 @@ final class BrowserPagePool:
         requestedURL: URL?,
         opener: BrowserPage,
         selecting: Bool,
-        webKit: (BrowserSpace) -> WebKitPageInputs
+        webKit: (SpaceModel) -> WebKitPageInputs
     ) -> BrowserPage? {
         guard tabID(for: opener) != nil,
             !browser.deletingSpaceIDs.contains(opener.spaceID),
             let registration = popupTabHost.openTab(requestedURL, opener.spaceID, selecting),
             registration.space.id == opener.spaceID,
-            registration.space.profile.id == opener.profileID
+            registration.space.profileID == opener.profileID
         else { return nil }
 
         guard
@@ -842,7 +815,7 @@ final class BrowserPagePool:
             return nil
         }
         page.markOpenedAsPopup()
-        page.updateNavigationContext(tab: registration.tab)
+        page.updateNavigationContext(tab: BrowserPageTab(registration.tab, images: browser.core.state.favicons))
         retainResidentPage(page, for: registration.tab.id)
         residencyRevision &+= 1
         if selecting { activate(registration.tab.id) }
@@ -872,14 +845,14 @@ final class BrowserPagePool:
             tabRuntimes[tabID]?.routingWindowID == windowID,
             !browser.deletingSpaceIDs.contains(page.spaceID),
             let window = presentationWindow,
-            let session = selectPictureInPictureSource(
+            selectPictureInPictureSource(
                 BrowserTabRuntimeAssignment(tabID: tabID, spaceID: page.spaceID, profileID: page.profileID))
         else { return }
         // Claim the existing runtime and its split group through normal
         // selection. WebKit finishes returning the original video inline once
         // SwiftUI reattaches its view; never recreate or navigate the page here.
         setWindowFocused(true)
-        select(session: session)
+        select()
         if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
@@ -933,8 +906,8 @@ final class BrowserPagePool:
     /// Previously archived state is still purged from disk. This preserves only
     /// live pages, not a disk snapshot of a protected Space. The access views
     /// gate ordinary and transient content until authentication succeeds.
-    func relockProtectedSpace(_ space: BrowserSpace) {
-        guard space.accessPolicy.requiresAuthentication else { return }
+    func relockProtectedSpace(_ space: SpaceModel) {
+        guard space.settings.requiresAuthentication else { return }
         // A background Space can still remember its editor after departure.
         // Locking ends that focus session even though its pages stay resident.
         for page in host.livePages where page.spaceID == space.id {
@@ -946,24 +919,15 @@ final class BrowserPagePool:
         {
             deactivatePagePresentation()
         }
-        host.tabState.removeStates(profileID: space.profile.id)
+        host.tabState.removeStates(profileID: space.profileID)
     }
 
-    func reloadOrStop(in session: BrowserPresentedSession) {
-        reload(.standard, selectedBy: session)
+    func reloadOrStop() {
+        reload(.standard)
     }
 
-    func forceReload(in session: BrowserPresentedSession) {
-        guard let tab = session.selectedTab,
-            let space = session.selectedSpace
-        else { return }
-        let residentPage = tabRuntimes[tab.id]?.page
-        let canReloadResidentPage =
-            residentPage?.spaceID == space.id
-            && residentPage?.profileID == space.profile.id
-            && residentPage?.live.documentURL != nil
-        select(session: session)
-        guard canReloadResidentPage else { return }
+    func forceReload() {
+        guard canReloadShownPage() else { return }
         activePage?.reload()
     }
 
@@ -971,8 +935,8 @@ final class BrowserPagePool:
         activePage?.stopLoading()
     }
 
-    func reloadFromOrigin(in session: BrowserPresentedSession) {
-        reload(.fromOrigin, selectedBy: session)
+    func reloadFromOrigin() {
+        reload(.fromOrigin)
     }
 
     func clearSiteDataAndReload() async {
@@ -1062,12 +1026,12 @@ final class BrowserPagePool:
     private func pageAdopted(_ adopted: OfferedPageAdopted) {
         guard adopted.windowID == windowID, adopted.workspaceID == browser.window.workspaceID,
             tabRuntimes[adopted.tabID] == nil,
-            let space = browser.session.space(id: adopted.spaceID),
-            let tab = space.tabs.first(where: { $0.id == adopted.tabID }),
+            let space = browser.spaceModel(adopted.spaceID),
+            let tab = space.tabs.model(adopted.tabID),
             let page = makePage(space: space, tabID: tab.id, hosting: adopted.pageID)
         else { return }
         page.markOpenedAsPopup()
-        page.updateNavigationContext(tab: tab)
+        page.updateNavigationContext(tab: BrowserPageTab(tab, images: browser.core.state.favicons))
         retainResidentPage(page, for: tab.id)
         residencyRevision &+= 1
         if adopted.shows { activate(tab.id) }
@@ -1075,14 +1039,14 @@ final class BrowserPagePool:
 
     /// The tab's resident page, or a new one the core opened for it; nil when
     /// the core refuses the tab a page.
-    private func page(for tab: BrowserTab, space: BrowserSpace) -> BrowserPage? {
+    private func page(for tab: BrowserPageTab, space: SpaceModel) -> BrowserPage? {
         if let existingPage = tabRuntimes[tab.id]?.page {
             if existingPage.spaceID == space.id,
-                existingPage.profileID == space.profile.id
+                existingPage.profileID == space.profileID
             {
                 let page = existingPage
                 page.setCredentialAccessEnabled(
-                    space.credentialPreferences.isEnabled
+                    space.settings.credentialPreferences.isEnabled
                 )
                 page.updateNavigationContext(tab: tab)
                 return page
@@ -1112,7 +1076,7 @@ final class BrowserPagePool:
     /// the Space's own inputs. With `pageID`, the page the core already opened
     /// for the tab instead. Nil when the core refuses it.
     private func makePage(
-        space: BrowserSpace,
+        space: SpaceModel,
         tabID: TabID? = nil,
         presentation: TransientPresentation? = nil,
         webKit: WebKitPageInputs? = nil,
@@ -1151,11 +1115,11 @@ final class BrowserPagePool:
             serverTrustOverrides: serverTrustOverrides,
             mediaSessionStore: tabID == nil ? nil : mediaSessionStore,
             spaceID: space.id,
-            profileID: space.profile.id,
-            spaceName: space.name,
+            profileID: space.profileID,
+            spaceName: space.settings.name,
             allowsCredentialAccess: !browsingMode.isPrivate,
             isCredentialAccessEnabled:
-                space.credentialPreferences.isEnabled,
+                space.settings.credentialPreferences.isEnabled,
             defaultPageZoom: pageZoomPreferences.defaultZoom,
             loadHTTPAuthenticationCredential: { [weak routing] protectionSpace in
                 try await routing?.pool?.loadHTTPAuthenticationCredential(protectionSpace, space.id)
@@ -1190,7 +1154,7 @@ final class BrowserPagePool:
         }
     }
 
-    private func loadInitialURL(for tab: BrowserTab, into page: BrowserPage) {
+    private func loadInitialURL(for tab: BrowserPageTab, into page: BrowserPage) {
         // WebKit owns an adopted popup's first navigation. Loading it here would
         // replace the document `window.open()` handed to the opener.
         guard !page.isAwaitingPopupNavigation else { return }
@@ -1203,9 +1167,7 @@ final class BrowserPagePool:
         // The adapter restores its own navigation state instead of a plain load.
         // Missing or incompatible archives fall back to the tab's current URL.
         if let state = host.archivedInteractionState(
-            for: tab,
-            spaceID: page.spaceID,
-            profileID: page.profileID,
+            for: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: page.spaceID, profileID: page.profileID),
             expecting: url
         ), page.restoreInteractionState(state, expecting: url) {
             Self.lifecycleSignposter.endInterval("Start Initial Navigation", interval)
@@ -1215,27 +1177,24 @@ final class BrowserPagePool:
         Self.lifecycleSignposter.endInterval("Start Initial Navigation", interval)
     }
 
-    private func reload(
-        _ mode: BrowserPageReloadMode,
-        selectedBy session: BrowserPresentedSession
-    ) {
-        guard let tab = session.selectedTab,
-            let space = session.selectedSpace
-        else { return }
+    private func reload(_ mode: BrowserPageReloadMode) {
+        guard canReloadShownPage() else { return }
+        activePage?.performReload(mode)
+    }
+
+    /// Presents what the window shows, answering whether the tab it shows
+    /// already had a loaded page of its Space to reload. Selection creates a
+    /// missing page and starts its saved address, so that recovery never
+    /// needs a second navigation.
+    private func canReloadShownPage() -> Bool {
+        guard let tab = browser.shownTab, let space = browser.shownSpace else { return false }
         let residentPage = tabRuntimes[tab.id]?.page
         let canReloadResidentPage =
             residentPage?.spaceID == space.id
-            && residentPage?.profileID == space.profile.id
+            && residentPage?.profileID == space.profileID
             && residentPage?.live.documentURL != nil
-
-        select(session: session)
-
-        guard canReloadResidentPage else {
-            // Selection creates a missing WebView and starts its saved URL.
-            // Do not immediately issue a second navigation for that recovery.
-            return
-        }
-        activePage?.performReload(mode)
+        select()
+        return canReloadResidentPage
     }
 
     /// Focuses a tab that is already on screen, or brings one on screen beside
@@ -1314,12 +1273,8 @@ final class BrowserPagePool:
 }
 
 extension BrowserPagePool: BrowserTabCopying {
-    func sourceForTabCopy(_ source: BrowserTab, in space: BrowserSpace) -> BrowserTab {
-        host.sourceForTabCopy(source, in: space)
-    }
-
-    func prepareTabCopy(from source: BrowserTab, to copy: inout BrowserTab, in space: BrowserSpace) {
-        host.prepareTabCopy(from: source, to: &copy, in: space)
+    func prepareTabCopy(from source: TabState, copyID: TabID, in space: BrowserSpaceRuntimeAssignment) {
+        host.prepareTabCopy(from: source, copyID: copyID, in: space)
     }
 }
 

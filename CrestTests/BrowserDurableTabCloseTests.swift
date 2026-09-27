@@ -31,7 +31,7 @@ final class BrowserDurableTabCloseTests: XCTestCase {
                 if policy == .returnToSavedURL { expected.url = expected.savedURL ?? expected.url }
                 XCTAssertEqual(space.tabs.first, expected)
                 XCTAssertEqual(discardedState, policy == .returnToSavedURL)
-                XCTAssertNil(context.browser.selectedTab)
+                XCTAssertNil(context.browser.shownTab)
                 XCTAssertEqual(space.tabs.last, context.copy)
                 XCTAssertEqual(space.archivedTabs, context.archived)
             }
@@ -51,13 +51,13 @@ final class BrowserDurableTabCloseTests: XCTestCase {
                     return true
                 }
             )
-            let original = context.browser.session
+            let original = context.browser.sessionSeed
             let stale = BrowserTabRuntimeAssignment(
                 tabID: context.tab.id, spaceID: context.assignment.spaceID, profileID: UUID()
             )
             XCTAssertFalse(action.perform(stale))
             if placement == .current { XCTAssertFalse(action.perform(context.assignment)) }
-            XCTAssertEqual(context.browser.session, original)
+            XCTAssertEqual(context.browser.sessionSeed, original)
 
             context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.assignment.spaceID)
             XCTAssertFalse(action.perform(context.assignment))
@@ -69,41 +69,41 @@ final class BrowserDurableTabCloseTests: XCTestCase {
         let context = try makeContext(placement: .saved)
         let preferences = BrowserAppPreferenceStore()
         preferences.savedTabClosePolicy = .returnToSavedURL
-        let original = context.browser.session
+        let original = context.browser.sessionSeed
         let action = BrowserDurableTabCloseAction(
             browser: context.browser, spaceAccess: BrowserSpaceAccessController(),
             preferences: preferences, closePage: { _, _ in false }
         )
         XCTAssertFalse(action.perform(context.assignment))
-        XCTAssertEqual(context.browser.session, original)
+        XCTAssertEqual(context.browser.sessionSeed, original)
     }
 
     func testDeferredCloseOnlyArchivesAfterApproval() throws {
         let context = try makeContext(placement: .current)
         let gate = DeferredDismissal()
         context.browser.family.pageDismissalAuthorizer = gate
-        let original = context.browser.session
+        let original = context.browser.sessionSeed
         XCTAssertFalse(context.browser.closeTab(context.tab.id))
-        XCTAssertEqual(context.browser.session, original)
+        XCTAssertEqual(context.browser.sessionSeed, original)
         XCTAssertFalse(gate.resolve(false))
-        XCTAssertEqual(context.browser.session, original)
+        XCTAssertEqual(context.browser.sessionSeed, original)
         XCTAssertFalse(context.browser.closeTab(context.tab.id))
         XCTAssertTrue(gate.resolve(true))
-        XCTAssertFalse(context.browser.selectedSpace!.tabs.contains { $0.id == context.tab.id })
-        XCTAssertTrue(context.browser.selectedSpace!.archivedTabs.contains { $0.id == context.tab.id })
+        XCTAssertFalse(context.browser.shownSpace!.tabs.contains(context.tab.id))
+        XCTAssertTrue(context.browser.shownSpace!.archive.contains(tabID: context.tab.id))
     }
 
     func testDeferredClearDoesNotCloseTabsOpenedWhileConfirmationWasPending() throws {
         let context = try makeContext(placement: .current)
         let gate = DeferredDismissal()
         context.browser.family.pageDismissalAuthorizer = gate
-        let space = try XCTUnwrap(context.browser.selectedSpace)
+        let space = try XCTUnwrap(context.browser.shownSpace)
         XCTAssertFalse(context.browser.clearCurrentTabs(matching: BrowserSpaceRuntimeAssignment(space: space)))
         let newTab = try XCTUnwrap(context.browser.openNewTab(url: URL(string: "https://example.net/new")!))
-        let beforeReply = context.browser.session
+        let beforeReply = context.browser.sessionSeed
         XCTAssertFalse(gate.resolve(true))
-        XCTAssertEqual(context.browser.session, beforeReply)
-        XCTAssertTrue(context.browser.selectedSpace!.tabs.contains { $0.id == newTab })
+        XCTAssertEqual(context.browser.sessionSeed, beforeReply)
+        XCTAssertTrue(context.browser.shownSpace!.tabs.contains(newTab))
     }
 
     func testDeferredCloseRechecksTheTabAssignment() throws {
@@ -113,9 +113,9 @@ final class BrowserDurableTabCloseTests: XCTestCase {
         XCTAssertFalse(context.browser.closeTab(context.tab.id))
         context.browser.family.pageDismissalAuthorizer = nil
         context.browser.deleteTab(context.tab.id, in: context.assignment.spaceID)
-        let beforeReply = context.browser.session
+        let beforeReply = context.browser.sessionSeed
         XCTAssertFalse(gate.resolve(true))
-        XCTAssertEqual(context.browser.session, beforeReply)
+        XCTAssertEqual(context.browser.sessionSeed, beforeReply)
     }
 
     func testDurablePageIsNotRetiredWhenCloseIsCanceled() throws {
@@ -126,12 +126,12 @@ final class BrowserDurableTabCloseTests: XCTestCase {
         let action = BrowserDurableTabCloseAction(browser: context.browser,
             spaceAccess: BrowserSpaceAccessController(), preferences: BrowserAppPreferenceStore(),
             closePage: { _, _ in retired += 1; return true })
-        let original = context.browser.session
+        let original = context.browser.sessionSeed
         XCTAssertFalse(action.perform(context.assignment))
         XCTAssertEqual(retired, 0)
         XCTAssertFalse(gate.resolve(false))
         XCTAssertEqual(retired, 0)
-        XCTAssertEqual(context.browser.session, original)
+        XCTAssertEqual(context.browser.sessionSeed, original)
         XCTAssertFalse(action.perform(context.assignment))
         XCTAssertTrue(gate.resolve(true))
         XCTAssertEqual(retired, 1)

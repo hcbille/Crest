@@ -1,14 +1,21 @@
 import Foundation
 
 /// Describes whether a transient request may retain a live page. A usable
-/// request carries the Space the page hosts open its page in, as the session
-/// copy holds it; TRANSITIONAL until Lane 2's page hosts take the read
-/// model's.
-enum BrowserTransientLeaseDisposition: Equatable, Sendable {
+/// request carries the Space of the read model its page opens in.
+@MainActor
+enum BrowserTransientLeaseDisposition: Equatable {
     case notPresented
     case sourceMissing
     case sourceLocked
-    case usable(BrowserSpace)
+    case usable(SpaceModel)
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        switch (lhs, rhs) {
+        case (.notPresented, .notPresented), (.sourceMissing, .sourceMissing), (.sourceLocked, .sourceLocked): true
+        case (.usable(let left), .usable(let right)): left === right
+        default: false
+        }
+    }
 }
 
 /// Native presentation and authentication observations for transient pages.
@@ -16,8 +23,8 @@ enum BrowserTransientSessionPolicy {
     @MainActor
     static func disposition(
         isPresentingRequest: Bool,
-        space: BrowserSpace?,
-        isLocked: @MainActor (BrowserSpace) -> Bool
+        space: SpaceModel?,
+        isLocked: @MainActor (SpaceModel) -> Bool
     ) -> BrowserTransientLeaseDisposition {
         guard isPresentingRequest else { return .notPresented }
         guard let space else { return .sourceMissing }

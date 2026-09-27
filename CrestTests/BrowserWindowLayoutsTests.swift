@@ -9,11 +9,11 @@ import XCTest
 @MainActor
 final class BrowserWindowLayoutsTests: XCTestCase {
     func testASavedWindowReopensOnWhatItShowedEvenWhenTheDefaultSpaceDiffers() async throws {
-        var session = BrowserSession.preview
+        var session = SessionState.Seed.preview
         session.defaultSpaceID = session.spaces[0].id
-        let harness = try BrowserStoredSessionHarness(session: session)
-        let space = try XCTUnwrap(harness.store.session.spaces.last)
-        let tab = try XCTUnwrap(space.tabs.last)
+        let harness = try BrowserStoredSessionHarness(seed: session)
+        let space = try XCTUnwrap(harness.store.spaceModels.last)
+        let tab = try XCTUnwrap(space.tabs.models.last)
         let id = BrowserWindowID()
         let window = harness.store.makeWindowStore(BrowserWindowOpening(id: id, saved: true))
         XCTAssertTrue(window.activateSessionTab(tab.id, in: space.id))
@@ -21,7 +21,7 @@ final class BrowserWindowLayoutsTests: XCTestCase {
         let relaunched = try await harness.relaunch()
         let reopened = relaunched.store.makeWindowStore(BrowserWindowOpening(id: id, saved: true))
         XCTAssertEqual(reopened.selectedSpaceID, space.id)
-        XCTAssertEqual(reopened.selectedTab?.id, tab.id)
+        XCTAssertEqual(reopened.shownTab?.id, tab.id)
         // A window without a record still opens on the launch Space.
         XCTAssertEqual(relaunched.store.selectedSpaceID, session.spaces[0].id)
     }

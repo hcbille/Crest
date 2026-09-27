@@ -151,16 +151,16 @@ final class BrowserWebCompatibilityTests: XCTestCase {
 
     func testUnapprovedAutomaticWindowOpenIsBlockedAndCoalesced() async throws {
         let origin = try XCTUnwrap(URL(string: "https://blocked-popups.crest.test/"))
-        let openerTab = BrowserTab(title: "Opener", url: nil, placement: .current)
+        let openerTab = TabState.Seed(title: "Opener", url: nil, placement: .current)
         let profile = BrowsingProfile()
         let space = makeSpace(profile: profile, tabs: [openerTab])
         let store = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space])
+            SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
 
         do {
-            pool.select(session: store.presented)
+            pool.select()
             let opener = try XCTUnwrap(pool.activePage)
             opener.webView.loadSimulatedRequest(
                 URLRequest(url: origin),
@@ -186,7 +186,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             )
 
             XCTAssertEqual(openResults, "null,null,null")
-            XCTAssertEqual(store.selectedSpace?.tabs.map(\.id), [openerTab.id])
+            XCTAssertEqual(store.shownSpace?.tabs.models.map(\.id), [openerTab.id])
             XCTAssertEqual(
                 opener.blockedPopupState.notice,
                 BrowserBlockedPopupNotice(
@@ -219,7 +219,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let origin = try XCTUnwrap(
             URL(string: "https://transient-blocked-popups.crest.test/")
         )
-        let openerTab = BrowserTab(
+        let openerTab = TabState.Seed(
             title: "Opener",
             url: nil,
             placement: .current
@@ -227,7 +227,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let profile = BrowsingProfile()
         let space = makeSpace(profile: profile, tabs: [openerTab])
         let store = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space])
+            SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(
             browser: store,
@@ -241,7 +241,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             let lease = try XCTUnwrap(
                 pool.makeTransientPageLease(
                     url: try XCTUnwrap(URL(string: "about:blank")),
-                    in: space
+                    in: try XCTUnwrap(pool.browser.spaceModel(space.id))
                 )
             )
             defer { lease.release() }
@@ -267,7 +267,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
 
             XCTAssertEqual(openResults, "null,null,null")
             XCTAssertTrue(lease.page === opener)
-            XCTAssertEqual(store.selectedSpace?.tabs.map(\.id), [openerTab.id])
+            XCTAssertEqual(store.shownSpace?.tabs.models.map(\.id), [openerTab.id])
             XCTAssertEqual(
                 opener.blockedPopupState.notice,
                 BrowserBlockedPopupNotice(
@@ -283,11 +283,11 @@ final class BrowserWebCompatibilityTests: XCTestCase {
 
     func testPersistentlyDeniedAutomaticWindowOpenStillProducesOneIndication() async throws {
         let origin = try XCTUnwrap(URL(string: "https://denied-popups.crest.test/"))
-        let openerTab = BrowserTab(title: "Opener", url: nil, placement: .current)
+        let openerTab = TabState.Seed(title: "Opener", url: nil, placement: .current)
         let profile = BrowsingProfile()
         let space = makeSpace(profile: profile, tabs: [openerTab])
         let store = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space])
+            SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
         let siteOrigin = try XCTUnwrap(SiteOrigin(url: origin))
@@ -299,7 +299,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 origin: siteOrigin,
                 in: space.id
             )
-            pool.select(session: store.presented)
+            pool.select()
             let opener = try XCTUnwrap(pool.activePage)
             opener.webView.loadSimulatedRequest(
                 URLRequest(url: origin),
@@ -320,7 +320,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 script: "return globalThis.automaticPopupResults.join(',');"
             )
             XCTAssertEqual(deniedResults, "null,null,null")
-            XCTAssertEqual(store.selectedSpace?.tabs.count, 1)
+            XCTAssertEqual(store.shownSpace?.tabs.models.count, 1)
             XCTAssertEqual(opener.blockedPopupState.notice?.origin, siteOrigin)
             XCTAssertEqual(opener.blockedPopupState.indicationRevision, 1)
         }
@@ -330,16 +330,16 @@ final class BrowserWebCompatibilityTests: XCTestCase {
 
     func testExplicitTargetBlankRemainsAllowedWithoutPopupPermission() async throws {
         let origin = try XCTUnwrap(URL(string: "https://explicit-popup.crest.test/"))
-        let openerTab = BrowserTab(title: "Opener", url: nil, placement: .current)
+        let openerTab = TabState.Seed(title: "Opener", url: nil, placement: .current)
         let profile = BrowsingProfile()
         let space = makeSpace(profile: profile, tabs: [openerTab])
         let store = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space])
+            SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
 
         do {
-            pool.select(session: store.presented)
+            pool.select()
             let opener = try XCTUnwrap(pool.activePage)
             opener.webView.loadSimulatedRequest(
                 URLRequest(url: origin),
@@ -373,7 +373,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             )
 
             try await waitUntil("the explicit target blank to be adopted") {
-                store.selectedSpace?.tabs.count == 2
+                store.shownSpace?.tabs.models.count == 2
             }
             XCTAssertEqual(opener.blockedPopupState.notice?.status, .blocked)
             XCTAssertTrue(pool.activePage?.wasOpenedAsPopup == true)
@@ -389,7 +389,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let destination = try XCTUnwrap(
             URL(string: "about:blank#target-blank")
         )
-        let openerTab = BrowserTab(
+        let openerTab = TabState.Seed(
             title: "Opener",
             url: nil,
             placement: .current
@@ -397,7 +397,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let profile = BrowsingProfile()
         let space = makeSpace(profile: profile, tabs: [openerTab])
         let store = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space])
+            SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(
             browser: store,
@@ -411,7 +411,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             let lease = try XCTUnwrap(
                 pool.makeTransientPageLease(
                     url: try XCTUnwrap(URL(string: "about:blank")),
-                    in: space
+                    in: try XCTUnwrap(pool.browser.spaceModel(space.id))
                 )
             )
             defer { lease.release() }
@@ -436,7 +436,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 page.live.documentURL == destination && !page.live.isLoading
             }
             XCTAssertTrue(lease.page === page)
-            XCTAssertEqual(store.selectedSpace?.tabs.map(\.id), [openerTab.id])
+            XCTAssertEqual(store.shownSpace?.tabs.models.map(\.id), [openerTab.id])
             XCTAssertTrue(page.live.canGoBack)
             XCTAssertFalse(page.live.canGoForward)
             XCTAssertNil(page.live.failure)
@@ -452,7 +452,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 page.live.documentURL == destination && !page.live.isLoading
             }
             XCTAssertTrue(lease.page === page)
-            XCTAssertEqual(store.selectedSpace?.tabs.map(\.id), [openerTab.id])
+            XCTAssertEqual(store.shownSpace?.tabs.models.map(\.id), [openerTab.id])
         }
 
         await removeDataStore(profile.id)
@@ -465,7 +465,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let destination = try XCTUnwrap(
             URL(string: "about:blank#window-open")
         )
-        let openerTab = BrowserTab(
+        let openerTab = TabState.Seed(
             title: "Opener",
             url: nil,
             placement: .current
@@ -473,7 +473,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let profile = BrowsingProfile()
         let space = makeSpace(profile: profile, tabs: [openerTab])
         let store = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space])
+            SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(
             browser: store,
@@ -487,7 +487,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             let lease = try XCTUnwrap(
                 pool.makeTransientPageLease(
                     url: try XCTUnwrap(URL(string: "about:blank")),
-                    in: space
+                    in: try XCTUnwrap(pool.browser.spaceModel(space.id))
                 )
             )
             defer { lease.release() }
@@ -512,7 +512,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 page.live.documentURL == destination && !page.live.isLoading
             }
             XCTAssertTrue(lease.page === page)
-            XCTAssertEqual(store.selectedSpace?.tabs.map(\.id), [openerTab.id])
+            XCTAssertEqual(store.shownSpace?.tabs.models.map(\.id), [openerTab.id])
             XCTAssertTrue(page.live.canGoBack)
             XCTAssertFalse(page.live.canGoForward)
             XCTAssertNil(page.live.failure)
@@ -528,7 +528,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 page.live.documentURL == destination && !page.live.isLoading
             }
             XCTAssertTrue(lease.page === page)
-            XCTAssertEqual(store.selectedSpace?.tabs.map(\.id), [openerTab.id])
+            XCTAssertEqual(store.shownSpace?.tabs.models.map(\.id), [openerTab.id])
         }
 
         await removeDataStore(profile.id)
@@ -536,11 +536,10 @@ final class BrowserWebCompatibilityTests: XCTestCase {
 
     func testScriptedWindowOpenAdoptsAPopupThatKeepsItsOpener() async throws {
         let origin = try XCTUnwrap(URL(string: "https://popups.crest.test/"))
-        let openerTab = BrowserTab(title: "Opener", url: nil, placement: .current)
+        let openerTab = TabState.Seed(title: "Opener", url: nil, placement: .current)
         let profile = BrowsingProfile()
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: profile,
+        let space = SpaceState.Seed(
+            profileID: profile.id,
             name: "Popups",
             symbol: "macwindow.on.rectangle",
             accent: .teal,
@@ -550,10 +549,10 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 searchProvider: .google,
                 currentTabCleanupPolicy: .never,
                 contentBlockingPolicy: .off
-            )
+            ).core
         )
         let store = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space])
+            SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(
             browser: store,
@@ -561,7 +560,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         )
 
         do {
-            pool.select(session: store.presented)
+            pool.select()
             let opener = try XCTUnwrap(pool.activePage)
             // A saved allow decision enables genuinely automatic windows for
             // this top-level origin. User-activated windows do not need it.
@@ -597,9 +596,9 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 "window.open() must hand the page a real window. Core error: \(store.localSyncErrorDescription ?? "none")"
             )
             let popupTab = try XCTUnwrap(
-                store.selectedSpace?.tabs.first { $0.id != openerTab.id }
+                store.shownSpace?.tabs.models.first { $0.id != openerTab.id }
             )
-            XCTAssertEqual(store.selectedTab?.id, popupTab.id)
+            XCTAssertEqual(store.shownTab?.id, popupTab.id)
             XCTAssertEqual(pool.activeTabID, popupTab.id)
             let popupPage = try XCTUnwrap(pool.activePage)
             XCTAssertFalse(popupPage === opener)
@@ -648,13 +647,13 @@ final class BrowserWebCompatibilityTests: XCTestCase {
 
             _ = try? await popupPage.webView.evaluateJavaScript("window.close();")
             try await waitUntil("window.close() to close the popup's tab") {
-                store.selectedSpace?.tabs.contains { $0.id == popupTab.id } == false
+                store.shownSpace?.tabs.contains(popupTab.id) == false
             }
             XCTAssertEqual(
-                store.selectedSpace?.archivedTabs.last?.tab.id,
+                store.shownSpace?.archive.entries.last?.tab.id,
                 popupTab.id
             )
-            XCTAssertEqual(store.selectedTab?.id, openerTab.id)
+            XCTAssertEqual(store.shownTab?.id, openerTab.id)
         }
 
         await removeDataStore(profile.id)
@@ -671,11 +670,10 @@ final class BrowserWebCompatibilityTests: XCTestCase {
 
     private func makeSpace(
         profile: BrowsingProfile,
-        tabs: [BrowserTab]
-    ) -> BrowserSpace {
-        BrowserSpace(
-            id: SpaceID(),
-            profile: profile,
+        tabs: [TabState.Seed]
+    ) -> SpaceState.Seed {
+        SpaceState.Seed(
+            profileID: profile.id,
             name: "State",
             symbol: "clock.arrow.circlepath",
             accent: .teal,
@@ -685,7 +683,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
                 searchProvider: .google,
                 currentTabCleanupPolicy: .never,
                 contentBlockingPolicy: .off
-            )
+            ).core
         )
     }
 

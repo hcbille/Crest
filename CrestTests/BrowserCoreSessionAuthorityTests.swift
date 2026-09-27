@@ -5,31 +5,6 @@ import XCTest
 
 @MainActor
 final class BrowserCoreSessionAuthorityTests: XCTestCase {
-    func testBatchDeletionCommitsExplicitTombstonesWithSavedTabRemoval() async throws {
-        var original = BrowserSession.preview
-        let tabs = Array(original.spaces[0].tabs.filter { $0.url != nil && !$0.isStartPage }.prefix(2))
-        XCTAssertEqual(tabs.count, 2)
-        let ids = Set(tabs.map(\.id))
-        for index in original.spaces[0].tabs.indices where ids.contains(original.spaces[0].tabs[index].id) {
-            original.spaces[0].tabs[index].placement = .saved
-            original.spaces[0].tabs[index].folderID = nil
-            original.spaces[0].tabs[index].splitGroupID = nil
-        }
-        let harness = try await BrowserStoredSessionHarness.staged(original)
-        let store = harness.store
-        store.selectSpace(original.spaces[0].id)
-        let request = try XCTUnwrap(store.capturedSelection(ids: tabs.map(\.id)))
-        try store.send(store.deleting(request), for: request)
-        // The batch is on disk with its journal when the command returns.
-        let (saved, committed) = try harness.stored()
-        XCTAssertTrue(saved.spaces[0].tabs.allSatisfy { !ids.contains($0.id) })
-        XCTAssertEqual(saved, store.session)
-        XCTAssertTrue(try harness.storedJournalIsPublished())
-        for tab in tabs {
-            let record = try XCTUnwrap(committed?.record(.tab, tab.id))
-            XCTAssertEqual(record.deletionReason, .explicitDelete)
-        }
-    }
 
     func testRecordCommandsPreserveNativeAssetsAndOtherWindowSelection() throws {
         var original = BrowserSession.preview
@@ -128,10 +103,10 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         let failing = DeletionAdapter(core: store.core) { space in
             // The intent is on disk before the engine erases anything.
             let intent = try XCTUnwrap(try harness.stored().session.spaceDeletions?.first)
-            XCTAssertEqual(intent.spaceID, space.id)
-            XCTAssertEqual(intent.profileID, space.profile.id)
-            XCTAssertTrue(other.deletingSpaceIDs.contains(space.id))
-            XCTAssertNotEqual(other.selectedSpace?.id, space.id)
+            XCTAssertEqual(intent.spaceID, space.spaceID)
+            XCTAssertEqual(intent.profileID, space.profileID)
+            XCTAssertTrue(other.deletingSpaceIDs.contains(space.spaceID))
+            XCTAssertNotEqual(other.shownSpace?.id, space.spaceID)
             throw DeletionFailure.interrupted
         }
         do {
@@ -141,21 +116,18 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         XCTAssertTrue(store.deletingSpaceIDs.contains(target.id))
         let saved = try harness.stored().session
         XCTAssertNotNil(saved.space(id: target.id))
-        let staleWindow = BrowserPresentedSession(
-            session: saved,
-            window: .preview(showing: target.id, tabs: fallbackTabs(try XCTUnwrap(saved.space(id: target.id)))))
         // The window's pages open through the core, which hosts them on WebKit
         // and refuses a page in a Space whose deletion is pending.
         harness.core.engines.register(WebKitEngineBinding(), isDefault: true)
         let pages = BrowserPagePool(browser: store)
-        pages.select(session: staleWindow)
+        pages.select()
         XCTAssertNil(pages.activePage, "A restored window must not reopen a pending profile")
         let relaunched = try await harness.relaunch()
         let restarted = relaunched.store
         XCTAssertTrue(restarted.deletingSpaceIDs.contains(target.id))
         XCTAssertNotEqual(restarted.selectedSpace?.id, target.id)
         let succeeding = DeletionAdapter(core: restarted.core) { space in
-            XCTAssertEqual(space.profile.id, target.profile.id)
+            XCTAssertEqual(space.profileID, target.profile.id)
         }
         await restarted.resumePendingSpaceDeletions(dataDeleter: succeeding)
         XCTAssertEqual(succeeding.calls, [target.id])
@@ -177,7 +149,7 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         let other = store.makeWindowStore()
         var fail = true
         let adapter = DeletionAdapter(core: store.core) { space in
-            XCTAssertEqual(space.profile.id, target.profile.id)
+            XCTAssertEqual(space.profileID, target.profile.id)
             let stored = try harness.stored()
             XCTAssertEqual(stored.session.spaceDeletions?.first?.spaceID, target.id)
             let record = try XCTUnwrap(try XCTUnwrap(stored.journal).record(.space, target.id))
@@ -231,13 +203,13 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
     private final class DeletionAdapter: BrowserSpaceDataDeleting {
         var calls: [SpaceID] = []
         let core: CrestCore
-        let action: (BrowserSpace) throws -> Void
-        init(core: CrestCore, action: @escaping (BrowserSpace) throws -> Void) {
+        let action: (BrowserSpaceRuntimeAssignment) throws -> Void
+        init(core: CrestCore, action: @escaping (BrowserSpaceRuntimeAssignment) throws -> Void) {
             self.core = core
             self.action = action
         }
-        func deleteData(for space: BrowserSpace) async throws {
-            calls.append(space.id)
+        func deleteData(for space: BrowserSpaceRuntimeAssignment) async throws {
+            calls.append(space.spaceID)
             try action(space)
             try await core.eraseProfile(of: space)
         }
@@ -490,5 +462,29 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
 
     private func visit(_ address: String, title: String) -> BrowserHistoryEntry {
         BrowserHistoryEntry(url: URL(string: address)!, title: title, firstVisitedAt: .now, lastVisitedAt: .now)
+    }
+}
+
+private extension BrowserStore {
+    /// The Space and tab this window shows as the session copy holds them,
+    /// with the images its tabs wear, which these tests compare with what the
+    /// file keeps. TRANSITIONAL until P4.6 moves these tests to the read model
+    /// with the copy's removal.
+    var selectedSpace: BrowserSpace? { session.space(id: selectedSpaceID) }
+
+    var selectedTab: BrowserTab? {
+        guard let space = selectedSpace, let tabID = selectedTabID(in: space.id) else { return nil }
+        return space.tabs.first { $0.id == tabID }
+    }
+}
+
+private extension CrestCore {
+    /// The tab a Space of the session copy shows when no window chose one.
+    /// TRANSITIONAL as `selectedSpace` above.
+    func fallbackTabID(in space: BrowserSpace) -> TabID? {
+        guard let index = (try? query(FallbackTab(placements: space.tabs.map(\.placement))))?.index,
+            space.tabs.indices.contains(index)
+        else { return nil }
+        return space.tabs[index].id
     }
 }

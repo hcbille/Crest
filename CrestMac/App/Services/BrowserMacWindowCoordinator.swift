@@ -263,24 +263,23 @@ final class BrowserMacWindowCoordinator {
         return (try? model.browser.core.query(question))?.allowed == true
     }
 
-    /// Moves the tab and its live page to `destination`'s window. The page
-    /// pools still take the session copy's tab and Space; TRANSITIONAL until
-    /// Lane 2's page hosts read the read model.
+    /// Moves the tab and its live page to `destination`'s window.
     private func transfer(
         _ item: BrowserTabDragItem, from source: BrowserMacWindowModel, to destination: BrowserMacWindowModel
     ) -> Bool {
         guard canTearOff(item, from: source),
-            let targetSpace = destination.browser.space(matching: item.spaceAssignment),
+            let targetSpace = destination.browser.spaceModel(matching: item.spaceAssignment),
             !spaceAccess.isLocked(targetSpace),
             source.browser.canTransferTab(
                 item.tabID, matching: item.spaceAssignment,
                 to: destination.browser, in: item.spaceAssignment)
         else { return false }
+        let images = source.browser.core.state.favicons
         guard
-            let tab = source.browser.space(matching: item.spaceAssignment)?.tabs.first(where: { $0.id == item.tabID }),
+            let tab = source.browser.spaceModel(matching: item.spaceAssignment)?.tabs.model(item.tabID)
+                .map({ BrowserPageTab($0, images: images) }),
             destination.pages.canTransferTabRuntime(
-                from: source.pages,
-                matching: item.runtimeAssignment, as: tab, in: targetSpace)
+                from: source.pages, matching: item.runtimeAssignment, in: targetSpace)
         else { return false }
         guard
             source.browser.transferTab(
@@ -288,7 +287,9 @@ final class BrowserMacWindowCoordinator {
         else { return false }
         // Both moves have been validated above. There is no actor suspension
         // between committing the workspace graphs and relocating the runtime.
-        let movedTab = destination.browser.space(matching: item.spaceAssignment)?.tabs.first { $0.id == tab.id } ?? tab
+        let movedTab =
+            destination.browser.spaceModel(matching: item.spaceAssignment)?.tabs.model(tab.id)
+            .map { BrowserPageTab($0, images: destination.browser.core.state.favicons) } ?? tab
         let transferred = destination.pages.transferTabRuntime(
             from: source.pages, matching: item.runtimeAssignment, as: movedTab, in: targetSpace)
         assert(transferred)

@@ -33,13 +33,13 @@ final class MobileBrowserPageStore:
         willSet { if activePage !== newValue { activePage?.translation.suspend() } }
     }
 
-    /// Every card the content area is presenting, in session member order.
+    /// Every card the content area is presenting, in column order.
     ///
-    /// Derived from `BrowserSpace.presentedSplitMembers(for:)` — the same source
-    /// the sidebar folds its group row from, so the two can never disagree about
-    /// who is on screen. A tab outside a renderable split presents alone, which
-    /// is one element rather than a special case, and the active page is always
-    /// a member while anything is presented.
+    /// Derived from the cards the core shows in this scene, the same source the
+    /// content area lays out, so the two can never disagree about who is on
+    /// screen. A tab outside a shown split presents alone, which is one element
+    /// rather than a special case, and the active page is always a member while
+    /// anything is presented.
     ///
     /// Deliberately observable: a carousel cell and an iPad column both read it
     /// through `residentPage(matching:)` and have to re-render when membership
@@ -177,9 +177,11 @@ final class MobileBrowserPageStore:
         await contentBlocking.prepare()
     }
 
-    /// Reloads presented pages only when their Space's protection level changes.
-    func reconcileContentBlocking(in session: BrowserSession) async {
-        let update = await contentBlocking.reconcile(in: session)
+    /// Gives every page its Space's content blocking in the scene's
+    /// workspace, reloading presented pages only when their Space's
+    /// protection level changes.
+    func reconcileContentBlocking() async {
+        let update = await contentBlocking.reconcile(in: browser.workspaceModel)
         for (tabID, runtime) in host.runtimes {
             let page = runtime.page
             let isPresentedPage = presentedTabIDs.contains(tabID)
@@ -198,35 +200,44 @@ final class MobileBrowserPageStore:
     }
 
     /// Refreshes rule lists without reloading unchanged documents.
-    func reloadContentBlocking(in session: BrowserSession) async {
+    func reloadContentBlocking() async {
         contentBlocking.invalidateRuleLists()
-        await reconcileContentBlocking(in: session)
+        await reconcileContentBlocking()
     }
 
-    /// Presents what the window selects. `session` pairs the core's data with
-    /// that window's own selection.
-    func select(session: BrowserPresentedSession) {
-        select(session: session, at: .now)
+    /// What the store's runtime state follows in the scene's workspace: tab
+    /// icons, content blocking and credential access, compared between
+    /// changes so each is reconciled only when it moved.
+    var runtimeProjection: BrowserRuntimeSessionProjection {
+        BrowserRuntimeSessionProjection(workspace: browser.workspaceModel, images: browser.core.state.favicons)
     }
 
-    func select(session: BrowserPresentedSession, at time: Date) {
-        if !prepareSelectedPage(in: session, at: time) {
+    /// Which tab of the workspace belongs to which Space and profile, which
+    /// page residency follows.
+    var tabRuntimeAssignments: Set<BrowserTabRuntimeAssignment> {
+        Set(
+            browser.spaceModels.flatMap { space in
+                space.tabs.models.map {
+                    BrowserTabRuntimeAssignment(tabID: $0.id, spaceID: space.id, profileID: space.profileID)
+                }
+            })
+    }
+
+    /// Presents what the scene shows.
+    func select(at time: Date = .now) {
+        if !prepareSelectedPage(at: time) {
             deactivatePagePresentation()
         }
-        reconcileCredentialAccess(in: session.session)
+        reconcileCredentialAccess()
     }
 
-    /// Presents what the window selects and asks the core to load what the
+    /// Presents what the scene shows and asks the core to load what the
     /// person typed or chose in its page, instead of the tab's own address.
     /// False when there is no page or a rule refused the load.
     @discardableResult
-    func selectAndNavigate(
-        to input: String,
-        in session: BrowserPresentedSession,
-        at time: Date = .now
-    ) -> Bool {
-        defer { reconcileCredentialAccess(in: session.session) }
-        guard prepareSelectedPage(in: session, at: time, loadsInitialURL: false) else {
+    func selectAndNavigate(to input: String, at time: Date = .now) -> Bool {
+        defer { reconcileCredentialAccess() }
+        guard prepareSelectedPage(at: time, loadsInitialURL: false) else {
             deactivatePagePresentation()
             return false
         }
@@ -236,20 +247,18 @@ final class MobileBrowserPageStore:
     func loadOpenedLink(_ registration: BrowserModifiedLinkRegistration, request: URLRequest, selecting: Bool) {
         let space = registration.space
         guard registration.tab.nativeContent == nil,
-            let page = makeResidentPage(for: registration.tab, in: space, loadsInitialURL: false)
+            let page = makeResidentPage(
+                for: BrowserPageTab(registration.tab, images: browser.core.state.favicons), in: space,
+                loadsInitialURL: false)
         else { return }
         host.retain(page, for: registration.tab.id)
         page.load(request)
-        if selecting { select(session: registration.session) }
+        if selecting { select() }
     }
 
-    private func prepareSelectedPage(
-        in session: BrowserPresentedSession,
-        at time: Date,
-        loadsInitialURL: Bool = true
-    ) -> Bool {
-        guard let space = session.selectedSpace,
-            let tab = session.selectedTab
+    private func prepareSelectedPage(at time: Date, loadsInitialURL: Bool = true) -> Bool {
+        guard let space = browser.shownSpace,
+            let tab = browser.shownTab
         else {
             return false
         }
@@ -264,24 +273,21 @@ final class MobileBrowserPageStore:
             presentedTabIDs = presented
             return true
         }
-        if let existing = host.page(matching: BrowserTabRuntimeAssignment(space: space, tabID: tab.id)) {
-            existing.setCredentialAccessEnabled(
-                space.credentialPreferences.isEnabled
-            )
-            existing.updateNavigationContext(tab: tab)
+        let pageTab = BrowserPageTab(tab, images: browser.core.state.favicons)
+        if let existing = host.page(
+            matching: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID))
+        {
+            existing.setCredentialAccessEnabled(space.settings.credentialPreferences.isEnabled)
+            existing.updateNavigationContext(tab: pageTab)
             activate(existing, presenting: presented)
             return true
         }
         releaseMismatchedPage(of: tab.id)
 
         // The core refuses a page in a locked Space or one being deleted.
-        guard
-            let page = makeResidentPage(
-                for: tab,
-                in: space,
-                loadsInitialURL: loadsInitialURL
-            )
-        else { return false }
+        guard let page = makeResidentPage(for: pageTab, in: space, loadsInitialURL: loadsInitialURL) else {
+            return false
+        }
         host.retain(page, for: tab.id)
         activate(page, presenting: presented)
         return true
@@ -296,15 +302,10 @@ final class MobileBrowserPageStore:
         host.revision &+= 1
     }
 
-    /// The cards `tab` brings on screen, in session member order.
-    ///
-    /// A tab the Space does not carry at all presents alone rather than not at
-    /// all: selection can hand over a value the store has already moved past.
-    private func presentedMemberIDs(
-        for tab: BrowserTab,
-        in space: BrowserSpace
-    ) -> [TabID] {
-        let members = space.presentedSplitMembers(for: tab.id).map(\.id)
+    /// The cards `tab` brings on screen: the ones the core shows beside it in
+    /// this scene, or the tab alone when the scene shows it in none.
+    private func presentedMemberIDs(for tab: TabStateModel, in space: SpaceModel) -> [TabID] {
+        let members = browser.cards(in: space).map(\.id)
         return members.contains(tab.id) ? members : [tab.id]
     }
 
@@ -315,29 +316,26 @@ final class MobileBrowserPageStore:
     /// where the session put it. Answers the page a card can bind, or `nil` when
     /// the tab is not a live member of the selected Space right now.
     @discardableResult
-    func prepareResidentPage(
-        for tabID: TabID,
-        in session: BrowserPresentedSession,
-        at time: Date = .now
-    ) -> MobileBrowserPage? {
-        guard let space = session.selectedSpace,
-            let tab = space.tabs.first(where: { $0.id == tabID })
+    func prepareResidentPage(for tabID: TabID, at time: Date = .now) -> MobileBrowserPage? {
+        guard let space = browser.shownSpace,
+            let tab = space.tabs.model(tabID)
         else { return nil }
 
         if tab.nativeContent != nil {
             nativeTabs.load(tab: tab, space: space, at: time)
             return nil
         }
-        if let existing = host.page(matching: BrowserTabRuntimeAssignment(space: space, tabID: tabID)) {
-            existing.setCredentialAccessEnabled(
-                space.credentialPreferences.isEnabled
-            )
-            existing.updateNavigationContext(tab: tab)
+        let pageTab = BrowserPageTab(tab, images: browser.core.state.favicons)
+        if let existing = host.page(
+            matching: BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID))
+        {
+            existing.setCredentialAccessEnabled(space.settings.credentialPreferences.isEnabled)
+            existing.updateNavigationContext(tab: pageTab)
             return existing
         }
         releaseMismatchedPage(of: tabID)
 
-        guard let page = makeResidentPage(for: tab, in: space) else { return nil }
+        guard let page = makeResidentPage(for: pageTab, in: space) else { return nil }
         host.retain(page, for: tabID)
         return page
     }
@@ -394,66 +392,64 @@ final class MobileBrowserPageStore:
         }
     }
 
-    func reconcile(session: BrowserSession) {
-        host.reconcile(session: session)
+    /// Releases the pages of tabs the scene's workspace no longer holds and
+    /// keeps the rest current.
+    func reconcile() {
+        host.reconcile(workspace: browser.workspaceModel, images: browser.core.state.favicons)
     }
 
-    func reconcileCredentialAccess(in session: BrowserSession) {
-        host.reconcileCredentialAccess(in: session)
+    /// Gives every page its Space's password preference.
+    func reconcileCredentialAccess() {
+        host.reconcileCredentialAccess(in: browser.workspaceModel)
     }
 
-    func reconcileTabIcons(in session: BrowserSession) {
-        host.reconcileTabIcons(in: session)
+    /// Gives each resident page its tab's current context, such as its icon.
+    func reconcileTabIcons() {
+        host.reconcileTabIcons(in: browser.workspaceModel, images: browser.core.state.favicons)
     }
 
-    func deleteData(for space: BrowserSpace) async throws {
+    func deleteData(for space: BrowserSpaceRuntimeAssignment) async throws {
         try await host.deleteData(for: space, on: browser.core, ephemeral: usesEphemeralWebsiteDataStores) {
             await releaseWindowRuntime(for: space)
-            serverTrustOverrides.removeApprovals(for: space.profile.id)
+            serverTrustOverrides.removeApprovals(for: space.profileID)
         }
-        permissionCenter.reset(spaceID: space.id)
+        permissionCenter.reset(spaceID: space.spaceID)
     }
 
-    func releaseWindowRuntime(for space: BrowserSpace) async {
-        guard host.spacesReleasingData.insert(space.id).inserted else {
-            nativeTabs.remove(in: space.id)
+    func releaseWindowRuntime(for space: BrowserSpaceRuntimeAssignment) async {
+        guard host.spacesReleasingData.insert(space.spaceID).inserted else {
+            nativeTabs.remove(in: space.spaceID)
             return
         }
-        defer { host.spacesReleasingData.remove(space.id) }
+        defer { host.spacesReleasingData.remove(space.spaceID) }
         await host.releasePages(of: space)
-        downloadCenter.deleteRecords(
-            profileID: space.profile.id,
-            spaceID: space.id
-        )
+        downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
         if usesEphemeralWebsiteDataStores {
-            ephemeralDataStores.removeValue(forKey: space.profile.id)
+            ephemeralDataStores.removeValue(forKey: space.profileID)
         }
     }
 
-    func closePrivateBrowsingSession(_ session: BrowserSession) {
+    /// Lets go of everything the private workspace kept, in each of the
+    /// Spaces `spaces` names, as its scene closes.
+    func closePrivateBrowsingSession(_ spaces: [BrowserSpaceRuntimeAssignment]) {
         guard browsingMode.isPrivate else { return }
         host.closePrivateBrowsingSession()
         memoryPressureReport?.cancel()
         memoryPressureReport = nil
         activePage = nil
         presentedTabIDs = []
-        for space in session.spaces {
-            downloadCenter.deleteRecords(
-                profileID: space.profile.id,
-                spaceID: space.id
-            )
-            permissionCenter.reset(spaceID: space.id)
+        for space in spaces {
+            downloadCenter.deleteRecords(profileID: space.profileID, spaceID: space.spaceID)
+            permissionCenter.reset(spaceID: space.spaceID)
             Task {
-                await BrowserFaviconFallbackLoader.shared.removeAll(
-                    for: space.profile.id
-                )
+                await BrowserFaviconFallbackLoader.shared.removeAll(for: space.profileID)
             }
         }
         ephemeralDataStores.removeAll()
     }
 
-    func styleVisitedLinks(in space: BrowserSpace) async {
-        await activePage?.styleVisitedLinks(history: space.history)
+    func styleVisitedLinks(in space: SpaceModel) async {
+        await activePage?.styleVisitedLinks(history: space.history.entries)
     }
 
     /// A visit the core recorded in the Space the active page shows restyles
@@ -463,14 +459,14 @@ final class MobileBrowserPageStore:
             records.navigations.contains(where: {
                 $0.workspaceID == browser.window.workspaceID && $0.spaceID == page.spaceID
             }),
-            let space = browser.session.space(id: page.spaceID)
+            let space = browser.spaceModel(page.spaceID)
         else { return }
         Task { @MainActor [weak self] in await self?.styleVisitedLinks(in: space) }
     }
 
     func makePeekPageLease(
         request: BrowserPeekRequest,
-        in space: BrowserSpace,
+        in space: SpaceModel,
         onDownloadOnlyNavigation: @escaping () -> Void
     ) -> MobileBrowserTransientPageLease? {
         guard request.assignment == BrowserSpaceRuntimeAssignment(space: space) else { return nil }
@@ -488,17 +484,13 @@ final class MobileBrowserPageStore:
 
     func makeTransientPageLease(
         url: URL,
-        in space: BrowserSpace,
+        in space: SpaceModel,
         presentation: TransientPresentation = .quickWindow,
         engineNavigation: BrowserEngineNavigation? = nil,
         onUserActivity: @escaping () -> Void = {},
         onDownloadOnlyNavigation: (() -> Void)? = nil
     ) -> MobileBrowserTransientPageLease? {
-        let transientTab = BrowserTab(
-            title: url.host() ?? url.absoluteString,
-            url: url,
-            placement: .current
-        )
+        let transientTab = BrowserPageTab.transient(showing: url)
         return host.makeTransientPageLease(
             url: url, in: space, presentation: presentation, engineNavigation: engineNavigation,
             balancedContentRuleLists: contentBlocking.balancedRuleLists ?? [], onUserActivity: onUserActivity,
@@ -512,8 +504,8 @@ final class MobileBrowserPageStore:
     /// `presentation`; `tab` is the request's own stand-in, which no Space
     /// holds. Nil when the core refuses it.
     private func makeTransientPage(
-        tab: BrowserTab,
-        in space: BrowserSpace,
+        tab: BrowserPageTab,
+        in space: SpaceModel,
         presenting presentation: TransientPresentation
     ) -> MobileBrowserPage? {
         guard
@@ -530,7 +522,7 @@ final class MobileBrowserPageStore:
                 permissionCenter: permissionCenter,
                 serverTrustOverrides: serverTrustOverrides,
                 allowsCredentialAccess: !browsingMode.isPrivate,
-                isCredentialAccessEnabled: space.credentialPreferences.isEnabled,
+                isCredentialAccessEnabled: space.settings.credentialPreferences.isEnabled,
                 defaultPageZoom: pageZoomPreferences.defaultZoom,
                 loadsInitialURL: false,
                 loadHTTPAuthenticationCredential: { [loadHTTPAuthenticationCredential] protectionSpace in
@@ -563,20 +555,21 @@ final class MobileBrowserPageStore:
     /// What WebKit's binding builds a page of `space` from: the Space's
     /// content rules and, where this store keeps nothing, its profile's
     /// ephemeral website data store.
-    private func webKitInputs(for space: BrowserSpace) -> WebKitPageInputs {
-        WebKitPageInputs(websiteDataStore: websiteDataStore(for: space.profile), contentRuleLists: contentRuleLists(for: space))
+    private func webKitInputs(for space: SpaceModel) -> WebKitPageInputs {
+        WebKitPageInputs(
+            websiteDataStore: websiteDataStore(for: space.profileID), contentRuleLists: contentRuleLists(for: space))
     }
 
     @discardableResult
     func adoptTransientPage(
         _ lease: MobileBrowserTransientPageLease,
         as tabID: TabID,
-        in space: BrowserSpace
+        in space: SpaceModel
     ) -> Bool {
-        guard let tab = space.tabs.first(where: { $0.id == tabID }),
+        guard let tab = space.tabs.model(tabID),
             let page = host.adoptTransientPage(lease, as: tabID, in: space, through: browser, prepare: { _ in true })
         else { return false }
-        page.adopt(tabID: tabID, tab: tab)
+        page.adopt(tabID: tabID, tab: BrowserPageTab(tab, images: browser.core.state.favicons))
         host.retain(page, for: tabID)
         activate(page)
         return true
@@ -604,12 +597,12 @@ final class MobileBrowserPageStore:
             !browser.deletingSpaceIDs.contains(opener.spaceID),
             let registration = popupTabHost.openTab(requestedURL, opener.spaceID, selecting),
             registration.space.id == opener.spaceID,
-            registration.space.profile.id == opener.profileID
+            registration.space.profileID == opener.profileID
         else { return nil }
 
         guard
             let page = makeResidentPage(
-                for: registration.tab,
+                for: BrowserPageTab(registration.tab, images: browser.core.state.favicons),
                 in: registration.space,
                 adoptedConfiguration: configuration
             )
@@ -718,14 +711,14 @@ final class MobileBrowserPageStore:
     /// Previously archived state is still purged from disk. This preserves only
     /// live pages, not a disk snapshot of a protected Space. The access views
     /// gate ordinary and transient content until authentication succeeds.
-    func relockProtectedSpace(_ space: BrowserSpace) {
-        guard space.accessPolicy.requiresAuthentication else { return }
+    func relockProtectedSpace(_ space: SpaceModel) {
+        guard space.settings.requiresAuthentication else { return }
         if activePage?.spaceID == space.id
             || presentedTabIDs.contains(where: { host.page(for: $0)?.spaceID == space.id })
         {
             deactivatePagePresentation()
         }
-        host.tabState.removeStates(profileID: space.profile.id)
+        host.tabState.removeStates(profileID: space.profileID)
     }
 
     func reloadOrStop() {
@@ -905,13 +898,13 @@ final class MobileBrowserPageStore:
         host.page(matching: assignment)?.siteThemeIconAccent
     }
 
-    private func websiteDataStore(for profile: BrowsingProfile) -> WKWebsiteDataStore? {
+    private func websiteDataStore(for profileID: UUID) -> WKWebsiteDataStore? {
         guard usesEphemeralWebsiteDataStores else { return nil }
-        if let dataStore = ephemeralDataStores[profile.id] {
+        if let dataStore = ephemeralDataStores[profileID] {
             return dataStore
         }
         let dataStore = WKWebsiteDataStore.nonPersistent()
-        ephemeralDataStores[profile.id] = dataStore
+        ephemeralDataStores[profileID] = dataStore
         return dataStore
     }
 
@@ -921,8 +914,8 @@ final class MobileBrowserPageStore:
     /// handed over; passing it replaces the configuration the binding would
     /// otherwise assemble and leaves the first navigation to WebKit.
     private func makeResidentPage(
-        for tab: BrowserTab,
-        in space: BrowserSpace,
+        for tab: BrowserPageTab,
+        in space: SpaceModel,
         adoptedConfiguration: WKWebViewConfiguration? = nil,
         loadsInitialURL: Bool = true
     ) -> MobileBrowserPage? {
@@ -938,11 +931,8 @@ final class MobileBrowserPageStore:
             loadsInitialURL && adoptedConfiguration == nil
             ? tab.url.flatMap {
                 host.archivedInteractionState(
-                    for: tab,
-                    spaceID: space.id,
-                    profileID: space.profile.id,
-                    expecting: $0
-                )
+                    for: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID),
+                    expecting: $0)
             }
             : nil
         let page = host(
@@ -956,7 +946,7 @@ final class MobileBrowserPageStore:
                 serverTrustOverrides: serverTrustOverrides,
                 mediaSessionStore: mediaSessionStore,
                 allowsCredentialAccess: !browsingMode.isPrivate,
-                isCredentialAccessEnabled: space.credentialPreferences.isEnabled,
+                isCredentialAccessEnabled: space.settings.credentialPreferences.isEnabled,
                 defaultPageZoom: pageZoomPreferences.defaultZoom,
                 // The core loads the tab's address once the page is open.
                 loadsInitialURL: false,
@@ -981,8 +971,8 @@ final class MobileBrowserPageStore:
         return page
     }
 
-    private func contentRuleLists(for space: BrowserSpace) -> [WKContentRuleList] {
-        contentBlocking.ruleLists(for: space.browsingPreferences.contentBlockingPolicy)
+    private func contentRuleLists(for space: SpaceModel) -> [WKContentRuleList] {
+        contentBlocking.ruleLists(for: space.settings.browsingPreferences.contentBlocking)
     }
 
     /// Focuses a page that is already on screen, or brings one on screen beside
@@ -1047,12 +1037,8 @@ final class MobileBrowserPageStore:
 }
 
 extension MobileBrowserPageStore: BrowserTabCopying {
-    func sourceForTabCopy(_ source: BrowserTab, in space: BrowserSpace) -> BrowserTab {
-        host.sourceForTabCopy(source, in: space)
-    }
-
-    func prepareTabCopy(from source: BrowserTab, to copy: inout BrowserTab, in space: BrowserSpace) {
-        host.prepareTabCopy(from: source, to: &copy, in: space)
+    func prepareTabCopy(from source: TabState, copyID: TabID, in space: BrowserSpaceRuntimeAssignment) {
+        host.prepareTabCopy(from: source, copyID: copyID, in: space)
     }
 }
 

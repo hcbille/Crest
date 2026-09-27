@@ -6,64 +6,43 @@ import XCTest
 final class BrowserPageAssignmentTests: XCTestCase {
     func testCurrentSelectionRequiresACompletePresentedRuntime() throws {
         let browser = BrowserStore.hostingPages(.preview)
-        let session = browser.presented
         let pool = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
-        XCTAssertFalse(pool.isPresentingSelection(in: session))
+        XCTAssertFalse(pool.isPresentingSelection())
 
-        pool.select(session: session)
-        XCTAssertTrue(pool.isPresentingSelection(in: session))
-
-        let space = try XCTUnwrap(session.selectedSpace)
-        let replacement = BrowserSpace(
-            id: space.id, profile: BrowsingProfile(), name: space.name,
-            symbol: space.symbol, accent: space.accent, folders: space.folders,
-            tabs: space.tabs
-        )
-        let differentProfile = BrowserPresentedSession(
-            session: BrowserSession(spaces: [replacement]), window: session.window
-        )
-        XCTAssertFalse(pool.isPresentingSelection(in: differentProfile))
+        pool.select()
+        XCTAssertTrue(pool.isPresentingSelection())
 
         pool.deactivatePagePresentation()
-        XCTAssertFalse(pool.isPresentingSelection(in: session))
+        XCTAssertFalse(pool.isPresentingSelection())
         pool.reconcile(validTabIDs: [])
     }
 
     func testCurrentSelectionRejectsChangedSplitMembershipAndFocus() {
         let group = SplitGroupID()
-        let first = BrowserTab(title: "First", url: nil, placement: .current, splitGroupID: group)
-        let second = BrowserTab(title: "Second", url: nil, placement: .current, splitGroupID: group)
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Split",
-            symbol: "circle", accent: .indigo, folders: [],
-            tabs: [first, second]
-        )
-        var session = BrowserSession(spaces: [space])
-        var shownTab = first.id
-        let shown = {
-            BrowserPresentedSession(session: session, window: .preview(showing: space.id, tabs: [space.id: shownTab]))
-        }
-        let pool = BrowserPagePool(browser: .hostingPages(session), usesEphemeralWebsiteDataStores: true)
-        pool.select(session: shown())
-        XCTAssertTrue(pool.isPresentingSelection(in: shown()))
+        let first = TabState.Seed(title: "First", url: nil, placement: .current, splitGroupID: group)
+        let second = TabState.Seed(title: "Second", url: nil, placement: .current, splitGroupID: group)
+        let space = SpaceState.Seed(name: "Split", symbol: "circle", accent: .indigo, tabs: [first, second])
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: first.id])
+        let pool = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
+        pool.select()
+        XCTAssertTrue(pool.isPresentingSelection())
 
-        shownTab = second.id
-        XCTAssertFalse(pool.isPresentingSelection(in: shown()))
-        shownTab = first.id
-        session.spaces[0].tabs.reverse()
-        XCTAssertFalse(pool.isPresentingSelection(in: shown()))
-        session.spaces[0].tabs = [first]
-        XCTAssertFalse(pool.isPresentingSelection(in: shown()))
+        browser.selectTab(second.id)
+        XCTAssertFalse(pool.isPresentingSelection())
+        browser.selectTab(first.id)
+        XCTAssertTrue(pool.isPresentingSelection())
+        XCTAssertTrue(browser.closeTab(second.id))
+        XCTAssertFalse(pool.isPresentingSelection())
         pool.reconcile(validTabIDs: [])
     }
 
     func testActivePageMatchingRequiresTheExactTabSpaceAndProfileAssignment() throws {
         let browser = BrowserStore.hostingPages(.preview)
-        let session = browser.presented
-        let tab = try XCTUnwrap(session.selectedTab)
-        let space = try XCTUnwrap(session.selectedSpace)
+        let tab = try XCTUnwrap(browser.shownTab)
+        let space = try XCTUnwrap(browser.shownSpace)
         let pool = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
-        pool.select(session: session)
+        pool.select()
         let page = try XCTUnwrap(pool.activePage)
 
         XCTAssertTrue(
@@ -71,7 +50,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
                 matching: BrowserTabRuntimeAssignment(
                     tabID: tab.id,
                     spaceID: space.id,
-                    profileID: space.profile.id
+                    profileID: space.profileID
                 )
             ) === page
         )
@@ -80,7 +59,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
                 matching: BrowserTabRuntimeAssignment(
                     tabID: TabID(),
                     spaceID: space.id,
-                    profileID: space.profile.id
+                    profileID: space.profileID
                 )
             )
         )
@@ -89,7 +68,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
                 matching: BrowserTabRuntimeAssignment(
                     tabID: tab.id,
                     spaceID: SpaceID(),
-                    profileID: space.profile.id
+                    profileID: space.profileID
                 )
             )
         )
@@ -110,32 +89,30 @@ final class BrowserPageAssignmentTests: XCTestCase {
     func testPresentedPageMatchingGuardsEveryCardsSpaceAndProfile() throws {
         let groupID = SplitGroupID()
         let members = try (1...2).map { index in
-            BrowserTab(
+            TabState.Seed(
                 title: "Member \(index)",
                 url: try XCTUnwrap(URL(string: "https://split.crest.test/\(index)")),
                 placement: .current,
                 splitGroupID: groupID
             )
         }
-        let outsider = BrowserTab(title: "Outsider", url: nil, placement: .current)
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Split",
+        let outsider = TabState.Seed(title: "Outsider", url: nil, placement: .current)
+        let space = SpaceState.Seed(
+                        name: "Split",
             symbol: "circle",
             accent: .indigo,
             folders: [],
             tabs: members + [outsider]
         )
         let pool = BrowserPagePool(
-            browser: .hostingPages(BrowserSession(spaces: [space])), usesEphemeralWebsiteDataStores: true)
-        pool.select(tab: members[0], space: space)
+            browser: .hostingPages(SessionState.Seed(spaces: [space])), usesEphemeralWebsiteDataStores: true)
+        pool.present(tab: members[0].id, in: space.id)
 
         for member in members {
             let assignment = BrowserTabRuntimeAssignment(
                 tabID: member.id,
                 spaceID: space.id,
-                profileID: space.profile.id
+                profileID: space.profileID
             )
             XCTAssertTrue(
                 pool.presentedPage(matching: assignment)
@@ -147,7 +124,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
                     matching: BrowserTabRuntimeAssignment(
                         tabID: member.id,
                         spaceID: SpaceID(),
-                        profileID: space.profile.id
+                        profileID: space.profileID
                     )
                 )
             )
@@ -166,7 +143,7 @@ final class BrowserPageAssignmentTests: XCTestCase {
                 matching: BrowserTabRuntimeAssignment(
                     tabID: outsider.id,
                     spaceID: space.id,
-                    profileID: space.profile.id
+                    profileID: space.profileID
                 )
             ),
             "A tab outside the presented group has no card to bind."

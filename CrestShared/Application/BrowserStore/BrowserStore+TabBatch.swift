@@ -125,13 +125,13 @@ extension BrowserStore {
     /// selects what the action leaves selected, and remembers the tab the
     /// window follows to another Space. Throws the rule that refused it.
     func send(_ batch: BrowserTabBatch, for request: BrowserCapturedSelection) throws(Rejection) {
-        let source = space(matching: request.assignment)
+        let sources = spaceModel(matching: request.assignment).map(BrowserTabCopySources.init)
         let changes = try family.commit(batch.intent, from: self)
         let copies: [TabCopied] = changes.compactMap {
             guard case .tabCopied(let copied) = $0, copied.workspaceID == family.workspaceID else { return nil }
             return copied
         }
-        if let source { prepareAcceptedCopies(copies, from: source) }
+        if let sources { prepareAcceptedCopies(copies, from: sources) }
         pendingMovedTabActivation = batch.following.flatMap { destination in
             selectedTabID(in: destination.spaceID).map {
                 BrowserTabRuntimeAssignment(tabID: $0, spaceID: destination.spaceID, profileID: destination.profileID)

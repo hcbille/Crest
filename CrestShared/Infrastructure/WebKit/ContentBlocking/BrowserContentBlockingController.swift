@@ -28,8 +28,10 @@ final class BrowserContentBlockingController {
         balancedRuleLists = nil
     }
 
-    func reconcile(in session: BrowserSession) async -> BrowserContentBlockingUpdate {
-        let state = BrowserContentBlockingSessionState(session: session)
+    /// Prepares the rule lists any Space of `workspace` needs, and answers
+    /// what changed since the last reconciliation.
+    func reconcile(in workspace: WorkspaceModel?) async -> BrowserContentBlockingUpdate {
+        let state = BrowserContentBlockingSessionState(workspace: workspace)
         if state.policiesBySpaceID.values.contains(where: \.blocksContent) {
             await prepare()
         }

@@ -8,15 +8,13 @@ final class BrowserHostedWebNotificationTests: XCTestCase {
     func testLivePageBridgeReportsPermissionDeliversAndReceivesClicks() async throws {
         let originURL = try XCTUnwrap(URL(string: "https://notifications.crest.test/"))
         let origin = try XCTUnwrap(SiteOrigin(url: originURL))
-        let tab = BrowserTab(
+        let tab = TabState.Seed(
             title: "Notifications",
             url: nil,
             placement: .current
         )
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Work",
+        let space = SpaceState.Seed(
+                        name: "Work",
             symbol: "briefcase",
             accent: .teal,
             folders: [],
@@ -25,7 +23,7 @@ final class BrowserHostedWebNotificationTests: XCTestCase {
                 searchProvider: .google,
                 currentTabCleanupPolicy: .never,
                 contentBlockingPolicy: .off
-            )
+            ).core
         )
         let permissionCenter = BrowserSitePermissionCenter()
         permissionCenter.setDecision(
@@ -38,13 +36,13 @@ final class BrowserHostedWebNotificationTests: XCTestCase {
             authorization: .authorized
         )
         let pool = BrowserPagePool(
-            browser: .hostingPages(BrowserSession(spaces: [space])),
+            browser: .hostingPages(SessionState.Seed(spaces: [space])),
             usesEphemeralWebsiteDataStores: true,
             permissionCenter: permissionCenter,
             hostedNotificationCenter: systemCenter
         )
 
-        pool.select(tab: tab, space: space)
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
         page.webView.loadSimulatedRequest(
             URLRequest(url: originURL),

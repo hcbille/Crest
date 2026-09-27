@@ -44,12 +44,12 @@ final class BrowserSettingsPrivacyPolicyTests: XCTestCase {
             case .missingDestination:
                 browser.removeSpaceForTesting(destination.id)
             }
-            let before = browser.session
+            let before = browser.sessionSeed
             let revision = browser.sessionRevision
 
             XCTAssertNil(action.select(destination.id, matching: assignment), "\(invalidation)")
 
-            XCTAssertEqual(browser.session, before, "\(invalidation)")
+            XCTAssertEqual(browser.sessionSeed, before, "\(invalidation)")
             XCTAssertEqual(browser.sessionRevision, revision, "\(invalidation)")
         }
     }
@@ -59,7 +59,7 @@ final class BrowserSettingsPrivacyPolicyTests: XCTestCase {
         session.spaces[0].settings.accessPolicy = .deviceOwnerAuthentication
         session.spaces[1].settings.accessPolicy = .deviceOwnerAuthentication
         let browser = BrowserStore(seed: session)
-        let spaces = browser.session.spaces
+        let spaces = browser.spaceModels
         let access = BrowserSpaceAccessController(
             authenticator: SettingsPrivacyAuthenticatorStub(result: true)
         )

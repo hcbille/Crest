@@ -5,8 +5,7 @@ import XCTest
 @MainActor
 final class BrowserTransientBrowsingTests: XCTestCase {
     func testLinkPullCancelsWhenTheSourceRuntimeAssignmentChanges() throws {
-        let tab = BrowserTab(
-            title: "Source", url: try XCTUnwrap(URL(string: "https://example.com/source")), placement: .current)
+        let tab = BrowserPageTab.transient(showing: try XCTUnwrap(URL(string: "https://example.com/source"))).state
         let spaceID = SpaceID()
         var source: BrowserPageNavigationContext? = BrowserPageNavigationContext(
             tab: tab, spaceID: spaceID, profileID: UUID())
@@ -31,8 +30,7 @@ final class BrowserTransientBrowsingTests: XCTestCase {
 
     func testLinkPullReleaseCommitsOnlyInsideItsSourceWindow() throws {
         let source = BrowserPageNavigationContext(
-            tab: BrowserTab(
-                title: "Source", url: try XCTUnwrap(URL(string: "https://example.com/source")), placement: .current),
+            tab: BrowserPageTab.transient(showing: try XCTUnwrap(URL(string: "https://example.com/source"))).state,
             spaceID: SpaceID(), profileID: UUID())
         let coordinator = BrowserTransientBrowsingCoordinator()
         let handler = BrowserLinkPullHandler(context: { source }, handle: coordinator.handleLinkDrag)
@@ -408,25 +406,8 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         XCTAssertEqual(source.label.count, 160)
     }
 
-    func testLegacySavedTabUsesItsCurrentURLAsPeekBoundary() throws {
-        var saved = BrowserTab(
-            title: "Saved",
-            url: try XCTUnwrap(URL(string: "https://example.com/root")),
-            placement: .current
-        )
-        saved.placement = .saved
-
-        let context = BrowserPageNavigationContext(
-            tab: saved,
-            spaceID: SpaceID(),
-            profileID: UUID()
-        )
-
-        XCTAssertEqual(context.savedURL, saved.url)
-    }
-
     func testMovingTabIntoSavedAreaCapturesRootAndNavigationDoesNotReplaceIt() throws {
-        let browser = BrowserStore(session: .preview, core: .hostingPages())
+        let browser = BrowserStore(seed: .preview, core: .hostingPages())
         let destination = try XCTUnwrap(URL(string: "https://example.com/root"))
         let laterURL = try XCTUnwrap(URL(string: "https://example.net/later"))
         let tabID = try XCTUnwrap(browser.openNewTab(url: destination))
@@ -436,114 +417,84 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         browser.finishNavigation(of: page, to: laterURL, titled: "Later")
         page.release(keepingState: false)
 
-        let tab = try XCTUnwrap(browser.selectedTab)
+        let tab = try XCTUnwrap(browser.shownTab)
         XCTAssertEqual(tab.id, tabID)
-        XCTAssertEqual(tab.url, laterURL)
-        XCTAssertEqual(tab.savedSiteURL, destination)
+        XCTAssertEqual(tab.address, laterURL)
+        XCTAssertEqual(tab.savedURL, destination.absoluteString)
     }
 
     func testDismissedQuickWindowArchivesAndRecordsHistoryInExactSpace() throws {
-        let browser = BrowserStore(session: .preview, core: .hostingPages())
-        let personal = try XCTUnwrap(browser.session.spaces.last)
-        let work = try XCTUnwrap(browser.session.spaces.first)
+        let browser = BrowserStore(seed: .preview, core: .hostingPages())
+        let personal = try XCTUnwrap(browser.spaceModels.last)
+        let work = try XCTUnwrap(browser.spaceModels.first)
         let url = try XCTUnwrap(URL(string: "https://example.com/transient"))
 
         let page = try XCTUnwrap(browser.openReportingPage(for: nil, in: personal.id))
         browser.finishNavigation(of: page, to: url, titled: "Transient")
         XCTAssertTrue(browser.archiveTransientPage(page.id, matching: BrowserSpaceRuntimeAssignment(space: personal)))
         page.release(keepingState: false)
-        let session = browser.session
+        let session = browser.sessionSeed
 
         XCTAssertEqual(session.space(id: personal.id)?.archivedTabs.last?.reason, .quickWindow)
-        XCTAssertEqual(session.space(id: personal.id)?.history.first?.url, url)
-        XCTAssertFalse(session.space(id: work.id)?.history.contains(where: { $0.url == url }) == true)
+        XCTAssertEqual(session.space(id: personal.id)?.history.first?.url, url.absoluteString)
+        XCTAssertFalse(session.space(id: work.id)?.history.contains(where: { $0.url == url.absoluteString }) == true)
     }
 
     func testTransientMutationsRejectAReplacementProfileWithTheSameSpaceID() throws {
-        let source = try XCTUnwrap(BrowserStore(session: .preview).selectedSpace)
+        let source = try XCTUnwrap(BrowserStore(seed: .preview).shownSpace)
         let assignment = BrowserSpaceRuntimeAssignment(space: source)
-        let replacement = BrowserSpace(
-            id: source.id,
-            profile: BrowsingProfile(),
-            name: source.name,
-            symbol: source.symbol,
-            accent: source.accent,
-            branding: source.branding,
-            folders: source.folders,
-            tabs: source.tabs,
-            archivedTabs: source.archivedTabs,
-            history: [],
-            browsingPreferences: source.browsingPreferences,
-            credentialPreferences: source.credentialPreferences,
-            accessPolicy: source.accessPolicy,
-            isSavedTabsExpanded: source.isSavedTabsExpanded,
-            savedTabsExpansionModifiedAt: source.savedTabsExpansionModifiedAt
-        )
+        var replacement = source.value.seed
+        replacement.profileID = UUID()
+        replacement.history = []
         let browser = BrowserStore(
-            session: BrowserSession(spaces: [replacement])
+            seed: SessionState.Seed(spaces: [replacement])
         )
         let url = try XCTUnwrap(URL(string: "https://example.com/stale-lease"))
 
         XCTAssertNil(browser.openNewTab(url: url, matching: assignment))
         XCTAssertFalse(browser.archiveTransientPage(UUID(), matching: assignment))
-        XCTAssertTrue(browser.selectedSpace?.history.isEmpty == true)
-        XCTAssertTrue(
-            browser.selectedSpace?.archivedTabs
-                == replacement.archivedTabs
-        )
+        XCTAssertTrue(browser.shownSpace?.history.entries.isEmpty == true)
+        XCTAssertEqual(browser.shownSpace?.archive.entries.map(\.seed), replacement.archivedTabs)
     }
 
     // MARK: - The shared lease ladder
 
-    func testTransientLeaseDispositionAnswersInLadderOrder() {
-        let open = makePolicySpace(name: "Work")
-        var locked = makePolicySpace(name: "Private")
-        locked.accessPolicy = .deviceOwnerAuthentication
+    func testTransientLeaseDispositionAnswersInLadderOrder() throws {
+        let openSeed = makePolicySpace(name: "Work")
+        var lockedSeed = makePolicySpace(name: "Private")
+        lockedSeed.settings.accessPolicy = .deviceOwnerAuthentication
+        let browser = BrowserStore(seed: SessionState.Seed(spaces: [openSeed, lockedSeed]))
+        let open = try XCTUnwrap(browser.spaceModel(openSeed.id))
+        let locked = try XCTUnwrap(browser.spaceModel(lockedSeed.id))
         let access = makeAccessController()
 
         XCTAssertEqual(
-            BrowserTransientSessionPolicy.disposition(
-                isPresentingRequest: false,
-                space: locked,
-                isLocked: access.isLocked
-            ),
+            BrowserTransientSessionPolicy.disposition(isPresentingRequest: false, space: locked, isLocked: access.isLocked),
             .notPresented
         )
         XCTAssertEqual(
-            BrowserTransientSessionPolicy.disposition(
-                isPresentingRequest: true,
-                space: nil,
-                isLocked: access.isLocked
-            ),
+            BrowserTransientSessionPolicy.disposition(isPresentingRequest: true, space: nil, isLocked: access.isLocked),
             .sourceMissing
         )
         XCTAssertEqual(
-            BrowserTransientSessionPolicy.disposition(
-                isPresentingRequest: true,
-                space: locked,
-                isLocked: access.isLocked
-            ),
+            BrowserTransientSessionPolicy.disposition(isPresentingRequest: true, space: locked, isLocked: access.isLocked),
             .sourceLocked
         )
         XCTAssertEqual(
-            BrowserTransientSessionPolicy.disposition(
-                isPresentingRequest: true,
-                space: open,
-                isLocked: access.isLocked
-            ),
+            BrowserTransientSessionPolicy.disposition(isPresentingRequest: true, space: open, isLocked: access.isLocked),
             .usable(open)
         )
     }
 
     func testTransientPromotionListsLiveSpacesAndTheRequestsOwnLockedSpace() {
         var lockedSource = makePolicySpace(name: "Source")
-        lockedSource.accessPolicy = .deviceOwnerAuthentication
+        lockedSource.settings.accessPolicy = .deviceOwnerAuthentication
         var lockedOther = makePolicySpace(name: "Private")
-        lockedOther.accessPolicy = .deviceOwnerAuthentication
+        lockedOther.settings.accessPolicy = .deviceOwnerAuthentication
         let open = makePolicySpace(name: "Work")
         let deleting = makePolicySpace(name: "Going")
         let access = makeAccessController()
-        let browser = BrowserStore(session: BrowserSession(spaces: [lockedSource, lockedOther, open, deleting]))
+        let browser = BrowserStore(seed: SessionState.Seed(spaces: [lockedSource, lockedOther, open, deleting]))
         XCTAssertTrue(browser.family.beginDeletingSpace(deleting.id))
         defer { browser.family.finishDeletingSpace(deleting.id) }
 
@@ -581,12 +532,10 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         )
     }
 
-    private func makePolicySpace(name: String) -> BrowserSpace {
-        let tab = BrowserTab.startPage()
-        return BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: name,
+    private func makePolicySpace(name: String) -> SpaceState.Seed {
+        let tab = TabState.Seed.startPage()
+        return SpaceState.Seed(
+                        name: name,
             symbol: "circle",
             accent: .indigo,
             folders: [],

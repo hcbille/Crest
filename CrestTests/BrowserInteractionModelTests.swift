@@ -11,16 +11,16 @@ final class BrowserInteractionModelTests: XCTestCase {
     func testSpaceIdentityAndOrderingRemainStableAcrossEdits() throws {
         let browser = BrowserStore(seed: .preview)
         let profilesBySpaceID = Dictionary(
-            uniqueKeysWithValues: browser.session.spaces.map {
-                ($0.id, $0.profile.id)
+            uniqueKeysWithValues: browser.spaceModels.map {
+                ($0.id, $0.profileID)
             }
         )
         browser.addSpace()
-        let movedID = try XCTUnwrap(browser.session.spaces.first?.id)
+        let movedID = try XCTUnwrap(browser.spaceModels.first?.id)
 
         browser.moveSpaces(
-            from: IndexSet(integer: browser.session.spaces.startIndex),
-            to: browser.session.spaces.endIndex
+            from: IndexSet(integer: browser.spaceModels.startIndex),
+            to: browser.spaceModels.endIndex
         )
         browser.updateSpaceIdentity(
             movedID,
@@ -29,14 +29,14 @@ final class BrowserInteractionModelTests: XCTestCase {
             accent: .teal
         )
 
-        let session = browser.session
+        let session = browser.sessionSeed
         let moved = try XCTUnwrap(session.spaces.last)
         XCTAssertEqual(moved.id, movedID)
-        XCTAssertEqual(moved.name, "Research")
-        XCTAssertEqual(moved.symbol, "graduationcap.fill")
-        XCTAssertEqual(moved.accent, .teal)
+        XCTAssertEqual(moved.settings.name, "Research")
+        XCTAssertEqual(moved.settings.symbol, "graduationcap.fill")
+        XCTAssertEqual(moved.settings.accent, .teal)
         for (spaceID, profileID) in profilesBySpaceID {
-            XCTAssertEqual(session.space(id: spaceID)?.profile.id, profileID)
+            XCTAssertEqual(session.space(id: spaceID)?.profileID, profileID)
         }
         XCTAssertEqual(browser.selectedSpaceID, session.spaces.dropLast().last?.id)
     }
@@ -929,13 +929,13 @@ final class BrowserInteractionModelTests: XCTestCase {
 
     func testDraggingIntoAnotherSpacesSectionReownsTheTabAndContinuesTheLiveDrag() throws {
         let browser = BrowserStore.preview()
-        let source = try XCTUnwrap(browser.session.spaces.first)
-        let destination = try XCTUnwrap(browser.session.spaces.last)
+        let source = try XCTUnwrap(browser.spaceModels.first)
+        let destination = try XCTUnwrap(browser.spaceModels.last)
         let tab = try XCTUnwrap(source.currentTabs.first)
         let item = BrowserTabDragItem(
             tabID: tab.id,
             spaceID: source.id,
-            profileID: source.profile.id
+            profileID: source.profileID
         )
         let sidebarInteraction = BrowserSidebarInteractionState.connected(to: browser)
         let token = sidebarInteraction.tabDragState.begin(item: item, placement: tab.placement)
@@ -949,12 +949,12 @@ final class BrowserInteractionModelTests: XCTestCase {
             )
         )
 
-        XCTAssertFalse(try XCTUnwrap(browser.session.space(id: source.id)).contains(tab.id))
+        XCTAssertFalse(try XCTUnwrap(browser.spaceModel(source.id)).tabs.contains(tab.id))
         let moved = try XCTUnwrap(
-            browser.session.space(id: destination.id)?.tabs.first(where: { $0.id == tab.id })
+            browser.spaceModel(destination.id)?.tabs.models.first(where: { $0.id == tab.id })
         )
         XCTAssertEqual(moved.placement, .saved)
-        XCTAssertEqual(browser.selectedTab?.id, tab.id)
+        XCTAssertEqual(browser.shownTab?.id, tab.id)
         XCTAssertEqual(sidebarInteraction.tabDragState.item?.spaceID, destination.id)
         XCTAssertEqual(sidebarInteraction.tabDragState.currentPlacement, .current)
         XCTAssertEqual(sidebarInteraction.tabDragState.sessionToken, token)
@@ -990,20 +990,20 @@ final class BrowserInteractionModelTests: XCTestCase {
             persistedSidebarWidth: BrowserChromeLayout.sidebarIdealWidth
         )
         // Launch shows the Space's first open tab, so show its Start Page.
-        let startPage = try XCTUnwrap(browser.selectedSpace?.currentTabs.first { $0.isStartPage })
+        let startPage = try XCTUnwrap(browser.shownSpace?.currentTabs.first { $0.isStartPage })
         browser.selectTab(startPage.id)
-        let selectedSpaceID = try XCTUnwrap(browser.selectedSpace?.id)
-        let selectedTabID = try XCTUnwrap(browser.selectedTab?.id)
+        let selectedSpaceID = try XCTUnwrap(browser.shownSpace?.id)
+        let selectedTabID = try XCTUnwrap(browser.shownTab?.id)
         XCTAssertEqual(selectedTabID, startPage.id)
-        let currentTabs = try XCTUnwrap(browser.selectedSpace?.currentTabs.map(\.id))
+        let currentTabs = try XCTUnwrap(browser.shownSpace?.currentTabs.map(\.id))
         let initialFocusRequest = chrome.startPageFocusRequest
 
         model.openNewTab()
         model.openNewTab()
 
-        XCTAssertEqual(browser.selectedSpace?.id, selectedSpaceID)
-        XCTAssertEqual(browser.selectedTab?.id, selectedTabID)
-        XCTAssertEqual(browser.selectedSpace?.currentTabs.map(\.id), currentTabs)
+        XCTAssertEqual(browser.shownSpace?.id, selectedSpaceID)
+        XCTAssertEqual(browser.shownTab?.id, selectedTabID)
+        XCTAssertEqual(browser.shownSpace?.currentTabs.map(\.id), currentTabs)
         XCTAssertNil(chrome.commandPaletteMode)
         XCTAssertEqual(chrome.startPageFocusRequest, initialFocusRequest + 2)
     }

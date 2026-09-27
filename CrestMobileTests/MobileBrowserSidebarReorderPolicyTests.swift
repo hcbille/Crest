@@ -4,8 +4,8 @@ import XCTest
 
 @testable import CrestMobile
 
-private func padTab(id: TabID, title: String) -> BrowserTab {
-    BrowserTab(
+private func padTab(id: TabID, title: String) -> TabState.Seed {
+    TabState.Seed(
         id: id,
         title: title,
         url: URL(string: "https://\(id.uuidString).crest.test"),
@@ -693,10 +693,10 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
         let drop = try XCTUnwrap(fixture.state.end())
         fixture.commit(drop)
 
-        let space = try XCTUnwrap(fixture.browser.selectedSpace)
-        let groupID = try XCTUnwrap(space.splitGroup(containing: fixture.cards[0].id))
+        let space = try XCTUnwrap(fixture.browser.shownSpace)
+        let groupID = try XCTUnwrap(space.shownSplit(containing: fixture.cards[0].id))
         XCTAssertEqual(
-            space.splitGroupMembers(of: groupID).map(\.id),
+            space.splitMembers(of: groupID).map(\.id),
             [fixture.cards[0].id, fixture.joiner.id],
             "Dropped on the trailing half, the carried tab lands behind the "
                 + "card that was already there."
@@ -716,8 +716,8 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
         let sidebarInteraction: BrowserSidebarInteractionState
         let browser: BrowserStore
         let spaceAccess = BrowserSpaceAccessController()
-        let cards: [BrowserTab]
-        let joiner: BrowserTab
+        let cards: [TabState.Seed]
+        let joiner: TabState.Seed
         let section = BrowserSidebarReorderSection.tabs(
             placement: .current,
             folderID: nil
@@ -745,9 +745,9 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
                 id: padUUID(0x30),
                 title: "Joiner"
             )
-            let space = BrowserSpace(
+            let space = SpaceState.Seed(
                 id: spaceID,
-                profile: BrowsingProfile(id: profileID),
+                profileID: profileID,
                 name: "Reading",
                 symbol: "rectangle.stack",
                 accent: .indigo,
@@ -755,7 +755,7 @@ final class MobileBrowserSidebarReorderPolicyTests: XCTestCase {
                 tabs: cards + [joiner]
             )
             browser = BrowserStore(
-                session: BrowserSession(spaces: [space]),
+                seed: SessionState.Seed(spaces: [space]),
                 showing: space.id, tabs: [space.id: cards.first?.id ?? joiner.id],
                 browsingMode: .privateBrowsing
             )

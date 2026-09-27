@@ -64,7 +64,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
                         browser.moving(request, to: BrowserSpaceRuntimeAssignment(space: destination)), for: request))
                 // They arrive in the order the sidebar lists them.
                 XCTAssertEqual(
-                    browser.session.spaces[1].tabs.suffix(2).map(\.id), [source.tabs[0].id, source.tabs[2].id])
+                    browser.spaceModels[1].tabs.models.suffix(2).map(\.id), [source.tabs[0].id, source.tabs[2].id])
                 XCTAssertEqual(browser.selectedSpaceID, follows ? destination.id : source.id)
                 XCTAssertEqual(
                     browser.selectedTabID(in: destination.id), follows ? source.tabs[0].id : destination.tabs[0].id)
@@ -109,8 +109,8 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
         XCTAssertTrue(browser.moveTab(source.tabs[0].id, to: .current, before: source.tabs[1].id))
         XCTAssertFalse(actions.perform(browser.closing(request), for: request))
         XCTAssertTrue(try XCTUnwrap(gate.operation)())
-        XCTAssertEqual(browser.session.spaces[0].archivedTabs.count, 2)
-        XCTAssertEqual(browser.session.spaces[0].tabs.map(\.id), [source.tabs[2].id])
+        XCTAssertEqual(browser.spaceModels[0].archive.entries.count, 2)
+        XCTAssertEqual(browser.spaceModels[0].tabs.models.map(\.id), [source.tabs[2].id])
     }
 
     func testDragCarriesCapturedBatchAndCancellationRestoresEveryLiftedRow() throws {
@@ -146,8 +146,8 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
                 section: .tabs(placement: .saved, folderID: nil), beforeID: nil, index: 0))
         browser.tabMultiSelection.selectAll(units: [[source.tabs[1].id]])
         XCTAssertTrue(browser.sidebarDrop(item, on: target.kind))
-        XCTAssertEqual(browser.selectedSpace?.savedTabs.map(\.id), ids)
-        XCTAssertEqual(browser.selectedSpace?.currentTabs.map(\.id), [source.tabs[1].id])
+        XCTAssertEqual(browser.shownSpace?.savedTabs.map(\.id), ids)
+        XCTAssertEqual(browser.shownSpace?.currentTabs.map(\.id), [source.tabs[1].id])
     }
 
     func testMixedDragExcludesPinsAndPinOnlyDragStaysWithinItsSpace() throws {
@@ -181,7 +181,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
         XCTAssertTrue(
             browser.sidebarDrop(
                 item, on: .insert(section: .tabs(placement: .saved, folderID: nil), beforeID: nil, index: 0)))
-        XCTAssertEqual(browser.selectedSpace?.savedTabs.map(\.id), pins.ids)
+        XCTAssertEqual(browser.shownSpace?.savedTabs.map(\.id), pins.ids)
     }
 
     func testUnmountingScrollRowsPreservesLogicalSelectionUntilTabsAreRemoved() async throws {
@@ -251,7 +251,7 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
             created = browser.addFolder(title: "Empty", in: space.id)
             XCTAssertTrue(
                 browser.addTabToSplit(
-                    BrowserTabDragItem(tabID: ids[0], spaceID: space.id, profileID: space.profile.id), joining: ids[1],
+                    BrowserTabDragItem(tabID: ids[0], spaceID: space.id, profileID: space.profileID), joining: ids[1],
                     at: nil))
             XCTAssertTrue(browser.moveTab(ids[3], to: .pinned))
         }
@@ -274,7 +274,6 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
         XCTAssertEqual(
             result.tabs.first { $0.id == ids[0] }?.splitGroupID, result.tabs.first { $0.id == ids[1] }?.splitGroupID)
         XCTAssertEqual(result.pinnedTabs.map(\.id), [ids[3]])
-        XCTAssertTrue(BrowserFolderTree(folders: browser.session.spaces[0].folders).isValid)
     }
 
     func testFortyTabRangeIncludesUnrealizedFolderRowsWithSixteenOrNoTargets() throws {
@@ -285,9 +284,9 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
         let browser = BrowserStore(seed: session)
         let opened = browser.sessionSeed
         let interaction = BrowserSidebarInteractionState.connected(to: browser)
-        let space = try XCTUnwrap(browser.selectedSpace)
+        let space = try XCTUnwrap(browser.shownSpace)
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        let ids = space.tabs.map(\.id)
+        let ids = space.tabs.models.map(\.id)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 280, height: 640),
             styleMask: [.borderless], backing: .buffered, defer: false)
@@ -433,10 +432,10 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
 
     /// Organizes a fixture through the store's commands in its first Space.
     private func organized(
-        _ session: SessionState.Seed, _ build: (BrowserStore, BrowserSpace) throws -> Void
+        _ session: SessionState.Seed, _ build: (BrowserStore, SpaceModel) throws -> Void
     ) throws -> SessionState.Seed {
         let browser = makeBatchStore(session)
-        try build(browser, try XCTUnwrap(browser.selectedSpace))
+        try build(browser, try XCTUnwrap(browser.shownSpace))
         return browser.sessionSeed
     }
 

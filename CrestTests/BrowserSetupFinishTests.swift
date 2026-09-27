@@ -6,9 +6,9 @@ import XCTest
 final class BrowserSetupFinishTests: XCTestCase {
     func testFinishingOpensTheGuideInTheFirstSpaceOnceAndCompletesSetup() async throws {
         let browser = BrowserStore.preview()
-        let first = try XCTUnwrap(browser.session.spaces.first)
-        browser.selectSpace(try XCTUnwrap(browser.session.spaces.last?.id))
-        let originalTabs = first.tabs
+        let first = try XCTUnwrap(browser.spaceModels.first)
+        browser.selectSpace(try XCTUnwrap(browser.spaceModels.last?.id))
+        let originalTabs = first.tabs.values
         let access = BrowserSpaceAccessController()
 
         try browser.core.send(StartSetup(workspaceID: browser.family.workspaceID, entry: .firstRun))
@@ -16,24 +16,25 @@ final class BrowserSetupFinishTests: XCTestCase {
 
         guard case .completed(let opened) = result, let guide = opened else { return XCTFail("No guide opened") }
         XCTAssertEqual(guide.spaceID, first.id)
-        XCTAssertEqual(guide.profileID, first.profile.id)
-        XCTAssertEqual(browser.selectedTab?.id, guide.tabID)
-        XCTAssertEqual(browser.selectedSpace?.tabs.filter { $0.nativeContent != .gettingStarted }, originalTabs)
+        XCTAssertEqual(guide.profileID, first.profileID)
+        XCTAssertEqual(browser.shownTab?.id, guide.tabID)
+        XCTAssertEqual(
+            browser.shownSpace?.tabs.values.filter { $0.nativeContent?.kind != BrowserNativeTabContent.gettingStarted.kind }, originalTabs)
         XCTAssertEqual(browser.core.state.setupCompleted, true)
 
         try browser.core.send(StartSetup(workspaceID: browser.family.workspaceID, entry: .rerun))
         let replay = await BrowserSetupFinish.finish(browser: browser, spaceAccess: access)
         XCTAssertEqual(replay, .completed(guide: guide))
-        XCTAssertEqual(browser.selectedSpace?.tabs.filter { $0.nativeContent == .gettingStarted }.count, 1)
+        XCTAssertEqual(browser.shownSpace?.tabs.models.filter { $0.nativeTabContent == .gettingStarted }.count, 1)
     }
 
     /// The guide never opens in a locked first Space. Finishing asks to unlock
     /// it first; a refusal applies nothing and leaves setup to finish, and
     /// the retry applies the manual setup once over whatever changed meanwhile.
     func testARefusedUnlockLeavesSetupUnfinishedUntilARetryAppliesTheManualSetupOnce() async throws {
-        var session = BrowserSession.preview
-        session.spaces[0].accessPolicy = .deviceOwnerAuthentication
-        let browser = BrowserStore(session: session)
+        var session = SessionState.Seed.preview
+        session.spaces[0].settings.accessPolicy = .deviceOwnerAuthentication
+        let browser = BrowserStore(seed: session)
         let authenticator = SetupFinishAuthenticator()
         let access = BrowserSpaceAccessController(authenticator: authenticator)
         browser.attachSpaceAccess(access)
@@ -41,26 +42,26 @@ final class BrowserSetupFinishTests: XCTestCase {
         try browser.core.send(ShowSetupStep(step: .manualSetup))
         let setup = BrowserManualSetupModel(core: browser.core)
         let addedID = try XCTUnwrap(setup.addSpace())
-        let before = browser.session
+        let before = browser.sessionSeed
 
         let refused = Task { await BrowserSetupFinish.finish(browser: browser, spaceAccess: access) }
         await authenticator.waitForRequest()
         authenticator.resolve(false)
         let refusal = await refused.value
         XCTAssertEqual(refusal, .cancelled)
-        XCTAssertEqual(browser.session, before)
+        XCTAssertEqual(browser.sessionSeed, before)
         XCTAssertNotNil(setup.draft)
         XCTAssertNotEqual(browser.core.state.setupCompleted, true)
 
         let retry = Task { await BrowserSetupFinish.finish(browser: browser, spaceAccess: access) }
         await authenticator.waitForRequest()
-        let updated = browser.session.spaces[1]
-        XCTAssertTrue(browser.setTabCustomTitle("Updated during setup", for: updated.tabs[0].id, in: updated.id))
+        let updated = browser.spaceModels[1]
+        XCTAssertTrue(browser.setTabCustomTitle("Updated during setup", for: updated.tabs.models[0].id, in: updated.id))
         authenticator.resolve(true)
         guard case .completed(let guide) = await retry.value else { return XCTFail("Setup did not complete") }
         XCTAssertEqual(guide?.spaceID, before.spaces.first?.id)
-        XCTAssertEqual(browser.session.spaces.filter { $0.id == addedID }.count, 1)
-        XCTAssertEqual(browser.session.space(id: updated.id)?.tabs[0].customTitle, "Updated during setup")
+        XCTAssertEqual(browser.spaceModels.filter { $0.id == addedID }.count, 1)
+        XCTAssertEqual(browser.spaceModel(updated.id)?.tabs.models[0].customTitle, "Updated during setup")
         XCTAssertNil(setup.draft)
         XCTAssertEqual(browser.core.state.setupCompleted, true)
     }

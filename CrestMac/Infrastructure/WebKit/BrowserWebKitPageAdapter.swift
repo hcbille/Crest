@@ -264,7 +264,7 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
         }
     }
 
-    func styleVisitedLinks(history: [BrowserHistoryEntry]) async {
+    func styleVisitedLinks(history: [HistoryEntryState]) async {
         await BrowserVisitedLinkStyler.apply(history: history, to: webView)
     }
 

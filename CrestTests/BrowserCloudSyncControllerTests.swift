@@ -136,7 +136,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
     func testUseThisDeviceResolutionStagesAnOverwriteAndPersistsTheChoice() async throws {
         let device = try await syncedDevice()
-        let local = device.store.session
+        let local = device.store.sessionSeed
         _ = try awaitingAccountDecision(device.core)
         let preferences = TestBrowserCloudSyncPreferences()
         let remote = TestBrowserCloudSyncRemoteService(
@@ -155,7 +155,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
         await controller.resolveUsingThisDevice()
 
-        XCTAssertEqual(device.store.session, local)
+        XCTAssertEqual(device.store.sessionSeed, local)
         let journal = try device.storedJournal()
         XCTAssertEqual(journal.pending.count, journal.records.count)
         XCTAssertTrue(journal.records.allSatisfy { journal.pending.contains($0.reference) })
@@ -317,7 +317,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
 
     func testPullUsesFreshSnapshotTransportAndReportsItsCount() async throws {
         let device = try await syncedDevice()
-        let local = device.store.session
+        let local = device.store.sessionSeed
         let factory = TestBrowserCloudSyncTransportFactory()
         let controller = BrowserCloudSyncController(
             core: device.core, configuration: testConfiguration,
@@ -334,7 +334,7 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         XCTAssertEqual(controller.lastFetchedRecordCount, 4)
         XCTAssertEqual(controller.observedCloudRecordCount, 4)
         XCTAssertNotNil(controller.lastSuccessAt)
-        XCTAssertEqual(device.store.session, local)
+        XCTAssertEqual(device.store.sessionSeed, local)
 
         controller.isEnabled = false
         for _ in 0..<100 where await transport.stopCount == 0 { await Task.yield() }

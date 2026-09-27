@@ -1,8 +1,10 @@
 import Foundation
 
-/// The tab a popup was adopted into, together with the Space that owns it, so a
-/// page pool can build the adopting page without reaching for session state.
-struct BrowserPopupTabRegistration: Equatable, Sendable {
-    let tab: BrowserTab
-    let space: BrowserSpace
+/// The tab a popup was adopted into, together with the Space that owns it, as
+/// the read model holds them, so a page owner can build the adopting page
+/// while WebKit waits.
+@MainActor
+struct BrowserPopupTabRegistration {
+    let tab: TabStateModel
+    let space: SpaceModel
 }

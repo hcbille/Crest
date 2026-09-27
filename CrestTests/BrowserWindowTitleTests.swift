@@ -24,7 +24,7 @@ final class BrowserWindowTitleTests: XCTestCase {
     func testLockedSpaceRedactsTitleAndURLBeforePageReconciliation() async {
         let model = makeModel()
         model.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: model.browser.selectedSpaceID)
-        let space = model.browser.selectedSpace!
+        let space = model.browser.shownSpace!
         XCTAssertEqual(model.windowTitle, ProductIdentity.name)
         let unlocked = await model.spaceAccess.unlock(space)
         XCTAssertTrue(unlocked)
@@ -43,7 +43,7 @@ final class BrowserWindowTitleTests: XCTestCase {
     func testWindowLocalSelectionDoesNotFollowAnotherWindow() {
         let first = makeModel()
         let second = makeModel(browser: first.browser.makeWindowStore())
-        second.browser.selectTab(second.browser.selectedSpace!.tabs[1].id)
+        second.browser.selectTab(second.browser.shownSpace!.tabs.models[1].id)
         second.browser.seedSelectedTabNavigation(to: nil, titled: "Other window changed")
         XCTAssertEqual(first.windowTitle, "Alpha")
         XCTAssertEqual(second.windowTitle, "Other window changed")
@@ -57,11 +57,11 @@ final class BrowserWindowTitleTests: XCTestCase {
             // The unfocused member's page recorded a new title.
             tabs[1].title = "Background Beta"
         }
-        let space = model.browser.selectedSpace!
+        let space = model.browser.shownSpace!
         XCTAssertEqual(model.windowTitle, "Alpha")
-        model.browser.selectTab(space.tabs[1].id)
+        model.browser.selectTab(space.tabs.models[1].id)
         XCTAssertEqual(model.windowTitle, "Background Beta")
-        model.browser.selectTab(space.tabs[0].id)
+        model.browser.selectTab(space.tabs.models[0].id)
         XCTAssertEqual(model.windowTitle, "Alpha")
     }
 
@@ -78,18 +78,18 @@ final class BrowserWindowTitleTests: XCTestCase {
             folders: [], tabs: [beta]
         )
         let model = makeModel(adding: [destination])
-        model.pages.select(session: model.browser.presented)
+        model.pages.select()
         let page = try XCTUnwrap(model.pages.activePage)
         try await load("Live Alpha", into: page)
         model.browser.selectSpace(destination.id)
-        XCTAssertEqual(model.pages.activeTabID, model.browser.session.spaces[0].tabs[0].id)
+        XCTAssertEqual(model.pages.activeTabID, model.browser.spaceModels[0].tabs.models[0].id)
         XCTAssertEqual(model.windowTitle, "Beta")
-        let sessionBeforePageCallbacks = model.browser.session
+        let sessionBeforePageCallbacks = model.browser.sessionSeed
         model.address = "Destination address draft"
 
         model.synchronizePageMetadata()
 
-        XCTAssertEqual(model.browser.session, sessionBeforePageCallbacks)
+        XCTAssertEqual(model.browser.sessionSeed, sessionBeforePageCallbacks)
         XCTAssertEqual(model.address, "Destination address draft")
     }
 

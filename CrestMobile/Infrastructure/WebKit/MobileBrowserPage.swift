@@ -165,8 +165,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     init(
         corePage: CorePage,
         webKitPage: WebKitEnginePage,
-        tab: BrowserTab,
-        space: BrowserSpace,
+        tab: BrowserPageTab,
+        space: SpaceModel,
         downloadCenter: BrowserDownloadCenter = BrowserDownloadCenter(),
         permissionCenter: BrowserSitePermissionCenter = BrowserSitePermissionCenter(),
         geolocationService: any BrowserGeolocationServicing =
@@ -195,7 +195,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         self.corePage = corePage
         tabID = tab.id
         spaceID = space.id
-        profileID = space.profile.id
+        profileID = space.profileID
         faviconData = tab.displayFaviconData
         self.downloadCenter = downloadCenter
         self.permissionCenter = permissionCenter
@@ -208,11 +208,11 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             ruleLists: webKitPage.contentRuleLists,
             additionalRuleList: contentRuleList
         )
-        spaceName = space.name
+        spaceName = space.settings.name
         navigationContext = BrowserPageNavigationContext(
-            tab: tab,
+            tab: tab.state,
             spaceID: space.id,
-            profileID: space.profile.id
+            profileID: space.profileID
         )
         navigationDecider = BrowserNavigationDecider()
         // Built before the popup coordinator so a popup whose destination belongs
@@ -220,7 +220,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         // ordinary external-scheme navigation takes.
         let externalSchemeCoordinator = BrowserExternalSchemeCoordinator(
             spaceID: space.id,
-            spaceName: space.name,
+            spaceName: space.settings.name,
             permissionCenter: permissionCenter,
             prompt: { origin, destinationURL, requestedSpaceName in
                 await MobileBrowserDialogPresenter.presentExternalApplicationPermission(
@@ -310,7 +310,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
                     guard let self else { return nil }
                     return self.navigationContext?.mediaSessionOwnerTitle(
                         observedPageTitle: self.live.title
-                    ) ?? BrowserTab.resolvedCustomTitle(self.live.title)
+                    ) ?? BrowserShownTitle.resolve(self.live.title)
                 }
             )
             mediaSessionCoordinator = coordinator
@@ -452,7 +452,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
     }
 
-    func styleVisitedLinks(history: [BrowserHistoryEntry]) async {
+    func styleVisitedLinks(history: [HistoryEntryState]) async {
         await BrowserVisitedLinkStyler.apply(history: history, to: webView)
     }
 
@@ -460,27 +460,28 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         userActivityHandler = nil
     }
 
-    func adopt(tabID: TabID, tab: BrowserTab) {
+    func adopt(tabID: TabID, tab: BrowserPageTab) {
         self.tabID = tabID
         updateNavigationContext(tab: tab)
     }
 
-    func updateNavigationContext(tab: BrowserTab) {
+    /// Takes the tab's current context: its title, placement and icon.
+    func updateNavigationContext(tab: BrowserPageTab) {
         let previousTitle = navigationContext?.title
         let shouldRefreshAutomaticIcon =
-            tab.iconMode.followsPage
+            tab.state.iconMode.followsPage
             && !tab.hasCurrentAutomaticFavicon
             && webView.url != nil
             && !webView.isLoading
         if faviconData != tab.displayFaviconData
-            || navigationContext?.iconMode != tab.iconMode
+            || navigationContext?.iconMode != tab.state.iconMode
             || navigationContext?.tabID != tab.id
         {
             faviconSession.invalidate()
             faviconData = tab.displayFaviconData
         }
         navigationContext = BrowserPageNavigationContext(
-            tab: tab,
+            tab: tab.state,
             spaceID: spaceID,
             profileID: profileID
         )

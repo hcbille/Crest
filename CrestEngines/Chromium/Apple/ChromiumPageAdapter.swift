@@ -78,7 +78,7 @@
         /// The engine reports input as a `user_activity` event.
         func monitorUserActivity(for page: BrowserPage) {}
         /// Chromium styles visited links from its own history.
-        func styleVisitedLinks(history: [BrowserHistoryEntry]) async {}
+        func styleVisitedLinks(history: [HistoryEntryState]) async {}
         func prepareForNavigation() {}
         /// The engine enforces site permissions itself; the page's permission
         /// session has already carried the change to it.

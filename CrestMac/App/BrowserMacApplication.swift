@@ -187,20 +187,7 @@ final class BrowserMacApplication {
             popupTabHost: browser.popupTabHost,
             openNewTab: { url in browser.openNewTab(url: url) },
             openModifiedLink: { url, spaceID, selecting in
-                guard
-                    let tabID = browser.openNewTab(
-                        url: url,
-                        in: spaceID,
-                        selecting: selecting
-                    ),
-                    let space = browser.session.space(id: spaceID),
-                    let tab = space.tabs.first(where: { $0.id == tabID })
-                else { return nil }
-                return BrowserModifiedLinkRegistration(
-                    tab: tab,
-                    space: space,
-                    session: browser.presented
-                )
+                browser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
             openPeek: { request in transientBrowsing.presentPeek(request) },
             handleLinkDrag: { transientBrowsing.handleLinkDrag($0) },
@@ -221,20 +208,7 @@ final class BrowserMacApplication {
             popupTabHost: privateBrowser.popupTabHost,
             openNewTab: { url in privateBrowser.openNewTab(url: url) },
             openModifiedLink: { url, spaceID, selecting in
-                guard
-                    let tabID = privateBrowser.openNewTab(
-                        url: url,
-                        in: spaceID,
-                        selecting: selecting
-                    ),
-                    let space = privateBrowser.session.space(id: spaceID),
-                    let tab = space.tabs.first(where: { $0.id == tabID })
-                else { return nil }
-                return BrowserModifiedLinkRegistration(
-                    tab: tab,
-                    space: space,
-                    session: privateBrowser.presented
-                )
+                privateBrowser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
             openPeek: { request in privateTransientBrowsing.presentPeek(request) },
             handleLinkDrag: { privateTransientBrowsing.handleLinkDrag($0) },
@@ -305,7 +279,7 @@ final class BrowserMacApplication {
         let downloadDialogs = BrowserDialogPresenter()
         downloadPrompts = BrowserDownloadPrompts(core: core) { asked, dismissal in
             let spaceName = asked.spaceID.flatMap {
-                browser.session.space(id: $0)?.name ?? privateBrowser.session.space(id: $0)?.name
+                browser.spaceModel($0)?.settings.name ?? privateBrowser.spaceModel($0)?.settings.name
             }
             return await downloadDialogs.approveDownload(asked, spaceName: spaceName, dismissal: dismissal)
         }
@@ -405,8 +379,7 @@ final class BrowserMacApplication {
     }
 
     func closePrivateBrowsingWindow() {
-        let closingSession = privateBrowser.session
-        privatePages.closePrivateBrowsingSession(closingSession)
+        privatePages.closePrivateBrowsingSession(privateBrowser.spaceModels.map(BrowserSpaceRuntimeAssignment.init(space:)))
         privateBrowser.resetPrivateBrowsingSession()
         privateChrome.dismissCommandPalette()
         privateTransientBrowsing.dismissPeek()

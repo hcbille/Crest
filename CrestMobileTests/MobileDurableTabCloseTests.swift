@@ -13,20 +13,20 @@ final class MobileDurableTabCloseTests: XCTestCase {
                 let preferences = BrowserAppPreferenceStore()
                 preferences.bind(to: context.browser, legacy: BrowserLegacyAppPreferences())
                 preferences.savedTabClosePolicy = policy
-                context.pages.select(session: context.browser.presented)
+                context.pages.select()
                 let commands = MobileBrowserCommandController(
                     browser: context.browser, pages: context.pages, preferences: preferences)
 
                 XCTAssertEqual(commands.dismissSelectedTab(), context.tab.id)
 
-                let closed = try XCTUnwrap(context.browser.selectedSpace?.tabs.first)
+                let closed = try XCTUnwrap(context.browser.shownSpace?.tabs.models.first)
                 XCTAssertEqual(closed.id, context.tab.id)
                 XCTAssertEqual(closed.savedURL, context.tab.savedURL)
                 XCTAssertEqual(closed.url, policy == .returnToSavedURL ? context.tab.savedURL : context.tab.url)
-                XCTAssertNil(context.browser.selectedTab)
+                XCTAssertNil(context.browser.shownTab)
                 XCTAssertNil(context.pages.activePage)
                 XCTAssertFalse(context.pages.containsResidentPage(for: context.tab.id))
-                XCTAssertTrue(try XCTUnwrap(context.browser.selectedSpace).archivedTabs.isEmpty)
+                XCTAssertTrue(try XCTUnwrap(context.browser.shownSpace).archive.entries.isEmpty)
             }
         }
     }
@@ -34,25 +34,25 @@ final class MobileDurableTabCloseTests: XCTestCase {
     func testLockedSpaceCommandCannotResetOrCloseItsDurableTab() throws {
         let context = try makeContext(placement: .saved)
         defer { context.pages.reconcile(validTabIDs: []) }
-        let space = try XCTUnwrap(context.browser.selectedSpace)
+        let space = try XCTUnwrap(context.browser.shownSpace)
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: space.id)
-        let original = context.browser.session
+        let original = context.browser.sessionSeed
         let commands = MobileBrowserCommandController(browser: context.browser, pages: context.pages)
         XCTAssertNil(commands.dismissSelectedTab())
-        XCTAssertEqual(context.browser.session, original)
+        XCTAssertEqual(context.browser.sessionSeed, original)
     }
 
     private func makeContext(placement: TabPlacement) throws -> Context {
-        let tab = BrowserTab(
+        let tab = TabState.Seed(
             title: "Durable", url: try XCTUnwrap(URL(string: "about:blank#child")),
             savedURL: try XCTUnwrap(URL(string: "about:blank#root")), placement: placement
         )
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Test", symbol: "circle", accent: .indigo,
+        let space = SpaceState.Seed(
+            name: "Test", symbol: "circle", accent: .indigo,
             folders: [], tabs: [tab]
         )
         let browser = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space]),
+            SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: tab.id]
         )
         return Context(
@@ -64,6 +64,6 @@ final class MobileDurableTabCloseTests: XCTestCase {
     private struct Context {
         let browser: BrowserStore
         let pages: MobileBrowserPageStore
-        let tab: BrowserTab
+        let tab: TabState.Seed
     }
 }

@@ -1,3 +1,4 @@
+/// The content blocking each Space of a workspace chose.
 struct BrowserContentBlockingSessionState: Equatable, Sendable {
     let policiesBySpaceID: [SpaceID: ContentBlockingPolicy]
 
@@ -5,13 +6,13 @@ struct BrowserContentBlockingSessionState: Equatable, Sendable {
         self.policiesBySpaceID = policiesBySpaceID
     }
 
-    init(session: BrowserSession) {
+    /// What each Space of `workspace` in the read model chose.
+    @MainActor
+    init(workspace: WorkspaceModel?) {
         self.init(
             policiesBySpaceID: Dictionary(
-                uniqueKeysWithValues: session.spaces.map { space in
-                    (space.id, space.browsingPreferences.contentBlockingPolicy)
-                }
-            )
-        )
+                uniqueKeysWithValues: (workspace?.spaces.models ?? []).map { space in
+                    (space.id, space.settings.browsingPreferences.contentBlocking)
+                }))
     }
 }

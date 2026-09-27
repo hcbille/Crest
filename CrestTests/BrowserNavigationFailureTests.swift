@@ -199,21 +199,19 @@ final class BrowserPageNavigationFailureTests: XCTestCase {
     }
 
     private func makePage() throws -> BrowserPage {
-        let tab = BrowserTab(title: "Blank", url: nil, placement: .current)
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Test",
+        let tab = TabState.Seed(title: "Blank", url: nil, placement: .current)
+        let space = SpaceState.Seed(
+                        name: "Test",
             symbol: "circle",
             accent: .indigo,
             folders: [],
             tabs: [tab]
         )
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         self.browser = browser
         let pool = BrowserPagePool(browser: browser)
         self.pool = pool
-        pool.select(tab: tab, space: space)
+        pool.present(tab: tab.id, in: space.id)
         return try XCTUnwrap(pool.activePage)
     }
 }

@@ -8,17 +8,17 @@ final class BrowserDefaultBrowserTests: XCTestCase {
         let browser = BrowserStore.privateBrowsing()
         let firstURL = try XCTUnwrap(URL(string: "https://example.com/first"))
         let secondURL = try XCTUnwrap(URL(string: "https://example.com/second"))
-        let originalTabID = try XCTUnwrap(browser.selectedTab?.id)
+        let originalTabID = try XCTUnwrap(browser.shownTab?.id)
 
         XCTAssertTrue(browser.openExternalURL(firstURL))
-        XCTAssertEqual(browser.selectedTab?.id, originalTabID)
-        XCTAssertEqual(browser.selectedTab?.url, firstURL)
-        XCTAssertEqual(browser.selectedSpace?.currentTabs.count, 1)
+        XCTAssertEqual(browser.shownTab?.id, originalTabID)
+        XCTAssertEqual(browser.shownTab?.address, firstURL)
+        XCTAssertEqual(browser.shownSpace?.currentTabs.count, 1)
 
         XCTAssertTrue(browser.openExternalURL(secondURL))
-        XCTAssertNotEqual(browser.selectedTab?.id, originalTabID)
-        XCTAssertEqual(browser.selectedTab?.url, secondURL)
-        XCTAssertEqual(browser.selectedSpace?.currentTabs.count, 2)
+        XCTAssertNotEqual(browser.shownTab?.id, originalTabID)
+        XCTAssertEqual(browser.shownTab?.address, secondURL)
+        XCTAssertEqual(browser.shownSpace?.currentTabs.count, 2)
     }
 
     func testDefaultBrowserControllerOwnsExplicitStatusAndRequestFlow() async {

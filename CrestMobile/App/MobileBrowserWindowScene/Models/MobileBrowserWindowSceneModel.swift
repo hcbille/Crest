@@ -93,16 +93,7 @@ final class MobileBrowserWindowSceneModel {
             linkDestinationHost: BrowserLinkDestinationHost(browser: browser, spaceAccess: spaceAccess),
             openNewTab: { url in browser.openNewTab(url: url) },
             openModifiedLink: { url, spaceID, selecting in
-                guard
-                    let tabID = browser.openNewTab(
-                        url: url,
-                        in: spaceID,
-                        selecting: selecting
-                    ),
-                    let space = browser.session.space(id: spaceID),
-                    let tab = space.tabs.first(where: { $0.id == tabID })
-                else { return nil }
-                return BrowserModifiedLinkRegistration(tab: tab, space: space, session: browser.presented)
+                browser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
             openPeek: { request in transientBrowsing.presentPeek(request) }
         )
@@ -194,9 +185,9 @@ final class MobileBrowserWindowSceneModel {
     }
 
     func closePrivateBrowsing() -> BrowserBrowsingMode {
-        let closingSession = privateBrowser.session
+        let closingSpaces = privateBrowser.spaceModels.map(BrowserSpaceRuntimeAssignment.init(space:))
         cancelPrivateDownloadConfirmations()
-        privatePages.closePrivateBrowsingSession(closingSession)
+        privatePages.closePrivateBrowsingSession(closingSpaces)
         privateBrowser.resetPrivateBrowsingSession()
         privateNavigation.showTabViewer()
         privateTransientBrowsing.dismissPeek()
@@ -250,16 +241,7 @@ final class MobileBrowserWindowSceneModel {
             linkDestinationHost: BrowserLinkDestinationHost(browser: privateBrowser, spaceAccess: spaceAccess),
             openNewTab: { url in privateBrowser.openNewTab(url: url) },
             openModifiedLink: { url, spaceID, selecting in
-                guard
-                    let tabID = privateBrowser.openNewTab(
-                        url: url,
-                        in: spaceID,
-                        selecting: selecting
-                    ),
-                    let space = privateBrowser.session.space(id: spaceID),
-                    let tab = space.tabs.first(where: { $0.id == tabID })
-                else { return nil }
-                return BrowserModifiedLinkRegistration(tab: tab, space: space, session: privateBrowser.presented)
+                privateBrowser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
             openPeek: { request in
                 privateTransientBrowsing.presentPeek(request)

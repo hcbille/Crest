@@ -219,7 +219,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     }
 
     static func openExtensionSettings() {
-        guard let instance, let model = instance.activeModel, let space = model.browser.selectedSpace,
+        guard let instance, let model = instance.activeModel, let space = model.browser.shownSpace,
               !instance.application.spaceAccess.isLocked(space) else { return }
         instance.commands.openExtensionSettings(for: BrowserSpaceRuntimeAssignment(space: space), in: model.id)
     }
@@ -231,7 +231,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
         let resolver = BrowserQuickWindowContextResolver(browser: application.browser,
             pages: application.pages, pagePoolRegistry: application.pagePoolRegistry)
         guard let context = resolver.context(for: request),
-            let space = context.browser.space(matching: request.assignment), !application.spaceAccess.isLocked(space) else { return }
+            let space = context.browser.spaceModel(matching: request.assignment), !application.spaceAccess.isLocked(space) else { return }
         let current = QuickRequest(request)
         let model = BrowserQuickWindowModel(request: request, browser: context.browser, pages: context.pages,
             spaceAccess: application.spaceAccess, supportsLivePagePromotion: context.supportsLivePagePromotion,
@@ -476,10 +476,10 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
     /// A document opened from Finder, Open With or `open -a Crest` is not a web
     /// link and has no host to route on. It belongs in the Space on screen.
     private func openLocalDocuments(_ urls: [URL]) async {
-        guard let model = externalTargetModel(), let space = model.browser.selectedSpace else { return }
+        guard let model = externalTargetModel(), let space = model.browser.shownSpace else { return }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         guard await application.spaceAccess.unlock(space),
-            model.browser.space(matching: assignment) != nil else { return }
+            model.browser.spaceModel(matching: assignment) != nil else { return }
         BrowserCommandActions(browser: model.browser, pages: model.pages, chrome: model.chrome,
             openWindow: EnvironmentValues().openWindow, spaceAccess: application.spaceAccess,
             targetWindowID: model.id).openLocalDocuments(urls, in: assignment)
@@ -501,7 +501,7 @@ final class CrestChromiumRoot: NSObject, BrowserMacWindowPresenting {
             let spaceID = placement.spaceID, let space = browser.spaceModel(spaceID)
         else { return nil }
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard await application.spaceAccess.unlock(space), browser.space(matching: assignment) != nil else { return nil }
+        guard await application.spaceAccess.unlock(space), browser.spaceModel(matching: assignment) != nil else { return nil }
         return (model, assignment, placement)
     }
 

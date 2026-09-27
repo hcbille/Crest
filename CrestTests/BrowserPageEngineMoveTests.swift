@@ -11,13 +11,13 @@ final class BrowserPageEngineMoveTests: XCTestCase {
     /// load reaches the new view. WebKit stands in for the engine the page
     /// moves to, which builds the page anew as any other engine would.
     func testAMovedPageKeepsItsIdentityAndHostsTheNewEnginesView() async throws {
-        let tab = BrowserTab(title: "Moving", url: nil, placement: .current)
-        let space = BrowserSpace(
-            id: UUID(), profile: BrowsingProfile(id: UUID()), name: "Moves", symbol: "arrow.left.arrow.right",
+        let tab = TabState.Seed(title: "Moving", url: nil, placement: .current)
+        let space = SpaceState.Seed(
+            id: UUID(), profileID: UUID(), name: "Moves", symbol: "arrow.left.arrow.right",
             accent: .teal, folders: [], tabs: [tab])
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let pool = BrowserPagePool(browser: browser, usesEphemeralWebsiteDataStores: true)
-        pool.select(tab: tab, space: space)
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
         let corePage = page.corePage
         let engines = browser.core.engines
@@ -32,7 +32,7 @@ final class BrowserPageEngineMoveTests: XCTestCase {
         engines.run(
             .createPage(
                 CreatePage(
-                    pageID: corePage.id, profileID: space.profile.id, isPrivate: false, borrowedProfileID: nil,
+                    pageID: corePage.id, profileID: space.profileID, isPrivate: false, borrowedProfileID: nil,
                     windowID: browser.windowID, restoreState: nil)),
             on: .webKit)
         let movedView = try XCTUnwrap(page.webKitView)

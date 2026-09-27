@@ -432,16 +432,14 @@ final class BrowserDownloadNavigationLifecycleTests: XCTestCase {
     func testKnownDownloadBypassesPeekBeforeNavigationStarts() throws {
         let sourceURL = try XCTUnwrap(URL(string: "https://saved.example/home"))
         let downloadURL = try XCTUnwrap(URL(string: "https://files.example/report.pdf"))
-        let tab = BrowserTab(
+        let tab = TabState.Seed(
             title: "Saved",
             url: sourceURL,
             savedURL: sourceURL,
             placement: .pinned
         )
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Test",
+        let space = SpaceState.Seed(
+                        name: "Test",
             symbol: "circle",
             accent: .indigo,
             folders: [],
@@ -449,8 +447,8 @@ final class BrowserDownloadNavigationLifecycleTests: XCTestCase {
         )
         var peekRequest: BrowserPeekRequest?
         let pool = BrowserPagePool(
-            browser: .hostingPages(BrowserSession(spaces: [space])), openPeek: { peekRequest = $0 })
-        pool.select(tab: tab, space: space)
+            browser: .hostingPages(SessionState.Seed(spaces: [space])), openPeek: { peekRequest = $0 })
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
         let recorder = DownloadPolicyRecorder()
 

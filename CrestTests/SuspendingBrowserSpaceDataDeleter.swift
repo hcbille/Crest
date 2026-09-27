@@ -12,7 +12,7 @@ final class SuspendingBrowserSpaceDataDeleter: BrowserSpaceDataDeleting {
         self.core = core
     }
 
-    func deleteData(for space: BrowserSpace) async throws {
+    func deleteData(for space: BrowserSpaceRuntimeAssignment) async throws {
         hasStarted = true
         let waiters = startWaiters
         startWaiters.removeAll()
@@ -39,10 +39,11 @@ final class SuspendingBrowserSpaceDataDeleter: BrowserSpaceDataDeleting {
 }
 
 extension CrestCore {
-    /// Has every engine erase `space`'s profile, which keeps nothing on disk
-    /// in a test, as the app's deleter does before the Space may go.
-    func eraseProfile(of space: BrowserSpace) async throws {
-        guard await deleteData(DeleteProfileData(requestID: UUID(), profileID: space.profile.id, ephemeral: true))
+    /// Has every engine erase the profile of the Space `space` names, which
+    /// keeps nothing on disk in a test, as the app's deleter does before the
+    /// Space may go.
+    func eraseProfile(of space: BrowserSpaceRuntimeAssignment) async throws {
+        guard await deleteData(DeleteProfileData(requestID: UUID(), profileID: space.profileID, ephemeral: true))
         else { throw BrowserSpaceDeletionError.dataNotErased }
     }
 }

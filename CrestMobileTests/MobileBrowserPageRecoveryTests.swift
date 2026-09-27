@@ -13,7 +13,7 @@ final class MobileBrowserPageRecoveryTests: XCTestCase {
         let tab = try XCTUnwrap(space.tabs.first)
         // The window shows the page's tab, so the core recovers it in view.
         let browser = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
+            SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: tab.id])
         let page = try openPage(in: space, through: browser)
 
         // The core has WebKit reload a page in view while its budget lasts.
@@ -32,7 +32,7 @@ final class MobileBrowserPageRecoveryTests: XCTestCase {
 
     func testTheAppInitiatedMarkerIsConsumedByTheNavigationItAuthorized() throws {
         let space = makeSpace(index: 4)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let page = try openPage(in: space, through: browser)
         let fileURL = URL(fileURLWithPath: "/tmp/crest-mobile-fixture.html")
         let replay = MobileReplayNavigationAction(url: fileURL)
@@ -60,29 +60,29 @@ final class MobileBrowserPageRecoveryTests: XCTestCase {
 
     /// Opens the page for `space`'s first tab through `browser`'s core, as a
     /// page store opens one. Keep `browser` alive while the page is in use.
-    private func openPage(in space: BrowserSpace, through browser: BrowserStore) throws -> MobileBrowserPage {
+    private func openPage(in space: SpaceState.Seed, through browser: BrowserStore) throws -> MobileBrowserPage {
         let tab = try XCTUnwrap(space.tabs.first)
         return try XCTUnwrap(
             browser.openWebKitPage(in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: WKWebsiteDataStore.nonPersistent())).map { opened in
                 MobileBrowserPage(
                     corePage: opened.core,
                     webKitPage: opened.webKit,
-                    tab: tab,
-                    space: space,
+                    tab: browser.pageTab(tab.id, in: space.id),
+                    space: browser.hostedSpace(space.id),
                     openNewTab: { _ in }
                 )
             }
         )
     }
 
-    private func makeSpace(index: Int) -> BrowserSpace {
-        let tab = BrowserTab.startPage(
+    private func makeSpace(index: Int) -> SpaceState.Seed {
+        let tab = TabState.Seed.startPage(
             id: fixedUUID(index * 10 + 1),
             placement: .current
         )
-        return BrowserSpace(
+        return SpaceState.Seed(
             id: fixedUUID(index * 10 + 2),
-            profile: BrowsingProfile(id: fixedUUID(index * 10 + 3)),
+            profileID: fixedUUID(index * 10 + 3),
             name: "Space \(index)",
             symbol: "circle",
             accent: .indigo,

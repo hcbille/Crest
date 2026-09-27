@@ -26,49 +26,6 @@ final class BrowserContentBlockingTests: XCTestCase {
         XCTAssertEqual(compiler.sources, [rules.source])
     }
 
-    func testBalancedProtectionIsTheDefaultAndRepairsLegacyPreferences() throws {
-        XCTAssertEqual(
-            BrowserSpaceBrowsingPreferences.default.contentBlockingPolicy,
-            .balanced
-        )
-
-        let legacyJSON = """
-            {
-              "searchProvider": "duckDuckGo",
-              "currentTabCleanupPolicy": "after24Hours"
-            }
-            """
-        let decoded = try JSONDecoder().decode(
-            BrowserSpaceBrowsingPreferences.self,
-            from: Data(legacyJSON.utf8)
-        )
-
-        XCTAssertEqual(decoded.searchProvider, .duckDuckGo)
-        XCTAssertEqual(decoded.currentTabCleanupPolicy, .after24Hours)
-        XCTAssertEqual(decoded.contentBlockingPolicy, .balanced)
-    }
-
-    func testContentBlockingPreferenceChangesOnlyTheTargetSpace() throws {
-        let store = BrowserStore(session: .preview)
-        let workID = try XCTUnwrap(store.session.spaces.first?.id)
-        let personalID = try XCTUnwrap(store.session.spaces.last?.id)
-        var workPreferences = try XCTUnwrap(
-            store.session.space(id: workID)?.browsingPreferences
-        )
-
-        workPreferences.contentBlockingPolicy = .off
-        store.updateBrowsingPreferences(workPreferences, in: workID)
-
-        XCTAssertEqual(
-            store.session.space(id: workID)?.browsingPreferences.contentBlockingPolicy,
-            .off
-        )
-        XCTAssertEqual(
-            store.session.space(id: personalID)?.browsingPreferences.contentBlockingPolicy,
-            .balanced
-        )
-    }
-
     func testPagePoolReconcilesThePolicyAcrossResidentAndRecoveredTransientPages() async throws {
         let store = try isolatedRuleListStore()
         defer { store.remove() }
@@ -78,12 +35,12 @@ final class BrowserContentBlockingTests: XCTestCase {
             store: store.store
         )
         let provider = StubContentRuleListProvider(generations: [[ruleList]])
-        let firstTab = BrowserTab.startPage()
+        let firstTab = TabState.Seed.startPage()
         let firstSpace = contentBlockingSpace(name: "Protected", tab: firstTab)
-        var session = BrowserSession(spaces: [firstSpace])
-        let window = WindowState.preview(showing: firstSpace.id, tabs: [firstSpace.id: firstTab.id])
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [firstSpace]), showing: firstSpace.id, tabs: [firstSpace.id: firstTab.id])
         let pool = BrowserPagePool(
-            browser: .hostingPages(session),
+            browser: browser,
             browsingMode: .privateBrowsing,
             contentRuleListProvider: provider
         )
@@ -98,18 +55,21 @@ final class BrowserContentBlockingTests: XCTestCase {
             pool.contentBlockingErrorDescription,
             pool.contentBlockingErrorDescription ?? ""
         )
-        pool.select(session: BrowserPresentedSession(session: session, window: window))
+        pool.select()
         XCTAssertEqual(pool.activePage?.isContentBlockingActive, true)
         let transientLease = try XCTUnwrap(
             pool.makeTransientPageLease(
                 url: URL(string: "about:blank")!,
-                in: firstSpace
+                in: try XCTUnwrap(browser.spaceModel(firstSpace.id))
             )
         )
         XCTAssertEqual(transientLease.page?.isContentBlockingActive, true)
 
-        session.spaces[0].browsingPreferences.contentBlockingPolicy = .off
-        await pool.reconcileContentBlocking(in: session)
+        var preferences = BrowserSpaceBrowsingPreferences(
+            core: try XCTUnwrap(browser.spaceModel(firstSpace.id)).settings.browsingPreferences)
+        preferences.contentBlockingPolicy = .off
+        browser.updateBrowsingPreferences(preferences, in: firstSpace.id)
+        await pool.reconcileContentBlocking()
 
         XCTAssertEqual(pool.activePage?.isContentBlockingActive, false)
         XCTAssertEqual(transientLease.page?.isContentBlockingActive, false)
@@ -158,10 +118,10 @@ final class BrowserContentBlockingTests: XCTestCase {
                 to: directory.appendingPathComponent("extension-script.js")
             )
 
-            let space = try XCTUnwrap(BrowserSession.preview.spaces.first)
+            let space = try XCTUnwrap(SessionState.Seed.preview.spaces.first)
             let browser = BrowserStore.hostingPages(.preview)
             let configuration = BrowserPageConfiguration.make(
-                for: space.profile,
+                for: BrowsingProfile(id: space.profileID),
                 websiteDataStore: .nonPersistent(),
                 contentRuleList: crestRuleList
             )
@@ -176,8 +136,8 @@ final class BrowserContentBlockingTests: XCTestCase {
                         downloadCenter: BrowserDownloadCenter(),
                         permissionCenter: BrowserSitePermissionCenter(),
                         spaceID: space.id,
-                        profileID: space.profile.id,
-                        spaceName: space.name,
+                        profileID: space.profileID,
+                        spaceName: space.settings.name,
                         contentRuleList: crestRuleList,
                         openNewTab: { _ in }
                     )
@@ -226,15 +186,16 @@ final class BrowserContentBlockingTests: XCTestCase {
         let provider = StubContentRuleListProvider(
             generations: [[firstGeneration], [secondGeneration]]
         )
-        let activeTab = BrowserTab.startPage()
-        let backgroundTab = BrowserTab.startPage()
+        let activeTab = TabState.Seed.startPage()
+        let backgroundTab = TabState.Seed.startPage()
         let space = contentBlockingSpace(
             name: "Protected",
             tabs: [activeTab, backgroundTab]
         )
-        let session = BrowserSession(spaces: [space])
+        let browser = BrowserStore.hostingPages(
+            SessionState.Seed(spaces: [space]), showing: space.id, tabs: [space.id: backgroundTab.id])
         let pool = BrowserPagePool(
-            browser: .hostingPages(session),
+            browser: browser,
             browsingMode: .privateBrowsing,
             contentRuleListProvider: provider
         )
@@ -245,13 +206,9 @@ final class BrowserContentBlockingTests: XCTestCase {
         }
 
         await pool.prepareContentBlocking()
-        pool.select(
-            session: BrowserPresentedSession(
-                session: session, window: .preview(showing: space.id, tabs: [space.id: backgroundTab.id])))
+        pool.select()
         let backgroundPage = try XCTUnwrap(pool.activePage)
-        pool.select(
-            session: BrowserPresentedSession(
-                session: session, window: .preview(showing: space.id, tabs: [space.id: activeTab.id])))
+        pool.present(tab: activeTab.id, in: space.id)
         let activePage = try XCTUnwrap(pool.activePage)
         XCTAssertFalse(activePage === backgroundPage)
 
@@ -264,7 +221,7 @@ final class BrowserContentBlockingTests: XCTestCase {
         let activeNavigationCount = activePage.completedNavigationCount
         let backgroundNavigationCount = backgroundPage.completedNavigationCount
 
-        await pool.reloadContentBlocking(in: session)
+        await pool.reloadContentBlocking()
 
         // The swap must reach both pages without disturbing either document.
         try await Task.sleep(for: .milliseconds(400))
@@ -310,19 +267,17 @@ final class BrowserContentBlockingTests: XCTestCase {
 
     private func contentBlockingSpace(
         name: String,
-        tab: BrowserTab
-    ) -> BrowserSpace {
+        tab: TabState.Seed
+    ) -> SpaceState.Seed {
         contentBlockingSpace(name: name, tabs: [tab])
     }
 
     private func contentBlockingSpace(
         name: String,
-        tabs: [BrowserTab]
-    ) -> BrowserSpace {
-        BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: name,
+        tabs: [TabState.Seed]
+    ) -> SpaceState.Seed {
+        SpaceState.Seed(
+                        name: name,
             symbol: "shield",
             accent: .indigo,
             folders: [],

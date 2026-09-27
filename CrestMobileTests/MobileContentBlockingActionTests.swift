@@ -11,7 +11,7 @@ final class MobileContentBlockingActionTests: XCTestCase {
             browser: browser,
             usesEphemeralWebsiteDataStores: true
         )
-        pages.select(session: browser.presented)
+        pages.select()
         let pageActions = try XCTUnwrap(
             MobileSelectedPageActionPort(browser: browser, pages: pages, spaceAccess: BrowserSpaceAccessController())
         )
@@ -20,11 +20,11 @@ final class MobileContentBlockingActionTests: XCTestCase {
             pages: pageActions
         )
         let firstPolicy = try XCTUnwrap(
-            browser.session.space(id: fixture.firstSpaceID)
-        ).browsingPreferences.contentBlockingPolicy
+            browser.spaceModel(fixture.firstSpaceID)
+        ).settings.browsingPreferences.contentBlocking
         let secondPolicy = try XCTUnwrap(
-            browser.session.space(id: fixture.secondSpaceID)
-        ).browsingPreferences.contentBlockingPolicy
+            browser.spaceModel(fixture.secondSpaceID)
+        ).settings.browsingPreferences.contentBlocking
 
         browser.selectSpace(fixture.secondSpaceID)
 
@@ -32,13 +32,13 @@ final class MobileContentBlockingActionTests: XCTestCase {
 
         XCTAssertFalse(performed)
         XCTAssertEqual(
-            browser.session.space(id: fixture.firstSpaceID)?
-                .browsingPreferences.contentBlockingPolicy,
+            browser.spaceModel(fixture.firstSpaceID)?
+                .settings.browsingPreferences.contentBlocking,
             firstPolicy
         )
         XCTAssertEqual(
-            browser.session.space(id: fixture.secondSpaceID)?
-                .browsingPreferences.contentBlockingPolicy,
+            browser.spaceModel(fixture.secondSpaceID)?
+                .settings.browsingPreferences.contentBlocking,
             secondPolicy
         )
     }
@@ -63,36 +63,32 @@ final class MobileContentBlockingActionTests: XCTestCase {
         XCTAssertEqual(browser.selectedSpaceID, fixture.secondSpaceID)
         XCTAssertEqual(pageActions.reconciliationCount, 1)
         XCTAssertEqual(
-            browser.session.space(id: fixture.firstSpaceID)?
-                .browsingPreferences.contentBlockingPolicy,
+            browser.spaceModel(fixture.firstSpaceID)?
+                .settings.browsingPreferences.contentBlocking,
             .off
         )
     }
 
     private func makeFixture() -> ContentBlockingFixture {
-        let firstTab = BrowserTab(
+        let firstTab = TabState.Seed(
             title: "First",
             url: URL(string: "about:blank"),
             placement: .current
         )
-        let secondTab = BrowserTab(
+        let secondTab = TabState.Seed(
             title: "Second",
             url: URL(string: "about:blank"),
             placement: .current
         )
-        let firstSpace = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "First Space",
+        let firstSpace = SpaceState.Seed(
+                        name: "First Space",
             symbol: "1.circle",
             accent: .indigo,
             folders: [],
             tabs: [firstTab]
         )
-        let secondSpace = BrowserSpace(
-            id: SpaceID(),
-            profile: BrowsingProfile(),
-            name: "Second Space",
+        let secondSpace = SpaceState.Seed(
+                        name: "Second Space",
             symbol: "2.circle",
             accent: .teal,
             folders: [],
@@ -100,7 +96,7 @@ final class MobileContentBlockingActionTests: XCTestCase {
         )
         return ContentBlockingFixture(
             browser: BrowserStore.hostingPages(
-                BrowserSession(spaces: [firstSpace, secondSpace]),
+                SessionState.Seed(spaces: [firstSpace, secondSpace]),
                 showing: firstSpace.id, tabs: [firstSpace.id: firstTab.id, secondSpace.id: secondTab.id]
             ),
             firstSpaceID: firstSpace.id,
@@ -108,7 +104,7 @@ final class MobileContentBlockingActionTests: XCTestCase {
             firstAssignment: BrowserTabRuntimeAssignment(
                 tabID: firstTab.id,
                 spaceID: firstSpace.id,
-                profileID: firstSpace.profile.id
+                profileID: firstSpace.profileID
             )
         )
     }

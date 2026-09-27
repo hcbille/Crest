@@ -10,7 +10,7 @@ final class BrowserSpaceAccessTests: XCTestCase {
 
     func testChosenDefaultSpaceBecomesTheLaunchSelection() throws {
         let store = BrowserStore(seed: .preview)
-        let work = try XCTUnwrap(store.session.spaces.first)
+        let work = try XCTUnwrap(store.spaceModels.first)
         let personal = try XCTUnwrap(store.session.spaces.last)
 
         store.setDefaultSpace(personal.id)
@@ -50,7 +50,7 @@ final class BrowserSpaceAccessTests: XCTestCase {
     /// A store whose first Space asks for authentication, and a controller
     /// for its core that answers with `authenticator`.
     private func guardedStore(authenticator: any BrowserDeviceAuthenticating) throws
-        -> (store: BrowserStore, access: BrowserSpaceAccessController, space: BrowserSpace)
+        -> (store: BrowserStore, access: BrowserSpaceAccessController, space: SpaceModel)
     {
         var session = SessionState.Seed.preview
         session.spaces[0].settings.accessPolicy = .deviceOwnerAuthentication
@@ -58,7 +58,7 @@ final class BrowserSpaceAccessTests: XCTestCase {
         stores.append(store)
         let access = BrowserSpaceAccessController(authenticator: authenticator)
         store.attachSpaceAccess(access)
-        return (store, access, try XCTUnwrap(store.session.spaces.first))
+        return (store, access, try XCTUnwrap(store.spaceModels.first))
     }
 
     func testPrivateSpaceRemainsLockedUntilDeviceOwnerAuthenticationSucceeds() async throws {

@@ -104,7 +104,7 @@ final class BrowserPeekModelTests: XCTestCase {
         XCTAssertNil(context.model.pageLease)
         XCTAssertNil(lease.page)
         XCTAssertEqual(context.pages.retainedTransientPageCount, 0)
-        XCTAssertEqual(context.browser.selectedSpace?.tabs.map(\.id), context.source.tabs.map(\.id))
+        XCTAssertEqual(context.browser.shownSpace?.tabs.models.map(\.id), context.source.tabs.map(\.id))
     }
 
     func testTargetBlankNavigationStaysInTheExactPeekLease() throws {
@@ -113,7 +113,7 @@ final class BrowserPeekModelTests: XCTestCase {
         let lease = try XCTUnwrap(context.model.pageLease)
         let page = try XCTUnwrap(lease.page)
         let tabCount = try XCTUnwrap(
-            context.browser.selectedSpace?.tabs.count
+            context.browser.shownSpace?.tabs.models.count
         )
         let destination = try XCTUnwrap(
             URL(string: "https://peek-target-blank.crest.test/destination")
@@ -128,7 +128,7 @@ final class BrowserPeekModelTests: XCTestCase {
         XCTAssertTrue(context.model.pageLease === lease)
         XCTAssertTrue(context.model.page === page)
         XCTAssertEqual(page.navigationReporter?.pendingURL, destination)
-        XCTAssertEqual(context.browser.selectedSpace?.tabs.count, tabCount)
+        XCTAssertEqual(context.browser.shownSpace?.tabs.models.count, tabCount)
         XCTAssertEqual(context.coordinator.peekRequest, context.request)
     }
 
@@ -151,15 +151,15 @@ final class BrowserPeekModelTests: XCTestCase {
         context.model.preparePage(isActive: true)
         let lease = try XCTUnwrap(context.model.pageLease)
         context.browser.replaceProfileForTesting(of: context.source.id)
-        let replacement = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let replacement = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         XCTAssertFalse(context.model.promote(to: context.request.assignment))
         XCTAssertEqual(
-            context.browser.session.space(id: replacement.id)?.tabs.count,
-            replacement.tabs.count
+            context.browser.spaceModel(replacement.id)?.tabs.models.count,
+            replacement.tabs.models.count
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             context.destination.tabs.count
         )
         XCTAssertEqual(context.browser.selectedSpaceID, replacement.id)
@@ -235,12 +235,12 @@ final class BrowserPeekModelTests: XCTestCase {
             space: context.destination
         )
         context.browser.replaceProfileForTesting(of: context.destination.id)
-        let replacement = try XCTUnwrap(context.browser.session.space(id: context.destination.id))
+        let replacement = try XCTUnwrap(context.browser.spaceModel(context.destination.id))
 
         XCTAssertFalse(context.model.promote(to: destinationAssignment))
         XCTAssertEqual(
-            context.browser.session.space(id: replacement.id)?.tabs.count,
-            replacement.tabs.count
+            context.browser.spaceModel(replacement.id)?.tabs.models.count,
+            replacement.tabs.models.count
         )
         XCTAssertEqual(context.coordinator.peekRequest, context.request)
     }
@@ -252,12 +252,12 @@ final class BrowserPeekModelTests: XCTestCase {
             space: context.destination
         )
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.destination.id)
-        let lockedDestination = try XCTUnwrap(context.browser.session.space(id: context.destination.id))
+        let lockedDestination = try XCTUnwrap(context.browser.spaceModel(context.destination.id))
 
         XCTAssertFalse(context.model.promote(to: destinationAssignment))
         XCTAssertEqual(
-            context.browser.session.space(id: lockedDestination.id)?.tabs.count,
-            lockedDestination.tabs.count
+            context.browser.spaceModel(lockedDestination.id)?.tabs.models.count,
+            lockedDestination.tabs.models.count
         )
         XCTAssertEqual(context.coordinator.peekRequest, context.request)
     }
@@ -267,7 +267,7 @@ final class BrowserPeekModelTests: XCTestCase {
         context.model.preparePage(isActive: true)
         let lease = try XCTUnwrap(context.model.pageLease)
         context.browser.updateSpaceAccessPolicy(.deviceOwnerAuthentication, in: context.source.id)
-        let lockedSource = try XCTUnwrap(context.browser.session.space(id: context.source.id))
+        let lockedSource = try XCTUnwrap(context.browser.spaceModel(context.source.id))
 
         XCTAssertFalse(
             context.model.promote(
@@ -275,7 +275,7 @@ final class BrowserPeekModelTests: XCTestCase {
             )
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             context.destination.tabs.count
         )
 
@@ -320,7 +320,7 @@ final class BrowserPeekModelTests: XCTestCase {
         XCTAssertNil(context.model.pageLease)
         XCTAssertNil(context.coordinator.peekRequest)
         XCTAssertTrue(
-            context.browser.session.space(id: context.source.id)?.history.isEmpty
+            context.browser.spaceModel(context.source.id)?.history.entries.isEmpty
                 == true
         )
     }
@@ -336,7 +336,7 @@ final class BrowserPeekModelTests: XCTestCase {
 
         XCTAssertFalse(context.model.promote(to: assignment))
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             context.destination.tabs.count
         )
         XCTAssertEqual(context.browser.selectedSpaceID, context.source.id)
@@ -358,17 +358,17 @@ final class BrowserPeekModelTests: XCTestCase {
         )
         try await waitUntil(timeout: .seconds(8)) {
             page.completedNavigationCount > startingCount
-                && context.browser.session.space(id: context.source.id)?.history.isEmpty == false
+                && context.browser.spaceModel(context.source.id)?.history.entries.isEmpty == false
         }
 
         let sourceHistory = try XCTUnwrap(
-            context.browser.session.space(id: context.source.id)?.history
+            context.browser.spaceModel(context.source.id)?.history
         )
-        XCTAssertEqual(sourceHistory.count, 1)
-        XCTAssertEqual(sourceHistory.first?.url.host(), historyURL.host())
-        XCTAssertEqual(sourceHistory.first?.visitCount, 1)
+        XCTAssertEqual(sourceHistory.entries.count, 1)
+        XCTAssertEqual(sourceHistory.entries.first.flatMap { URL(string: $0.url) }?.host(), historyURL.host())
+        XCTAssertEqual(sourceHistory.entries.first?.visitCount, 1)
         XCTAssertTrue(
-            context.browser.session.space(id: context.destination.id)?.history.isEmpty
+            context.browser.spaceModel(context.destination.id)?.history.entries.isEmpty
                 == true
         )
     }
@@ -399,11 +399,11 @@ final class BrowserPeekModelTests: XCTestCase {
 
         XCTAssertEqual(context.coordinator.peekRequest, replacement)
         XCTAssertEqual(
-            context.browser.session.space(id: context.source.id)?.tabs.count,
+            context.browser.spaceModel(context.source.id)?.tabs.models.count,
             sourceTabCount
         )
         XCTAssertEqual(
-            context.browser.session.space(id: context.destination.id)?.tabs.count,
+            context.browser.spaceModel(context.destination.id)?.tabs.models.count,
             destinationTabCount
         )
     }
@@ -441,19 +441,19 @@ final class BrowserPeekModelTests: XCTestCase {
         context.browser.updateSpaceIdentity(
             source.id, name: "Renamed Source", symbol: source.settings.symbol, accent: source.settings.accent)
         context.browser.addSpace()
-        let inserted = try XCTUnwrap(context.browser.session.spaces.last)
+        let inserted = try XCTUnwrap(context.browser.spaceModels.last)
         context.browser.family.send(
             ReorderSpaces(
                 workspaceID: context.browser.family.workspaceID,
                 spaceIDs: [context.destination.id, inserted.id, source.id]),
             from: context.browser)
         context.browser.selectSpace(source.id)
-        let renamedSource = try XCTUnwrap(context.browser.session.space(id: source.id))
+        let renamedSource = try XCTUnwrap(context.browser.spaceModel(source.id))
 
         XCTAssertTrue(context.model.preparePage(isActive: true))
         XCTAssertTrue(context.model.pageLease === lease)
         XCTAssertTrue(context.model.page === page)
-        XCTAssertEqual(context.model.page?.profileID, renamedSource.profile.id)
+        XCTAssertEqual(context.model.page?.profileID, renamedSource.profileID)
     }
 
     private func makeContext(browsingMode: BrowserBrowsingMode = .privateBrowsing) throws -> PeekTestContext {

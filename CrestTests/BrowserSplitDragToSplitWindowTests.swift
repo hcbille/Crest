@@ -73,14 +73,14 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
 
         fixture.send(.leftMouseUp, at: overPage)
         let space = try XCTUnwrap(
-            fixture.model.browser.session.space(id: fixture.assignment.spaceID)
+            fixture.model.browser.spaceModel(fixture.assignment.spaceID)
         )
         let groupID = try XCTUnwrap(
-            space.splitGroup(containing: fixture.joiner.id),
+            space.shownSplit(containing: fixture.joiner.id),
             "Releasing over the page has to commit the split."
         )
         XCTAssertEqual(
-            space.splitGroupMembers(of: groupID).map(\.title),
+            space.splitMembers(of: groupID).map(\.title),
             ["Presented", "Joiner"]
         )
         XCTAssertEqual(fixture.model.browser.selectedTabID(in: space.id), fixture.joiner.id)
@@ -94,11 +94,11 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
         let fixture = try makeHostedWindow(groupsJoiner: true)
         defer { fixture.input.close() }
         let state = fixture.model.sidebarInteraction.sidebarReorderState
-        let original = fixture.model.browser.session
+        let original = fixture.model.browser.sessionSeed
         let originalSelection = fixture.model.browser.selectedTabID(in: fixture.assignment.spaceID)
-        let space = try XCTUnwrap(original.space(id: fixture.assignment.spaceID))
-        let group = try XCTUnwrap(space.splitGroup(containing: fixture.joiner.id))
-        let members = space.splitGroupMembers(of: group)
+        let space = try XCTUnwrap(fixture.model.browser.spaceModel(fixture.assignment.spaceID))
+        let group = try XCTUnwrap(space.shownSplit(containing: fixture.joiner.id))
+        let members = space.splitMembers(of: group).map(\.value)
         let groupFrame = try XCTUnwrap(state.frame(ofRow: .splitGroup(group)))
         let memberFrame = try XCTUnwrap(state.frame(ofRow: .tab(fixture.joiner.id)))
         let destination = try XCTUnwrap(state.frame(ofRow: .tab(fixture.presented.id)))
@@ -112,7 +112,7 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
         XCTAssertEqual(liftedGroup.memberTabIDs, members.map(\.id))
         state.cancel()
         fixture.send(.leftMouseUp, at: drop)
-        XCTAssertEqual(fixture.model.browser.session, original, "Cancelling must preserve membership and ordering.")
+        XCTAssertEqual(fixture.model.browser.sessionSeed, original, "Cancelling must preserve membership and ordering.")
         pump(0.4)
 
         fixture.model.browser.tabMultiSelection.clear()
@@ -141,10 +141,10 @@ final class BrowserSplitDragToSplitWindowTests: XCTestCase {
             .insert(section: .tabs(placement: .current, folderID: nil), beforeID: .tab(fixture.presented.id), index: 0))
         fixture.send(.leftMouseUp, at: drop)
 
-        let updated = try XCTUnwrap(fixture.model.browser.session.space(id: fixture.assignment.spaceID))
-        XCTAssertNil(updated.tabs.first(where: { $0.id == fixture.joiner.id })?.splitGroupID)
-        XCTAssertEqual(updated.tabs.first?.id, fixture.joiner.id)
-        XCTAssertEqual(updated.splitGroupMembers(of: group).map(\.id), members.dropFirst().map(\.id))
+        let updated = try XCTUnwrap(fixture.model.browser.spaceModel(fixture.assignment.spaceID))
+        XCTAssertNil(updated.tabs.models.first(where: { $0.id == fixture.joiner.id })?.splitGroupID)
+        XCTAssertEqual(updated.tabs.models.first?.id, fixture.joiner.id)
+        XCTAssertEqual(updated.splitMembers(of: group).map(\.id), members.dropFirst().map(\.id))
         XCTAssertEqual(fixture.model.browser.selectedTabID(in: updated.id), originalSelection)
     }
 

@@ -74,25 +74,32 @@ extension BrowserStore {
 
     /// Registers the tab that hosts a web-content popup. WebKit is still inside
     /// `createWebViewWith`, so this has to answer synchronously with both the tab
-    /// and its Space: the page pool builds the adopting page from them without
-    /// consulting session state itself. `window.open()` without a destination
-    /// arrives as a nil or empty URL and becomes an `about:blank` tab, because a tab
-    /// without a URL is a start page rather than a web page.
-    /// TRANSITIONAL until Lane 2's page hosts adopt popups from the read
-    /// model: the registration carries the session copy's tab and Space.
+    /// and its Space: the page owner builds the adopting page from them.
+    /// `window.open()` without a destination arrives as a nil or empty URL and
+    /// becomes an `about:blank` tab, because a tab without a URL is a start page
+    /// rather than a web page.
     func openPopupTab(url: URL?, in spaceID: SpaceID, selecting: Bool = true) -> BrowserPopupTabRegistration? {
-        guard !isDeleting(spaceID),
-            let space = session.space(id: spaceID),
+        guard !isDeleting(spaceID), spaceModel(spaceID) != nil,
             let destinationURL = url.flatMap({ $0.absoluteString.isEmpty ? nil : $0 }) ?? URL(string: "about:blank")
         else { return nil }
         guard
             let tabID = openSessionTab(
-                .page(destinationURL), in: spaceID, insertingAfter: selectedTabID(in: space.id), shouldSelect: selecting
+                .page(destinationURL), in: spaceID, insertingAfter: selectedTabID(in: spaceID), shouldSelect: selecting
             ),
-            let updatedSpace = session.space(id: spaceID),
-            let tab = updatedSpace.tabs.first(where: { $0.id == tabID })
+            let space = spaceModel(spaceID),
+            let tab = space.tabs.model(tabID)
         else { return nil }
-        return BrowserPopupTabRegistration(tab: tab, space: updatedSpace)
+        return BrowserPopupTabRegistration(tab: tab, space: space)
+    }
+
+    /// Opens `url` in a new tab of Space `spaceID` for a modified link,
+    /// selected when `selecting`, and answers the tab with its Space.
+    func openModifiedLink(_ url: URL, in spaceID: SpaceID, selecting: Bool) -> BrowserModifiedLinkRegistration? {
+        guard let tabID = openNewTab(url: url, in: spaceID, selecting: selecting),
+            let space = spaceModel(spaceID),
+            let tab = space.tabs.model(tabID)
+        else { return nil }
+        return BrowserModifiedLinkRegistration(tab: tab, space: space)
     }
 
     /// Tab-level popup operations for a page pool. `window.close()` reaches

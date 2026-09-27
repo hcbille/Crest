@@ -107,13 +107,15 @@ final class BrowserPageHost {
         }
     }
 
-    /// Brings the resident pages in line with `session`: pages whose tab is
-    /// gone or moved go, a closed tab's state is kept first, and every page
-    /// takes its tab's context and its Space's password preference.
-    func reconcile(session: BrowserSession) {
-        nativeTabs.reconcile(session: session)
+    /// Brings the resident pages in line with `workspace` in the read model,
+    /// whose tabs wear the icons `images` keeps: pages whose tab is gone or
+    /// moved go, a closed tab's state is kept first, and every page takes its
+    /// tab's context and its Space's password preference. A workspace the
+    /// core no longer holds keeps no page.
+    func reconcile(workspace: WorkspaceModel?, images: FaviconAssets) {
+        nativeTabs.reconcile(spaces: workspace?.spaces.models ?? [])
         let reconciliation = BrowserPageReconciliation(
-            session: session, residentPages: runtimes.lazy.map { ($0.key, $0.value.page) })
+            workspace: workspace, images: images, residentPages: runtimes.lazy.map { ($0.key, $0.value.page) })
         tabState.retainCopies(matching: reconciliation.validAssignments)
         for tabID in reconciliation.tabIDsToArchive {
             archiveTabState(for: tabID)
@@ -123,15 +125,17 @@ final class BrowserPageHost {
             context.page.updateNavigationContext(tab: context.tab)
         }
         tabState.prune(keeping: reconciliation.retainedTabIDsByProfileID)
-        reconcileCredentialAccess(in: session)
+        reconcileCredentialAccess(in: workspace)
     }
 
     /// Brings every resident and leased page in line with its Space's "save
     /// passwords" preference: a background tab can hold a pending save offer,
     /// and a Peek runs a page with no tab of its own.
-    func reconcileCredentialAccess(in session: BrowserSession) {
+    func reconcileCredentialAccess(in workspace: WorkspaceModel?) {
         let enabledBySpaceID = Dictionary(
-            uniqueKeysWithValues: session.spaces.map { ($0.id, $0.credentialPreferences.isEnabled) })
+            uniqueKeysWithValues: (workspace?.spaces.models ?? []).map {
+                ($0.id, $0.settings.credentialPreferences.isEnabled)
+            })
         for page in runtimes.values.lazy.map(\.page) {
             page.setCredentialAccessEnabled(enabledBySpaceID[page.spaceID] ?? false)
         }
@@ -141,13 +145,16 @@ final class BrowserPageHost {
         }
     }
 
-    /// Gives each resident page its tab's current context, such as its icon.
-    func reconcileTabIcons(in session: BrowserSession) {
+    /// Gives each resident page its tab's current context in `workspace`,
+    /// such as the icon `images` keeps for it.
+    func reconcileTabIcons(in workspace: WorkspaceModel?, images: FaviconAssets) {
         let tabsByID = Dictionary(
-            uniqueKeysWithValues: session.spaces.flatMap { space in space.tabs.map { ($0.id, $0) } })
+            uniqueKeysWithValues: (workspace?.spaces.models ?? []).flatMap { space in
+                space.tabs.models.map { ($0.id, $0) }
+            })
         for (tabID, runtime) in runtimes {
             guard let tab = tabsByID[tabID] else { continue }
-            runtime.page.updateNavigationContext(tab: tab)
+            runtime.page.updateNavigationContext(tab: BrowserPageTab(tab, images: images))
         }
     }
 
@@ -182,14 +189,12 @@ final class BrowserPageHost {
         tabState.archivePage(page, for: tabID)
     }
 
-    /// The engine state `tab` left in its Space and profile, when it still
+    /// The engine state the tab left in its Space and profile, when it still
     /// shows `url`.
     func archivedInteractionState(
-        for tab: BrowserTab, spaceID: SpaceID, profileID: UUID, expecting url: URL, consumePendingCopy: Bool = true
+        for assignment: BrowserTabRuntimeAssignment, expecting url: URL, consumePendingCopy: Bool = true
     ) -> Data? {
-        tabState.interactionState(
-            for: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: spaceID, profileID: profileID),
-            expecting: url, consumePendingCopy: consumePendingCopy)
+        tabState.interactionState(for: assignment, expecting: url, consumePendingCopy: consumePendingCopy)
     }
 
     func discardArchivedTabState(matching assignment: BrowserTabRuntimeAssignment) {
@@ -198,32 +203,26 @@ final class BrowserPageHost {
 
     // MARK: - Actions - Tab copies
 
-    /// `source` as its resident page shows it now.
-    func sourceForTabCopy(_ source: BrowserTab, in space: BrowserSpace) -> BrowserTab {
-        var observed = source
-        if let page = page(matching: BrowserTabRuntimeAssignment(space: space, tabID: source.id)) {
-            observed.url = page.live.displayURL ?? source.url
-            if !page.live.title.isEmpty { observed.title = page.live.title }
-        }
-        return observed
-    }
-
-    /// Gives `copy` what `source` shows now, and the engine state its page
-    /// keeps for the copy's first page.
-    func prepareTabCopy(from source: BrowserTab, to copy: inout BrowserTab, in space: BrowserSpace) {
+    /// Gives the copy `copyID` of `source`, a tab of the Space `space` names,
+    /// the engine state its page keeps for the copy's first page: what the
+    /// source's resident page shows now, or the state the source left.
+    func prepareTabCopy(from source: TabState, copyID: TabID, in space: BrowserSpaceRuntimeAssignment) {
+        let sourceAssignment = BrowserTabRuntimeAssignment(tabID: source.id, in: space)
+        let sourceURL = source.url.flatMap(URL.init(string:))
+        let url: URL?
         let state: Data?
-        if let page = page(matching: BrowserTabRuntimeAssignment(space: space, tabID: source.id)) {
-            copy.url = page.live.displayURL ?? source.url
-            if !page.live.title.isEmpty { copy.title = page.live.title }
-            state = !page.wasOpenedAsPopup && page.live.documentURL == copy.url ? page.interactionState : nil
-        } else if let url = source.url {
-            state = archivedInteractionState(
-                for: source, spaceID: space.id, profileID: space.profile.id, expecting: url, consumePendingCopy: false)
+        if let page = page(matching: sourceAssignment) {
+            url = page.live.displayURL ?? sourceURL
+            state = !page.wasOpenedAsPopup && page.live.documentURL == url ? page.interactionState : nil
+        } else if let sourceURL {
+            url = sourceURL
+            state = archivedInteractionState(for: sourceAssignment, expecting: sourceURL, consumePendingCopy: false)
         } else {
+            url = nil
             state = nil
         }
         guard let state else { return }
-        tabState.prepareCopy(state, url: copy.url, for: BrowserTabRuntimeAssignment(space: space, tabID: copy.id))
+        tabState.prepareCopy(state, url: url, for: BrowserTabRuntimeAssignment(tabID: copyID, in: space))
     }
 
     /// The address the tab's resident page shows.
@@ -352,15 +351,15 @@ final class BrowserPageHost {
 
     /// Lets go of every page of `space` or its profile, and of its native
     /// content, and waits until nothing shows them.
-    func releasePages(of space: BrowserSpace) async {
-        let nativeTabIDs = nativeTabs.tabIDs(in: space.id)
-        nativeTabs.remove(in: space.id)
+    func releasePages(of space: BrowserSpaceRuntimeAssignment) async {
+        let nativeTabIDs = nativeTabs.tabIDs(in: space.spaceID)
+        nativeTabs.remove(in: space.spaceID)
         let tabIDs = Set(
             runtimes.compactMap { tabID, runtime in
-                runtime.page.spaceID == space.id || runtime.page.profileID == space.profile.id ? tabID : nil
+                runtime.page.spaceID == space.spaceID || runtime.page.profileID == space.profileID ? tabID : nil
             }
         ).union(nativeTabIDs)
-        let probes = releasePages(for: tabIDs) + releaseTransientPages(in: space.id)
+        let probes = releasePages(for: tabIDs) + releaseTransientPages(in: space.spaceID)
         await BrowserSpaceDataReleaseBarrier.waitForRetainedViews(probes)
     }
 
@@ -369,18 +368,18 @@ final class BrowserPageHost {
     /// engine erases its profile through `core`, `ephemeral` when this launch
     /// keeps it in memory only. Throws when an engine could not erase it.
     func deleteData(
-        for space: BrowserSpace, on core: CrestCore, ephemeral: Bool, release: () async -> Void
+        for space: BrowserSpaceRuntimeAssignment, on core: CrestCore, ephemeral: Bool, release: () async -> Void
     ) async throws {
-        guard spacesDeletingData.insert(space.id).inserted else { return }
-        defer { spacesDeletingData.remove(space.id) }
+        guard spacesDeletingData.insert(space.spaceID).inserted else { return }
+        defer { spacesDeletingData.remove(space.spaceID) }
         await release()
-        await BrowserFaviconFallbackLoader.shared.removeAll(for: space.profile.id)
+        await BrowserFaviconFallbackLoader.shared.removeAll(for: space.profileID)
         // Nothing may outlive the profile it describes.
-        tabState.removeStates(profileID: space.profile.id)
+        tabState.removeStates(profileID: space.profileID)
         // Every engine erases the profile, started or not; the Space's
         // deletion finishes only once each has.
         let erased = await core.deleteData(
-            DeleteProfileData(requestID: UUID(), profileID: space.profile.id, ephemeral: ephemeral))
+            DeleteProfileData(requestID: UUID(), profileID: space.profileID, ephemeral: ephemeral))
         guard erased else { throw BrowserSpaceDeletionError.dataNotErased }
     }
 
@@ -403,7 +402,7 @@ final class BrowserPageHost {
     /// from `makePage` after memory pressure. Only the first page replays
     /// `engineNavigation`. Nil when the core refuses the page.
     func makeTransientPageLease(
-        url: URL, in space: BrowserSpace, presentation: TransientPresentation,
+        url: URL, in space: SpaceModel, presentation: TransientPresentation,
         engineNavigation: BrowserEngineNavigation?, balancedContentRuleLists: [WKContentRuleList],
         onUserActivity: @escaping () -> Void, onDownloadOnlyNavigation: (() -> Void)?,
         makePage: @escaping @MainActor () -> BrowserPlatformPage?
@@ -416,7 +415,7 @@ final class BrowserPageHost {
             return nil
         }
         let lease = BrowserPlatformTransientPageLease(
-            page: initialPage, url: url, contentBlockingPolicy: space.browsingPreferences.contentBlockingPolicy,
+            page: initialPage, url: url, contentBlockingPolicy: space.settings.browsingPreferences.contentBlocking,
             balancedContentRuleLists: balancedContentRuleLists, rebuild: makePage, userActivity: onUserActivity,
             onDownloadOnlyNavigation: onDownloadOnlyNavigation)
         transientLeases[lease.id] = WeakBrowserTransientPageLease(lease)
@@ -452,7 +451,7 @@ final class BrowserPageHost {
     /// readied it and the core gave it to the tab through `browser`; nil when
     /// the lease holds no page of that Space, or either refused.
     func adoptTransientPage(
-        _ lease: BrowserPlatformTransientPageLease, as tabID: TabID, in space: BrowserSpace, through browser: BrowserStore,
+        _ lease: BrowserPlatformTransientPageLease, as tabID: TabID, in space: SpaceModel, through browser: BrowserStore,
         prepare: (BrowserPlatformPage) -> Bool
     ) -> BrowserPlatformPage? {
         guard let page = lease.page else { return nil }
@@ -523,8 +522,8 @@ final class BrowserPageHost {
 }
 
 extension BrowserTabRuntimeAssignment {
-    /// Tab `tabID` of `space`, in its profile.
-    init(space: BrowserSpace, tabID: TabID) {
-        self.init(tabID: tabID, spaceID: space.id, profileID: space.profile.id)
+    /// Tab `tabID` of the Space `space` names, in its profile.
+    init(tabID: TabID, in space: BrowserSpaceRuntimeAssignment) {
+        self.init(tabID: tabID, spaceID: space.spaceID, profileID: space.profileID)
     }
 }

@@ -44,6 +44,15 @@ final class BrowserStoredSessionHarness {
         try self.init(session: BrowserSession(opening: seed), syncDeviceID: syncDeviceID, favicons: favicons)
     }
 
+    /// Gives a new file the session a core opens from `seed` and the journal
+    /// `journalData` holds, as `init(session:journalData:favicons:)` does.
+    convenience init(
+        seed: SessionState.Seed, journalData: Data?,
+        favicons: InMemoryBrowserFaviconStore = InMemoryBrowserFaviconStore()
+    ) throws {
+        try self.init(session: BrowserSession(opening: seed), journalData: journalData, favicons: favicons)
+    }
+
     /// `staged(_:syncDeviceID:)` from a seed.
     static func staged(seed: SessionState.Seed, syncDeviceID: UUID = UUID()) async throws
         -> BrowserStoredSessionHarness

@@ -29,16 +29,6 @@ final class BrowserNativeTabStore {
         return runtimes[assignment.tabID]?.assignment == assignment
     }
 
-    /// TRANSITIONAL until the page hosts leave the copy with WP C j2: loads
-    /// the native content a tab of the session copy shows.
-    func load(tab: BrowserTab, space: BrowserSpace, at time: Date = .now) {
-        guard let content = tab.nativeContent else { return }
-        load(
-            content,
-            matching: BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profile.id),
-            at: time)
-    }
-
     /// Loads the native content a tab of the read model shows.
     func load(tab: TabStateModel, space: SpaceModel, at time: Date = .now) {
         guard let content = tab.nativeTabContent else { return }
@@ -113,27 +103,6 @@ final class BrowserNativeTabStore {
                         (
                             BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID),
                             tab.nativeTabContent
-                        )
-                    )
-                }
-            })
-        let removed = runtimes.compactMap { id, runtime in
-            live[id]?.0 == runtime.assignment && live[id]?.1 == runtime.content ? nil : id
-        }
-        for id in removed { remove(id) }
-    }
-
-    /// TRANSITIONAL until the page hosts leave the copy with WP C j2: as
-    /// `reconcile(spaces:)`, for the session copy.
-    func reconcile(session: BrowserSession) {
-        let live = Dictionary(
-            uniqueKeysWithValues: session.spaces.flatMap { space in
-                space.tabs.map { tab in
-                    (
-                        tab.id,
-                        (
-                            BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profile.id),
-                            tab.nativeContent
                         )
                     )
                 }

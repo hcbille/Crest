@@ -42,11 +42,11 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
             )
 
             XCTAssertFalse(model.navigation.compactShowsPage)
-            XCTAssertNil(model.browser.selectedTab)
-            XCTAssertTrue(model.browser.session.spaces.allSatisfy { model.browser.selectedTabID(in: $0.id) == nil })
+            XCTAssertNil(model.browser.shownTab)
+            XCTAssertTrue(model.browser.spaceModels.allSatisfy { model.browser.selectedTabID(in: $0.id) == nil })
             XCTAssertEqual(
-                model.browser.session.spaces.flatMap(\.tabs).map(\.id),
-                rootBrowser.session.spaces.flatMap(\.tabs).map(\.id)
+                model.browser.spaceModels.flatMap(\.tabs.models).map(\.id),
+                rootBrowser.spaceModels.flatMap(\.tabs.models).map(\.id)
             )
             XCTAssertEqual(model.pages.residentPageCount, 0)
         }
@@ -62,7 +62,7 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
             windowLayouts: BrowserWindowLayouts(defaults: nil), startupBehavior: .showStartPage,
             monitorsMemoryPressure: false, usesEphemeralWebsiteDataStores: true)
         model.privateBrowser.openNewTab(url: try XCTUnwrap(URL(string: "https://private.example")))
-        let privateSession = model.privateBrowser.session
+        let privateSession = model.privateBrowser.sessionSeed
         try model.browser.core.send(StartSetup(workspaceID: model.browser.family.workspaceID, entry: .firstRun))
         let result = await BrowserSetupFinish.finish(browser: model.browser, spaceAccess: model.spaceAccess)
         guard case .completed(let opened) = result, let guide = opened else {
@@ -71,9 +71,9 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         XCTAssertTrue(model.presentGettingStartedAfterSetup(matching: guide))
         XCTAssertNotNil(model.pages.nativeTabs.runtime(matching: guide, content: .gettingStarted))
         XCTAssertTrue(model.navigation.compactShowsPage)
-        XCTAssertEqual(model.browser.session.spaces.first?.id, guide.spaceID)
+        XCTAssertEqual(model.browser.spaceModels.first?.id, guide.spaceID)
         XCTAssertNil(model.pages.activePage)
-        XCTAssertEqual(model.privateBrowser.session, privateSession)
+        XCTAssertEqual(model.privateBrowser.sessionSeed, privateSession)
         model.navigation.adapt(to: .compact)
         XCTAssertTrue(model.navigation.compactShowsPage)
         XCTAssertFalse(
@@ -133,9 +133,9 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
             usesEphemeralWebsiteDataStores: true
         )
 
-        let tabID = try XCTUnwrap(model.browser.selectedSpace?.tabs.first?.id)
+        let tabID = try XCTUnwrap(model.browser.shownSpace?.tabs.models.first?.id)
         model.browser.selectTab(tabID)
-        model.pages.select(session: model.browser.presented)
+        model.pages.select()
 
         let store = try XCTUnwrap(
             model.pages.activePage?.webView.configuration.websiteDataStore
@@ -146,13 +146,13 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
 
     func testScenesShareBrowsingEditsButKeepSelectionPagesAndPrivateSessionsIndependent() throws {
         let url = try XCTUnwrap(URL(string: "about:blank"))
-        let sharedTab = BrowserTab(title: "Shared", url: url, placement: .current)
-        let otherTab = BrowserTab(title: "Other", url: url, placement: .current)
-        let space = BrowserSpace(
-            id: SpaceID(), profile: BrowsingProfile(), name: "Windows", symbol: "globe", accent: .indigo,
+        let sharedTab = TabState.Seed(title: "Shared", url: url, placement: .current)
+        let otherTab = TabState.Seed(title: "Other", url: url, placement: .current)
+        let space = SpaceState.Seed(
+            name: "Windows", symbol: "globe", accent: .indigo,
             folders: [], tabs: [sharedTab, otherTab])
         let root = BrowserStore.hostingPages(
-            BrowserSession(spaces: [space]),
+            SessionState.Seed(spaces: [space]),
             showing: space.id, tabs: [space.id: sharedTab.id])
         let registry = MobileBrowserPageStoreRegistry(
             primary: MobileBrowserPageStore(browser: root, usesEphemeralWebsiteDataStores: true))
@@ -178,13 +178,13 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         first.browser.pinTab(sharedTab.id)
 
         XCTAssertTrue(first.browser.family === second.browser.family)
-        XCTAssertEqual(second.browser.selectedSpace?.pinnedTabs.map(\.id), [sharedTab.id])
-        XCTAssertEqual(first.browser.selectedTab?.id, sharedTab.id)
-        XCTAssertEqual(second.browser.selectedTab?.id, otherTab.id)
+        XCTAssertEqual(second.browser.shownSpace?.pinnedTabs.map(\.id), [sharedTab.id])
+        XCTAssertEqual(first.browser.shownTab?.id, sharedTab.id)
+        XCTAssertEqual(second.browser.shownTab?.id, otherTab.id)
 
-        first.pages.select(session: first.browser.presented)
+        first.pages.select()
         second.browser.selectTab(sharedTab.id)
-        second.pages.select(session: second.browser.presented)
+        second.pages.select()
         let firstPage = try XCTUnwrap(first.pages.activePage)
         let secondPage = try XCTUnwrap(second.pages.activePage)
         XCTAssertFalse(first.pages === second.pages)
@@ -197,16 +197,16 @@ final class MobileBrowserWindowSceneModelTests: XCTestCase {
         first.pages.reconcile(validTabIDs: [])
         XCTAssertNil(first.pages.activePage)
         XCTAssertTrue(second.pages.activePage === secondPage)
-        XCTAssertNotNil(second.browser.selectedTab)
+        XCTAssertNotNil(second.browser.shownTab)
 
         XCTAssertFalse(first.privateBrowser.family === second.privateBrowser.family)
         XCTAssertFalse(first.privateBrowser.family === root.family)
         XCTAssertFalse(second.privateBrowser.family === root.family)
-        let secondPrivateSession = second.privateBrowser.session
+        let secondPrivateSession = second.privateBrowser.sessionSeed
         let normalSession = root.session
         let privateTabID = try XCTUnwrap(first.privateBrowser.openNewTab(url: url))
         XCTAssertTrue(first.privateBrowser.session.tabIDs.contains(privateTabID))
-        XCTAssertEqual(second.privateBrowser.session, secondPrivateSession)
+        XCTAssertEqual(second.privateBrowser.sessionSeed, secondPrivateSession)
         XCTAssertEqual(root.session, normalSession)
     }
 }

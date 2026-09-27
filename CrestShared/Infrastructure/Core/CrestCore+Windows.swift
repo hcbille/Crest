@@ -13,13 +13,4 @@ extension CrestCore {
         else { return nil }
         return tabs[index].id
     }
-
-    /// TRANSITIONAL until the page pool's tests move to the read model with
-    /// WP C j2: the same tab for a Space of the session copy.
-    func fallbackTabID(in space: BrowserSpace) -> TabID? {
-        guard let index = (try? query(FallbackTab(placements: space.tabs.map(\.placement))))?.index,
-            space.tabs.indices.contains(index)
-        else { return nil }
-        return space.tabs[index].id
-    }
 }

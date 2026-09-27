@@ -42,7 +42,7 @@ protocol BrowserPageEngineAdapter: AnyObject {
     func install(_ focusRestoration: BrowserWebFocusRestorationController)
     /// Starts reporting the person's input in the page as `.userActivity`.
     func monitorUserActivity(for page: BrowserPage)
-    func styleVisitedLinks(history: [BrowserHistoryEntry]) async
+    func styleVisitedLinks(history: [HistoryEntryState]) async
     /// Runs when Crest prepares a navigation, before the engine starts it.
     func prepareForNavigation()
     /// Runs after a change to one of the page's site permissions reached the

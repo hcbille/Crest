@@ -25,7 +25,7 @@ struct BrowserSidebarDropCommit {
         guard let space = browser.spaceModel(assignment.spaceID), space.profileID == assignment.profileID,
             let drop = drop(on: target, lifting: plan.selection, in: space)
         else { return false }
-        let source = browser.space(matching: assignment)
+        let sources = BrowserTabCopySources(space)
         let changes: [Change]
         do {
             changes = try browser.family.commit(drop.intent, from: browser)
@@ -37,7 +37,7 @@ struct BrowserSidebarDropCommit {
             guard case .tabCopied(let copied) = $0, copied.workspaceID == browser.family.workspaceID else { return nil }
             return copied
         }
-        if let source { browser.prepareAcceptedCopies(copies, from: source) }
+        browser.prepareAcceptedCopies(copies, from: sources)
         if let destination = drop.following {
             let destinationAssignment = BrowserSpaceRuntimeAssignment(
                 spaceID: destination.id, profileID: destination.profileID)

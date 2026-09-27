@@ -10,14 +10,15 @@ extension BrowserPagePool {
     /// What WebKit's binding builds a page of `space` from: the Space's
     /// content rules and, where this pool keeps nothing, its profile's
     /// ephemeral website data store.
-    func webKitInputs(for space: BrowserSpace) -> WebKitPageInputs {
-        WebKitPageInputs(websiteDataStore: websiteDataStore(for: space.profile), contentRuleLists: contentRuleLists(for: space))
+    func webKitInputs(for space: SpaceModel) -> WebKitPageInputs {
+        WebKitPageInputs(
+            websiteDataStore: websiteDataStore(for: space.profileID), contentRuleLists: contentRuleLists(for: space))
     }
 
     /// What WebKit's binding builds a page of Space `spaceID` from when the
     /// core moves the page to WebKit; nil once the Space is gone.
     func webKitInputs(forSpaceID spaceID: SpaceID) -> WebKitPageInputs? {
-        browser.session.space(id: spaceID).map(webKitInputs(for:))
+        browser.spaceModel(spaceID).map(webKitInputs(for:))
     }
 
     /// Adopts the web view WebKit pre-made for a popup as a new tab in the
@@ -40,17 +41,17 @@ extension BrowserPagePool {
         }?.webKitView
     }
 
-    private func contentRuleLists(for space: BrowserSpace) -> [WKContentRuleList] {
-        contentBlocking.ruleLists(for: space.browsingPreferences.contentBlockingPolicy)
+    private func contentRuleLists(for space: SpaceModel) -> [WKContentRuleList] {
+        contentBlocking.ruleLists(for: space.settings.browsingPreferences.contentBlocking)
     }
 
-    private func websiteDataStore(for profile: BrowsingProfile) -> WKWebsiteDataStore? {
+    private func websiteDataStore(for profileID: UUID) -> WKWebsiteDataStore? {
         guard usesEphemeralWebsiteDataStores else { return nil }
-        if let dataStore = profileDataStores.ephemeral[profile.id] {
+        if let dataStore = profileDataStores.ephemeral[profileID] {
             return dataStore
         }
         let dataStore = WKWebsiteDataStore.nonPersistent()
-        profileDataStores.ephemeral[profile.id] = dataStore
+        profileDataStores.ephemeral[profileID] = dataStore
         return dataStore
     }
 
@@ -60,9 +61,11 @@ extension BrowserPagePool {
         await contentBlocking.prepare()
     }
 
-    /// Reloads presented pages only when their Space's protection level changes.
-    func reconcileContentBlocking(in session: BrowserSession) async {
-        let update = await contentBlocking.reconcile(in: session)
+    /// Gives every page its Space's content blocking in the window's
+    /// workspace, reloading presented pages only when their Space's protection
+    /// level changes.
+    func reconcileContentBlocking() async {
+        let update = await contentBlocking.reconcile(in: browser.workspaceModel)
         for (tabID, runtime) in runtimeStore.runtimes {
             let page = runtime.page
             let isPresentedPage = runtimeStore.presentedTabIDs.contains(tabID)
@@ -82,9 +85,9 @@ extension BrowserPagePool {
     }
 
     /// Refreshes rule lists without reloading unchanged documents.
-    func reloadContentBlocking(in session: BrowserSession) async {
+    func reloadContentBlocking() async {
         contentBlocking.invalidateRuleLists()
-        await reconcileContentBlocking(in: session)
+        await reconcileContentBlocking()
     }
 
     // MARK: - Actions - Script message routing

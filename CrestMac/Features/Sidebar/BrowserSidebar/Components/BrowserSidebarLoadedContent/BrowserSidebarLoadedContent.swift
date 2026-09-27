@@ -118,7 +118,7 @@ struct BrowserSidebarLoadedContent: View {
             else { return }
             context.selectSpace(assignment.spaceID)
             context.browser.selectTab(assignment.tabID)
-            pages.select(session: context.browser.presented)
+            pages.select()
         }
     }
 

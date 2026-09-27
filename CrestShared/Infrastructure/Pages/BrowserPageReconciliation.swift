@@ -1,51 +1,55 @@
 import Foundation
 
-/// A single session traversal supplies both runtime reconciliation and archive
-/// retention. The platform still controls how pages are released and presented.
+/// One walk of a workspace in the read model supplies both runtime
+/// reconciliation and archive retention. The platform still controls how pages
+/// are released and presented.
 @MainActor
 struct BrowserPageReconciliation {
+    // MARK: - Variables
+
     let validAssignments: Set<BrowserTabRuntimeAssignment>
     let invalidTabIDs: Set<TabID>
     let tabIDsToArchive: Set<TabID>
-    let navigationContexts: [(page: BrowserPlatformPage, tab: BrowserTab)]
+    let navigationContexts: [(page: BrowserPlatformPage, tab: BrowserPageTab)]
     let retainedTabIDsByProfileID: [UUID: Set<TabID>]
 
+    // MARK: - Initializers
+
+    /// Reconciles `residentPages` with `workspace`, whose tabs wear the icons
+    /// `images` keeps. A workspace the core no longer holds keeps no page.
     init(
-        session: BrowserSession,
+        workspace: WorkspaceModel?,
+        images: FaviconAssets,
         residentPages: some Sequence<(TabID, BrowserPlatformPage)>
     ) {
-        var tabsByID: [TabID: (tab: BrowserTab, assignment: BrowserTabRuntimeAssignment)] = [:]
+        var tabsByID: [TabID: (tab: TabStateModel, assignment: BrowserTabRuntimeAssignment)] = [:]
         var archivedAssignments: [TabID: BrowserSpaceRuntimeAssignment] = [:]
         var keptTabIDsByProfileID: [UUID: Set<TabID>] = [:]
-        for space in session.spaces {
+        for space in workspace?.spaces.models ?? [] {
             let spaceAssignment = BrowserSpaceRuntimeAssignment(space: space)
-            for tab in space.tabs {
-                let assignment = BrowserTabRuntimeAssignment(
-                    tabID: tab.id, spaceID: space.id, profileID: space.profile.id
-                )
+            for tab in space.tabs.models {
+                let assignment = BrowserTabRuntimeAssignment(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
                 precondition(tabsByID[tab.id] == nil)
                 tabsByID[tab.id] = (tab, assignment)
             }
-            for archivedTab in space.archivedTabs {
-                precondition(archivedAssignments[archivedTab.id] == nil)
-                archivedAssignments[archivedTab.id] = spaceAssignment
+            for archived in space.archive.entries {
+                precondition(archivedAssignments[archived.tab.id] == nil)
+                archivedAssignments[archived.tab.id] = spaceAssignment
             }
-            keptTabIDsByProfileID[space.profile.id, default: []].formUnion(
-                space.tabs.map(\.id) + space.archivedTabs.map(\.tab.id)
-            )
+            keptTabIDsByProfileID[space.profileID, default: []].formUnion(space.tabIDs)
         }
         validAssignments = Set(tabsByID.values.map(\.assignment))
         retainedTabIDsByProfileID = keptTabIDsByProfileID
 
         var invalid: Set<TabID> = []
         var toArchive: Set<TabID> = []
-        var contexts: [(page: BrowserPlatformPage, tab: BrowserTab)] = []
+        var contexts: [(page: BrowserPlatformPage, tab: BrowserPageTab)] = []
         for (tabID, page) in residentPages {
             if let entry = tabsByID[tabID], entry.tab.nativeContent == nil,
                 entry.assignment.spaceID == page.spaceID,
                 entry.assignment.profileID == page.profileID
             {
-                contexts.append((page, entry.tab))
+                contexts.append((page, BrowserPageTab(entry.tab, images: images)))
                 continue
             }
             invalid.insert(tabID)

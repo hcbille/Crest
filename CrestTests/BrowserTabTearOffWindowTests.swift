@@ -9,7 +9,7 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
     func testNativeDragOutsideOnlyWindowWaitsForBlankWindowThenMovesTab() throws {
         let fixture = try Fixture()
         defer { fixture.close() }
-        fixture.source.pages.select(session: fixture.source.browser.presented)
+        fixture.source.pages.select()
         let page = try XCTUnwrap(fixture.source.pages.activePage)
         let row = try XCTUnwrap(fixture.root.sidebarInteraction.sidebarReorderState.frame(ofRow: .tab(fixture.tabID)))
         let grabFraction = CGPoint(x: 0.25, y: 0.75)
@@ -31,9 +31,9 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
 
         let request = try XCTUnwrap(fixture.request)
         XCTAssertEqual(request.kind, .temporary)
-        XCTAssertEqual(fixture.source.browser.selectedTab?.id, fixture.tabID)
+        XCTAssertEqual(fixture.source.browser.shownTab?.id, fixture.tabID)
         let destination = try XCTUnwrap(fixture.coordinator.existingModel(for: request.id))
-        XCTAssertTrue(destination.browser.selectedSpace?.tabs.isEmpty == true)
+        XCTAssertTrue(destination.browser.shownSpace?.tabs.models.isEmpty == true)
         let placement = try XCTUnwrap(destination.tearOffPlacement)
         XCTAssertEqual(placement.assignment.tabID, fixture.tabID)
         XCTAssertEqual(fixture.capturedDropPoint, point)
@@ -58,11 +58,11 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
         fixture.coordinator.attach(fixture.destinationWindow, to: request.id)
         fixture.pump()
 
-        XCTAssertEqual(destination.browser.selectedTab?.id, fixture.tabID)
+        XCTAssertEqual(destination.browser.shownTab?.id, fixture.tabID)
         XCTAssertTrue(destination.pages.activePage === page)
         XCTAssertTrue(page.host === destination.pages)
         XCTAssertNil(fixture.source.pages.residentPage(matching: placement.assignment))
-        XCTAssertTrue(fixture.source.browser.selectedSpace?.tabs.isEmpty == true)
+        XCTAssertTrue(fixture.source.browser.shownSpace?.tabs.models.isEmpty == true)
         XCTAssertNotNil(fixture.coordinator.existingModel(for: fixture.source.id))
         XCTAssertTrue(fixture.source.window?.isVisible == true)
         XCTAssertTrue(fixture.completedPlacementFromRow, "The destination's measured row must finish placement")
@@ -107,7 +107,7 @@ final class BrowserTabTearOffWindowTests: XCTestCase {
         fixture.pump()
 
         XCTAssertNil(fixture.request)
-        XCTAssertEqual(fixture.source.browser.selectedTab?.id, fixture.tabID)
+        XCTAssertEqual(fixture.source.browser.shownTab?.id, fixture.tabID)
         XCTAssertFalse(fixture.root.sidebarInteraction.sidebarReorderState.hasLiftInFlight)
     }
 

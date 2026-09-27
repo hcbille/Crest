@@ -2957,6 +2957,10 @@
     "chromium-private-window-borrowed-profile": {
       "category": "internal",
       "message": "Chromium private windows borrow only an unlocked Space's settings and extensions"
+    },
+    "page-hosts-read-read-model": {
+      "category": "internal",
+      "message": "Page hosts and engine glue read Spaces and tabs from the read model"
     }
   }
 }

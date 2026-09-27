@@ -1,40 +1,24 @@
+/// What a window's page runtime follows in its workspace: tab icons, content
+/// blocking and credential access, compared between changes so each is
+/// reconciled only when it moved.
 struct BrowserRuntimeSessionProjection: Equatable, Sendable {
+    // MARK: - Variables
+
     let tabIconState: BrowserTabIconSessionState
     let contentBlockingState: BrowserContentBlockingSessionState
     let credentialAccessState: [SpaceID: Bool]
 
-    init(session: BrowserSession) {
-        var tabIconItems: [BrowserTabIconSessionItem] = []
-        var contentBlockingPolicies: [SpaceID: ContentBlockingPolicy] = [:]
-        var credentialAccessBySpaceID: [SpaceID: Bool] = [:]
+    // MARK: - Initializers
 
-        for space in session.spaces {
-            tabIconItems.reserveCapacity(tabIconItems.count + space.tabs.count)
-
-            for tab in space.tabs {
-                tabIconItems.append(
-                    BrowserTabIconSessionItem(
-                        id: tab.id,
-                        url: tab.url,
-                        faviconData: tab.faviconData,
-                        faviconURL: tab.faviconURL,
-                        iconAccent: tab.iconAccent,
-                        iconMode: tab.iconMode,
-                        symbol: tab.symbol
-                    )
-                )
-            }
-
-            contentBlockingPolicies[space.id] =
-                space.browsingPreferences.contentBlockingPolicy
-            credentialAccessBySpaceID[space.id] =
-                space.credentialPreferences.isEnabled
-        }
-
-        tabIconState = BrowserTabIconSessionState(items: tabIconItems)
-        contentBlockingState = BrowserContentBlockingSessionState(
-            policiesBySpaceID: contentBlockingPolicies
-        )
-        credentialAccessState = credentialAccessBySpaceID
+    /// What `workspace` in the read model holds now, its tabs wearing the
+    /// icons `images` keeps.
+    @MainActor
+    init(workspace: WorkspaceModel?, images: FaviconAssets) {
+        tabIconState = BrowserTabIconSessionState(workspace: workspace, images: images)
+        contentBlockingState = BrowserContentBlockingSessionState(workspace: workspace)
+        credentialAccessState = Dictionary(
+            uniqueKeysWithValues: (workspace?.spaces.models ?? []).map {
+                ($0.id, $0.settings.credentialPreferences.isEnabled)
+            })
     }
 }

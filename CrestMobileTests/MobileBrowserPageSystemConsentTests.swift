@@ -46,17 +46,17 @@ final class MobileBrowserPageSystemConsentTests: XCTestCase {
     private typealias Fixture = (page: MobileBrowserPage, webKitPage: WebKitEnginePage, browser: BrowserStore)
 
     private func makeFixture() throws -> Fixture {
-        let space = try XCTUnwrap(BrowserSession.preview.spaces.first)
+        let space = try XCTUnwrap(SessionState.Seed.preview.spaces.first)
         let tab = try XCTUnwrap(space.tabs.first)
-        let browser = BrowserStore.hostingPages(BrowserSession(spaces: [space]))
+        let browser = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
         let opened = try XCTUnwrap(
             browser.openWebKitPage(
                 in: space.id, for: tab.id, webKit: WebKitPageInputs(websiteDataStore: .nonPersistent())))
         let page = MobileBrowserPage(
             corePage: opened.core,
             webKitPage: opened.webKit,
-            tab: tab,
-            space: space,
+            tab: browser.pageTab(tab.id, in: space.id),
+            space: browser.hostedSpace(space.id),
             // The Space's choices live in the core that hosts the page, as in the app.
             permissionCenter: BrowserSitePermissionCenter(core: browser.core),
             loadsInitialURL: false,

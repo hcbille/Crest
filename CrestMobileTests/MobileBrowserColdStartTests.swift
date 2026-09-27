@@ -13,7 +13,7 @@ final class MobileBrowserColdStartTests: XCTestCase {
     }
 
     func testFloatingColdLaunchPreservesSplitMembershipAndWarmUserSelection() throws {
-        var session = BrowserSession.preview
+        var session = SessionState.Seed.preview
         let group = SplitGroupID()
         session.spaces[0].tabs[0].placement = .current
         session.spaces[0].tabs[1].placement = .current
@@ -37,14 +37,14 @@ final class MobileBrowserColdStartTests: XCTestCase {
         )
         XCTAssertTrue(model.navigation.compactShowsPage)
         XCTAssertFalse(model.navigation.regularSidebarIsDocked)
-        XCTAssertNil(model.browser.selectedTab)
-        XCTAssertEqual(model.browser.session.spaces[0].tabs.prefix(2).map(\.splitGroupID), [group, group])
-        let choice = try XCTUnwrap(model.browser.selectedSpace?.tabs.first?.id)
+        XCTAssertNil(model.browser.shownTab)
+        XCTAssertEqual(model.browser.spaceModels[0].tabs.models.prefix(2).map(\.splitGroupID), [group, group])
+        let choice = try XCTUnwrap(model.browser.shownSpace?.tabs.models.first?.id)
         model.browser.selectTab(choice)
         model.prepareForInactiveScene()
         model.prepareForBackgroundScene()
         model.activateWindow()
-        XCTAssertEqual(model.browser.selectedTab?.id, choice)
+        XCTAssertEqual(model.browser.shownTab?.id, choice)
     }
 
 }

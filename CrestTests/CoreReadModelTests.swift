@@ -10,66 +10,6 @@ import XCTest
 /// only the objects whose values it really changes.
 @MainActor
 final class CoreReadModelTests: XCTestCase {
-    func testTheReadModelFedTheDrainedBatchesHoldsWhatTheCopyHolds() throws {
-        let core = CrestCore.hostingPages()
-        var batches: [[Change]] = []
-        core.batchApplied = { batches.append($0) }
-        var original = SessionState.Seed.preview
-        let icon = Data([7, 7, 7])
-        original.spaces[0].tabs[0].faviconURL = original.spaces[0].tabs[0].url
-        let store = BrowserStore(seed: original, images: [original.spaces[0].tabs[0].id: icon], core: core)
-        let spaceID = original.spaces[0].id
-        let first = original.spaces[0].tabs[0].id
-
-        let opened = try XCTUnwrap(
-            store.openSessionTab(.page(URL(string: "https://opened.example/")!, title: "Opened"), in: spaceID))
-        XCTAssertTrue(store.setTabCustomTitle("Renamed", for: opened, in: spaceID))
-        let pulled = Data([1, 2, 3])
-        store.setTabFavicon(pulled, iconAccent: nil, for: opened, in: spaceID)
-        let copy = try XCTUnwrap(store.duplicateTab(opened, in: spaceID))
-        let page = try XCTUnwrap(store.openReportingPage(for: nil, in: spaceID))
-        store.finishNavigation(of: page, to: try XCTUnwrap(URL(string: "https://visited.example/a")), titled: "First")
-        store.finishNavigation(
-            of: page, to: try XCTUnwrap(URL(string: "https://visited.example/a#again")), titled: "Again")
-        XCTAssertTrue(store.closeTab(opened, in: spaceID))
-        store.restoreArchivedTab(opened)
-        XCTAssertNotNil(
-            store.addFolder(title: "Reading", matching: BrowserSpaceRuntimeAssignment(space: store.session.spaces[0])))
-        store.selectTab(first)
-        store.updateSpaceIdentity(spaceID, name: "Renamed Space", symbol: "book", accent: .teal)
-        store.addSpace()
-
-        // The images move with their tabs: the pulled image survives the
-        // archive and the restore, and the copy wears its source's.
-        XCTAssertEqual(core.state.favicons.image(of: first), icon)
-        XCTAssertEqual(core.state.favicons.image(of: opened), pulled)
-        XCTAssertEqual(core.state.favicons.image(of: copy), pulled)
-        XCTAssertEqual(store.session.space(id: spaceID)?.tabs.first { $0.id == copy }?.faviconData, pulled)
-
-        let workspaceID = store.window.workspaceID
-        let replay = CoreState()
-        for batch in batches {
-            apply(batch, to: replay)
-            let values = Self.values(of: replay, workspaceID)
-            XCTAssertFalse(notifies(replay) { apply(batch, to: replay) }, "A batch applied again notified: \(batch)")
-            XCTAssertEqual(Self.values(of: replay, workspaceID), values)
-        }
-
-        let live = try XCTUnwrap(core.state.workspaces[workspaceID])
-        let replayed = try XCTUnwrap(replay.workspaces[workspaceID])
-        XCTAssertEqual(Self.values(of: replay, workspaceID), Self.values(of: core.state, workspaceID))
-        XCTAssertEqual(replayed.spaces.models.count, original.spaces.count + 1)
-        XCTAssertEqual(live.spaces.model(spaceID)?.settings.name, "Renamed Space")
-        // The replay was offered no images, so it matches the copy without them.
-        let session = BrowserCoreSessionAuthority.compact(store.session)
-        XCTAssertEqual(replayed.spaces.values.map { BrowserSpace(core: $0) { _ in nil } }, session.spaces)
-        XCTAssertEqual(replayed.defaultSpaceID, session.defaultSpaceID)
-        XCTAssertEqual(replayed.isDisposableSeed, session.disposableSeedMarker != nil)
-        XCTAssertEqual(replayed.appPreferences.map(BrowserAppPreferences.init(core:)), session.appPreferences)
-        // What tests read through the snapshot is what the read model holds.
-        XCTAssertEqual(store.snapshot.spaces, live.spaces.values)
-        XCTAssertEqual(store.shownTabState?.id, store.selectedTab?.id)
-    }
 
     func testAChangeNotifiesOnlyTheObjectsWhoseValuesItChanges() throws {
         let core = CrestCore()

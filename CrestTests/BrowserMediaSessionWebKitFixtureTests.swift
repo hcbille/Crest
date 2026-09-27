@@ -14,11 +14,10 @@ final class BrowserMediaSessionWebKitFixtureTests: XCTestCase {
         let origin = try XCTUnwrap(
             URL(string: "https://media-session.crest.test/?title=Fixture")
         )
-        let tab = BrowserTab.startPage()
+        let tab = TabState.Seed.startPage()
         let profile = BrowsingProfile()
-        let space = BrowserSpace(
-            id: SpaceID(),
-            profile: profile,
+        let space = SpaceState.Seed(
+            profileID: profile.id,
             name: "Media Fixture",
             symbol: "play.fill",
             accent: .indigo,
@@ -27,11 +26,11 @@ final class BrowserMediaSessionWebKitFixtureTests: XCTestCase {
         )
         let store = BrowserMediaSessionStore()
         let pool = BrowserPagePool(
-            browser: .hostingPages(BrowserSession(spaces: [space])),
+            browser: .hostingPages(SessionState.Seed(spaces: [space])),
             usesEphemeralWebsiteDataStores: true,
             mediaSessionStore: store
         )
-        pool.select(tab: tab, space: space)
+        pool.present(tab: tab.id, in: space.id)
         let page = try XCTUnwrap(pool.activePage)
 
         page.webView.loadSimulatedRequest(

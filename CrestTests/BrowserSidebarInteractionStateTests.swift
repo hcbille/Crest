@@ -9,17 +9,17 @@ final class BrowserSidebarInteractionStateTests: XCTestCase {
         let interaction = BrowserSidebarInteractionState.connected(to: browser)
         let otherBrowser = BrowserStore.preview()
         let other = BrowserSidebarInteractionState.connected(to: otherBrowser)
-        let otherSpace = try XCTUnwrap(otherBrowser.selectedSpace)
-        let otherTab = try XCTUnwrap(otherBrowser.selectedTab)
+        let otherSpace = try XCTUnwrap(otherBrowser.shownSpace)
+        let otherTab = try XCTUnwrap(otherBrowser.shownTab)
         other.sidebarReorderState.stage(
             item: .tab(
-                BrowserTabDragItem(tabID: otherTab.id, spaceID: otherSpace.id, profileID: otherSpace.profile.id)),
+                BrowserTabDragItem(tabID: otherTab.id, spaceID: otherSpace.id, profileID: otherSpace.profileID)),
             section: .tabs(placement: otherTab.placement, folderID: nil))
 
         for staged in [true, false] {
-            let space = try XCTUnwrap(browser.selectedSpace)
-            let tab = try XCTUnwrap(browser.selectedTab)
-            let item = BrowserTabDragItem(tabID: tab.id, spaceID: space.id, profileID: space.profile.id)
+            let space = try XCTUnwrap(browser.shownSpace)
+            let tab = try XCTUnwrap(browser.shownTab)
+            let item = BrowserTabDragItem(tabID: tab.id, spaceID: space.id, profileID: space.profileID)
             let section = BrowserSidebarReorderSection.tabs(placement: tab.placement, folderID: nil)
             if staged {
                 interaction.sidebarReorderState.stage(item: .tab(item), section: section)
@@ -42,10 +42,10 @@ final class BrowserSidebarInteractionStateTests: XCTestCase {
         let browser = BrowserStore.privateBrowsing()
         let interaction = BrowserSidebarInteractionState.connected(to: browser)
         XCTAssertTrue(BrowserSidebarInteractionState.connected(to: browser) === interaction)
-        let space = try XCTUnwrap(browser.selectedSpace)
-        let tab = try XCTUnwrap(browser.selectedTab)
+        let space = try XCTUnwrap(browser.shownSpace)
+        let tab = try XCTUnwrap(browser.shownTab)
         interaction.sidebarReorderState.stage(
-            item: .tab(BrowserTabDragItem(tabID: tab.id, spaceID: space.id, profileID: space.profile.id)),
+            item: .tab(BrowserTabDragItem(tabID: tab.id, spaceID: space.id, profileID: space.profileID)),
             section: .tabs(placement: tab.placement, folderID: nil))
 
         browser.resetPrivateBrowsingSession()
@@ -56,12 +56,12 @@ final class BrowserSidebarInteractionStateTests: XCTestCase {
     func testMovingAnotherTabDoesNotRetargetTheCurrentDrag() throws {
         let browser = BrowserStore.preview()
         let interaction = BrowserSidebarInteractionState.connected(to: browser)
-        let source = try XCTUnwrap(browser.session.spaces.first)
-        let destination = try XCTUnwrap(browser.session.spaces.last)
+        let source = try XCTUnwrap(browser.spaceModels.first)
+        let destination = try XCTUnwrap(browser.spaceModels.last)
         let dragged = try XCTUnwrap(source.currentTabs.first)
         let moved = try XCTUnwrap(source.currentTabs.last)
         XCTAssertNotEqual(dragged.id, moved.id)
-        let item = BrowserTabDragItem(tabID: dragged.id, spaceID: source.id, profileID: source.profile.id)
+        let item = BrowserTabDragItem(tabID: dragged.id, spaceID: source.id, profileID: source.profileID)
         let token = interaction.tabDragState.begin(item: item, placement: dragged.placement)
 
         XCTAssertTrue(browser.moveTab(moved.id, from: source.id, into: destination.id))

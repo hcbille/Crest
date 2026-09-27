@@ -143,16 +143,7 @@ private final class BrowserMobileApplication {
             linkDestinationHost: BrowserLinkDestinationHost(browser: browser, spaceAccess: spaceAccess),
             openNewTab: { url in browser.openNewTab(url: url) },
             openModifiedLink: { url, spaceID, selecting in
-                guard
-                    let tabID = browser.openNewTab(
-                        url: url,
-                        in: spaceID,
-                        selecting: selecting
-                    ),
-                    let space = browser.session.space(id: spaceID),
-                    let tab = space.tabs.first(where: { $0.id == tabID })
-                else { return nil }
-                return BrowserModifiedLinkRegistration(tab: tab, space: space, session: browser.presented)
+                browser.openModifiedLink(url, in: spaceID, selecting: selecting)
             },
             openPeek: { request in transientBrowsing.presentPeek(request) }
         )
