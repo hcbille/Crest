@@ -217,6 +217,24 @@ public sealed unsafe class ContractCodecTests {
         Assert.Contains("struct Binding: Equatable, Sendable {", swift, StringComparison.Ordinal);
     }
 
+    /// A record that holds a password, itself or through a list or an optional,
+    /// names none in its Swift text: it shows each list's count and nothing
+    /// else of its values, and reflects no children.
+    [Fact]
+    public void ARecordThatHoldsAPasswordNamesNoneInItsSwiftText() {
+        string swift = SwiftEmitter.EmitContracts(ContractSchema.Load([typeof(Secret.Unlock), typeof(Secret.Remember),
+            typeof(Secret.Recall), typeof(Secret.Note)]));
+
+        foreach (string holder in new[] { "Unlock", "Remember", "Recall", "ExistingCredential" })
+            Assert.Contains($"extension {holder}: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {{", swift,
+                StringComparison.Ordinal);
+        Assert.DoesNotContain("extension Note:", swift, StringComparison.Ordinal);
+        Assert.Contains("\"Unlock(owner: <redacted>, password: <redacted>)\"", swift, StringComparison.Ordinal);
+        Assert.Contains("\"Remember(credentials: \\(credentials.count), hooks: <redacted>)\"", swift, StringComparison.Ordinal);
+        Assert.Contains("var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }", swift,
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AnOpenSetStaysOffTheWireAndSwiftCanMakeItsMembers() {
         var schema = ContractSchema.Load([typeof(Opened.Engine)]);

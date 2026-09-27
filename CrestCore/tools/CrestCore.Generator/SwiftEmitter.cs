@@ -10,7 +10,8 @@ namespace CrestCore.Generator;
 /// members, messages Swift sends (intents, queries, engine events) conform to
 /// their root's protocol, and messages it receives (changes, rejections,
 /// engine commands) become the cases of their root's enum. An `[Observed]`
-/// record also becomes the model class the read model keeps for it.
+/// record also becomes the model class the read model keeps for it, and a
+/// record that holds a password names none in its text form.
 internal static class SwiftEmitter {
     #region Static Variables
 
@@ -98,6 +99,14 @@ internal static class SwiftEmitter {
             }
             if (schema.HasSeed(record.Type)) EmitSeed(code, schema, record, equatable);
             code.Append("}\n");
+        }
+
+        var secrets = SecretRecords(schema);
+        var redacted = schema.Records.Where(record => secrets.Contains(record.Type)).ToList();
+        if (redacted.Count > 0) code.Append("\n// MARK: - Redaction\n");
+        foreach (var record in redacted) {
+            EmitRedaction(code, record.Name, record.Wire);
+            if (schema.HasSeed(record.Type)) EmitRedaction(code, $"{record.Name}.Seed", record.Fields);
         }
 
         if (schema.Enums.Count > 0) code.Append("\n// MARK: - Enums\n");
@@ -304,6 +313,43 @@ internal static class SwiftEmitter {
         }
         code.Append("}\n");
     }
+
+    /// A record that holds a password, itself or through its fields, names none
+    /// when it is printed, logged or dumped: its text shows its name and each
+    /// list's count and nothing else of its values, and its mirror has no
+    /// children.
+    private static void EmitRedaction(StringBuilder code, string name, IReadOnlyList<ContractField> fields) {
+        string shown = string.Join(", ", fields.Select(field =>
+            $"{Naming.SwiftMember(field.Name)}: {(field.Type is ListField ? $"\\({Local(field.Name)}.count)" : "<redacted>")}"));
+        code.Append('\n').Append("/// Holds a password, itself or in its fields, so its text names none: it shows\n");
+        code.Append("/// each list's count and nothing else of its values.\n");
+        code.Append($"extension {name}: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {{\n");
+        code.Append($"    var description: String {{\n        \"{name}({shown})\"\n    }}\n\n");
+        code.Append("    var debugDescription: String { description }\n");
+        code.Append("    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }\n}\n");
+    }
+
+    /// Every record marked `[HoldsSecrets]`, and every record that holds one
+    /// through a field, a list, an optional, another record or a union one of
+    /// whose members holds one.
+    private static HashSet<Type> SecretRecords(ContractSchema schema) {
+        var secrets = schema.Records.Where(record => record.HoldsSecrets).Select(record => record.Type).ToHashSet();
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            foreach (var record in schema.Records.Where(record => !secrets.Contains(record.Type)))
+                if (record.Wire.Any(field => HoldsSecrets(field.Type, secrets, schema))) changed |= secrets.Add(record.Type);
+        }
+        return secrets;
+    }
+
+    private static bool HoldsSecrets(FieldType type, HashSet<Type> secrets, ContractSchema schema) => type switch {
+        RecordField record => secrets.Contains(record.Type),
+        RootField union => schema.Members(union).Any(member => secrets.Contains(member.Record.Type)),
+        ListField list => HoldsSecrets(list.Element, secrets, schema),
+        OptionalField optional => HoldsSecrets(optional.Value, secrets, schema),
+        _ => false
+    };
 
     /// A record's text as a `LocalizedStringResource`. Its argument, when it
     /// has one, is the record's own field, interpolated where the text spells

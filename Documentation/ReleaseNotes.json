@@ -3041,6 +3041,10 @@
     "platform-seams-stay-in-platform-layers": {
       "category": "internal",
       "message": "Shared browser code no longer depends on AppKit, UIKit or the logging framework directly; each platform supplies its own pieces, with no change in behaviour."
+    },
+    "generated-password-records-redact-themselves": {
+      "category": "internal",
+      "message": "Records that carry passwords to and from the core now describe themselves without naming any secret, generated from the core's contracts."
     }
   }
 }

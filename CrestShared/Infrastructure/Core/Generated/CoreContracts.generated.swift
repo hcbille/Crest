@@ -5632,6 +5632,118 @@ struct ZoomPage: PageRequest, Equatable, Sendable {
     let factor: Double
 }
 
+// MARK: - Redaction
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension CredentialExport: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "CredentialExport(credentials: \(credentials.count), spaceName: <redacted>, fallbackName: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension CredentialExportFile: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "CredentialExportFile(fileName: <redacted>, contents: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension CredentialImportCandidate: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "CredentialImportCandidate(rowNumber: <redacted>, username: <redacted>, displayName: <redacted>, password: <redacted>, effect: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension CredentialImportGroup: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "CredentialImportGroup(origin: <redacted>, username: <redacted>, candidates: \(candidates.count), collapsedDuplicateRowCount: <redacted>, existingID: <redacted>, suggestedRow: <redacted>, requiresChoice: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension CredentialImportPlan: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "CredentialImportPlan(format: <redacted>, groups: \(groups.count), rejections: \(rejections.count), warnings: \(warnings.count), validRowCount: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension CredentialImportPreview: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "CredentialImportPreview(document: <redacted>, existing: \(existing.count))"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension ExistingCredential: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "ExistingCredential(id: <redacted>, origin: <redacted>, username: <redacted>, isWebForm: <redacted>, updatedAt: <redacted>, lastUsedAt: <redacted>, password: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension ExportedCredential: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "ExportedCredential(id: <redacted>, origin: <redacted>, username: <redacted>, displayName: <redacted>, password: <redacted>, note: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension ImportedCredential: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "ImportedCredential(rowNumber: <redacted>, displayName: <redacted>, origin: <redacted>, username: <redacted>, password: <redacted>)"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
+/// Holds a password, itself or in its fields, so its text names none: it shows
+/// each list's count and nothing else of its values.
+extension PasswordImportPreview: CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    var description: String {
+        "PasswordImportPreview(credentials: \(credentials.count), existing: \(existing.count))"
+    }
+
+    var debugDescription: String { description }
+    var customMirror: Mirror { Mirror(self, children: [], displayStyle: .struct) }
+}
+
 // MARK: - Enums
 
 enum AuthenticationHandling: Int, CaseIterable, Sendable {

@@ -178,6 +178,9 @@ internal sealed record ContractRecord(Type Type, IReadOnlyList<ContractField> Fi
 
     /// The record has an identity of its own.
     public bool IsIdentified => Fields.Any(candidate => candidate.Name == IdentityField);
+
+    /// The record holds a password or a file of them.
+    public bool HoldsSecrets => Type.IsDefined(typeof(HoldsSecretsAttribute), inherit: false);
 }
 
 /// One concrete type of a root, with its tag, for a query its answer, and for
