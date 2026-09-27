@@ -81,9 +81,6 @@ public sealed class NativeSyncJournal {
 
     private static string Name(JsonNode id) => id["kind"]!.GetValue<string>() + ":" + Id(id["value"]).ToString("D");
 
-    /// The name of the record a reference names.
-    private static string Name(SyncRecordKind kind, Guid id) => kind.Name + ":" + id.ToString("D");
-
     private static SyncVersion Version(JsonNode record) {
         var version = record["version"]!;
         return new(SyncJson.ULong(version["logicalClock"]!), Id(version["deviceID"]));
@@ -169,7 +166,7 @@ public sealed class NativeSyncJournal {
             else {
                 if (!spaces.Contains(Id(record["spaceID"])) || !AncestryArrived(type.ParentFolder(value), folders)) continue;
                 deletion = type.DeletionReason(value, archiveReasons.GetValueOrDefault(Id(record["id"]!["value"])),
-                    desired.ContainsKey(Name(SyncRecordKind.Space, Id(record["spaceID"]))), removals?.GetValueOrDefault(name) ?? reason);
+                    desired.ContainsKey(SyncRecordKind.Space.RecordName(Id(record["spaceID"]))), removals?.GetValueOrDefault(name) ?? reason);
             }
             if (deletion is null) continue;
             draft.Records[name] = draft.Delete(record, deletion, now);
@@ -261,7 +258,7 @@ public sealed class NativeSyncJournal {
         [.. pending.Order(StringComparer.Ordinal).Select(name => Reference(records[name]))];
 
     /// Whether the journal holds the record `reference` names.
-    internal bool Holds(SyncRecordReference reference) => records.ContainsKey(Name(reference.Kind, reference.Id));
+    internal bool Holds(SyncRecordReference reference) => records.ContainsKey(reference.Kind.RecordName(reference.Id));
 
     /// The record `reference` names as the cloud transport uploads it, its
     /// body in the CloudKit form at the schema it needs, or null when the
@@ -269,7 +266,7 @@ public sealed class NativeSyncJournal {
     /// one no client reads, or one naming an address it cannot spell as every
     /// client parses it.
     internal SyncRecord? Uploading(SyncRecordReference reference) {
-        if (!records.TryGetValue(Name(reference.Kind, reference.Id), out var record)) return null;
+        if (!records.TryGetValue(reference.Kind.RecordName(reference.Id), out var record)) return null;
         var tombstone = record["tombstone"];
         var space = Id(record["spaceID"]);
         try {
@@ -288,7 +285,7 @@ public sealed class NativeSyncJournal {
     internal NativeSyncJournal Acknowledge(IReadOnlyList<UploadedRecord> uploaded) {
         var queued = new HashSet<string>(pending, StringComparer.Ordinal);
         foreach (var upload in uploaded) {
-            string name = Name(upload.Record.Kind, upload.Record.Id);
+            string name = upload.Record.Kind.RecordName(upload.Record.Id);
             if (records.TryGetValue(name, out var record) && Version(record) == upload.Version) queued.Remove(name);
         }
         return new(metadata.DeepClone().AsObject(), records, queued);
@@ -314,7 +311,7 @@ public sealed class NativeSyncJournal {
             try {
                 var body = SyncRecordBody.Read(record.Body, record.IsTombstone, SyncPayloadForm.Cloud);
                 body.RequireRecord(record.Kind, record.Id, record.SpaceId);
-                arrived[Name(record.Kind, record.Id)] = (record.SpaceId, record.IsTombstone, body.Write(SyncPayloadForm.Cloud));
+                arrived[record.Kind.RecordName(record.Id)] = (record.SpaceId, record.IsTombstone, body.Write(SyncPayloadForm.Cloud));
             } catch (UnreadableSyncPayloadException) {
                 // Left out; see the summary.
             }
@@ -325,7 +322,7 @@ public sealed class NativeSyncJournal {
             && NativeSyncEvaluator.Equivalent(CloudForm(held.Value), other.Body));
         return new(matches, device.Count, arrived.Count,
             device.Values.Count(record => Kind(record) == SyncRecordKind.Space.Name && Payload(record) is not null),
-            arrived.Count(record => record.Key.StartsWith(SyncRecordKind.Space.Name + ":", StringComparison.Ordinal) && !record.Value.IsTombstone));
+            arrived.Count(record => record.Key.StartsWith(SyncRecordKind.Space.RecordPrefix, StringComparison.Ordinal) && !record.Value.IsTombstone));
     }
 
     /// The body of `record`, which this journal holds, in the CloudKit form, or
@@ -424,7 +421,7 @@ public sealed class NativeSyncJournal {
                 // tab: carry its additive fields across.
                 var type = SyncPayloadType.Of(payload);
                 if (previousPayload is null && type.Counterpart is { } counterpart
-                    && Records.TryGetValue(Name(counterpart.Kind, Id(id["value"])), out var other) && Payload(other) is { } held) {
+                    && Records.TryGetValue(counterpart.Kind.RecordName(Id(id["value"])), out var other) && Payload(other) is { } held) {
                     previousPayload = new JsonObject {
                         ["type"] = type.Kind.Name,
                         ["value"] = type.Holding(counterpart.Subject(Value(held)))

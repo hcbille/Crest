@@ -58,7 +58,7 @@ internal sealed class IncomingSyncRecords {
                 firstSkipped ??= record.Id;
                 continue;
             }
-            if (!names.TryAdd(Name(record), record.SpaceId)) throw Refused(SyncRecordFlaw.DuplicateRecord, record.Id);
+            if (!names.TryAdd(record.Kind.RecordName(record.Id), record.SpaceId)) throw Refused(SyncRecordFlaw.DuplicateRecord, record.Id);
             read.Add(node);
         }
         nodes = read;
@@ -114,9 +114,6 @@ internal sealed class IncomingSyncRecords {
         }
         return node;
     }
-
-    /// A record's name in the journal.
-    private static string Name(SyncRecord record) => record.Kind.Name + ":" + record.Id.ToString("D");
 
     /// An identity as the Apple clients spell it.
     private static string Spelled(Guid id) => id.ToString("D").ToUpperInvariant();

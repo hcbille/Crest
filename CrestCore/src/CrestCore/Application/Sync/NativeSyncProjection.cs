@@ -14,9 +14,6 @@ public static class NativeSyncProjection {
 
     internal static string? Text(JsonNode? value) => value?.GetValue<string>();
 
-    /// The name the journal keeps the record of `type` with identity `id` by.
-    private static string Name(SyncPayloadType type, Guid id) => type.Kind.Name + ":" + id.ToString("D");
-
     internal static JsonArray Items(JsonNode value, string field) => value[field]?.AsArray() ?? [];
 
     internal static JsonObject Fields(JsonNode source, params string[] names)
@@ -55,19 +52,19 @@ public static class NativeSyncProjection {
             if (record["payload"]?["value"] is not JsonObject value) continue;
             var type = SyncPayloadType.Of(record["payload"]!);
             var id = Id(record["id"]!["value"]);
-            existing[Name(type, id)] = Text(type.Subject(value)["orderToken"]);
+            existing[type.Kind.RecordName(id)] = Text(type.Subject(value)["orderToken"]);
             if (type == SyncPayloadType.Archive) archiveReasons[id] = Text(value["reason"]);
         }
         var result = new JsonArray();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         void Add(SyncPayloadType type, JsonObject value) {
-            string name = Name(type, Id(type.Subject(value)["id"]));
+            string name = type.Kind.RecordName(Id(type.Subject(value)["id"]));
             if (!seen.Add(name)) throw new SyncRecordsFlawedException(SyncRecordFlaw.DuplicateRecord, subject: null);
             if (seen.Count > NativeSyncJournal.MaximumRecords) throw new SyncRecordsFlawedException(SyncRecordFlaw.TooManyRecords, subject: null);
             result.Add((JsonNode)new JsonObject { ["type"] = type.Kind.Name, ["value"] = value });
         }
         IReadOnlyList<string> Tokens(SyncPayloadType type, IReadOnlyList<JsonNode> items)
-            => SyncOrderTokens.Allocate(items.Select(item => existing.GetValueOrDefault(Name(type, Id(type.Subject(item.AsObject())["id"]))))
+            => SyncOrderTokens.Allocate(items.Select(item => existing.GetValueOrDefault(type.Kind.RecordName(Id(type.Subject(item.AsObject())["id"]))))
                 .ToArray());
 
         var spaces = Items(session, "spaces").Select(n => n!).ToArray();
@@ -124,7 +121,7 @@ public static class NativeSyncProjection {
             // Archive presentation sorts by date after a merge. That is not a
             // user reorder: keep accepted positions and append new identities.
             var archive = Items(space, StoredSessionCodec.Key.ArchivedTabs).Where(a => PortableTab(a!["tab"]!)).Select(a => a!)
-                .OrderBy(a => existing.GetValueOrDefault(Name(SyncPayloadType.Archive, Id(a["tab"]!["id"]))) ?? "~", StringComparer.Ordinal)
+                .OrderBy(a => existing.GetValueOrDefault(SyncPayloadType.Archive.Kind.RecordName(Id(a["tab"]!["id"]))) ?? "~", StringComparer.Ordinal)
                 .ThenBy(a => Id(a["tab"]!["id"]).ToString("D"), StringComparer.Ordinal).ToArray();
             var archiveTokens = Tokens(SyncPayloadType.Archive, archive);
             for (int j = 0; j < archive.Length; j++) Add(SyncPayloadType.Archive, new JsonObject {

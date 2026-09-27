@@ -3101,6 +3101,10 @@
     "sync-removals-and-extension-commands": {
       "category": "internal",
       "message": "Each session change now names the synced records it removes, and the extension menu and settings ask the store with typed commands instead of words; nothing changes in behavior."
+    },
+    "sync-record-names-from-their-kind": {
+      "category": "internal",
+      "message": "Every synced record's name is spelled by its record kind in one place."
     }
   }
 }

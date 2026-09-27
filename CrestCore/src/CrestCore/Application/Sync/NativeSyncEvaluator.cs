@@ -100,7 +100,7 @@ public static class NativeSyncEvaluator {
         foreach (var node in records) { _ = Stamp(node!); byId[Name(node!)] = node!.AsObject(); }
         var tabs = SyncPayloadType.Tab;
         foreach (var tab in byId.Values.Where(r => Kind(r) == tabs.Kind.Name && Payload(r) is not null).ToArray()) {
-            string archiveName = tabs.Counterpart!.Kind.Name + ":" + Id(tab["id"]!["value"]).ToString("D");
+            string archiveName = tabs.Counterpart!.Kind.RecordName(Id(tab["id"]!["value"]));
             if (!byId.TryGetValue(archiveName, out var archiveRecord) || Payload(archiveRecord) is not { } archive) continue;
             var payload = Payload(tab)!;
             bool active = SyncConflictPolicy.ActiveTabWins(Placement(payload), Date(payload, "lastActivatedAt")!.Value,
