@@ -3165,6 +3165,10 @@
     "now-playing-skips-notification-sounds-on-chromium": {
       "category": "fixed",
       "message": "In the Chromium build, notification sounds and other short sounds a site plays no longer show the sidebar's Now Playing card or take over the Mac's Now Playing; only media you can play and pause does, as in the WebKit build."
+    },
+    "chromium-build-names-itself-crest-to-macos": {
+      "category": "improved",
+      "message": "In the Chromium build, camera, microphone, location, Bluetooth and passkey prompts name Crest instead of Chromium, and Crest no longer includes a helper app that could appear as “Chromium” in Notifications settings."
     }
   }
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Assemble a separate, signed Chromium host from built products: an isolated experiment by default, or Crest's own product identity."""
 import argparse
+import json
 import os
 import re
 from pathlib import Path
@@ -26,11 +27,73 @@ ENGINE_APP_ENTITLEMENTS = {
 JIT_HELPER_SUFFIXES = ("Helper (Renderer).app", "Helper (GPU).app")
 BUNDLE_SUFFIXES = {".app", ".framework", ".xpc", ".appex", ".plugin", ".docktileplugin", ".bundle"}
 MACHO_MAGICS = {b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca"}
+# The engine is built as Chromium and finds its helpers by these built names
+# (chrome/BUILD.gn, chrome/common/chrome_constants.cc).
+ENGINE_HELPER_NAME = "Chromium Helper"
+ENGINE_ALERTS_HELPER = "Chromium Helper (Alerts).app"
+# How the engine's localized InfoPlist.strings spell its product name.
+ENGINE_PRODUCT_NAMES = ("Chromium", "क्रोमियम")
 
 
 def is_macho(path):
     with path.open("rb") as stream:
         return stream.read(4) in MACHO_MAGICS
+
+
+def engine_helpers(frameworks):
+    """The engine's helper apps, found once through its versioned framework."""
+    return sorted(
+        path for path in frameworks.glob("*.framework/Versions/*/Helpers/*.app")
+        if not path.parent.parent.is_symlink())
+
+
+def remove_engine_alerts_helper(frameworks):
+    """Chromium posts alert-style notifications from a helper app with its own
+    bundle identifier, which Notification Center lists as "Chromium". A host
+    package replaces the engine's macOS notification bridge before the bridge
+    creates that helper's launcher, and nothing else launches it, so the
+    package leaves it out rather than ship an app that could register under
+    another name."""
+    for helper in engine_helpers(frameworks):
+        if helper.name == ENGINE_ALERTS_HELPER:
+            shutil.rmtree(helper)
+
+
+def name_engine_helpers(frameworks, product_name):
+    """Show the engine's helpers as the product's wherever macOS names one
+    from its bundle, the way Chromium names its own alert helper: a localized
+    display name. Bundle and executable names, identifiers and paths keep the
+    engine's built names, which the engine resolves at run time. The name is
+    localized for the helper's development region, the one localization
+    Launch Services falls back to for every language, so the helper process
+    keeps the language it runs in today."""
+    for helper in engine_helpers(frameworks):
+        if not helper.stem.startswith(ENGINE_HELPER_NAME):
+            continue
+        suffix = helper.stem.removeprefix(ENGINE_HELPER_NAME)
+        with (helper / "Contents/Info.plist").open("rb") as stream:
+            region = plistlib.load(stream)["CFBundleDevelopmentRegion"]
+        strings = helper / f"Contents/Resources/{region}.lproj/InfoPlist.strings"
+        strings.parent.mkdir(parents=True, exist_ok=True)
+        strings.write_bytes(plistlib.dumps(
+            {"CFBundleDisplayName": f"{product_name} Helper{suffix}"}, fmt=plistlib.FMT_BINARY))
+
+
+def name_product_in_localized_info(resources, product_name):
+    """The engine's localized Info.plist strings supply the text macOS shows
+    in camera, microphone, location, Bluetooth and passkey prompts, and they
+    name Chromium. Name the product there instead and drop Chromium's version
+    line; its copyright notice and file-type names stay."""
+    for strings in sorted(resources.glob("*.lproj/InfoPlist.strings")):
+        values = json.loads(subprocess.check_output(
+            ["plutil", "-convert", "json", "-o", "-", str(strings)]))
+        values.pop("CFBundleGetInfoString", None)
+        for key, value in values.items():
+            if key.endswith("UsageDescription"):
+                for name in ENGINE_PRODUCT_NAMES:
+                    value = value.replace(name, product_name)
+                values[key] = value
+        strings.write_bytes(plistlib.dumps(values, fmt=plistlib.FMT_BINARY))
 
 
 def is_bundle_executable(path):
@@ -247,12 +310,14 @@ def main():
             crest_info = plistlib.load(stream)
         info["CrestCloudKitContainerIdentifier"] = crest_info["CrestCloudKitContainerIdentifier"]
     if args.product:
-        # Crest's own browser registration, document handling and update feed.
-        # The keys stay owned by the app's Info.plist; nothing is restated here.
+        # Crest's own browser registration, document handling, update feed and
+        # privacy prompt text. The keys stay owned by the app's Info.plist;
+        # nothing is restated here.
         for key, value in crest_info.items():
             if isinstance(value, str) and "$(" in value:
                 continue
-            if key.startswith("SU") or key in ("CFBundleURLTypes", "CFBundleDocumentTypes"):
+            if (key.startswith("SU") or key.endswith("UsageDescription")
+                    or key in ("CFBundleURLTypes", "CFBundleDocumentTypes")):
                 info[key] = value
         # Crest's Info.plist leaves the channel to its target's build setting;
         # a packaged product follows that same default, read from project.yml
@@ -266,6 +331,12 @@ def main():
         info.pop("CFBundleDocumentTypes", None)
     with info_path.open("wb") as stream:
         plistlib.dump(info, stream)
+    if not args.baseline:
+        # The system names a host package after its own identity, never the
+        # engine's: in Notifications, privacy prompts and process lists.
+        remove_engine_alerts_helper(frameworks)
+        name_engine_helpers(frameworks, info["CFBundleDisplayName"])
+        name_product_in_localized_info(resources, info["CFBundleDisplayName"])
     targets = [] if args.baseline else [frameworks / "CrestCore.Native.dylib", frameworks / ui.name,
                                       output / "Contents/PlugIns/CrestDockTilePlugin.docktileplugin"]
     targets += sorted((p for p in frameworks.rglob("*.app") if not p.is_symlink()), key=lambda p: len(p.parts), reverse=True)
