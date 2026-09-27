@@ -13,6 +13,12 @@ public sealed partial class NativeSessionAuthority {
     private Device? device;
     private Guid workspaceId;
 
+    /// The device whose windows show this session; null until attached.
+    internal Device? Device => device;
+
+    /// The workspace the device gave this session.
+    internal Guid WorkspaceId => workspaceId;
+
     /// The accepted session, for readers outside the command path.
     internal SessionState Current {
         get {

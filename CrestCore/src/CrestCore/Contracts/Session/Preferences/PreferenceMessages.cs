@@ -2,11 +2,6 @@ namespace CrestCore.Contracts;
 
 #region Intents
 
-/// Gives the persistent workspace the preferences the settings kept before the
-/// core owned them, once: a workspace that already holds preferences keeps
-/// them, so a later launch never imports over a choice.
-public sealed record ImportAppPreferences(Guid WorkspaceId, LegacyAppPreferences Legacy) : SessionIntent(WorkspaceId);
-
 /// The behavior preferences as an older release's settings stored them, each
 /// null when it was never saved. Terms are the stored spellings, which the core
 /// reads tolerantly, and `TranslationRules` is the rule set as the settings
@@ -21,18 +16,6 @@ public sealed record LegacyAppPreferences(
     string? SavedTabClosePolicy,
     bool? SavedTabFaviconReturnsToSavedUrl,
     bool? SplitFocusFollowsMouse);
-
-/// Sets the app-wide behavior preferences. The persistent workspace keeps
-/// them on this device; they never sync. The translation rules keep to the
-/// rule set's own limits.
-public sealed record SetAppPreferences(Guid WorkspaceId, AppPreferences Preferences) : SessionIntent(WorkspaceId);
-
-/// Records whether pages in `SourceLanguage` are translated into
-/// `TargetLanguage`. Region aliases of the source share one choice, so an
-/// alias cannot get around turning translation off; a blank source changes
-/// nothing.
-public sealed record SetTranslationRule(Guid WorkspaceId, string SourceLanguage, string TargetLanguage, bool IsEnabled)
-    : SessionIntent(WorkspaceId);
 
 #endregion
 

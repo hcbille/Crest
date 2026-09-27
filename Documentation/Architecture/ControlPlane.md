@@ -185,6 +185,15 @@ stale preparation changes nothing. When it commits, the device moves the
 issuing window to what the intent chose and repairs every other window of the
 workspace.
 
+Each session intent carries its own edit: `SessionIntent` declares
+`Edit(NativeSessionAuthority, SessionTurn)`, which returns the `SessionEdit`
+the intent makes to the accepted session the turn reads, and every case
+overrides it in its own file under `Application/Session/Intents`. The
+authority computes the basis, hands the turn to the intent under its gate and
+validates what comes back. A sidebar drop commits the intent its kind decides
+(`Committed`), an import checks the session it leaves whole, and only a tab
+moving to another workspace's window moves across workspaces.
+
 A Space and its profile are one to one in every accepted document. Borrowed
 workspaces (Blank Windows, detached tabs) bind their source Space and profile,
 keep their own local collections that are never saved or staged, and close

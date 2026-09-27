@@ -100,7 +100,7 @@ public sealed partial class NativeSessionAuthority {
     /// Split metadata stays: windows read it with the settings.
     private static SpaceState Settings(SpaceState space) => space with { Tabs = [], Folders = [], ArchivedTabs = [], History = [] };
 
-    private static SessionState Replacing(SessionState session, params SpaceState[] edited) => session with {
+    internal static SessionState Replacing(SessionState session, params SpaceState[] edited) => session with {
         Spaces = session.Spaces.Select(space => edited.FirstOrDefault(value => value.Id == space.Id) ?? space).ToArray()
     };
 

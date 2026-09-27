@@ -3077,6 +3077,10 @@
     "page-messages-carry-their-behavior": {
       "category": "internal",
       "message": "Each page intent and page event in the core now carries its own logic, so a new one that lacks it fails to build; nothing changes in behavior."
+    },
+    "session-intents-carry-their-edits": {
+      "category": "internal",
+      "message": "Each session intent in the core now carries its own edit, so a new one that lacks it fails to build; nothing changes in behavior."
     }
   }
 }

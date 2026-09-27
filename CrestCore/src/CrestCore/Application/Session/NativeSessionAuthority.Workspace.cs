@@ -6,36 +6,13 @@ namespace CrestCore.Application;
 public sealed partial class NativeSessionAuthority {
     #region Actions - Imports
 
-    private SessionEdit ImportingSpaces(SessionState basis, ImportSpaces intent, DateTimeOffset now, IIdSource ids, bool previewed) =>
-        Importing(basis, intent, intent.Spaces, previewed, now, ids, import => import.AddSpaces());
-
-    /// Imports the review setup holds for this workspace; see
-    /// `ImportReviewedSpaces`.
-    private SessionEdit ImportingReviewedSpaces(SessionState basis, ImportReviewedSpaces intent, DateTimeOffset now, IIdSource ids,
-        bool previewed) {
-        if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
-        var review = device?.ImportReview(workspaceId) ?? throw new Rejected(new NoSetup());
-        return Importing(basis, intent, [.. review.Spaces.Select(space => space.Source)], previewed, now, ids,
-            import => import.ImportReviewed(review.Spaces, ids));
-    }
-
-    /// Applies the manual setup the device holds for this workspace; see
-    /// `ApplyManualSetup`. The device ends the setup once the session accepts it.
-    private SessionEdit ApplyingManualSetup(SessionState basis, ApplyManualSetup intent, DateTimeOffset now, IIdSource ids,
-        bool previewed) {
-        if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
-        var setup = device?.ManualSetup(workspaceId) ?? throw new Rejected(new NoManualSetup());
-        return Importing(basis, intent, [.. setup.Spaces.Select(NativeWorkspaceImport.SetupSpace)], previewed, now, ids,
-            import => import.ApplySetup(setup));
-    }
-
     /// An import's work, which only the persistent workspace takes: `apply`
     /// runs the intent's own rules over the Spaces read from `spaces`, then
     /// every record takes the identity sync needs and the issuing window shows
     /// what the import brought. Unless the import is only `previewed`, no Space
     /// it changes may be locked; a locked Space it leaves as it was never
     /// refuses it.
-    private SessionEdit Importing(SessionState basis, ImportWorkspace intent, IReadOnlyList<SpaceState> spaces, bool previewed,
+    internal SessionEdit Importing(SessionState basis, ImportWorkspace intent, IReadOnlyList<SpaceState> spaces, bool previewed,
         DateTimeOffset now, IIdSource ids, Action<NativeWorkspaceImport> apply) {
         if (!workspaceKind.KeepsAppPreferences) throw new Rejected(new PersistentWorkspaceRequired(workspaceId));
         var followUp = new WindowFollowUp(IssuingWindow(intent.WindowId));
