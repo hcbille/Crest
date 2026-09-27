@@ -35,6 +35,8 @@
             case .sidePanelRequested(let presentation): presentation.present(on: engine)
             case .storeInstallRequested(let presentation): presentation.present(on: engine)
             case .storeRemovalRequested(let presentation): presentation.present(on: engine)
+            case .webNotificationClosed(let presentation): presentation.present(on: engine)
+            case .webNotificationPosted(let presentation): presentation.present(on: engine)
             case .findFinished, .pageCaptured, .pageExported:
                 // The page's shared direct path hears what it asked for.
                 break

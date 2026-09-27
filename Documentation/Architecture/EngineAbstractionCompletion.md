@@ -92,7 +92,9 @@ What the code does today:
   without browser chrome and restores the shell on Escape.
 - The host has no hook for the file chooser or the color picker, so both use
   Chromium's own engine surfaces.
-- Notifications use Chromium's own delivery path.
+- A page's notifications reach Crest's own system delivery, which WebKit
+  pages share: the core decides whether one shows, a click brings its tab
+  forward, and the document hears the click.
 
 ### WP1. Dead-code sweep. Done
 
@@ -167,8 +169,8 @@ Remaining, as the Chromium registration declares:
 
 - The host has no command to stop live camera, microphone or location use.
   Revocation relies on Chromium ending capture once the setting blocks it.
-- Chromium delivers web notifications itself. Delivery through Crest,
-  source-tab activation and withdrawal after revocation need a host hook.
+- Chromium shows no notification a service worker or an extension posts;
+  it closes each one at once. Only a page's own notifications reach Crest.
 
 ### WP6. Capability truth and UI hygiene. Done
 

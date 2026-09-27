@@ -5,26 +5,15 @@ import WebKit
 extension BrowserPage {
     /// The bridge's per-document state lives with the WebKit adapter; another
     /// engine never posts through this bridge.
-    var hostedNotificationIdentifiers: Set<String> {
-        get { webKitAdapter?.hostedNotificationIdentifiers ?? [] }
-        set { webKitAdapter?.hostedNotificationIdentifiers = newValue }
-    }
-
     var hostedNotificationDocumentIdentifier: String {
         get { webKitAdapter?.hostedNotificationDocumentIdentifier ?? "" }
         set { webKitAdapter?.hostedNotificationDocumentIdentifier = newValue }
     }
 
-    /// Follows a change to the site's notification decision: withdrawn
-    /// permission removes what the document posted, and the document is told
-    /// the permission it now has.
+    /// Follows a change to the site's notification decision: the document is
+    /// told the permission it now has. The page has already taken down what
+    /// it may no longer show.
     func refreshHostedWebNotificationPermission() {
-        if let url = webKitView?.url, let origin = SiteOrigin(url: url) {
-            let decision = permissionCenter.decision(for: .notifications, origin: origin, in: spaceID)
-            if decision != .grantPersistently && decision != .grantForSession {
-                removeHostedWebNotifications()
-            }
-        }
         guard let currentURL = live.displayURL ?? webKitView?.url,
             let origin = SiteOrigin(url: currentURL)
         else {
@@ -110,33 +99,15 @@ extension BrowserPage {
             guard let identifier = body["identifier"] as? String,
                 isValidHostedWebNotificationIdentifier(identifier)
             else { return }
-            let systemIdentifier = hostedSystemIdentifier(for: identifier)
-            hostedNotificationIdentifiers.remove(systemIdentifier)
-            Task { @MainActor [weak hostedNotificationCenter] in
-                await hostedNotificationCenter?.remove(identifier: systemIdentifier)
-            }
+            withdrawWebNotification(hostedSystemIdentifier(for: identifier))
         default:
             return
         }
     }
 
-    func removeHostedWebNotifications() {
-        guard let hostedNotificationCenter else {
-            hostedNotificationIdentifiers.removeAll()
-            return
-        }
-        let identifiers = hostedNotificationIdentifiers
-        hostedNotificationIdentifiers.removeAll()
-        Task { @MainActor in
-            for identifier in identifiers {
-                await hostedNotificationCenter.remove(identifier: identifier)
-            }
-        }
-    }
-
     func beginHostedWebNotificationNavigation() {
         sitePermissionRequests.cancelAll()
-        removeHostedWebNotifications()
+        removeWebNotifications()
         hostedNotificationDocumentIdentifier = UUID().uuidString
     }
 
@@ -318,6 +289,8 @@ extension BrowserPage {
         )
     }
 
+    /// Shows what the document posted through Crest's shared path, and tells
+    /// the document whether it shows and when the person clicks it.
     private func createHostedWebNotification(
         identifier: String,
         title: String,
@@ -326,92 +299,32 @@ extension BrowserPage {
         origin: SiteOrigin,
         documentIdentifier: String
     ) async {
-        let siteDecision = permissionCenter.decision(
-            for: .notifications,
-            origin: origin,
-            in: spaceID
-        )
-        guard
-            isCurrentHostedNotificationDocument(
-                documentIdentifier,
-                origin: origin
+        let shown = await showWebNotification(
+            BrowserHostedWebNotificationDelivery(
+                identifier: "\(documentIdentifier).\(identifier)",
+                title: title,
+                body: body,
+                origin: origin,
+                isSilent: isSilent
             ),
-            siteDecision.grants,
-            let hostedNotificationCenter,
-            await hostedNotificationCenter.currentAuthorization() == .authorized
-        else {
-            sendHostedNotificationEvent(
-                identifier: identifier,
-                event: "error",
-                documentIdentifier: documentIdentifier,
-                origin: origin
-            )
-            return
-        }
-
-        guard
-            isCurrentHostedNotificationDocument(
-                documentIdentifier,
-                origin: origin
-            ),
-            allowsHostedNotificationDelivery(origin: origin)
-        else { return }
-        let systemIdentifier =
-            "\(documentIdentifier).\(identifier)"
-        do {
-            try await hostedNotificationCenter.add(
-                BrowserHostedWebNotificationDelivery(
-                    identifier: systemIdentifier,
-                    title: String(title.prefix(200)),
-                    body: String(body.prefix(1_000)),
-                    origin: origin,
-                    isSilent: isSilent
-                )
-            ) { [weak self] event in
-                guard let self,
-                    isCurrentHostedNotificationDocument(
-                        documentIdentifier,
-                        origin: origin
-                    )
-                else { return }
-                switch event {
-                case .clicked:
-                    hostedNotificationIdentifiers.remove(systemIdentifier)
-                    host?.activateNotificationSourcePage(self)
-                    NSApp.activate()
-                    sendHostedNotificationEvent(
-                        identifier: identifier,
-                        event: "click",
-                        documentIdentifier: documentIdentifier,
-                        origin: origin
-                    )
-                }
-            }
-            guard
-                isCurrentHostedNotificationDocument(
-                    documentIdentifier,
+            isPosted: { [weak self] in
+                self?.isCurrentHostedNotificationDocument(documentIdentifier, origin: origin) ?? false
+            },
+            clicked: { [weak self] in
+                self?.sendHostedNotificationEvent(
+                    identifier: identifier,
+                    event: "click",
+                    documentIdentifier: documentIdentifier,
                     origin: origin
-                ),
-                allowsHostedNotificationDelivery(origin: origin)
-            else {
-                await hostedNotificationCenter.remove(identifier: systemIdentifier)
-                return
+                )
             }
-            hostedNotificationIdentifiers.insert(systemIdentifier)
-            sendHostedNotificationEvent(
-                identifier: identifier,
-                event: "show",
-                documentIdentifier: documentIdentifier,
-                origin: origin
-            )
-        } catch {
-            sendHostedNotificationEvent(
-                identifier: identifier,
-                event: "error",
-                documentIdentifier: documentIdentifier,
-                origin: origin
-            )
-        }
+        )
+        sendHostedNotificationEvent(
+            identifier: identifier,
+            event: shown ? "show" : "error",
+            documentIdentifier: documentIdentifier,
+            origin: origin
+        )
     }
 
     /// Whether the system lets Crest show notifications, offering to recover
@@ -432,10 +345,6 @@ extension BrowserPage {
             guard requestIfNeeded else { return false }
             return await hostedNotificationCenter.requestAuthorization() == .authorized
         }
-    }
-
-    private func allowsHostedNotificationDelivery(origin: SiteOrigin) -> Bool {
-        permissionCenter.decision(for: .notifications, origin: origin, in: spaceID).grants
     }
 
     private func hasActiveUserGesture(in frame: WKFrameInfo) async -> Bool {

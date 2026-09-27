@@ -12,6 +12,9 @@ public sealed record SitePermissionAnswer(SitePermissionDecision Decision);
 /// What the notification request leads to.
 public sealed record NotificationRequestAnswer(HostedNotificationRequestAction Action);
 
+/// Whether a notification a document posted shows.
+public sealed record NotificationDisplayVerdict(bool Shows);
+
 /// Whether the origin is secure enough for the capability.
 public sealed record SecureOriginVerdict(bool Allowed);
 

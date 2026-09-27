@@ -124,6 +124,11 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// Carries Crest's site permission decisions to the engine as they change.
     @ObservationIgnored private(set) var sitePermissionSession: BrowserPageSitePermissionSession
     @ObservationIgnored let hostedNotificationCenter: (any BrowserHostedWebNotificationCentering)?
+    /// The system notifications the page's documents posted that Crest shows.
+    @ObservationIgnored var webNotificationIdentifiers: Set<String> = []
+    /// Counts each time Crest takes the page's notifications down, so one
+    /// still on its way to the system then never shows.
+    @ObservationIgnored var webNotificationGeneration = 0
     @ObservationIgnored let recoverNotificationSystemAuthorization: @MainActor () async -> Void
     /// The system's consent the page asks before it sends the person's Allow
     /// to the core, whichever engine hosts it.
@@ -499,6 +504,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         pictureInPicture?.invalidate()
         sitePermissionSession.resetMediaGrants()
         webKitAdapter?.webKitPage.resetAutomaticDownloads()
+        removeWebNotifications()
         engineAdapter.detach(from: self)
         mediaSessionCoordinator = nil
     }
@@ -1070,6 +1076,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             // A prompt the engine withdrew with its document has no one to answer.
             sitePermissionRequests.cancelAll()
             mediaSessionCoordinator?.prepareForNavigation()
+            removeWebNotifications()
         case .urlChanged(let previous, let current):
             translation.documentURLDidChange(from: previous, to: current)
             refreshNavigationState()
@@ -1134,6 +1141,10 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             linkHover?.receiveEngineHover(destination)
         case .popupBlocked(let pageURL):
             recordEngineBlockedPopup(pageURL: pageURL, documentIdentifier: String(committedNavigationCount))
+        case .webNotificationPosted(let posted):
+            showEngineWebNotification(posted)
+        case .webNotificationClosed(let notificationID):
+            withdrawWebNotification(engineWebNotificationIdentifier(notificationID))
         case .peekRequested(let destination, let decision, let stagedLink):
             openRequestedPeek(to: destination, decision: decision, stagedLink: stagedLink)
         case .favicon(let data, let source):
@@ -1163,10 +1174,12 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     // MARK: - Actions - Site permissions
 
     /// Tells the page about a change to one of its site's permissions, after
-    /// the engine applied it: the popup preference and the bridges an engine
-    /// runs inside the page follow the new decision.
+    /// the engine applied it: the popup preference, the notifications the
+    /// page shows and the bridges an engine runs inside the page follow the
+    /// new decision.
     private func sitePermissionDidChange(_ permission: SitePermission) {
         if permission == .popups { synchronizePopupPermission() }
+        if permission == .notifications { removeWebNotificationsNoLongerShown() }
         engineAdapter.sitePermissionDidChange(permission, on: self)
     }
 

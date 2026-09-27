@@ -222,6 +222,25 @@ public sealed record StopMediaCapture(Guid PageId, SitePermission Permission) : 
 
 #endregion
 
+#region Notifications
+
+/// What became of a notification `WebNotificationPosted` presented, which the
+/// document that posted it hears. False when the page no longer has it.
+public sealed record AnswerWebNotification(Guid PageId, string NotificationId, WebNotificationAnswer Answer)
+    : PageRequest<bool>;
+
+/// What became of a notification a document posted.
+public enum WebNotificationAnswer {
+    /// The person clicked it, and its page came forward.
+    Clicked,
+
+    /// Crest did not show it: the page's Space does not let the site post
+    /// notifications, or the system does not let Crest show them.
+    Declined
+}
+
+#endregion
+
 #region Scripts
 
 /// Runs `Source` in Crest's own isolated world of every document the page

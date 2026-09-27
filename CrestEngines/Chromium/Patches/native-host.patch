@@ -170,7 +170,7 @@
        // If the web authentication request is still pending, remove it from the
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -3448,6 +3448,41 @@
+@@ -3448,6 +3448,43 @@
        "browser_mac.h",
        "fullscreen_util_mac.cc",
        "fullscreen_util_mac.h",
@@ -200,6 +200,8 @@
 +      "crest/crest_engine_inspector.h",
 +      "crest/crest_engine_media.cc",
 +      "crest/crest_engine_media.h",
++      "crest/crest_engine_notifications.cc",
++      "crest/crest_engine_notifications.h",
 +      "crest/crest_engine_page.cc",
 +      "crest/crest_engine_page.h",
 +      "crest/crest_engine_profiles.cc",
@@ -212,7 +214,7 @@
        "views/certificate_viewer_mac_views.mm",
        "views/frame/browser_frame_view_factory_mac.mm",
        "views/frame/browser_frame_view_mac.h",
-@@ -3487,6 +3522,13 @@
+@@ -3487,6 +3524,13 @@
        "//ui/accelerated_widget_mac",
      ]
      include_dirs = [ "$target_gen_dir" ]
@@ -1979,3 +1981,78 @@
    // The ultimate fallback database check.
    return ExtensionPrefs::Get(context)->IsIncognitoEnabled(extension_id);
  }
+--- a/chrome/browser/notifications/mac/notification_platform_bridge_mac.cc
++++ b/chrome/browser/notifications/mac/notification_platform_bridge_mac.cc
+@@ -19,6 +19,8 @@
+ #include "chrome/browser/notifications/notification_display_service_impl.h"
+ #include "chrome/browser/notifications/platform_notification_service_impl.h"
+ #include "chrome/browser/profiles/profile.h"
++#include "chrome/browser/ui/crest/crest_chrome_hooks.h"
++#include "chrome/browser/ui/crest/crest_engine_notifications.h"
+ #include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
+ #include "chrome/browser/web_applications/os_integration/mac/web_app_shortcut_mac.h"
+ #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
+@@ -45,6 +47,12 @@
+ // static
+ std::unique_ptr<NotificationPlatformBridge>
+ NotificationPlatformBridge::Create() {
++  // Crest shows web notifications as its own app's, through the system's
++  // UNUserNotificationCenter. The system refuses this bridge's
++  // NSUserNotificationCenter client in an app that also uses that center.
++  if (crest::IsEnabled()) {
++    return crest::CreateNotificationBridge();
++  }
+   auto banner_dispatcher = std::make_unique<NotificationDispatcherMojo>(
+       std::make_unique<MacNotificationProviderFactory>(
+           mac_notifications::NotificationStyle::kBanner));
+--- a/content/public/browser/notification_event_dispatcher.h
++++ b/content/public/browser/notification_event_dispatcher.h
+@@ -16,6 +16,7 @@
+ namespace content {
+ 
+ class BrowserContext;
++class RenderFrameHost;
+ enum class PersistentNotificationStatus;
+ 
+ // This is the dispatcher to be used for firing events related to notifications.
+@@ -65,6 +66,12 @@
+       const std::string& notification_id,
+       base::OnceClosure completed_closure) = 0;
+ 
++  // The live document that created the non-persistent notification
++  // |notification_id|, or null when a worker created it or the document is
++  // gone or in the back/forward cache, as for its events.
++  virtual RenderFrameHost* GetNonPersistentNotificationDocument(
++      const std::string& notification_id) = 0;
++
+  protected:
+   virtual ~NotificationEventDispatcher() {}
+ };
+--- a/content/browser/notifications/notification_event_dispatcher_impl.h
++++ b/content/browser/notifications/notification_event_dispatcher_impl.h
+@@ -57,6 +57,8 @@
+   void DispatchNonPersistentCloseEvent(
+       const std::string& notification_id,
+       base::OnceClosure completed_closure) override;
++  RenderFrameHost* GetNonPersistentNotificationDocument(
++      const std::string& notification_id) override;
+ 
+   // Registers the associated document weak pointer and the listener to receive
+   // the show, click and close events of the non-persistent notification
+--- a/content/browser/notifications/notification_event_dispatcher_impl.cc
++++ b/content/browser/notifications/notification_event_dispatcher_impl.cc
+@@ -580,6 +580,14 @@
+   } else {
+     std::move(completed_closure).Run();
+   }
++}
++
++RenderFrameHost*
++NotificationEventDispatcherImpl::GetNonPersistentNotificationDocument(
++    const std::string& notification_id) {
++  auto listener = GetListenerIfNotifiable(notification_id);
++  return listener.has_value() ? listener->document.AsRenderFrameHostIfValid()
++                              : nullptr;
+ }
+ 
+ void NotificationEventDispatcherImpl::OnNonPersistentCloseComplete(

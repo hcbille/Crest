@@ -428,6 +428,8 @@ enum EnginePresentation: Equatable, Sendable {
     case sidePanelRequested(SidePanelRequested)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
+    case webNotificationClosed(WebNotificationClosed)
+    case webNotificationPosted(WebNotificationPosted)
 
     /// The `PageId` every member of the core's `EnginePagePresentation` carries, or nil for any other.
     var pageID: UUID? {
@@ -461,6 +463,8 @@ enum EnginePresentation: Equatable, Sendable {
         case .sidePanelRequested(let value): value.pageID
         case .storeInstallRequested(let value): value.pageID
         case .storeRemovalRequested(let value): value.pageID
+        case .webNotificationClosed(let value): value.pageID
+        case .webNotificationPosted(let value): value.pageID
         }
     }
 }
@@ -668,6 +672,14 @@ struct AnswerScriptDialog: Intent, PromptIntent, Equatable, Sendable {
     let promptID: UUID
     let accepted: Bool
     let text: String?
+}
+
+struct AnswerWebNotification: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let notificationID: String
+    let answer: WebNotificationAnswer
 }
 
 struct AppConfiguration: Equatable, Sendable {
@@ -3285,6 +3297,17 @@ struct NotPrivateWorkspace: Equatable, Sendable {
     let workspaceID: UUID
 }
 
+struct NotificationDisplayCheck: Query, Equatable, Sendable {
+    typealias Answer = NotificationDisplayVerdict
+
+    let spaceID: UUID
+    let origin: SiteOrigin
+}
+
+struct NotificationDisplayVerdict: Equatable, Sendable {
+    let shows: Bool
+}
+
 struct NotificationPermissionRequest: Query, Equatable, Sendable {
     typealias Answer = NotificationRequestAnswer
 
@@ -5637,6 +5660,20 @@ struct WatchPage: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct WebNotificationClosed: Equatable, Sendable {
+    let pageID: UUID
+    let notificationID: String
+}
+
+struct WebNotificationPosted: Equatable, Sendable {
+    let pageID: UUID
+    let notificationID: String
+    let origin: SiteOrigin
+    let title: String
+    let body: String
+    let silent: Bool
+}
+
 struct WebPagesOnly: Equatable, Sendable {
     let tabID: UUID
 
@@ -6265,6 +6302,11 @@ enum TearOffRefusal: Int, CaseIterable, Sendable {
     case spaceLocked = 1
     case tabGone = 2
     case severalTabs = 3
+}
+
+enum WebNotificationAnswer: Int, CaseIterable, Sendable {
+    case clicked = 0
+    case declined = 1
 }
 
 // MARK: - Fixed sets

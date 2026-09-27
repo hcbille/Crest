@@ -37,6 +37,7 @@ namespace crest {
 class EngineBrowsers;
 class EngineDownloads;
 class EngineExtensions;
+class EngineNotifications;
 class EnginePage;
 class EngineProfiles;
 class EnginePrompts;
@@ -183,6 +184,8 @@ class EngineBinding {
   bool disposing() const { return disposing_; }
   // What the binding's pages ask the person.
   EnginePrompts& Prompts();
+  // The notifications the binding's pages post.
+  EngineNotifications& Notifications();
   // The prompt for a permission request in the page that shows `contents`,
   // or nullptr when no page shows it or Crest's record does not cover it.
   std::unique_ptr<permissions::PermissionPrompt> PermissionPrompt(
@@ -277,6 +280,7 @@ class EngineBinding {
   engine::CertificateChain Handle(const engine::PageCertificates& request);
   bool Handle(const engine::SetSitePermission& request);
   bool Handle(const engine::StopMediaCapture& request);
+  bool Handle(const engine::AnswerWebNotification& request);
   bool Handle(const engine::PrepareProfile& request);
 
   void Perform(engine::EngineCommand command);
@@ -362,6 +366,7 @@ class EngineBinding {
   std::unique_ptr<EngineExtensions> extensions_;
   std::unique_ptr<EngineDownloads> downloads_;
   std::unique_ptr<EnginePrompts> prompts_;
+  std::unique_ptr<EngineNotifications> notifications_;
   std::deque<Outgoing> queue_;
   std::vector<std::string> due_;
   bool flush_posted_ = false;

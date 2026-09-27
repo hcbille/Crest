@@ -102,6 +102,11 @@ enum BrowserPageEngineEvent {
     case userActivity
     case linkHovered(URL?)
     case popupBlocked(pageURL: URL)
+    /// A document in the page posted a notification through an engine that
+    /// hosts the Notifications API itself.
+    case webNotificationPosted(WebNotificationPosted)
+    /// The page's document closed a notification it posted.
+    case webNotificationClosed(notificationID: String)
     /// The engine kept a link in the page for the Peek the core chose, with
     /// the link it staged for the Peek's first load, if any.
     case peekRequested(URL, decision: LinkNavigationDecision, stagedLink: BrowserEngineNavigation?)

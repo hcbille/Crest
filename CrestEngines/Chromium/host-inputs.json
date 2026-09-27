@@ -13,7 +13,7 @@
   },
   "chrome/browser/ui/BUILD.gn": {
     "before": "d00a05b597c3f25aa7e7eea8b777f5fbcebd1e67ace0e4d0e926a75a62f79ee3",
-    "after": "c72628d391876fc0c3fa8ad10f8f3fa0dd8d0595e139120eba8b0a531de90f43"
+    "after": "31bdd8b8549bbb8b3158082c02b8b6c633dbe7b40e9265befb255413b1608048"
   },
   "chrome/browser/ui/tabs/tab_features.cc": {
     "before": "f0f9d57d10312996c1e9cc86c9ce92044d0085afb87270776e2d5ec45b3ce5f3",
@@ -274,5 +274,21 @@
   "extensions/browser/extension_util.cc": {
     "before": "583a1892b1bc63f8179d7e7268541a43513b125e6a419ee735aaaadc7f47c61c",
     "after": "bae7073700f77331fef050266bfeea158bd19b110a827259eb9759da2e011230"
+  },
+  "chrome/browser/notifications/mac/notification_platform_bridge_mac.cc": {
+    "before": "6c66a0591cfec32a9e426656240204d0f4d926682131d490c4c3755a8c860955",
+    "after": "50c648bac485ba98feee1ac78c779085015ae0e4405030363e73ba7f7bdafc0e"
+  },
+  "content/public/browser/notification_event_dispatcher.h": {
+    "before": "c6a5d93d54668cabe77a8e9be1aad765ecde33d4b1972bad5946a7ede9ea9e3b",
+    "after": "16ffb1fbf6f2c5571b162b24c03dfd45e060efefc4b3b2fa72d0910a5c7d9654"
+  },
+  "content/browser/notifications/notification_event_dispatcher_impl.h": {
+    "before": "55be0334a905a4c2b8c039299eb07424b364c089325d13cb13f1d78b70e00160",
+    "after": "2c22127f5b4fb63cd707d34465514b624cfc8569454030c8e780094b0f29c2d6"
+  },
+  "content/browser/notifications/notification_event_dispatcher_impl.cc": {
+    "before": "5df1b89e28cebe6c0230b1a2028d12ecce52483840123ab63b40caa3d7ffcf51",
+    "after": "a8ae851d47316a1a2d292167a969b2e79aab40011773f69b0c32329389dda086"
   }
 }

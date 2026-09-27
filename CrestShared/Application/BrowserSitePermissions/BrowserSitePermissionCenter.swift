@@ -101,6 +101,13 @@ final class BrowserSitePermissionCenter {
         return (try? core.query(question))?.decision ?? .ask
     }
 
+    /// Whether a notification a document at `origin` posted in a page of the
+    /// Space shows now. An unavailable core shows none.
+    func showsNotification(from origin: SiteOrigin, in spaceID: UUID) -> Bool {
+        _ = core.state.sitePermissionRevision
+        return (try? core.query(NotificationDisplayCheck(spaceID: spaceID, origin: origin)))?.shows ?? false
+    }
+
     /// The choices a Space keeps, in the order the settings list them.
     func records(in spaceID: UUID) -> [SitePermissionRecordState] {
         core.state.sitePermissions[spaceID] ?? []

@@ -3157,6 +3157,10 @@
     "start-page-search-offers-commands": {
       "category": "improved",
       "message": "The Start Page's search now offers Crest's commands, like New Quick Window, when what you type matches one."
+    },
+    "chromium-website-notifications-appear": {
+      "category": "fixed",
+      "message": "In the Chromium build, notifications from sites you allow now appear as banners and in Notification Center, as they do in the WebKit build, and clicking one brings you to its tab. Private windows still show none."
     }
   }
 }

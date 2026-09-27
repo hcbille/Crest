@@ -49,10 +49,9 @@ enum BrowserEngineRegistration {
     ///   page's current site; the host has no command to stop live camera,
     ///   microphone or location use directly, so revocation relies on the engine
     ///   ending it when the setting blocks.
-    /// - Web notifications are delivered through the engine's own notification
-    ///   path; Crest's system delivery, activation of the source tab and
-    ///   withdrawal of delivered notifications after revocation need a host
-    ///   notification hook.
+    /// - A page's web notifications reach Crest's own system delivery, which
+    ///   the WebKit pages share; a service worker's or an extension's
+    ///   notifications are closed without showing.
     static let chromium = BrowserAdapterRegistration(
         kind: .chromium,
         implementation: .chromiumMacOS,

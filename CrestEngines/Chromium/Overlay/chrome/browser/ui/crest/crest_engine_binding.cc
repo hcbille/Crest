@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/crest/crest_engine_browsers.h"
 #include "chrome/browser/ui/crest/crest_engine_downloads.h"
 #include "chrome/browser/ui/crest/crest_engine_extensions.h"
+#include "chrome/browser/ui/crest/crest_engine_notifications.h"
 #include "chrome/browser/ui/crest/crest_engine_page.h"
 #include "chrome/browser/ui/crest/crest_engine_profiles.h"
 #include "chrome/browser/ui/crest/crest_engine_prompts.h"
@@ -214,6 +215,7 @@ void EngineBinding::Dispose() {
   staged_links_.clear();
   extensions_.reset();
   prompts_.reset();
+  notifications_.reset();
   downloads_.reset();
   Profiles().Dispose();
   for (auto& [key, page] : pages_) {
@@ -506,6 +508,9 @@ void EngineBinding::Close(const engine::ClosePage& closing) {
   if (prompts_) {
     prompts_->Forget(closing.page_id);
   }
+  if (notifications_) {
+    notifications_->Forget(closing.page_id);
+  }
   DestroyContents(key, contents);
   Report(engine::PageClosed{.page_id = closing.page_id, .restore_state = std::move(restore_state)});
 }
@@ -532,6 +537,9 @@ void EngineBinding::Forget(const std::string& key) {
   }
   DropStagedLinksFrom(key);
   std::erase(due_, key);
+  if (notifications_) {
+    notifications_->Forget(page->id());
+  }
   pages_.erase(key);
 }
 
@@ -847,6 +855,14 @@ EnginePrompts& EngineBinding::Prompts() {
   return *prompts_;
 }
 
+EngineNotifications& EngineBinding::Notifications() {
+  if (!notifications_) {
+    notifications_ =
+        std::make_unique<EngineNotifications>(base::BindRepeating(&EngineBinding::Present, base::Unretained(this)));
+  }
+  return *notifications_;
+}
+
 std::unique_ptr<permissions::PermissionPrompt> EngineBinding::PermissionPrompt(
     content::WebContents* contents,
     permissions::PermissionPrompt::Delegate* delegate) {
@@ -1121,6 +1137,10 @@ bool EngineBinding::Handle(const engine::SetSitePermission& request) {
 // withdraws a grant ends the capture it allowed.
 bool EngineBinding::Handle(const engine::StopMediaCapture&) {
   return false;
+}
+
+bool EngineBinding::Handle(const engine::AnswerWebNotification& request) {
+  return Notifications().Answer(request);
 }
 
 // A Space's profile loads before anything opens in it, so its extensions

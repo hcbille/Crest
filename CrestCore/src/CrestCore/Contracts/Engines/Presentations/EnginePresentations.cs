@@ -114,6 +114,21 @@ public sealed record InfoBarShown(Guid PageId, int InfoBarId, string Message, st
 
 #endregion
 
+#region Notifications
+
+/// A document in the page posted a notification. The platform shows it as
+/// Crest's own when the core lets the page's Space show the site's
+/// notifications and the system lets Crest show them, and answers with
+/// `AnswerWebNotification` once the person clicks it or it will not show.
+public sealed record WebNotificationPosted(Guid PageId, string NotificationId, SiteOrigin Origin, string Title, string Body,
+    bool Silent) : EnginePagePresentation(PageId);
+
+/// The page's document closed a notification `WebNotificationPosted`
+/// presented, so the platform takes it down.
+public sealed record WebNotificationClosed(Guid PageId, string NotificationId) : EnginePagePresentation(PageId);
+
+#endregion
+
 #region Extensions
 
 /// The extensions of the profile `ProfileId` names changed: one was added,

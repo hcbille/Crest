@@ -233,6 +233,15 @@ final class EnginePage: BrowserFindExecuting {
         pages.request(RefreshPageIcon(pageID: id))
     }
 
+    // MARK: - Actions - Notifications
+
+    /// Tells the document that posted the notification `notificationID` what
+    /// became of it; false when the engine no longer has it.
+    @discardableResult
+    func answerWebNotification(_ notificationID: String, with answer: WebNotificationAnswer) -> Bool {
+        pages.request(AnswerWebNotification(pageID: id, notificationID: notificationID, answer: answer))
+    }
+
     // MARK: - Actions - Media
 
     /// What media the page runs now, as far as the engine knows.

@@ -175,6 +175,34 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void ANotificationShowsOnlyWhereItsSpaceAllowsTheSecureSiteAndNeverInAPrivateWindow() {
+        using var directory = new StorageDirectory();
+        var (app, workspace, _) = DeviceApp(directory);
+        using var disposal = app;
+        var space = app.Workspace(workspace).Current.Spaces.First(space => space.Settings.AccessPolicy == SpaceAccessPolicy.Open).Id;
+        var privateSpace = app.Workspace(TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null))))
+            .Current.Spaces.Single().Id;
+        var insecure = new SiteOrigin("http", "meet.example", 80);
+        bool Shows(Guid space, SiteOrigin origin) => app.Query(new NotificationDisplayCheck(space, origin)).Shows;
+        void Decide(Guid space, SiteOrigin origin, SitePermissionDecision decision) =>
+            app.Send(new DecideSitePermission(space, origin, SitePermission.Notifications, null, decision));
+
+        Assert.False(Shows(space, Conference));
+        foreach (var target in new[] { space, privateSpace }) {
+            Decide(target, Conference, SitePermissionDecision.GrantForSession);
+            Decide(target, insecure, SitePermissionDecision.GrantForSession);
+        }
+        Assert.True(Shows(space, Conference));
+        Assert.False(Shows(space, insecure));
+        // A private window's Space keeps its own choice, which never reaches the system.
+        Assert.Equal(SitePermissionDecision.GrantForSession, Decided(app, privateSpace, SitePermission.Notifications));
+        Assert.False(Shows(privateSpace, Conference));
+
+        Decide(space, Conference, SitePermissionDecision.DenyPersistently);
+        Assert.False(Shows(space, Conference));
+    }
+
+    [Fact]
     public void SitePermissionLimitsRefuseWithTheirLimit() {
         using var directory = new StorageDirectory();
         var (app, _, spaces) = DeviceApp(directory);

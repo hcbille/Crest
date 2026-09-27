@@ -43,9 +43,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
     private var blockedPopupMessageProxy: BrowserBlockedPopupScriptMessageProxy?
     private var mediaSessionMessageProxy: BrowserMediaSessionScriptMessageProxy?
     private var hostedNotificationMessageProxy: BrowserHostedWebNotificationScriptMessageProxy?
-    /// The system notifications the page's current document posted through
-    /// Crest's hosted notification bridge.
-    var hostedNotificationIdentifiers: Set<String> = []
     /// Names the document the hosted notification bridge answers; a new one
     /// begins with each navigation.
     var hostedNotificationDocumentIdentifier = UUID().uuidString
@@ -208,7 +205,6 @@ final class BrowserWebKitPageAdapter: BrowserPageEngineAdapter {
         webView.menuHost = nil
         observations.removeAll()
         page.removeGeolocationRequests()
-        page.removeHostedWebNotifications()
         defer { geolocationCoordinator = nil }
         guard ownsUserContentController else {
             // A popup shares its opener's content controller. Removing handlers

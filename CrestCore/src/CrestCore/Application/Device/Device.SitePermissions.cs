@@ -68,6 +68,15 @@ internal sealed partial class Device {
         return (false, false);
     }
 
+    /// Whether `spaceId` is a private window's Space. Called without the
+    /// device lock, since it reads the sessions.
+    internal bool IsPrivate(Guid spaceId) {
+        NativeSessionAuthority[] attached;
+        lock (gate)
+            attached = [.. workspaces.Values];
+        return attached.Any(authority => authority.IsPrivateBrowsing && authority.Current.Spaces.Any(space => space.Id == spaceId));
+    }
+
     /// Publishes each Space `outcome` touched with the choices it keeps now.
     /// The caller holds the device lock.
     internal void PublishPermissions(SitePermissionOutcome outcome, ChangeFeed changes) {
