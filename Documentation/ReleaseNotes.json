@@ -3061,6 +3061,10 @@
     "message-handling-documented": {
       "category": "internal",
       "message": "The architecture notes now describe how each receiver handles the core's messages through the generated handlers."
+    },
+    "chromium-commands-dispatch-by-type": {
+      "category": "internal",
+      "message": "Chromium's engine handles each command the core sends through its own handler, so a new command can't be silently ignored."
     }
   }
 }

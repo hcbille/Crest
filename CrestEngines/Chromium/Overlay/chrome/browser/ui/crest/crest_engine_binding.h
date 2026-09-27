@@ -269,6 +269,27 @@ class EngineBinding {
   bool Handle(const engine::PrepareProfile& request);
 
   void Perform(engine::EngineCommand command);
+  // Each command, handled where it lands. `Perform` visits a command with
+  // these, so a command without one fails to compile.
+  void Handle(const engine::CreatePage& command);
+  void Handle(const engine::LoadPage& command);
+  void Handle(const engine::ClosePage& command);
+  void Handle(const engine::RecoverPage& command);
+  void Handle(const engine::CheckBeforeUnload& command);
+  void Handle(const engine::SettleScriptDialog& command);
+  void Handle(const engine::SettleAuthentication& command);
+  void Handle(const engine::SettlePermission& command);
+  void Handle(const engine::SettleExtensionInstall& command);
+  void Handle(const engine::SettleDownloadDestination& command);
+  void Handle(const engine::CancelEngineDownload& command);
+  void Handle(const engine::RemoveEngineDownload& command);
+  void Handle(const engine::ApproveEngineDownload& command);
+  void Handle(const engine::EraseProfileData& command);
+  void Handle(const engine::EraseSiteData& command);
+  void Handle(const engine::AdoptOfferedPage& command);
+  void Handle(const engine::RejectOfferedPage& command);
+  void Handle(const engine::StageNavigation& command);
+  void Handle(const engine::DropStagedLink& command);
   std::vector<uint8_t> Answer(const engine::PageRequest& request);
   void Create(const engine::CreatePage& creation);
   void Load(const std::string& page, const std::string& url);

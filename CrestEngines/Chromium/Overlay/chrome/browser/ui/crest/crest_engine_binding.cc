@@ -275,52 +275,90 @@ void EngineBinding::Perform(engine::EngineCommand command) {
   if (disposing_) {
     return;
   }
-  if (const auto* creation = std::get_if<engine::CreatePage>(&command)) {
-    Create(*creation);
-  } else if (const auto* loading = std::get_if<engine::LoadPage>(&command)) {
-    Load(GuidText(loading->page_id), loading->url);
-  } else if (const auto* closing = std::get_if<engine::ClosePage>(&command)) {
-    Close(*closing);
-  } else if (const auto* recovery = std::get_if<engine::RecoverPage>(&command)) {
-    if (EnginePage* page = Find(GuidText(recovery->page_id))) {
-      page->Recover();
-    }
-  } else if (const auto* check = std::get_if<engine::CheckBeforeUnload>(&command)) {
-    if (EnginePage* page = Find(GuidText(check->page_id))) {
-      page->CheckBeforeUnload();
-    } else {
-      // A page the binding no longer holds has nothing to keep.
-      Report(engine::BeforeUnloadAnswered{.page_id = check->page_id, .proceeds = true});
-    }
-  } else if (const auto* dialog = std::get_if<engine::SettleScriptDialog>(&command)) {
-    Prompts().Settle(*dialog);
-  } else if (const auto* authentication = std::get_if<engine::SettleAuthentication>(&command)) {
-    Prompts().Settle(*authentication);
-  } else if (const auto* permission = std::get_if<engine::SettlePermission>(&command)) {
-    Prompts().Settle(*permission);
-  } else if (const auto* install = std::get_if<engine::SettleExtensionInstall>(&command)) {
-    Prompts().Settle(*install);
-  } else if (const auto* destination = std::get_if<engine::SettleDownloadDestination>(&command)) {
-    Downloads().Settle(*destination);
-  } else if (const auto* cancellation = std::get_if<engine::CancelEngineDownload>(&command)) {
-    Downloads().Cancel(*cancellation);
-  } else if (const auto* removal = std::get_if<engine::RemoveEngineDownload>(&command)) {
-    Downloads().Remove(*removal);
-  } else if (const auto* approval = std::get_if<engine::ApproveEngineDownload>(&command)) {
-    Downloads().Approve(*approval);
-  } else if (const auto* erasing = std::get_if<engine::EraseProfileData>(&command)) {
-    Erase(*erasing);
-  } else if (const auto* clearing = std::get_if<engine::EraseSiteData>(&command)) {
-    Erase(*clearing);
-  } else if (const auto* adoption = std::get_if<engine::AdoptOfferedPage>(&command)) {
-    Adopt(*adoption);
-  } else if (const auto* rejection = std::get_if<engine::RejectOfferedPage>(&command)) {
-    Reject(*rejection);
-  } else if (const auto* staging = std::get_if<engine::StageNavigation>(&command)) {
-    Stage(*staging);
-  } else if (const auto* drop = std::get_if<engine::DropStagedLink>(&command)) {
-    DropStagedLink(GuidText(drop->staged_link_id));
+  std::visit([this](const auto& message) { Handle(message); }, command);
+}
+
+void EngineBinding::Handle(const engine::CreatePage& command) {
+  Create(command);
+}
+
+void EngineBinding::Handle(const engine::LoadPage& command) {
+  Load(GuidText(command.page_id), command.url);
+}
+
+void EngineBinding::Handle(const engine::ClosePage& command) {
+  Close(command);
+}
+
+void EngineBinding::Handle(const engine::RecoverPage& command) {
+  if (EnginePage* page = Find(GuidText(command.page_id))) {
+    page->Recover();
   }
+}
+
+void EngineBinding::Handle(const engine::CheckBeforeUnload& command) {
+  if (EnginePage* page = Find(GuidText(command.page_id))) {
+    page->CheckBeforeUnload();
+  } else {
+    // A page the binding no longer holds has nothing to keep.
+    Report(engine::BeforeUnloadAnswered{.page_id = command.page_id, .proceeds = true});
+  }
+}
+
+void EngineBinding::Handle(const engine::SettleScriptDialog& command) {
+  Prompts().Settle(command);
+}
+
+void EngineBinding::Handle(const engine::SettleAuthentication& command) {
+  Prompts().Settle(command);
+}
+
+void EngineBinding::Handle(const engine::SettlePermission& command) {
+  Prompts().Settle(command);
+}
+
+void EngineBinding::Handle(const engine::SettleExtensionInstall& command) {
+  Prompts().Settle(command);
+}
+
+void EngineBinding::Handle(const engine::SettleDownloadDestination& command) {
+  Downloads().Settle(command);
+}
+
+void EngineBinding::Handle(const engine::CancelEngineDownload& command) {
+  Downloads().Cancel(command);
+}
+
+void EngineBinding::Handle(const engine::RemoveEngineDownload& command) {
+  Downloads().Remove(command);
+}
+
+void EngineBinding::Handle(const engine::ApproveEngineDownload& command) {
+  Downloads().Approve(command);
+}
+
+void EngineBinding::Handle(const engine::EraseProfileData& command) {
+  Erase(command);
+}
+
+void EngineBinding::Handle(const engine::EraseSiteData& command) {
+  Erase(command);
+}
+
+void EngineBinding::Handle(const engine::AdoptOfferedPage& command) {
+  Adopt(command);
+}
+
+void EngineBinding::Handle(const engine::RejectOfferedPage& command) {
+  Reject(command);
+}
+
+void EngineBinding::Handle(const engine::StageNavigation& command) {
+  Stage(command);
+}
+
+void EngineBinding::Handle(const engine::DropStagedLink& command) {
+  DropStagedLink(GuidText(command.staged_link_id));
 }
 
 // Creates the page's WebContents on a task of its own: the command arrives
