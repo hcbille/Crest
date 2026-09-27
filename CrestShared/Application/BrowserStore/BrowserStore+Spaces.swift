@@ -103,13 +103,13 @@ extension BrowserStore {
 
     /// The core applies its branding rules to the look before it keeps it.
     func updateSpaceBranding(
-        _ branding: BrowserSpaceBranding,
+        _ branding: SpaceBranding,
         in spaceID: SpaceID
     ) {
         sendSpaceSettings(
             SetSpaceBranding(
                 workspaceID: profileSettingsBrowser.family.workspaceID, spaceID: spaceID,
-                branding: branding.core))
+                branding: branding))
     }
 
     func setDefaultSpace(_ spaceID: SpaceID) {
@@ -248,7 +248,7 @@ extension BrowserStore {
     @discardableResult
     func addFolder(
         title: String = "New Folder",
-        color: BrowserSpaceBrandColor = .folderDefault,
+        color: BrandColor = .folderDefault,
         parentID: FolderID? = nil,
         in spaceID: SpaceID
     ) -> FolderID? {
@@ -257,7 +257,7 @@ extension BrowserStore {
             family.send(
                 CreateFolder(
                     workspaceID: family.workspaceID, spaceID: spaceID, folderID: folderID,
-                    placement: .saved, parentID: parentID, title: title, color: color.core, symbol: "folder",
+                    placement: .saved, parentID: parentID, title: title, color: color, symbol: "folder",
                     tabIDs: [], leavesSplits: false),
                 from: self)
         else { return nil }
@@ -279,7 +279,7 @@ extension BrowserStore {
     @discardableResult
     func addFolder(
         title: String = "New Folder",
-        color: BrowserSpaceBrandColor = .folderDefault,
+        color: BrandColor = .folderDefault,
         parentID: FolderID? = nil,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> FolderID? {
@@ -313,12 +313,12 @@ extension BrowserStore {
     func setFolderColor(
         _ folderID: FolderID,
         in spaceID: SpaceID,
-        color: BrowserSpaceBrandColor
+        color: BrandColor
     ) -> Bool {
         family.send(
             SetFolderColor(
                 workspaceID: family.workspaceID, spaceID: spaceID, folderID: folderID,
-                color: color.core),
+                color: color),
             from: self)
     }
 
@@ -326,7 +326,7 @@ extension BrowserStore {
     func setFolderColor(
         _ folderID: FolderID,
         matching assignment: BrowserSpaceRuntimeAssignment,
-        color: BrowserSpaceBrandColor
+        color: BrandColor
     ) -> Bool {
         guard let space = spaceModel(matching: assignment), space.folders.contains(folderID)
         else { return false }

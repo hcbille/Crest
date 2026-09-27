@@ -98,7 +98,7 @@ struct BrowserSpaceSetupWizard: View {
                 if let draft {
                     RadialGradient(
                         colors: [
-                            BrowserSpaceBranding(look: draft.customization.branding).secondaryColor.color.opacity(0.12),
+                            draft.customization.branding.secondaryColor.color.opacity(0.12),
                             .clear,
                         ],
                         center: .init(x: 0.22, y: 0.48), startRadius: 0, endRadius: 500)
@@ -144,7 +144,7 @@ struct BrowserSpaceSetupWizard: View {
     }
 
     @ViewBuilder private func page(
-        draft: SetupDraftSpace, branding: Binding<BrowserSpaceBranding>,
+        draft: SetupDraftSpace, branding: Binding<SpaceBranding>,
         symbol: Binding<String>, compact: Bool
     ) -> some View {
         switch step {
@@ -163,7 +163,7 @@ struct BrowserSpaceSetupWizard: View {
                     } label: {
                         HStack(spacing: 16) {
                             BrowserSpaceEditorIdentityPreview(
-                                branding: BrowserSpaceBranding(look: space.customization.branding),
+                                branding: space.customization.branding,
                                 symbol: space.customization.symbol, size: 44)
                             Text(space.shownName).font(.headline)
                             Spacer()

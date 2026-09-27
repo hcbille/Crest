@@ -1,7 +1,7 @@
 enum BrowserNavigationFailureAppearance {
     static func brandColor(
-        for branding: BrowserSpaceBranding?
-    ) -> BrowserSpaceBrandColor? {
+        for branding: SpaceBranding?
+    ) -> BrandColor? {
         branding?.primaryColor
     }
 }

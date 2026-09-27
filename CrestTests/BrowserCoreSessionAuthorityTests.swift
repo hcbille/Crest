@@ -320,11 +320,11 @@ final class BrowserCoreSessionAuthorityTests: XCTestCase {
         XCTAssertEqual(store.workspaceModel?.defaultSpaceID, id)
         XCTAssertEqual(store.spaceModels.last?.settings.name, "Space 3")
         let folderID = try XCTUnwrap(store.addFolder(title: "Research", color: .teal, in: id))
-        XCTAssertEqual(other.spaceModel(id)?.folders.model(folderID)?.value.color, BrowserSpaceBrandColor.teal.core)
+        XCTAssertEqual(other.spaceModel(id)?.folders.model(folderID)?.value.color, BrandColor.teal)
         XCTAssertTrue(store.setFolderSymbol(folderID, in: id, symbol: "book"))
         XCTAssertTrue(store.setFolderColor(folderID, in: id, color: .gold))
         XCTAssertEqual(other.spaceModel(id)?.folders.model(folderID)?.value.symbol, "book")
-        XCTAssertEqual(other.spaceModel(id)?.folders.model(folderID)?.value.color, BrowserSpaceBrandColor.gold.core)
+        XCTAssertEqual(other.spaceModel(id)?.folders.model(folderID)?.value.color, BrandColor.gold)
         XCTAssertNil(store.localSyncErrorDescription)
     }
 

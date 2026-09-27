@@ -6,7 +6,7 @@ struct PinnedTabInteractionSurface: ViewModifier {
     let isSelected: Bool
     let isHovering: Bool
     var isMultiSelected = false
-    var branding: BrowserSpaceBranding? = nil
+    var branding: SpaceBranding? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var palette: BrowserFaviconPalette?

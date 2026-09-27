@@ -100,7 +100,7 @@ struct BrowserSidebarSpacePage: View {
         }
         .environment(
             \.colorScheme,
-            BrowserSpaceForegroundPolicy.colorScheme(for: BrowserSpaceBranding(look: space.settings.look))
+            BrowserSpaceForegroundPolicy.colorScheme(for: space.settings.look)
         )
         .blur(
             radius: isLocked

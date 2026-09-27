@@ -6,8 +6,8 @@ import SwiftUI
 /// holds its place while the Space's accent is in charge, so flipping the
 /// switch never moves it.
 struct BrowserAppearanceAccentRow: View {
-    let color: CrestSettingValue<BrowserSpaceBrandColor?>
-    let fallback: BrowserSpaceBrandColor
+    let color: CrestSettingValue<BrandColor?>
+    let fallback: BrandColor
     var identifier: String?
 
     var body: some View {
@@ -35,7 +35,7 @@ struct BrowserAppearanceAccentRow: View {
     private var customColor: Binding<Color> {
         Binding(
             get: { (color.wrappedValue ?? fallback).color },
-            set: { color.binding.wrappedValue = BrowserSpaceBrandColor(color: $0) }
+            set: { color.binding.wrappedValue = BrandColor(color: $0) }
         )
     }
 }

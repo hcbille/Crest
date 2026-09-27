@@ -56,7 +56,7 @@ struct MobileSpaceActions: View {
     }
 
     private var selectedAccentColor: Color {
-        browser.shownSpace.map { BrowserSpaceBranding(look: $0.settings.look) }?.colors.first?.color ?? .accentColor
+        browser.shownSpace.map(\.settings.look)?.colors.first?.color ?? .accentColor
     }
 
     private var downloadBadgeColor: Color {

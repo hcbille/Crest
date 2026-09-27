@@ -82,7 +82,7 @@ struct BrowserFolderOrganizationMenuContent: View {
                                 Text(destination.path)
                             } icon: {
                                 BrowserFolderArtwork(
-                                    symbol: destination.folder.displaySymbol, color: destination.folder.artworkColor)
+                                    symbol: destination.folder.displaySymbol, color: destination.folder.displayColor)
                             }
                         }
                         .disabled(folder.parentID == destination.folder.id)

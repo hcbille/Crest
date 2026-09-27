@@ -4,7 +4,7 @@ import SwiftUI
 /// size and can be stroked, inset, and scaled — none of which a glyph mask
 /// allowed.
 struct BrowserSpaceCrestPlateShape: Shape {
-    let backplate: BrowserSpaceCrestBackplate
+    let backplate: CrestBackplate
     /// Scallops on a seal. Ignored by every other plate.
     var scallops = 14
 

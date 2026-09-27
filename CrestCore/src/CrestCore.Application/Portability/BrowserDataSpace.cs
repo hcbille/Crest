@@ -106,7 +106,7 @@ internal sealed record BrowserDataSpace(string Name, string Symbol, SpaceAccent 
     public static BrowserDataSpace From(SpaceState space) {
         ArgumentNullException.ThrowIfNull(space);
         var settings = space.Settings;
-        return new(settings.Name, settings.Symbol, settings.Accent, ImportedLook.Announced(settings.Look),
+        return new(settings.Name, settings.Symbol, settings.Accent, SpaceBrandingPolicy.Announced(settings.Look),
             [.. space.Folders.Select(BrowserDataFolder.From)], [.. space.Tabs.Select(BrowserDataTab.From)],
             [.. space.SplitGroups.Select(BrowserDataSplit.From)], [.. space.ArchivedTabs.Select(BrowserDataArchivedTab.From)],
             [.. space.History.Select(BrowserDataHistoryEntry.From)], settings.BrowsingPreferences, SelectedTabId: null);

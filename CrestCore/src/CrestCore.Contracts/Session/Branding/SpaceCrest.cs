@@ -35,6 +35,16 @@ public sealed record SpaceCrest(
     int SealTeeth,
     bool ShowsOutline,
     CrestDepth Depth) {
+    #region Static Variables
+
+    /// How many pieces a counted field division draws unless set.
+    public const int DefaultDivisionCount = 4;
+
+    /// How much detail a counted trim draws unless set.
+    public const int DefaultTrimDetail = 12;
+
+    #endregion
+
     #region Actions - Compositions
 
     /// <summary>A plain-field crest with no ordinary, charged with <paramref name="figure"/>.
@@ -46,8 +56,9 @@ public sealed record SpaceCrest(
         return new(backplate, CrestFieldDivision.Plain, CrestOrdinary.None, trim, figure, CrestChargeLayout.Single,
             BackplateColorIndex: layers[0], SecondaryFieldColorIndex: layers[1], OrdinaryColorIndex: layers[2], TrimColorIndex: layers[3],
             SymbolColorIndex: layers[4], StartingPresetId: null, EdgeColorIndex: layers[5], Palette: null, Charge: null, PlateScale: 1,
-            EdgeWidth: 0, DivisionCount: 4, CrestFinish.Flat, OrdinaryWidth: 1, trimWeight, TrimDetail: 12, chargeScale, ChargeOffset: 0,
-            CrestChargeWeight.Bold, SheenAngle: 45, SealTeeth: 12, ShowsOutline: false, CrestDepth.None);
+            EdgeWidth: 0, DivisionCount: DefaultDivisionCount, CrestFinish.Flat, OrdinaryWidth: 1, trimWeight,
+            TrimDetail: DefaultTrimDetail, chargeScale, ChargeOffset: 0, CrestChargeWeight.Bold, SheenAngle: 45, SealTeeth: 12,
+            ShowsOutline: false, CrestDepth.None);
     }
 
     #endregion

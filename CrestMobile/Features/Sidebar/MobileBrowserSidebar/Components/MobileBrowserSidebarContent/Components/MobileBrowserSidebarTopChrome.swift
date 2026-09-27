@@ -99,7 +99,7 @@ struct MobileBrowserSidebarTopChrome: View {
             morphNamespace: configuration.compactChromeNamespace,
             spaceID: selectedSpaceID,
             commandPaletteHandoff: configuration.commandPaletteHandoff,
-            branding: configuration.context.browser.shownSpace.map { BrowserSpaceBranding(look: $0.settings.look) }
+            branding: configuration.context.browser.shownSpace.map(\.settings.look)
         )
     }
 

@@ -3,9 +3,9 @@ import SwiftUI
 /// The plate's surface: the primary color, the second color where the
 /// division puts it, and the finish that lights them.
 struct BrowserSpaceCrestField: View {
-    let division: BrowserSpaceCrestFieldDivision
-    var divisionCount = BrowserSpaceCrest.defaultDivisionCount
-    var finish: BrowserSpaceCrestFinish = .flat
+    let division: CrestFieldDivision
+    var divisionCount = SpaceCrest.defaultDivisionCount
+    var finish: CrestFinish = .flat
     var sheenAngle: Double = 45
     let primaryColor: Color
     let secondaryColor: Color

@@ -120,13 +120,7 @@ internal sealed partial record SpacePayload {
 
     /// `branding` within the ranges the renderer draws, announcing the
     /// rendering vocabulary it needs and whether its controls stay readable.
-    private static SpaceBranding Resolved(SpaceBranding branding) {
-        var normalized = SpaceBrandingPolicy.Normalize(branding);
-        return normalized with {
-            KeepsControlsReadable = normalized.ReadabilityFade > 0,
-            RenderingVersion = SpaceBrandingPolicy.RenderingVersion(normalized)
-        };
-    }
+    private static SpaceBranding Resolved(SpaceBranding branding) => SpaceBrandingPolicy.Normalize(branding);
 
     /// A branding as every client writes it.
     private static JsonObject EncodeBranding(SpaceBranding branding) => StoredSessionCodec.Encode(branding);

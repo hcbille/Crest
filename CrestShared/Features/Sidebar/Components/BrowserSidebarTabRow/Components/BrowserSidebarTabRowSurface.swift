@@ -195,8 +195,8 @@ private struct BrowserSidebarTabRowAppearance: ViewModifier {
         )
     }
 
-    private var branding: BrowserSpaceBranding? {
+    private var branding: SpaceBranding? {
         configuration.spacePresentation?.branding
-            ?? BrowserSpaceBranding(look: configuration.context.space.settings.look)
+            ?? configuration.context.space.settings.look
     }
 }

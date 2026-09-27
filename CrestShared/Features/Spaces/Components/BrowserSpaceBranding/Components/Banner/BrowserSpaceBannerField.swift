@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSpaceBannerField: View {
-    let pattern: BrowserSpaceBannerPattern
+    let pattern: SpaceBannerPattern
     let colors: [Color]
     let size: CGSize
 

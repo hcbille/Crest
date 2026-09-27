@@ -75,7 +75,7 @@ struct BrowserSidebarSplitGroupRowConfiguration {
 
     var shownTitle: String { choices.shownTitle }
     var emojiIcon: String? { choices.displayEmojiIcon }
-    var tint: BrowserSpaceBrandColor? { choices.shownTint }
+    var tint: BrandColor? { choices.tint }
 
     /// Selecting any member presents the whole split, so the container reads as
     /// presented whenever the window shows one of its members.
@@ -188,7 +188,7 @@ struct BrowserSidebarSplitGroupRowInteractionContext {
     let isTitleFocused: FocusState<Bool>.Binding
     let isChoosingIcon: Binding<Bool>
     let isChoosingTint: Binding<Bool>
-    let tint: Binding<BrowserSpaceBrandColor>
+    let tint: Binding<BrandColor>
     let activate: () -> Void
     let closeSplit: @MainActor () -> Void
     let beginRenaming: () -> Void

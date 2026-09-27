@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension BrowserSpaceThemeMode {
+extension SpaceThemeMode {
     var title: LocalizedStringKey {
         switch self {
         case .banner: "Banner"
@@ -43,8 +43,8 @@ extension BrowserSpaceBrandColorRole {
     }
 }
 
-extension BrowserSpaceBrandColor {
-    private static let namedTitles: [BrowserSpaceBrandColor: String] = [
+extension BrandColor {
+    private static let namedTitles: [BrandColor: String] = [
         .ink: "Ink", .indigo: "Indigo", .ocean: "Ocean", .sky: "Sky",
         .teal: "Teal", .sage: "Sage", .gold: "Gold", .ember: "Ember",
         .rose: "Rose", .sand: "Sand", .winterSlate: "Slate",

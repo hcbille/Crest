@@ -109,7 +109,7 @@ struct BrowserSpaceEditorView: View {
         browser.spaceSymbolBinding(in: space)
     }
 
-    private var branding: Binding<BrowserSpaceBranding> {
+    private var branding: Binding<SpaceBranding> {
         browser.spaceBrandingBinding(in: space)
     }
 }

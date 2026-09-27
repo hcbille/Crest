@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct BrowserImportSidebarFrame<Content: View>: View {
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
     let content: Content
 
     init(
-        branding: BrowserSpaceBranding,
+        branding: SpaceBranding,
         @ViewBuilder content: () -> Content
     ) {
         self.branding = branding

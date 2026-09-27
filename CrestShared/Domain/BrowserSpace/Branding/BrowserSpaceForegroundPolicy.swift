@@ -1,33 +1,51 @@
 import Foundation
 
 enum BrowserSpaceForegroundPolicy {
+    /// The tone that reads best over `branding`'s banner, unless its text color
+    /// mode names one.
     static func tone(
-        for branding: BrowserSpaceBranding
+        for branding: SpaceBranding
     ) -> BrowserSpaceForegroundTone {
         if let override = branding.textColorMode.foregroundTone { return override }
-        let colors = branding.colors.isEmpty ? [.indigo] : branding.colors
+        return tone(
+            over: branding.colors.isEmpty ? [.indigo] : branding.colors, strength: branding.bannerStrength,
+            readabilityFade: branding.readabilityFade)
+    }
+
+    /// The tone that reads best over one solid `color`.
+    static func tone(over color: BrandColor) -> BrowserSpaceForegroundTone {
+        tone(over: [color], strength: 1, readabilityFade: 0)
+    }
+
+    private static func tone(
+        over colors: ColorPalette,
+        strength: Double,
+        readabilityFade: Double
+    ) -> BrowserSpaceForegroundTone {
         let lightContrast = minimumContrast(
             for: .light,
             colors: colors,
-            branding: branding
+            strength: strength,
+            readabilityFade: readabilityFade
         )
         let darkContrast = minimumContrast(
             for: .dark,
             colors: colors,
-            branding: branding
+            strength: strength,
+            readabilityFade: readabilityFade
         )
         return lightContrast >= darkContrast ? .light : .dark
     }
 
     private static func minimumContrast(
         for tone: BrowserSpaceForegroundTone,
-        colors: [BrowserSpaceBrandColor],
-        branding: BrowserSpaceBranding
+        colors: ColorPalette,
+        strength: Double,
+        readabilityFade: Double
     ) -> Double {
         let baseChannel = tone == .light ? 0.0 : 1.0
         let textLuminance = tone == .light ? 1.0 : 0.0
-        let strength = branding.bannerStrength
-        let readabilityOverlay = min(branding.readabilityFade * 0.55, 0.7)
+        let readabilityOverlay = min(readabilityFade * 0.55, 0.7)
 
         return colors.map { color in
             let red = renderedChannel(

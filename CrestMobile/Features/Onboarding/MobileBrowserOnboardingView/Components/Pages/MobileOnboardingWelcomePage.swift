@@ -20,7 +20,7 @@ struct MobileOnboardingWelcomePage: View {
                         ForEach(Array(BrowserSpaceBrandingPreset.curated.prefix(3).enumerated()), id: \.element.id) {
                             index, preset in
                             BrowserSpaceCrestIcon(
-                                branding: preset.applying(to: .init(colors: preset.colors, bannerPattern: .solid)),
+                                branding: preset.applying(to: SpaceAccent.indigo.house),
                                 size: 72
                             )
                             .padding(.vertical, 24)

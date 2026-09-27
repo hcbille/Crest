@@ -15,7 +15,7 @@ extension BrowserSpaceHeraldicTerm {
     var titleKey: LocalizedStringKey { LocalizedStringKey(title) }
 }
 
-extension BrowserSpaceIconStyle: BrowserSpaceHeraldicTerm {
+extension SpaceIconStyle: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .simpleSymbol: "Simple Symbol"
@@ -24,7 +24,7 @@ extension BrowserSpaceIconStyle: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceBannerPattern: BrowserSpaceHeraldicTerm {
+extension SpaceBannerPattern: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .solid: "Solid"
@@ -40,7 +40,7 @@ extension BrowserSpaceBannerPattern: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestBackplate: BrowserSpaceHeraldicTerm {
+extension CrestBackplate: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .none: "None"
@@ -79,7 +79,7 @@ extension BrowserSpaceCrestBackplate: BrowserSpaceHeraldicTerm {
 
 }
 
-extension BrowserSpaceCrestChargeLayout: BrowserSpaceHeraldicTerm {
+extension CrestChargeLayout: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .single: "One"
@@ -91,7 +91,7 @@ extension BrowserSpaceCrestChargeLayout: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestFieldDivision: BrowserSpaceHeraldicTerm {
+extension CrestFieldDivision: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         // Kept to one word: these are gallery card captions under a 46pt crest,
@@ -111,7 +111,7 @@ extension BrowserSpaceCrestFieldDivision: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestOrdinary: BrowserSpaceHeraldicTerm {
+extension CrestOrdinary: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .none: "None"
@@ -131,7 +131,7 @@ extension BrowserSpaceCrestOrdinary: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestTrim: BrowserSpaceHeraldicTerm {
+extension CrestTrim: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .none: "None"
@@ -147,7 +147,7 @@ extension BrowserSpaceCrestTrim: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestSymbol: BrowserSpaceHeraldicTerm {
+extension CrestSymbol: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .dragon: "Dragon"
@@ -218,13 +218,42 @@ extension BrowserSpaceCrestSymbol: BrowserSpaceHeraldicTerm {
         }
     }
 
-    /// Legacy symbol fallback for surfaces that cannot load bundled artwork.
+    /// The bundled artwork that draws the figure, if it has any; the others
+    /// draw their system glyph.
     var assetName: String? {
         switch self {
-        case .dragon, .direwolf, .lion, .stag, .raven, .griffin, .eagle, .bear, .boar, .fox, .horse, .unicorn, .wyvern,
-            .hydra, .serpent, .kraken, .seahorse, .scorpion, .bat, .falcon, .rose, .lily, .pine, .willow, .swords,
-            .axes, .sword, .trident, .anchor, .castle, .scales, .dragonHead:
-            "CrestCharge-" + rawValue
+        case .dragon: "CrestCharge-dragon"
+        case .direwolf: "CrestCharge-direwolf"
+        case .lion: "CrestCharge-lion"
+        case .stag: "CrestCharge-stag"
+        case .raven: "CrestCharge-raven"
+        case .griffin: "CrestCharge-griffin"
+        case .eagle: "CrestCharge-eagle"
+        case .bear: "CrestCharge-bear"
+        case .boar: "CrestCharge-boar"
+        case .fox: "CrestCharge-fox"
+        case .horse: "CrestCharge-horse"
+        case .unicorn: "CrestCharge-unicorn"
+        case .wyvern: "CrestCharge-wyvern"
+        case .hydra: "CrestCharge-hydra"
+        case .serpent: "CrestCharge-serpent"
+        case .kraken: "CrestCharge-kraken"
+        case .seahorse: "CrestCharge-seahorse"
+        case .scorpion: "CrestCharge-scorpion"
+        case .bat: "CrestCharge-bat"
+        case .falcon: "CrestCharge-falcon"
+        case .rose: "CrestCharge-rose"
+        case .lily: "CrestCharge-lily"
+        case .pine: "CrestCharge-pine"
+        case .willow: "CrestCharge-willow"
+        case .swords: "CrestCharge-swords"
+        case .axes: "CrestCharge-axes"
+        case .sword: "CrestCharge-sword"
+        case .trident: "CrestCharge-trident"
+        case .anchor: "CrestCharge-anchor"
+        case .castle: "CrestCharge-castle"
+        case .scales: "CrestCharge-scales"
+        case .dragonHead: "CrestCharge-dragonHead"
         default: nil
         }
     }
@@ -278,7 +307,7 @@ extension BrowserSpaceCrestSymbol: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestFinish: BrowserSpaceHeraldicTerm {
+extension CrestFinish: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .flat: "Flat"
@@ -288,7 +317,7 @@ extension BrowserSpaceCrestFinish: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestDepth: BrowserSpaceHeraldicTerm {
+extension CrestDepth: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .none: "None"
@@ -298,7 +327,7 @@ extension BrowserSpaceCrestDepth: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestChargeWeight: BrowserSpaceHeraldicTerm {
+extension CrestChargeWeight: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .light: "Light"
@@ -308,7 +337,7 @@ extension BrowserSpaceCrestChargeWeight: BrowserSpaceHeraldicTerm {
     }
 }
 
-extension BrowserSpaceCrestMonogramStyle: BrowserSpaceHeraldicTerm {
+extension CrestMonogramStyle: BrowserSpaceHeraldicTerm {
     var title: String {
         switch self {
         case .serif: "Serif"

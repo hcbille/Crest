@@ -66,7 +66,7 @@ struct BrowserSplitPageSurface: View {
             frameInsets: appearance.pageInsets(
                 docked: model.sidebarPresentation.reservesSidebarWidth, direction: layoutDirection
             ),
-            accent: BrowserSpaceBranding(look: space.settings.look).primaryColor.color,
+            accent: space.settings.look.primaryColor.color,
             placeholderIndex: placeholderIndex,
             liftedTabID: isSelectedSpace ? model.splitCardLift.carriedTabID : nil,
             widthTransaction: widthTransaction,

@@ -9,7 +9,7 @@ struct BrowserCrestStudioEmblem: View {
     @State private var systemName = "sparkles"
     @State private var emoji = "🦁"
     @State private var monogram = "C"
-    @State private var monogramStyle = BrowserSpaceCrestMonogramStyle.serif
+    @State private var monogramStyle = CrestMonogramStyle.serif
     @State private var choosesEmoji = false
 
     private enum Source: String, CaseIterable {
@@ -18,8 +18,8 @@ struct BrowserCrestStudioEmblem: View {
         case emoji = "Emoji"
         case monogram = "Monogram"
         case none = "None"
-        init(_ charge: BrowserSpaceCrestCharge) {
-            switch charge {
+        init(_ charge: CrestCharge) {
+            switch charge.kind {
             case .heraldic: self = .heraldic
             case .system: self = .system
             case .emoji: self = .emoji
@@ -50,13 +50,13 @@ struct BrowserCrestStudioEmblem: View {
                 if source != .emoji {
                     BrowserCrestStudioColorRow(context: context, title: "Emblem color", path: \.symbolColorIndex)
                 }
-                context.picker("Arrangement", \.chargeLayout, options: BrowserSpaceCrestChargeLayout.allCases)
-                context.slider("Size", \.chargeScale, range: BrowserSpaceCrest.chargeScaleRange)
-                context.slider("Vertical offset", \.chargeOffset, range: BrowserSpaceCrest.chargeOffsetRange)
+                context.picker("Arrangement", \.chargeLayout, options: CrestChargeLayout.allCases)
+                context.slider("Size", \.chargeScale, range: SpaceCrest.chargeScaleRange)
+                context.slider("Vertical offset", \.chargeOffset, range: SpaceCrest.chargeOffsetRange)
                 if source == .system || source == .monogram
                     || (source == .heraldic && context.value.crest.symbol.assetName == nil)
                 {
-                    context.picker("Weight", \.chargeWeight, options: BrowserSpaceCrestChargeWeight.allCases)
+                    context.picker("Weight", \.chargeWeight, options: CrestChargeWeight.allCases)
                 }
             }
         }
@@ -64,7 +64,7 @@ struct BrowserCrestStudioEmblem: View {
         .onChange(of: source) { _, _ in commitSource() }
         .onChange(of: context.value.crest.resolvedCharge) { _, charge in
             // Empty in-progress text stays editable instead of removing its field.
-            if charge != .none { load(charge) }
+            if charge != CrestCharge.none { load(charge) }
         }
         .onChange(of: systemName) { _, _ in if source == .system { commitSource() } }
         .onChange(of: emoji) { _, _ in if source == .emoji { commitSource() } }
@@ -76,7 +76,7 @@ struct BrowserCrestStudioEmblem: View {
         switch source {
         case .heraldic:
             BrowserCrestStudioTextField(title: "Find an emblem", symbol: "magnifyingglass", text: $search)
-            let matches = BrowserSpaceCrestSymbol.selectable.filter {
+            let matches = CrestSymbol.selectable.filter {
                 search.isEmpty || $0.title.localizedCaseInsensitiveContains(search)
             }
             let visible = search.isEmpty && !showsAll ? Array(matches.prefix(12)) : matches
@@ -124,33 +124,34 @@ struct BrowserCrestStudioEmblem: View {
         case .monogram:
             BrowserCrestStudioTextField(title: "One or two letters", text: $monogram)
             Picker("Letter style", selection: $monogramStyle) {
-                Text("Serif").tag(BrowserSpaceCrestMonogramStyle.serif)
-                Text("Sans").tag(BrowserSpaceCrestMonogramStyle.sans)
+                Text("Serif").tag(CrestMonogramStyle.serif)
+                Text("Sans").tag(CrestMonogramStyle.sans)
             }.pickerStyle(.segmented)
         case .none: EmptyView()
         }
     }
 
     private func commitSource() {
-        let charge: BrowserSpaceCrestCharge
+        let charge: CrestCharge
         switch source {
         case .heraldic: charge = .heraldic(context.value.crest.symbol)
         case .system: charge = .system(systemName)
         case .emoji: charge = .emoji(emoji)
         case .monogram: charge = .monogram(monogram, monogramStyle)
-        case .none: charge = .none
+        case .none: charge = CrestCharge.none
         }
         context.crest(\.charge).binding.wrappedValue = charge
     }
 
-    private func load(_ charge: BrowserSpaceCrestCharge) {
+    private func load(_ charge: CrestCharge) {
         source = Source(charge)
-        switch charge {
-        case .system(let name): if systemName != name { systemName = name }
-        case .emoji(let text): if emoji != text { emoji = text }
-        case .monogram(let text, let style):
+        let text = charge.text ?? ""
+        switch charge.kind {
+        case .system: if systemName != text { systemName = text }
+        case .emoji: if emoji != text { emoji = text }
+        case .monogram:
             if monogram != text { monogram = text }
-            monogramStyle = style
+            monogramStyle = charge.style ?? .serif
         default: break
         }
     }

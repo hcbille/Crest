@@ -393,8 +393,8 @@ struct MobileBrowserDetailView: View {
     }
 
     /// The look of the Space this window shows, or nil for none.
-    private var shownBranding: BrowserSpaceBranding? {
-        browser.shownSpace.map { BrowserSpaceBranding(look: $0.settings.look) }
+    private var shownBranding: SpaceBranding? {
+        browser.shownSpace.map(\.settings.look)
     }
 
     /// The appearance the start page's header reads its text tone from.

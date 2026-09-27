@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct BrowserSpaceThemeField: View {
-    let themeMode: BrowserSpaceThemeMode
-    let bannerPattern: BrowserSpaceBannerPattern
+    let themeMode: SpaceThemeMode
+    let bannerPattern: SpaceBannerPattern
     let gradientAngle: Double
     let colors: [Color]
     let size: CGSize

@@ -3,7 +3,7 @@
 
     /// Setup drafts and live Settings use the same touch editor and adaptive preview.
     struct BrowserMobileSpaceAppearanceWorkspace: View {
-        @Binding var branding: BrowserSpaceBranding
+        @Binding var branding: SpaceBranding
         @Binding var symbol: String
         @Binding var name: String
         var space: BrowserSpaceAppearance? = nil

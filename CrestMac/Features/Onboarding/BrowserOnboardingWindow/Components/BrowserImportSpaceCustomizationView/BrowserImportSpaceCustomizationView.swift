@@ -47,19 +47,19 @@ struct BrowserImportSpaceCustomizationView: View {
         )
     }
 
-    private var brandingBinding: Binding<BrowserSpaceBranding> {
+    private var brandingBinding: Binding<SpaceBranding> {
         Binding(
             get: {
-                review.map { BrowserSpaceBranding(look: $0.customization.branding) }
-                    ?? previewSpace.map { BrowserSpaceBranding(look: $0.settings.look) }
-                    ?? .initial(accent: .indigo, symbol: "square.grid.2x2")
+                review.map(\.customization.branding)
+                    ?? previewSpace.map(\.settings.look)
+                    ?? SpaceAccent.indigo.house
             },
             set: { branding in
                 guard let current = review?.customization else { return }
                 flow.customize(
                     spaceID,
                     as: SpaceCustomization(
-                        name: current.name, symbol: current.symbol, accent: current.accent, branding: branding.core))
+                        name: current.name, symbol: current.symbol, accent: current.accent, branding: branding))
             }
         )
     }

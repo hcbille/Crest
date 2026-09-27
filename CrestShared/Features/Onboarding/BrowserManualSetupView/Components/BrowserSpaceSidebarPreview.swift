@@ -13,7 +13,7 @@ struct BrowserSpaceSidebarPreview: View {
     /// would show first.
     private var selectedTabID: TabID? { core?.fallbackTabID(in: space) }
 
-    private var branding: BrowserSpaceBranding { BrowserSpaceBranding(look: space.settings.look) }
+    private var branding: SpaceBranding { space.settings.look }
 
     var body: some View {
         let branding = branding

@@ -92,7 +92,7 @@ struct BrowserSidebarLoadedContent: View {
             .environment(
                 \.colorScheme,
                 context.browser.shownSpace.map {
-                    BrowserSpaceForegroundPolicy.colorScheme(for: BrowserSpaceBranding(look: $0.settings.look))
+                    BrowserSpaceForegroundPolicy.colorScheme(for: $0.settings.look)
                 } ?? .dark
             )
             .modifier(

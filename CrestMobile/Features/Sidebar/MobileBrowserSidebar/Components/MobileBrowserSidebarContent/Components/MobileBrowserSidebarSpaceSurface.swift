@@ -44,7 +44,7 @@ struct MobileBrowserSidebarSpaceSurface: View {
         guard MobileBrowserSidebarAppearancePolicy.usesSpaceForeground() else {
             return colorScheme
         }
-        return BrowserSpaceForegroundPolicy.colorScheme(for: BrowserSpaceBranding(look: space.settings.look))
+        return BrowserSpaceForegroundPolicy.colorScheme(for: space.settings.look)
     }
 
     private func selectUnlockedSpace(_ assignment: BrowserSpaceRuntimeAssignment) {

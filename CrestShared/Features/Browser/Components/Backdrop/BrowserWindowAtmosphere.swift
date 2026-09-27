@@ -4,7 +4,7 @@ struct BrowserWindowAtmosphere: View {
     // MARK: - Variables
 
     /// The look of the Space the window shows, or nil for none.
-    let branding: BrowserSpaceBranding?
+    let branding: SpaceBranding?
 
     private var platformBackground: Color {
         BrowserPlatformWindowAtmosphereStyle.backgroundColor
@@ -13,7 +13,7 @@ struct BrowserWindowAtmosphere: View {
     // MARK: - Initializers
 
     init(space: SpaceModel?) {
-        branding = space.map { BrowserSpaceBranding(look: $0.settings.look) }
+        branding = space.map(\.settings.look)
     }
 
     var body: some View {

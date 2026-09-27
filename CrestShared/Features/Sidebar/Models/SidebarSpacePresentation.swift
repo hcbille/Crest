@@ -7,13 +7,13 @@ import SwiftUI
 struct SidebarSpacePresentation: Equatable {
     let assignment: BrowserSpaceRuntimeAssignment
     let isUnlocked: Bool
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
 
     @MainActor
     init(space: SpaceModel, isUnlocked: Bool) {
         assignment = BrowserSpaceRuntimeAssignment(spaceID: space.id, profileID: space.profileID)
         self.isUnlocked = isUnlocked
-        branding = BrowserSpaceBranding(look: space.settings.look)
+        branding = space.settings.look
     }
 
     func isAvailable(matching assignment: BrowserSpaceRuntimeAssignment) -> Bool {

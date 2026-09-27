@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-extension BrowserSpaceBrandColor {
+extension BrandColor {
     init(color: Color) {
         var red: CGFloat = 0
         var green: CGFloat = 0
@@ -12,7 +12,7 @@ extension BrowserSpaceBrandColor {
             return
         }
         self.init(
-            red: Double(red),
+            clampingRed: Double(red),
             green: Double(green),
             blue: Double(blue),
             alpha: Double(alpha)

@@ -3,9 +3,9 @@ import SwiftUI
 struct BrowserCrestStudioColors: View {
     let context: BrowserCrestStudioContext
     let symbol: String
-    @State private var rememberedPalette: [BrowserSpaceBrandColor]?
+    @State private var rememberedPalette: ColorPalette?
 
-    private var colors: [BrowserSpaceBrandColor] { context.value.crest.layerColors(spaceColors: context.value.colors) }
+    private var colors: ColorPalette { context.value.crest.layerColors(spaceColors: context.value.colors) }
     private var followsSpace: Binding<Bool> {
         Binding(
             get: { !context.value.crest.usesOwnPalette },
@@ -43,7 +43,7 @@ struct BrowserCrestStudioColors: View {
                             get: { colors[index].color },
                             set: { color in
                                 var updated = colors
-                                updated[index] = BrowserSpaceBrandColor(color: color)
+                                updated[index] = BrandColor(color: color)
                                 updatePalette(updated)
                             }), supportsOpacity: false
                     ).labelsHidden()
@@ -53,7 +53,7 @@ struct BrowserCrestStudioColors: View {
             Spacer(minLength: 0)
             if colors.count > 1 {
                 Button("Remove last color", systemImage: "minus") {
-                    updatePalette(Array(colors.dropLast()))
+                    updatePalette(ColorPalette(colors.dropLast()))
                 }.labelStyle(.iconOnly).buttonStyle(.borderless)
             }
             if colors.count < maximumColorCount {
@@ -66,10 +66,10 @@ struct BrowserCrestStudioColors: View {
 
     private var maximumColorCount: Int {
         context.value.crest.usesOwnPalette
-            ? BrowserSpaceCrest.maximumPaletteCount : BrowserSpaceBranding.maximumColorCount
+            ? SpaceCrest.maximumPaletteCount : SpaceBranding.maximumColorCount
     }
 
-    private func updatePalette(_ colors: [BrowserSpaceBrandColor]) {
+    private func updatePalette(_ colors: ColorPalette) {
         if context.value.crest.usesOwnPalette {
             context.crest(\.palette).binding.wrappedValue = colors
         } else {
@@ -81,7 +81,7 @@ struct BrowserCrestStudioColors: View {
 struct BrowserCrestStudioColorRow: View {
     let context: BrowserCrestStudioContext
     let title: LocalizedStringKey
-    let path: WritableKeyPath<BrowserSpaceCrest, Int>
+    let path: WritableKeyPath<SpaceCrest, Int>
 
     var body: some View {
         let colors = context.value.crest.layerColors(spaceColors: context.value.colors)
@@ -150,9 +150,9 @@ struct BrowserCrestStudioBackground: View {
             let text = context.setting(\.textColorMode)
             CrestSettingRow("Text color", setting: text.resettable("Text color")) {
                 Picker("Text color", selection: text.binding) {
-                    Text("Automatic").tag(BrowserSpaceTextColorMode.automatic)
-                    Text("Light").tag(BrowserSpaceTextColorMode.light)
-                    Text("Dark").tag(BrowserSpaceTextColorMode.dark)
+                    Text("Automatic").tag(SpaceTextColorMode.automatic)
+                    Text("Light").tag(SpaceTextColorMode.light)
+                    Text("Dark").tag(SpaceTextColorMode.dark)
                 }.labelsHidden()
             }
         }
@@ -160,7 +160,7 @@ struct BrowserCrestStudioBackground: View {
 
     private var backgroundChoices: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 10)], spacing: 10) {
-            ForEach(BrowserSpaceBannerPattern.allCases, id: \.self) { pattern in
+            ForEach(SpaceBannerPattern.allCases, id: \.self) { pattern in
                 BrowserCrestStudioChoice(
                     title: pattern.titleKey,
                     selected: context.value.themeMode == .banner && context.value.bannerPattern == pattern
@@ -190,7 +190,7 @@ struct BrowserCrestStudioBackground: View {
     }
 
     private func slider(
-        _ title: LocalizedStringKey, _ path: WritableKeyPath<BrowserSpaceBranding, Double>,
+        _ title: LocalizedStringKey, _ path: WritableKeyPath<SpaceBranding, Double>,
         range: ClosedRange<Double> = 0...1, readout: CrestSettingSliderReadout = .percent
     ) -> some View {
         BrowserCrestStudioSlider(title: title, value: context.setting(path), range: range, readout: readout)

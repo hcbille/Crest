@@ -55,7 +55,7 @@ struct BrowserSpaceSwitcher: View {
         return BrowserSpaceSwitcherDownloads(
             items: downloadCenter.items(for: space.profileID),
             newItems: downloadCenter.unacknowledgedItems(for: space.profileID),
-            badgeColor: BrowserSpaceBranding(look: space.settings.look).colors.first?.color ?? .accentColor
+            badgeColor: space.settings.look.colors.first?.color ?? .accentColor
         )
     }
 

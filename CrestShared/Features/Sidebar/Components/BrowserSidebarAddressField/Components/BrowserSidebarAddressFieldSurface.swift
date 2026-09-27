@@ -13,7 +13,7 @@ struct BrowserSidebarAddressFieldSurface: ViewModifier {
     let progress: Double
     let isLoading: Bool
     let isEditing: Bool
-    var branding: BrowserSpaceBranding? = nil
+    var branding: SpaceBranding? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -95,7 +95,7 @@ extension View {
         progress: Double,
         isLoading: Bool,
         isEditing: Bool,
-        branding: BrowserSpaceBranding? = nil
+        branding: SpaceBranding? = nil
     ) -> some View {
         modifier(
             BrowserSidebarAddressFieldSurface(

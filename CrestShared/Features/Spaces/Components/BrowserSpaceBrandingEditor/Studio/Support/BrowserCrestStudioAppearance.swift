@@ -2,14 +2,14 @@ import Foundation
 
 /// Artwork resources and explicit shuffle actions shared by every studio presentation.
 enum BrowserCrestStudioAppearance {
-    static func shuffle(_ branding: BrowserSpaceBranding) -> BrowserSpaceBranding {
+    static func shuffle(_ branding: SpaceBranding) -> SpaceBranding {
         var value = branding
         value.iconStyle = .layeredCrest
         value.crest.backplate = [.shield, .frenchShield, .circle, .hexagon, .banner].randomElement() ?? .shield
         value.crest.fieldDivision = [.plain, .perPale, .perBend, .quarterly].randomElement() ?? .plain
         value.crest.ordinary =
             value.crest.fieldDivision == .plain ? [.none, .chevron, .fess, .pale].randomElement() ?? .none : .none
-        value.crest.symbol = BrowserSpaceCrestSymbol.selectable.randomElement() ?? .dragon
+        value.crest.symbol = CrestSymbol.selectable.randomElement() ?? .dragon
         value.crest.charge = nil
         value.crest.chargeLayout = .single
         value.crest.chargeScale = 1.15

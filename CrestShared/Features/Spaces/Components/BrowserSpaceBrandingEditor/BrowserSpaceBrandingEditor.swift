@@ -2,21 +2,21 @@ import SwiftUI
 
 /// The same live designer edits in-memory setup drafts and persisted Space bindings.
 struct BrowserSpaceBrandingEditor: View {
-    @Binding var branding: BrowserSpaceBranding
+    @Binding var branding: SpaceBranding
     @Binding var symbol: String
     var previewName = ""
     var compact = false
     var showsPreview = true
     var editableName: Binding<String>? = nil
     @Environment(\.browserSettingsUsesLiveSidebar) private var usesLiveSidebar
-    @State private var initialAppearance: BrowserSpaceBranding?
-    @State private var beforeShuffle: BrowserSpaceBranding?
-    @State private var gesturePreview: BrowserSpaceBranding?
+    @State private var initialAppearance: SpaceBranding?
+    @State private var beforeShuffle: SpaceBranding?
+    @State private var gesturePreview: SpaceBranding?
     @State private var choosesIdentityEmoji = false
 
-    private var defaults: BrowserSpaceBranding {
+    private var defaults: SpaceBranding {
         if let preset = BrowserSpaceBrandingPreset.curated.first(where: { $0.id == branding.crest.startingPresetID }) {
-            return preset.applying(to: BrowserSpaceBranding.house(.winter, symbol: symbol))
+            return preset.applying(to: BrowserSpaceHousePalette.winter.look)
         }
         return initialAppearance ?? branding
     }
@@ -117,8 +117,8 @@ struct BrowserSpaceBrandingEditor: View {
                     title: "Space name", symbol: "rectangle.and.pencil.and.ellipsis", text: editableName)
             }
             Picker("Identity style", selection: context.setting(\.iconStyle).binding) {
-                Text("Crest").tag(BrowserSpaceIconStyle.layeredCrest)
-                Text("Icon").tag(BrowserSpaceIconStyle.simpleSymbol)
+                Text("Crest").tag(SpaceIconStyle.layeredCrest)
+                Text("Icon").tag(SpaceIconStyle.simpleSymbol)
             }.pickerStyle(.segmented)
             if branding.iconStyle == .simpleSymbol {
                 ViewThatFits(in: .horizontal) {
@@ -145,7 +145,7 @@ struct BrowserSpaceBrandingEditor: View {
                         selection: Binding(
                             get: { branding.resolvedSymbolColor.color },
                             set: {
-                                context.setting(\.symbolColor).binding.wrappedValue = BrowserSpaceBrandColor(color: $0)
+                                context.setting(\.symbolColor).binding.wrappedValue = BrandColor(color: $0)
                             }), supportsOpacity: false)
                 }
             }

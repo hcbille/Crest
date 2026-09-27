@@ -72,31 +72,36 @@ final class BrowserCloudRecordCodecTests: XCTestCase {
         func waiting(_ harness: BrowserStoredSessionHarness) throws -> [SyncRecord] {
             try harness.core.query(RecordsToUpload(records: harness.core.query(PendingUploads()).records)).records
         }
-        // The look a store's Space wears, in the vocabulary the views draw.
-        func look(in store: BrowserStore) -> BrowserSpaceBranding? {
-            store.spaceModel(spaceID).map { BrowserSpaceBranding(look: $0.settings.look) }
+        // The look a store's Space wears.
+        func look(in store: BrowserStore) -> SpaceBranding? {
+            store.spaceModel(spaceID).map(\.settings.look)
         }
         try receiverHarness.deliverNow(MergeSyncRecords(records: throughCloud(waiting(senderHarness))))
         try senderHarness.acknowledgePendingUploads()
 
-        var branding = BrowserSpaceBranding(
-            colors: [.ink, .ocean, .gold], bannerPattern: .lozenges,
-            bannerStrength: 0.63, readabilityFade: 0.37, themeMode: .gradient,
-            gradientAngle: 217, showsTexture: true, iconStyle: .layeredCrest,
-            symbolColor: .ember,
-            crest: BrowserSpaceCrest(
-                backplate: .frenchShield, fieldDivision: .gyronny, ordinary: .pall,
-                trim: .beaded, symbol: .direwolf, chargeLayout: .trio,
-                backplateColorIndex: 1, secondaryFieldColorIndex: 2, ordinaryColorIndex: 3,
-                trimColorIndex: 0, symbolColorIndex: 2, edgeColorIndex: 3,
-                palette: [.ember, .gold, .ink, .sand], plateScale: 0.85, edgeWidth: 0.43,
-                divisionCount: 6, finish: .sheen, ordinaryWidth: 1.2, trimWeight: 1.3,
-                trimDetail: 18, chargeScale: 1.1, chargeOffset: -0.12, chargeWeight: .light,
-                startingPresetID: "winter", sheenAngle: 125, sealTeeth: 16,
-                showsOutline: true, depth: .lifted),
-            folderColorIntensity: 0.71, textColorMode: .light, hasCustomAppearance: true)
+        // Every member of a look set away from the house look's.
+        var branding = SpaceAccent.indigo.house
+        branding.colors = [.ink, .ocean, .gold]
+        branding.bannerPattern = .lozenges
+        branding.bannerStrength = 0.63
+        branding.readabilityFade = 0.37
+        branding.themeMode = .gradient
+        branding.gradientAngle = 217
+        branding.showsTexture = true
+        branding.iconStyle = .layeredCrest
+        branding.symbolColor = .ember
+        branding.folderColorIntensity = 0.71
+        branding.textColorMode = .light
+        branding.hasCustomAppearance = true
+        branding.crest = SpaceCrest(
+            backplate: .frenchShield, fieldDivision: .gyronny, ordinary: .pall, trim: .beaded, symbol: .direwolf,
+            chargeLayout: .trio, backplateColorIndex: 1, secondaryFieldColorIndex: 2, ordinaryColorIndex: 3,
+            trimColorIndex: 0, symbolColorIndex: 2, startingPresetID: "winter", edgeColorIndex: 3,
+            palette: [.ember, .gold, .ink, .sand], charge: nil, plateScale: 0.85, edgeWidth: 0.43, divisionCount: 6,
+            finish: .sheen, ordinaryWidth: 1.2, trimWeight: 1.3, trimDetail: 18, chargeScale: 1.1, chargeOffset: -0.12,
+            chargeWeight: .light, sheenAngle: 125, sealTeeth: 16, showsOutline: true, depth: .lifted)
         let charges =
-            BrowserSpaceCrestSymbol.allCases.map(BrowserSpaceCrestCharge.heraldic)
+            CrestSymbol.allCases.map(CrestCharge.heraldic)
             + [.system("hammer.fill"), .emoji("🐉"), .monogram("PD", .serif), .none]
         for charge in charges {
             branding.crest.charge = charge

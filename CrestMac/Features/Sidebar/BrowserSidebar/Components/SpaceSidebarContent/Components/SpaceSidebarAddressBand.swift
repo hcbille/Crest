@@ -63,7 +63,7 @@ struct SpaceSidebarAddressBand: View {
             morphNamespace: commandSurfaceNamespace,
             spaceID: space.id,
             commandPaletteHandoff: commandPaletteHandoff,
-            branding: BrowserSpaceBranding(look: space.settings.look)
+            branding: space.settings.look
         )
     }
 

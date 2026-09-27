@@ -5,9 +5,9 @@ import SwiftUI
 /// Trims that follow the plate are strokes of the plate's own path drawn a
 /// little larger than the plate, so they fit a shield as well as a circle.
 struct BrowserSpaceCrestTrimView: View {
-    let trim: BrowserSpaceCrestTrim
+    let trim: CrestTrim
     var weight: Double = 1
-    var detail = BrowserSpaceCrest.defaultTrimDetail
+    var detail = SpaceCrest.defaultTrimDetail
     let plate: BrowserSpaceCrestPlateShape
     /// The plate's own frame within the icon.
     let plateRect: CGRect

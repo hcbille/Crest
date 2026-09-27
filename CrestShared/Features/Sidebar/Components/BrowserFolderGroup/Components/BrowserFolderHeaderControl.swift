@@ -100,7 +100,7 @@ private struct BrowserFolderHeaderTitle: View, Equatable {
             .foregroundStyle(
                 tintsTitle
                     ? BrowserFolderAppearancePolicy.titleColor(
-                        folder.artworkColor, onDarkBackground: colorScheme == .dark
+                        folder.displayColor, onDarkBackground: colorScheme == .dark
                     ).color
                     : .primary
             )

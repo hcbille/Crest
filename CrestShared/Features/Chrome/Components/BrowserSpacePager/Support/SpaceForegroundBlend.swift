@@ -15,7 +15,7 @@ struct SpaceForegroundBlend: ViewModifier {
     @State private var foreground = SpaceForegroundPresentation()
 
     init(spaces: [SpaceModel], selectedSpaceID: SpaceID?) {
-        let brandings = spaces.map { BrowserSpaceBranding(look: $0.settings.look) }
+        let brandings = spaces.map(\.settings.look)
         tones = zip(spaces, brandings).map { space, branding in
             SpaceForegroundPresentation.Tone(
                 id: space.id, white: BrowserSpaceForegroundPolicy.tone(for: branding) == .light ? 1 : 0)

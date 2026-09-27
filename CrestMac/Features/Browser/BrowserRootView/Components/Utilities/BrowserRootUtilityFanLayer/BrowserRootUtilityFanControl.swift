@@ -42,7 +42,7 @@ struct BrowserRootUtilityFanControl: View {
             ),
             selectedSurface: model.chrome.utilityPresentation.surface,
             badgeColor: model.browser.shownSpace.flatMap {
-                BrowserSpaceBranding(look: $0.settings.look).colors.first?.color
+                $0.settings.look.colors.first?.color
             }
                 ?? .accentColor,
             downloads: model.selectedUtilityDownloads,

@@ -5,8 +5,8 @@ import SwiftUI
 /// Drawn over the primary color and clipped by the plate, so a division never
 /// has to know which plate it is on.
 struct BrowserSpaceCrestDivisionShape: Shape {
-    let division: BrowserSpaceCrestFieldDivision
-    var count = BrowserSpaceCrest.defaultDivisionCount
+    let division: CrestFieldDivision
+    var count = SpaceCrest.defaultDivisionCount
 
     func path(in rect: CGRect) -> Path {
         let w = rect.width

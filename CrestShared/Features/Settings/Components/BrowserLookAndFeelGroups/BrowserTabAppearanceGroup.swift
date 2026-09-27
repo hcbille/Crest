@@ -110,7 +110,7 @@ struct BrowserTabAppearanceGroup: View {
             default: BrowserLookAndFeelDefaults.tabs.usesWebsitePinColor)
     }
 
-    private var accent: CrestSettingValue<BrowserSpaceBrandColor?> {
+    private var accent: CrestSettingValue<BrandColor?> {
         CrestSettingValue($appearance.tabs.color)
     }
 

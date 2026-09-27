@@ -6,7 +6,7 @@ import SwiftUI
 /// drives every one of them and a chevron is a true chevron rather than a
 /// glyph standing in for one.
 struct BrowserSpaceCrestOrdinaryPath: Shape {
-    let ordinary: BrowserSpaceCrestOrdinary
+    let ordinary: CrestOrdinary
     var width: Double = 1
 
     func path(in rect: CGRect) -> Path {

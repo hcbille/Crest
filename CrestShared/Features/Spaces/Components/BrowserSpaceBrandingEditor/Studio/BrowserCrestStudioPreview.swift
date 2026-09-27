@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The production artwork and sidebar components, detached from browsing and persistence.
 struct BrowserCrestStudioPreview: View {
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
     let symbol: String
     var name: String = ""
     var space: BrowserSpaceAppearance? = nil
@@ -59,7 +59,7 @@ struct BrowserCrestStudioPreview: View {
 }
 
 struct BrowserCrestStudioMark: View {
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
     let symbol: String
     var size: CGFloat
     var body: some View {

@@ -27,8 +27,8 @@ struct BrowserFolderDragPreview: View {
         .background(CrestColor.selectedSurface, in: shape)
         .background(.regularMaterial, in: shape)
         .overlay {
-            shape.fill(folder.artworkColor.color.opacity(0.12))
-            shape.strokeBorder(folder.artworkColor.color.opacity(0.35), lineWidth: 0.5)
+            shape.fill(folder.displayColor.color.opacity(0.12))
+            shape.strokeBorder(folder.displayColor.color.opacity(0.35), lineWidth: 0.5)
         }
         .clipShape(shape)
         .shadow(color: .black.opacity(0.22), radius: 10, y: 5)
@@ -38,7 +38,7 @@ struct BrowserFolderDragPreview: View {
 
     private func folderHeader(_ folder: FolderStateModel, depth: Int = 0) -> some View {
         HStack(spacing: CrestSpacing.small) {
-            let color = folder.artworkColor
+            let color = folder.displayColor
             BrowserFolderArtwork(symbol: folder.displaySymbol, color: color, isExpanded: !folder.isCollapsed)
                 .foregroundStyle(color.color.opacity(0.86))
                 .frame(width: 20)

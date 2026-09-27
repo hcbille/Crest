@@ -34,7 +34,7 @@ struct MobileSplitColumnsPageSurface: View {
             members: members,
             focusedTabID: model.browser.shownTab?.id,
             frameInsets: appearance.pageInsets(docked: adjoinsSidebar, direction: layoutDirection),
-            accent: BrowserSpaceBranding(look: space.settings.look).primaryColor.color,
+            accent: space.settings.look.primaryColor.color,
             placeholderIndex: placeholderIndex,
             // "Fancy Move" is a pointer gesture: ⇧⌘-held mouse-down, and a
             // card that follows a cursor. iPadOS reorders its cards from the

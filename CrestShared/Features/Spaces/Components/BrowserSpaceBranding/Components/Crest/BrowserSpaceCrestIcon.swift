@@ -4,11 +4,11 @@ import SwiftUI
 /// composed from paths and colored from the crest's own tinctures or the
 /// Space's.
 struct BrowserSpaceCrestIcon: View, Equatable {
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
     var size: CGFloat = 44
     var rasterizesLayers = true
 
-    /// The plate's diameter as a fraction of the icon, before ``BrowserSpaceCrest/plateScale``.
+    /// The plate's diameter as a fraction of the icon, before ``SpaceCrest/plateScale``.
     static let plateFraction: CGFloat = 0.78
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
@@ -93,7 +93,7 @@ struct BrowserSpaceCrestIcon: View, Equatable {
 
 /// The shadow that lifts a crest off its background.
 struct BrowserSpaceCrestDepthModifier: ViewModifier {
-    let depth: BrowserSpaceCrestDepth
+    let depth: CrestDepth
     let size: CGFloat
 
     func body(content: Content) -> some View {

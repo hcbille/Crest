@@ -52,26 +52,21 @@ enum BrowserPerformanceSoakFixture {
         runID: String
     ) -> SessionState.Seed? {
         let palettes = BrowserSpaceHousePalette.allCases
-        let patterns = BrowserSpaceBannerPattern.allCases.shuffled()
+        let patterns = SpaceBannerPattern.allCases.shuffled()
+        // Each house look, in a banner pattern of its own and a light fade.
         var appearances = palettes.enumerated().map { index, palette in
-            (
-                name: palette.name,
-                branding: BrowserSpaceBranding(
-                    colors: palette.colors,
-                    bannerPattern: patterns[index % patterns.count],
-                    readabilityFade: 0.12,
-                    iconStyle: .layeredCrest,
-                    crest: palette.crest)
-            )
+            var look = palette.look
+            look.bannerPattern = patterns[index % patterns.count]
+            look.readabilityFade = 0.12
+            return (name: palette.name, branding: look)
         }
         // A bright control beside the original palettes exercises both foreground tones.
-        appearances.insert(
-            (
-                name: "Daylight",
-                branding: BrowserSpaceBranding(
-                    colors: [.sand, .gold, .winterIce], bannerPattern: .chevron,
-                    readabilityFade: 0, textColorMode: .dark)
-            ), at: 0)
+        var daylight = SpaceBranding.neutral
+        daylight.colors = [.sand, .gold, .winterIce]
+        daylight.bannerPattern = .chevron
+        daylight.readabilityFade = 0
+        daylight.textColorMode = .dark
+        appearances.insert((name: "Daylight", branding: daylight), at: 0)
         let spaces = (1...appearances.count).compactMap { spaceIndex -> SpaceState.Seed? in
             let appearance = appearances[spaceIndex - 1]
             let folders = (1...8).map { folderIndex in
@@ -116,11 +111,9 @@ enum BrowserPerformanceSoakFixture {
                     visitCount: historyIndex % 5 + 1
                 )
             }
-            // TRANSITIONAL: the soak's looks are built in the Swift branding
-            // vocabulary until that folds into the core's.
             return SpaceState.Seed(
                 name: appearance.name, symbol: "gauge.with.dots.needle.67percent", accent: .teal,
-                branding: appearance.branding.core, folders: folders, tabs: tabs, history: history,
+                branding: appearance.branding, folders: folders, tabs: tabs, history: history,
                 browsingPreferences: soakBrowsing)
         }
         guard spaces.count == appearances.count, !spaces.isEmpty else { return nil }

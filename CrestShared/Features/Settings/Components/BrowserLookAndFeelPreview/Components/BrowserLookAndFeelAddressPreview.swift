@@ -51,7 +51,7 @@ struct BrowserLookAndFeelAddressPreview: View {
         .accessibilityValue(BrowserLookAndFeelPreviewMetrics.sampleAddress)
     }
 
-    private var branding: BrowserSpaceBranding {
-        space?.branding ?? .house(.winter, symbol: "paintpalette")
+    private var branding: SpaceBranding {
+        space?.branding ?? BrowserSpaceHousePalette.winter.look
     }
 }

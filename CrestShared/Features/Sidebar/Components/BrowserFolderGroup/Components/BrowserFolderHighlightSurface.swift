@@ -3,14 +3,14 @@ import SwiftUI
 extension EnvironmentValues {
     @Entry var folderPreviewShowsHighlight = false
     @Entry var folderUsesContrastingForeground = false
-    @Entry var folderBackgroundColor: BrowserSpaceBrandColor? = nil
+    @Entry var folderBackgroundColor: BrandColor? = nil
 }
 
 /// Shared by live folder groups and the inline settings preview.
 struct BrowserFolderHighlightSurface: ViewModifier {
-    let color: BrowserSpaceBrandColor
+    let color: BrandColor
     let intensity: Double
-    var textColorMode: BrowserSpaceTextColorMode = .automatic
+    var textColorMode: SpaceTextColorMode = .automatic
     var showsFill = true
     var showsBorders = true
     var leadingInset: CGFloat = CrestSpacing.small
@@ -24,17 +24,16 @@ struct BrowserFolderHighlightSurface: ViewModifier {
     private var foregroundScheme: ColorScheme {
         if let override = textColorMode.foregroundTone { return override == .light ? .dark : .light }
         guard showsFill, intensity > 0 else { return colorScheme }
-        return BrowserSpaceForegroundPolicy.colorScheme(
-            for: BrowserSpaceBranding(colors: [compositedColor], bannerStrength: 1, readabilityFade: 0))
+        return BrowserSpaceForegroundPolicy.colorScheme(over: compositedColor)
     }
 
-    private var compositedColor: BrowserSpaceBrandColor {
+    private var compositedColor: BrandColor {
         let channel = colorScheme == .dark ? 0.0 : 1.0
         return BrowserFolderAppearancePolicy.compositedColor(
             color,
             opacity: BrowserFolderAppearancePolicy.fillOpacity(
                 intensity: intensity, reduceTransparency: reduceTransparency),
-            background: parentBackgroundColor ?? BrowserSpaceBrandColor(red: channel, green: channel, blue: channel))
+            background: parentBackgroundColor ?? BrandColor(red: channel, green: channel, blue: channel))
     }
 
     func body(content: Content) -> some View {

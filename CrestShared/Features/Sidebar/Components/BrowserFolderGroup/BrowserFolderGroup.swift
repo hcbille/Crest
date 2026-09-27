@@ -108,7 +108,7 @@ struct BrowserFolderGroup: View {
         .environment(\.browserInteractionCapabilities, context.capabilities)
         .modifier(
             BrowserFolderSectionSurface(
-                color: folder.artworkColor,
+                color: folder.displayColor,
                 intensity: configuration.displayBranding?.folderColorIntensity ?? 0,
                 textColorMode: configuration.displayBranding?.textColorMode ?? .automatic,
                 leadingInset: CrestSpacing.small + CGFloat(depth) * BrowserFolderLayout.nestingIndent,
@@ -250,9 +250,9 @@ struct BrowserFolderGroup: View {
         context.browser.deleteFolder(request.folderID, matching: request.spaceAssignment)
     }
 
-    private var folderColorBinding: Binding<BrowserSpaceBrandColor> {
+    private var folderColorBinding: Binding<BrandColor> {
         Binding(
-            get: { folder.artworkColor },
+            get: { folder.displayColor },
             set: { color in
                 guard let request = colorRequest,
                     isDeferredAssignmentAvailable(request)

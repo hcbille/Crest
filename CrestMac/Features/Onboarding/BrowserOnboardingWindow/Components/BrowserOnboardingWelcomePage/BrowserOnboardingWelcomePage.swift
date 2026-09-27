@@ -55,7 +55,7 @@ struct BrowserOnboardingWelcomePage: View {
             ZStack {
                 BrowserOnboardingPalette.parchment
                 BrowserSpaceAppearanceHero(
-                    branding: .house(.winter, symbol: ""), symbol: "", name: String(localized: "Personal")
+                    branding: BrowserSpaceHousePalette.winter.look, symbol: "", name: String(localized: "Personal")
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(38)

@@ -4,7 +4,7 @@ import SwiftUI
 /// original-color image so the destination matches its folder in the sidebar.
 struct BrowserFolderMenuIcon: View {
     let systemName: String
-    let color: BrowserSpaceBrandColor
+    let color: BrandColor
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.displayScale) private var displayScale

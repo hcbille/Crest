@@ -3,28 +3,28 @@ import SwiftUI
 struct BrowserCrestStudioComposition: View {
     let context: BrowserCrestStudioContext
     let symbol: String
-    private var preview: BrowserSpaceBranding? { context.compact ? context.value : nil }
+    private var preview: SpaceBranding? { context.compact ? context.value : nil }
 
     var body: some View {
         BrowserCrestStudioGroup(title: "Shape", systemImage: "shield", preview: preview, symbol: symbol) {
-            gallery("Plate", \.backplate, BrowserSpaceCrestBackplate.allCases)
+            gallery("Plate", \.backplate, CrestBackplate.allCases)
             if context.value.crest.backplate == .seal {
                 context.count("Teeth", \.sealTeeth, range: 6...24)
             }
             context.slider("Edge weight", \.edgeWidth)
             BrowserCrestStudioColorRow(context: context, title: "Edge & outline", path: \.edgeColorIndex)
-            context.slider("Plate size", \.plateScale, range: BrowserSpaceCrest.plateScaleRange)
+            context.slider("Plate size", \.plateScale, range: SpaceCrest.plateScaleRange)
         }
         BrowserCrestStudioGroup(title: "Field", systemImage: "square.grid.2x2", preview: preview, symbol: symbol) {
-            gallery("Division", \.fieldDivision, BrowserSpaceCrestFieldDivision.allCases)
+            gallery("Division", \.fieldDivision, CrestFieldDivision.allCases)
             BrowserCrestStudioColorRow(context: context, title: "Field color", path: \.backplateColorIndex)
             if context.value.crest.fieldDivision != .plain {
                 BrowserCrestStudioColorRow(context: context, title: "Second field", path: \.secondaryFieldColorIndex)
             }
             if context.value.crest.fieldDivision.isCounted {
-                context.count("Repeats", \.divisionCount, range: BrowserSpaceCrest.divisionCountRange)
+                context.count("Repeats", \.divisionCount, range: SpaceCrest.divisionCountRange)
             }
-            context.picker("Finish", \.finish, options: BrowserSpaceCrestFinish.allCases)
+            context.picker("Finish", \.finish, options: CrestFinish.allCases)
             if context.value.crest.finish == .sheen {
                 context.slider("Sheen angle", \.sheenAngle, range: 0...360, readout: .init { "\(Int($0))°" })
             }
@@ -32,7 +32,7 @@ struct BrowserCrestStudioComposition: View {
     }
 
     private func gallery<Option: Hashable & BrowserSpaceHeraldicTerm>(
-        _ title: LocalizedStringKey, _ path: WritableKeyPath<BrowserSpaceCrest, Option>, _ options: [Option]
+        _ title: LocalizedStringKey, _ path: WritableKeyPath<SpaceCrest, Option>, _ options: [Option]
     ) -> some View {
         BrowserCrestStudioGallery(context: context, title: title, path: path, options: options)
     }
@@ -41,32 +41,32 @@ struct BrowserCrestStudioComposition: View {
 struct BrowserCrestStudioOrnaments: View {
     let context: BrowserCrestStudioContext
     let symbol: String
-    private var preview: BrowserSpaceBranding? { context.compact ? context.value : nil }
+    private var preview: SpaceBranding? { context.compact ? context.value : nil }
 
     var body: some View {
         BrowserCrestStudioGroup(
             title: "Band", systemImage: "rectangle.center.inset.filled", preview: preview, symbol: symbol
         ) {
             BrowserCrestStudioGallery(
-                context: context, title: "Design", path: \.ordinary, options: BrowserSpaceCrestOrdinary.allCases)
+                context: context, title: "Design", path: \.ordinary, options: CrestOrdinary.allCases)
             if context.value.crest.ordinary != .none {
                 BrowserCrestStudioColorRow(context: context, title: "Band color", path: \.ordinaryColorIndex)
-                context.slider("Width", \.ordinaryWidth, range: BrowserSpaceCrest.ordinaryWidthRange)
+                context.slider("Width", \.ordinaryWidth, range: SpaceCrest.ordinaryWidthRange)
             }
         }
         BrowserCrestStudioGroup(title: "Border", systemImage: "square.dashed", preview: preview, symbol: symbol) {
             BrowserCrestStudioGallery(
-                context: context, title: "Design", path: \.trim, options: BrowserSpaceCrestTrim.allCases)
+                context: context, title: "Design", path: \.trim, options: CrestTrim.allCases)
             if context.value.crest.trim != .none {
                 BrowserCrestStudioColorRow(context: context, title: "Border color", path: \.trimColorIndex)
-                context.slider("Weight", \.trimWeight, range: BrowserSpaceCrest.trimWeightRange)
+                context.slider("Weight", \.trimWeight, range: SpaceCrest.trimWeightRange)
             }
             if context.value.crest.trim.isCounted {
-                context.count("Details", \.trimDetail, range: BrowserSpaceCrest.trimDetailRange)
+                context.count("Details", \.trimDetail, range: SpaceCrest.trimDetailRange)
             }
         }
         BrowserCrestStudioGroup(title: "Depth", systemImage: "square.3.layers.3d", preview: preview, symbol: symbol) {
-            context.picker("Shadow", \.depth, options: BrowserSpaceCrestDepth.allCases)
+            context.picker("Shadow", \.depth, options: CrestDepth.allCases)
             let outline = context.crest(\.showsOutline)
             CrestSettingRow("Outline", setting: outline.resettable("Outline")) {
                 Toggle("Outline", isOn: outline.binding).labelsHidden()

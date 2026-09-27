@@ -4764,6 +4764,53 @@ struct SpaceBeingDeleted: Equatable, Sendable {
 struct SpaceBranding: Equatable, Sendable {
     static let baselineRenderingVersion: Int = 2
     static let legacyReadabilityFade: Double = 0.25
+    static let neutral = SpaceBranding(
+        colors: ColorPalette(colors: [BrandColor(red: 0.24, green: 0.25, blue: 0.27, alpha: 1)]),
+        bannerPattern: .solid,
+        bannerStrength: 1,
+        readabilityFade: 0.34,
+        keepsControlsReadable: true,
+        themeMode: .banner,
+        gradientAngle: 0,
+        showsTexture: false,
+        iconStyle: .simpleSymbol,
+        symbolColor: nil,
+        crest: SpaceCrest(
+            backplate: .shield,
+            fieldDivision: .plain,
+            ordinary: .none,
+            trim: .none,
+            symbol: .mountain,
+            chargeLayout: .single,
+            backplateColorIndex: 1,
+            secondaryFieldColorIndex: 1,
+            ordinaryColorIndex: 2,
+            trimColorIndex: 1,
+            symbolColorIndex: 2,
+            startingPresetID: nil,
+            edgeColorIndex: 1,
+            palette: nil,
+            charge: nil,
+            plateScale: 1,
+            edgeWidth: 0,
+            divisionCount: 4,
+            finish: .flat,
+            ordinaryWidth: 1,
+            trimWeight: 1,
+            trimDetail: 12,
+            chargeScale: 1,
+            chargeOffset: 0,
+            chargeWeight: .bold,
+            sheenAngle: 45,
+            sealTeeth: 12,
+            showsOutline: false,
+            depth: .none
+        ),
+        renderingVersion: 2,
+        folderColorIntensity: 0,
+        textColorMode: .automatic,
+        hasCustomAppearance: nil
+    )
 
     var colors: ColorPalette
     var bannerPattern: SpaceBannerPattern
@@ -4783,6 +4830,9 @@ struct SpaceBranding: Equatable, Sendable {
 }
 
 struct SpaceCrest: Equatable, Sendable {
+    static let defaultDivisionCount: Int = 4
+    static let defaultTrimDetail: Int = 12
+
     var backplate: CrestBackplate
     var fieldDivision: CrestFieldDivision
     var ordinary: CrestOrdinary

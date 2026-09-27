@@ -26,9 +26,9 @@ public static class SpaceBrandingPolicy {
     /// charges, finishes and depth.
     public const int StudioRenderingVersion = 5;
     /// How many pieces a counted field division draws unless set.
-    public const int DefaultDivisionCount = 4;
+    public const int DefaultDivisionCount = SpaceCrest.DefaultDivisionCount;
     /// How much detail a counted trim draws unless set.
-    public const int DefaultTrimDetail = 12;
+    public const int DefaultTrimDetail = SpaceCrest.DefaultTrimDetail;
 
     /// The Space color used when a branding record has none.
     public static BrandColor DefaultColor { get; } = new(0.29, 0.25, 0.58);
@@ -37,21 +37,24 @@ public static class SpaceBrandingPolicy {
 
     #region Actions - Normalization
 
-    /// The branding with every rule the core owns applied: at most three colors
-    /// and never none, strengths, fades and color components within 0 through 1,
-    /// the gradient angle within a turn, and crest layers addressing a color that
-    /// exists. The crest's own palette is dropped when it holds no color, its
-    /// composition parameters stay within the ranges the renderer draws, and a
-    /// custom figure that is the crest's own symbol is no custom figure.
+    /// The branding with every rule the core owns applied, as every client
+    /// writes it: its banner strength in today's units, at most three colors
+    /// and never none, strengths, fades and color components within 0 through
+    /// 1, the gradient angle within a turn, and crest layers addressing a color
+    /// that exists. The crest's own palette is dropped when it holds no color,
+    /// its composition parameters stay within the ranges the renderer draws,
+    /// and a custom figure that is the crest's own symbol is no custom figure.
+    /// It announces the readability and rendering vocabulary its values need.
     public static SpaceBranding Normalize(SpaceBranding branding) {
         ArgumentNullException.ThrowIfNull(branding);
+        branding = branding.InTodaysUnits();
         var colors = branding.Colors.Colors.Take(MaximumColorCount).Select(Color).ToArray();
         if (colors.Length == 0) colors = [DefaultColor];
         var palette = branding.Crest.Palette?.Colors.Take(MaximumCrestPaletteCount).Select(Color).ToArray();
         if (palette is { Length: 0 }) palette = null;
         int layers = LayerColorCount(palette?.Length, colors.Length);
         var crest = branding.Crest;
-        return branding with {
+        return Announced(branding with {
             Colors = new(colors),
             BannerStrength = Unit(branding.BannerStrength),
             ReadabilityFade = Unit(branding.ReadabilityFade),
@@ -78,7 +81,14 @@ public static class SpaceBrandingPolicy {
                 SheenAngle = Measure(crest.SheenAngle, 0, 360, 45),
                 SealTeeth = Math.Clamp(crest.SealTeeth, 6, 24)
             }
-        };
+        });
+    }
+
+    /// `look` with the readability and rendering vocabulary it announces worked
+    /// out from its values.
+    public static SpaceBranding Announced(SpaceBranding look) {
+        ArgumentNullException.ThrowIfNull(look);
+        return look with { KeepsControlsReadable = look.ReadabilityFade > 0, RenderingVersion = RenderingVersion(look) };
     }
 
     /// A crest's custom figure as the renderer draws it: names and letters

@@ -5,7 +5,7 @@ struct BrowserImportSpaceCustomizationEditor: View {
     let previewFavicons: FaviconAssets
     @Binding var name: String
     @Binding var symbol: String
-    @Binding var branding: BrowserSpaceBranding
+    @Binding var branding: SpaceBranding
 
     var body: some View {
         HStack(alignment: .top, spacing: 44) {

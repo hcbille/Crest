@@ -73,14 +73,14 @@ final class BrowserStoreTests: XCTestCase {
         XCTAssertTrue(store.isPrivateBrowsing)
         XCTAssertFalse(store.syncsSession)
         let privateSpace = try XCTUnwrap(store.shownSpace)
-        let branding = BrowserSpaceBranding(look: privateSpace.settings.look)
+        let branding = privateSpace.settings.look
         let browsing = privateSpace.settings.browsingPreferences
         XCTAssertEqual(privateSpace.settings.name, "Private")
         XCTAssertEqual(privateSpace.settings.symbol, "eyeglasses")
         XCTAssertEqual(
             branding.colors,
             [
-                BrowserSpaceBrandColor(
+                BrandColor(
                     red: 0.58,
                     green: 0.30,
                     blue: 0.76
@@ -654,24 +654,26 @@ final class BrowserStoreTests: XCTestCase {
         let store = harness.store
         let otherWindow = store.makeWindowStore()
         let spaceID = session.spaces[0].id
-        var branding = BrowserSpaceBranding(look: try XCTUnwrap(store.spaceModel(spaceID)).settings.look)
+        var branding = try XCTUnwrap(store.spaceModel(spaceID)).settings.look
         branding.iconStyle = .layeredCrest
         branding.crest.symbol = .direwolf
         branding.crest.palette = [.ink, .gold, .ocean]
         otherWindow.updateSpaceBranding(branding, in: spaceID)
+        // The look as the core keeps it, announcing the vocabulary it now draws with.
+        branding = branding.normalized()
 
         // The receiving window must retain an edit from another window before
         // invalidating its delayed stage to apply this CloudKit batch.
         try harness.deliverNow(MergeSyncRecords(records: incoming))
         await otherWindow.flushPendingSyncPersistence()
 
-        XCTAssertEqual(store.spaceModel(spaceID).map { BrowserSpaceBranding(look: $0.settings.look) }, branding)
-        XCTAssertEqual(otherWindow.spaceModel(spaceID).map { BrowserSpaceBranding(look: $0.settings.look) }, branding)
+        XCTAssertEqual(store.spaceModel(spaceID).map(\.settings.look), branding)
+        XCTAssertEqual(otherWindow.spaceModel(spaceID).map(\.settings.look), branding)
         XCTAssertTrue(store.spaceModels[0].tabs.contains(newTab))
         XCTAssertTrue(try harness.storedJournal().isPending(.space, spaceID))
         try remote.deliverNow(MergeSyncRecords(records: try await harness.pendingRecords()))
         XCTAssertEqual(
-            remote.store.spaceModel(spaceID).map { BrowserSpaceBranding(look: $0.settings.look) }, branding)
+            remote.store.spaceModel(spaceID).map(\.settings.look), branding)
     }
 
     func testSceneActivationSweepArchivesExpiredCurrentTabsInALongLivedSession() throws {

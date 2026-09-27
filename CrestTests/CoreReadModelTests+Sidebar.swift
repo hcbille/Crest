@@ -414,7 +414,7 @@ enum SidebarReads {
         _ = (tab.emojiIcon, tab.iconMode, configuration.isPromotionSource, configuration.canClose)
         _ = BrowserTabFaviconSubject(tab: tab, image: context.favicons.icon(of: tab.id))
         _ = configuration.isAvailableForDisplay
-        _ = BrowserSpaceBranding(look: context.space.settings.look)
+        _ = context.space.settings.look
         if !isSplitGroupMember { _ = BrowserSidebarSelection.showsSelected(.tab(tab.id), in: context) }
     }
 
@@ -441,7 +441,7 @@ enum SidebarReads {
     ) -> BrowserFolderGroupConfiguration {
         let configuration = BrowserFolderGroupConfiguration(
             sidebarInteraction: interaction, folder: folder, depth: depth, context: context, spacePresentation: nil)
-        _ = (folder.title, folder.displaySymbol, folder.artworkColor, folder.isCollapsed, folder.location)
+        _ = (folder.title, folder.displaySymbol, folder.displayColor, folder.isCollapsed, folder.location)
         _ = (configuration.displayBranding, configuration.isAvailableForDisplay)
         _ = BrowserSidebarSelection.showsSelected(.folder(folder.id), in: context)
         _ = interaction.editingFolderRequest
@@ -458,7 +458,7 @@ enum SidebarReads {
         _ = BrowserTabFaviconSubject(tab: tab, image: context.favicons.icon(of: tab.id))
         _ = context.isLoaded(tab.id)
         _ = BrowserSidebarSelection.showsSelected(.tab(tab.id), in: context)
-        _ = BrowserSpaceBranding(look: context.space.settings.look)
+        _ = context.space.settings.look
         _ = context.isCurrent(context.assignment)
         let selection = context.browser.tabMultiSelection
         _ = (selection.pinnedRejectionGeneration, selection.rejectedPinnedIDs)

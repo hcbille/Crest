@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserWebPageFailureOverlay: View {
     let page: BrowserPage
-    let branding: BrowserSpaceBranding?
+    let branding: SpaceBranding?
     let pagePresentation: PagePresentation
 
     var body: some View {

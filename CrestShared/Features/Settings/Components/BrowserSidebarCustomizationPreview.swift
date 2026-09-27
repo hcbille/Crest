@@ -28,7 +28,7 @@ struct BrowserSidebarCustomizationPreview: View {
 
     var body: some View {
         let context = sample.listContext(capabilities: capabilities)
-        let branding = context.map { BrowserSpaceBranding(look: $0.space.settings.look) } ?? sample.fallbackBranding
+        let branding = context.map(\.space.settings.look) ?? sample.fallbackBranding
         VStack(spacing: 8) {
             if let context {
                 if showsPins {
@@ -67,7 +67,7 @@ struct BrowserSidebarCustomizationPreview: View {
     }
 
     @ViewBuilder
-    private func background(for branding: BrowserSpaceBranding) -> some View {
+    private func background(for branding: SpaceBranding) -> some View {
         if showsBackground {
             BrowserSpaceBannerBackground(branding: branding)
         }
@@ -145,7 +145,7 @@ private final class BrowserAppearancePreviewState {
     }
 
     /// The look before the sample Space reaches the read model.
-    var fallbackBranding: BrowserSpaceBranding { .house(.winter, symbol: "paintpalette") }
+    var fallbackBranding: SpaceBranding { BrowserSpaceHousePalette.winter.look }
 
     var assignment: BrowserSpaceRuntimeAssignment {
         guard let space = browser.workspaceModel?.spaces.models.first else {
@@ -160,7 +160,7 @@ private final class BrowserAppearancePreviewState {
         guard let source, let space = browser.workspaceModel?.spaces.models.first else { return }
         browser.updateSpaceBranding(source.branding, in: space.id)
         if let folder = source.leadingFolder, let sample = space.folders.models.first {
-            browser.setFolderColor(sample.id, in: space.id, color: BrowserSpaceBrandColor(core: folder.displayColor))
+            browser.setFolderColor(sample.id, in: space.id, color: folder.displayColor)
             browser.setFolderSymbol(sample.id, in: space.id, symbol: folder.displaySymbol)
         }
     }

@@ -30,6 +30,16 @@ public sealed record SpaceBranding(
     /// The fade a branding from before readability fades wears for its old switch.
     public const double LegacyReadabilityFade = 0.25;
 
+    /// <summary>The quiet look a Space from another browser wears when that browser
+    /// gave it no colors: a gray solid banner that keeps controls readable, with a
+    /// plain mountain crest.</summary>
+    public static SpaceBranding Neutral { get; } = new(new([new(0.24, 0.25, 0.27)]), SpaceBannerPattern.Solid, BannerStrength: 1,
+        ReadabilityFade: 0.34, KeepsControlsReadable: true, SpaceThemeMode.Banner, GradientAngle: 0, ShowsTexture: false,
+        SpaceIconStyle.SimpleSymbol, SymbolColor: null,
+        SpaceCrest.PlainField(CrestBackplate.Shield, CrestSymbol.Mountain, CrestTrim.None, layers: [1, 1, 2, 1, 2, 1], trimWeight: 1,
+            chargeScale: 1),
+        BaselineRenderingVersion, FolderColorIntensity: 0, SpaceTextColorMode.Automatic, HasCustomAppearance: null);
+
     #endregion
 
     #region Actions - Looks

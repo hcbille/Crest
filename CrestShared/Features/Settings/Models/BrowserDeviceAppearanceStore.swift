@@ -10,7 +10,7 @@ struct BrowserTabAppearance: Codable, Equatable, Sendable {
     var pinFill: Double = 0
     var pinGlow: Double = 0
     var hoverFill: Double = 0
-    var color: BrowserSpaceBrandColor?
+    var color: BrandColor?
 
     static func intensity(_ value: Double) -> Double {
         value.isFinite ? min(max(value, 0), 1) : 0
@@ -21,7 +21,7 @@ struct BrowserAddressAppearance: Codable, Equatable, Sendable {
     var fill: Double = 0
     var border: Double = 0
     var usesAccentWhenEditing = false
-    var color: BrowserSpaceBrandColor?
+    var color: BrandColor?
 }
 
 extension BrowserTabAppearance {
@@ -40,7 +40,7 @@ extension BrowserTabAppearance {
         pinFill = Self.intensity((try? values.decode(Double.self, forKey: .pinFill)) ?? 0)
         pinGlow = Self.intensity((try? values.decode(Double.self, forKey: .pinGlow)) ?? 0)
         hoverFill = Self.intensity((try? values.decode(Double.self, forKey: .hoverFill)) ?? 0)
-        color = try? values.decode(BrowserSpaceBrandColor.self, forKey: .color)
+        color = try? values.decode(BrandColor.self, forKey: .color)
     }
 }
 
@@ -53,7 +53,7 @@ extension BrowserAddressAppearance {
         fill = BrowserTabAppearance.intensity((try? values.decode(Double.self, forKey: .fill)) ?? 0)
         border = BrowserTabAppearance.intensity((try? values.decode(Double.self, forKey: .border)) ?? 0)
         usesAccentWhenEditing = (try? values.decode(Bool.self, forKey: .usesAccentWhenEditing)) ?? false
-        color = try? values.decode(BrowserSpaceBrandColor.self, forKey: .color)
+        color = try? values.decode(BrandColor.self, forKey: .color)
     }
 }
 

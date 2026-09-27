@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserFolderColorPicker: View {
-    @Binding var color: BrowserSpaceBrandColor
+    @Binding var color: BrandColor
     var title: LocalizedStringKey = "Folder Color"
     var showsReset = false
     var resetTitle: LocalizedStringKey? = nil
@@ -74,7 +74,7 @@ struct BrowserFolderColorPicker: View {
                 "Custom Color",
                 selection: Binding(
                     get: { color.color },
-                    set: { color = BrowserSpaceBrandColor(color: $0) }
+                    set: { color = BrandColor(color: $0) }
                 ),
                 supportsOpacity: false
             )

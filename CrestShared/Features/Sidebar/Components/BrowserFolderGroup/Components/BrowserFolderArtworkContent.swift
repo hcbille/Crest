@@ -3,7 +3,7 @@ import SwiftUI
 /// The shared folder drawing, with its optional symbol attached to the front plane.
 struct BrowserFolderArtworkContent: View {
     let symbol: String
-    let color: BrowserSpaceBrandColor
+    let color: BrandColor
     var isExpanded = false
     let iconOnly: Bool
 
@@ -29,8 +29,7 @@ struct BrowserFolderArtworkContent: View {
     }
 
     private var faceForeground: Color {
-        let scheme = BrowserSpaceForegroundPolicy.colorScheme(
-            for: BrowserSpaceBranding(colors: [color], bannerStrength: 1, readabilityFade: 0))
+        let scheme = BrowserSpaceForegroundPolicy.colorScheme(over: color)
         return scheme == .dark ? .white : .black
     }
 
@@ -56,7 +55,7 @@ private enum BrowserFolderGeometry {
 
 private struct BrowserFolderFaces: View {
     let glyph: Text?
-    let color: BrowserSpaceBrandColor
+    let color: BrandColor
     let isExpanded: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 

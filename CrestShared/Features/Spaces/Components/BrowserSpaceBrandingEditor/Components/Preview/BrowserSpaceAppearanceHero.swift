@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The same sidebar preview used by import and setup, dressed in the live draft.
 struct BrowserSpaceAppearanceHero: View {
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
     let symbol: String
     var name = ""
     var compact = false
@@ -15,7 +15,7 @@ struct BrowserSpaceAppearanceHero: View {
     private var preview: SpaceModel {
         SpaceModel.detached(
             SessionState.Seed.showcase.spaces[0].wearing(
-                branding.core, symbol: symbol, name: name.isEmpty ? String(localized: "Your Space") : name))
+                branding, symbol: symbol, name: name.isEmpty ? String(localized: "Your Space") : name))
     }
 
     private var nameHint: LocalizedStringKey {

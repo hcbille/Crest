@@ -16,9 +16,4 @@ extension SplitGroupState {
     var shownTitle: String {
         displayTitle ?? String(localized: defaultTitle)
     }
-
-    /// The tint a person gave the split, in the vocabulary the views draw.
-    var shownTint: BrowserSpaceBrandColor? {
-        tint.map(BrowserSpaceBrandColor.init(core:))
-    }
 }

@@ -2985,6 +2985,10 @@
     "settings-bind-core-preferences": {
       "category": "internal",
       "message": "The Settings panes and page actions edit the core's own browsing, password and app preferences, with no Swift copy to convert them"
+    },
+    "settings-bind-core-branding": {
+      "category": "internal",
+      "message": "Space looks are drawn and edited as the core's own branding records, and the core works out each look's rendering vocabulary when it keeps it"
     }
   }
 }

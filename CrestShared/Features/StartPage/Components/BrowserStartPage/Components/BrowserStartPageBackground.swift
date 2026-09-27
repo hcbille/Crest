@@ -23,7 +23,7 @@ struct BrowserStartPageBackground: View {
     @ViewBuilder
     private var backdrop: some View {
         if page.layout.showsSpaceBanner, let space = page.space {
-            BrowserSpaceBannerBackground(branding: BrowserSpaceBranding(look: space.settings.look))
+            BrowserSpaceBannerBackground(branding: space.settings.look)
         } else {
             Color.clear
         }

@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 
 using CrestCore.Application;
 using CrestCore.Contracts;
+using CrestCore.Domain;
 
 using Xunit;
 
@@ -132,6 +133,33 @@ public sealed class SpaceLookTests {
     private static SpaceSettings Settings(SpaceAccent accent, string symbol, SpaceBranding? branding) =>
         new("Look", symbol, accent, branding, StoredSessionCodec.DefaultBrowsingPreferences, StoredSessionCodec.DefaultCredentialPreferences,
             SpaceAccessPolicy.Open, IsSavedTabsExpanded: true, SavedTabsExpansionModifiedAt: null);
+
+    #endregion
+
+    #region Actions - Kept looks
+
+    /// A look a platform edits is kept as every client writes it, whatever the
+    /// platform said of it: in today's units, announcing whether its controls
+    /// stay readable and the rendering vocabulary it draws with, so an older
+    /// reader of the synced record draws it faithfully.
+    [Fact]
+    public void AnEditedLookIsKeptAnnouncingWhatItDraws() {
+        var house = SpaceAccent.Indigo.House;
+        var edited = house with {
+            ReadabilityFade = 0,
+            KeepsControlsReadable = true,
+            RenderingVersion = SpaceBranding.BaselineRenderingVersion,
+            Crest = house.Crest with { Backplate = CrestBackplate.Badge }
+        };
+
+        var kept = SpaceBrandingPolicy.Normalize(edited);
+        var legacyStrength = SpaceBrandingPolicy.Normalize(edited with { RenderingVersion = 1, BannerStrength = 0.5 });
+
+        Assert.False(kept.KeepsControlsReadable);
+        Assert.Equal(SpaceBrandingPolicy.StudioRenderingVersion, kept.RenderingVersion);
+        Assert.Equal(0.86, legacyStrength.BannerStrength, precision: 10);
+        Assert.Equal(SpaceBrandingPolicy.StudioRenderingVersion, legacyStrength.RenderingVersion);
+    }
 
     #endregion
 }

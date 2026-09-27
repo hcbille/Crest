@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSpaceEditorIdentityPreview: View {
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
     let symbol: String
     var size: CGFloat = BrowserSpaceForgeMetrics.previewIdentitySize
 

@@ -30,7 +30,7 @@ struct BrowserAddressAppearanceGroup: View {
         }
     }
 
-    private var accent: CrestSettingValue<BrowserSpaceBrandColor?> {
+    private var accent: CrestSettingValue<BrandColor?> {
         CrestSettingValue($appearance.address.color)
     }
 

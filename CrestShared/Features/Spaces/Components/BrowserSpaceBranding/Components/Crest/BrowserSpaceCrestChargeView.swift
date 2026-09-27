@@ -3,14 +3,15 @@ import SwiftUI
 /// One figure, drawn however the charge asks: a system symbol, an emoji, or a
 /// monogram.
 struct BrowserSpaceCrestChargeGlyph: View {
-    let charge: BrowserSpaceCrestCharge
+    let charge: CrestCharge
     let pointSize: CGFloat
-    let weight: BrowserSpaceCrestChargeWeight
+    let weight: CrestChargeWeight
     let color: Color
 
     var body: some View {
-        switch charge {
-        case .heraldic(let symbol):
+        switch charge.kind {
+        case .heraldic:
+            let symbol = charge.symbol ?? .fallback
             if let assetName = symbol.assetName {
                 Image(assetName)
                     .resizable()
@@ -23,19 +24,20 @@ struct BrowserSpaceCrestChargeGlyph: View {
                     .font(.system(size: pointSize, weight: fontWeight))
                     .foregroundStyle(color)
             }
-        case .system(let name):
-            Image(systemName: name)
+        case .system:
+            Image(systemName: charge.text ?? "")
                 .font(.system(size: pointSize, weight: fontWeight))
                 .foregroundStyle(color)
-        case .emoji(let text):
-            Text(text)
+        case .emoji:
+            Text(charge.text ?? "")
                 .font(.system(size: pointSize * 1.05))
-        case .monogram(let letters, let style):
+        case .monogram:
+            let letters = charge.text ?? ""
             Text(letters)
                 .font(
                     .system(
                         size: pointSize * (letters.count > 1 ? 0.92 : 1.15), weight: fontWeight,
-                        design: style == .serif ? .serif : .default)
+                        design: (charge.style ?? .serif) == .serif ? .serif : .default)
                 )
                 .foregroundStyle(color)
                 .lineLimit(1)
@@ -56,11 +58,11 @@ struct BrowserSpaceCrestChargeGlyph: View {
 
 /// The figures arranged on the field.
 struct BrowserSpaceCrestChargeView: View {
-    let charge: BrowserSpaceCrestCharge
-    let layout: BrowserSpaceCrestChargeLayout
+    let charge: CrestCharge
+    let layout: CrestChargeLayout
     var scale: Double = 1
     var offset: Double = 0
-    var weight: BrowserSpaceCrestChargeWeight = .bold
+    var weight: CrestChargeWeight = .bold
     let color: Color
     let size: CGFloat
 

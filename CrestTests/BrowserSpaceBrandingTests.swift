@@ -5,20 +5,6 @@ import XCTest
 
 @MainActor
 final class BrowserSpaceBrandingTests: XCTestCase {
-    func testDeviceAppearanceIsExcludedFromSpacePersistence() throws {
-        let original = BrowserSpaceBranding(colors: [.indigo, .gold])
-        var payload = try XCTUnwrap(
-            JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
-        XCTAssertNil(payload["tabAppearance"])
-        XCTAssertNil(payload["addressAppearance"])
-        // Ignore the unreleased per-Space prototype's fields when reading a review profile.
-        payload["tabAppearance"] = ["pinFill": 0.7]
-        payload["addressAppearance"] = ["border": 0.6]
-        let restored = try JSONDecoder().decode(
-            BrowserSpaceBranding.self, from: JSONSerialization.data(withJSONObject: payload))
-        XCTAssertEqual(restored, original)
-    }
-
     func testDeviceAppearancePersistsLocallyAndToleratesUnknownFields() throws {
         let firstName = "crest-test-appearance-" + UUID().uuidString
         let secondName = "crest-test-appearance-" + UUID().uuidString

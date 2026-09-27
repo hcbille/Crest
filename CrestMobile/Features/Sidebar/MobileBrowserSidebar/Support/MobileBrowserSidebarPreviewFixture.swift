@@ -10,7 +10,7 @@ struct MobileBrowserSidebarPreviewFixture {
         let folder = FolderState.Seed(
             id: Self.uuid(0x21),
             title: "Reading",
-            color: BrowserSpaceBrandColor.ocean.core,
+            color: BrandColor.ocean,
             isCollapsed: false,
             collapseModifiedAt: Self.epoch
         )
@@ -47,7 +47,7 @@ struct MobileBrowserSidebarPreviewFixture {
             name: "Work",
             symbol: "briefcase.fill",
             accent: .indigo,
-            branding: BrowserSpaceBranding.house(.lion, symbol: "briefcase.fill").core,
+            branding: BrowserSpaceHousePalette.lion.look,
             folders: [folder],
             tabs: [pinnedTab, savedTab, unfiledSavedTab, currentTab],
             history: [
@@ -67,7 +67,7 @@ struct MobileBrowserSidebarPreviewFixture {
             name: "Personal",
             symbol: "lock.fill",
             accent: .orange,
-            branding: BrowserSpaceBranding.house(.winter, symbol: "lock.fill").core,
+            branding: BrowserSpaceHousePalette.winter.look,
             tabs: [],
             accessPolicy: .deviceOwnerAuthentication
         )

@@ -52,7 +52,7 @@ struct BrowserWebPageSurface: View {
                 page: page,
                 branding: browser.spaceModel(
                     matching: BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
-                ).map { BrowserSpaceBranding(look: $0.settings.look) },
+                ).map(\.settings.look),
                 pagePresentation: pagePresentation
             )
 

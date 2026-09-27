@@ -11,7 +11,7 @@ struct BrowserSourceImportPreview: View {
     let setPlacement: (TabID, TabPlacement) -> Void
 
     var body: some View {
-        BrowserImportSidebarFrame(branding: BrowserSpaceBranding(look: review.sourceSpace.settings.look)) {
+        BrowserImportSidebarFrame(branding: review.sourceSpace.settings.look) {
             BrowserSourceImportContent(
                 application: application,
                 review: review,

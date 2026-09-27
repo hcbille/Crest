@@ -27,7 +27,7 @@ enum BrowserSiteSettingsPreviewFixture {
             lastActivatedAt: fixedDate)
         let space = SpaceState.Seed(
             id: spaceID, profileID: profileID, name: "Preview", symbol: "globe", accent: .teal,
-            branding: BrowserSpaceBranding.initial(accent: .teal, symbol: "globe").core, tabs: [tab])
+            branding: SpaceAccent.teal.house, tabs: [tab])
         let permissionCenter = BrowserSitePermissionCenter()
         let core = CrestCore()
         core.engines.register(WebKitEngineBinding(), isDefault: true)

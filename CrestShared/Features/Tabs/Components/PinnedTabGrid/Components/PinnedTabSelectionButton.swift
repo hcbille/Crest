@@ -9,7 +9,7 @@ struct PinnedTabSelectionButton: View {
     let siteTheme: BrowserTabIconAccent?
     let select: () -> Void
     var isMultiSelected = false
-    var branding: BrowserSpaceBranding? = nil
+    var branding: SpaceBranding? = nil
     let iconCustomization: BrowserIconCustomizationPresentation
 
     @Environment(\.browserInteractionCapabilities) private var capabilities

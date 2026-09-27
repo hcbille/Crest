@@ -33,40 +33,41 @@ enum BrowserSpaceHousePalette: String, CaseIterable, Equatable, Sendable {
         }
     }
 
-    /// Resolved artwork copied into new Spaces and explicitly chosen presets.
-    /// Existing Spaces keep their stored crest when these templates change.
-    var crest: BrowserSpaceCrest {
-        let shape: BrowserSpaceCrestBackplate
-        let division: BrowserSpaceCrestFieldDivision
-        let symbol: BrowserSpaceCrestSymbol
-        let trim: BrowserSpaceCrestTrim
-        switch self {
-        case .winter: (shape, division, symbol, trim) = (.frenchShield, .plain, .direwolf, .line)
-        case .lion: (shape, division, symbol, trim) = (.shield, .plain, .lion, .line)
-        case .storm: (shape, division, symbol, trim) = (.hexagon, .perBend, .stag, .none)
-        case .dragon: (shape, division, symbol, trim) = (.shield, .plain, .dragon, .line)
-        case .meadow: (shape, division, symbol, trim) = (.circle, .plain, .rose, .laurel)
-        case .iron: (shape, division, symbol, trim) = (.hexagon, .plain, .kraken, .none)
-        case .river: (shape, division, symbol, trim) = (.banner, .perBend, .seahorse, .line)
-        case .sun: (shape, division, symbol, trim) = (.circle, .plain, .sun, .sunburst)
-        case .vigil: (shape, division, symbol, trim) = (.shield, .plain, .raven, .line)
-        }
-        return BrowserSpaceCrest(
-            backplate: shape,
-            fieldDivision: division,
-            trim: trim,
-            symbol: symbol,
-            backplateColorIndex: 0,
-            secondaryFieldColorIndex: 1,
-            ordinaryColorIndex: 1,
-            trimColorIndex: 2,
-            symbolColorIndex: 2,
-            trimWeight: 0.75,
-            chargeScale: 1.2
-        )
+    /// Resolved artwork copied into new Spaces and explicitly chosen presets:
+    /// the house crest the core composes for its accents, with this palette's
+    /// plate, field, figure and trim. Existing Spaces keep their stored crest
+    /// when these templates change.
+    var crest: SpaceCrest {
+        let (backplate, division, figure, trim): (CrestBackplate, CrestFieldDivision, CrestSymbol, CrestTrim) =
+            switch self {
+            case .winter: (.frenchShield, .plain, .direwolf, .line)
+            case .lion: (.shield, .plain, .lion, .line)
+            case .storm: (.hexagon, .perBend, .stag, .none)
+            case .dragon: (.shield, .plain, .dragon, .line)
+            case .meadow: (.circle, .plain, .rose, .laurel)
+            case .iron: (.hexagon, .plain, .kraken, .none)
+            case .river: (.banner, .perBend, .seahorse, .line)
+            case .sun: (.circle, .plain, .sun, .sunburst)
+            case .vigil: (.shield, .plain, .raven, .line)
+            }
+        var crest = SpaceAccent.indigo.house.crest
+        crest.backplate = backplate
+        crest.fieldDivision = division
+        crest.symbol = figure
+        crest.trim = trim
+        return crest
     }
 
-    var colors: [BrowserSpaceBrandColor] {
+    /// The house look a Space wears in this palette: the core's house look,
+    /// in these colors and with this crest.
+    var look: SpaceBranding {
+        var look = SpaceAccent.indigo.house
+        look.colors = colors
+        look.crest = crest
+        return look
+    }
+
+    var colors: ColorPalette {
         switch self {
         // Cool neutrals: one blue-grey hue family, chroma held low so the ice
         // charge reads as light rather than as a second color.

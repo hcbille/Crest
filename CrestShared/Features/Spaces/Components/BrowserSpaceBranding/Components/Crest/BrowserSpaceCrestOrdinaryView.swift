@@ -3,7 +3,7 @@ import SwiftUI
 /// The band laid over the field, clipped to the plate. A bordure is the plate's
 /// own outline drawn inward.
 struct BrowserSpaceCrestOrdinaryView: View {
-    let ordinary: BrowserSpaceCrestOrdinary
+    let ordinary: CrestOrdinary
     var width: Double = 1
     let plate: BrowserSpaceCrestPlateShape
     let color: Color

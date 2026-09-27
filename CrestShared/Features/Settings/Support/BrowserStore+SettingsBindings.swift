@@ -97,9 +97,9 @@ extension BrowserStore {
 
     /// A Space's branding, which is edited as a whole value rather than field by
     /// field because the branding editor composes it.
-    func spaceBrandingBinding(in space: SpaceModel) -> Binding<BrowserSpaceBranding> {
+    func spaceBrandingBinding(in space: SpaceModel) -> Binding<SpaceBranding> {
         Binding {
-            BrowserSpaceBranding(look: space.settings.look)
+            space.settings.look
         } set: { [self] branding in
             updateSpaceBranding(branding, in: space.id)
         }

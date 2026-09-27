@@ -1,46 +1,41 @@
 import Foundation
 
 enum BrowserSpaceBrandingPreviewFixture {
-    static let bannerBranding = BrowserSpaceBranding(
-        colors: BrowserSpaceHousePalette.winter.colors,
-        bannerPattern: .diagonal,
-        bannerStrength: 1,
-        readabilityFade: BrowserSpaceBranding.initialReadabilityFade,
-        themeMode: .banner,
-        iconStyle: .simpleSymbol
-    )
+    /// The Winter house look, drawn with its simple symbol.
+    static let bannerBranding: SpaceBranding = {
+        var look = BrowserSpaceHousePalette.winter.look
+        look.iconStyle = .simpleSymbol
+        return look
+    }()
 
-    static let gradientBranding = BrowserSpaceBranding(
-        colors: BrowserSpaceHousePalette.storm.colors,
-        bannerStrength: 0.82,
-        readabilityFade: 0.2,
-        themeMode: .gradient,
-        gradientAngle: 127,
-        showsTexture: true,
-        iconStyle: .simpleSymbol
-    )
+    /// The Storm house look as a textured gradient, drawn with its simple symbol.
+    static let gradientBranding: SpaceBranding = {
+        var look = BrowserSpaceHousePalette.storm.look
+        look.bannerStrength = 0.82
+        look.readabilityFade = 0.2
+        look.themeMode = .gradient
+        look.gradientAngle = 127
+        look.showsTexture = true
+        look.iconStyle = .simpleSymbol
+        return look
+    }()
 
-    static let crestBranding = BrowserSpaceBranding(
-        colors: BrowserSpaceHousePalette.lion.colors,
-        bannerPattern: .quartered,
-        bannerStrength: 1,
-        readabilityFade: BrowserSpaceBranding.initialReadabilityFade,
-        themeMode: .banner,
-        iconStyle: .layeredCrest,
-        crest: BrowserSpaceCrest(
-            backplate: .shield,
-            fieldDivision: .quarterly,
-            ordinary: .bend,
-            trim: .laurel,
-            symbol: .crown,
-            chargeLayout: .trio,
-            backplateColorIndex: 1,
-            secondaryFieldColorIndex: 0,
-            ordinaryColorIndex: 2,
-            trimColorIndex: 2,
-            symbolColorIndex: 2
-        )
-    )
+    /// The Lion house look quartered, under a crowned crest.
+    static let crestBranding: SpaceBranding = {
+        var look = BrowserSpaceHousePalette.lion.look
+        look.bannerPattern = .quartered
+        look.crest.backplate = .shield
+        look.crest.fieldDivision = .quarterly
+        look.crest.ordinary = .bend
+        look.crest.trim = .laurel
+        look.crest.symbol = .crown
+        look.crest.chargeLayout = .trio
+        (look.crest.backplateColorIndex, look.crest.secondaryFieldColorIndex) = (1, 0)
+        (look.crest.ordinaryColorIndex, look.crest.trimColorIndex) = (2, 2)
+        (look.crest.symbolColorIndex, look.crest.edgeColorIndex) = (2, 2)
+        (look.crest.trimWeight, look.crest.chargeScale) = (1, 1)
+        return look
+    }()
 
     /// A Space wearing the banner look, as the core resolves it.
     @MainActor static let simpleSpace = makeSpace(
@@ -71,13 +66,13 @@ enum BrowserSpaceBrandingPreviewFixture {
         name: String,
         symbol: String,
         accent: SpaceAccent,
-        branding: BrowserSpaceBranding,
+        branding: SpaceBranding,
         accessPolicy: SpaceAccessPolicy
     ) -> SpaceModel {
         SpaceModel.detached(
             SpaceState.Seed(
                 id: deterministicUUID(finalByte: idByte), profileID: deterministicUUID(finalByte: profileByte),
-                name: name, symbol: symbol, accent: accent, branding: branding.core, tabs: [],
+                name: name, symbol: symbol, accent: accent, branding: branding, tabs: [],
                 accessPolicy: accessPolicy))
     }
 

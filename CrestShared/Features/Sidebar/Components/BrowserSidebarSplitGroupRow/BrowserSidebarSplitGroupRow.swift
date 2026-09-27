@@ -183,7 +183,7 @@ struct BrowserSidebarSplitGroupRow: View {
         }
     }
 
-    private var tintBinding: Binding<BrowserSpaceBrandColor> {
+    private var tintBinding: Binding<BrandColor> {
         Binding {
             configuration.tint ?? .folderDefault
         } set: { tint in

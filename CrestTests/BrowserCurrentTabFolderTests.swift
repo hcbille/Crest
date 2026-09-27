@@ -7,10 +7,10 @@ final class BrowserCurrentTabFolderTests: XCTestCase {
 
     func testNestedCurrentFoldersSyncToAnotherDeviceWithMetadataAndMembership() async throws {
         let root = FolderState.Seed(
-            title: "Research", location: .current, color: BrowserSpaceBrandColor.ocean.core, isCollapsed: true,
+            title: "Research", location: .current, color: BrandColor.ocean, isCollapsed: true,
             collapseModifiedAt: Date(timeIntervalSince1970: 1_800_000_000))
         let nested = FolderState.Seed(
-            title: "Nested", location: .current, color: BrowserSpaceBrandColor.rose.core, parentID: root.id)
+            title: "Nested", location: .current, color: BrandColor.rose, parentID: root.id)
         let child = nested.id
         let browser = makeBrowser { space in
             space.folders = [root, nested]

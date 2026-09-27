@@ -11,7 +11,7 @@ extension BrowserStore {
         let id = FolderID()
         let creation = CreateFolder(
             workspaceID: family.workspaceID, spaceID: spaceID, folderID: id, placement: .current,
-            parentID: nil, title: nil, color: BrowserSpaceBrandColor.folderDefault.core, symbol: "folder",
+            parentID: nil, title: nil, color: BrandColor.folderDefault, symbol: "folder",
             tabIDs: tabIDs, leavesSplits: detachesSplitMembers)
         guard family.send(creation, from: self) else { return nil }
         return spaceModel(spaceID)?.folders.contains(id) == true ? id : nil

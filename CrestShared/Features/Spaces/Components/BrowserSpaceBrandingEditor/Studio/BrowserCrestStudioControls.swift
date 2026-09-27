@@ -3,20 +3,20 @@ import SwiftUI
 /// Bindings normalize at the editing boundary, shared by setup drafts and live Spaces.
 @MainActor
 struct BrowserCrestStudioContext {
-    let branding: Binding<BrowserSpaceBranding>
-    let defaults: BrowserSpaceBranding
+    let branding: Binding<SpaceBranding>
+    let defaults: SpaceBranding
     var compact: Bool
-    var previewBranding: BrowserSpaceBranding?
-    var value: BrowserSpaceBranding { branding.wrappedValue }
+    var previewBranding: SpaceBranding?
+    var value: SpaceBranding { branding.wrappedValue }
 
-    func preview(_ mutation: (inout BrowserSpaceBranding) -> Void) -> BrowserSpaceBranding {
+    func preview(_ mutation: (inout SpaceBranding) -> Void) -> SpaceBranding {
         var candidate = previewBranding ?? value
         candidate.iconStyle = .layeredCrest
         mutation(&candidate)
         return candidate.normalized()
     }
 
-    func crest<Value: Equatable>(_ path: WritableKeyPath<BrowserSpaceCrest, Value>) -> CrestSettingValue<Value> {
+    func crest<Value: Equatable>(_ path: WritableKeyPath<SpaceCrest, Value>) -> CrestSettingValue<Value> {
         CrestSettingValue(
             Binding(
                 get: { value.crest[keyPath: path] },
@@ -28,7 +28,7 @@ struct BrowserCrestStudioContext {
                 }), default: defaults.crest[keyPath: path])
     }
 
-    func setting<Value: Equatable>(_ path: WritableKeyPath<BrowserSpaceBranding, Value>) -> CrestSettingValue<Value> {
+    func setting<Value: Equatable>(_ path: WritableKeyPath<SpaceBranding, Value>) -> CrestSettingValue<Value> {
         CrestSettingValue(
             Binding(
                 get: { value[keyPath: path] },
@@ -41,13 +41,13 @@ struct BrowserCrestStudioContext {
     }
 
     func slider(
-        _ title: LocalizedStringKey, _ path: WritableKeyPath<BrowserSpaceCrest, Double>,
+        _ title: LocalizedStringKey, _ path: WritableKeyPath<SpaceCrest, Double>,
         range: ClosedRange<Double> = 0...1, readout: CrestSettingSliderReadout = .percent
     ) -> some View {
         BrowserCrestStudioSlider(title: title, value: crest(path), range: range, readout: readout)
     }
 
-    func count(_ title: LocalizedStringKey, _ path: WritableKeyPath<BrowserSpaceCrest, Int>, range: ClosedRange<Int>)
+    func count(_ title: LocalizedStringKey, _ path: WritableKeyPath<SpaceCrest, Int>, range: ClosedRange<Int>)
         -> some View
     {
         let value = crest(path)
@@ -58,7 +58,7 @@ struct BrowserCrestStudioContext {
     }
 
     func picker<Option: Hashable & BrowserSpaceHeraldicTerm>(
-        _ title: LocalizedStringKey, _ path: WritableKeyPath<BrowserSpaceCrest, Option>, options: [Option]
+        _ title: LocalizedStringKey, _ path: WritableKeyPath<SpaceCrest, Option>, options: [Option]
     ) -> some View {
         let value = crest(path)
         return CrestSettingRow(title, setting: value.resettable(title)) {
@@ -88,7 +88,7 @@ struct BrowserCrestStudioSlider: View {
 struct BrowserCrestStudioGroup<Content: View>: View {
     let title: LocalizedStringKey
     let systemImage: String
-    var preview: BrowserSpaceBranding? = nil
+    var preview: SpaceBranding? = nil
     var symbol: String = "sparkles"
     @ViewBuilder var content: Content
 
@@ -125,7 +125,7 @@ struct BrowserCrestStudioGroup<Content: View>: View {
 struct BrowserCrestStudioGallery<Option: Hashable & BrowserSpaceHeraldicTerm>: View {
     let context: BrowserCrestStudioContext
     let title: LocalizedStringKey
-    let path: WritableKeyPath<BrowserSpaceCrest, Option>
+    let path: WritableKeyPath<SpaceCrest, Option>
     let options: [Option]
 
     var body: some View {

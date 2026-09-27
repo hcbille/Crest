@@ -32,8 +32,8 @@ struct BrowserFolderGroupConfiguration {
     /// The list of what the folder holds, as the core publishes it.
     var inside: SidebarListModel { context.space.sidebar.inside(folder.id) }
 
-    var displayBranding: BrowserSpaceBranding? {
-        guard let spacePresentation else { return BrowserSpaceBranding(look: context.space.settings.look) }
+    var displayBranding: SpaceBranding? {
+        guard let spacePresentation else { return context.space.settings.look }
         return spacePresentation.assignment == assignment ? spacePresentation.branding : nil
     }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BrowserFolderColorChoice: Identifiable, Equatable, Sendable {
     let title: String
-    let value: BrowserSpaceBrandColor
+    let value: BrandColor
 
-    var id: BrowserSpaceBrandColor { value }
+    var id: BrandColor { value }
 }

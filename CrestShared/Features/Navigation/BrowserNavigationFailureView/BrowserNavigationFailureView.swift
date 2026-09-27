@@ -4,7 +4,7 @@ struct BrowserNavigationFailureView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let failure: PageFailure
-    let branding: BrowserSpaceBranding?
+    let branding: SpaceBranding?
     let layout: BrowserNavigationFailureLayout
     let canGoBack: Bool
     let canProceed: Bool

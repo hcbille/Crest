@@ -11,7 +11,7 @@ struct BrowserSpaceIdentity: Equatable, Identifiable {
     private(set) var name: String
     private(set) var symbol: String
     let accent: SpaceAccent
-    private(set) var branding: BrowserSpaceBranding
+    private(set) var branding: SpaceBranding
     /// The Space shows only while this process holds the grant for its
     /// profile, as the core decides from its access policy.
     let requiresAuthentication: Bool
@@ -31,7 +31,7 @@ struct BrowserSpaceIdentity: Equatable, Identifiable {
         name = space.settings.name
         symbol = space.settings.symbol
         accent = space.settings.accent
-        branding = BrowserSpaceBranding(look: space.settings.look)
+        branding = space.settings.look
         requiresAuthentication = space.settings.requiresAuthentication
     }
 
@@ -43,7 +43,7 @@ struct BrowserSpaceIdentity: Equatable, Identifiable {
         name = space.shownName
         symbol = space.customization.symbol
         accent = space.customization.accent
-        branding = BrowserSpaceBranding(look: space.customization.branding)
+        branding = space.customization.branding
         requiresAuthentication = false
     }
 
@@ -51,7 +51,7 @@ struct BrowserSpaceIdentity: Equatable, Identifiable {
 
     /// This identity as a draft shows it before it is saved: named `name` and
     /// wearing `branding` and `symbol`.
-    func wearing(_ branding: BrowserSpaceBranding, symbol: String, name: String) -> BrowserSpaceIdentity {
+    func wearing(_ branding: SpaceBranding, symbol: String, name: String) -> BrowserSpaceIdentity {
         var draft = self
         draft.branding = branding
         draft.symbol = symbol

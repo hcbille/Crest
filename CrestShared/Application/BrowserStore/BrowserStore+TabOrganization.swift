@@ -394,7 +394,7 @@ extension BrowserStore {
 
     @discardableResult
     func setSplitGroupTint(
-        _ tint: BrowserSpaceBrandColor?,
+        _ tint: BrandColor?,
         groupID: SplitGroupID,
         matching assignment: BrowserSpaceRuntimeAssignment
     ) -> Bool {
@@ -402,7 +402,7 @@ extension BrowserStore {
         return family.send(
             TintSplit(
                 workspaceID: family.workspaceID, spaceID: assignment.spaceID, groupID: groupID,
-                tint: tint?.core),
+                tint: tint),
             from: self, failure: "Core record command failed")
     }
 

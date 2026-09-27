@@ -12,7 +12,7 @@ struct BrowserSpaceAppearance: Equatable, Identifiable {
     let leadingFolder: FolderState?
 
     var id: SpaceID { identity.id }
-    var branding: BrowserSpaceBranding { identity.branding }
+    var branding: SpaceBranding { identity.branding }
 
     // MARK: - Initializers
 
@@ -38,7 +38,7 @@ struct BrowserSpaceAppearance: Equatable, Identifiable {
 
     /// This Space as a draft shows it before it is saved: named `name` and
     /// wearing `branding` and `symbol`.
-    func wearing(_ branding: BrowserSpaceBranding, symbol: String, name: String) -> BrowserSpaceAppearance {
+    func wearing(_ branding: SpaceBranding, symbol: String, name: String) -> BrowserSpaceAppearance {
         BrowserSpaceAppearance(
             identity: identity.wearing(branding, symbol: symbol, name: name), leadingFolder: leadingFolder)
     }

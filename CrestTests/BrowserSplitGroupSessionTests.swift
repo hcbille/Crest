@@ -20,7 +20,7 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
         let space = makeSpace(tabs: [head, tail])
         let assignment = BrowserSpaceRuntimeAssignment(space: space)
         let store = makeStore(space: space, selectedTabID: head.id)
-        let tint = BrowserSpaceBrandColor(red: 0.16, green: 0.48, blue: 0.82)
+        let tint = BrandColor(red: 0.16, green: 0.48, blue: 0.82)
         let emoji = "👨🏽‍💻"
 
         XCTAssertTrue(store.setSplitGroupTitle("  Research Pair  ", groupID: group, matching: assignment))
@@ -34,7 +34,7 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
         )
         XCTAssertEqual(metadata.customTitle, "Research Pair")
         XCTAssertEqual(metadata.customIconSymbol.flatMap(BrowserIconSymbol.emoji(from:)), emoji)
-        XCTAssertEqual(metadata.tint, tint.core)
+        XCTAssertEqual(metadata.tint, tint)
         XCTAssertNotNil(metadata.titleModifiedAt)
         XCTAssertNotNil(metadata.iconModifiedAt)
         XCTAssertNotNil(metadata.tintModifiedAt)

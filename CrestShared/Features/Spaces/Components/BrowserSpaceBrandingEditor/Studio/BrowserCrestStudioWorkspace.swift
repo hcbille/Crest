@@ -3,7 +3,7 @@ import SwiftUI
 /// A persistent, full-size crest beside the editor; the browser sidebar supplies
 /// the real context. Narrow panes keep the crest above the scrolling controls.
 struct BrowserCrestStudioWorkspace: View {
-    @Binding var branding: BrowserSpaceBranding
+    @Binding var branding: SpaceBranding
     @Binding var symbol: String
     @Binding var name: String
     var scrollState: BrowserNativeScrollState? = nil

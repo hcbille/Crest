@@ -9,7 +9,7 @@ struct BrowserFolderIcon: View {
     private var iconOnly = BrowserLookAndFeelDefaults.foldersIconOnly
 
     var body: some View {
-        BrowserFolderArtwork(symbol: folder.displaySymbol, color: folder.artworkColor, isExpanded: isExpanded)
+        BrowserFolderArtwork(symbol: folder.displaySymbol, color: folder.displayColor, isExpanded: isExpanded)
             .modifier(
                 BrowserFolderIconColumn(
                     metrics: metrics,
@@ -24,7 +24,7 @@ struct BrowserFolderIcon: View {
 /// Applies the saved folder artwork preference to the shared drawing.
 struct BrowserFolderArtwork: View {
     let symbol: String
-    let color: BrowserSpaceBrandColor
+    let color: BrandColor
     var isExpanded = false
     @AppStorage(BrowserFolderAppearancePreference.iconOnlyKey, store: BrowserFolderAppearancePreference.defaults)
     private var iconOnly = BrowserLookAndFeelDefaults.foldersIconOnly

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSpaceBannerBackground: View {
-    let branding: BrowserSpaceBranding
+    let branding: SpaceBranding
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
@@ -9,14 +9,14 @@ struct BrowserSpaceBannerBackground: View {
     private let previewReduceTransparency: Bool?
     private let previewContrast: ColorSchemeContrast?
 
-    init(branding: BrowserSpaceBranding) {
+    init(branding: SpaceBranding) {
         self.branding = branding
         previewReduceTransparency = nil
         previewContrast = nil
     }
 
     init(
-        previewBranding branding: BrowserSpaceBranding,
+        previewBranding branding: SpaceBranding,
         reduceTransparency: Bool,
         contrast: ColorSchemeContrast
     ) {
@@ -56,7 +56,7 @@ struct BrowserSpaceBannerBackground: View {
 
     private var resolvedColors: [Color] {
         let colors = branding.colors.map(\.color)
-        return colors.isEmpty ? [BrowserSpaceBrandColor.indigo.color] : colors
+        return colors.isEmpty ? [BrandColor.indigo.color] : colors
     }
 
     private var fieldOpacity: Double {

@@ -1,7 +1,14 @@
 import Foundation
 
 enum BrowserNavigationFailurePreviewFixture {
-    static let branding = BrowserSpaceBranding(colors: [.ink, .ocean, .gold])
+    /// The Indigo accent's legacy colors on a readable diagonal banner.
+    static let branding: SpaceBranding = {
+        var look = SpaceAccent.indigo.house
+        look.colors = ColorPalette(colors: SpaceAccent.indigo.legacyColors)
+        look.readabilityFade = SpaceBranding.legacyReadabilityFade
+        look.iconStyle = .simpleSymbol
+        return look
+    }()
     static let offline = makeFailure(
         error: URLError(.notConnectedToInternet),
         replacedDocument: false

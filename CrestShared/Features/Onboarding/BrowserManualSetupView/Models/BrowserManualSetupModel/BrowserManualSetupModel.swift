@@ -83,15 +83,15 @@ final class BrowserManualSetupModel {
         )
     }
 
-    func brandingBinding(for spaceID: SpaceID) -> Binding<BrowserSpaceBranding> {
+    func brandingBinding(for spaceID: SpaceID) -> Binding<SpaceBranding> {
         Binding(
             get: {
-                self.space(spaceID).map { BrowserSpaceBranding(look: $0.customization.branding) }
-                    ?? BrowserSpaceBranding(look: SpaceAccent.indigo.house)
+                self.space(spaceID).map(\.customization.branding)
+                    ?? SpaceAccent.indigo.house
             },
             set: { branding in
                 self.customize(spaceID) {
-                    SpaceCustomization(name: $0.name, symbol: $0.symbol, accent: $0.accent, branding: branding.core)
+                    SpaceCustomization(name: $0.name, symbol: $0.symbol, accent: $0.accent, branding: branding)
                 }
             }
         )

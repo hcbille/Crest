@@ -98,7 +98,7 @@ struct BrowserTabOrganizationMenuContent: View {
                             Label {
                                 Text(verbatim: folder.shownTitle)
                             } icon: {
-                                BrowserFolderMenuIcon(systemName: "folder.fill", color: folder.artworkColor)
+                                BrowserFolderMenuIcon(systemName: "folder.fill", color: folder.displayColor)
                             }
                         }
                         .disabled(folder.id == tab.folderID)
@@ -146,7 +146,7 @@ struct BrowserTabOrganizationMenuContent: View {
                                 Text(choice.pathTitle)
                             } icon: {
                                 BrowserFolderArtwork(
-                                    symbol: choice.folder.displaySymbol, color: choice.folder.artworkColor)
+                                    symbol: choice.folder.displaySymbol, color: choice.folder.displayColor)
                             }
                         }
                         .disabled(

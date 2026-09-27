@@ -2,8 +2,8 @@ import SwiftUI
 
 struct BrowserSpaceSymbolArtworkIdentity: Equatable, Sendable {
     private enum Artwork: Equatable, Sendable {
-        case crest(BrowserSpaceCrest, colors: [BrowserSpaceBrandColor])
-        case symbol(color: BrowserSpaceBrandColor)
+        case crest(SpaceCrest, colors: ColorPalette)
+        case symbol(color: BrandColor)
         case emoji
     }
 
@@ -16,7 +16,7 @@ struct BrowserSpaceSymbolArtworkIdentity: Equatable, Sendable {
     let displayScale: CGFloat
 
     init(
-        branding: BrowserSpaceBranding,
+        branding: SpaceBranding,
         symbol: String,
         requiresAuthentication: Bool,
         size: CGFloat,

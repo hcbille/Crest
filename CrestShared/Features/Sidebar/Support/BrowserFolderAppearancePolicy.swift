@@ -6,10 +6,10 @@ enum BrowserFolderAppearancePolicy {
 
     /// The artwork's white highlight composited over its front face, including
     /// translucent custom colors.
-    static func frontColor(_ color: BrowserSpaceBrandColor) -> BrowserSpaceBrandColor {
+    static func frontColor(_ color: BrandColor) -> BrandColor {
         let baseAlpha = color.alpha * (1 - frontHighlightOpacity)
         let alpha = baseAlpha + frontHighlightOpacity
-        return BrowserSpaceBrandColor(
+        return BrandColor(
             red: (color.red * baseAlpha + frontHighlightOpacity) / alpha,
             green: (color.green * baseAlpha + frontHighlightOpacity) / alpha,
             blue: (color.blue * baseAlpha + frontHighlightOpacity) / alpha,
@@ -17,22 +17,22 @@ enum BrowserFolderAppearancePolicy {
     }
 
     /// Keep the folder hue while separating its title from the tinted surface.
-    static func titleColor(_ color: BrowserSpaceBrandColor, onDarkBackground: Bool) -> BrowserSpaceBrandColor {
+    static func titleColor(_ color: BrandColor, onDarkBackground: Bool) -> BrandColor {
         let face = frontColor(color)
         let contrast = onDarkBackground ? 0.27 : 0.32
         let lift = onDarkBackground ? contrast : 0
-        return BrowserSpaceBrandColor(
+        return BrandColor(
             red: face.red * (1 - contrast) + lift,
             green: face.green * (1 - contrast) + lift,
             blue: face.blue * (1 - contrast) + lift,
             alpha: face.alpha)
     }
 
-    static func compositedColor(_ color: BrowserSpaceBrandColor, opacity: Double, background: BrowserSpaceBrandColor)
-        -> BrowserSpaceBrandColor
+    static func compositedColor(_ color: BrandColor, opacity: Double, background: BrandColor)
+        -> BrandColor
     {
         let alpha = color.alpha * opacity
-        return BrowserSpaceBrandColor(
+        return BrandColor(
             red: color.red * alpha + background.red * (1 - alpha),
             green: color.green * alpha + background.green * (1 - alpha),
             blue: color.blue * alpha + background.blue * (1 - alpha))
