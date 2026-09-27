@@ -2,6 +2,12 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Domain;
 
+#region Types
+
+public sealed record SplitJoin(Guid SelectedTab, IReadOnlyList<(Guid Source, Guid Copy)> Copies);
+
+#endregion
+
 /// A Space's organization while one edit applies to it: its tabs, folders, split
 /// metadata and the tabs the edit archives. It is restored from the Space's stored
 /// records and captured back into them, independent of profiles, authorization and

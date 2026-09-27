@@ -3017,6 +3017,10 @@
     "contract-records-share-concept-files": {
       "category": "internal",
       "message": "Contract records that only carry data share one file per concept, grouped in regions by message family and subject, instead of one file each"
+    },
+    "core-domain-data-types-grouped": {
+      "category": "internal",
+      "message": "The core's plain data types now sit beside the code that uses them instead of in files of their own."
     }
   }
 }

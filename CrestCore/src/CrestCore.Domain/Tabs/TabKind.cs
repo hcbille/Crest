@@ -2,6 +2,12 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Domain;
 
+#region Types
+
+public enum TabRenderType { WebRender, UiNative }
+
+#endregion
+
 /// <summary>The content a tab presents. Persisted native kind names are resolved at the boundary.</summary>
 public sealed record TabKind {
     #region Variables

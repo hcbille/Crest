@@ -2,6 +2,15 @@ using CrestCore.Contracts;
 
 namespace CrestCore.Domain;
 
+#region Types
+
+/// A Space for the link, and whether it opens as a Quick Window there.
+/// <paramref name="SubstitutesForLockedSpace"/> is true when the routed Space was
+/// locked and this Space stands in for it.
+public readonly record struct LinkRoutingDecision(bool OpensQuickWindow, Guid SpaceId, bool SubstitutesForLockedSpace = false);
+
+#endregion
+
 /// Decides where a link opened from outside Crest goes: the first enabled
 /// route whose Space can open, else the external-link destination preference.
 public static class LinkRoutingPolicy {
