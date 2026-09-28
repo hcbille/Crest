@@ -3325,6 +3325,10 @@
     "iphone-new-tab-search-shows-page": {
       "category": "fixed",
       "message": "A search from a new tab on iPhone shows its page right away instead of a blank screen."
+    },
+    "setup-no-longer-waits-on-icloud": {
+      "category": "fixed",
+      "message": "Setup no longer waits forever when iCloud doesn't answer: after a few seconds you can set up without it, and sync tries iCloud again on its own."
     }
   }
 }

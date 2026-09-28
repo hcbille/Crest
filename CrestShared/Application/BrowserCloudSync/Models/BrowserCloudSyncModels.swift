@@ -16,6 +16,9 @@ enum BrowserCloudSyncError: Error, Equatable {
     /// A change that arrived from another device could not be applied. Sync
     /// reports this instead of finishing a cycle that dropped records.
     case remoteChangeNotApplied(String)
+    /// iCloud did not answer whether an account is signed in before the
+    /// check's deadline.
+    case accountCheckUnanswered
 }
 
 enum BrowserCloudSyncStatus: Equatable, Sendable {

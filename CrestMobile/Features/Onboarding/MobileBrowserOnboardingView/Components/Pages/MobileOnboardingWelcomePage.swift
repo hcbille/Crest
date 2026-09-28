@@ -5,6 +5,7 @@ struct MobileOnboardingWelcomePage: View {
     let primaryTitle: String
     let status: String
     let primaryAction: () -> Void
+    let setupWithoutCloudAction: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hasAppeared = false
 
@@ -68,18 +69,29 @@ struct MobileOnboardingWelcomePage: View {
         .background(BrowserOnboardingPalette.parchment)
         .foregroundStyle(BrowserOnboardingPalette.ink)
         .safeAreaInset(edge: .bottom) {
-            Button(action: primaryAction) {
-                HStack {
-                    if action == .checking { ProgressView() }
-                    Text(primaryTitle)
-                    Spacer()
-                    Image(systemName: "arrow.right")
+            VStack(spacing: MobileOnboardingLayout.pageActionsSpacing) {
+                Button(action: primaryAction) {
+                    HStack {
+                        if action.waitsOnCloud { ProgressView() }
+                        Text(primaryTitle)
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 32)
                 }
-                .frame(maxWidth: .infinity, minHeight: 32)
+                .buttonStyle(.crestPrimary(tint: CrestBrandPalette.butter))
+                .disabled(action.waitsOnCloud)
+                .accessibilityIdentifier(BrowserMobileAccessibilityID.welcomeContinue)
+
+                if action.offersSetupWithoutCloud {
+                    Button("Set Up Without iCloud", action: setupWithoutCloudAction)
+                        .buttonStyle(.plain)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(BrowserOnboardingPalette.ink)
+                        .frame(minHeight: MobileOnboardingLayout.secondaryActionMinimumHeight)
+                        .accessibilityIdentifier(BrowserMobileAccessibilityID.welcomeSetupWithoutCloud)
+                }
             }
-            .buttonStyle(.crestPrimary(tint: CrestBrandPalette.butter))
-            .disabled(action == .checking)
-            .accessibilityIdentifier(BrowserMobileAccessibilityID.welcomeContinue)
             .padding(20)
             .frame(maxWidth: 580)
             .frame(maxWidth: .infinity)

@@ -15,6 +15,7 @@ struct MobileOnboardingPageContext {
     let errorMessage: String?
     var opensGettingStarted = false
     let welcomePrimaryAction: () -> Void
+    let welcomeSetupWithoutCloudAction: () -> Void
     let advance: () -> Void
     let setupSecondaryAction: () -> Void
     let finish: () -> Void

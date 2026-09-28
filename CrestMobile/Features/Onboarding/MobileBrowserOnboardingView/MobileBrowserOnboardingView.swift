@@ -19,6 +19,8 @@ struct MobileBrowserOnboardingView: View {
     /// The manual setup the core holds, which it keeps for the next launch
     /// until setup finishes.
     @State private var setup: BrowserManualSetupModel
+    /// How long the welcome has waited on iCloud's check.
+    @State private var cloudWait = BrowserOnboardingCloudWait()
     @State private var selectedSpaceID: UUID?
     @State private var errorMessage: String?
     @State private var completionTask: Task<Void, Never>?
@@ -65,6 +67,7 @@ struct MobileBrowserOnboardingView: View {
         }
         .tint(.accentColor)
         .modifier(lifecycleModifier)
+        .task { await cloudWait.run() }
         .disabled(completionTask != nil)
         .onDisappear { completionTask?.cancel() }
     }
@@ -93,6 +96,7 @@ struct MobileBrowserOnboardingView: View {
             errorMessage: errorMessage,
             opensGettingStarted: flow?.opensGuide == true,
             welcomePrimaryAction: handleWelcomeAction,
+            welcomeSetupWithoutCloudAction: setUpWithoutCloud,
             advance: advance,
             setupSecondaryAction: back,
             finish: completeSetup,
@@ -102,18 +106,13 @@ struct MobileBrowserOnboardingView: View {
     }
 
     private var welcomeAction: BrowserOnboardingWelcomeAction {
-        BrowserOnboardingWelcomeAction(flow: flow, cloudPhase: cloudSync.phase, forcesSetup: progress.forcesSetup)
+        BrowserOnboardingWelcomeAction(
+            flow: flow, cloudPhase: cloudSync.phase, wait: cloudWait.stage, forcesSetup: progress.forcesSetup)
     }
 
     private var welcomePrimaryTitle: String {
-        switch welcomeAction {
-        case .checking:
-            "Checking iCloud"
-        case .setup:
-            "Get Started"
-        case .open:
-            "Open Crest"
-        }
+        if welcomeAction.waitsOnCloud { return "Checking iCloud" }
+        return welcomeAction.opensCrest ? "Open Crest" : "Get Started"
     }
 
     private var featureCloseTitle: String? {
@@ -132,14 +131,19 @@ struct MobileBrowserOnboardingView: View {
     }
 
     private func handleWelcomeAction() {
-        switch welcomeAction {
-        case .checking:
-            return
-        case .setup:
-            advance()
-        case .open:
+        guard !welcomeAction.waitsOnCloud else { return }
+        if welcomeAction.opensCrest {
             completeSetup()
+        } else {
+            advance()
         }
+    }
+
+    /// Stops waiting on iCloud and goes on to set up this device; sync keeps
+    /// checking in the background.
+    private func setUpWithoutCloud() {
+        cloudWait.setUpWithoutCloud()
+        advance()
     }
 
     /// Goes on to the step the core says follows this one.
@@ -171,16 +175,16 @@ struct MobileBrowserOnboardingView: View {
     }
 
     private func welcomeStatus(_ action: BrowserOnboardingWelcomeAction) -> String {
-        if action == .checking {
+        if action.waitsOnCloud {
             return "Checking iCloud for an existing Crest setup…"
         }
-        if action == .open {
+        if action.opensCrest {
             return "Your existing Spaces are ready."
         }
         if browser.workspaceModel?.isDisposableSeed != true {
             return "Your existing Spaces are ready to customize."
         }
-        if case .failed = cloudSync.phase {
+        if action.reportsCloudUnavailable {
             return "iCloud is unavailable right now; you can still set up this device."
         }
         return "No existing setup was found in iCloud."

@@ -316,6 +316,39 @@ final class BrowserCloudSyncControllerTests: XCTestCase {
         XCTAssertEqual(factory.transports.count, 1)
     }
 
+    /// iCloud can leave an account check unanswered for minutes. The check
+    /// fails at its deadline, so the start ends as Needs attention instead of
+    /// Checking forever, and the retry that follows reaches the account; the
+    /// first check's late answer changes nothing.
+    func testAnUnansweredAccountCheckFailsAtItsDeadlineAndTheRetryReachesTheAccount() async throws {
+        let remote = TestBrowserCloudSyncRemoteService(accountState: .available, unansweredAccountChecks: 1)
+        let factory = TestBrowserCloudSyncTransportFactory()
+        let controller = BrowserCloudSyncController(
+            core: CrestCore(),
+            configuration: testConfiguration,
+            preferences: TestBrowserCloudSyncPreferences(),
+            remoteService: remote,
+            transportFactory: factory,
+            retryDelay: .milliseconds(1),
+            accountCheckDeadline: .milliseconds(50)
+        )
+
+        await controller.start()
+
+        XCTAssertEqual(controller.phase, .failed(String(describing: BrowserCloudSyncError.accountCheckUnanswered)))
+        XCTAssertTrue(factory.transports.isEmpty)
+        for _ in 0..<300 where controller.phase != .ready {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertEqual(controller.phase, .ready)
+        XCTAssertEqual(factory.transports.count, 1)
+
+        await remote.answerHeldAccountChecks()
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(controller.phase, .ready)
+        XCTAssertEqual(factory.transports.count, 1)
+    }
+
     func testPullUsesFreshSnapshotTransportAndReportsItsCount() async throws {
         let device = try await syncedDevice()
         let local = device.store.sessionSeed
@@ -400,9 +433,11 @@ private actor TestBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
     private let snapshot: [SyncRecord]
     private let suspendsAccountState: Bool
     private var initialFailures: Int
+    private var unansweredAccountChecks: Int
     private var isSuspended = false
     private var wasReleased = false
     private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+    private var heldAccountChecks: [CheckedContinuation<Void, Never>] = []
 
     var isSuspendedForTesting: Bool { isSuspended }
 
@@ -411,18 +446,24 @@ private actor TestBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
         accountState: CloudAccountState,
         snapshot: [SyncRecord] = [],
         suspendsAccountState: Bool = false,
-        initialFailures: Int = 0
+        initialFailures: Int = 0,
+        unansweredAccountChecks: Int = 0
     ) {
         self.hasEntitlement = hasEntitlement
         state = accountState
         self.snapshot = snapshot
         self.suspendsAccountState = suspendsAccountState
         self.initialFailures = initialFailures
+        self.unansweredAccountChecks = unansweredAccountChecks
     }
 
     func hasRequiredEntitlement() async -> Bool { hasEntitlement }
 
     func accountState() async throws -> CloudAccountState {
+        if unansweredAccountChecks > 0 {
+            unansweredAccountChecks -= 1
+            await withCheckedContinuation { heldAccountChecks.append($0) }
+        }
         if suspendsAccountState, !wasReleased {
             isSuspended = true
             await withCheckedContinuation { releaseWaiters.append($0) }
@@ -448,6 +489,15 @@ private actor TestBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
 
     func signIn() {
         state = .available
+    }
+
+    /// Answers the account checks held unanswered, late.
+    func answerHeldAccountChecks() {
+        let held = heldAccountChecks
+        heldAccountChecks = []
+        for check in held {
+            check.resume()
+        }
     }
 
     nonisolated func message(for error: any Error) -> String {

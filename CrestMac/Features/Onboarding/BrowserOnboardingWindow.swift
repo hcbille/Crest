@@ -12,6 +12,8 @@ struct BrowserOnboardingWindow: View {
     private let openBrowser: () -> Void
 
     @State private var flow: BrowserOnboardingFlow
+    /// How long the welcome has waited on iCloud's check.
+    @State private var cloudWait = BrowserOnboardingCloudWait()
     @State private var selectedManualSpaceID: UUID?
     @State private var customizationSpaceID: UUID?
 
@@ -60,6 +62,7 @@ struct BrowserOnboardingWindow: View {
             cloudSync: cloudSync,
             progress: progress,
             flow: flow,
+            cloudWait: cloudWait,
             selectedManualSpaceID: $selectedManualSpaceID,
             customizationSpaceID: $customizationSpaceID,
             close: closeWindow,

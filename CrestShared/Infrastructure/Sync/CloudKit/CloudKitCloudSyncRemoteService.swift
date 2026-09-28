@@ -39,10 +39,13 @@ actor CloudKitBrowserCloudSyncRemoteService: BrowserCloudSyncRemoteService {
     }
 
     nonisolated func message(for error: any Error) -> String {
-        if let syncError = error as? BrowserCloudSyncError,
-            case .remoteChangeNotApplied = syncError
-        {
-            return "Crest couldn’t apply the latest changes from iCloud."
+        if let syncError = error as? BrowserCloudSyncError {
+            switch syncError {
+            case .remoteChangeNotApplied:
+                return "Crest couldn’t apply the latest changes from iCloud."
+            case .accountCheckUnanswered:
+                return "iCloud didn’t respond in time. Crest will retry automatically."
+            }
         }
         if let rejection = error as? Rejection {
             return rejection.explanation

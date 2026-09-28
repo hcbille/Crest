@@ -34,4 +34,13 @@ enum BrowserCloudSyncPhase: Equatable, Sendable {
         case .failed: "Needs attention"
         }
     }
+
+    /// Whether iCloud's content is out of this device's reach: the check for
+    /// it has not answered, no account is signed in, or sync failed.
+    var keepsCloudOutOfReach: Bool {
+        switch self {
+        case .checking, .waitingForAccount, .failed: true
+        case .disabled, .ready, .syncing, .needsReconciliation: false
+        }
+    }
 }

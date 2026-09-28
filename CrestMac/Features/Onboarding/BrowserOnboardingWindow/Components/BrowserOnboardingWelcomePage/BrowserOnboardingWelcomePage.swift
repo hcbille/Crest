@@ -2,10 +2,10 @@ import SwiftUI
 
 struct BrowserOnboardingWelcomePage: View {
     let action: BrowserOnboardingWelcomeAction
-    let cloudPhase: BrowserCloudSyncPhase
     let hasCompletedSetup: Bool
     let hasDisposableSeedState: Bool
     let continueSetup: () -> Void
+    let setUpWithoutCloud: () -> Void
     let openCrest: () -> Void
 
     private var cloudStatusDetail: String {
@@ -15,7 +15,7 @@ struct BrowserOnboardingWelcomePage: View {
         if !hasDisposableSeedState {
             return "Your existing Spaces are ready to customize."
         }
-        if case .failed = cloudPhase {
+        if action.reportsCloudUnavailable {
             return "iCloud is unavailable right now; you can still set up this Mac."
         }
         return "No existing setup was found."
@@ -44,7 +44,8 @@ struct BrowserOnboardingWelcomePage: View {
                 BrowserOnboardingWelcomeCallToAction(
                     action: action,
                     cloudStatusDetail: cloudStatusDetail,
-                    perform: performAction
+                    perform: performAction,
+                    setUpWithoutCloud: setUpWithoutCloud
                 )
                 Spacer()
             }
@@ -64,13 +65,11 @@ struct BrowserOnboardingWelcomePage: View {
     }
 
     private func performAction() {
-        switch action {
-        case .checking:
-            break
-        case .setup:
-            continueSetup()
-        case .open:
+        guard !action.waitsOnCloud else { return }
+        if action.opensCrest {
             openCrest()
+        } else {
+            continueSetup()
         }
     }
 }

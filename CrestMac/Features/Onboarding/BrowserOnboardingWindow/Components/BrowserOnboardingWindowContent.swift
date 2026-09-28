@@ -7,6 +7,7 @@ struct BrowserOnboardingWindowContent: View {
     let cloudSync: BrowserCloudSyncController
     let progress: BrowserOnboardingProgressStore
     let flow: BrowserOnboardingFlow
+    let cloudWait: BrowserOnboardingCloudWait
     @Binding var selectedManualSpaceID: UUID?
     @Binding var customizationSpaceID: UUID?
     let close: () -> Void
@@ -34,6 +35,7 @@ struct BrowserOnboardingWindowContent: View {
                         cloudSync: cloudSync,
                         progress: progress,
                         flow: flow,
+                        cloudWait: cloudWait,
                         selectedManualSpaceID: $selectedManualSpaceID,
                         customizationSpaceID: $customizationSpaceID,
                         close: close,
@@ -60,6 +62,9 @@ struct BrowserOnboardingWindowContent: View {
         .background(BrowserOnboardingWindowConfigurator())
         .task {
             await start()
+        }
+        .task {
+            await cloudWait.run()
         }
         .onChange(of: request) { _, newRequest in
             resetTransientState(for: newRequest)

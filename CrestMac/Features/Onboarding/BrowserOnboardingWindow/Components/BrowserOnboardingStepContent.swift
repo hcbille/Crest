@@ -8,6 +8,7 @@ struct BrowserOnboardingStepContent: View {
     let cloudSync: BrowserCloudSyncController
     let progress: BrowserOnboardingProgressStore
     let flow: BrowserOnboardingFlow
+    let cloudWait: BrowserOnboardingCloudWait
     @Binding var selectedManualSpaceID: UUID?
     @Binding var customizationSpaceID: UUID?
     let close: () -> Void
@@ -18,12 +19,14 @@ struct BrowserOnboardingStepContent: View {
         case .welcome:
             BrowserOnboardingWelcomePage(
                 action: BrowserOnboardingWelcomeAction(
-                    flow: flow.state, cloudPhase: cloudSync.phase, forcesSetup: progress.forcesSetup),
-                cloudPhase: cloudSync.phase,
+                    flow: flow.state, cloudPhase: cloudSync.phase, wait: cloudWait.stage,
+                    forcesSetup: progress.forcesSetup),
                 hasCompletedSetup: progress.hasCompletedSetup,
                 hasDisposableSeedState: flow.hasDisposableSeedState,
-                continueSetup: {
-                    if let next = flow.state?.nextStep { transition(to: next) }
+                continueSetup: continueSetup,
+                setUpWithoutCloud: {
+                    cloudWait.setUpWithoutCloud()
+                    continueSetup()
                 },
                 openCrest: openCrest
             )
@@ -69,6 +72,10 @@ struct BrowserOnboardingStepContent: View {
     private var back: BrowserOnboardingBackAction {
         guard let step = flow.state?.backStep else { return BrowserOnboardingBackAction(closes: true, action: close) }
         return BrowserOnboardingBackAction(closes: false, action: { transition(to: step) })
+    }
+
+    private func continueSetup() {
+        if let next = flow.state?.nextStep { transition(to: next) }
     }
 
     private func beginManualSetup() {

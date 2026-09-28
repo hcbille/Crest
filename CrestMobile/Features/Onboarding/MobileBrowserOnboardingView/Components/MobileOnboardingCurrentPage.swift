@@ -11,7 +11,8 @@ struct MobileOnboardingCurrentPage: View {
                 action: context.welcomeAction,
                 primaryTitle: context.welcomePrimaryTitle,
                 status: context.welcomeStatus,
-                primaryAction: context.welcomePrimaryAction
+                primaryAction: context.welcomePrimaryAction,
+                setupWithoutCloudAction: context.welcomeSetupWithoutCloudAction
             )
         case .featureSpaces:
             MobileOnboardingSpacesFeaturePage(

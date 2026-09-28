@@ -3,6 +3,7 @@ import Foundation
 enum BrowserMobileAccessibilityID {
     static let progress = "mobile-onboarding-progress"
     static let welcomeContinue = "mobile-onboarding-continue"
+    static let welcomeSetupWithoutCloud = "mobile-onboarding-setup-without-icloud"
     static let featureNext = "mobile-onboarding-feature-next"
     static let close = "mobile-onboarding-close"
     static let back = "mobile-onboarding-back"

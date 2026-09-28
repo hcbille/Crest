@@ -8,7 +8,8 @@ import Observation
 /// applies, when a sync or a pull counts as a success, and when a failed
 /// launch is retried. This side asks CloudKit for the entitlement, the account
 /// and the cloud's records, runs the transport, and reports what each step
-/// came to; it never reads the journal itself.
+/// came to, reporting an account check iCloud leaves unanswered past its
+/// deadline as failed; it never reads the journal itself.
 @Observable
 @MainActor
 final class BrowserCloudSyncController {
@@ -116,6 +117,9 @@ final class BrowserCloudSyncController {
     @ObservationIgnored private let remoteService: (any BrowserCloudSyncRemoteService)?
     @ObservationIgnored private let transportFactory: (any BrowserCloudSyncTransportFactory)?
     @ObservationIgnored private let retryDelay: Duration
+    /// How long an account check waits on iCloud before the start fails and
+    /// the core retries it.
+    @ObservationIgnored private let accountCheckDeadline: Duration
     @ObservationIgnored private var transport: (any BrowserCloudSyncTransport)?
     /// The cloud's records a comparison loaded, which the device takes when
     /// it holds nothing.
@@ -134,7 +138,8 @@ final class BrowserCloudSyncController {
         legacyState: BrowserLegacyCloudSyncState? = nil,
         remoteService: (any BrowserCloudSyncRemoteService)?,
         transportFactory: (any BrowserCloudSyncTransportFactory)?,
-        retryDelay: Duration = .seconds(30)
+        retryDelay: Duration = .seconds(30),
+        accountCheckDeadline: Duration = .seconds(10)
     ) {
         self.core = core
         self.preferences = preferences
@@ -142,6 +147,7 @@ final class BrowserCloudSyncController {
         self.remoteService = remoteService
         self.transportFactory = transportFactory
         self.retryDelay = retryDelay
+        self.accountCheckDeadline = accountCheckDeadline
         containerIdentifier = configuration?.containerIdentifier
         let configure = ConfigureCloudSync(
             isEnabled: preferences.loadIsEnabled() ?? true,
@@ -230,7 +236,8 @@ final class BrowserCloudSyncController {
         case .checkAccount:
             return await reporting(step) { _ in
                 try await self.openTransportState()
-                let state = try await self.remote().accountState()
+                let check = BrowserCloudAccountCheck(remote: try self.remote(), deadline: self.accountCheckDeadline)
+                let state = try await check.state()
                 return CloudAccountChecked(attempt: attempt, state: state)
             }
         case .replaceSeed:
