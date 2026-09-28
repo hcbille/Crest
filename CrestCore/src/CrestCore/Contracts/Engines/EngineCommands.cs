@@ -30,9 +30,10 @@ public sealed record ClosePage(Guid PageId, bool KeepsState) : EngineCommand;
 public sealed record CreatePage(Guid PageId, Guid ProfileId, bool IsPrivate, Guid WindowId, PageRestoreState? RestoreState)
     : EngineCommand;
 
-/// Ends the Picture in Picture of a page a window shows again, returning its
-/// video to its place in the page, where it keeps playing. The binding ends
-/// only a Picture in Picture the page holds, never another page's.
+/// Ends the Picture in Picture of a page a window shows again, or of one whose
+/// Space this process may not show, returning its video to its place in the
+/// page, where it keeps playing. The binding ends only a Picture in Picture
+/// the page holds, never another page's.
 public sealed record ExitPictureInPicture(Guid PageId) : EngineCommand;
 
 /// Loads `Url` in a page, as the core resolved it from what the person asked

@@ -388,12 +388,12 @@ The engine contract is a set of contract records like intents and changes:
 
 - **Engine commands** the core issues to one binding: `CreatePage`,
   `LoadPage`, `ClosePage`, `RecoverPage`, `ExitPictureInPicture` for a page a
-  window shows again, `CheckBeforeUnload`, the prompt settlements, the
-  download commands, the erasures (`EraseProfileData`, `EraseSiteData`),
-  `AdoptOfferedPage` and `RejectOfferedPage` for a page the engine offered,
-  and `StageNavigation` and `DropStagedLink` for a staged link. The core
-  delivers them in the order it issued them, never while it holds a lock and
-  never on the stack of the report that caused them.
+  window shows again or one of a locked Space, `CheckBeforeUnload`, the prompt
+  settlements, the download commands, the erasures (`EraseProfileData`,
+  `EraseSiteData`), `AdoptOfferedPage` and `RejectOfferedPage` for a page the
+  engine offered, and `StageNavigation` and `DropStagedLink` for a staged link.
+  The core delivers them in the order it issued them, never while it holds a
+  lock and never on the stack of the report that caused them.
 - **Engine events** a binding reports: `PageCreated`, `PageCreationFailed`,
   `PageClosed`, the navigation events, `PageStateChanged` with a
   `PageSnapshot`, `PageIconChanged`, `PageCrashed`, the prompt events, the

@@ -231,19 +231,32 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     #region Actions - Residency
 
-    /// Stamps each tab's page with whether a window shows it now. A page a
-    /// window shows again ends its Picture in Picture, which `issue` asks its
-    /// engine for, so the video returns to its place in the page however the
-    /// person came back to it, and whether the video left automatically or at
-    /// their request.
+    /// Stamps each tab's page with whether a window shows it now, and ends the
+    /// Picture in Picture of every page that may not keep one, which `issue`
+    /// asks its engine for; see `EndPictureInPicture`.
     public void Stamp(DateTimeOffset now, Action<Engine, EngineCommand> issue) {
         ArgumentNullException.ThrowIfNull(issue);
         var shown = new Dictionary<Guid, IReadOnlySet<Guid>>();
         foreach (var page in open.Values) {
-            if (page.TabId is not { } tabId) continue;
-            if (!shown.TryGetValue(page.WorkspaceId, out var tabs)) shown[page.WorkspaceId] = tabs = device.OnScreenTabs(page.WorkspaceId);
-            if (page.Seen(tabs.Contains(tabId), now) && page.ShowsPictureInPicture) issue(page.Engine, new ExitPictureInPicture(page.Id));
+            var shownAgain = false;
+            if (page.TabId is { } tabId) {
+                if (!shown.TryGetValue(page.WorkspaceId, out var tabs)) shown[page.WorkspaceId] = tabs = device.OnScreenTabs(page.WorkspaceId);
+                shownAgain = page.Seen(tabs.Contains(tabId), now);
+            }
+            EndPictureInPicture(page, shownAgain, issue);
         }
+    }
+
+    /// Asks the page's engine to end the page's Picture in Picture, returning
+    /// its video to its place in the page, when a window shows the page again
+    /// (`shownAgain`), however the person came back to it and whether the
+    /// video left automatically or at their request. It asks whenever this
+    /// process may not show the page's Space too: a locked Space, one being
+    /// deleted or one that is gone keeps no video on screen, whether a tab, a
+    /// Quick Window or a Peek owns the page, so one that floats while its
+    /// Space is locked is asked to end each time the core looks.
+    internal void EndPictureInPicture(Page page, bool shownAgain, Action<Engine, EngineCommand> issue) {
+        if (page.ShowsPictureInPicture && (shownAgain || Shown(page) is null)) issue(page.Engine, new ExitPictureInPicture(page.Id));
     }
 
     /// Forgets what a tab kept once the tab is gone from its Space, closed or

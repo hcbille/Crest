@@ -42,7 +42,8 @@ future investigations can compare changes.
 tab set. Moving focus between cards in a visible split does not enter PiP.
 If multiple cards leave together, the focused card is considered first.
 Entering an unlocked empty Space or start page follows the same departure
-lifecycle. Locking a protected Space still invalidates its presentations.
+lifecycle. Locking a protected Space withdraws its pages' pending automatic
+requests.
 
 Coming back to the source page ends its PiP session, whether Crest started it
 automatically or the person entered it: the video returns to its place in the
@@ -54,6 +55,15 @@ presentations; Chromium closes its PiP window only when the page owns it. A page
 that stays on screen, such as one the person floated without leaving it, keeps
 its PiP. The page controller's `returnToTab()` only withdraws an automatic
 request still pending.
+
+A Space this process may not show keeps no video on screen. When a protected
+Space locks, on demand or as Crest goes to the background, or a Space is being
+deleted or is gone, the core sends `ExitPictureInPicture` to every page of that
+Space that reports PiP: its tabs' pages, in the background or not, and its Quick
+Window and Peek pages. A page that reports PiP again while its Space is locked
+is asked again at once. The rule is the core's, so it holds for both engines and
+covers Chromium's document PiP for a page that owns the window. Private
+workspaces never lock.
 
 The PiP window's return control reports `PictureInPictureReturned` for its page,
 and the engine returns the video inline itself. WebKit reports it from
@@ -93,7 +103,7 @@ unloading, including when playback is paused. The original WKWebView and
 media pipeline remain alive while its view is detached. Closing, explicitly
 unloading, navigating, or terminating the source ends its presentation.
 Locking a protected Space also closes its video, including a Space in the
-background.
+background, as the core asks.
 
 ## Recognizing an interactive player
 
