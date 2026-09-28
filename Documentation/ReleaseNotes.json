@@ -3317,6 +3317,10 @@
     "dock-keeps-picked-icon-during-downloads": {
       "category": "fixed",
       "message": "The Dock keeps the app icon you picked while downloads run."
+    },
+    "extension-windows-close-themselves": {
+      "category": "fixed",
+      "message": "Windows and tabs an extension opens, such as a password manager's pop-out, can close themselves again when they're done."
     }
   }
 }

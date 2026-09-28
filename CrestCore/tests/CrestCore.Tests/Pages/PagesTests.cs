@@ -382,7 +382,7 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
-    public void OnlyAPageAnotherPageOpenedClosesItselfAndWhatOwnsItClosesAsThePersonWould() {
+    public void OnlyAPageAnotherPageOrAnExtensionOpenedClosesItselfAndWhatOwnsItClosesAsThePersonWould() {
         var session = TwoSpaceSession();
         var (space, profile) = (SpaceId(session["spaces"]![0]!), ProfileId(session["spaces"]![0]!));
         var (app, engine, binding, workspace, window) = PageHost(session);
@@ -410,6 +410,17 @@ public sealed partial class BrowserContractsTests {
         var closed = app.Drain();
         Assert.DoesNotContain(CurrentTabs(app, workspace, space), tab => tab.Id == adopted.TabId);
         Assert.Equal(sourceTab, ShownTab(closed, window, space));
+
+        // A tab an extension opened, which the engine offers with no page of
+        // Crest's as its source, closes itself too, as an extension's popout
+        // window does when it is done.
+        app.Report(engine, new PageOffered(Guid.NewGuid(), profile, SourcePageId: null, window, SpaceId: null, "https://extension.example/", Foreground: true));
+        var extensionTab = Assert.Single(app.Drain().OfType<OfferedPageAdopted>());
+        app.Report(engine, new PageCreated(extensionTab.PageId));
+        app.Drain();
+        app.Report(engine, new PageCloseRequested(extensionTab.PageId));
+        app.Drain();
+        Assert.DoesNotContain(CurrentTabs(app, workspace, space), tab => tab.Id == extensionTab.TabId);
 
         // Whatever shows a window a page asked for closes it, and the engine
         // keeps the page until its owner lets it go.

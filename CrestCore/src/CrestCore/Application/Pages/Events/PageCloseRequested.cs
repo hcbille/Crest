@@ -4,9 +4,9 @@ namespace CrestCore.Contracts;
 
 /// A page's own script asked to close its window, as `window.close()` does,
 /// once its document agreed to go. The engine keeps the page, and the core
-/// decides the same way whichever engine asked: a page another page opened
-/// closes what owns it, as the person closing it would, and any other page
-/// stays. A tab the person opened or saved is never a site's to close, even
+/// decides the same way whichever engine asked: a page another page or an
+/// extension opened closes what owns it, as the person closing it would, and
+/// any other page stays. A tab the person opened or saved is never a site's to close, even
 /// when its history holds one page.
 public sealed record PageCloseRequested(Guid PageId) : PageEvent(PageId) {
     #region Actions - Pages

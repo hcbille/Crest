@@ -30,9 +30,11 @@ internal sealed class Page {
     public TransientPresentation? Transient { get; }
 
     /// Whether another page opened this one: a script's window, a link to a
-    /// new tab or window, or a link the person followed into a new tab, Peek
-    /// or split. Such a page runs on its opener's engine, and the site's
-    /// engine choice moves it only when the person asks for an address in it.
+    /// new tab or window, a link the person followed into a new tab, Peek or
+    /// split, or an extension's tab or window, whose opener is the extension.
+    /// Such a page runs on its opener's engine, the site's engine choice moves
+    /// it only when the person asks for an address in it, and it may close
+    /// itself.
     public bool OpenedByPage { get; }
 
     public PagePhase Phase { get; private set; } = PagePhase.Opening;

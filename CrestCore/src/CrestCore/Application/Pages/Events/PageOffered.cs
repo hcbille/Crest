@@ -77,8 +77,11 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
             // The Space's tabs are full, or the address is one no tab shows.
             return false;
         }
+        // Every page the engine offers was opened by software, a page or an
+        // extension, never by the person, so it may close itself as it would
+        // in any browser, and it stays on the engine that opened it.
         var page = new Page(pages.Ids.Next(), engine, space.ProfileId, workspaceId, space.Id, tabId, windowId, transient: null,
-            openedByPage: source is not null);
+            openedByPage: true);
         pages.Add(page);
         turn.Changes.Publish(new PageOpened(page.State));
         turn.Changes.Publish(new OfferedPageAdopted(page.Id, workspaceId, windowId, space.Id, tabId, Foreground));
