@@ -31,7 +31,6 @@ final class BrowserOnboardingFlowTests: XCTestCase {
 
         flow.commitReviewedImport()
         await waitUntil { flow.step == .complete }
-        XCTAssertEqual(flow.completionSummary.map { localized($0) }, "Imported 1 reviewed tab across 1 Space.")
         XCTAssertEqual(flow.browser.spaceModels.filter { $0.settings.name == "Imported" }.count, 1)
     }
 
@@ -158,14 +157,6 @@ final class BrowserOnboardingFlowTests: XCTestCase {
         XCTFail("Timed out waiting for onboarding flow state")
     }
 
-    private func localized(
-        _ resource: LocalizedStringResource,
-        locale: Locale = Locale(identifier: "en")
-    ) -> String {
-        var resource = resource
-        resource.locale = locale
-        return String(localized: resource)
-    }
 }
 
 @MainActor

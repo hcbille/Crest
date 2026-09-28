@@ -3217,6 +3217,10 @@
     "app-dead-code-after-restructure": {
       "category": "internal",
       "message": "The apps drop code the restructure left without callers: an unused download lookup, web-content load and reader toggle, a never-built device-validation trust path, two unused palette values, and two store logos nothing shows."
+    },
+    "app-tests-trimmed-to-contracts": {
+      "category": "internal",
+      "message": "The app test suites drop tests that repeat a rule the core's own tests cover, re-test shared page code on iPhone, or check copy, and the test helpers nothing calls."
     }
   }
 }

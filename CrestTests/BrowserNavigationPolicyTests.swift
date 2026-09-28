@@ -193,13 +193,6 @@ final class BrowserNavigationPolicyTests: XCTestCase {
         XCTAssertEqual(intent, .download)
     }
 
-    func testOnlyTheMiddleButtonReadsAsAMiddleClick() {
-        XCTAssertTrue(BrowserMouseButtonPolicy.isMiddleButton(number: 1 << 2))
-        XCTAssertFalse(BrowserMouseButtonPolicy.isMiddleButton(number: 0))
-        XCTAssertFalse(BrowserMouseButtonPolicy.isMiddleButton(number: 1))
-        XCTAssertFalse(BrowserMouseButtonPolicy.isMiddleButton(number: 2))
-    }
-
     func testExplicitLinksAndFormsDoNotBecomeScriptedPopups() {
         XCTAssertEqual(
             BrowserPopupTrigger.classify(.linkActivated),

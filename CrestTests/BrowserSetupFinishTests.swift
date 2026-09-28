@@ -4,32 +4,6 @@ import XCTest
 
 @MainActor
 final class BrowserSetupFinishTests: XCTestCase {
-    func testFinishingOpensTheGuideInTheFirstSpaceOnceAndCompletesSetup() async throws {
-        let browser = BrowserStore.preview()
-        let first = try XCTUnwrap(browser.spaceModels.first)
-        browser.selectSpace(try XCTUnwrap(browser.spaceModels.last?.id))
-        let originalTabs = first.tabs.values
-        let access = BrowserSpaceAccessController()
-
-        try browser.core.send(StartSetup(workspaceID: browser.family.workspaceID, entry: .firstRun))
-        let result = await BrowserSetupFinish.finish(browser: browser, spaceAccess: access)
-
-        guard case .completed(let opened) = result, let guide = opened else { return XCTFail("No guide opened") }
-        XCTAssertEqual(guide.spaceID, first.id)
-        XCTAssertEqual(guide.profileID, first.profileID)
-        XCTAssertEqual(browser.shownTab?.id, guide.tabID)
-        XCTAssertEqual(
-            browser.shownSpace?.tabs.values.filter {
-                $0.nativeContent?.kind != BrowserNativeTabContent.gettingStarted.kind
-            }, originalTabs)
-        XCTAssertEqual(browser.core.state.setupCompleted, true)
-
-        try browser.core.send(StartSetup(workspaceID: browser.family.workspaceID, entry: .rerun))
-        let replay = await BrowserSetupFinish.finish(browser: browser, spaceAccess: access)
-        XCTAssertEqual(replay, .completed(guide: guide))
-        XCTAssertEqual(browser.shownSpace?.tabs.models.filter { $0.nativeTabContent == .gettingStarted }.count, 1)
-    }
-
     /// The guide never opens in a locked first Space. Finishing asks to unlock
     /// it first; a refusal applies nothing and leaves setup to finish, and
     /// the retry applies the manual setup once over whatever changed meanwhile.

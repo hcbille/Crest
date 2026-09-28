@@ -110,20 +110,6 @@ final class BrowserGettingStartedTests: XCTestCase {
         XCTAssertEqual(browser.shownTab?.id, first)
     }
 
-    func testNativeTabsStayLocalOnSync() async throws {
-        let browser = BrowserStore.preview()
-        let id = try XCTUnwrap(browser.openGettingStarted())
-        // A device holding the session syncs every tab but the guide, and
-        // keeps the guide through a merge of what it synced.
-        let device = try await BrowserStoredSessionHarness.staged(seed: browser.sessionSeed)
-        let records = try await device.heldRecords()
-        XCTAssertFalse(records.contains { $0.id == id })
-        try device.deliverNow(MergeSyncRecords(records: records))
-        XCTAssertEqual(
-            device.store.spaceModel(browser.selectedSpaceID)?.tabs.model(id)?.nativeTabContent,
-            .gettingStarted)
-    }
-
     func testNativeActionsRejectAStaleProfileAndKeepGuideWhenOpeningALink() throws {
         let browser = BrowserStore.preview()
         let id = try XCTUnwrap(browser.openGettingStarted())

@@ -225,18 +225,3 @@ private final class ReplayNavigationAction: WKNavigationAction,
         SiteOrigin(scheme: "https", host: "replay.crest.test", port: 443)
     }
 }
-
-/// The action WebKit hands `decidePolicyFor` for a `target="_blank"` link or a
-/// `window.open()`: no target frame at all, because the frame does not exist yet.
-private final class NewWindowNavigationAction: WKNavigationAction {
-    private let stubRequest: URLRequest
-
-    init(url: URL) {
-        stubRequest = URLRequest(url: url)
-        super.init()
-    }
-
-    override var request: URLRequest { stubRequest }
-    override var navigationType: WKNavigationType { .linkActivated }
-    override var targetFrame: WKFrameInfo? { nil }
-}

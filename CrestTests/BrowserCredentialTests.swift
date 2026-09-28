@@ -963,7 +963,6 @@ final class BrowserCredentialTests: XCTestCase {
         let exported = try await access.exportCredentials(in: work.id)
         let csv = try XCTUnwrap(String(data: exported.contents, encoding: .utf8))
 
-        XCTAssertEqual(exported.fileName, "Crest Passwords - \(work.settings.name).csv")
         XCTAssertTrue(csv.contains("\"work,person@example.com\""))
         XCTAssertFalse(csv.contains("personal-secret-must-not-export"))
         XCTAssertEqual(authenticator.reasons.count, 1)

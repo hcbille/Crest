@@ -94,11 +94,6 @@ final class BrowserSplitGroupSessionTests: XCTestCase {
         )
     }
 
-    private func dragItem(_ tabID: UUID, in store: BrowserStore) throws -> BrowserTabDragItem {
-        let space = try XCTUnwrap(store.shownSpace)
-        return BrowserTabDragItem(tabID: tabID, spaceID: space.id, profileID: space.profileID)
-    }
-
     private func makeSpace(
         name: String = "Work",
         folders: [FolderState.Seed] = [],

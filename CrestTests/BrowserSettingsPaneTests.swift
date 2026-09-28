@@ -129,38 +129,4 @@ final class BrowserSettingsPaneTests: XCTestCase {
             "The authentication scope is part of how a reader finds a credential."
         )
     }
-
-    // MARK: - Shared bindings
-
-    /// Every shared binding reads the Space's settings from the read model and
-    /// writes them back through the core, so the next read shows the edit.
-    func testSharedSpaceBindingsWriteThroughTheCore() throws {
-        let browser = BrowserStore.preview()
-        let space = try XCTUnwrap(browser.spaceModels.first)
-
-        let name = browser.spaceNameBinding(in: space)
-        name.wrappedValue = "Renamed"
-        XCTAssertEqual(space.settings.name, "Renamed")
-        XCTAssertEqual(name.wrappedValue, "Renamed")
-
-        let provider = browser.browsingPreferenceBinding(\.searchProvider, in: space)
-        let otherProvider = try XCTUnwrap(SearchProvider.all.first { $0 != provider.wrappedValue })
-        provider.wrappedValue = otherProvider
-        XCTAssertEqual(space.settings.browsingPreferences.searchProvider, otherProvider)
-
-        let offersCopy = browser.credentialPreferenceBinding(\.alsoOffersSaveToSystemPasswords, in: space)
-        offersCopy.wrappedValue = !offersCopy.wrappedValue
-        XCTAssertEqual(space.settings.credentialPreferences.alsoOffersSaveToSystemPasswords, offersCopy.wrappedValue)
-
-        let managerEnabled = browser.credentialPreferenceBinding(\.isEnabled, in: space)
-        managerEnabled.wrappedValue = false
-        XCTAssertFalse(space.settings.credentialPreferences.isEnabled)
-
-        let other = try XCTUnwrap(browser.spaceModels.dropFirst().first)
-        let defaultSpace = browser.defaultSpaceBinding()
-        defaultSpace.wrappedValue = other.id
-        XCTAssertEqual(browser.workspaceModel?.defaultSpaceID, other.id)
-        XCTAssertEqual(defaultSpace.wrappedValue, other.id)
-    }
-
 }

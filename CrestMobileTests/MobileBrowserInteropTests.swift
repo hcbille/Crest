@@ -487,39 +487,6 @@ final class MobileBrowserInteropTests: XCTestCase {
         XCTAssertEqual(pages.presentedTabIDs, [openTab.id])
     }
 
-    /// Loads `url` as a simulated response so a back/forward entry exists without
-    /// a network fixture, and waits for WebKit to commit it.
-    private func load(_ url: URL, in page: MobileBrowserPage) async throws {
-        page.webView.frame = CGRect(x: 0, y: 0, width: 390, height: 700)
-        page.webView.loadSimulatedRequest(
-            URLRequest(url: url),
-            responseHTML: """
-                <!doctype html><html><body style="height: 4000px">\(url.path)</body></html>
-                """
-        )
-        for attempt in 0..<200 {
-            if page.webView.url == url, !page.webView.isLoading {
-                return
-            }
-            if attempt < 199 {
-                try await Task.sleep(for: .milliseconds(20))
-            }
-        }
-        XCTFail("Timed out loading \(url).")
-    }
-
-    private func makeTabStateArchive() throws -> BrowserTabStateArchive {
-        let root = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-            .appendingPathComponent(
-                "crest-mobile-tab-state-\(UUID().uuidString)",
-                isDirectory: true
-            )
-        addTeardownBlock {
-            try? FileManager.default.removeItem(at: root)
-        }
-        return BrowserTabStateArchive(rootDirectory: root)
-    }
-
     private func makeStateSpace(
         id: UUID = UUID(),
         profileID: UUID = UUID(),
@@ -574,19 +541,6 @@ final class MobileBrowserInteropTests: XCTestCase {
             folders: [],
             tabs: [openerTab]
         )
-    }
-}
-
-/// Stands in for WebKit's persistent-store removal so a Space can be deleted in a
-/// test without touching the simulator's real WebKit data.
-@MainActor
-private final class MobileRecordingWebsiteDataStoreRemover:
-    BrowserEngineProfileRemoving
-{
-    private(set) var removedProfileIDs: [UUID] = []
-
-    func removeProfile(_ profile: BrowsingProfile, ephemeral: Bool) async throws {
-        removedProfileIDs.append(profile.id)
     }
 }
 

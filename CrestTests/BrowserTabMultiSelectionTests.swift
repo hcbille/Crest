@@ -439,10 +439,6 @@ final class BrowserTabMultiSelectionTests: XCTestCase {
         return browser.sessionSeed
     }
 
-    private func dragItem(_ tabID: UUID, in space: SpaceState.Seed) -> BrowserTabDragItem {
-        BrowserTabDragItem(tabID: tabID, spaceID: space.id, profileID: space.profileID)
-    }
-
     private func makeSession(count: Int) -> SessionState.Seed {
         var space = SpaceState.Seed.blank(number: 1)
         space.tabs = (0..<count).map { index in

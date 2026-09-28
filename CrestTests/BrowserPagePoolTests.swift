@@ -1493,18 +1493,6 @@ final class BrowserPagePoolTests: XCTestCase {
         )
     }
 
-    private func waitForURL(_ url: URL, in webView: WKWebView) async throws {
-        for attempt in 0..<200 {
-            if webView.url == url {
-                return
-            }
-            if attempt < 199 {
-                try await Task.sleep(for: .milliseconds(20))
-            }
-        }
-        XCTFail("Timed out waiting for \(url).")
-    }
-
     private func waitForLoad(_ url: URL, in webView: WKWebView) async throws {
         for attempt in 0..<200 {
             if webView.url == url, !webView.isLoading {
@@ -1723,13 +1711,6 @@ private struct SplitPageFocusMount {
     let secondHost: BrowserWebHostView
 }
 
-@MainActor
-private final class EmptyBrowserContentRuleListProvider:
-    BrowserContentRuleListProviding
-{
-    func balancedRuleLists() async throws -> [WKContentRuleList] { [] }
-}
-
 final class BrowserPageLifecyclePolicyTests: XCTestCase {
     func testTheCoalescerCollapsesOneSqueezeWithoutSwallowingAnEscalation() {
         var coalescer = BrowserMemoryPressureCoalescer()
@@ -1857,32 +1838,6 @@ final class StubPopupNavigationAction: WKNavigationAction,
     var browserSourceOrigin: SiteOrigin? { nil }
 }
 
-private final class StubModifiedLinkNavigationAction: WKNavigationAction,
-    BrowserNavigationActionSourceOriginProviding
-{
-    private let stubRequest: URLRequest
-    private let stubModifierFlags: NSEvent.ModifierFlags
-    private let stubButtonNumber: Int
-
-    init(
-        url: URL,
-        modifierFlags: NSEvent.ModifierFlags,
-        buttonNumber: Int
-    ) {
-        stubRequest = URLRequest(url: url)
-        stubModifierFlags = modifierFlags
-        stubButtonNumber = buttonNumber
-        super.init()
-    }
-
-    override var request: URLRequest { stubRequest }
-    override var navigationType: WKNavigationType { .linkActivated }
-    override var targetFrame: WKFrameInfo? { nil }
-    override var modifierFlags: NSEvent.ModifierFlags { stubModifierFlags }
-    override var buttonNumber: Int { stubButtonNumber }
-    var browserSourceOrigin: SiteOrigin? { nil }
-}
-
 @MainActor
 private final class RecordingWebsiteDataStoreRemover:
     BrowserEngineProfileRemoving
@@ -1936,26 +1891,6 @@ private final class PagePoolAuthenticationChallengeSenderStub:
     func cancel(_ challenge: URLAuthenticationChallenge) {}
     func performDefaultHandling(for challenge: URLAuthenticationChallenge) {}
     func rejectProtectionSpaceAndContinue(with challenge: URLAuthenticationChallenge) {}
-}
-
-@MainActor
-private final class SuspendedStartupContentRuleListProvider: BrowserContentRuleListProviding {
-    private let started: () -> Void
-    private var continuation: CheckedContinuation<[WKContentRuleList], Never>?
-
-    init(started: @escaping () -> Void) { self.started = started }
-
-    func balancedRuleLists() async throws -> [WKContentRuleList] {
-        await withCheckedContinuation {
-            continuation = $0
-            started()
-        }
-    }
-
-    func resume() {
-        continuation?.resume(returning: [])
-        continuation = nil
-    }
 }
 
 extension SpaceState.Seed {

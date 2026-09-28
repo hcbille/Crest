@@ -212,22 +212,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
         browser.resetPrivateBrowsingSession()
     }
 
-    func testXCTestStandardMobilePagesNeverUseTheInstalledWebsiteDataStore() throws {
-        let browser = BrowserStore.hostingPages()
-        let pages = MobileBrowserPageStore(
-            browser: browser,
-            usesEphemeralWebsiteDataStores: true
-        )
-
-        pages.select()
-        let store = try XCTUnwrap(
-            pages.activePage?.webView.configuration.websiteDataStore
-        )
-
-        XCTAssertFalse(store.isPersistent)
-        XCTAssertNil(store.identifier)
-    }
-
     func testPrivateDownloadConfirmationStaysOwnedByThePrivateSpace() async throws {
         let standardPages = MobileBrowserPageStore(
             browser: .hostingPages(),
@@ -610,25 +594,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
         XCTAssertEqual(navigation.regularSidebarPresentation, .docked)
     }
 
-    // MARK: - Split fixtures
-
-    private func makeModel(
-        browser: BrowserStore,
-        pages: MobileBrowserPageStore
-    ) -> MobileBrowserRootModel {
-        MobileBrowserRootModel(
-            browser: browser,
-            pages: pages,
-            navigation: MobileBrowserNavigationState(),
-            spaceAccess: BrowserSpaceAccessController(
-                authenticator: BrowserPreviewAuthenticator(result: false)
-            ),
-            windowState: nil,
-            startupBehavior: .showStartPage,
-            persistedSidebarWidth: MobileBrowserRootLayout.defaultRegularSidebarWidth
-        )
-    }
-
     func testPageStoreRetainsTabsButNeverReusesAProfileAcrossSpaces() throws {
         let firstSpace = makeSpace(index: 1)
         let secondSpace = makeSpace(index: 2)
@@ -867,62 +832,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
         return try XCTUnwrap(WKContentRuleListStore(url: directory))
     }
 
-    func testDeletingASpacesMobileRuntimeDataPreservesAnotherSpace() async throws {
-        let deletedSpace = makeSpace(index: 31)
-        let retainedSpace = makeSpace(index: 32)
-        let permissionCenter = BrowserSitePermissionCenter()
-        let remover = RecordingMobileWebsiteDataStoreRemover()
-        let pages = MobileBrowserPageStore(
-            browser: .hostingPages(
-                SessionState.Seed(spaces: [deletedSpace, retainedSpace]), core: .hostingPages(profileStores: remover)),
-            usesEphemeralWebsiteDataStores: false,
-            permissionCenter: permissionCenter
-        )
-        let origin = SiteOrigin(
-            scheme: "https",
-            host: "camera.crest.test",
-            port: 443
-        )
-        permissionCenter.setDecision(
-            .grantPersistently,
-            for: .camera,
-            origin: origin,
-            in: deletedSpace.id
-        )
-        permissionCenter.setDecision(
-            .denyPersistently,
-            for: .camera,
-            origin: origin,
-            in: retainedSpace.id
-        )
-        pages.present(space: deletedSpace.id)
-        XCTAssertFalse(
-            try XCTUnwrap(
-                pages.activePage?.webView.configuration.websiteDataStore
-            ).isPersistent
-        )
-        pages.present(space: retainedSpace.id)
-        XCTAssertFalse(
-            try XCTUnwrap(
-                pages.activePage?.webView.configuration.websiteDataStore
-            ).isPersistent
-        )
-        let deletedTabID = try XCTUnwrap(deletedSpace.tabs.first?.id)
-        let retainedTabID = try XCTUnwrap(retainedSpace.tabs.first?.id)
-
-        try await pages.deleteData(for: BrowserSpaceRuntimeAssignment(space: deletedSpace))
-
-        XCTAssertFalse(pages.containsResidentPage(for: deletedTabID))
-        XCTAssertTrue(pages.containsResidentPage(for: retainedTabID))
-        XCTAssertEqual(pages.activePage?.tabID, retainedTabID)
-        XCTAssertTrue(permissionCenter.records(in: deletedSpace.id).isEmpty)
-        XCTAssertEqual(
-            permissionCenter.records(in: retainedSpace.id).map(\.decision),
-            [.denyPersistently]
-        )
-        XCTAssertEqual(remover.removedProfileIDs, [deletedSpace.profileID])
-    }
-
     func testDeletingSpaceThroughMobileRegistryReleasesEveryWindowBeforeSharedData() async throws {
         let space = makeSpace(index: 35)
         let tabID = try XCTUnwrap(space.tabs.first?.id)
@@ -991,41 +900,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
 
         remover.finishRemoval()
         try await deletion.value
-    }
-
-    func testCapturedMobileUnloadRejectsAReplacementResidentPageAssignment() {
-        let pinned = TabState.Seed(
-            id: fixedUUID(334),
-            title: "Replacement resident",
-            url: nil,
-            symbol: "globe",
-            placement: .pinned
-        )
-        let original = SpaceState.Seed(
-            id: fixedUUID(335),
-            profileID: fixedUUID(336),
-            name: "Original",
-            symbol: "minus.circle",
-            accent: .teal,
-            folders: [],
-            tabs: [pinned]
-        )
-        var replacement = original
-        replacement.profileID = fixedUUID(337)
-        let pages = MobileBrowserPageStore(
-            browser: .hostingPages(SessionState.Seed(spaces: [replacement])),
-            usesEphemeralWebsiteDataStores: true
-        )
-        pages.present(tab: pinned.id, in: replacement.id)
-
-        XCTAssertFalse(
-            pages.unloadPage(
-                for: pinned.id,
-                matching: BrowserSpaceRuntimeAssignment(space: original)
-            )
-        )
-        XCTAssertTrue(pages.containsResidentPage(for: pinned.id))
-        XCTAssertEqual(pages.activePage?.profileID, replacement.profileID)
     }
 
     func testPageStoreWarningPressureKeepsOrdinaryTabsResident() async throws {
@@ -1283,28 +1157,6 @@ final class MobileBrowserNavigationTests: XCTestCase {
             }
             try await Task.sleep(for: .milliseconds(25))
         }
-    }
-
-    /// Opens the page for `space`'s first tab through `browser`'s core, as a
-    /// page store opens one. Keep `browser` alive while the page is in use.
-    private func openPage(
-        in space: SpaceState.Seed,
-        through browser: BrowserStore,
-        loadsInitialURL: Bool = true
-    ) throws -> MobileBrowserPage {
-        let tab = try XCTUnwrap(space.tabs.first)
-        return try XCTUnwrap(
-            browser.openWebKitPage(in: space.id, for: tab.id).map { opened in
-                MobileBrowserPage(
-                    corePage: opened.core,
-                    webKitPage: opened.webKit,
-                    tab: browser.pageTab(tab.id, in: space.id),
-                    space: browser.hostedSpace(space.id),
-                    loadsInitialURL: loadsInitialURL,
-                    openNewTab: { _ in }
-                )
-            }
-        )
     }
 
     /// Records that `spaceID`'s deletion began, as deleting a Space does before

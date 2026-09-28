@@ -5,8 +5,9 @@ import XCTest
 
 /// A question a WebKit page asks travels through the core: the page's host
 /// shows it once the core asks the person, and the answer the core settles
-/// reaches WebKit, a sign-in's credential and a site's permission included. WebKit requires an answer to every question,
-/// so a page that closes answers what it still asks as declined.
+/// reaches WebKit, a sign-in's credential included. WebKit requires an answer
+/// to every question, so a page that closes answers what it still asks as
+/// declined.
 @MainActor
 final class WebKitEngineBindingPromptTests: XCTestCase {
     func testAScriptDialogReachesItsHostThroughTheCoreAndItsAnswerReachesWebKit() throws {
@@ -70,24 +71,6 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
         opened.core.release(keepingState: false)
     }
 
-    func testAPermissionRequestReachesItsHostThroughTheCoreAndTheAnswerReachesWebKit() throws {
-        let (browser, opened) = try openPage()
-        let host = PromptHost()
-        opened.webKit.attach(host)
-        let origin = SiteOrigin(scheme: "https", host: "camera.crest.test", port: 443)
-        var answer: Bool?
-        opened.webKit.ask(PermissionQuestion(permission: .camera, origin: origin, topLevelOrigin: origin)) {
-            answer = $0
-        }
-        browser.core.drain()
-        let asked = try XCTUnwrap(host.permissions.first)
-        XCTAssertEqual(asked.question.permission, .camera)
-
-        opened.core.answer(AnswerPermission(promptID: asked.promptID, grants: true, remembers: false))
-        XCTAssertEqual(answer, true)
-        opened.core.release(keepingState: false)
-    }
-
     /// A page the core opened on WebKit for a tab of a new window's Space.
     private func openPage() throws -> (BrowserStore, (core: CorePage, webKit: WebKitEnginePage)) {
         let tab = TabState.Seed.startPage()
@@ -104,7 +87,6 @@ final class WebKitEngineBindingPromptTests: XCTestCase {
 private final class PromptHost: WebKitPageHosting {
     private(set) var asked: [ScriptDialogAsked] = []
     private(set) var signIns: [AuthenticationAsked] = []
-    private(set) var permissions: [PermissionAsked] = []
 
     func ask(_ asked: ScriptDialogAsked, dismissal: BrowserPromptDismissal) {
         self.asked.append(asked)
@@ -114,9 +96,7 @@ private final class PromptHost: WebKitPageHosting {
         signIns.append(asked)
     }
 
-    func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {
-        permissions.append(asked)
-    }
+    func ask(_ asked: PermissionAsked, dismissal: BrowserPromptDismissal) {}
 
     func prepareToLoad(_ url: URL) {}
 
