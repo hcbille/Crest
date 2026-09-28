@@ -10790,7 +10790,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab2 = ShortcutCommand(
         tag: 22,
@@ -10817,7 +10817,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab3 = ShortcutCommand(
         tag: 23,
@@ -10844,7 +10844,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab4 = ShortcutCommand(
         tag: 24,
@@ -10871,7 +10871,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab5 = ShortcutCommand(
         tag: 25,
@@ -10898,7 +10898,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab6 = ShortcutCommand(
         tag: 26,
@@ -10925,7 +10925,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab7 = ShortcutCommand(
         tag: 27,
@@ -10952,7 +10952,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab8 = ShortcutCommand(
         tag: 28,
@@ -10979,7 +10979,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectTab9 = ShortcutCommand(
         tag: 29,
@@ -11006,7 +11006,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let previousSpace = ShortcutCommand(
         tag: 30,
@@ -11087,7 +11087,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace2 = ShortcutCommand(
         tag: 33,
@@ -11114,7 +11114,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace3 = ShortcutCommand(
         tag: 34,
@@ -11141,7 +11141,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace4 = ShortcutCommand(
         tag: 35,
@@ -11168,7 +11168,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace5 = ShortcutCommand(
         tag: 36,
@@ -11195,7 +11195,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace6 = ShortcutCommand(
         tag: 37,
@@ -11222,7 +11222,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace7 = ShortcutCommand(
         tag: 38,
@@ -11249,7 +11249,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace8 = ShortcutCommand(
         tag: 39,
@@ -11276,7 +11276,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let selectSpace9 = ShortcutCommand(
         tag: 40,
@@ -11303,7 +11303,7 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: false
     )
     static let toggleReaderMode = ShortcutCommand(
         tag: 41,
@@ -12012,6 +12012,154 @@ struct ShortcutCommand: Hashable, Sendable {
     }
 
     static func == (lhs: ShortcutCommand, rhs: ShortcutCommand) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+}
+
+/// The members of the core's `ShortcutMenu`. A member's wire tag is its index in `all`.
+struct ShortcutMenu: Hashable, Sendable {
+    let tag: Int
+    let name: String
+    let title: LocalizedStringResource
+    let groups: [[ShortcutCommand]]
+
+    private init(tag: Int, name: String, title: LocalizedStringResource, groups: [[ShortcutCommand]]) {
+        self.tag = tag
+        self.name = name
+        self.title = title
+        self.groups = groups
+    }
+
+    static let file = ShortcutMenu(
+        tag: 0,
+        name: "file",
+        title: LocalizedStringResource("File"),
+        groups: [
+            [
+                ShortcutCommand.newWindow,
+                ShortcutCommand.newBlankWindow,
+                ShortcutCommand.newTab,
+                ShortcutCommand.newQuickWindow,
+                ShortcutCommand.newPrivateWindow
+            ],
+            [ShortcutCommand.openFile],
+            [ShortcutCommand.closeTabOrWindow, ShortcutCommand.closeWindow],
+            [ShortcutCommand.printPage]
+        ]
+    )
+    static let view = ShortcutMenu(
+        tag: 1,
+        name: "view",
+        title: LocalizedStringResource("View"),
+        groups: [
+            [ShortcutCommand.toggleSidebar, ShortcutCommand.toggleTranslationToolbar],
+            [ShortcutCommand.showHistory, ShortcutCommand.showArchive, ShortcutCommand.showDownloads]
+        ]
+    )
+    static let navigate = ShortcutMenu(
+        tag: 2,
+        name: "navigate",
+        title: LocalizedStringResource("Navigate"),
+        groups: [
+            [ShortcutCommand.openLocation],
+            [
+                ShortcutCommand.back,
+                ShortcutCommand.forward,
+                ShortcutCommand.reloadPage,
+                ShortcutCommand.stopLoading,
+                ShortcutCommand.reloadFromOrigin
+            ]
+        ]
+    )
+    static let tabs = ShortcutMenu(
+        tag: 3,
+        name: "tabs",
+        title: LocalizedStringResource("Tabs"),
+        groups: [
+            [
+                ShortcutCommand.toggleSelectedTabPinned,
+                ShortcutCommand.duplicateTab,
+                ShortcutCommand.reopenClosedTab,
+                ShortcutCommand.clearUnpinnedTabs,
+                ShortcutCommand.archiveTab
+            ],
+            [ShortcutCommand.previousTab, ShortcutCommand.nextTab, ShortcutCommand.mostRecentTab],
+            [
+                ShortcutCommand.splitWithNextTab,
+                ShortcutCommand.focusNextSplitCard,
+                ShortcutCommand.focusPreviousSplitCard,
+                ShortcutCommand.moveSplitCardLeft,
+                ShortcutCommand.moveSplitCardRight,
+                ShortcutCommand.removeTabFromSplit,
+                ShortcutCommand.separateSplitTabs
+            ],
+            [
+                ShortcutCommand.selectTab1,
+                ShortcutCommand.selectTab2,
+                ShortcutCommand.selectTab3,
+                ShortcutCommand.selectTab4,
+                ShortcutCommand.selectTab5,
+                ShortcutCommand.selectTab6,
+                ShortcutCommand.selectTab7,
+                ShortcutCommand.selectTab8,
+                ShortcutCommand.selectTab9
+            ]
+        ]
+    )
+    static let spaces = ShortcutMenu(
+        tag: 4,
+        name: "spaces",
+        title: LocalizedStringResource("Spaces"),
+        groups: [
+            [ShortcutCommand.previousSpace, ShortcutCommand.nextSpace],
+            [
+                ShortcutCommand.selectSpace1,
+                ShortcutCommand.selectSpace2,
+                ShortcutCommand.selectSpace3,
+                ShortcutCommand.selectSpace4,
+                ShortcutCommand.selectSpace5,
+                ShortcutCommand.selectSpace6,
+                ShortcutCommand.selectSpace7,
+                ShortcutCommand.selectSpace8,
+                ShortcutCommand.selectSpace9
+            ]
+        ]
+    )
+    static let page = ShortcutMenu(
+        tag: 5,
+        name: "page",
+        title: LocalizedStringResource("Page"),
+        groups: [
+            [ShortcutCommand.toggleReaderMode, ShortcutCommand.toggleContentBlocking],
+            [ShortcutCommand.findInPage],
+            [ShortcutCommand.zoomIn, ShortcutCommand.zoomOut, ShortcutCommand.actualSize],
+            [
+                ShortcutCommand.copyPageLink,
+                ShortcutCommand.copyPageLinkAsMarkdown,
+                ShortcutCommand.sharePage,
+                ShortcutCommand.exportPDF,
+                ShortcutCommand.saveWebArchive
+            ]
+        ]
+    )
+    static let develop = ShortcutMenu(
+        tag: 6,
+        name: "develop",
+        title: LocalizedStringResource("Develop"),
+        groups: [[ShortcutCommand.toggleDeveloperToolbar], [ShortcutCommand.showWebInspector]]
+    )
+
+    static let all: [ShortcutMenu] = [file, view, navigate, tabs, spaces, page, develop]
+
+    static func named(_ name: String?) -> ShortcutMenu? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: ShortcutMenu, rhs: ShortcutMenu) -> Bool {
         lhs.tag == rhs.tag
     }
 

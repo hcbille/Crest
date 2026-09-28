@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x50, 0xf8, 0x7b, 0xc3, 0x86, 0xf0, 0xd4, 0x79, 0x4b, 0x91, 0x6a, 0x40, 0x99, 0x43, 0xa5, 0x59, 0x59, 0xca, 0xe0, 0xd5, 0x01, 0x1a, 0x64, 0x49, 0xfc, 0x22, 0xca, 0xa9, 0x86, 0x64, 0xf1, 0xcc
+        0x6c, 0x62, 0x18, 0xe0, 0x94, 0x24, 0xad, 0xb5, 0xac, 0x15, 0x42, 0x6d, 0xc0, 0x2a, 0x3c, 0x74, 0x2d, 0x60, 0x0f, 0xb2, 0x24, 0xc6, 0x68, 0x8a, 0xf3, 0x47, 0x0d, 0x76, 0x14, 0xc6, 0xa5, 0x98
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -22456,6 +22456,20 @@ extension ShortcutCommand {
         let tag = try reader.readEnum()
         guard Self.all.indices.contains(tag) else {
             throw WireError.malformed("Unknown ShortcutCommand \(tag)")
+        }
+        self = Self.all[tag]
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeEnum(tag)
+    }
+}
+
+extension ShortcutMenu {
+    init(from reader: inout WireReader) throws(WireError) {
+        let tag = try reader.readEnum()
+        guard Self.all.indices.contains(tag) else {
+            throw WireError.malformed("Unknown ShortcutMenu \(tag)")
         }
         self = Self.all[tag]
     }

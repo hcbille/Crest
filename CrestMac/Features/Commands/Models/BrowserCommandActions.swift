@@ -24,61 +24,9 @@ struct BrowserCommandActions {
     /// `BrowserSplitCardMoveDirection`.
     var layoutDirection: LayoutDirection = .leftToRight
 
-    /// The commands the launcher offers on macOS.
-    ///
-    /// Numbered tab and Space selection are left out: they are chords, not
-    /// things anyone searches for by name, and the launcher already lists the
-    /// tabs themselves.
-    static let paletteCommands: [ShortcutCommand] = [
-        .newWindow,
-        .openFile,
-        .newBlankWindow,
-        .newQuickWindow,
-        .newPrivateWindow,
-        .closeTabOrWindow,
-        .closeWindow,
-        .back,
-        .forward,
-        .reloadPage,
-        .stopLoading,
-        .reloadFromOrigin,
-        .toggleSelectedTabPinned,
-        .duplicateTab,
-        .reopenClosedTab,
-        .clearUnpinnedTabs,
-        .archiveTab,
-        .previousTab,
-        .nextTab,
-        .mostRecentTab,
-        .splitWithNextTab,
-        .focusNextSplitCard,
-        .focusPreviousSplitCard,
-        .removeTabFromSplit,
-        .separateSplitTabs,
-        .moveSplitCardLeft,
-        .moveSplitCardRight,
-        .previousSpace,
-        .nextSpace,
-        .toggleReaderMode,
-        .toggleContentBlocking,
-        .findInPage,
-        .zoomIn,
-        .zoomOut,
-        .actualSize,
-        .copyPageLink,
-        .copyPageLinkAsMarkdown,
-        .sharePage,
-        .exportPDF,
-        .saveWebArchive,
-        .printPage,
-        .toggleSidebar,
-        .showHistory,
-        .showArchive,
-        .showDownloads,
-        .showWebInspector,
-        .toggleDeveloperToolbar,
-        .toggleTranslationToolbar,
-    ]
+    /// The commands the launcher offers on macOS: every one the core offers
+    /// in the palette, in the core's order, since this shell performs each.
+    static let paletteCommands = ShortcutCommand.all.filter(\.offersInPalette)
 
     func paletteRegistry(
         shortcuts: BrowserShortcutStore?

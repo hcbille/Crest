@@ -1,8 +1,10 @@
 import AppKit
 import Observation
 
-/// The application's menu bar: Crest's commands in AppKit menus, which act on
-/// the key browser window. A page's context menu stays its engine's own.
+/// The application's menu bar: Crest's commands in AppKit menus, laid out as
+/// the core's `ShortcutMenu`s lay them out, which act on the key browser
+/// window, around AppKit's own application, Edit, Window and Help menus. A
+/// page's context menu stays its engine's own.
 ///
 /// The menus show the commands the device offers, as the read model says: a
 /// command whose feature neither the default engine nor an engine a page is
@@ -39,9 +41,38 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     // MARK: - Actions - Installation
 
-    /// Makes these menus the application's.
+    /// Makes these menus the application's: the application menu, then the
+    /// core's menus of Crest's commands in the core's order, with AppKit's
+    /// Edit menu after File, then Window and Help. AppKit's own items join the
+    /// core's menus where the Mac keeps them: whole-page translation leads
+    /// Page, and full screen ends View.
     func install() {
         let bar = NSMenu()
+        applicationMenu(in: bar)
+        for menu in ShortcutMenu.all {
+            let items = submenu(String(localized: menu.title), in: bar)
+            if menu == .page {
+                applicationItem(.translatePage, in: items)
+                pageMenu = items
+            }
+            commands(menu.groups, in: items)
+            if menu == .view {
+                items.addItem(.separator())
+                standard(
+                    String(localized: "Enter Full Screen"), #selector(NSWindow.toggleFullScreen(_:)), key: "f",
+                    modifiers: [.command, .control], in: items)
+            }
+            if menu == .file { editMenu(in: bar) }
+        }
+        windowMenu(in: bar)
+        let help = submenu(String(localized: "Help"), in: bar)
+        applicationItem(.gettingStarted, in: help)
+        NSApp.helpMenu = help
+        NSApp.mainMenu = bar
+        observeReadModel()
+    }
+
+    private func applicationMenu(in bar: NSMenu) {
         let app = submenu(ProductIdentity.name, in: bar)
         applicationItem(.about, in: app)
         applicationItem(.updates, in: app)
@@ -58,13 +89,9 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         app.addItem(.separator())
         standard(
             String(localized: "Quit Crest"), #selector(NSApplication.terminate(_:)), key: "q", in: app, target: NSApp)
+    }
 
-        commands(
-            [
-                .newWindow, .newBlankWindow, .newTab, .newQuickWindow, .newPrivateWindow, nil, .openFile, nil,
-                .closeTabOrWindow, .closeWindow, nil, .printPage,
-            ], in: submenu(String(localized: "File"), in: bar))
-
+    private func editMenu(in bar: NSMenu) {
         let edit = submenu(String(localized: "Edit"), in: bar)
         standard(String(localized: "Undo"), Selector(("undo:")), key: "z", in: edit)
         standard(String(localized: "Redo"), Selector(("redo:")), key: "z", modifiers: [.command, .shift], in: edit)
@@ -79,49 +106,9 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         standard(String(localized: "Select All"), #selector(NSText.selectAll(_:)), key: "a", in: edit)
         edit.addItem(.separator())
         textItems(in: edit)
+    }
 
-        let view = submenu(String(localized: "View"), in: bar)
-        commands(
-            [.toggleSidebar, .toggleTranslationToolbar, nil, .showHistory, .showArchive, .showDownloads], in: view)
-        view.addItem(.separator())
-        standard(
-            String(localized: "Enter Full Screen"), #selector(NSWindow.toggleFullScreen(_:)), key: "f",
-            modifiers: [.command, .control], in: view)
-
-        commands(
-            [.openLocation, nil, .back, .forward, .reloadPage, .stopLoading, .reloadFromOrigin],
-            in: submenu(String(localized: "Navigate"), in: bar))
-
-        let tabs = submenu(String(localized: "Tabs"), in: bar)
-        commands(
-            [
-                .toggleSelectedTabPinned, .duplicateTab, .reopenClosedTab, .clearUnpinnedTabs, .archiveTab, nil,
-                .previousTab, .nextTab, .mostRecentTab, nil, .splitWithNextTab, .focusNextSplitCard,
-                .focusPreviousSplitCard, .moveSplitCardLeft, .moveSplitCardRight, .removeTabFromSplit,
-                .separateSplitTabs, nil,
-            ], in: tabs)
-        commands(ShortcutCommand.all.filter { $0.selects == .tab }, in: tabs)
-
-        let spaces = submenu(String(localized: "Spaces"), in: bar)
-        commands([.previousSpace, .nextSpace, nil], in: spaces)
-        commands(ShortcutCommand.all.filter { $0.selects == .space }, in: spaces)
-
-        // What the device does not offer (Reader, whole-page translation,
-        // Crest's own content blocking while no WebKit page is open) stays
-        // hidden. Selection translation stays on the engine's own page context
-        // menu, and blocking can come from an extension.
-        let page = submenu(String(localized: "Page"), in: bar)
-        applicationItem(.translatePage, in: page)
-        commands(
-            [
-                .toggleReaderMode, .toggleContentBlocking, nil, .findInPage, nil, .zoomIn, .zoomOut, .actualSize, nil,
-                .copyPageLink, .copyPageLinkAsMarkdown, .sharePage, .exportPDF, .saveWebArchive,
-            ], in: page)
-        pageMenu = page
-
-        commands(
-            [.toggleDeveloperToolbar, nil, .showWebInspector], in: submenu(String(localized: "Develop"), in: bar))
-
+    private func windowMenu(in bar: NSMenu) {
         let window = submenu(String(localized: "Window"), in: bar)
         standard(String(localized: "Minimize"), #selector(NSWindow.performMiniaturize(_:)), key: "m", in: window)
         standard(String(localized: "Zoom"), #selector(NSWindow.performZoom(_:)), in: window)
@@ -130,13 +117,6 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
             String(localized: "Bring All to Front"), #selector(NSApplication.arrangeInFront(_:)), in: window,
             target: NSApp)
         NSApp.windowsMenu = window
-
-        let help = submenu(String(localized: "Help"), in: bar)
-        applicationItem(.gettingStarted, in: help)
-        NSApp.helpMenu = help
-
-        NSApp.mainMenu = bar
-        observeReadModel()
     }
 
     // MARK: - Actions - Menus
@@ -247,14 +227,12 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     // MARK: - Actions - Items
 
-    /// Adds an item for each command, and a separator for each nil.
-    private func commands(_ commands: [ShortcutCommand?], in menu: NSMenu) {
-        for command in commands {
-            guard let command else {
-                if let last = menu.items.last, !last.isSeparatorItem { menu.addItem(.separator()) }
-                continue
-            }
-            self.command(command, in: menu)
+    /// Adds an item for each command of `groups`, with a separator between
+    /// one group and the next.
+    private func commands(_ groups: [[ShortcutCommand]], in menu: NSMenu) {
+        for (index, group) in groups.enumerated() {
+            if index > 0 { menu.addItem(.separator()) }
+            for command in group { self.command(command, in: menu) }
         }
     }
 

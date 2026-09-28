@@ -44,6 +44,17 @@ public sealed class ShortcutCatalogTests {
         Assert.Same(ShortcutCommand.ShowWebInspector, ShortcutCommand.Named("webInspectorInstructions"));
     }
 
+    /// Every command has one menu item, so a platform whose chords run through
+    /// its menus runs each of them, and a new command cannot go missing.
+    [Fact]
+    public void EveryCommandSitsInExactlyOneMenuGroup() {
+        var groups = ShortcutMenu.All.SelectMany(menu => menu.Groups).ToArray();
+        var placed = groups.SelectMany(group => group).ToArray();
+        Assert.Equal(placed.Length, placed.Distinct().Count());
+        Assert.Empty(ShortcutCommand.All.Except(placed));
+        Assert.DoesNotContain(groups, group => group.Count == 0);
+    }
+
     [Theory]
     [InlineData("desktop")]
     [InlineData("mobile")]

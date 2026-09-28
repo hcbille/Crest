@@ -12,7 +12,8 @@ namespace CrestCore.Contracts;
 /// on each platform, the engine capability its whole feature needs, and, for
 /// a numbered command, what it selects. Persisted shortcut overrides are keyed
 /// by `Name`, so a name never changes. `All` is append-only, and its order is
-/// the order the settings list shows within a section.
+/// the order the settings list shows within a section. Each command sits in
+/// one group of one `ShortcutMenu`, which is where the menu bar shows it.
 public sealed class ShortcutCommand {
     #region Types
 
@@ -311,8 +312,11 @@ public sealed class ShortcutCommand {
     /// anything is typed, counting from one, or null when it waits to be typed.
     public int? PaletteRest { get; }
 
-    /// The palette offers the command. The commands that open the palette
-    /// itself leave it out.
+    /// The palette offers the command, in catalog order, wherever the
+    /// platform performs it. The commands that open the palette itself leave
+    /// it out, and so do the numbered ones: they are chords rather than
+    /// something anyone searches for by name, and the palette lists the tabs
+    /// themselves.
     public bool OffersInPalette { get; }
 
     /// Whether a window can run the command now, by what it shows. Commands
@@ -346,12 +350,13 @@ public sealed class ShortcutCommand {
     /// ⌘1–⌘9 select the Nth stop of the shown Space's sidebar.
     private static ShortcutCommand SelectingTab(string name, int number) => new(Kinds.SelectNumbered, name, ShortcutSection.Tabs,
         title: "Select Tab %lld", symbol: "square.on.square", shortcuts: Everywhere(Character(Digit(number), Command)),
-        selects: NumberedSelectionTarget.Tab, number: number);
+        selects: NumberedSelectionTarget.Tab, number: number, offersInPalette: false);
 
     /// ⌃1–⌃9 select the Nth Space.
     private static ShortcutCommand SelectingSpace(string name, int number) => new(Kinds.SelectNumbered, name,
         ShortcutSection.Spaces, title: "Select Space %lld", symbol: "rectangle.3.group",
-        shortcuts: Everywhere(Character(Digit(number), Control)), selects: NumberedSelectionTarget.Space, number: number);
+        shortcuts: Everywhere(Character(Digit(number), Control)), selects: NumberedSelectionTarget.Space, number: number,
+        offersInPalette: false);
 
     #endregion
 

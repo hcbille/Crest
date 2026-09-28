@@ -3329,6 +3329,10 @@
     "setup-no-longer-waits-on-icloud": {
       "category": "fixed",
       "message": "Setup no longer waits forever when iCloud doesn't answer: after a few seconds you can set up without it, and sync tries iCloud again on its own."
+    },
+    "core-lays-out-command-menus": {
+      "category": "internal",
+      "message": "The core lays out the menu bar's command menus and the launcher's command list, which the Mac shell builds from, so every command keeps a menu item and a shortcut."
     }
   }
 }
