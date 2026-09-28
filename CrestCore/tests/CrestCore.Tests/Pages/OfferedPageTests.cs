@@ -88,7 +88,8 @@ public sealed partial class BrowserContractsTests {
         app.Report(engine, new PageOffered(offer, profile, source, WindowId: null, space, signIn, Foreground: true));
         var changes = app.Drain();
         var adopted = Assert.Single(changes.OfType<OfferedWindowAdopted>());
-        Assert.Equal((workspace, window, space, signIn), (adopted.WorkspaceId, adopted.WindowId, adopted.SpaceId, adopted.Url));
+        Assert.Equal((source, workspace, window, space, signIn),
+            (adopted.SourcePageId, adopted.WorkspaceId, adopted.WindowId, adopted.SpaceId, adopted.Url));
         Assert.Empty(changes.OfType<OfferedPageAdopted>());
         Assert.Equal(tabs, CurrentTabs(app, workspace, space).Count);
         var opened = Assert.Single(changes.OfType<PageOpened>()).Page;

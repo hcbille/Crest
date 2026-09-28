@@ -245,7 +245,13 @@
             guard let context = resolver.context(for: request),
                 let space = context.browser.spaceModel(matching: request.assignment),
                 !application.spaceAccess.isLocked(space)
-            else { return }
+            else {
+                if request.openedPageID != nil {
+                    DiagnosticLog.popups.notice(
+                        "No window hosts the Quick Window for popup page \(request.openedPageID?.uuidString ?? "")")
+                }
+                return
+            }
             let current = QuickRequest(request)
             let model = BrowserQuickWindowModel(
                 request: request, browser: context.browser, pages: context.pages,

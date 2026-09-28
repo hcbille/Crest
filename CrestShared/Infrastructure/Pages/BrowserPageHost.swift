@@ -36,6 +36,11 @@ final class BrowserPageHost {
     @ObservationIgnored var dropPresentation: @MainActor (UUID) -> Void = { _ in }
     @ObservationIgnored private(set) var transientLeases: [UUID: WeakBrowserTransientPageLease] = [:]
     @ObservationIgnored private var peekLeases: [UUID: PeekLease] = [:]
+    /// The pages the core adopted as windows pages asked for, by page, until
+    /// the Quick Window that shows each takes it. Every window over the
+    /// workspace shares them, so the Quick Window finds its page whichever
+    /// window's pool it opens over.
+    @ObservationIgnored private var popupWindowPages: [UUID: BrowserPlatformPage] = [:]
 
     // MARK: - Initializers
 
@@ -49,9 +54,33 @@ final class BrowserPageHost {
     /// Every tab's resident page.
     var residentPages: [BrowserPlatformPage] { runtimes.values.map(\.page) }
 
-    /// Every page the host keeps: the tabs' and the leases'.
+    /// Every page the host keeps: the tabs', the leases' and the popup
+    /// windows' waiting for their Quick Window.
     var livePages: [BrowserPlatformPage] {
         runtimes.values.flatMap(\.allPages) + transientLeases.values.compactMap { $0.value?.page }
+            + popupWindowPages.values
+    }
+
+    // MARK: - Actions - Popup windows
+
+    /// Keeps `page`, which the core adopted for a window a page asked for,
+    /// until its Quick Window takes it; false when the host already keeps it.
+    func keepPopupWindowPage(_ page: BrowserPlatformPage) -> Bool {
+        guard popupWindowPages[page.corePage.id] == nil else { return false }
+        popupWindowPages[page.corePage.id] = page
+        return true
+    }
+
+    /// The popup window's page `pageID` names, which leaves the host for the
+    /// Quick Window that shows it; nil when the host keeps no such page.
+    func takePopupWindowPage(_ pageID: UUID) -> BrowserPlatformPage? {
+        popupWindowPages.removeValue(forKey: pageID)
+    }
+
+    /// Whether the host keeps `page` for a Quick Window that has not taken
+    /// it yet.
+    func keepsPopupWindowPage(_ page: BrowserPlatformPage) -> Bool {
+        popupWindowPages[page.corePage.id] === page
     }
 
     /// The tab's resident page.

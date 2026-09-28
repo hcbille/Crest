@@ -26,11 +26,13 @@ public sealed record NavigationRecorded(Guid PageId, Guid WorkspaceId, Guid Spac
 public sealed record OfferedPageAdopted(Guid PageId, Guid WorkspaceId, Guid WindowId, Guid SpaceId, Guid TabId, bool Shows)
     : Change;
 
-/// The core adopted a window a page asked for, which its engine opened by
-/// itself, as the Quick Window page `PageId` names, in `SpaceId` of the
-/// workspace `WorkspaceId`, heading to `Url`. The window `WindowId` names, its
-/// opener's, hosts the page and shows it in a Quick Window of its own.
-public sealed record OfferedWindowAdopted(Guid PageId, Guid WorkspaceId, Guid WindowId, Guid SpaceId, string Url) : Change;
+/// The core adopted a window the page `SourcePageId` names asked for, which
+/// its engine opened by itself, as the Quick Window page `PageId` names, in
+/// `SpaceId` of the workspace `WorkspaceId`, heading to `Url`, hosted by the
+/// window `WindowId` names, its opener's. The window that shows the opener
+/// now shows the page in a Quick Window of its own.
+public sealed record OfferedWindowAdopted(Guid PageId, Guid SourcePageId, Guid WorkspaceId, Guid WindowId, Guid SpaceId,
+    string Url) : Change;
 
 /// A page moved to another owner, or its engine created, failed or closed it.
 public sealed record PageChanged(PageState Page) : Change;

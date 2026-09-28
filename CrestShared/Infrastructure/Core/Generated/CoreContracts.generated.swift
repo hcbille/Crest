@@ -3374,6 +3374,7 @@ struct OfferedPageAdopted: Equatable, Sendable {
 
 struct OfferedWindowAdopted: Equatable, Sendable {
     let pageID: UUID
+    let sourcePageID: UUID
     let workspaceID: UUID
     let windowID: UUID
     let spaceID: UUID

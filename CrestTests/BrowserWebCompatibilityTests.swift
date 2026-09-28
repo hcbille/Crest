@@ -1,3 +1,4 @@
+import SwiftUI
 import WebKit
 import XCTest
 
@@ -653,6 +654,199 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         }
 
         await removeDataStore(profile.id)
+    }
+
+    /// The shape of a Google Identity Services sign-in, in a window that was
+    /// closed and opened again under the same identity, as the first window
+    /// is, while the pool of the window that closed is still alive: a
+    /// cross-site frame in the page opens a sized popup, which redirects
+    /// across sites to a page the person must use, then posts back to the
+    /// frame that opened it and closes itself. The popup is one Quick Window
+    /// over the window the person is using, which keeps its opener, and no
+    /// tab appears.
+    func testASignInPopupFromACrossSiteFrameShowsInOneQuickWindowThatKeepsItsOpenerAndClosesItself() async throws {
+        let server = try BrowserPrivacyHTTPServer()
+        try await server.start()
+        defer { server.stop() }
+        let port = server.port
+        let (site, provider) = ("127.0.0.1", "localhost")
+        server.overrideResponse = { request in
+            func page(_ body: String) -> (status: String, headers: String, body: Data) {
+                ("200 OK", "Content-Type: text/html\r\n", Data("<!doctype html><html><body>\(body)</body></html>".utf8))
+            }
+            func redirect(_ location: String) -> (status: String, headers: String, body: Data) {
+                ("302 Found", "Location: \(location)\r\n", Data())
+            }
+            switch request.path {
+            case "/opener":
+                return page(
+                    """
+                    <iframe src="http://\(provider):\(port)/button"></iframe>
+                    <script>
+                    addEventListener('message', event => { globalThis.fromFrame = String(event.data); });
+                    </script>
+                    """)
+            case "/button":
+                return page(
+                    """
+                    <script>
+                    addEventListener('message', event => {
+                      if (event.data === 'open') {
+                        const popup = window.open('http://\(provider):\(port)/select', 'crest_sign_in',
+                          'width=500,height=600');
+                        parent.postMessage(popup === null ? 'null' : 'window', '*');
+                      } else if (event.source !== parent) {
+                        parent.postMessage('relayed:' + event.data, '*');
+                      }
+                    });
+                    parent.postMessage('ready', '*');
+                    </script>
+                    """)
+            case "/select": return redirect("http://\(site):\(port)/bounce")
+            case "/bounce": return redirect("http://\(provider):\(port)/consent")
+            case "/consent":
+                return page(
+                    """
+                    <button id="continue" onclick="location.href = '/done'">Continue</button>
+                    """)
+            case "/done":
+                return page(
+                    """
+                    <script>
+                    if (window.opener) { window.opener.postMessage('signed-in', '*'); }
+                    setTimeout(() => window.close(), 100);
+                    </script>
+                    """)
+            default: return ("404 Not Found", "", Data())
+            }
+        }
+
+        let openerTab = TabState.Seed(title: "Opener", url: nil, placement: .current)
+        let profile = BrowsingProfile()
+        let space = makeSpace(profile: profile, tabs: [openerTab])
+        let store = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
+        let primary = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
+        let spaceAccess = BrowserSpaceAccessController(authenticator: BrowserPreviewAuthenticator(result: true))
+        let windowID = UUID()
+        func openWindow() -> (browser: BrowserStore, pages: BrowserPagePool) {
+            let browser = store.makeWindowStore(
+                BrowserWindowOpening(id: windowID, saved: true, copying: store.windowID))
+            let pages = primary.makeWindowPool(
+                browser: browser, sharesRuntimes: true, transientBrowsing: BrowserTransientBrowsingCoordinator(),
+                spaceAccess: spaceAccess)
+            return (browser, pages)
+        }
+        let quickWindows = QuickWindowStandIn(browser: store, primary: primary, spaceAccess: spaceAccess)
+        // The window closed, but its pool, whose view had installed a way to
+        // open Quick Windows, is still alive when the window opens again.
+        let closed = openWindow()
+        closed.pages.popupWindowPresenter = { quickWindows.open($0) }
+        closed.pages.releaseWindowPresentation()
+        closed.browser.close()
+        let window = openWindow()
+        window.pages.popupWindowPresenter = { quickWindows.open($0) }
+        quickWindows.registry.register(window.pages, browser: window.browser, for: windowID)
+
+        do {
+            window.pages.select()
+            let opener = try XCTUnwrap(window.pages.activePage)
+            let origin = server.url(host: site, path: "/opener")
+            // The frame asks for its window from a message, as a sign-in
+            // library does from its own events, so the site allows windows.
+            window.pages.permissionCenter.setDecision(
+                .grantPersistently, for: .popups, origin: try XCTUnwrap(SiteOrigin(url: origin)), in: space.id)
+            opener.synchronizePopupPermission(for: origin)
+            opener.load(origin)
+            try await waitUntil("the sign-in frame to load") {
+                try await self.stringResult(from: opener.webView, script: "return globalThis.fromFrame ?? '';")
+                    == "ready"
+            }
+
+            _ = try await stringResult(
+                from: opener.webView,
+                script: "document.querySelector('iframe').contentWindow.postMessage('open', '*'); return 'sent';")
+            try await waitUntil("window.open() to hand the frame a window") {
+                try await self.stringResult(from: opener.webView, script: "return globalThis.fromFrame ?? '';")
+                    == "window"
+            }
+
+            // The popup shows in one Quick Window, across both redirects.
+            let consent = server.url(host: provider, path: "/consent")
+            try await waitUntil("the Quick Window to show the provider's page", timeout: .seconds(15)) {
+                quickWindows.models.first?.page?.live.documentURL == consent
+            }
+            XCTAssertEqual(quickWindows.requests.count, 1, "A sign-in popup opens one Quick Window.")
+            let quickWindow = try XCTUnwrap(quickWindows.models.first)
+            let popup = try XCTUnwrap(quickWindow.page)
+            XCTAssertTrue(popup.wasOpenedAsPopup)
+            // The person sees it: the popup's page is in the Quick Window, on screen.
+            let shown = try XCTUnwrap(quickWindows.windows.first)
+            try await waitUntil("the Quick Window to show the popup on screen") {
+                popup.webView.window === shown && shown.isVisible && popup.webView.bounds.width > 0
+            }
+            _ = try await stringResult(
+                from: popup.webView, script: "document.querySelector('#continue').click(); return 'clicked';")
+
+            try await waitUntil("the popup to report back through its opener") {
+                try await self.stringResult(from: opener.webView, script: "return globalThis.fromFrame ?? '';")
+                    == "relayed:signed-in"
+            }
+            try await waitUntil("window.close() to close the Quick Window") { quickWindow.wasClosedByPage }
+            XCTAssertEqual(store.shownSpace?.tabs.models.map(\.id), [openerTab.id])
+        }
+        quickWindows.closeAll()
+
+        await removeDataStore(profile.id)
+    }
+
+    /// Stands in for the process host's Quick Windows, as the Chromium build
+    /// opens them: a window over the Quick Window's own view, for the context
+    /// its target window resolves to through the pool registry, opened while
+    /// the page waits.
+    @MainActor
+    private final class QuickWindowStandIn {
+        let browser: BrowserStore
+        let primary: BrowserPagePool
+        let spaceAccess: BrowserSpaceAccessController
+        let registry: BrowserPagePoolRegistry
+        private(set) var requests: [BrowserQuickWindowRequest] = []
+        private(set) var models: [BrowserQuickWindowModel] = []
+        private(set) var windows: [NSWindow] = []
+
+        init(browser: BrowserStore, primary: BrowserPagePool, spaceAccess: BrowserSpaceAccessController) {
+            self.browser = browser
+            self.primary = primary
+            self.spaceAccess = spaceAccess
+            registry = BrowserPagePoolRegistry(primary: primary, spaceAccess: spaceAccess)
+        }
+
+        func open(_ request: BrowserQuickWindowRequest) {
+            requests.append(request)
+            let resolver = BrowserQuickWindowContextResolver(
+                browser: browser, pages: primary, pagePoolRegistry: registry)
+            guard let context = resolver.context(for: request) else { return }
+            let model = BrowserQuickWindowModel(
+                request: request, browser: context.browser, pages: context.pages, spaceAccess: spaceAccess,
+                supportsLivePagePromotion: context.supportsLivePagePromotion, preferences: .isolated,
+                requestLifecycle: BrowserQuickWindowRequestLifecycle(
+                    isCurrent: { $0.id == request.id }, replace: { expected, _ in expected.id == request.id }))
+            models.append(model)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 640, height: 720), styleMask: [.titled, .closable, .resizable],
+                backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentViewController = NSHostingController(
+                rootView: BrowserQuickWindowWindowSurface(
+                    model: model, spaceAccess: spaceAccess, pagePoolRegistry: registry,
+                    dismiss: { [weak window] in window?.close() }, openBrowserWindow: {}
+                ).environment(BrowserWindowTransparencyPreviewFixture.makeStore()))
+            windows.append(window)
+            window.makeKeyAndOrderFront(nil)
+        }
+
+        func closeAll() {
+            for window in windows { window.close() }
+        }
     }
 
     private func fixtureURL(_ serverURL: URL, run: String, tab: Int) throws -> URL {

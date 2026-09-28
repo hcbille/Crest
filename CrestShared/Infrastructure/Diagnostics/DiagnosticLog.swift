@@ -9,6 +9,7 @@ struct DiagnosticLog: Sendable {
     // MARK: - Static Variables
 
     static let links = DiagnosticLog(category: "Links")
+    static let popups = DiagnosticLog(category: "Popups")
     static let shortcuts = DiagnosticLog(category: "Shortcuts")
     static let sitePermissions = DiagnosticLog(category: "SitePermissions")
     static let windows = DiagnosticLog(category: "Windows")

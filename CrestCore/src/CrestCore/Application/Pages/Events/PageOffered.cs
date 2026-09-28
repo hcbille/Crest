@@ -97,7 +97,7 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
             TransientPresentation.QuickWindow, openedByPage: true);
         pages.Add(page);
         turn.Changes.Publish(new PageOpened(page.State));
-        turn.Changes.Publish(new OfferedWindowAdopted(page.Id, source.WorkspaceId, source.WindowId, space.Id, Url));
+        turn.Changes.Publish(new OfferedWindowAdopted(page.Id, source.Id, source.WorkspaceId, source.WindowId, space.Id, Url));
         turn.Issue(engine, new AdoptOfferedPage(page.Id, OfferId, page.ProfileId, workspace.IsPrivateBrowsing, source.WindowId));
         return true;
     }

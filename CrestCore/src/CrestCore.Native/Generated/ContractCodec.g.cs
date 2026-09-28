@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0xf7, 0xe3, 0x07, 0xf8, 0xf7, 0xe9, 0x03, 0xae, 0x6f, 0x1a, 0x57, 0xdd, 0x3f, 0xfc, 0xe0, 0xc1, 0x6f, 0xfc, 0xac, 0x09, 0xd6, 0x84, 0xa4, 0x4b, 0xa8, 0xd0, 0x8b, 0x0c, 0x15, 0xb1, 0x2a, 0x06
+        0x01, 0xb7, 0xdc, 0x0f, 0x68, 0x7a, 0x85, 0xa0, 0xa5, 0x6b, 0xbc, 0x96, 0xb4, 0x88, 0xa6, 0x6e, 0x36, 0x22, 0x7d, 0xfd, 0x7d, 0xd0, 0xf9, 0x08, 0x3e, 0x49, 0xf3, 0x20, 0xe1, 0x10, 0x1b, 0xce
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -10415,6 +10415,7 @@ public static class ContractCodec {
             reader.ReadGuid(),
             reader.ReadGuid(),
             reader.ReadGuid(),
+            reader.ReadGuid(),
             reader.ReadString());
     }
 
@@ -10422,6 +10423,7 @@ public static class ContractCodec {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(value);
         writer.WriteGuid(value.PageId);
+        writer.WriteGuid(value.SourcePageId);
         writer.WriteGuid(value.WorkspaceId);
         writer.WriteGuid(value.WindowId);
         writer.WriteGuid(value.SpaceId);

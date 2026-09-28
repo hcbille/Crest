@@ -617,9 +617,12 @@ core no longer hosts, or that another engine hosts, changes nothing.
   (`SpaceId` with a source: Chromium's popup and new-window dispositions,
   WebKit's popup window features, as HTML's "popup window is requested"
   decides), becomes a Quick Window page in its opener's Space and window,
-  published as `OfferedWindowAdopted`. The opener's window hosts the page at
-  once and opens a Quick Window that takes it, so a sign-in popup is one
-  window whose redirects stay in it; its `window.close()` closes the Quick
+  published as `OfferedWindowAdopted` with the page that asked for it. The
+  window that routes that page now, which is the one the person is using
+  rather than the one the core recorded, hosts the popup's page at once in
+  the page host every window over the workspace shares, and opens a Quick
+  Window over itself that takes it, so a sign-in popup is one window whose
+  redirects stay in it; its `window.close()` closes the Quick
   Window, and Open in makes it a tab with its opener intact. Otherwise a
   transient page keeps what it opens: the core rejects the offer and loads
   the address in the Quick Window or Peek itself, in one page with its native

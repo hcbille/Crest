@@ -280,7 +280,12 @@ final class WebKitEngineBinding: EngineBinding {
             PageOffered(
                 offerID: offerID, profileID: opener.profileID, sourcePageID: opener.id, windowID: nil, spaceID: window,
                 url: url, foreground: foreground))
-        guard let page = adoptedOffers.removeValue(forKey: offerID) else { return nil }
+        guard let page = adoptedOffers.removeValue(forKey: offerID) else {
+            DiagnosticLog.popups.notice(
+                "The core gave the window page \(opener.id) asked for no page of its own "
+                    + "(window: \(popup.wantsWindow))")
+            return nil
+        }
         engines.core.drain()
         return page
     }

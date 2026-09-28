@@ -96,9 +96,6 @@ final class BrowserPagePool:
     @ObservationIgnored private let pageZoomPreferences: BrowserDefaultPageZoomStore
     @ObservationIgnored private let dialogPresenter: BrowserDialogPresenter
     @ObservationIgnored private let popupTabHost: BrowserPopupTabHost
-    /// The pages the core adopted as windows this window's pages asked for,
-    /// until the Quick Window that shows each takes it.
-    @ObservationIgnored private var popupWindowPages: [UUID: BrowserPage] = [:]
     /// Opens a Quick Window for a window a page asked for; the window's
     /// presentation installs it. Without one, such a page has nowhere to show
     /// and goes.
@@ -688,9 +685,8 @@ final class BrowserPagePool:
     /// callback is not safe.
     func closeWebContentInitiatedPage(_ page: BrowserPage) {
         guard page.wasOpenedAsPopup else { return }
-        if let pageID = popupWindowPages.first(where: { $0.value === page })?.key {
-            popupWindowPages[pageID] = nil
-            Task { @MainActor in page.release(keepingState: false) }
+        if host.keepsPopupWindowPage(page), let parked = host.takePopupWindowPage(page.corePage.id) {
+            Task { @MainActor in parked.release(keepingState: false) }
             return
         }
         if host.liveTransientLeases.first(where: { $0.page === page })?.closeForPage() == true { return }
@@ -703,45 +699,68 @@ final class BrowserPagePool:
 
     // MARK: - Actions - Popup windows
 
-    /// Hosts the page the core adopted for a window one of this window's
-    /// pages asked for, answering its navigations from now on, and opens the
-    /// Quick Window that shows it, which takes the page from here. A page no
-    /// Quick Window takes goes.
+    /// Hosts the page the core adopted for a window a page asked for, when
+    /// this pool routes that page now, and opens the Quick Window that shows
+    /// it over this window, which takes the page from the host every window
+    /// over the workspace shares. The page answers its navigations from now
+    /// on. The core names the opener's window, but a page another window shows
+    /// is routed there, and a pool left over from a window that closed under
+    /// the same identity routes nothing, so neither hosts it. A page no Quick
+    /// Window takes goes.
     private func popupWindowAdopted(_ adopted: OfferedWindowAdopted) {
-        guard adopted.windowID == windowID, adopted.workspaceID == browser.window.workspaceID,
-            popupWindowPages[adopted.pageID] == nil,
-            let opened = browser.core.engines.host(adopted.pageID)
-        else { return }
+        guard adopted.workspaceID == browser.window.workspaceID, routesPopupWindow(of: adopted) else { return }
+        guard let opened = browser.core.engines.host(adopted.pageID) else { return }
         guard let space = browser.spaceModel(adopted.spaceID), let present = popupWindowPresenter,
             let url = URL(string: adopted.url),
             let page = makePage(space: space, presentation: .quickWindow, opened: opened)
         else {
+            DiagnosticLog.popups.notice("No Quick Window can show popup page \(adopted.pageID) over window \(windowID)")
             opened.page.release(keepingState: false)
             return
         }
         page.markOpenedAsPopup()
-        popupWindowPages[adopted.pageID] = page
+        guard host.keepPopupWindowPage(page) else {
+            page.release(keepingState: false)
+            return
+        }
+        DiagnosticLog.popups.notice("Opening a Quick Window for popup page \(adopted.pageID) over window \(windowID)")
         present(
             BrowserQuickWindowRequest(
                 url: url, spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: windowID,
                 openedPageID: adopted.pageID))
-        Task { @MainActor [weak self] in
+        Task { @MainActor [weak host] in
             try? await Task.sleep(for: Self.popupWindowWait)
-            self?.popupWindowPages.removeValue(forKey: adopted.pageID)?.release(keepingState: false)
+            guard let page = host?.takePopupWindowPage(adopted.pageID) else { return }
+            DiagnosticLog.popups.notice("No Quick Window took popup page \(adopted.pageID); it goes")
+            page.release(keepingState: false)
         }
+    }
+
+    /// Whether this pool is the one to host the window `adopted` names: the
+    /// pool that routes the page that asked for it now, or, when no window
+    /// routes that page, the pool of the window the core names.
+    private func routesPopupWindow(of adopted: OfferedWindowAdopted) -> Bool {
+        guard let source = host.livePages.first(where: { $0.corePage.id == adopted.sourcePageID }),
+            let router = source.host
+        else { return adopted.windowID == windowID }
+        return router === self
     }
 
     /// A lease on the page the core adopted for a popup window, `pageID`, for
     /// the Quick Window that shows it in `space`, which the page may close.
-    /// Nil when this window hosts no such page, or it went. The page is
-    /// already heading where the window asked, so the lease loads nothing;
-    /// `url` is what it loads again after memory pressure.
+    /// Nil when the host keeps no such page, or it went. The page is already
+    /// heading where the window asked, so the lease loads nothing; `url` is
+    /// what it loads again after memory pressure.
     func makePopupWindowLease(
         for pageID: UUID, url: URL, in space: SpaceModel,
         onUserActivity: @escaping () -> Void, onClosedByPage: @escaping () -> Void
     ) -> BrowserTransientPageLease? {
-        guard let page = popupWindowPages.removeValue(forKey: pageID) else { return nil }
+        guard let page = host.takePopupWindowPage(pageID) else {
+            DiagnosticLog.popups.notice("Popup page \(pageID) is gone before its Quick Window took it")
+            return nil
+        }
         guard page.spaceID == space.id, page.profileID == space.profileID else {
+            DiagnosticLog.popups.notice("Popup page \(pageID) belongs to another Space than its Quick Window")
             page.release(keepingState: false)
             return nil
         }
