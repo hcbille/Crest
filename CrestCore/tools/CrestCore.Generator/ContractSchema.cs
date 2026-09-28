@@ -592,6 +592,13 @@ internal sealed class ContractSchema {
         var constants = new List<ContractConstant>();
         // Register before resolving properties so a data member may name this set or one that names it.
         sets[type] = new ContractSet(type, properties, members, coreOnly, type.IsDefined(typeof(OpenSetAttribute), false), constants);
+        if (!describesData) {
+            // Only a member's tag crosses the wire, so a contract that leaves out set data also leaves out
+            // the enums and sets that data names: an engine outlives any edit to them.
+            members.AddRange(instances.Select((instance, tag) => new ContractSetMember(MemberName(type, instance, $"{name}.{SetAll}[{tag}]"),
+                tag, [])));
+            return new SetField(type);
+        }
         foreach (var constant in type.GetFields(BindingFlags.Public | BindingFlags.Static).Where(field => field.IsLiteral)) {
             string at = $"{name}.{constant.Name}";
             if (ResolveSetData(constant.FieldType, null, at, type) is not PrimitiveField primitive)

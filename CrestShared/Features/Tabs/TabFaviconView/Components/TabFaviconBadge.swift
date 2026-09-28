@@ -1,14 +1,15 @@
 import SwiftUI
 
-/// A mark a tab's icon wears in its bottom-trailing corner, such as the engine
-/// its page runs on.
+/// The mark a tab's icon wears in its bottom-trailing corner: the engine its
+/// page runs on.
 ///
-/// It sits on a disc of its own drawn over the window's ground rather than
-/// over the icon: a favicon can be any colour, and the mark has to stay
-/// readable against all of them. A sidebar row and a pinned tile draw it at
-/// the same size, hung off the same corner, so pinning a tab changes nothing
-/// about how it is marked. The disc is sized against the row's 18pt favicon,
-/// the smaller of the two, so it never grows into the icon it annotates.
+/// The mark sits on a disc of the window's ground, ringed by a hairline,
+/// rather than on the icon: a favicon can be any colour, and the mark's own
+/// colours carry it only against a plain ground. A sidebar row and a pinned
+/// tile draw it at the same size, hung off the same corner, so pinning a tab
+/// changes nothing about how it is marked. The disc is sized against the row's
+/// 18pt favicon, the smaller of the two, so it never grows into the icon it
+/// annotates.
 ///
 /// Drawn over the favicon after the tab's residency fade, so the mark keeps
 /// full strength on a tab the shell no longer holds in memory.
@@ -20,13 +21,13 @@ import SwiftUI
 struct TabFaviconBadge: View {
     // MARK: - Static Variables
 
-    /// The disc the artwork is drawn on, which keeps it readable over a
-    /// favicon of any colour.
+    /// The disc the mark is drawn on, which keeps it readable over a favicon
+    /// of any colour.
     static let diameter: CGFloat = 10
 
-    /// The artwork inside that disc, inset far enough that the disc still
-    /// reads as a ring around it at either favicon size.
-    static let artworkSize: CGFloat = 6.5
+    /// The mark inside that disc: as large as it can be while the ring still
+    /// shows around it at either favicon size.
+    static let markSize: CGFloat = 8
 
     /// How far the badge hangs past the favicon's corner, so it reads as
     /// attached to the icon rather than drawn on top of it.
@@ -34,9 +35,7 @@ struct TabFaviconBadge: View {
 
     // MARK: - Variables
 
-    /// What the badge shows. A template image, such as a symbol, draws in the
-    /// secondary ink; other artwork draws as it was authored.
-    let artwork: Image
+    let mark: EngineMark
 
     /// What the badge says when the pointer rests on it.
     let title: Text
@@ -46,14 +45,9 @@ struct TabFaviconBadge: View {
     var scale: CGFloat = 1
 
     var body: some View {
-        artwork
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .foregroundStyle(.secondary)
-            .frame(width: Self.artworkSize * scale, height: Self.artworkSize * scale)
+        mark.artwork
+            .frame(width: Self.markSize * scale, height: Self.markSize * scale)
             .frame(width: Self.diameter * scale, height: Self.diameter * scale)
-            .background(CrestColor.chromeSurface, in: .circle)
             .background(.background, in: .circle)
             .overlay {
                 Circle()
@@ -73,7 +67,9 @@ struct TabFaviconBadge: View {
                     .fill(.tint)
                     .frame(width: TabFaviconMetrics.defaultSize, height: TabFaviconMetrics.defaultSize)
                     .overlay(alignment: .bottomTrailing) {
-                        TabFaviconBadge(artwork: Image(systemName: engine.symbol), title: Text(engine.pageDescription))
+                        if let mark = engine.mark {
+                            TabFaviconBadge(mark: mark, title: Text(engine.pageDescription))
+                        }
                     }
             }
         }

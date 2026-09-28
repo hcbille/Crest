@@ -1,14 +1,26 @@
 namespace CrestCore.Contracts;
 
+#region Types
+
+/// A mark Crest draws for an engine, beside its name and on the badge a tab's
+/// icon wears while its page runs on it. Each is Crest's own artwork, never the
+/// engine's logo, which is its owner's trademark; each platform draws it once.
+public enum EngineMark {
+    /// A blue tile stacked on a warm one, seen from above at an angle.
+    StackedTile,
+}
+
+#endregion
+
 /// A browsing engine Crest can host pages on. A composition registers the
 /// engines it carries, one of them as the default, and each page belongs to
 /// one engine. A kind travels as its index in `All`, so `All` is append-only.
 public sealed class EngineKind {
     #region Static Variables
 
-    public static readonly EngineKind Chromium = new(name: "chromium", title: "Chromium", symbol: "smallcircle.filled.circle",
+    public static readonly EngineKind Chromium = new(name: "chromium", title: "Chromium", mark: null,
         pageDescription: "Runs in Chromium");
-    public static readonly EngineKind WebKit = new(name: "webkit", title: "WebKit", symbol: "location.north.fill",
+    public static readonly EngineKind WebKit = new(name: "webkit", title: "WebKit", mark: EngineMark.StackedTile,
         pageDescription: "Runs in WebKit");
 
     public static IReadOnlyList<EngineKind> All { get; } = [Chromium, WebKit];
@@ -26,11 +38,11 @@ public sealed class EngineKind {
 
     public string TitleComment { get; } = "The name of a browser engine. Keep the product name as it is.";
 
-    /// The SF Symbol that stands for the engine beside its name and on the
-    /// badge a tab's icon wears while its page runs on it. A stand-in, never
-    /// the engine's own logo: the engines' logos are their owners' trademarks,
-    /// and Apple's `safari` symbol may only refer to Safari.
-    public string Symbol { get; }
+    /// The mark that stands for the engine beside its name and on the badge a
+    /// tab's icon wears while its page runs on it. Chromium has none: it is
+    /// the engine a device with both opens pages on, so its pages are the
+    /// expected case and need no mark.
+    public EngineMark? Mark { get; }
 
     /// What a tab says about the engine its page runs on to someone who
     /// cannot see its badge, and what the badge says on hover.
@@ -44,10 +56,10 @@ public sealed class EngineKind {
 
     #region Constructors
 
-    private EngineKind(string name, string title, string symbol, string pageDescription) {
+    private EngineKind(string name, string title, EngineMark? mark, string pageDescription) {
         Name = name;
         Title = title;
-        Symbol = symbol;
+        Mark = mark;
         PageDescription = pageDescription;
     }
 

@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0xbb, 0x8b, 0x43, 0x54, 0xdc, 0x7b, 0xc1, 0x00, 0x1c, 0x7c, 0x5e, 0xc5, 0xcc, 0xe9, 0x52, 0x56, 0xdf, 0x0c, 0x20, 0xcf, 0x58, 0x54, 0x07, 0x63, 0x27, 0x55, 0x10, 0x3d, 0x9d, 0xb6, 0xcb, 0x83
+        0xf7, 0xe3, 0x07, 0xf8, 0xf7, 0xe9, 0x03, 0xae, 0x6f, 0x1a, 0x57, 0xdd, 0x3f, 0xfc, 0xe0, 0xc1, 0x6f, 0xfc, 0xac, 0x09, 0xd6, 0x84, 0xa4, 0x4b, 0xa8, 0xd0, 0x8b, 0x0c, 0x15, 0xb1, 0x2a, 0x06
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -16521,6 +16521,16 @@ public static class ContractCodec {
     }
 
     public static void WriteEngineDownloadWarning(WireWriter writer, EngineDownloadWarning value) {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteEnum((int)value);
+    }
+
+    public static EngineMark ReadEngineMark(WireReader reader) {
+        ArgumentNullException.ThrowIfNull(reader);
+        return (EngineMark)reader.ReadEnum(1);
+    }
+
+    public static void WriteEngineMark(WireWriter writer, EngineMark value) {
         ArgumentNullException.ThrowIfNull(writer);
         writer.WriteEnum((int)value);
     }

@@ -3193,6 +3193,10 @@
     "locking-a-space-closes-its-picture-in-picture": {
       "category": "fixed",
       "message": "Locking a protected Space, including when Crest goes to the background, now always closes that Space's Picture in Picture video."
+    },
+    "webkit-badge-draws-stacked-tile": {
+      "category": "improved",
+      "message": "The WebKit badge on tab icons is clearer: it now shows a small blue-and-orange tile, which also appears beside WebKit in Site Controls' Opens in menu."
     }
   }
 }

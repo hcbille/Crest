@@ -6144,6 +6144,10 @@ enum EngineDownloadWarning: Int, CaseIterable, Sendable {
     case policyBlocked = 5
 }
 
+enum EngineMark: Int, CaseIterable, Sendable {
+    case stackedTile = 0
+}
+
 enum ExtensionChange: Int, CaseIterable, Sendable {
     case enable = 0
     case disable = 1
@@ -8100,20 +8104,20 @@ struct EngineKind: Hashable, Sendable {
     let tag: Int
     let name: String
     let title: LocalizedStringResource
-    let symbol: String
+    let mark: EngineMark?
     let pageDescription: LocalizedStringResource
 
     private init(
         tag: Int,
         name: String,
         title: LocalizedStringResource,
-        symbol: String,
+        mark: EngineMark?,
         pageDescription: LocalizedStringResource
     ) {
         self.tag = tag
         self.name = name
         self.title = title
-        self.symbol = symbol
+        self.mark = mark
         self.pageDescription = pageDescription
     }
 
@@ -8121,14 +8125,14 @@ struct EngineKind: Hashable, Sendable {
         tag: 0,
         name: "chromium",
         title: LocalizedStringResource("Chromium", comment: "The name of a browser engine. Keep the product name as it is."),
-        symbol: "smallcircle.filled.circle",
+        mark: nil,
         pageDescription: LocalizedStringResource("Runs in Chromium", comment: "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is.")
     )
     static let webKit = EngineKind(
         tag: 1,
         name: "webkit",
         title: LocalizedStringResource("WebKit", comment: "The name of a browser engine. Keep the product name as it is."),
-        symbol: "location.north.fill",
+        mark: .stackedTile,
         pageDescription: LocalizedStringResource("Runs in WebKit", comment: "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is.")
     )
 

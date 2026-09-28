@@ -479,6 +479,8 @@ public sealed unsafe class ContractCodecTests {
         Assert.DoesNotContain("intent ", schema.EngineCanonical, StringComparison.Ordinal);
         Assert.Contains("set PageSecurity None=0 Insecure=1", schema.EngineCanonical, StringComparison.Ordinal);
         Assert.DoesNotContain("localized", schema.EngineCanonical, StringComparison.Ordinal);
+        // An enum only a fixed set's data names stays out with that data.
+        Assert.DoesNotContain("enum EngineMark", schema.EngineCanonical, StringComparison.Ordinal);
         // The platform's direct path to a binding shares the engine contract,
         // and the core never reads or writes it.
         Assert.Matches(@"pagerequest \d+ CapturePage -> bool", schema.EngineCanonical);
