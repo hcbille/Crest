@@ -407,10 +407,6 @@
             return true
         }
 
-        func callAsyncJavaScriptInMainFrame(_ body: String) async -> Any? {
-            await evaluate(body, in: "main")
-        }
-
         func callAsyncJavaScript(_ body: String, arguments: [String: Any], in frame: BrowserContentFrame) async throws
             -> Any?
         {

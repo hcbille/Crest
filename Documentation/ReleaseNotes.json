@@ -3245,6 +3245,10 @@
     "core-contract-docs-describe-typed-queries": {
       "category": "internal",
       "message": "The contract README and the core's comments describe the typed queries and intents that replaced the JSON policy operations."
+    },
+    "fixture-server-trust-query-removed": {
+      "category": "internal",
+      "message": "The core's fixture certificate trust query and the Chromium page's unused main-frame script call are gone, since nothing asks for them any more."
     }
   }
 }

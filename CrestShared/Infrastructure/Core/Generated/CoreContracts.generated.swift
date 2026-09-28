@@ -2322,18 +2322,6 @@ struct FirstInstallSession: Query, Equatable, Sendable {
 
 }
 
-struct FixtureServerTrust: Query, Equatable, Sendable {
-    typealias Answer = FixtureServerTrusted
-
-    let bundleIdentifier: String?
-    let expectedCertificateSha256: String?
-    let actualCertificateSha256: String
-}
-
-struct FixtureServerTrusted: Equatable, Sendable {
-    let trusted: Bool
-}
-
 struct FolderAlreadyExists: Equatable, Sendable {
     let folderID: UUID
 }

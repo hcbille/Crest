@@ -110,17 +110,4 @@ public sealed class OriginPolicyTests {
         Assert.Equal("proxy.example:80", AuthenticationPolicy.SourceLabel("proxy.example", 80, null));
         Assert.Null(AuthenticationPolicy.SourceLabel("", 443, "https"));
     }
-
-    [Fact]
-    public void OnlyTheFixtureBuildTrustsOnlyItsPinnedCertificate() {
-        string pinned = new('a', 64);
-        Assert.True(AuthenticationPolicy.TrustsPhysicalValidationServer(AuthenticationPolicy.PhysicalValidationBundleIdentifier,
-            pinned, pinned.ToUpperInvariant()));
-        Assert.False(AuthenticationPolicy.TrustsPhysicalValidationServer("com.pauldavis.crest", pinned, pinned));
-        Assert.False(AuthenticationPolicy.TrustsPhysicalValidationServer(AuthenticationPolicy.PhysicalValidationBundleIdentifier, null, pinned));
-        Assert.False(AuthenticationPolicy.TrustsPhysicalValidationServer(AuthenticationPolicy.PhysicalValidationBundleIdentifier,
-            new string('g', 64), new string('g', 64)));
-        Assert.False(AuthenticationPolicy.TrustsPhysicalValidationServer(AuthenticationPolicy.PhysicalValidationBundleIdentifier,
-            pinned, new string('b', 64)));
-    }
 }

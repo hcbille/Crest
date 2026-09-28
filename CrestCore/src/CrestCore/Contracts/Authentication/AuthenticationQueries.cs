@@ -12,6 +12,3 @@ public sealed record ChallengeHandled(AuthenticationHandling Handling);
 
 /// How one authentication challenge is answered.
 public enum AuthenticationHandling { PromptForCredentials, PerformDefaultHandling, Cancel }
-
-/// Whether the build trusts the certificate.
-public sealed record FixtureServerTrusted(bool Trusted);

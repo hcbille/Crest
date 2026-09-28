@@ -168,9 +168,9 @@ carries the document earlier releases kept under `crest.site-permissions.v1`
 into the store once.
 The standalone `SecureOriginCheck`, `NotificationPermissionRequest`,
 `BlockedPopupTransition`, `ExternalWebLink`, `ExternalLocalDocument`,
-`SchemeHandling`, `ChallengeHandling`, `AuthenticationSource` and
-`FixtureServerTrust` queries answer the origin, scheme, popup-notice and HTTP
-authentication rules through `crest_core_answer`. What a saved decision means
+`SchemeHandling`, `ChallengeHandling` and `AuthenticationSource` queries
+answer the origin, scheme, popup-notice and HTTP authentication rules through
+`crest_core_answer`. What a saved decision means
 (whether it grants, blocks or asks) travels with the generated
 `SitePermissionDecision`, so no query answers it. URLs arrive as the platform
 parser's facts; every caller refuses, blocks or asks when it gets no answer.
