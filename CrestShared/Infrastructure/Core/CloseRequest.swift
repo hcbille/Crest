@@ -4,10 +4,18 @@ import Foundation
 /// answers with a `CloseReady` naming `requestID`.
 protocol CloseRequest: CloseIntent {
     var requestID: UUID { get }
+    /// Whether the request prepares to quit the app.
+    var quits: Bool { get }
 }
 
-extension PrepareToClosePages: CloseRequest {}
+extension PrepareToClosePages: CloseRequest {
+    var quits: Bool { false }
+}
 
-extension PrepareToCloseWindows: CloseRequest {}
+extension PrepareToCloseWindows: CloseRequest {
+    var quits: Bool { false }
+}
 
-extension PrepareToQuit: CloseRequest {}
+extension PrepareToQuit: CloseRequest {
+    var quits: Bool { true }
+}

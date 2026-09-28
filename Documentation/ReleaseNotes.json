@@ -3273,6 +3273,10 @@
     "extension-background-window-keeps-focus": {
       "category": "fixed",
       "message": "A window an extension opens in the background no longer takes keyboard focus from the window you are typing in."
+    },
+    "closing-windows-asks-leaving-pages": {
+      "category": "fixed",
+      "message": "Closing the private window, a window you tore a tab into, or a Quick Window now lets a page with unsaved work ask before it goes. Closing a regular window no longer asks, since its tabs stay open."
     }
   }
 }

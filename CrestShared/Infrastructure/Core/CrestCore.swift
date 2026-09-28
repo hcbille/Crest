@@ -92,6 +92,9 @@ final class CrestCore {
     @ObservationIgnored private var windowAdoptionFollowers: [Follower<OfferedWindowAdopted>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
+    /// Whether the app prepares to quit, or quits: a quit asked for that the
+    /// core has not refused. No window closes on request meanwhile.
+    @ObservationIgnored private(set) var isQuitting = false
     /// What waits for each data deletion to end, by its request.
     @ObservationIgnored private var dataDeletionWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     #if DEBUG
@@ -169,7 +172,12 @@ final class CrestCore {
     /// request the core refuses, such as one made while another preparation is
     /// under way, answers false at once.
     func prepareToClose(_ request: some CloseRequest, completion: @escaping @MainActor (Bool) -> Void) {
-        closeWaiters[request.requestID] = completion
+        let quits = request.quits
+        if quits { isQuitting = true }
+        closeWaiters[request.requestID] = { [weak self] allowed in
+            if quits, !allowed { self?.isQuitting = false }
+            completion(allowed)
+        }
         do {
             try send(request)
         } catch {

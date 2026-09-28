@@ -2,27 +2,23 @@
     import AppKit
 
     /// All native close routes, including accessibility and traffic-light actions,
-    /// pass through close(). AppKit still owns performClose and delegate checks.
+    /// pass through close(), which asks the window's close gate first. AppKit
+    /// still owns performClose and delegate checks.
     @MainActor
-    final class CrestChromiumWindow: NSWindow {
-        var approveClose: ((@escaping (Bool) -> Void) -> Void)?
-        private var awaitingCloseApproval = false
+    final class CrestChromiumWindow: NSWindow, BrowserCloseGatedWindow {
+        var closeGate: BrowserWindowCloseGate?
 
         override func close() {
-            guard !awaitingCloseApproval else { return }
-            guard let approveClose else {
+            guard let closeGate else {
                 super.close()
                 return
             }
-            awaitingCloseApproval = true
-            approveClose { [weak self] allowed in
-                guard let self else { return }
-                self.awaitingCloseApproval = false
-                if allowed { self.closeAfterApproval() }
-            }
+            guard closeGate.mayClose(then: { [weak self] in self?.closeAfterApproval() }) else { return }
+            super.close()
         }
 
-        /// Used only after the host approved this window as part of a wider batch.
+        /// Closes without asking: the gate approved it, or the host closes the
+        /// window as part of something wider it already decided.
         func closeAfterApproval() { super.close() }
     }
 #endif

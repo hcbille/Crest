@@ -93,6 +93,7 @@ struct BrowserMacWindowScene: View {
         .background(
             BrowserMacWindowAttachment(
                 prepare: { coordinator.preparePresentation($0, for: id) },
+                closeGate: model.closeGate,
                 attach: { window in
                     guard coordinator.attach(window, to: id) else { return }
                     activateWindow()

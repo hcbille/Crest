@@ -49,11 +49,17 @@ internal sealed class ClosePreparations(Pages pages, Downloads downloads, IIdSou
     /// commands it causes to `issue`.
     public void Handle(CloseIntent intent, ChangeFeed changes, Action<Engine, EngineCommand> issue) => intent.Apply(this, changes, issue);
 
-    /// Begins preparing to close `pageIds`, and to quit when `quits`. Refused
-    /// with `ClosePreparationUnderway` while another is under way.
+    /// Begins preparing to close `pageIds`, and to quit when `quits`. A close
+    /// with no page to ask is ready at once, even while another preparation is
+    /// under way; any other is refused with `ClosePreparationUnderway` then.
     internal void Start(Guid requestId, bool quits, IEnumerable<Guid> pageIds, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
+        var closing = pageIds.Distinct().ToList();
+        if (!quits && closing.All(pageId => Asking(pageId) is null)) {
+            changes.Publish(new CloseReady(requestId, Allowed: true));
+            return;
+        }
         if (underway is not null) throw new Rejected(new ClosePreparationUnderway(underway.RequestId));
-        underway = new(requestId, quits, pageIds.Distinct().ToList());
+        underway = new(requestId, quits, closing);
         Advance(changes, issue);
     }
 

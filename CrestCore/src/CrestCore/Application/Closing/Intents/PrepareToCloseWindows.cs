@@ -2,14 +2,18 @@ using CrestCore.Application;
 
 namespace CrestCore.Contracts;
 
-/// Prepares to close the windows `WindowIds` names, with every page they host.
+/// Prepares to close the windows `WindowIds` names, asking each page that goes
+/// with them. A page its workspace's other windows keep, as the Mac's windows
+/// over the person's own Spaces keep theirs, has nothing to ask; the private
+/// window's pages and a torn-off tab's window's go with it.
 public sealed record PrepareToCloseWindows(Guid RequestId, IReadOnlyList<Guid> WindowIds) : CloseIntent(RequestId) {
     #region Actions - Closing
 
     internal override void Apply(ClosePreparations preparations, ChangeFeed changes, Action<Engine, EngineCommand> issue) {
         var windows = WindowIds.ToHashSet();
-        var pages = preparations.Pages.All.Where(page => windows.Contains(page.WindowId)).Select(page => page.Id);
-        preparations.Start(RequestId, quits: false, pages, changes, issue);
+        var pages = preparations.Pages;
+        var closing = pages.All.Where(page => windows.Contains(page.WindowId) && pages.GoesWithItsWindow(page)).Select(page => page.Id);
+        preparations.Start(RequestId, quits: false, closing, changes, issue);
     }
 
     #endregion

@@ -292,13 +292,7 @@
             window.title = "Quick Window"
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
-            window.approveClose = { [weak self, weak window] completion in
-                guard let self, let window else {
-                    completion(false)
-                    return
-                }
-                self.prepareWindowClose(window, completion: completion)
-            }
+            window.closeGate = model.closeGate
             window.isReleasedWhenClosed = false
             window.isRestorable = false
             window.tabbingMode = .disallowed
@@ -342,13 +336,7 @@
             window.title = "Private Browsing"
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
-            window.approveClose = { [weak self, weak window] completion in
-                guard let self, let window else {
-                    completion(false)
-                    return
-                }
-                self.prepareWindowClose(window, completion: completion)
-            }
+            window.closeGate = application.privateWindowCloseGate
             window.isReleasedWhenClosed = false
             window.isRestorable = false
             window.tabbingMode = .disallowed
@@ -656,7 +644,7 @@
                 activation.present(existing)
                 return
             }
-            guard application.windowCoordinator.model(for: request) != nil else { return }
+            guard let model = application.windowCoordinator.model(for: request) else { return }
             let window = CrestChromiumWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 1200, height: 820),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -666,13 +654,7 @@
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.contentMinSize = NSSize(width: 720, height: 500)
-            window.approveClose = { [weak self, weak window] completion in
-                guard let self, let window else {
-                    completion(false)
-                    return
-                }
-                self.prepareWindowClose(window, completion: completion)
-            }
+            window.closeGate = model.closeGate
             window.isReleasedWhenClosed = false
             windows[request.id] = window
             window.contentViewController = NSHostingController(rootView: application.browserWindowContent(request))
@@ -740,22 +722,6 @@
                 browser: model.browser, pages: model.pages, chrome: model.chrome,
                 openWindow: EnvironmentValues().openWindow, spaceAccess: application.spaceAccess,
                 targetWindowID: model.id)
-        }
-
-        private func prepareWindowClose(_ window: NSWindow, completion: @escaping (Bool) -> Void) {
-            guard !quitting, let id = window.identifier.flatMap({ UUID(uuidString: $0.rawValue) }) else {
-                completion(false)
-                return
-            }
-            var ids = [id]
-            if window === privateWindow {
-                ids += quickWindows.values.filter { $0.model.browser.isPrivateBrowsing }
-                    .compactMap { $0.window.identifier.flatMap { UUID(uuidString: $0.rawValue) } }
-            }
-            // The core asks each page the windows host whether it may go.
-            application.browser.core.prepareToClose(PrepareToCloseWindows(requestID: UUID(), windowIDs: ids)) {
-                completion($0)
-            }
         }
 
         @objc private func windowClosed(_ notification: Notification) {

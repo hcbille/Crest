@@ -11,7 +11,8 @@ public sealed class DevicePlatform {
     /// is never taken. A manual setup left unfinished starts over at the next
     /// launch, and setup imports from the browsers installed on it.
     public static readonly DevicePlatform Desktop = new(name: "desktop", warningReleaseLimit: _ => 1,
-        criticalReleaseLimit: eligible => Math.Max(1, (eligible + 1) / 2), keepsSetupDraft: false, importsBrowsers: true);
+        criticalReleaseLimit: eligible => Math.Max(1, (eligible + 1) / 2), keepsSetupDraft: false, importsBrowsers: true,
+        sharesPagesAcrossWindows: true);
 
     /// iPhone and iPad hold on under warning pressure and give back one page
     /// under critical pressure. Beyond that the system reclaims WebKit's page
@@ -20,7 +21,7 @@ public sealed class DevicePlatform {
     /// waits for the next launch, since the system may end the app while it is
     /// in the background.
     public static readonly DevicePlatform Mobile = new(name: "mobile", warningReleaseLimit: _ => 0,
-        criticalReleaseLimit: _ => 1, keepsSetupDraft: true, importsBrowsers: false);
+        criticalReleaseLimit: _ => 1, keepsSetupDraft: true, importsBrowsers: false, sharesPagesAcrossWindows: false);
 
     public static IReadOnlyList<DevicePlatform> All { get; } = [Desktop, Mobile];
 
@@ -35,6 +36,11 @@ public sealed class DevicePlatform {
     /// hand.
     public bool ImportsBrowsers { get; }
 
+    /// Whether the windows over one workspace share one set of pages, as the
+    /// Mac's do; each iPad scene keeps pages of its own. The core's own rule,
+    /// which no platform reads.
+    internal bool SharesPagesAcrossWindows { get; }
+
     /// The most pages pressure at each level may take back, from the number of
     /// eligible pages.
     private readonly IReadOnlyDictionary<MemoryPressureLevel, Func<int, int>> releaseLimits;
@@ -44,10 +50,11 @@ public sealed class DevicePlatform {
     #region Constructors
 
     private DevicePlatform(string name, Func<int, int> warningReleaseLimit, Func<int, int> criticalReleaseLimit,
-        bool keepsSetupDraft, bool importsBrowsers) {
+        bool keepsSetupDraft, bool importsBrowsers, bool sharesPagesAcrossWindows) {
         Name = name;
         KeepsSetupDraft = keepsSetupDraft;
         ImportsBrowsers = importsBrowsers;
+        SharesPagesAcrossWindows = sharesPagesAcrossWindows;
         releaseLimits = new Dictionary<MemoryPressureLevel, Func<int, int>> {
             [MemoryPressureLevel.Warning] = warningReleaseLimit,
             [MemoryPressureLevel.Critical] = criticalReleaseLimit

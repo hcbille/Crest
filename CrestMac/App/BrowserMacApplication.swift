@@ -30,6 +30,10 @@ final class BrowserMacApplication {
     /// Asks the core whether the app may quit, and the person about downloads
     /// in progress.
     let quitPreparation: BrowserQuitPreparation
+    /// Whether the private window may close when the person asks: closing it
+    /// ends private browsing, so the core asks every page it hosts, its Quick
+    /// Windows' too.
+    let privateWindowCloseGate: BrowserWindowCloseGate
     /// Answers the core's questions about every engine's downloads: where each
     /// file goes, and whether to keep one its engine warned about.
     let downloadPrompts: BrowserDownloadPrompts
@@ -273,6 +277,9 @@ final class BrowserMacApplication {
         self.privatePages = privatePages
         pagePoolRegistry = BrowserPagePoolRegistry(primary: pages, spaceAccess: spaceAccess)
         quitPreparation = BrowserQuitPreparation(core: core)
+        privateWindowCloseGate = BrowserWindowCloseGate(core: core) { [windowID = privateBrowser.windowID] in
+            PrepareToCloseWindows(requestID: UUID(), windowIDs: [windowID])
+        }
         engineMoveNotices = BrowserEngineMoveNotices(core: core)
         let downloadDialogs = BrowserDialogPresenter()
         downloadPrompts = BrowserDownloadPrompts(core: core) { asked, dismissal in
@@ -363,6 +370,7 @@ final class BrowserMacApplication {
         .modifier(BrowserSoftwareUpdateDetailsPresentation())
         .background(
             BrowserMacWindowAttachment(
+                closeGate: privateWindowCloseGate,
                 attach: { window in
                     self.privatePages.bindNativeWindow(window)
                     self.privatePages.setWindowFocused(window.isKeyWindow)

@@ -331,6 +331,13 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// Whether the core hosts the page `pageId` names.
     internal bool IsOpen(Guid pageId) => open.ContainsKey(pageId);
 
+    /// Whether `page` goes when the window that hosts it closes. The windows
+    /// over one workspace share its pages only where both the device and the
+    /// workspace's kind let them; a page they share stays for the workspace's
+    /// other windows, or its next.
+    internal bool GoesWithItsWindow(Page page) => device.Attached(page.WorkspaceId) is not { } workspace
+        || !(device.Platform.SharesPagesAcrossWindows && workspace.Kind.SharesPagesAcrossWindows);
+
     /// The core hosts `page` from now on.
     internal void Add(Page page) => open[page.Id] = page;
 
