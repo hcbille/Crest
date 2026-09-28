@@ -3177,6 +3177,10 @@
     "webkit-tabs-show-engine-badge": {
       "category": "improved",
       "message": "In the Chromium build, tabs running in WebKit now show a small WebKit badge on their icon, so you can see at a glance which pages use WebKit."
+    },
+    "page-top-keeps-its-drags": {
+      "category": "fixed",
+      "message": "Dragging at the very top of a page, like selecting text or using YouTube's search box, no longer moves the window. The sidebar, the strip above the page and the space around it, and the top of a Quick Window, still move the window and do what your title bar double-click setting says."
     }
   }
 }

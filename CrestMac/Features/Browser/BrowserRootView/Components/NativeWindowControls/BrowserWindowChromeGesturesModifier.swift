@@ -3,8 +3,12 @@ import SwiftUI
 
 /// An empty stretch of Crest's window chrome behaves like the title bar AppKit
 /// draws: dragging it moves the window, and double-clicking it performs the
-/// person's title-bar action. Pages keep their own mouse-downs
-/// (`BrowserWebHostView`), so none of this reaches web content.
+/// person's title-bar action. The window itself is not movable while Crest's
+/// chrome styles it (`BrowserNativeWindowControlsHostView`), so presses on
+/// chrome are the only ones that move it, and none of them reaches web
+/// content. This is for chrome that keeps SwiftUI gestures of its own, such as
+/// the sidebar's empty background and its context menu; plain chrome uses
+/// `BrowserWindowTitleBarSurface`, which decides each press as AppKit does.
 struct BrowserWindowChromeGesturesModifier: ViewModifier {
     func body(content: Content) -> some View {
         content

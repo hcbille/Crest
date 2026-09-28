@@ -28,7 +28,7 @@ struct SidebarChrome: View {
                 .background {
                     // Only the empty navigation-strip background acts as the
                     // title bar. Controls and tab gestures keep their input.
-                    Color.clear.browserWindowChromeGestures()
+                    BrowserWindowTitleBarSurface()
                 }
                 .animation(
                     BrowserVisualAccessibilityPolicy.animation(

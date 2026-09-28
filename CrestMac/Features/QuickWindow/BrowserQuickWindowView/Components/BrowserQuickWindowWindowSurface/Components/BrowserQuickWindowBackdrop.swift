@@ -11,6 +11,9 @@ struct BrowserQuickWindowBackdrop: View {
             BrowserWindowAtmosphere(space: space)
                 .opacity(opacity)
         }
+        // The window's background, wherever no page or control covers it, is
+        // chrome, the toolbar strip under the title bar included.
+        .overlay { BrowserWindowTitleBarSurface() }
         .ignoresSafeArea()
         .animation(
             BrowserVisualAccessibilityPolicy.animation(

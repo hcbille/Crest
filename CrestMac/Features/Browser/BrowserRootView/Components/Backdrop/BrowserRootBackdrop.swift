@@ -22,10 +22,10 @@ struct BrowserRootBackdrop: View, BrowserChromeAnimating {
             }
             .opacity(baseLayerOpacity)
         }
-        .ignoresSafeArea()
         // The window's background, wherever no page or control covers it, is
         // chrome: the title bar strip above a page and the gaps around it.
-        .browserWindowChromeGestures()
+        .overlay { BrowserWindowTitleBarSurface() }
+        .ignoresSafeArea()
         .animation(
             chromeAnimation(CrestMotion.windowBackdrop),
             value: baseLayerOpacity

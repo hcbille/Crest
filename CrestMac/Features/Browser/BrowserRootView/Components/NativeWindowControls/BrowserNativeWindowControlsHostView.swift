@@ -4,6 +4,7 @@ import AppKit
 
 struct BrowserNativeWindowChromeSnapshot {
     let styleMask: NSWindow.StyleMask
+    let isMovable: Bool
     let titlebarAppearsTransparent: Bool
     let titleVisibility: NSWindow.TitleVisibility
     let titlebarSeparatorStyle: NSTitlebarSeparatorStyle
@@ -57,9 +58,19 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     func applyBrowserChrome() {
         guard let window else { return }
-        // The window stays movable, so the title bar drags and double-clicks
-        // as the system's does. A page under the title bar keeps its own
-        // mouse-downs (`BrowserWebHostView`).
+        // Crest's chrome is the window's only title bar. A movable window
+        // hands the whole strip under its title bar to the window server,
+        // which drags the window from it before the app sees the press, and
+        // SwiftUI claims none of that strip for the pages it hosts when the
+        // content ignores the top safe area. An unmovable window gives the
+        // window server no strip at all: the navigation strip and the
+        // backdrop (`BrowserWindowTitleBarSurface`) and the sidebar's
+        // background (`BrowserWindowChromeGesturesModifier`) move the window
+        // and run the title-bar double-click themselves, and a page under the
+        // title bar keeps every press and drag.
+        if window.isMovable {
+            window.isMovable = false
+        }
         if !window.styleMask.contains(.fullSizeContentView) {
             window.styleMask.insert(.fullSizeContentView)
         }
@@ -119,6 +130,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         nativeButtonOrigins.removeAll()
         window.styleMask = BrowserNativeWindowControlsPolicy.restoredStyleMask(
             original: originalChrome.styleMask, current: window.styleMask)
+        window.isMovable = originalChrome.isMovable
         window.titleVisibility = originalChrome.titleVisibility
         window.titlebarAppearsTransparent = originalChrome.titlebarAppearsTransparent
         window.titlebarSeparatorStyle = originalChrome.titlebarSeparatorStyle
@@ -137,6 +149,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         guard let window, originalChrome == nil else { return }
         originalChrome = BrowserNativeWindowChromeSnapshot(
             styleMask: window.styleMask,
+            isMovable: window.isMovable,
             titlebarAppearsTransparent: window.titlebarAppearsTransparent,
             titleVisibility: window.titleVisibility,
             titlebarSeparatorStyle: window.titlebarSeparatorStyle,
