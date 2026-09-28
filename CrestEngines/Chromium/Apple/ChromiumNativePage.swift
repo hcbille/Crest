@@ -496,7 +496,9 @@
                 documentIdentifier: session.document, sequence: UInt64(max(session.sequence, 0)),
                 location: session.location, isInvalidated: false, hasActiveSession: session.active,
                 title: bounded(session.title), artist: bounded(session.artist), album: bounded(session.album),
-                artworkData: nil,
+                artworkData: session.artwork.flatMap {
+                    $0.count <= BrowserMediaSessionArtworkPolicy.maximumBytes ? $0 : nil
+                },
                 playbackState: playback, isAudible: session.audible, isMuted: session.muted,
                 availableActions: Set(session.actions.map(BrowserMediaSessionAction.init)))
         }

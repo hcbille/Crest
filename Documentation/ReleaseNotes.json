@@ -3353,6 +3353,10 @@
     "pages-get-first-say-over-shortcuts": {
       "category": "fixed",
       "message": "Pages get first say over shortcuts such as \u2318F, as in other browsers, so a document editor like Google Docs opens its own Find. \u2318T, \u2318W and \u2318N always stay Crest's."
+    },
+    "now-playing-artwork-on-chromium": {
+      "category": "fixed",
+      "message": "Now Playing shows the track's artwork again for pages that run in Chromium, including artwork from sites you're signed in to, sized to fit music and video."
     }
   }
 }

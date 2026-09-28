@@ -11,7 +11,10 @@
 #include "chrome/browser/ui/crest/crest_engine_page.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/web_contents.h"
+#include "services/media_session/public/cpp/media_image_manager.h"
 #include "services/media_session/public/cpp/media_metadata.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/codec/png_codec.h"
 
 namespace crest {
 
@@ -19,6 +22,14 @@ namespace {
 
 // The longest document identity Crest issues.
 constexpr size_t kDocumentLength = 128;
+
+// The longest side of the artwork Crest keeps, in pixels: what the engine's own
+// media controls ask for, and enough for the system's Now Playing. The engine
+// scales a larger image down to it, keeping its shape.
+constexpr int kArtworkPixels = 512;
+
+// The smallest artwork Crest takes. Any image the page gives beats none.
+constexpr int kArtworkMinimumPixels = 0;
 
 std::optional<std::string> Text(const std::u16string& value) {
   return value.empty() ? std::nullopt : std::optional<std::string>(base::UTF16ToUTF8(value));
@@ -189,8 +200,43 @@ void PageMedia::MediaSessionActionsChanged(const std::vector<media_session::mojo
   Publish();
 }
 
+// The page named its artwork. The engine picks the image that best fits the
+// size Crest keeps and fetches it; until it arrives the session shows none.
 void PageMedia::MediaSessionImagesChanged(
-    const base::flat_map<media_session::mojom::MediaSessionImageType, std::vector<media_session::MediaImage>>&) {}
+    const base::flat_map<media_session::mojom::MediaSessionImageType, std::vector<media_session::MediaImage>>&
+        images) {
+  std::optional<media_session::MediaImage> picked;
+  if (auto artwork = images.find(media_session::mojom::MediaSessionImageType::kArtwork); artwork != images.end()) {
+    picked = media_session::MediaImageManager(kArtworkMinimumPixels, kArtworkPixels).SelectImage(artwork->second);
+  }
+  if (picked == artwork_image_) {
+    return;
+  }
+  artwork_image_ = std::move(picked);
+  ++artwork_generation_;
+  const bool showed_artwork = artwork_.has_value();
+  artwork_.reset();
+  if (artwork_image_) {
+    if (auto* session = content::MediaSession::GetIfExists(contents_)) {
+      session->GetMediaImageBitmap(
+          *artwork_image_, kArtworkMinimumPixels, kArtworkPixels,
+          base::BindOnce(&PageMedia::ArtworkLoaded, weak_factory_.GetWeakPtr(), artwork_generation_));
+    }
+  }
+  if (showed_artwork) {
+    Publish();
+  }
+}
+
+void PageMedia::ArtworkLoaded(uint64_t generation, const SkBitmap& bitmap) {
+  if (generation != artwork_generation_ || bitmap.drawsNothing()) {
+    return;
+  }
+  artwork_ = gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, /*discard_transparency=*/false);
+  if (artwork_) {
+    Publish();
+  }
+}
 
 void PageMedia::MediaSessionPositionChanged(const std::optional<media_session::MediaPosition>&) {}
 
@@ -225,6 +271,7 @@ void PageMedia::Publish() {
     session.artist = Text(metadata_->artist);
     session.album = Text(metadata_->album);
   }
+  session.artwork = artwork_;
   for (auto action : actions_) {
     switch (action) {
       case media_session::mojom::MediaSessionAction::kPlay:

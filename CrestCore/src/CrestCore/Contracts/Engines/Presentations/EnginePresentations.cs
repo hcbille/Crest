@@ -172,9 +172,11 @@ public enum MediaSessionAction {
 
 /// The page's media session as Crest shows it for `Document`: what plays, how,
 /// and what it can be asked to do. `Sequence` counts up with each change so a
-/// late one never replaces a newer one.
+/// late one never replaces a newer one. `Artwork` is the image the page gave
+/// for what plays, as a PNG in its own shape, or none until the engine fetched
+/// it.
 public sealed record MediaSessionChanged(Guid PageId, string Document, long Sequence, string Location, bool Active,
-    string? Title, string? Artist, string? Album, MediaPlayback Playback, bool Audible, bool Muted,
+    string? Title, string? Artist, string? Album, byte[]? Artwork, MediaPlayback Playback, bool Audible, bool Muted,
     IReadOnlyList<MediaSessionAction> Actions) : EnginePagePresentation(PageId);
 
 /// Whether a media session plays.

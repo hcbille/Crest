@@ -3063,6 +3063,7 @@ struct MediaSessionChanged: Equatable, Sendable {
     let title: String?
     let artist: String?
     let album: String?
+    let artwork: Data?
     let playback: MediaPlayback
     let audible: Bool
     let muted: Bool

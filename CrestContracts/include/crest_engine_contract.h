@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0xcf, 0x9f, 0x92, 0xf3, 0x6d, 0x4f, 0xac, 0xce, 0xb0, 0x6b, 0xa6, 0xb3, 0x7d, 0xbc, 0x99, 0x27, 0x5b, 0xbf, 0x72, 0x1a, 0xeb, 0x52, 0x74, 0xa9, 0x86, 0xdd, 0xd3, 0x43, 0x52, 0xc0, 0xa9, 0x0f};
+    0xd7, 0x46, 0x91, 0x12, 0x6a, 0x13, 0xb2, 0x9d, 0xea, 0xe0, 0xfe, 0xb8, 0x1d, 0x72, 0x59, 0x9d, 0xf9, 0xa7, 0xfc, 0x46, 0xbd, 0xaf, 0x07, 0xe3, 0xf7, 0x1b, 0x63, 0xe1, 0xa6, 0xd3, 0xf1, 0xf4};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -1796,6 +1796,7 @@ struct MediaSessionChanged {
   std::optional<std::string> title;
   std::optional<std::string> artist;
   std::optional<std::string> album;
+  std::optional<Bytes> artwork;
   MediaPlayback playback = {};
   bool audible = false;
   bool muted = false;
@@ -1812,6 +1813,7 @@ inline void Write(WireWriter& writer, const MediaSessionChanged& value) {
   Write(writer, value.title);
   Write(writer, value.artist);
   Write(writer, value.album);
+  Write(writer, value.artwork);
   Write(writer, value.playback);
   Write(writer, value.audible);
   Write(writer, value.muted);
@@ -1826,6 +1828,7 @@ inline bool Read(WireReader& reader, MediaSessionChanged& value) {
       && Read(reader, value.title)
       && Read(reader, value.artist)
       && Read(reader, value.album)
+      && Read(reader, value.artwork)
       && Read(reader, value.playback)
       && Read(reader, value.audible)
       && Read(reader, value.muted)

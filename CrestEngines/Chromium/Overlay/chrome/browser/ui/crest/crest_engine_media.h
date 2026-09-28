@@ -13,7 +13,10 @@
 #include "chrome/browser/ui/crest/crest_engine_contract.h"
 #include "content/public/browser/media_player_id.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "services/media_session/public/cpp/media_image.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
+
+class SkBitmap;
 
 namespace content {
 class WebContents;
@@ -22,10 +25,15 @@ class WebContents;
 namespace crest {
 
 // A page's media: what it plays and captures, and the engine's own Media
-// Session — metadata, playback state and the actions the page handles — as
-// Crest shows it under the document identity Crest issued for the document
-// the page shows. The engine deactivates the session of a muted page; Crest
-// keeps showing it, muted, so the person can unmute it.
+// Session — metadata, artwork, playback state and the actions the page
+// handles — as Crest shows it under the document identity Crest issued for the
+// document the page shows. The engine deactivates the session of a muted page;
+// Crest keeps showing it, muted, so the person can unmute it.
+//
+// The engine fetches the artwork it picks from the page's list through the
+// frame that set it, with that frame's cookies, so artwork a signed-in site
+// serves only to its session loads too. The image is kept until the page names
+// other artwork, and each report carries it.
 class PageMedia final : public media_session::mojom::MediaSessionObserver {
  public:
   using Present = base::RepeatingCallback<void(engine::EnginePresentation)>;
@@ -77,6 +85,9 @@ class PageMedia final : public media_session::mojom::MediaSessionObserver {
  private:
   // Presents the session as Crest shows it, once Crest issued its document.
   void Publish();
+  // Keeps the artwork the engine fetched for `generation`, unless the page
+  // named other artwork since.
+  void ArtworkLoaded(uint64_t generation, const SkBitmap& bitmap);
 
   const raw_ptr<content::WebContents> contents_;
   const engine::Guid page_;
@@ -86,6 +97,11 @@ class PageMedia final : public media_session::mojom::MediaSessionObserver {
   media_session::mojom::MediaSessionInfoPtr info_;
   std::optional<media_session::MediaMetadata> metadata_;
   std::vector<media_session::mojom::MediaSessionAction> actions_;
+  // The artwork picked from the page's list, and its image once fetched.
+  std::optional<media_session::MediaImage> artwork_image_;
+  std::optional<std::vector<uint8_t>> artwork_;
+  // Counts artwork changes, so a fetch that finishes late is dropped.
+  uint64_t artwork_generation_ = 0;
   std::string document_;
   int64_t sequence_ = 0;
   bool seen_active_ = false;
