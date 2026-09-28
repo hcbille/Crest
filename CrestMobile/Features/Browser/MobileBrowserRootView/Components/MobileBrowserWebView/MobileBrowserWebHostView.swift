@@ -1,30 +1,84 @@
 import UIKit
 import WebKit
 
+/// Shows a page's model-owned web view where SwiftUI placed this host.
+///
+/// SwiftUI can hold two hosts for one page at once, and either can be the one
+/// it dismantles first. During an animated replacement it keeps updating the
+/// outgoing host after the incoming one claimed the web view; during a removal
+/// transition the outgoing view can even build a new host for a page it only
+/// now shows. The newest claim shows the web view, and when the host showing
+/// it lets go, the web view returns to the newest host still asking for it, so
+/// it always ends up in whichever host survives.
 @MainActor
 final class MobileBrowserWebHostView: UIView {
+    // MARK: - Static Variables
+
+    /// Every host that asked for a web view and has not let it go.
+    private static let claimants = NSHashTable<MobileBrowserWebHostView>.weakObjects()
+    /// The number of claims made so far, which orders them.
+    private static var claimCount = 0
+
+    // MARK: - Variables
+
     private weak var hostedWebView: WKWebView?
     private var hostedWebViewLeadingConstraint: NSLayoutConstraint?
     private var hostedWebViewTrailingConstraint: NSLayoutConstraint?
     private var hostedWebViewTopConstraint: NSLayoutConstraint?
     private var hostedWebViewBottomConstraint: NSLayoutConstraint?
     private var viewport = MobileBrowserPageViewport.inline
+    /// When this host claimed `hostedWebView`: the newest claim is the largest.
+    private var claim = 0
 
-    func configureViewport(_ viewport: MobileBrowserPageViewport) {
-        guard self.viewport != viewport else { return }
-        self.viewport = viewport
-        applyViewportInsets()
+    // MARK: - Actions - Hosting
+
+    /// Claims `webView` and shows it here. Asking again for the web view this
+    /// host already claimed changes nothing, even when a newer host took it
+    /// meanwhile: that host shows it until it lets go.
+    func attach(_ webView: WKWebView) {
+        guard hostedWebView !== webView else { return }
+        detach(stopsLoading: false)
+        Self.claimCount &+= 1
+        claim = Self.claimCount
+        hostedWebView = webView
+        Self.claimants.add(self)
+        show(webView)
     }
 
-    func attach(_ webView: WKWebView) {
-        // During an animated replacement SwiftUI can update the outgoing host
-        // after the new host has claimed this same model-owned web view. That
-        // update must not steal it back and detach it when the old host dies.
-        guard hostedWebView !== webView else {
-            return
+    /// Lets go of the web view this host claimed. When it was showing it, the
+    /// web view stops loading if `stopsLoading` asks, leaves, and moves to
+    /// the newest other host that still claims it.
+    func detach(stopsLoading: Bool) {
+        guard let hostedWebView else { return }
+        Self.claimants.remove(self)
+        let showsHostedWebView = hostedWebView.superview === self
+        if stopsLoading, showsHostedWebView {
+            hostedWebView.stopLoading()
         }
+        if showsHostedWebView {
+            hostedWebView.obscuredContentInsets = .zero
+            hostedWebView.setMinimumViewportInset(
+                .zero,
+                maximumViewportInset: .zero
+            )
+            hostedWebView.scrollView.contentInset = .zero
+            hostedWebView.scrollView.verticalScrollIndicatorInsets = .zero
+            hostedWebView.removeFromSuperview()
+        }
+        hostedWebViewLeadingConstraint = nil
+        hostedWebViewTrailingConstraint = nil
+        hostedWebViewTopConstraint = nil
+        hostedWebViewBottomConstraint = nil
+        self.hostedWebView = nil
+        guard showsHostedWebView else { return }
+        Self.claimants.allObjects
+            .filter { $0.hostedWebView === hostedWebView }
+            .max { $0.claim < $1.claim }?
+            .show(hostedWebView)
+    }
 
-        detach(stopsLoading: false)
+    /// Puts `webView`, which this host claimed, on screen here.
+    private func show(_ webView: WKWebView) {
         webView.removeFromSuperview()
         webView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(webView)
@@ -42,31 +96,15 @@ final class MobileBrowserWebHostView: UIView {
         hostedWebViewTrailingConstraint = trailingConstraint
         hostedWebViewTopConstraint = topConstraint
         hostedWebViewBottomConstraint = bottomConstraint
-        hostedWebView = webView
         applyViewportInsets()
     }
 
-    func detach(stopsLoading: Bool) {
-        guard let hostedWebView else { return }
-        let ownsHostedWebView = hostedWebView.superview === self
-        if stopsLoading, ownsHostedWebView {
-            hostedWebView.stopLoading()
-        }
-        if ownsHostedWebView {
-            hostedWebView.obscuredContentInsets = .zero
-            hostedWebView.setMinimumViewportInset(
-                .zero,
-                maximumViewportInset: .zero
-            )
-            hostedWebView.scrollView.contentInset = .zero
-            hostedWebView.scrollView.verticalScrollIndicatorInsets = .zero
-            hostedWebView.removeFromSuperview()
-        }
-        hostedWebViewLeadingConstraint = nil
-        hostedWebViewTrailingConstraint = nil
-        hostedWebViewTopConstraint = nil
-        hostedWebViewBottomConstraint = nil
-        self.hostedWebView = nil
+    // MARK: - Actions - Viewport
+
+    func configureViewport(_ viewport: MobileBrowserPageViewport) {
+        guard self.viewport != viewport else { return }
+        self.viewport = viewport
+        applyViewportInsets()
     }
 
     /// The viewport is applied from the value SwiftUI hands down rather than

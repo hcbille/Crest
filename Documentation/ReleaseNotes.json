@@ -3321,6 +3321,10 @@
     "extension-windows-close-themselves": {
       "category": "fixed",
       "message": "Windows and tabs an extension opens, such as a password manager's pop-out, can close themselves again when they're done."
+    },
+    "iphone-new-tab-search-shows-page": {
+      "category": "fixed",
+      "message": "A search from a new tab on iPhone shows its page right away instead of a blank screen."
     }
   }
 }

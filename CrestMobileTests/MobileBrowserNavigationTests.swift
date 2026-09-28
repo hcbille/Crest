@@ -503,6 +503,28 @@ final class MobileBrowserNavigationTests: XCTestCase {
         )
     }
 
+    func testAPageReturnsToTheSurvivingHostWhenANewerHostGoesFirst() {
+        let survivingHost = MobileBrowserWebHostView()
+        let outgoingHost = MobileBrowserWebHostView()
+        let webView = StopRecordingMobileWebView()
+
+        // A Start Page turning into a page in a new tab swaps SwiftUI's page
+        // subtree, and the outgoing subtree, still re-rendering during its
+        // removal, builds a host after the incoming one did.
+        survivingHost.attach(webView)
+        outgoingHost.attach(webView)
+        survivingHost.attach(webView)
+        XCTAssertTrue(webView.superview === outgoingHost)
+
+        MobileBrowserWebView.dismantleUIView(outgoingHost, coordinator: MobileBrowserWebView.Coordinator())
+
+        XCTAssertTrue(
+            webView.superview === survivingHost,
+            "The page must stay on screen in the host SwiftUI keeps."
+        )
+        XCTAssertEqual(webView.stopLoadingCallCount, 0)
+    }
+
     func testDismantlingMobileWebViewDoesNotCancelModelOwnedNavigation() {
         let host = MobileBrowserWebHostView()
         let coordinator = MobileBrowserWebView.Coordinator()
