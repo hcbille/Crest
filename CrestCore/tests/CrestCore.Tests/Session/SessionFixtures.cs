@@ -113,12 +113,6 @@ public sealed partial class BrowserContractsTests {
         }
     }
 
-    /// `request`, issued from `window`.
-    private static JsonObject IssuedFrom(JsonObject request, Guid window) {
-        request["windowId"] = window.ToString();
-        return request;
-    }
-
     private static Guid SpaceId(JsonNode space) => Guid.Parse(space["id"]!["rawValue"]!.GetValue<string>());
 
     /// The changes an intent answered without the saves the storage worker

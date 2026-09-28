@@ -75,13 +75,6 @@ public sealed class SearchPolicyTests {
         Assert.Null(Kagi("https://kagi.com/search?q=%s").Suggest("crest"));
     }
 
-    [Fact]
-    public void AddressIntentSearchesWithTheSpacesProvider() {
-        var intent = AddressResolution.Resolve("webkit process model", SearchProvider.DuckDuckGo);
-        Assert.Equal("https://duckduckgo.com/?q=webkit%20process%20model", intent!.Url);
-        Assert.Equal("webkit process model", intent.SearchQuery);
-    }
-
     [Theory]
     [InlineData("https://example.com/search?q=%s", "Example", null)]
     [InlineData("  https://example.com/search?q=%s  ", "  Example  ", null)]

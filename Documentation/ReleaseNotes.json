@@ -3237,6 +3237,10 @@
     "core-and-engine-dead-code-removed": {
       "category": "internal",
       "message": "Declarations nothing calls any more are gone from the core and the Chromium extension views."
+    },
+    "core-test-leftovers-removed": {
+      "category": "internal",
+      "message": "The core's tests drop helpers left from the retired JSON protocol and a search test another one already covers."
     }
   }
 }

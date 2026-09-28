@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -22,8 +21,6 @@ namespace CrestCore.Tests;
 public sealed class StoredFormatTests {
     private static JsonObject Fixture(string name) =>
         JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Session", "Fixtures", name)))!.AsObject();
-
-    private static byte[] Bytes(JsonNode value) => Encoding.UTF8.GetBytes(value.ToJsonString());
 
     private static Guid? Id(JsonNode? value) => value is null ? null : Guid.Parse(value.GetValue<string>());
 

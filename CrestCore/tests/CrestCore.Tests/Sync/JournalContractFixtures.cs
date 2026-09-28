@@ -224,12 +224,6 @@ public sealed partial class BrowserContractsTests {
     private static string RecordName(JsonNode id) =>
         id["kind"]!.GetValue<string>() + ":" + Guid.Parse(id["value"]!.GetValue<string>()).ToString("D");
 
-    /// The journal identity `{kind, value}` of the record `name` names.
-    private static JsonObject Identity(string name) {
-        var reference = Reference(name);
-        return new() { ["kind"] = reference.Kind.Name, ["value"] = reference.Id.ToString("D").ToUpperInvariant() };
-    }
-
     private static SyncRecordReference Reference(string name) {
         int colon = name.IndexOf(':');
         return new(SyncRecordKind.Named(name[..colon])!, Guid.Parse(name[(colon + 1)..]));

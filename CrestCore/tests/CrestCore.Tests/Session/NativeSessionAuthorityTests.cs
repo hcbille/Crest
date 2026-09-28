@@ -33,22 +33,6 @@ public sealed partial class BrowserContractsTests {
         Assert.Empty(after["spaces"]![0]!["history"]!.AsArray());
     }
 
-    /// A command in `target`, the session's first Space unless named, issued
-    /// from `window` when one is given.
-    private static byte[] SpaceCommand(JsonNode session, string operation, JsonObject arguments, JsonNode? target = null,
-        Guid? window = null) {
-        target ??= session["spaces"]![0]!;
-        var request = new JsonObject {
-            ["version"] = 1,
-            ["operation"] = operation,
-            ["arguments"] = arguments,
-            ["spaceId"] = target["id"]!.DeepClone(),
-            ["profileId"] = target["profile"]!["id"]!.DeepClone(),
-            ["now"] = 800000002.0
-        };
-        return Bytes(window is { } issuer ? IssuedFrom(request, issuer) : request);
-    }
-
     [Fact]
     public void ALinkOpenedInADurableSplitCopiesItsMetadataAndTheSplitMovesOrDissolvesWhole() {
         var fixture = SavedSession(); var session = fixture.Document["session"]!;
