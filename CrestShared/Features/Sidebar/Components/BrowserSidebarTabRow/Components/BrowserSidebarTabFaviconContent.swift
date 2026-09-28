@@ -18,6 +18,9 @@ struct BrowserSidebarTabFaviconContent: View {
             size: TabFaviconMetrics.defaultSize * BrowserSidebarDensityPolicy.scale(iconScale)
         )
         .browserTabResidency(isLoaded: isLoaded)
+        .overlay(alignment: .bottomTrailing) {
+            TabEngineBadge(tabID: tab.id, scale: BrowserSidebarDensityPolicy.scale(iconScale))
+        }
         .modifier(BrowserSidebarTabFaviconColumn(slot: metrics.faviconSlot))
         .foregroundStyle(isProminent ? .primary : .secondary)
     }

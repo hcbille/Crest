@@ -39,6 +39,7 @@ struct BrowserCommandPaletteResultRow: View {
                 isSelected: model.selectedResultIndex == item.index
             )
         )
+        .accessibilityValue(model.engineBadge(for: item.row).map { Text($0.pageDescription) } ?? Text(verbatim: ""))
         .accessibilityIdentifier("command-palette-result-\(item.index)")
         .browserCommandPaletteHoverSelection(model: model, index: item.index)
     }

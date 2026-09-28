@@ -14,7 +14,7 @@ namespace CrestCore.Native;
 public static class ContractCodec {
     /// <summary>SHA-256 of the canonical contract schema.</summary>
     public static ReadOnlySpan<byte> Fingerprint => [
-        0xff, 0xc5, 0x3f, 0xa6, 0x16, 0x57, 0xac, 0x4a, 0x47, 0xb1, 0xd6, 0x63, 0x32, 0x14, 0xe7, 0xfb, 0x0b, 0xdb, 0x34, 0xf6, 0x05, 0x07, 0x82, 0xee, 0xdc, 0xb2, 0x7f, 0xa9, 0x8a, 0xd7, 0x6b, 0x68
+        0x33, 0xf7, 0x3d, 0x05, 0xc9, 0x5a, 0xc0, 0xeb, 0xc4, 0xaa, 0xa1, 0x10, 0xc8, 0x7b, 0x16, 0xc3, 0x9a, 0x67, 0x60, 0x40, 0xab, 0x6d, 0x6c, 0xac, 0x45, 0xb7, 0xbb, 0x2d, 0x36, 0xc0, 0x14, 0x56
     ];
 
     /// <summary>SHA-256 of the engine contract alone, which an engine binding registers with.</summary>
@@ -7142,9 +7142,11 @@ public static class ContractCodec {
 
     public static EngineRoster ReadEngineRoster(WireReader reader) {
         ArgumentNullException.ThrowIfNull(reader);
-        return new EngineRoster(
+        var value = new EngineRoster(
             reader.ReadList(() => ReadEngineState(reader)),
             reader.ReadList(() => ReadEngineCapability(reader)));
+        _ = reader.ReadList(() => ReadEngineKind(reader));
+        return value;
     }
 
     public static void WriteEngineRoster(WireWriter writer, EngineRoster value) {
@@ -7157,6 +7159,10 @@ public static class ContractCodec {
         writer.WriteCount(value.Offered.Count);
         foreach (var itemOffered in value.Offered) {
             WriteEngineCapability(writer, itemOffered);
+        }
+        writer.WriteCount(value.Badged.Count);
+        foreach (var itemBadged in value.Badged) {
+            WriteEngineKind(writer, itemBadged);
         }
     }
 

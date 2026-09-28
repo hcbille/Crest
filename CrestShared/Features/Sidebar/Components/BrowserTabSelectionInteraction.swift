@@ -38,10 +38,15 @@ struct BrowserTabSelectionAccessibility: ViewModifier {
             .modifier(BrowserSidebarSelectionAccessibilityActions(item: .tab(tabID), browser: browser))
     }
 
+    /// The tab's state, with the engine its page runs on when its icon wears
+    /// that engine's badge, which says nothing itself.
     private var value: String {
         var parts = [BrowserChromeAccessibility.tabValue(isLoaded: isLoaded)]
         if isActive { parts.append(String(localized: "Active page")) }
         if selected { parts.append(String(localized: "Selected for tab actions")) }
+        if let engine = browser?.core.state.engineBadge(forTab: tabID) {
+            parts.append(String(localized: engine.pageDescription))
+        }
         return parts.joined(separator: ", ")
     }
 }

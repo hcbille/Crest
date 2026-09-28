@@ -15,6 +15,19 @@ public sealed record EngineRoster(IReadOnlyList<EngineState> Engines, IReadOnlyL
 
     #endregion
 
+    #region Variables
+
+    /// The engines whose pages wear a badge on their tab's icon, so the person
+    /// can tell which engine hosts a page: every engine but the default, once
+    /// the device registered more than one. A device with one engine badges
+    /// none, since every page runs on it.
+    [Resolved]
+    public IReadOnlyList<EngineKind> Badged => Engines.Count > 1
+        ? [.. Engines.Where(engine => !engine.IsDefault).Select(engine => engine.Kind)]
+        : [];
+
+    #endregion
+
     #region Actions - Comparison
 
     /// Whether both rosters hold the same engines and offer the same

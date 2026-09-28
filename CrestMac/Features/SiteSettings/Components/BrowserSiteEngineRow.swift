@@ -11,7 +11,12 @@ struct BrowserSiteEngineRow: View {
         if let engines = page.corePage.engines?.engines, engines.count > 1, let current = page.corePage.state?.engine {
             Picker("Opens in", selection: selection(current)) {
                 ForEach(engines, id: \.kind) { engine in
-                    Text(engine.kind.title).tag(engine.kind)
+                    Label {
+                        Text(engine.kind.title)
+                    } icon: {
+                        Image(systemName: engine.kind.symbol)
+                    }
+                    .tag(engine.kind)
                 }
             }
             .pickerStyle(.menu)

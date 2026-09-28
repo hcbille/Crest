@@ -2056,11 +2056,13 @@ struct EngineRoster: Equatable, Sendable {
             EngineCapability.beforeUnload,
             EngineCapability.internalPages,
             EngineCapability.protectedMedia
-        ]
+        ],
+        badged: []
     )
 
     let engines: [EngineState]
     let offered: [EngineCapability]
+    let badged: [EngineKind]
 }
 
 struct EngineState: Equatable, Sendable {
@@ -8087,22 +8089,36 @@ struct EngineKind: Hashable, Sendable {
     let tag: Int
     let name: String
     let title: LocalizedStringResource
+    let symbol: String
+    let pageDescription: LocalizedStringResource
 
-    private init(tag: Int, name: String, title: LocalizedStringResource) {
+    private init(
+        tag: Int,
+        name: String,
+        title: LocalizedStringResource,
+        symbol: String,
+        pageDescription: LocalizedStringResource
+    ) {
         self.tag = tag
         self.name = name
         self.title = title
+        self.symbol = symbol
+        self.pageDescription = pageDescription
     }
 
     static let chromium = EngineKind(
         tag: 0,
         name: "chromium",
-        title: LocalizedStringResource("Chromium", comment: "The name of a browser engine. Keep the product name as it is.")
+        title: LocalizedStringResource("Chromium", comment: "The name of a browser engine. Keep the product name as it is."),
+        symbol: "smallcircle.filled.circle",
+        pageDescription: LocalizedStringResource("Runs in Chromium", comment: "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is.")
     )
     static let webKit = EngineKind(
         tag: 1,
         name: "webkit",
-        title: LocalizedStringResource("WebKit", comment: "The name of a browser engine. Keep the product name as it is.")
+        title: LocalizedStringResource("WebKit", comment: "The name of a browser engine. Keep the product name as it is."),
+        symbol: "location.north.fill",
+        pageDescription: LocalizedStringResource("Runs in WebKit", comment: "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is.")
     )
 
     static let all: [EngineKind] = [chromium, webKit]

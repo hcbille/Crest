@@ -10576,6 +10576,12 @@
     "Row %lld" : {
 
     },
+    "Runs in Chromium" : {
+      "comment" : "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is."
+    },
+    "Runs in WebKit" : {
+      "comment" : "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is."
+    },
     "Safari" : {
       "localizations" : {
         "ar" : {

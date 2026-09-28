@@ -18,4 +18,17 @@ extension CoreState {
         guard let engines else { return true }
         return engines.engines.first(where: \.isDefault)?.capabilities.contains(capability) == true
     }
+
+    // MARK: - Actions - Badges
+
+    /// The engine whose badge the tab's icon wears: the one its page runs on,
+    /// when the core badges that engine's pages. Nil for a tab without a page
+    /// its engine holds or is making, and on a device where every page runs
+    /// on one engine, which reads no page at all.
+    func engineBadge(forTab tabID: UUID) -> EngineKind? {
+        guard let badged = engines?.badged, !badged.isEmpty,
+            let page = pages.values.first(where: { $0.tabID == tabID && $0.phase.holdsEnginePage })
+        else { return nil }
+        return badged.contains(page.engine) ? page.engine : nil
+    }
 }

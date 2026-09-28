@@ -7,7 +7,7 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xff, 0xc5, 0x3f, 0xa6, 0x16, 0x57, 0xac, 0x4a, 0x47, 0xb1, 0xd6, 0x63, 0x32, 0x14, 0xe7, 0xfb, 0x0b, 0xdb, 0x34, 0xf6, 0x05, 0x07, 0x82, 0xee, 0xdc, 0xb2, 0x7f, 0xa9, 0x8a, 0xd7, 0x6b, 0x68
+        0x33, 0xf7, 0x3d, 0x05, 0xc9, 0x5a, 0xc0, 0xeb, 0xc4, 0xaa, 0xa1, 0x10, 0xc8, 0x7b, 0x16, 0xc3, 0x9a, 0x67, 0x60, 0x40, 0xab, 0x6d, 0x6c, 0xac, 0x45, 0xb7, 0xbb, 0x2d, 0x36, 0xc0, 0x14, 0x56
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
@@ -7053,7 +7053,14 @@ extension EngineRoster {
             let offeredElement = try EngineCapability(from: &reader)
             offered.append(offeredElement)
         }
-        self.init(engines: engines, offered: offered)
+        let badgedCount = try reader.readCount()
+        var badged: [EngineKind] = []
+        badged.reserveCapacity(badgedCount)
+        for _ in 0..<badgedCount {
+            let badgedElement = try EngineKind(from: &reader)
+            badged.append(badgedElement)
+        }
+        self.init(engines: engines, offered: offered, badged: badged)
     }
 
     func encode(into writer: inout WireWriter) {
@@ -7063,6 +7070,10 @@ extension EngineRoster {
         }
         writer.writeCount(offered.count)
         for element0 in offered {
+            element0.encode(into: &writer)
+        }
+        writer.writeCount(badged.count)
+        for element0 in badged {
             element0.encode(into: &writer)
         }
     }

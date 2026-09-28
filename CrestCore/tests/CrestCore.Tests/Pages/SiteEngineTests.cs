@@ -47,6 +47,25 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void EveryEngineButTheDefaultBadgesItsPagesOnceMoreThanOneIsRegistered() {
+        using var app = new CrestApp();
+        Assert.Empty(EngineRoster.Unregistered.Badged);
+
+        // One engine badges nothing: every page runs on it.
+        app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.Required, IsDefault: true), _ => { });
+        Assert.Empty(Assert.Single(app.Drain().OfType<EnginesChanged>()).Roster.Badged);
+
+        // A second engine badges its own pages, whichever engine is the default.
+        var chromium = app.RegisterEngine(new EngineRegistration(EngineKind.Chromium, EngineCapability.Required, IsDefault: false),
+            _ => { });
+        Assert.Equal([EngineKind.Chromium], Assert.Single(app.Drain().OfType<EnginesChanged>()).Roster.Badged);
+
+        // Once it goes, the default's pages stay unbadged.
+        app.UnregisterEngine(chromium);
+        Assert.Empty(Assert.Single(app.Drain().OfType<EnginesChanged>()).Roster.Badged);
+    }
+
+    [Fact]
     public void ATabsPageOpensOnTheEngineChosenForItsSiteAndOnlyThePersistentSessionsChoicesAreKept() {
         using var directory = new StorageDirectory();
         Guid spaceId, chosenTab, otherTab;
