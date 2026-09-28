@@ -82,17 +82,6 @@ extension BrowserStore {
         return BrowserModifiedLinkRegistration(tab: tab, space: space)
     }
 
-    /// Tab-level popup operations for a page pool. `window.close()` reaches
-    /// `closeTab` and archives the popup's tab exactly like the close control in
-    /// the tab list does.
-    var popupTabHost: BrowserPopupTabHost {
-        BrowserPopupTabHost(
-            closeTab: { [weak self] tabID, spaceID in
-                _ = self?.closeTab(tabID, in: spaceID)
-            }
-        )
-    }
-
     /// Closes an open tab once its page agrees to go, which the core archives.
     /// A saved or pinned tab's page is put away by `BrowserDurableTabCloseAction`,
     /// which retires the page first, so this path leaves it alone.

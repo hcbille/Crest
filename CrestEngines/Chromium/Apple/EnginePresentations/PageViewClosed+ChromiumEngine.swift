@@ -3,7 +3,7 @@
 
     extension PageViewClosed {
         @MainActor func present(on engine: ChromiumEngine) {
-            engine.presentedPage(pageID)?.observer(.closeRequested)
+            engine.presentedPage(pageID)?.observer(.closedByEngine)
         }
     }
 #endif

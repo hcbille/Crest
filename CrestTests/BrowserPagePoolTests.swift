@@ -1597,8 +1597,7 @@ final class BrowserPagePoolTests: XCTestCase {
             browser: store,
             browsingMode: browsingMode,
             usesEphemeralWebsiteDataStores: tabStateArchive == nil,
-            tabStateArchive: tabStateArchive,
-            popupTabHost: store.popupTabHost
+            tabStateArchive: tabStateArchive
         )
         pool.select()
         return PopupAdoptionContext(

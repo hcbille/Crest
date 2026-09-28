@@ -3309,6 +3309,10 @@
     "edit-menu-text-tools-in-both-builds": {
       "category": "improved",
       "message": "The Chromium build's Edit menu now has Find, Spelling and Grammar, Substitutions, Transformations and Speech, Translate Page appears in the Page menu whenever a page can be translated, and Command-W closes Crest Setup and What's New in Crest there too."
+    },
+    "extension-closed-tabs-close-once": {
+      "category": "fixed",
+      "message": "A tab or window an extension closes now closes in Crest instead of leaving a blank tab behind, and a site can close only a tab or window that another page opened."
     }
   }
 }

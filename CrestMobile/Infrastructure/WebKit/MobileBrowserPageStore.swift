@@ -64,7 +64,6 @@ final class MobileBrowserPageStore:
     /// The certificate exceptions people accepted for this scene's pages, by
     /// profile.
     @ObservationIgnored let serverTrustOverrides = BrowserServerTrustOverrideStore()
-    @ObservationIgnored private let popupTabHost: BrowserPopupTabHost
     @ObservationIgnored private let mediaSessionStore: BrowserMediaSessionStore?
     @ObservationIgnored let linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored private let openNewTab: (URL) -> Void
@@ -97,7 +96,6 @@ final class MobileBrowserPageStore:
         saveHTTPAuthenticationCredential:
             @escaping HTTPAuthenticationCredentialSaver = { _, _ in },
         tabStateArchive: (any BrowserTabStateArchiving)? = nil,
-        popupTabHost: BrowserPopupTabHost = .unavailable,
         linkDestinationHost: BrowserLinkDestinationHost = .unavailable,
         openNewTab: @escaping (URL) -> Void = { _ in },
         openModifiedLink: @escaping ModifiedLinkOpener = { _, _, _ in nil },
@@ -111,7 +109,6 @@ final class MobileBrowserPageStore:
         // A private store's tabs leave no state on disk, even if an archive is
         // handed in.
         host = BrowserPageHost(archive: self.usesEphemeralWebsiteDataStores ? nil : tabStateArchive)
-        self.popupTabHost = popupTabHost
         self.mediaSessionStore = browsingMode.isPrivate ? nil : mediaSessionStore
         self.permissionCenter = permissionCenter
         self.loadHTTPAuthenticationCredential = loadHTTPAuthenticationCredential
@@ -450,21 +447,9 @@ final class MobileBrowserPageStore:
         return true
     }
 
-    /// Honors `window.close()` by closing the popup's tab through the same store
-    /// path the tab list's close control uses. The page itself is released after
-    /// the WebKit callback unwinds, because tearing a web view down inside its
-    /// own delegate callback is not safe.
-    func closeWebContentInitiatedPage(_ page: MobileBrowserPage) {
-        guard page.wasOpenedAsPopup, let tabID = host.tabID(for: page) else { return }
-        popupTabHost.closeTab(tabID, page.spaceID)
-        Task { @MainActor [weak self] in
-            self?.unloadPage(for: tabID)
-        }
-    }
-
     func discardDownloadOnlyPage(_ page: MobileBrowserPage) {
         guard !host.discardDownloadOnlyTransientPage(page) else { return }
-        closeWebContentInitiatedPage(page)
+        page.corePage.report(PageCloseRequested(pageID: page.corePage.id))
     }
 
     /// Hides a protected Space without unloading its tabs. Unlocking can reuse

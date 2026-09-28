@@ -159,6 +159,7 @@ enum Change: Equatable, Sendable {
     case tabPagePutAway(TabPagePutAway)
     case tabsChanged(TabsChanged)
     case tabsImported(TabsImported)
+    case transientPageClosed(TransientPageClosed)
     case transientPagePromoted(TransientPagePromoted)
     case windowBroughtForward(WindowBroughtForward)
     case windowChanged(WindowChanged)
@@ -530,6 +531,7 @@ extension Change {
         case .tabPagePutAway(let change): change.apply(to: state)
         case .tabsChanged(let change): change.apply(to: state)
         case .tabsImported(let change): change.apply(to: state)
+        case .transientPageClosed(let change): change.apply(to: state)
         case .transientPagePromoted(let change): change.apply(to: state)
         case .windowBroughtForward(let change): change.apply(to: state)
         case .windowChanged(let change): change.apply(to: state)
@@ -3521,6 +3523,10 @@ struct PageChanged: Equatable, Sendable {
     let page: PageState
 }
 
+struct PageCloseRequested: EngineEvent, PageEvent, Equatable, Sendable {
+    let pageID: UUID
+}
+
 struct PageClosed: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let restoreState: PageRestoreState?
@@ -5618,6 +5624,11 @@ struct TogglePin: Intent, SessionIntent, Equatable, Sendable {
 
 struct TransientAlreadyCompleted: Equatable, Sendable {
     let pageID: UUID
+}
+
+struct TransientPageClosed: Equatable, Sendable {
+    let pageID: UUID
+    let workspaceID: UUID
 }
 
 struct TransientPagePromoted: Equatable, Sendable {

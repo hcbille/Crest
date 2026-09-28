@@ -38,6 +38,7 @@ final class MobileBrowserTransientOverlayModel {
         self.didPromote = didPromote
         activityClock = BrowserTransientActivityClock()
         browser.core.engines.observeRecords(self) { [weak self] in self?.recordActivity(after: $0) }
+        browser.core.followClosedTransientPages(self) { [weak self] in self?.pageClosed($0) }
     }
 
     init(
@@ -175,6 +176,14 @@ final class MobileBrowserTransientOverlayModel {
 
     func setSourceAvailable(_ isAvailable: Bool) {
         guard !isAvailable else { return }
+        dismissUnavailableRequest()
+    }
+
+    /// The core closed this request's page: it closed itself, as a page
+    /// another page opened may, or its engine closed it. The Peek or Quick
+    /// Window goes with it, keeping nothing of it.
+    private func pageClosed(_ closed: TransientPageClosed) {
+        guard pageLease?.pageID == closed.pageID else { return }
         dismissUnavailableRequest()
     }
 

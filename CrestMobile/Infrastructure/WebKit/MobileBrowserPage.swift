@@ -28,8 +28,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// The store that owns this page. Weak because the store owns the page.
     weak var host: (any MobileBrowserPageHosting)?
 
-    /// True when web content opened this page through `window.open()`. It gates
-    /// `window.close()`, which may only close what script itself opened.
+    /// True when web content opened this page through `window.open()`. WebKit
+    /// drives such a page's history, so it neither restores nor archives any.
     var wasOpenedAsPopup = false
 
     /// True from adoption until WebKit starts the popup's own navigation. WebKit

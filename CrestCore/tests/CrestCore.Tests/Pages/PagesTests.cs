@@ -9,7 +9,8 @@ using Xunit;
 namespace CrestCore.Tests;
 
 /// The core's pages: who owns each page, which engine hosts it, where it stands
-/// there, the rules that refuse a page, and the order commands reach engines.
+/// there, the rules that refuse a page, the order commands reach engines, and
+/// what closes when a page asks to close or its engine closes it.
 public sealed partial class BrowserContractsTests {
     /// An engine binding under test. It records every command it runs, fails
     /// when one runs on the stack of another, and runs `OnCommand` on each.
@@ -335,5 +336,90 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal(new DefaultEngineAlreadyRegistered(EngineKind.Chromium), Assert.Throws<Rejected>(
             () => app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.All, IsDefault: true), _ => { })).Rejection);
         app.RegisterEngine(new EngineRegistration(EngineKind.WebKit, EngineCapability.All, IsDefault: false), _ => { });
+    }
+
+    [Fact]
+    public void AnEngineClosingATabsPageOnItsOwnClosesTheTabOnceAndItsReleaseClosesNothingMore() {
+        var session = TwoSpaceSession();
+        var space = SpaceId(session["spaces"]![0]!);
+        var (app, engine, binding, workspace, window) = PageHost(session);
+        using var disposal = app;
+        var (before, _) = LiveTab(app, engine, workspace, window, space, "https://before.example/");
+        var (tab, page) = LiveTab(app, engine, workspace, window, space, "https://closing.example/");
+        app.Drain();
+        IReadOnlyList<ArchivedTabState> Archive() => app.Workspace(workspace).Current.Spaces.Single(held => held.Id == space).ArchivedTabs;
+
+        // An extension removed the tab's page: the tab is archived, as its
+        // close button would, and its window returns to the tab before it.
+        app.Report(engine, new PageClosed(page, RestoreState: null));
+        var changes = app.Drain();
+        Assert.Equal(PagePhase.Closed, Assert.Single(changes.OfType<PageChanged>()).Page.Phase);
+        Assert.DoesNotContain(CurrentTabs(app, workspace, space), held => held.Id == tab);
+        Assert.Equal(tab, Archive()[^1].Tab.Id);
+        Assert.Equal(before, ShownTab(changes, window, space));
+
+        // A repeated report closes nothing more, and the page's owner lets it
+        // go without the engine hearing of it again.
+        var (archived, delivered) = (Archive().Count, binding.Commands.Count);
+        app.Report(engine, new PageClosed(page, RestoreState: null));
+        Assert.Empty(app.Drain());
+        Assert.Equal([new PageRemoved(page)], app.Send(new ReleasePage(page, KeepsState: false)));
+        Assert.Equal((archived, delivered), (Archive().Count, binding.Commands.Count));
+    }
+
+    [Fact]
+    public void AnEnginesAnswerToAnUnloadTheCoreAskedForKeepsTheTab() {
+        var (app, engine, binding, clock, workspace, window, space, _) = ResidentHost();
+        using var disposal = app;
+        var (unloadedTab, unloadedPage) = ShowNewTab(app, engine, clock, workspace, window, space, "https://unloaded.example/");
+        ShowNewTab(app, engine, clock, workspace, window, space, "https://shown.example/");
+        Assert.Equal([unloadedPage], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Critical))));
+        Assert.Equal(new ClosePage(unloadedPage, KeepsState: true), binding.Commands[^1]);
+
+        app.Report(engine, new PageClosed(unloadedPage, new PageRestoreState("https://unloaded.example/", [1])));
+        Assert.Empty(app.Drain());
+        Assert.Contains(CurrentTabs(app, workspace, space), tab => tab.Id == unloadedTab);
+    }
+
+    [Fact]
+    public void OnlyAPageAnotherPageOpenedClosesItselfAndWhatOwnsItClosesAsThePersonWould() {
+        var session = TwoSpaceSession();
+        var (space, profile) = (SpaceId(session["spaces"]![0]!), ProfileId(session["spaces"]![0]!));
+        var (app, engine, binding, workspace, window) = PageHost(session);
+        using var disposal = app;
+        var (sourceTab, source) = LiveTab(app, engine, workspace, window, space);
+        var quick = Guid.NewGuid();
+        app.Send(new OpenPage(quick, workspace, space, null, window, TransientPresentation.QuickWindow));
+        app.Report(engine, new PageCreated(quick));
+        app.Drain();
+        int tabs = CurrentTabs(app, workspace, space).Count;
+
+        // A tab or Quick Window the person opened stays, whatever its page asks.
+        app.Report(engine, new PageCloseRequested(source));
+        app.Report(engine, new PageCloseRequested(quick));
+        Assert.Empty(app.Drain());
+        Assert.Equal(tabs, CurrentTabs(app, workspace, space).Count);
+
+        // A tab a page opened closes as its close button would, and its window
+        // returns to its opener's tab.
+        app.Report(engine, new PageOffered(Guid.NewGuid(), profile, source, window, SpaceId: null, "https://popup.example/", Foreground: true));
+        var adopted = Assert.Single(app.Drain().OfType<OfferedPageAdopted>());
+        app.Report(engine, new PageCreated(adopted.PageId));
+        app.Drain();
+        app.Report(engine, new PageCloseRequested(adopted.PageId));
+        var closed = app.Drain();
+        Assert.DoesNotContain(CurrentTabs(app, workspace, space), tab => tab.Id == adopted.TabId);
+        Assert.Equal(sourceTab, ShownTab(closed, window, space));
+
+        // Whatever shows a window a page asked for closes it, and the engine
+        // keeps the page until its owner lets it go.
+        app.Report(engine, new PageOffered(Guid.NewGuid(), profile, source, WindowId: null, space, "https://accounts.example/", Foreground: true));
+        var popup = Assert.Single(app.Drain().OfType<OfferedWindowAdopted>()).PageId;
+        app.Report(engine, new PageCreated(popup));
+        app.Drain();
+        int delivered = binding.Commands.Count;
+        app.Report(engine, new PageCloseRequested(popup));
+        Assert.Equal([new TransientPageClosed(popup, workspace)], app.Drain());
+        Assert.Equal(delivered, binding.Commands.Count);
     }
 }

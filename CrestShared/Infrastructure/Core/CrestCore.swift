@@ -90,6 +90,9 @@ final class CrestCore {
     /// applied.
     @ObservationIgnored private var broughtForwardFollowers: [Follower<WindowBroughtForward>] = []
     @ObservationIgnored private var windowAdoptionFollowers: [Follower<OfferedWindowAdopted>] = []
+    /// Who hears each Quick Window or Peek page the core closed, once its
+    /// batch is applied.
+    @ObservationIgnored private var transientCloseFollowers: [Follower<TransientPageClosed>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     /// Whether the app prepares to quit, or quits: a quit asked for that the
@@ -344,6 +347,7 @@ final class CrestCore {
         var adoptedPages: [OfferedPageAdopted] = []
         var broughtForward: [WindowBroughtForward] = []
         var adoptedWindows: [OfferedWindowAdopted] = []
+        var closedTransientPages: [TransientPageClosed] = []
         var closesReady: [CloseReady] = []
         var dataDeleted: [DataDeleted] = []
         var movedPages: [UUID] = []
@@ -379,6 +383,7 @@ final class CrestCore {
             if case .offeredPageAdopted(let adopted) = change { adoptedPages.append(adopted) }
             if case .windowBroughtForward(let window) = change { broughtForward.append(window) }
             if case .offeredWindowAdopted(let adopted) = change { adoptedWindows.append(adopted) }
+            if case .transientPageClosed(let closed) = change { closedTransientPages.append(closed) }
             if case .closeReady(let ready) = change { closesReady.append(ready) }
             if case .dataDeleted(let deleted) = change { dataDeleted.append(deleted) }
         }
@@ -396,6 +401,7 @@ final class CrestCore {
         if !adoptedPages.isEmpty { pagesAdopted(adoptedPages) }
         if !broughtForward.isEmpty { windowsBroughtForward(broughtForward) }
         if !adoptedWindows.isEmpty { windowsAdopted(adoptedWindows) }
+        if !closedTransientPages.isEmpty { transientPagesClosed(closedTransientPages) }
         #if DEBUG
             batchApplied?(changes)
         #endif
@@ -498,6 +504,25 @@ final class CrestCore {
         let followers = windowAdoptionFollowers
         for window in windows {
             for follower in followers { follower.handler(window) }
+        }
+    }
+
+    /// Calls `handler` with each Quick Window or Peek page the core closed,
+    /// because it closed itself or its engine closed it, once its batch is
+    /// applied, so whatever shows the page closes. The registration lasts as
+    /// long as `owner`.
+    func followClosedTransientPages(
+        _ owner: AnyObject, _ handler: @escaping @MainActor (TransientPageClosed) -> Void
+    ) {
+        transientCloseFollowers.removeAll { $0.owner == nil }
+        transientCloseFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    private func transientPagesClosed(_ pages: [TransientPageClosed]) {
+        transientCloseFollowers.removeAll { $0.owner == nil }
+        let followers = transientCloseFollowers
+        for page in pages {
+            for follower in followers { follower.handler(page) }
         }
     }
 

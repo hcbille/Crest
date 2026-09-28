@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0xcf, 0x6a, 0xf2, 0x06, 0x09, 0xd5, 0x6a, 0xfc, 0x53, 0xa5, 0x43, 0x5a, 0xd0, 0x9d, 0x90, 0xe7, 0xf2, 0x61, 0x33, 0x2c, 0x78, 0x98, 0xac, 0x21, 0x08, 0xb3, 0x4f, 0x36, 0x48, 0x4e, 0x2f, 0xff
+        0x50, 0xf8, 0x7b, 0xc3, 0x86, 0xf0, 0xd4, 0x79, 0x4b, 0x91, 0x6a, 0x40, 0x99, 0x43, 0xa5, 0x59, 0x59, 0xca, 0xe0, 0xd5, 0x01, 0x1a, 0x64, 0x49, 0xfc, 0x22, 0xca, 0xa9, 0x86, 0x64, 0xf1, 0xcc
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0x46, 0x0f, 0xc5, 0x83, 0xfc, 0x49, 0x36, 0x06, 0x03, 0x24, 0x47, 0x93, 0x51, 0x1c, 0x52, 0x3e, 0xdb, 0xff, 0x0a, 0x45, 0xa3, 0x03, 0x5f, 0x98, 0x15, 0xa4, 0x81, 0xa3, 0x97, 0x5a, 0xce, 0xe0
+        0xcf, 0x9f, 0x92, 0xf3, 0x6d, 0x4f, 0xac, 0xce, 0xb0, 0x6b, 0xa6, 0xb3, 0x7d, 0xbc, 0x99, 0x27, 0x5b, 0xbf, 0x72, 0x1a, 0xeb, 0x52, 0x74, 0xa9, 0x86, 0xdd, 0xd3, 0x43, 0x52, 0xc0, 0xa9, 0x0f
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -331,19 +331,20 @@ enum CoreCodec {
         case 7: return try NavigationFailed(from: &reader)
         case 8: return try NavigationFinished(from: &reader)
         case 9: return try NavigationStarted(from: &reader)
-        case 10: return try PageClosed(from: &reader)
-        case 11: return try PageCrashed(from: &reader)
-        case 12: return try PageCreated(from: &reader)
-        case 13: return try PageCreationFailed(from: &reader)
-        case 14: return try PageIconChanged(from: &reader)
-        case 15: return try PageOffered(from: &reader)
-        case 16: return try PageStateChanged(from: &reader)
-        case 17: return try PermissionRequested(from: &reader)
-        case 18: return try PictureInPictureReturned(from: &reader)
-        case 19: return try PromptWithdrawn(from: &reader)
-        case 20: return try ProtectedMediaUnavailable(from: &reader)
-        case 21: return try ScriptDialogOpened(from: &reader)
-        case 22: return try StagedLinkUnavailable(from: &reader)
+        case 10: return try PageCloseRequested(from: &reader)
+        case 11: return try PageClosed(from: &reader)
+        case 12: return try PageCrashed(from: &reader)
+        case 13: return try PageCreated(from: &reader)
+        case 14: return try PageCreationFailed(from: &reader)
+        case 15: return try PageIconChanged(from: &reader)
+        case 16: return try PageOffered(from: &reader)
+        case 17: return try PageStateChanged(from: &reader)
+        case 18: return try PermissionRequested(from: &reader)
+        case 19: return try PictureInPictureReturned(from: &reader)
+        case 20: return try PromptWithdrawn(from: &reader)
+        case 21: return try ProtectedMediaUnavailable(from: &reader)
+        case 22: return try ScriptDialogOpened(from: &reader)
+        case 23: return try StagedLinkUnavailable(from: &reader)
         default: throw WireError.malformed("Unknown EngineEvent tag \(tag)")
         }
     }
@@ -469,14 +470,15 @@ extension Change {
         case 49: self = .tabPagePutAway(try TabPagePutAway(from: &reader))
         case 50: self = .tabsChanged(try TabsChanged(from: &reader))
         case 51: self = .tabsImported(try TabsImported(from: &reader))
-        case 52: self = .transientPagePromoted(try TransientPagePromoted(from: &reader))
-        case 53: self = .windowBroughtForward(try WindowBroughtForward(from: &reader))
-        case 54: self = .windowChanged(try WindowChanged(from: &reader))
-        case 55: self = .windowClosed(try WindowClosed(from: &reader))
-        case 56: self = .windowRecordsAdopted(try WindowRecordsAdopted(from: &reader))
-        case 57: self = .workspaceChanged(try WorkspaceChanged(from: &reader))
-        case 58: self = .workspaceClosed(try WorkspaceClosed(from: &reader))
-        case 59: self = .workspaceOpened(try WorkspaceOpened(from: &reader))
+        case 52: self = .transientPageClosed(try TransientPageClosed(from: &reader))
+        case 53: self = .transientPagePromoted(try TransientPagePromoted(from: &reader))
+        case 54: self = .windowBroughtForward(try WindowBroughtForward(from: &reader))
+        case 55: self = .windowChanged(try WindowChanged(from: &reader))
+        case 56: self = .windowClosed(try WindowClosed(from: &reader))
+        case 57: self = .windowRecordsAdopted(try WindowRecordsAdopted(from: &reader))
+        case 58: self = .workspaceChanged(try WorkspaceChanged(from: &reader))
+        case 59: self = .workspaceClosed(try WorkspaceClosed(from: &reader))
+        case 60: self = .workspaceOpened(try WorkspaceOpened(from: &reader))
         default: throw WireError.malformed("Unknown Change tag \(tag)")
         }
     }
@@ -639,29 +641,32 @@ extension Change {
         case .tabsImported(let value):
             writer.writeTag(51)
             value.encode(into: &writer)
-        case .transientPagePromoted(let value):
+        case .transientPageClosed(let value):
             writer.writeTag(52)
             value.encode(into: &writer)
-        case .windowBroughtForward(let value):
+        case .transientPagePromoted(let value):
             writer.writeTag(53)
             value.encode(into: &writer)
-        case .windowChanged(let value):
+        case .windowBroughtForward(let value):
             writer.writeTag(54)
             value.encode(into: &writer)
-        case .windowClosed(let value):
+        case .windowChanged(let value):
             writer.writeTag(55)
             value.encode(into: &writer)
-        case .windowRecordsAdopted(let value):
+        case .windowClosed(let value):
             writer.writeTag(56)
             value.encode(into: &writer)
-        case .workspaceChanged(let value):
+        case .windowRecordsAdopted(let value):
             writer.writeTag(57)
             value.encode(into: &writer)
-        case .workspaceClosed(let value):
+        case .workspaceChanged(let value):
             writer.writeTag(58)
             value.encode(into: &writer)
-        case .workspaceOpened(let value):
+        case .workspaceClosed(let value):
             writer.writeTag(59)
+            value.encode(into: &writer)
+        case .workspaceOpened(let value):
+            writer.writeTag(60)
             value.encode(into: &writer)
         }
     }
@@ -12563,6 +12568,22 @@ extension PageChanged {
     }
 }
 
+extension PageCloseRequested {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        self.init(pageID: pageID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
+    }
+
+    func encodeEngineEvent(into writer: inout WireWriter) {
+        writer.writeTag(10)
+        encode(into: &writer)
+    }
+}
+
 extension PageClosed {
     init(from reader: inout WireReader) throws(WireError) {
         let pageID = try reader.readUUID()
@@ -12587,7 +12608,7 @@ extension PageClosed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(10)
+        writer.writeTag(11)
         encode(into: &writer)
     }
 }
@@ -12607,7 +12628,7 @@ extension PageCrashed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(11)
+        writer.writeTag(12)
         encode(into: &writer)
     }
 }
@@ -12623,7 +12644,7 @@ extension PageCreated {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(12)
+        writer.writeTag(13)
         encode(into: &writer)
     }
 }
@@ -12639,7 +12660,7 @@ extension PageCreationFailed {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(13)
+        writer.writeTag(14)
         encode(into: &writer)
     }
 }
@@ -12827,7 +12848,7 @@ extension PageIconChanged {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(14)
+        writer.writeTag(15)
         encode(into: &writer)
     }
 }
@@ -13119,7 +13140,7 @@ extension PageOffered {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(15)
+        writer.writeTag(16)
         encode(into: &writer)
     }
 }
@@ -13320,7 +13341,7 @@ extension PageStateChanged {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(16)
+        writer.writeTag(17)
         encode(into: &writer)
     }
 }
@@ -13875,7 +13896,7 @@ extension PermissionRequested {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(17)
+        writer.writeTag(18)
         encode(into: &writer)
     }
 }
@@ -13902,7 +13923,7 @@ extension PictureInPictureReturned {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(18)
+        writer.writeTag(19)
         encode(into: &writer)
     }
 }
@@ -14235,7 +14256,7 @@ extension PromptWithdrawn {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(19)
+        writer.writeTag(20)
         encode(into: &writer)
     }
 }
@@ -14253,7 +14274,7 @@ extension ProtectedMediaUnavailable {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(20)
+        writer.writeTag(21)
         encode(into: &writer)
     }
 }
@@ -15574,7 +15595,7 @@ extension ScriptDialogOpened {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(21)
+        writer.writeTag(22)
         encode(into: &writer)
     }
 }
@@ -18840,7 +18861,7 @@ extension StagedLinkUnavailable {
     }
 
     func encodeEngineEvent(into writer: inout WireWriter) {
-        writer.writeTag(22)
+        writer.writeTag(23)
         encode(into: &writer)
     }
 }
@@ -20053,6 +20074,19 @@ extension TransientAlreadyCompleted {
 
     func encode(into writer: inout WireWriter) {
         writer.writeUUID(pageID)
+    }
+}
+
+extension TransientPageClosed {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        let workspaceID = try reader.readUUID()
+        self.init(pageID: pageID, workspaceID: workspaceID)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
+        writer.writeUUID(workspaceID)
     }
 }
 

@@ -9,8 +9,9 @@ final class BrowserQuickWindowModel {
     private(set) var pageLease: BrowserTransientPageLease?
     private(set) var releasedPageSnapshot: BrowserTransientPageSnapshot?
     private(set) var wasPromoted = false
-    /// The window's page closed itself, as a sign-in window's page does once
-    /// it is done, which closes the window.
+    /// The core closed the window's page: it closed itself, as a sign-in
+    /// window's page does once it is done, or its engine closed it. The
+    /// window closes, keeping nothing of it.
     private(set) var wasClosedByPage = false
     let activityClock: BrowserTransientActivityClock
     /// Whether the window may close when the person asks: the core asks the
@@ -54,6 +55,7 @@ final class BrowserQuickWindowModel {
         self.requestLifecycle = requestLifecycle
         activityClock = BrowserTransientActivityClock()
         browser.core.engines.observeRecords(self) { [weak self] in self?.recordActivity(after: $0) }
+        browser.core.followClosedTransientPages(self) { [weak self] in self?.pageClosed($0) }
     }
 
     init(
@@ -146,8 +148,7 @@ final class BrowserQuickWindowModel {
             // which keeps its opener; one whose page already went closes.
             tookOpenedPage = true
             pageLease = pages.makePopupWindowLease(
-                for: openedPageID, url: url, in: leaseSpace, onUserActivity: recordUserActivity,
-                onClosedByPage: { [weak self] in self?.wasClosedByPage = true })
+                for: openedPageID, url: url, in: leaseSpace, onUserActivity: recordUserActivity)
             guard pageLease != nil else {
                 wasClosedByPage = true
                 return
@@ -247,6 +248,12 @@ final class BrowserQuickWindowModel {
         if outcome != .adoptedLivePage { pageLease?.release() }
         pages.select()
         return true
+    }
+
+    /// The core closed this Quick Window's page, which closes the window.
+    private func pageClosed(_ closed: TransientPageClosed) {
+        guard isCurrentRequest, pageLease?.pageID == closed.pageID else { return }
+        wasClosedByPage = true
     }
 
     /// A navigation the core recorded for this Quick Window's page is

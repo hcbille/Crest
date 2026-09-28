@@ -6,14 +6,16 @@ import UniformTypeIdentifiers
 import WebKit
 
 /// The tab-level operations a page needs from whatever owns it.
-/// `window.close()` arrives while a WebKit delegate callback is on the stack;
-/// the page itself defers teardown requests until that callback has unwound.
 @MainActor
 protocol BrowserPageHosting: AnyObject {
-    /// Honors `window.close()` for a page the web content itself opened.
-    func closeWebContentInitiatedPage(_ page: BrowserPage)
+    /// Lets go of a page its engine closed on its own authority, once the
+    /// core closed what owned it. A tab the core kept, such as one in a locked
+    /// Space, loads its page anew when it is shown.
+    func releaseEngineClosedPage(_ page: BrowserPage)
 
-    /// Retires an empty transient surface whose initial navigation became a download.
+    /// Retires an empty surface whose initial navigation became a download:
+    /// a transient one closes, and a tab's page asks the core to close it as
+    /// its own script would.
     func discardDownloadOnlyPage(_ page: BrowserPage)
 
     /// Brings the live tab that authored a clicked system notification forward.

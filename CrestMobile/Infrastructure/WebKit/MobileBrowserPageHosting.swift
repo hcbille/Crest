@@ -5,8 +5,6 @@ import UniformTypeIdentifiers
 import WebKit
 
 /// The tab-level operations a page needs from whatever owns it.
-/// `window.close()` arrives while a WebKit delegate callback is on the stack;
-/// the page itself defers teardown requests until that callback has unwound.
 @MainActor
 protocol MobileBrowserPageHosting: AnyObject {
     /// Starts the original request in its newly registered tab, independently
@@ -15,10 +13,9 @@ protocol MobileBrowserPageHosting: AnyObject {
     func loadOpenedLink(
         _ registration: BrowserModifiedLinkRegistration, request: URLRequest, selecting: Bool, opener: UUID)
 
-    /// Honors `window.close()` for a page the web content itself opened.
-    func closeWebContentInitiatedPage(_ page: MobileBrowserPage)
-
-    /// Retires an empty transient surface whose initial navigation became a download.
+    /// Retires an empty surface whose initial navigation became a download:
+    /// a transient one closes, and a tab's page asks the core to close it as
+    /// its own script would.
     func discardDownloadOnlyPage(_ page: MobileBrowserPage)
 
     /// Routes a pre-iOS 27 geolocation bridge message from a shared popup

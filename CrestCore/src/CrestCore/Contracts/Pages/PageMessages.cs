@@ -63,6 +63,12 @@ public sealed record PageRemoved(Guid PageId) : Change;
 /// `PageRemoved` also says.
 public sealed record PageUnloaded(Guid PageId, Guid WorkspaceId, Guid TabId) : Change;
 
+/// The Quick Window's or Peek's page `PageId` names, in the workspace
+/// `WorkspaceId`, closed itself as a page another page opened may, or its
+/// engine closed it on its own authority. Whatever shows it closes, keeping
+/// nothing of it, and lets the page go.
+public sealed record TransientPageClosed(Guid PageId, Guid WorkspaceId) : Change;
+
 #endregion
 
 #region Rejections - Pages

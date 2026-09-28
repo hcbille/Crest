@@ -158,7 +158,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let store = BrowserStore.hostingPages(
             SessionState.Seed(spaces: [space])
         )
-        let pool = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
+        let pool = BrowserPagePool(browser: store)
 
         do {
             pool.select()
@@ -232,7 +232,6 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         )
         let pool = BrowserPagePool(
             browser: store,
-            popupTabHost: store.popupTabHost,
             openNewTab: { url in
                 _ = store.openNewTab(url: url)
             }
@@ -290,7 +289,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let store = BrowserStore.hostingPages(
             SessionState.Seed(spaces: [space])
         )
-        let pool = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
+        let pool = BrowserPagePool(browser: store)
         let siteOrigin = try XCTUnwrap(SiteOrigin(url: origin))
 
         do {
@@ -337,7 +336,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let store = BrowserStore.hostingPages(
             SessionState.Seed(spaces: [space])
         )
-        let pool = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
+        let pool = BrowserPagePool(browser: store)
 
         do {
             pool.select()
@@ -402,7 +401,6 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         )
         let pool = BrowserPagePool(
             browser: store,
-            popupTabHost: store.popupTabHost,
             openNewTab: { url in
                 _ = store.openNewTab(url: url)
             }
@@ -478,7 +476,6 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         )
         let pool = BrowserPagePool(
             browser: store,
-            popupTabHost: store.popupTabHost,
             openNewTab: { url in
                 _ = store.openNewTab(url: url)
             }
@@ -552,8 +549,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             SessionState.Seed(spaces: [space])
         )
         let pool = BrowserPagePool(
-            browser: store,
-            popupTabHost: store.popupTabHost
+            browser: store
         )
 
         do {
@@ -725,7 +721,7 @@ final class BrowserWebCompatibilityTests: XCTestCase {
         let profile = BrowsingProfile()
         let space = makeSpace(profile: profile, tabs: [openerTab])
         let store = BrowserStore.hostingPages(SessionState.Seed(spaces: [space]))
-        let primary = BrowserPagePool(browser: store, popupTabHost: store.popupTabHost)
+        let primary = BrowserPagePool(browser: store)
         let spaceAccess = BrowserSpaceAccessController(authenticator: BrowserPreviewAuthenticator(result: true))
         let windowID = UUID()
         func openWindow() -> (browser: BrowserStore, pages: BrowserPagePool) {

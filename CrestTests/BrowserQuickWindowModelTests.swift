@@ -488,7 +488,6 @@ final class BrowserQuickWindowModelTests: XCTestCase {
             browser: browser,
             browsingMode: browsingMode,
             usesEphemeralWebsiteDataStores: true,
-            popupTabHost: browser.popupTabHost,
             openNewTab: { url in
                 _ = browser.openNewTab(url: url)
             }

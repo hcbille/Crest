@@ -16,7 +16,9 @@ internal sealed record PageTurn(ChangeFeed Changes, Action<Engine, EngineCommand
 /// window that hosts it, the engine that hosts it and the live state its
 /// engine reports. Never saved or synced. The platform decides when a page
 /// opens or goes; the core decides whether it may, and on which engine, and
-/// asks the engine to create, load and close it. A page another page opened
+/// asks the engine to create, load and close it. A page that asks to close
+/// itself, and one its engine closes on its own authority, close what owns
+/// them as the core decides (see `CloseOwner`). A page another page opened
 /// runs on its opener's engine, whatever the site's choice: every window,
 /// popup, new tab, Peek or split a page opens stays in the engine that page
 /// runs in. Any other page opens on the engine chosen for the site its tab
@@ -167,6 +169,32 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         foreach (var remembered in unloaded.Values.Where(remembered => remembered.WorkspaceId == workspaceId).ToArray())
             unloaded.Remove(remembered.Id);
         foreach (var key in restoreStates.Keys.Where(key => key.WorkspaceId == workspaceId).ToArray()) Forget(key);
+    }
+
+    #endregion
+
+    #region Actions - Owners
+
+    /// Closes what owns `page`, as the person closing it would. Its tab closes
+    /// the way its section closes one (see `CloseTab`), and the window that
+    /// hosts the page returns to the tab it showed before; whatever shows a
+    /// Quick Window's or Peek's page closes, keeping nothing of it. A tab its
+    /// Space no longer holds and a Space being deleted have nothing to close,
+    /// and a locked Space, or the Start Page as its Space's only tab, keeps
+    /// its tab.
+    internal void CloseOwner(Page page, PageTurn turn) {
+        if (device.Attached(page.WorkspaceId) is not { } workspace) return;
+        if (page.TabId is null) {
+            if (!workspace.IsDeleting(page.SpaceId) && workspace.Current.Spaces.Any(space => space.Id == page.SpaceId))
+                turn.Changes.Publish(new TransientPageClosed(page.Id, page.WorkspaceId));
+            return;
+        }
+        if (Tab(page) is not { } tab) return;
+        try {
+            workspace.Handle(new CloseTab(page.WorkspaceId, page.WindowId, page.SpaceId, tab.Id), clock.Now, ids, this);
+        } catch (Rejected) {
+            // The Space is locked, or its only tab is the Start Page.
+        }
     }
 
     #endregion

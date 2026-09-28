@@ -60,7 +60,8 @@ public sealed record PageRendererGone(Guid PageId) : EnginePagePresentation(Page
 /// The colour the page's document declared for its surroundings, or none.
 public sealed record PageThemeChanged(Guid PageId, BrandColor? Color) : EnginePagePresentation(PageId);
 
-/// The engine closed the page on its own, as a script's `window.close()` does.
+/// The engine closed the page on its own authority, as an extension's
+/// `chrome.tabs.remove` does. The core closes what owned it (see `PageClosed`).
 public sealed record PageViewClosed(Guid PageId) : EnginePagePresentation(PageId);
 
 /// The engine created the page, so its view can be shown.

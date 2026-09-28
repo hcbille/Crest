@@ -93,7 +93,7 @@
   },
   "chrome/browser/ui/browser.cc": {
     "before": "17dbe8da97a8b5704b4a8f135985a3bb9d608de31ffcb058915da3e66b34aae3",
-    "after": "63e46bbbd816ba40dc61548441350f40819f83d00e6a49332cc508630b45e6ab"
+    "after": "9dbe8d8cbf5d512ce94b47ea1a568e413094785360cc02444048ea13e898c270"
   },
   "third_party/blink/public/web/web_navigation_params.h": {
     "before": "0e85b1e5e1baf59c40be8e8c23e7756b6eb103596bc7d99a0b7727ee80e06624",
@@ -153,7 +153,7 @@
   },
   "content/browser/renderer_host/render_frame_host_impl.cc": {
     "before": "4eeb2db6661d24a1a9aa98d1b0e9790cfacd8ec84261d72713b5df219c102478",
-    "after": "e453deac297e998b926c24f8af6915836e926ce20460d87d503608a252f50efd"
+    "after": "dd64fb9841ae5f0daa8cea016d26d766c35be51a5e33289ce5777d92755169d7"
   },
   "content/browser/renderer_host/navigator.h": {
     "before": "2b7a3770a08eafe6b35477ca98a9b63037f6ff013a42e58b26a7b28f0f894d4c",
@@ -290,5 +290,17 @@
   "content/browser/notifications/notification_event_dispatcher_impl.cc": {
     "before": "5df1b89e28cebe6c0230b1a2028d12ecce52483840123ab63b40caa3d7ffcf51",
     "after": "a8ae851d47316a1a2d292167a969b2e79aab40011773f69b0c32329389dda086"
+  },
+  "content/public/browser/web_contents_delegate.h": {
+    "before": "0cc88f34b889044692114ed647bf1c1567c1274272d30d3d66e8c8ee415b3fd5",
+    "after": "23d57e2d6a349382f065b99f318b6edcfff112f1a4967a38dd4a0606baafbab6"
+  },
+  "chrome/browser/ui/browser.h": {
+    "before": "be61de9dbd287bcf089399ee5c3c96c6e6b69e973db906816771da8584c2271b",
+    "after": "b648f2a14973eecf0cd3e4df544dd0bdbd36957ec69f531877b71fd4f421a61b"
+  },
+  "chrome/browser/resource_coordinator/tab_lifecycle_unit.cc": {
+    "before": "b5424d86b4adeb250e2697b215d630fe5dee37bdbf8a646accbfee780d2c5050",
+    "after": "57fd2adce0146df64058a0a9dd8849d1768cbe26d0e84dc42d398b52f85e49ec"
   }
 }

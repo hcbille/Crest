@@ -378,8 +378,9 @@ class EngineBinding {
 // The engine fired `contents`'s beforeunload. Answers whether the core had
 // asked the page, which then hears `proceed`. A beforeunload the core did not
 // ask for, from a close the engine began itself such as an extension's
-// `chrome.tabs.remove` or a script's `window.close()`, stays with Chromium's
-// own unload controller.
+// `chrome.tabs.remove`, stays with Chromium's own unload controller; a
+// script's `window.close()` asks its own document before the page asks the
+// core (see `RequestPageClose`).
 bool AnswerBeforeUnload(content::WebContents* contents, bool proceed);
 
 // A GUID as the platform spells it: uppercase hexadecimal in RFC 4122 groups.

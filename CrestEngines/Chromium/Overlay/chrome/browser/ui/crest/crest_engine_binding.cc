@@ -526,8 +526,9 @@ void EngineBinding::PageLost(const std::string& key) {
   if (!page) {
     return;
   }
-  // The engine closed the page on its own, as `window.close()` does. The
-  // page is still inside its own teardown, so it is let go of afterwards.
+  // The engine closed the page on its own authority, as an extension's
+  // `chrome.tabs.remove` does; the core closes what owned it. The page is
+  // still inside its own teardown, so it is let go of afterwards.
   Report(engine::PageClosed{.page_id = page->id(), .restore_state = std::nullopt});
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&EngineBinding::Forget, weak_factory_.GetWeakPtr(), key));
@@ -1459,6 +1460,19 @@ void OnDevToolsClosing(content::WebContents* inspected) {
 bool AnswerBeforeUnload(content::WebContents* contents, bool proceed) {
   EnginePage* page = EngineBinding::Get().PageFor(contents);
   return page && page->AnswerBeforeUnload(proceed);
+}
+
+bool RequestPageClose(content::WebContents* contents) {
+  EnginePage* page = IsEnabled() && contents ? EngineBinding::Get().PageFor(contents) : nullptr;
+  if (!page) {
+    return false;
+  }
+  page->RequestClose();
+  return true;
+}
+
+bool KeepsPageResident(content::WebContents* contents) {
+  return IsEnabled() && contents && EngineBinding::Get().PageFor(contents);
 }
 
 // A modified click the core sends to a tab or to Peek. Any other, in a page

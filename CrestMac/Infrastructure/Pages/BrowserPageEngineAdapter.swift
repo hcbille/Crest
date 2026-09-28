@@ -117,6 +117,8 @@ enum BrowserPageEngineEvent {
     /// to; nil means the current one.
     case favicon(Data?, source: URL?)
     case developerPanelClosed
-    case closeRequested
+    /// The engine closed the page on its own authority, as an extension's
+    /// `chrome.tabs.remove` does. The core already closed what owned it.
+    case closedByEngine
     case creationFailed(message: String)
 }

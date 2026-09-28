@@ -519,8 +519,7 @@ final class MobileBrowserInteropTests: XCTestCase {
             browser: store,
             browsingMode: browsingMode,
             usesEphemeralWebsiteDataStores: tabStateArchive == nil,
-            tabStateArchive: tabStateArchive,
-            popupTabHost: store.popupTabHost
+            tabStateArchive: tabStateArchive
         )
         pages.select()
         return MobilePopupAdoptionContext(

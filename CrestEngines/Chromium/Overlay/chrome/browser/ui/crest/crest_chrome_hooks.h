@@ -50,6 +50,14 @@ bool Reopen();
 // Hands the core a page's beforeunload answer when the core asked whether the
 // page may close, without destroying the page.
 bool CompletePageClosePreparation(content::WebContents* contents, bool proceed);
+// A page's own script asked to close its window, as `window.close()` does.
+// Crest's core decides whether a page may close itself, the same way on every
+// engine, and closes it when it may, so Chromium closes nothing. False leaves
+// a WebContents no Crest page follows to Chromium.
+bool RequestPageClose(content::WebContents* contents);
+// Whether `contents` is a Crest page, which Chromium never discards: the core
+// decides when a page unloads, and a discard replaces the tab's WebContents.
+bool KeepsPageResident(content::WebContents* contents);
 // Shares HTTP Basic and Digest prompts with Crest's per-Space credential flow.
 // False leaves a WebContents that Crest does not own to Chromium.
 bool PresentHTTPAuthentication(content::WebContents* contents, const net::AuthChallengeInfo& challenge,

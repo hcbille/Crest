@@ -401,6 +401,18 @@ before its window is created, so `chrome.windows.create` reports an error
 instead of leaving its promise unsettled. Picture-in-picture keeps its Views window, which Chromium drives on
 its own, and so does a DevTools frontend the user has undocked.
 
+A page's own `window.close()` does not close its WebContents. After its
+document agreed to go, the renderer's close request reaches
+`WebContentsDelegate::CrestPageAskedToClose` instead of `Browser::CloseContents`,
+and the page reports `PageCloseRequested`; Crest's core closes the page's tab
+or Quick Window only when another page opened it, as it does for WebKit. A close
+the browser starts, such as an extension's `chrome.tabs.remove` or
+`chrome.windows.remove`, keeps Chromium's own unload flow and destroys the
+WebContents, and the core then closes the Crest tab once. Chromium never
+discards a Crest page (`chrome.tabs.discard` or its own memory saver), because a
+discard replaces the tab's WebContents; the core unloads pages under memory
+pressure instead.
+
 A docked DevTools frontend is mounted inside the Crest page card it inspects.
 This build never creates Chrome's Views contents container, so the
 `DevtoolsUIController` that normally decides whether docking is possible and

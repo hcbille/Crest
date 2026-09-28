@@ -395,13 +395,13 @@ The engine contract is a set of contract records like intents and changes:
   The core delivers them in the order it issued them, never while it holds a
   lock and never on the stack of the report that caused them.
 - **Engine events** a binding reports: `PageCreated`, `PageCreationFailed`,
-  `PageClosed`, the navigation events, `PageStateChanged` with a
-  `PageSnapshot`, `PageIconChanged`, `PageCrashed`, the prompt events, the
-  download events, `BeforeUnloadAnswered`, `DataErased`,
-  `ProtectedMediaUnavailable`, `PictureInPictureReturned`, `PageOffered` and
-  `StagedLinkUnavailable`. A report is never refused; one about a page the
-  core no longer knows, or one from an engine that no longer hosts the page,
-  changes nothing.
+  `PageClosed`, `PageCloseRequested`, the navigation events,
+  `PageStateChanged` with a `PageSnapshot`, `PageIconChanged`, `PageCrashed`,
+  the prompt events, the download events, `BeforeUnloadAnswered`,
+  `DataErased`, `ProtectedMediaUnavailable`, `PictureInPictureReturned`,
+  `PageOffered` and `StagedLinkUnavailable`. A report is never refused; one
+  about a page the core no longer knows, or one from an engine that no longer
+  hosts the page, changes nothing.
 - **Engine questions** a binding asks the core and has answered at once,
   changing nothing, through `crest_engine_ask`: `LinkActivation` asks where a
   link the person followed goes, by the same rules as the `LinkNavigation`
@@ -657,6 +657,23 @@ core no longer hosts, or that another engine hosts, changes nothing.
   failure until the person asks for the page again. A renderer that stopped
   while nobody saw it spends none of the budget and comes back when a window
   shows the page.
+- **Closing.** A page whose script asks to close its window, as
+  `window.close()` does once its document agreed to go, reports
+  `PageCloseRequested` and stays open: WebKit from `webViewDidClose`,
+  Chromium from a renderer's close request, which its host takes before
+  `Browser::CloseContents` sees it. The core lets only a page another page
+  opened close itself, the same way on both engines; a tab the person opened
+  or saved stays, whatever its history. A `PageClosed` for a page the core
+  still hosts means the engine closed it on its own authority, as an
+  extension's `chrome.tabs.remove` or `chrome.windows.remove` does. Either
+  way the core closes what owns the page as the person closing it would: a
+  tab through `CloseTab`, once, and a Quick Window's or Peek's page through
+  `TransientPageClosed`, which closes whatever shows it. A page in a Space
+  being deleted has nothing left to close. The acknowledgement of a close the
+  core asked for finds the page already gone or moved to another engine, and
+  changes nothing. Chromium never discards a Crest page, since a discard
+  would replace its WebContents; the core's memory pressure unloads pages
+  instead.
 - **Prompts.** Script dialogs, sign-ins, permission requests and extension
   installs are questions the binding raises with the core (`ScriptDialogOpened`,
   `AuthenticationChallenged`, `PermissionRequested`,

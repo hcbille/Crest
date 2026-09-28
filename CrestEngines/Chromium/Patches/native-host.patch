@@ -869,18 +869,34 @@
    TRACE_EVENT1("navigation", "Browser::OpenURLFromTab", "source", source);
  #if DCHECK_IS_ON()
    DCHECK(params.Valid());
-@@ -1259,6 +1263,10 @@
-     return window->OpenURLFromTab(source, params,
+@@ -1260,6 +1264,10 @@
                                    std::move(navigation_handle_callback));
    }
-+
+ 
 +#if BUILDFLAG(IS_MAC)
 +  if (crest::RouteModifiedLink(source, params)) return nullptr;
 +#endif
- 
++
    // If the source is already split, navigate the other pane instead of
    // creating a new tab. Return |source| so that WebContentsImpl::OpenURL()
-@@ -1504,6 +1512,14 @@
+   // sees new_contents == this and skips the DidOpenRequestedURL notification,
+@@ -1481,6 +1489,15 @@
+   if (UnloadController::From(this)->CanCloseContents(source)) {
+     chrome::CloseWebContents(this, source, true);
+   }
++}
++
++bool Browser::CrestPageAskedToClose(WebContents* source) {
++#if BUILDFLAG(IS_MAC)
++  // Crest decides whether a page it shows may close itself, and closes it.
++  return crest::IsEnabled() && crest::RequestPageClose(source);
++#else
++  return false;
++#endif
+ }
+ 
+ void Browser::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
+@@ -1504,6 +1521,14 @@
  }
  
  void Browser::UpdateTargetURL(WebContents* source, const GURL& url) {
@@ -893,9 +909,10 @@
 +  }
 +#endif
    std::vector<StatusBubble*> status_bubbles = GetStatusBubbles();
-  for (StatusBubble* status_bubble : status_bubbles) {
-    StatusBubbleViews* status_bubble_views =
-@@ -1759,4 +1775,7 @@
+   for (StatusBubble* status_bubble : status_bubbles) {
+     StatusBubbleViews* status_bubble_views =
+@@ -1743,6 +1768,9 @@
+ 
  content::JavaScriptDialogManager* Browser::GetJavaScriptDialogManager(
      WebContents* source) {
 +#if BUILDFLAG(IS_MAC)
@@ -903,6 +920,17 @@
 +#endif
    return javascript_dialogs::TabModalDialogManager::FromWebContents(source);
  }
+ 
+--- a/chrome/browser/ui/browser.h
++++ b/chrome/browser/ui/browser.h
+@@ -608,6 +608,7 @@
+   void LoadingStateChanged(content::WebContents* source,
+                            bool should_show_loading_ui) override;
+   void CloseContents(content::WebContents* source) override;
++  bool CrestPageAskedToClose(content::WebContents* source) override;
+   void SetContentsBounds(content::WebContents* source,
+                          const gfx::Rect& bounds) override;
+   void UpdateTargetURL(content::WebContents* source, const GURL& url) override;
 --- a/third_party/blink/public/web/web_navigation_params.h
 +++ b/third_party/blink/public/web/web_navigation_params.h
 @@ -108,6 +108,9 @@
@@ -1155,7 +1183,15 @@
    params.initiator_frame_token = base::OptionalFromPtr(initiator_frame_token);
 --- a/content/browser/renderer_host/render_frame_host_impl.cc
 +++ b/content/browser/renderer_host/render_frame_host_impl.cc
-@@ -3879,7 +3879,9 @@
+@@ -231,6 +231,7 @@
+ #include "content/public/browser/storage_partition.h"
+ #include "content/public/browser/tracing_support.h"
+ #include "content/public/browser/weak_document_ptr.h"
++#include "content/public/browser/web_contents_delegate.h"
+ #include "content/public/browser/web_ui_url_loader_factory.h"
+ #include "content/public/common/alternative_error_page_override_info.mojom.h"
+ #include "content/public/common/bindings_policy.h"
+@@ -3879,7 +3880,9 @@
      int32_t world_id) {
    CHECK_CURRENTLY_ON(BrowserThread::UI);
    CHECK_GT(world_id, ISOLATED_WORLD_ID_GLOBAL);
@@ -1166,12 +1202,10 @@
    AssertFrameWasCommitted();
  
    const bool wants_result = !callback.is_null();
-@@ -6663,6 +6665,16 @@
- 
-   // Since we didn't early return, it's safe to keep the commit state.
+@@ -6665,6 +6668,16 @@
    commit_state_resetter.disable();
-+}
-+
+ }
+ 
 +// Crest: only an active document may ask, so a page moving to another engine
 +// is always the one the person sees.
 +void RenderFrameHostImpl::CrestKeySystemUnavailable(
@@ -1180,10 +1214,31 @@
 +    return;
 +  }
 +  delegate_->CrestKeySystemUnavailable(this, key_system);
- }
- 
++}
++
  void RenderFrameHostImpl::DidOpenDocumentInputStream(const GURL& url) {
-@@ -10289,6 +10301,18 @@
+   // Check if the URL can actually be committed to the current origin. When
+   // checking, the restrictions should be the same as a same-document navigation
+@@ -7819,6 +7832,18 @@
+   if (!IsActive() && source == ClosePageSource::kRenderer) {
+     page_close_state_ = PageCloseState::kNotClosing;
+     return;
++  }
++
++  // Crest: the page's own script asked to close its window. The embedder may
++  // take the request, and then decides itself whether the page closes.
++  if (source == ClosePageSource::kRenderer) {
++    WebContents* contents = WebContents::FromRenderFrameHost(this);
++    if (contents && contents->GetPrimaryMainFrame() == this &&
++        contents->GetDelegate() &&
++        contents->GetDelegate()->CrestPageAskedToClose(contents)) {
++      page_close_state_ = PageCloseState::kNotClosing;
++      return;
++    }
+   }
+ 
+   page_close_state_ = PageCloseState::kReadyToBeClosed;
+@@ -10289,6 +10314,18 @@
    }
    // TODO(crbug.com/385170155): Consider whether to pass actual_navigation_start
    // through this path as well, which may involve a lot of plumbing.
@@ -1202,7 +1257,7 @@
    owner->GetCurrentNavigator().RequestOpenURL(
        this, validated_url, base::OptionalToPtr(params->initiator_frame_token),
        GetProcess()->GetDeprecatedID(), params->initiator_origin,
-@@ -10297,7 +10321,8 @@
+@@ -10297,7 +10334,8 @@
        params->disposition, params->should_replace_current_entry,
        params->user_gesture, params->triggering_event_info,
        params->href_translate, std::move(blob_url_loader_factory),
@@ -1212,6 +1267,21 @@
  }
  
  void RenderFrameHostImpl::GetAssociatedInterface(
+--- a/content/public/browser/web_contents_delegate.h
++++ b/content/public/browser/web_contents_delegate.h
+@@ -236,6 +236,12 @@
+   // Request the delegate to close this web contents, and do whatever cleanup
+   // it needs to do.
+   virtual void CloseContents(WebContents* source) {}
++
++  // Crest: the page's own script asked to close its window, as
++  // `window.close()` does, once its document agreed to go. Returns true when
++  // the delegate took the request, which then decides whether the page closes
++  // and closes it itself; false leaves the close to `CloseContents`.
++  virtual bool CrestPageAskedToClose(WebContents* source) { return false; }
+ 
+   // Request the delegate to resize this WebContents to the specified size in
+   // screen coordinates. The embedder is free to ignore the request.
 --- a/content/browser/renderer_host/navigator.h
 +++ b/content/browser/renderer_host/navigator.h
 @@ -10,6 +10,7 @@
@@ -2056,3 +2126,30 @@
  }
  
  void NotificationEventDispatcherImpl::OnNonPersistentCloseComplete(
+--- a/chrome/browser/resource_coordinator/tab_lifecycle_unit.cc
++++ b/chrome/browser/resource_coordinator/tab_lifecycle_unit.cc
+@@ -47,6 +47,10 @@
+ #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+ #include "url/gurl.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/crest/crest_chrome_hooks.h"  // nogncheck
++#endif
++
+ namespace resource_coordinator {
+ 
+ namespace {
+@@ -369,6 +373,13 @@
+   if (IsDiscardBlockedByFeature(reason)) {
+     return false;
+   }
++#if BUILDFLAG(IS_MAC)
++  // Crest decides when a page it shows unloads. A discard would replace the
++  // tab's WebContents and leave that page without one.
++  if (crest::IsEnabled() && crest::KeepsPageResident(web_contents())) {
++    return false;
++  }
++#endif
+ 
+   const base::TimeTicks discard_start_time = NowTicks();
+ 

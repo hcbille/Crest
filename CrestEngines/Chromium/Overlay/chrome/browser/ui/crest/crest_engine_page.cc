@@ -585,8 +585,9 @@ void EnginePage::MediaPictureInPictureChanged(bool is_picture_in_picture) {
   StateChanged();
 }
 
-// The engine closed the page on its own; a page the binding lets go of stops
-// following its WebContents first.
+// The engine closed the page on its own authority, as an extension's
+// `chrome.tabs.remove` does; a page the binding lets go of stops following its
+// WebContents first.
 void EnginePage::WebContentsDestroyed() {
   settle_timer_.Stop();
   documents_.reset();
@@ -992,6 +993,10 @@ bool EnginePage::AnswerBeforeUnload(bool proceed) {
   checks_before_unload_ = false;
   Report(engine::BeforeUnloadAnswered{.page_id = id_, .proceeds = proceed});
   return true;
+}
+
+void EnginePage::RequestClose() {
+  Report(engine::PageCloseRequested{.page_id = id_});
 }
 
 bool EnginePage::StopLoading() {

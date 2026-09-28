@@ -93,14 +93,13 @@ extension BrowserPage: WKUIDelegate {
         }
     }
 
-    /// Closes only tabs that web content opened. A hand-opened tab keeps its
-    /// place: `window.close()` from a page the user navigated to would otherwise
-    /// let any site discard the user's own tab.
+    /// The page's script asked to close its window, as `window.close()` does,
+    /// once its document agreed to go. The core decides, as it does for every
+    /// engine: only a page another page opened closes what owns it.
     func webViewDidClose(_ webView: WKWebView) {
         // A close Crest prepared reports its approval here, not a script close.
         if webKitEngine?.webViewDidClose() == true { return }
-        guard wasOpenedAsPopup else { return }
-        host?.closeWebContentInitiatedPage(self)
+        corePage.report(PageCloseRequested(pageID: corePage.id))
     }
 
     func webView(

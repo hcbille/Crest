@@ -96,8 +96,8 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored weak var host: (any BrowserPageHosting)?
     @ObservationIgnored var windowRouting: BrowserPageWindowRouting?
 
-    /// True when web content opened this page through `window.open()`. It gates
-    /// `window.close()`, which may only close what script itself opened.
+    /// True when web content opened this page through `window.open()`. WebKit
+    /// drives such a page's history, so it neither restores nor archives any.
     @ObservationIgnored private(set) var wasOpenedAsPopup = false
 
     /// True from adoption until WebKit starts the popup's own navigation. WebKit
@@ -1136,10 +1136,10 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             // this the next Console command would try to close a panel that is
             // already gone instead of opening one.
             developerPanel = nil
-        case .closeRequested:
+        case .closedByEngine:
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                host?.closeWebContentInitiatedPage(self)
+                host?.releaseEngineClosedPage(self)
             }
         case .creationFailed(let message):
             hasCommittedNavigationAwaitingCompletion = false

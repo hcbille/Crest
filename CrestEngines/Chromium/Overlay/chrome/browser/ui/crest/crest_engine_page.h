@@ -151,6 +151,9 @@ class EnginePage final : public content::WebContentsObserver,
   // The engine fired the page's beforeunload. Answers whether the core had
   // asked, which then hears `proceed`.
   bool AnswerBeforeUnload(bool proceed);
+  // The page's own script asked to close its window, once its document
+  // agreed to go; the core decides whether the page closes.
+  void RequestClose();
   bool StopLoading();
   bool Zoom(double factor);
   bool Find(const std::string& query, bool backwards, bool case_sensitive);

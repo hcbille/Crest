@@ -24,6 +24,7 @@ final class BrowserPeekModel {
         self.pages = pages
         self.spaceAccess = spaceAccess
         self.coordinator = coordinator
+        browser.core.followClosedTransientPages(self) { [weak self] in self?.pageClosed($0) }
     }
 
     init(
@@ -225,6 +226,13 @@ final class BrowserPeekModel {
             space: request.hasSource(in: browser) ? browser.spaceModel(matching: assignment) : nil,
             isLocked: spaceAccess.isLocked
         )
+    }
+
+    /// The core closed the Peek's page: it closed itself, as a page another
+    /// page opened may, or its engine closed it. The Peek goes with it.
+    private func pageClosed(_ closed: TransientPageClosed) {
+        guard pageLease?.pageID == closed.pageID else { return }
+        dismissUnavailableRequest()
     }
 
     private func releaseLease() {
