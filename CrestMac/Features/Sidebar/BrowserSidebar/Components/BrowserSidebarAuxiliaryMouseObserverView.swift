@@ -7,6 +7,11 @@ final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
     /// released since the last SwiftUI update is never consulted.
     var navigationTargets: @MainActor @Sendable () -> [any BrowserSidebarMouseNavigationTarget]
     private var eventMonitor: Any?
+    /// Buttons whose press this view acted on. Their drags and release are
+    /// taken too: Chromium goes back or forward itself on a Back or Forward
+    /// release the page leaves alone, so a release let through navigates a
+    /// second time.
+    private var claimedButtons: Set<Int> = []
 
     init(
         perform: @escaping @MainActor @Sendable (BrowserSidebarMouseButtonAction) -> Void,
@@ -37,6 +42,7 @@ final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
         guard let eventMonitor else { return }
         NSEvent.removeMonitor(eventMonitor)
         self.eventMonitor = nil
+        claimedButtons.removeAll()
     }
 
     private func updateEventMonitor() {
@@ -44,13 +50,28 @@ final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
         guard window != nil else { return }
 
         eventMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: .otherMouseDown
+            matching: [.otherMouseDown, .otherMouseDragged, .otherMouseUp]
         ) { [weak self] event in
             self?.handle(event) ?? event
         }
     }
 
     private func handle(_ event: NSEvent) -> NSEvent? {
+        switch event.type {
+        case .otherMouseDown:
+            handlePress(event)
+        case .otherMouseDragged:
+            claimedButtons.contains(event.buttonNumber) ? nil : event
+        case .otherMouseUp:
+            claimedButtons.remove(event.buttonNumber) == nil ? event : nil
+        default:
+            event
+        }
+    }
+
+    private func handlePress(_ event: NSEvent) -> NSEvent? {
+        // A release this app never saw leaves no claim on the next press.
+        claimedButtons.remove(event.buttonNumber)
         guard event.window === window else { return event }
         guard
             let action = BrowserSidebarMouseButtonPolicy.action(
@@ -68,6 +89,7 @@ final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
         else { return event }
 
         execute(disposition, in: page)
+        claimedButtons.insert(event.buttonNumber)
         return nil
     }
 

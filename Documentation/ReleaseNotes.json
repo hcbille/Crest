@@ -3361,6 +3361,10 @@
     "chromium-runner-builds-inside-its-workspace": {
       "category": "internal",
       "message": "The Chromium engine builder accepts the checkout its own Actions runner makes inside the build workspace."
+    },
+    "mouse-back-forward-once-per-click": {
+      "category": "fixed",
+      "message": "A mouse's Back and Forward buttons move one page per click on pages that run in Chromium, instead of two."
     }
   }
 }
