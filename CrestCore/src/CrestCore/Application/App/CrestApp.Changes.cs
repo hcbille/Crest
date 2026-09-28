@@ -21,11 +21,14 @@ public sealed partial class CrestApp {
     #region Actions - Changes
 
     /// The changes the core started itself since the last drain, oldest first.
-    /// Engine commands a call from off the host's thread caused, such as a
-    /// cloud merge closing a borrowed workspace's pages, are delivered on the
-    /// thread that drains, before this returns.
+    /// A drain waits for a call that holds the lock, so it never takes part of
+    /// what one report or cloud merge published. Engine commands a call from
+    /// off the host's thread caused, such as a cloud merge closing a borrowed
+    /// workspace's pages, are delivered on the thread that drains, before this
+    /// returns.
     public IReadOnlyList<Change> Drain() {
-        var drained = TakePending();
+        IReadOnlyList<Change> drained;
+        lock (gate) drained = TakePending();
         Deliver();
         return drained;
     }

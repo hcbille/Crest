@@ -285,6 +285,33 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void AReportIsPublishedWholeBeforeAnyLaterCallSoNothingOfItFollowsItsPagesRemoval() {
+        var session = SavedSession().Document["session"]!;
+        var (app, engine, page, _) = NavigatingPage(session);
+        using var disposal = app;
+        const string url = "https://example.com/next";
+        app.Report(engine, new NavigationStarted(page, url, SameDocument: false));
+        app.Report(engine, new NavigationCommitted(page, url, SameDocument: false));
+        app.Drain();
+
+        // Another call runs the moment the report lets go: it drains, then
+        // removes the page the report was about.
+        IReadOnlyList<Change>? woken = null;
+        IReadOnlyList<Change> released = [];
+        app.SetWake(() => {
+            if (woken is not null) return;
+            woken = app.Drain();
+            released = app.Send(new ReleasePage(page, KeepsState: false));
+        });
+        app.Report(engine, new NavigationFinished(page, url, "Next"));
+        app.SetWake(null);
+
+        Assert.Equal([typeof(TabsChanged), typeof(HistoryChanged), typeof(NavigationRecorded)], woken!.Select(change => change.GetType()));
+        Assert.Contains(new PageRemoved(page), released);
+        Assert.Empty(app.Drain());
+    }
+
+    [Fact]
     public void AnEngineRegistersWithEveryRequiredCapabilityAndOnlyOneIsTheDefault() {
         using var app = new CrestApp();
         var partial = EngineCapability.Required.Skip(1).ToArray();
