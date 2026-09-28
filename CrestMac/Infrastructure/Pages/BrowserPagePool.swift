@@ -723,7 +723,6 @@ final class BrowserPagePool:
             page.release(keepingState: false)
             return
         }
-        DiagnosticLog.popups.notice("Opening a Quick Window for popup page \(adopted.pageID) over window \(windowID)")
         present(
             BrowserQuickWindowRequest(
                 url: url, spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: windowID,

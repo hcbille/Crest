@@ -4,7 +4,6 @@ import Foundation
 import Observation
 import UniformTypeIdentifiers
 import WebKit
-import os
 
 /// The tab-level operations a page needs from whatever owns it.
 /// `window.close()` arrives while a WebKit delegate callback is on the stack;

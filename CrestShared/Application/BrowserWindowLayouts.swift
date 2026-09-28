@@ -58,7 +58,7 @@ final class BrowserWindowLayouts {
         do {
             changes = try core.send(AdoptWindowRecords(records: defaults?.data(forKey: Self.legacyRecordsKey)))
         } catch {
-            DiagnosticLog.windows.error("The core could not adopt the window records: \(String(describing: error))")
+            DiagnosticLog.windows.error("The core could not adopt the window records: \(DiagnosticLog.describe(error))")
             return
         }
         for case .windowRecordsAdopted(let adopted) in changes {

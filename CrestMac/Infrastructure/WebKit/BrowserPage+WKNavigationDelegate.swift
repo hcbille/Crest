@@ -4,7 +4,6 @@ import Foundation
 import Observation
 import UniformTypeIdentifiers
 import WebKit
-import os
 
 extension BrowserPage: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation?) {

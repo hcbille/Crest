@@ -97,7 +97,7 @@ final class BrowserLinkPreferenceStore {
             try core.send(intent)
         } catch {
             Self.log.error(
-                "The core refused \(String(describing: type(of: intent))): \(String(describing: error))"
+                "The core refused \(String(describing: type(of: intent))): \(DiagnosticLog.describe(error))"
             )
         }
     }

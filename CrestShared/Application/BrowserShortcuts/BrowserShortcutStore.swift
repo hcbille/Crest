@@ -38,7 +38,7 @@ final class BrowserShortcutStore {
             try core.send(AdoptShortcuts(overrides: legacyOverrides))
         } catch {
             Self.log.error(
-                "The core could not adopt the saved shortcuts: \(String(describing: error))")
+                "The core could not adopt the saved shortcuts: \(DiagnosticLog.describe(error))")
         }
     }
 
@@ -97,7 +97,7 @@ final class BrowserShortcutStore {
             return .invalid
         } catch {
             Self.log.error(
-                "The core refused \(String(describing: type(of: intent))): \(String(describing: error))"
+                "The core refused \(String(describing: type(of: intent))): \(DiagnosticLog.describe(error))"
             )
             return .invalid
         }

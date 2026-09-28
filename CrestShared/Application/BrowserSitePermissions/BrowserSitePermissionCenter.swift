@@ -70,7 +70,7 @@ final class BrowserSitePermissionCenter {
             try core.send(AdoptSitePermissions(records: document))
         } catch {
             Self.log.error(
-                "The core could not adopt the saved site permissions: \(String(describing: error))")
+                "The core could not adopt the saved site permissions: \(DiagnosticLog.describe(error))")
         }
     }
 
@@ -162,7 +162,7 @@ final class BrowserSitePermissionCenter {
             try core.send(intent)
         } catch {
             Self.log.notice(
-                "The core refused \(String(describing: type(of: intent))): \(String(describing: error))"
+                "The core refused \(String(describing: type(of: intent))): \(DiagnosticLog.describe(error))"
             )
         }
     }

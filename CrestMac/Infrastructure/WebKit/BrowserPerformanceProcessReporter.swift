@@ -4,7 +4,6 @@ import Foundation
 import Observation
 import UniformTypeIdentifiers
 import WebKit
-import os
 
 enum BrowserPerformanceProcessReporter {
     private static let prefix = "CREST_PERFORMANCE_WEB_CONTENT_PID="

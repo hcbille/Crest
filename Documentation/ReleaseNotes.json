@@ -3209,6 +3209,10 @@
     "sign-in-popups-show-after-reopening-a-window": {
       "category": "fixed",
       "message": "Continue with Google and other sign-in popups open their Quick Window again in a window you closed and opened again, instead of doing nothing."
+    },
+    "diagnostic-log-keeps-no-addresses": {
+      "category": "internal",
+      "message": "Crest's diagnostic log names a refused request by its rule alone, so it never keeps a site or an address, and the logging left over from earlier investigations is gone."
     }
   }
 }

@@ -24,6 +24,16 @@ struct DiagnosticLog: Sendable {
         logger = Logger(subsystem: "com.pauldavis.crest", category: category)
     }
 
+    // MARK: - Actions - Describing
+
+    /// How a message names `error`: a rejection by its rule alone, because
+    /// what it carries can name an address or a site the log must not keep,
+    /// and any other error as it describes itself.
+    static func describe(_ error: any Error) -> String {
+        guard let rejection = error as? Rejection else { return String(describing: error) }
+        return Mirror(reflecting: rejection).children.first?.label ?? String(describing: rejection)
+    }
+
     // MARK: - Actions - Writing
 
     func error(_ message: String) {

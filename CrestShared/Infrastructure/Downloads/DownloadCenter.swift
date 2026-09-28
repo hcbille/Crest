@@ -95,7 +95,7 @@ final class BrowserDownloadCenter: NSObject {
             try core.send(intent)
         } catch {
             Self.logger.error(
-                "The core refused \(String(describing: type(of: intent)), privacy: .public): \(String(describing: error), privacy: .public)"
+                "The core refused \(String(describing: type(of: intent)), privacy: .public): \(DiagnosticLog.describe(error), privacy: .public)"
             )
         }
     }

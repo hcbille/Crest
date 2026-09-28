@@ -4,7 +4,6 @@ import Foundation
 import Observation
 import UniformTypeIdentifiers
 import WebKit
-import os
 
 @MainActor
 enum BrowserWebInspectorAccess {

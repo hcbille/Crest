@@ -4,7 +4,6 @@ import Foundation
 import Observation
 import UniformTypeIdentifiers
 import WebKit
-import os
 
 extension BrowserPage: WKUIDelegate {
     /// The PDF HUD supplies its live document bytes through this desktop
