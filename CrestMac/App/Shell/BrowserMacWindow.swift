@@ -9,6 +9,9 @@ final class BrowserMacWindow: NSWindow {
     // MARK: - Variables
 
     var closeGate: BrowserWindowCloseGate?
+    /// What the window's content does with a mouse's Back and Forward
+    /// buttons, while content that knows its pages is shown.
+    weak var pointerNavigation: (any BrowserMacWindowPointerNavigation)?
 
     // MARK: - Actions - Closing
 

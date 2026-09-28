@@ -42,6 +42,9 @@ final class BrowserMacShell {
     /// does, so this is where Crest's shortcuts go ahead of a page when the
     /// core reserves them from pages, and ahead of Crest's own views always.
     private var keyMonitor: Any?
+    /// Takes a mouse's Back and Forward clicks whole in every window, ahead of
+    /// any view.
+    private let mouseButtons = BrowserMacMouseButtons()
 
     /// The application, once the launch built it.
     var application: BrowserMacApplication? { running?.application }
@@ -97,6 +100,7 @@ final class BrowserMacShell {
             let pageSeesFirst = BrowserWebHostView.isPageContent(NSApp.keyWindow?.firstResponder)
             return self?.handleShortcut(event, pageSeesFirst: pageSeesFirst) == true ? nil : event
         }
+        mouseButtons.start()
         Task { await application.cloudSync.start() }
         NSApp.activate(ignoringOtherApps: true)
         openPending()

@@ -1,17 +1,21 @@
 import AppKit
 
+/// Answers for a browser window's content when a mouse's Back or Forward
+/// button is pressed. It covers the sidebar and asks for the window's pages
+/// at event time, so it tells a press over a page from one over the sidebar.
+/// It answers while it is in a window; the shell's `BrowserMacMouseButtons`
+/// pairs each press it took with its release, so SwiftUI rebuilding or moving
+/// this view in between changes nothing.
 @MainActor
-final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
+final class BrowserSidebarPointerNavigationView: NSView, BrowserMacWindowPointerNavigation {
+    // MARK: - Variables
+
     var perform: @MainActor @Sendable (BrowserSidebarMouseButtonAction) -> Void
     /// The window's live pages, asked for at event time so a page created or
     /// released since the last SwiftUI update is never consulted.
     var navigationTargets: @MainActor @Sendable () -> [any BrowserSidebarMouseNavigationTarget]
-    private var eventMonitor: Any?
-    /// Buttons whose press this view acted on. Their drags and release are
-    /// taken too: Chromium goes back or forward itself on a Back or Forward
-    /// release the page leaves alone, so a release let through navigates a
-    /// second time.
-    private var claimedButtons: Set<Int> = []
+
+    // MARK: - Initializers
 
     init(
         perform: @escaping @MainActor @Sendable (BrowserSidebarMouseButtonAction) -> Void,
@@ -29,56 +33,33 @@ final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    // MARK: - Actions - Window
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        guard let current = window as? BrowserMacWindow, current.pointerNavigation === self else { return }
+        current.pointerNavigation = nil
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        updateEventMonitor()
+        answerForWindow()
+    }
+
+    /// Makes this view the one its window asks, as the sidebar SwiftUI shows
+    /// now.
+    func answerForWindow() {
+        (window as? BrowserMacWindow)?.pointerNavigation = self
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         nil
     }
 
-    func stopMonitoring() {
-        guard let eventMonitor else { return }
-        NSEvent.removeMonitor(eventMonitor)
-        self.eventMonitor = nil
-        claimedButtons.removeAll()
-    }
+    // MARK: - Actions - Pointer navigation
 
-    private func updateEventMonitor() {
-        stopMonitoring()
-        guard window != nil else { return }
-
-        eventMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.otherMouseDown, .otherMouseDragged, .otherMouseUp]
-        ) { [weak self] event in
-            self?.handle(event) ?? event
-        }
-    }
-
-    private func handle(_ event: NSEvent) -> NSEvent? {
-        switch event.type {
-        case .otherMouseDown:
-            handlePress(event)
-        case .otherMouseDragged:
-            claimedButtons.contains(event.buttonNumber) ? nil : event
-        case .otherMouseUp:
-            claimedButtons.remove(event.buttonNumber) == nil ? event : nil
-        default:
-            event
-        }
-    }
-
-    private func handlePress(_ event: NSEvent) -> NSEvent? {
-        // A release this app never saw leaves no claim on the next press.
-        claimedButtons.remove(event.buttonNumber)
-        guard event.window === window else { return event }
-        guard
-            let action = BrowserSidebarMouseButtonPolicy.action(
-                for: event.buttonNumber
-            )
-        else { return event }
-
+    func takePress(_ action: BrowserSidebarMouseButtonAction, at event: NSEvent) -> Bool {
+        guard event.window === window else { return false }
         let page = pageUnderPointer(for: event)
         guard
             let disposition = BrowserSidebarMouseButtonPolicy.disposition(
@@ -86,11 +67,10 @@ final class BrowserSidebarAuxiliaryMouseObserverView: NSView {
                 pointerScope: pointerScope(for: event, page: page),
                 canNavigatePage: canNavigate(action, in: page)
             )
-        else { return event }
+        else { return false }
 
         execute(disposition, in: page)
-        claimedButtons.insert(event.buttonNumber)
-        return nil
+        return true
     }
 
     private func pointerScope(

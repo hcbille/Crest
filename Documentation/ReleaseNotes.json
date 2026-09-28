@@ -3365,6 +3365,10 @@
     "mouse-back-forward-once-per-click": {
       "category": "fixed",
       "message": "A mouse's Back and Forward buttons move one page per click on pages that run in Chromium, instead of two."
+    },
+    "mouse-back-forward-one-page-every-click": {
+      "category": "fixed",
+      "message": "A mouse's Back and Forward buttons move one page per click, every time, including on pages that run in Chromium."
     }
   }
 }

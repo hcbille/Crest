@@ -76,7 +76,7 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                         )
                     }
                     .background {
-                        BrowserSidebarAuxiliaryMouseMonitor(
+                        BrowserSidebarPointerNavigation(
                             isSidebarVisible:
                                 model.sidebarPresentation.showsSidebar
                                 && !model.chrome.isCommandPalettePresented,
