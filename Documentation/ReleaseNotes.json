@@ -3185,6 +3185,10 @@
     "opened-pages-keep-their-openers-engine": {
       "category": "fixed",
       "message": "A sign-in window, a new tab or a Peek that a page opens now stays on that page's engine, so signing in with Google from a page moved to WebKit opens one sign-in page that finishes the sign-in, instead of several Chromium tabs."
+    },
+    "popup-windows-open-in-quick-windows": {
+      "category": "improved",
+      "message": "Sign-in and other popup windows a page opens now appear in a Quick Window in the same Space, stay connected to the page that opened them, and close themselves when the sign-in finishes. Choose Open in to keep one as a tab."
     }
   }
 }

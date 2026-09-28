@@ -468,6 +468,12 @@ final class BrowserPageHost {
         return page
     }
 
+    /// Keeps `lease`, which a platform made around a page it already hosts,
+    /// as it keeps the leases it makes.
+    func keep(_ lease: BrowserPlatformTransientPageLease) {
+        transientLeases[lease.id] = WeakBrowserTransientPageLease(lease)
+    }
+
     /// Ends the lease holding `page` when its only navigation turned out to
     /// be a download; false when no lease holds it or the lease keeps it.
     func discardDownloadOnlyTransientPage(_ page: BrowserPlatformPage) -> Bool {

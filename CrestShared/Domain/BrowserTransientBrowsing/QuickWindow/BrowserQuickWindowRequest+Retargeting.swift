@@ -10,7 +10,8 @@ extension BrowserQuickWindowRequest {
             url: url,
             spaceAssignment: assignment,
             targetWindowID: targetWindowID,
-            sourcePresentation: sourcePresentation
+            sourcePresentation: sourcePresentation,
+            openedPageID: openedPageID
         )
     }
 }

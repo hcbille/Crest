@@ -12,6 +12,9 @@ struct BrowserQuickWindowActivityLifecycleModifier: ViewModifier {
             .task(id: model.selectedAssignment) {
                 model.preparePage(isActive: scenePhase == .active)
             }
+            .onChange(of: model.wasClosedByPage) { _, closed in
+                if closed { dismiss() }
+            }
             .task(id: model.archiveTimer) {
                 guard await model.waitUntilArchiveIsDue() else { return }
                 model.archivePageIfNeeded()

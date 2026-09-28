@@ -13,6 +13,10 @@ struct BrowserQuickWindowRequest: Hashable, Identifiable, Sendable {
     let spaceAssignment: BrowserSpaceRuntimeAssignment
     let targetWindowID: UUID?
     let sourcePresentation: BrowserPeekSourcePresentation?
+    /// The page the core already opened for the window, a popup window a
+    /// page asked for, which its target window hosts until the Quick Window
+    /// takes it. A window a relaunch restores has none and loads `url`.
+    let openedPageID: UUID?
 
     var spaceID: UUID { spaceAssignment.spaceID }
 
@@ -25,13 +29,15 @@ struct BrowserQuickWindowRequest: Hashable, Identifiable, Sendable {
         url: URL,
         spaceAssignment: BrowserSpaceRuntimeAssignment,
         targetWindowID: UUID? = nil,
-        sourcePresentation: BrowserPeekSourcePresentation? = nil
+        sourcePresentation: BrowserPeekSourcePresentation? = nil,
+        openedPageID: UUID? = nil
     ) {
         self.id = id
         self.url = url
         self.spaceAssignment = spaceAssignment
         self.targetWindowID = targetWindowID
         self.sourcePresentation = sourcePresentation
+        self.openedPageID = openedPageID
     }
 
     static func empty(
@@ -51,8 +57,12 @@ struct BrowserQuickWindowRequest: Hashable, Identifiable, Sendable {
         url == Self.emptyLookupURL ? nil : url
     }
 
+    /// Two requests for the same address in the same Space ask for the same
+    /// window, except a popup window's: every window a page asks for is one
+    /// of its own.
     static func == (lhs: Self, rhs: Self) -> Bool {
-        switch (lhs.initialURL, rhs.initialURL) {
+        guard lhs.openedPageID == nil, rhs.openedPageID == nil else { return lhs.id == rhs.id }
+        return switch (lhs.initialURL, rhs.initialURL) {
         case (.some(let lhsURL), .some(let rhsURL)):
             lhs.assignment == rhs.assignment && lhsURL == rhsURL
         case (.none, .none):
@@ -63,7 +73,7 @@ struct BrowserQuickWindowRequest: Hashable, Identifiable, Sendable {
     }
 
     func hash(into hasher: inout Hasher) {
-        if let initialURL {
+        if openedPageID == nil, let initialURL {
             hasher.combine(assignment)
             hasher.combine(initialURL)
         } else {
@@ -83,6 +93,7 @@ extension BrowserQuickWindowRequest: Codable {
         case spaceAssignment
         case targetWindowID
         case sourcePresentation
+        case openedPageID
     }
 
     init(from decoder: any Decoder) throws {
@@ -93,7 +104,8 @@ extension BrowserQuickWindowRequest: Codable {
             spaceAssignment: try container.decode(BrowserSpaceRuntimeAssignment.self, forKey: .spaceAssignment),
             targetWindowID: try container.decodeIdentityIfPresent(forKey: .targetWindowID),
             sourcePresentation: try container.decodeIfPresent(
-                BrowserPeekSourcePresentation.self, forKey: .sourcePresentation))
+                BrowserPeekSourcePresentation.self, forKey: .sourcePresentation),
+            openedPageID: try container.decodeIfPresent(UUID.self, forKey: .openedPageID))
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -103,5 +115,6 @@ extension BrowserQuickWindowRequest: Codable {
         try container.encode(spaceAssignment, forKey: .spaceAssignment)
         try container.encodeStoredIdentityIfPresent(targetWindowID, forKey: .targetWindowID)
         try container.encodeIfPresent(sourcePresentation, forKey: .sourcePresentation)
+        try container.encodeIfPresent(openedPageID, forKey: .openedPageID)
     }
 }

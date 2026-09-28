@@ -9,11 +9,17 @@ final class BrowserQuickWindowModel {
     private(set) var pageLease: BrowserTransientPageLease?
     private(set) var releasedPageSnapshot: BrowserTransientPageSnapshot?
     private(set) var wasPromoted = false
+    /// The window's page closed itself, as a sign-in window's page does once
+    /// it is done, which closes the window.
+    private(set) var wasClosedByPage = false
     let activityClock: BrowserTransientActivityClock
 
     /// The core page the released snapshot names, unloaded with its state
     /// kept so the core still knows what it showed until the snapshot goes.
     @ObservationIgnored private var unloadedPage: CorePage?
+    /// Whether the window took, or tried to take, the page the core opened
+    /// for a window a page asked for, which it takes once.
+    @ObservationIgnored private var tookOpenedPage = false
     @ObservationIgnored let browser: BrowserStore
     @ObservationIgnored let pages: BrowserPagePool?
     @ObservationIgnored private let spaceAccess: BrowserSpaceAccessController
@@ -127,11 +133,24 @@ final class BrowserQuickWindowModel {
         }
         pageLease?.release()
         guard let pages, let leaseSpace else { return }
-        pageLease = pages.makeTransientPageLease(
-            url: url,
-            in: leaseSpace,
-            onUserActivity: recordUserActivity
-        )
+        if let openedPageID = presentedRequest.openedPageID, !tookOpenedPage {
+            // A window a page asked for shows the page the core opened for it,
+            // which keeps its opener; one whose page already went closes.
+            tookOpenedPage = true
+            pageLease = pages.makePopupWindowLease(
+                for: openedPageID, url: url, in: leaseSpace, onUserActivity: recordUserActivity,
+                onClosedByPage: { [weak self] in self?.wasClosedByPage = true })
+            guard pageLease != nil else {
+                wasClosedByPage = true
+                return
+            }
+        } else {
+            pageLease = pages.makeTransientPageLease(
+                url: url,
+                in: leaseSpace,
+                onUserActivity: recordUserActivity
+            )
+        }
         if pageLease != nil {
             forgetReleasedSnapshot()
         }
@@ -249,7 +268,8 @@ final class BrowserQuickWindowModel {
     }
 
     func releaseForDismissal() {
-        if !wasPromoted {
+        // A page that closed itself leaves nothing to keep.
+        if !wasPromoted, !wasClosedByPage {
             archivePageIfNeeded()
         }
         pageLease?.release()

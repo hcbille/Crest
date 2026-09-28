@@ -73,6 +73,40 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void AWindowAPageAsksForOpensAsAQuickWindowOfItsOpenersSpaceAndNeverAsATab() {
+        var session = TwoSpaceSession();
+        var (space, profile) = (SpaceId(session["spaces"]![0]!), ProfileId(session["spaces"]![0]!));
+        var (app, engine, binding, workspace, window) = PageHost(session);
+        using var disposal = app;
+        var (_, source) = LiveTab(app, engine, workspace, window, space);
+        app.Drain();
+        int tabs = CurrentTabs(app, workspace, space).Count;
+
+        // The engine made the page a window of its own, as it does for a sign-in popup.
+        var offer = Guid.NewGuid();
+        const string signIn = "https://accounts.example/sign-in";
+        app.Report(engine, new PageOffered(offer, profile, source, WindowId: null, space, signIn, Foreground: true));
+        var changes = app.Drain();
+        var adopted = Assert.Single(changes.OfType<OfferedWindowAdopted>());
+        Assert.Equal((workspace, window, space, signIn), (adopted.WorkspaceId, adopted.WindowId, adopted.SpaceId, adopted.Url));
+        Assert.Empty(changes.OfType<OfferedPageAdopted>());
+        Assert.Equal(tabs, CurrentTabs(app, workspace, space).Count);
+        var opened = Assert.Single(changes.OfType<PageOpened>()).Page;
+        Assert.Equal((adopted.PageId, (Guid?)null, EngineKind.WebKit), (opened.Id, opened.TabId, opened.Engine));
+        Assert.Equal(new AdoptOfferedPage(adopted.PageId, offer, profile, IsPrivate: false, window), binding.Commands[^1]);
+
+        // A window the Quick Window's page asks for opens a Quick Window of its own, and nothing loads in the first.
+        app.Report(engine, new PageCreated(adopted.PageId));
+        app.Drain();
+        var nested = Guid.NewGuid();
+        app.Report(engine, new PageOffered(nested, profile, adopted.PageId, WindowId: null, space, signIn + "/next", Foreground: true));
+        Assert.Single(app.Drain().OfType<OfferedWindowAdopted>());
+        Assert.Equal(nested, Assert.IsType<AdoptOfferedPage>(binding.Commands[^1]).OfferId);
+        Assert.DoesNotContain(binding.Commands, command => command is LoadPage load && load.PageId == adopted.PageId);
+        Assert.Equal(tabs, CurrentTabs(app, workspace, space).Count);
+    }
+
+    [Fact]
     public void AnOfferedPageNoPageOpenedJoinsItsWindowInTheSpaceReservedForItOrTheOneTheWindowShows() {
         var session = TwoSpaceSession();
         var (first, second) = (session["spaces"]![0]!, session["spaces"]![1]!);

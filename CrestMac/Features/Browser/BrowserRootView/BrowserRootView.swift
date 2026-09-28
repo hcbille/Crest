@@ -80,6 +80,7 @@ struct BrowserRootView: View {
         // reach the engine host, which has a page but no view context, so this
         // window publishes the host that owns its row.
         .modifier(BrowserExtensionSidePanelRegistration(host: model.extensionSidePanel, pages: model.pages))
+        .modifier(BrowserPopupWindowPresentation(pages: model.pages))
         .navigationTitle(Text(verbatim: model.windowTitle))
     }
 }

@@ -612,15 +612,25 @@ core no longer hosts, or that another engine hosts, changes nothing.
   it on the same stack, the binding builds the adopted page from the
   configuration WebKit derived from the opener's, and the page's owner hosts it
   before WebKit starts its first navigation, so `window.opener` stays
-  connected. A refused popup gets no window, never a tab of its own. A transient page keeps
-  what it opens: the core rejects the offer and loads the address in the
-  Quick Window or Peek itself. A tab's offer becomes a new tab beside the
-  tab, in its Space and window. Anything else joins the window's reserved
-  Space, or else the Space it shows, after the tab it shows. The core refuses
-  an offer for a locked or deleting Space, one of another profile, a closed
-  window or a full Space, with `RejectOfferedPage`. Otherwise it opens the
-  tab, issues `AdoptOfferedPage` and publishes `OfferedPageAdopted`, and the
-  window that hosts the tab shows the page the engine made.
+  connected. A refused popup gets no window, never a tab of its own.
+  A window a page asked for, which its engine made a window of its own
+  (`SpaceId` with a source: Chromium's popup and new-window dispositions,
+  WebKit's popup window features, as HTML's "popup window is requested"
+  decides), becomes a Quick Window page in its opener's Space and window,
+  published as `OfferedWindowAdopted`. The opener's window hosts the page at
+  once and opens a Quick Window that takes it, so a sign-in popup is one
+  window whose redirects stay in it; its `window.close()` closes the Quick
+  Window, and Open in makes it a tab with its opener intact. Otherwise a
+  transient page keeps what it opens: the core rejects the offer and loads
+  the address in the Quick Window or Peek itself. A tab's offer becomes a new
+  tab beside the tab, in its Space and window. Anything else joins the
+  window's reserved Space, or else the Space it shows, after the tab it shows.
+  The core refuses an offer for a locked or deleting Space, one of another
+  profile, a closed window or a full Space, with `RejectOfferedPage`.
+  Otherwise it opens the tab, issues `AdoptOfferedPage` and publishes
+  `OfferedPageAdopted`, and the window that hosts the tab shows the page the
+  engine made. iPhone and iPad have no Quick Window, so WebKit offers every
+  popup there as a tab.
 - **Navigation.** A binding reports each navigation as it starts, commits,
   finishes or fails. The core records one visit per document when it finishes,
   because both engines know the title only then. A page with a tab updates the

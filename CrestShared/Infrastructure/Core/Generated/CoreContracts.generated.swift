@@ -127,6 +127,7 @@ enum Change: Equatable, Sendable {
     case linkPreferencesChanged(LinkPreferencesChanged)
     case navigationRecorded(NavigationRecorded)
     case offeredPageAdopted(OfferedPageAdopted)
+    case offeredWindowAdopted(OfferedWindowAdopted)
     case pageChanged(PageChanged)
     case pageOpened(PageOpened)
     case pageRehosted(PageRehosted)
@@ -495,6 +496,7 @@ extension Change {
         case .linkPreferencesChanged(let change): change.apply(to: state)
         case .navigationRecorded(let change): change.apply(to: state)
         case .offeredPageAdopted(let change): change.apply(to: state)
+        case .offeredWindowAdopted(let change): change.apply(to: state)
         case .pageChanged(let change): change.apply(to: state)
         case .pageOpened(let change): change.apply(to: state)
         case .pageRehosted(let change): change.apply(to: state)
@@ -3368,6 +3370,14 @@ struct OfferedPageAdopted: Equatable, Sendable {
     let spaceID: UUID
     let tabID: UUID
     let shows: Bool
+}
+
+struct OfferedWindowAdopted: Equatable, Sendable {
+    let pageID: UUID
+    let workspaceID: UUID
+    let windowID: UUID
+    let spaceID: UUID
+    let url: String
 }
 
 struct OpenAddress: Intent, SessionIntent, Equatable, Sendable {

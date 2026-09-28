@@ -245,10 +245,12 @@ final class WebKitEngineBinding: EngineBinding {
     /// heading to `url`, as `PageOffered` from its opener, and answers the
     /// page the core adopted it as, or nil when the core refused it. The core
     /// decides where the page shows, and it runs on WebKit, its opener's
-    /// engine. The core adopts or refuses it on this stack, while WebKit
-    /// waits, and the changes it made are applied before this returns, so the
-    /// page's owner hosts the page, and answers its navigations, before
-    /// WebKit starts the first one.
+    /// engine. A popup that wants a window of its own is offered as one, in
+    /// its opener's Space, on the Mac, whose Quick Windows show it; iPhone and
+    /// iPad show every popup as a tab. The core adopts or refuses it on this
+    /// stack, while WebKit waits, and the changes it made are applied before
+    /// this returns, so the page's owner hosts the page, and answers its
+    /// navigations, before WebKit starts the first one.
     func offer(_ popup: WebKitPopup, from opener: WebKitEnginePage, heading url: URL?, foreground: Bool)
         -> WebKitEnginePage?
     {
@@ -258,9 +260,14 @@ final class WebKitEngineBinding: EngineBinding {
         let space = source.flatMap { engines.core.state.workspaces[$0.workspaceID]?.spaces.model($0.spaceID) }
         offers[offerID] = Offer(popup: popup, space: space)
         defer { offers[offerID] = nil }
+        #if os(macOS)
+            let window = popup.wantsWindow ? source?.spaceID : nil
+        #else
+            let window: UUID? = nil
+        #endif
         report(
             PageOffered(
-                offerID: offerID, profileID: opener.profileID, sourcePageID: opener.id, windowID: nil, spaceID: nil,
+                offerID: offerID, profileID: opener.profileID, sourcePageID: opener.id, windowID: nil, spaceID: window,
                 url: url?.absoluteString ?? "about:blank", foreground: foreground))
         guard let page = adoptedOffers.removeValue(forKey: offerID) else { return nil }
         engines.core.drain()

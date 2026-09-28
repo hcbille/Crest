@@ -28,6 +28,9 @@ final class BrowserTransientPageLease {
     @ObservationIgnored private let rebuild: () -> BrowserPlatformPage?
     @ObservationIgnored private let userActivity: () -> Void
     @ObservationIgnored private let onDownloadOnlyNavigation: (() -> Void)?
+    /// Closes what shows the page once it closes itself, as a popup window's
+    /// page does with `window.close()`; nil for a page that may not.
+    @ObservationIgnored private let onClosedByPage: (() -> Void)?
     @ObservationIgnored private var contentBlockingPolicy: ContentBlockingPolicy
     @ObservationIgnored private var balancedContentRuleLists: [WKContentRuleList]
     @ObservationIgnored private var isInvalidated = false
@@ -35,6 +38,8 @@ final class BrowserTransientPageLease {
     /// the lease brings the page back or lets it go and releases it for good.
     @ObservationIgnored private var unloaded: CorePage?
 
+    /// A lease on `page`, which loads `url` unless the page is already
+    /// heading somewhere of its own, as a popup window's page is.
     init(
         page: BrowserPlatformPage,
         url: URL,
@@ -42,7 +47,9 @@ final class BrowserTransientPageLease {
         balancedContentRuleLists: [WKContentRuleList],
         rebuild: @escaping () -> BrowserPlatformPage?,
         userActivity: @escaping () -> Void,
-        onDownloadOnlyNavigation: (() -> Void)? = nil
+        onDownloadOnlyNavigation: (() -> Void)? = nil,
+        loadsURL: Bool = true,
+        onClosedByPage: (() -> Void)? = nil
     ) {
         self.page = page
         pageID = page.corePage.id
@@ -54,8 +61,9 @@ final class BrowserTransientPageLease {
         self.rebuild = rebuild
         self.userActivity = userActivity
         self.onDownloadOnlyNavigation = onDownloadOnlyNavigation
+        self.onClosedByPage = onClosedByPage
         page.monitorUserActivity(userActivity)
-        page.corePage.navigate(to: url.absoluteString)
+        if loadsURL { page.corePage.navigate(to: url.absoluteString) }
     }
 
     func setActive(_ isActive: Bool) {
@@ -109,6 +117,16 @@ final class BrowserTransientPageLease {
         }
         defer { unloaded = nil }
         return unloaded
+    }
+
+    /// The page closed itself, which closes what shows it; false when the
+    /// lease lets no page close it. What shows the page lets it go once
+    /// WebKit's callback has unwound.
+    @discardableResult
+    func closeForPage() -> Bool {
+        guard !isInvalidated, let onClosedByPage else { return false }
+        onClosedByPage()
+        return true
     }
 
     @discardableResult

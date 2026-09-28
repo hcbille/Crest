@@ -89,6 +89,7 @@ final class CrestCore {
     /// Who hears each window the core brings to the front, once its batch is
     /// applied.
     @ObservationIgnored private var broughtForwardFollowers: [Follower<WindowBroughtForward>] = []
+    @ObservationIgnored private var windowAdoptionFollowers: [Follower<OfferedWindowAdopted>] = []
     /// Who waits for each close preparation to end, by its request.
     @ObservationIgnored private var closeWaiters: [UUID: @MainActor (Bool) -> Void] = [:]
     /// What waits for each data deletion to end, by its request.
@@ -324,6 +325,7 @@ final class CrestCore {
         var rehostedPages: [PageRehosted] = []
         var adoptedPages: [OfferedPageAdopted] = []
         var broughtForward: [WindowBroughtForward] = []
+        var adoptedWindows: [OfferedWindowAdopted] = []
         var closesReady: [CloseReady] = []
         var dataDeleted: [DataDeleted] = []
         var movedPages: [UUID] = []
@@ -358,6 +360,7 @@ final class CrestCore {
             if case .pageRehosted(let rehosted) = change { rehostedPages.append(rehosted) }
             if case .offeredPageAdopted(let adopted) = change { adoptedPages.append(adopted) }
             if case .windowBroughtForward(let window) = change { broughtForward.append(window) }
+            if case .offeredWindowAdopted(let adopted) = change { adoptedWindows.append(adopted) }
             if case .closeReady(let ready) = change { closesReady.append(ready) }
             if case .dataDeleted(let deleted) = change { dataDeleted.append(deleted) }
         }
@@ -374,6 +377,7 @@ final class CrestCore {
         if !rehostedPages.isEmpty { pagesRehosted(rehostedPages) }
         if !adoptedPages.isEmpty { pagesAdopted(adoptedPages) }
         if !broughtForward.isEmpty { windowsBroughtForward(broughtForward) }
+        if !adoptedWindows.isEmpty { windowsAdopted(adoptedWindows) }
         #if DEBUG
             batchApplied?(changes)
         #endif
@@ -461,6 +465,22 @@ final class CrestCore {
     func followAdoptedPages(_ owner: AnyObject, _ handler: @escaping @MainActor (OfferedPageAdopted) -> Void) {
         adoptionFollowers.removeAll { $0.owner == nil }
         adoptionFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    /// Calls `handler` with each window a page asked for that the core adopted
+    /// as a Quick Window page, once its batch is applied, so the window that
+    /// hosts the page shows it. The registration lasts as long as `owner`.
+    func followAdoptedWindows(_ owner: AnyObject, _ handler: @escaping @MainActor (OfferedWindowAdopted) -> Void) {
+        windowAdoptionFollowers.removeAll { $0.owner == nil }
+        windowAdoptionFollowers.append(Follower(owner: owner, handler: handler))
+    }
+
+    private func windowsAdopted(_ windows: [OfferedWindowAdopted]) {
+        windowAdoptionFollowers.removeAll { $0.owner == nil }
+        let followers = windowAdoptionFollowers
+        for window in windows {
+            for follower in followers { follower.handler(window) }
+        }
     }
 
     private func pagesAdopted(_ pages: [OfferedPageAdopted]) {

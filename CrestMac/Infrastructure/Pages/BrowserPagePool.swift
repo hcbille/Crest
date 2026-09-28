@@ -11,6 +11,9 @@ final class BrowserPagePool:
     BrowserDefaultPageZoomObserving
 {
 
+    /// How long a window a page asked for waits for its Quick Window to take
+    /// its page before the page goes.
+    private static let popupWindowWait: Duration = .seconds(30)
     @ObservationIgnored private static let lifecycleSignposter = OSSignposter(
         subsystem: "com.pauldavis.crest",
         category: "WebKitLifecycle"
@@ -93,6 +96,13 @@ final class BrowserPagePool:
     @ObservationIgnored private let pageZoomPreferences: BrowserDefaultPageZoomStore
     @ObservationIgnored private let dialogPresenter: BrowserDialogPresenter
     @ObservationIgnored private let popupTabHost: BrowserPopupTabHost
+    /// The pages the core adopted as windows this window's pages asked for,
+    /// until the Quick Window that shows each takes it.
+    @ObservationIgnored private var popupWindowPages: [UUID: BrowserPage] = [:]
+    /// Opens a Quick Window for a window a page asked for; the window's
+    /// presentation installs it. Without one, such a page has nowhere to show
+    /// and goes.
+    @ObservationIgnored var popupWindowPresenter: ((BrowserQuickWindowRequest) -> Void)?
     @ObservationIgnored private let openNewTab: (URL) -> Void
     @ObservationIgnored private let openModifiedLink: ModifiedLinkOpener
     @ObservationIgnored private let openPeek: (BrowserPeekRequest) -> Void
@@ -195,6 +205,7 @@ final class BrowserPagePool:
             guard let self, brought.windowID == windowID else { return }
             bringForward()
         }
+        core.followAdoptedWindows(self) { [weak self] in self?.popupWindowAdopted($0) }
     }
 
     var nativeTabs: BrowserNativeTabStore { runtimeStore.nativeTabs }
@@ -669,16 +680,78 @@ final class BrowserPagePool:
         return BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
     }
 
-    /// Honors `window.close()` by closing the popup's tab through the same store
-    /// path the tab list's close control uses. The page itself is released after
-    /// the WebKit callback unwinds, because tearing a web view down inside its
-    /// own delegate callback is not safe.
+    /// Honors `window.close()` for a page web content opened: a popup window's
+    /// page closes its Quick Window, or goes before one took it, and a tab's
+    /// page closes its tab through the same store path the tab list's close
+    /// control uses. The page itself is released after the WebKit callback
+    /// unwinds, because tearing a web view down inside its own delegate
+    /// callback is not safe.
     func closeWebContentInitiatedPage(_ page: BrowserPage) {
-        guard page.wasOpenedAsPopup, let tabID = tabID(for: page) else { return }
+        guard page.wasOpenedAsPopup else { return }
+        if let pageID = popupWindowPages.first(where: { $0.value === page })?.key {
+            popupWindowPages[pageID] = nil
+            Task { @MainActor in page.release(keepingState: false) }
+            return
+        }
+        if host.liveTransientLeases.first(where: { $0.page === page })?.closeForPage() == true { return }
+        guard let tabID = tabID(for: page) else { return }
         popupTabHost.closeTab(tabID, page.spaceID)
         Task { @MainActor [weak self] in
             self?.unloadPage(for: tabID)
         }
+    }
+
+    // MARK: - Actions - Popup windows
+
+    /// Hosts the page the core adopted for a window one of this window's
+    /// pages asked for, answering its navigations from now on, and opens the
+    /// Quick Window that shows it, which takes the page from here. A page no
+    /// Quick Window takes goes.
+    private func popupWindowAdopted(_ adopted: OfferedWindowAdopted) {
+        guard adopted.windowID == windowID, adopted.workspaceID == browser.window.workspaceID,
+            popupWindowPages[adopted.pageID] == nil,
+            let opened = browser.core.engines.host(adopted.pageID)
+        else { return }
+        guard let space = browser.spaceModel(adopted.spaceID), let present = popupWindowPresenter,
+            let url = URL(string: adopted.url),
+            let page = makePage(space: space, presentation: .quickWindow, opened: opened)
+        else {
+            opened.page.release(keepingState: false)
+            return
+        }
+        page.markOpenedAsPopup()
+        popupWindowPages[adopted.pageID] = page
+        present(
+            BrowserQuickWindowRequest(
+                url: url, spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: windowID,
+                openedPageID: adopted.pageID))
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.popupWindowWait)
+            self?.popupWindowPages.removeValue(forKey: adopted.pageID)?.release(keepingState: false)
+        }
+    }
+
+    /// A lease on the page the core adopted for a popup window, `pageID`, for
+    /// the Quick Window that shows it in `space`, which the page may close.
+    /// Nil when this window hosts no such page, or it went. The page is
+    /// already heading where the window asked, so the lease loads nothing;
+    /// `url` is what it loads again after memory pressure.
+    func makePopupWindowLease(
+        for pageID: UUID, url: URL, in space: SpaceModel,
+        onUserActivity: @escaping () -> Void, onClosedByPage: @escaping () -> Void
+    ) -> BrowserTransientPageLease? {
+        guard let page = popupWindowPages.removeValue(forKey: pageID) else { return nil }
+        guard page.spaceID == space.id, page.profileID == space.profileID else {
+            page.release(keepingState: false)
+            return nil
+        }
+        let lease = BrowserTransientPageLease(
+            page: page, url: url, contentBlockingPolicy: space.settings.browsingPreferences.contentBlocking,
+            balancedContentRuleLists: contentBlocking.balancedRuleLists ?? [],
+            rebuild: { [weak self] in self?.makePage(space: space, presentation: .quickWindow) },
+            userActivity: onUserActivity, loadsURL: false, onClosedByPage: onClosedByPage)
+        host.keep(lease)
+        return lease
     }
 
     func discardDownloadOnlyPage(_ page: BrowserPage) {

@@ -366,11 +366,16 @@ final class BrowserMacApplication {
                 attach: { window in
                     self.privatePages.bindNativeWindow(window)
                     self.privatePages.setWindowFocused(window.isKeyWindow)
+                    // A Quick Window the private window's pages open, such as a
+                    // sign-in popup, finds its page and workspace through it.
+                    self.pagePoolRegistry.register(
+                        self.privatePages, browser: self.privateBrowser, for: self.privatePages.windowID)
                 },
                 focusChanged: { self.privatePages.setWindowFocused($0) },
                 close: {
                     self.privatePages.setWindowFocused(false)
                     self.privatePages.bindNativeWindow(nil)
+                    self.pagePoolRegistry.unregister(self.privatePages, for: self.privatePages.windowID)
                 }
             )
         )

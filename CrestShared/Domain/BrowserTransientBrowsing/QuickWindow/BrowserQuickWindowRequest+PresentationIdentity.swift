@@ -7,5 +7,6 @@ extension BrowserQuickWindowRequest {
             && assignment == other.assignment
             && targetWindowID == other.targetWindowID
             && sourcePresentation == other.sourcePresentation
+            && openedPageID == other.openedPageID
     }
 }
