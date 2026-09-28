@@ -117,12 +117,7 @@ final class BrowserMacWindowCoordinator {
         model.tearOffPlacement?.attach(window) { [weak model] in
             model?.pages.setWindowFocused(true)
         }
-        window.tabbingMode = .disallowed
         model.pages.bindNativeWindow(window)
-        if model.isTemporary {
-            window.isRestorable = false
-            window.setFrameAutosaveName("")
-        }
         _ = completePendingTransfer(to: id)
         return windows[id] === model
     }

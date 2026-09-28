@@ -19,9 +19,6 @@
         var isPrivateBrowsing: Bool
         /// The profile of the page's Space, once its owner names it.
         var profileID: UUID?
-        /// The browser operations this page may ask for, such as the Space a
-        /// Chrome Web Store listing installs into. Weak: the composition owns it.
-        private weak var hostCommands: (any BrowserEngineHostCommands)?
         /// The engine that hosts the page, which its direct requests go to.
         private weak var engine: ChromiumEngine?
         var observer: (BrowserPageEngineEvent) -> Void
@@ -45,7 +42,6 @@
             self.id = id.uuidString
             self.engine = engine
             host = engine.host
-            hostCommands = engine.hostCommands
             isPrivateBrowsing = false
             observer = { _ in }
             surface.page = self
@@ -207,7 +203,8 @@
         /// private window, which keeps no persistent extension state.
         func performStoreRequest(_ extensionID: String, removes: Bool) {
             let store = ChromiumComposition.extensions
-            guard !isPrivateBrowsing, let profileID, let space = hostCommands?.extensionSpace(forProfile: profileID)
+            guard !isPrivateBrowsing, let profileID,
+                let space = ChromiumComposition.extensionSpace(forProfile: profileID)
             else {
                 refreshStoreState()
                 return

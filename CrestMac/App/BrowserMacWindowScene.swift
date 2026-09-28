@@ -7,7 +7,6 @@ struct BrowserMacWindowScene: View {
 
     let model: BrowserMacWindowModel
     let coordinator: BrowserMacWindowCoordinator
-    @State private var registered = false
     @State private var closed = false
     var id: UUID { model.id }
     var browser: BrowserStore { model.browser }

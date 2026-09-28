@@ -316,34 +316,28 @@ final class BrowserMacApplication {
         }
     }
 
-    @ViewBuilder
-    func browserWindowContent(_ request: BrowserMacWindowRequest) -> some View {
-        if let model = windowCoordinator.model(for: request) {
-            BrowserMacWindowScene(
-                model: model, coordinator: windowCoordinator,
-                pagePoolRegistry: pagePoolRegistry, spaceAccess: spaceAccess,
-                spaceSettingsPresentation: spaceSettingsPresentation,
-                startupBehavior: request.id == startupWindowID ? startupBehavior : .lastActiveTab,
-                shortcuts: shortcuts, sidebarWidgets: sidebarWidgets, softwareUpdates: softwareUpdates
-            )
-            .environment(
-                \.browserSettingsTabContent,
-                settingsTabContent(
-                    browser: model.browser, pages: model.pages, presentation: model.spaceSettingsPresentation)
-            )
-            .environment(windowTransparency)
-            .environment(softwareUpdates)
-            .environment(passkeyAccess)
-            .environment(browser.core)
-            .environment(browser.core.engines)
-            .environment(\.browserSidebarWidgetRuntime, sidebarWidgets)
-            .environment(\.browserSiteControlAnchor, siteControlAnchor)
-            .modifier(BrowserSoftwareUpdateDetailsPresentation())
-        } else {
-            Color.clear.background(
-                BrowserMacWindowAttachment(
-                    attach: { $0.close() }, focusChanged: { _ in }, close: {}))
-        }
+    /// What the browser window `model` shows.
+    func browserWindowContent(_ model: BrowserMacWindowModel) -> some View {
+        BrowserMacWindowScene(
+            model: model, coordinator: windowCoordinator,
+            pagePoolRegistry: pagePoolRegistry, spaceAccess: spaceAccess,
+            spaceSettingsPresentation: spaceSettingsPresentation,
+            startupBehavior: model.id == startupWindowID ? startupBehavior : .lastActiveTab,
+            shortcuts: shortcuts, sidebarWidgets: sidebarWidgets, softwareUpdates: softwareUpdates
+        )
+        .environment(
+            \.browserSettingsTabContent,
+            settingsTabContent(
+                browser: model.browser, pages: model.pages, presentation: model.spaceSettingsPresentation)
+        )
+        .environment(windowTransparency)
+        .environment(softwareUpdates)
+        .environment(passkeyAccess)
+        .environment(browser.core)
+        .environment(browser.core.engines)
+        .environment(\.browserSidebarWidgetRuntime, sidebarWidgets)
+        .environment(\.browserSiteControlAnchor, siteControlAnchor)
+        .modifier(BrowserSoftwareUpdateDetailsPresentation())
     }
 
     var privateWindowContent: some View {
@@ -377,16 +371,11 @@ final class BrowserMacApplication {
                 attach: { window in
                     self.privatePages.bindNativeWindow(window)
                     self.privatePages.setWindowFocused(window.isKeyWindow)
-                    // A Quick Window the private window's pages open, such as a
-                    // sign-in popup, finds its page and workspace through it.
-                    self.pagePoolRegistry.register(
-                        self.privatePages, browser: self.privateBrowser, for: self.privatePages.windowID)
                 },
                 focusChanged: { self.privatePages.setWindowFocused($0) },
                 close: {
                     self.privatePages.setWindowFocused(false)
                     self.privatePages.bindNativeWindow(nil)
-                    self.pagePoolRegistry.unregister(self.privatePages, for: self.privatePages.windowID)
                 }
             )
         )

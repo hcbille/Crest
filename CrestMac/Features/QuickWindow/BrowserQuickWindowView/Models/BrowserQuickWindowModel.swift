@@ -26,9 +26,6 @@ final class BrowserQuickWindowModel {
     /// Whether the window took, or tried to take, the page the core opened
     /// for a window a page asked for, which it takes once.
     @ObservationIgnored private var tookOpenedPage = false
-    /// The window is closing itself, because its page closed, moved to a tab
-    /// or was filed in the archive, so its page has nothing to ask.
-    @ObservationIgnored private var closesItself = false
     @ObservationIgnored let browser: BrowserStore
     @ObservationIgnored let pages: BrowserPagePool?
     @ObservationIgnored private let spaceAccess: BrowserSpaceAccessController
@@ -282,16 +279,12 @@ final class BrowserQuickWindowModel {
         releasePageRetainingSnapshot()
     }
 
-    /// What closing the window asks the core: whether the page it shows may
-    /// go, unless the window closes itself or its page already went.
+    /// What a person's close asks the core: whether the page the window shows
+    /// may go, unless the page already moved to a tab or went. The window
+    /// closing itself asks nothing.
     private var closingRequest: PrepareToClosePages? {
-        guard !closesItself, !wasPromoted, !wasClosedByPage, let page else { return nil }
+        guard !wasPromoted, !wasClosedByPage, let page else { return nil }
         return PrepareToClosePages(requestID: UUID(), pageIDs: [page.corePage.id])
-    }
-
-    /// The window closes itself, so its page is not asked whether it may go.
-    func closeItself() {
-        closesItself = true
     }
 
     func releaseForDismissal() {

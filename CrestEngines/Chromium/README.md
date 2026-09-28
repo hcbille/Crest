@@ -226,16 +226,19 @@ extension updates, private profile window creation and startup profile
 selection. Some of them sit in components that cannot include `//chrome`
 headers.
 
-External opens, document opens and reopen reach the native UI through
-`AppController`. `crest::OpenExternalURLs` applies Crest's own external-URL
-policy with Space or Quick Window routing for web links and its local-document
-rules for opened files, queuing anything that arrives before the first window
-exists, and `crest::Reopen` activates an existing window or
-opens the initial one instead of letting Chromium create a browser with no
-registered window. Normal windows are restored at startup from the list of
-windows that were open at quit; their contents come from the existing per-window
-state and their frames from AppKit's autosave records. Private and Quick Windows
-are not restored.
+Chromium keeps the process, `NSApplication`, the run loop and `AppController`.
+The patch forwards the application events Crest answers to Crest's UI
+(`CrestMacUI` in `Apple/CrestChromiumHost.h`): `crest::DeferQuit`,
+`crest::Reopen`, `crest::OpenExternalURLs`, `crest::DockMenu`, and a system
+sign-in and its end. Crest's Mac shell, which the WebKit product runs too, answers each
+one from the core: it opens external links and documents where the core routes
+them, queuing anything that arrives before its launch finishes; a reopen brings
+a window forward or opens the one the core names, so Chromium never creates a
+browser with no registered window; and a quit waits until the core allows it
+and every edit is saved, then disposes the pages and completes Chromium's quit.
+At startup the shell reopens the windows the core kept at the last quit, their
+contents from each window's state and their frames from AppKit's autosave
+records. Private and Quick Windows are not restored.
 
 An app's system sign-in (`ASWebAuthenticationSession`) reaches the host through
 the same `AppController`. Chromium's handler would open a Views popup in the
@@ -264,13 +267,19 @@ default. Set `CREST_ISOLATED_PERSISTENCE_ID` to a different name and provide a
 separate `--user-data-dir` for an independent session, including benchmark runs.
 Use the Release configuration of `CrestChromiumUI` for performance comparisons.
 
-The host keeps Chromium's process and application lifecycle. The Swift framework
-contains no application entry point. `CrestChromiumUI` compiles Crest's existing
-shared and macOS UI, and `ChromiumComposition` starts the Mac shell both products
+The Swift framework contains no application entry point. Once Chromium has
+started, the host loads it and calls its exported `crest_chromium_ui_start`,
+which attaches `ChromiumMacUI` to Chromium's Mac shell and hands
+`ChromiumComposition` the engine binding and the page-request table.
+`CrestChromiumUI` compiles Crest's shared and macOS UI, and `ChromiumComposition`
+builds the engine and the application and starts the Mac shell both products
 share (`CrestMac/App/Shell`), which mounts `BrowserMacApplication` in its AppKit
-windows and menu bar; `ChromiumShellHost` answers the little the shell asks of
-Chromium. `ChromiumNativePage` supplies the WebContents view inside the
-existing page card.
+windows and builds the menu bar from the core's `ShortcutMenu` layout. A local key
+monitor runs Crest's shortcuts before Chromium's content view takes them.
+`ChromiumShellHost` answers the little the shell asks of Chromium: the About
+credits, releasing a closed window's engine state and profiles, and an extension
+shortcut no Crest command claimed. `ChromiumNativePage` supplies the WebContents
+view inside the existing page card.
 
 The pinned toolbar row belongs to the Space rather than to a page. Its actions
 come from the Space's own profile, so a Space showing its Start Page still shows

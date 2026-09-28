@@ -58,7 +58,6 @@
                         return anchor
                     },
                     reviewPersistenceID: "chromium-native-ui-review")
-                chromium.hostCommands = application
                 chromium.follow(application.browser.core)
                 chromiumEngine = chromium
                 adoptLegacyWindowList(into: application)
@@ -112,6 +111,11 @@
         }
 
         static var extensionSpaces: [BrowserSpaceIdentity] { shell?.application?.extensionSpaces ?? [] }
+
+        /// The Space whose profile is `profileID`, when its extensions may act.
+        static func extensionSpace(forProfile profileID: UUID) -> BrowserSpaceIdentity? {
+            extensionSpaces.first { $0.profileID == profileID }
+        }
 
         /// Whether this store is one of the persistent Spaces' own stores.
         ///

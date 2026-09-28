@@ -14,9 +14,6 @@
         let integration = BrowserEngineRegistration.chromium
         let table: crest_engine_binding_t
         let fingerprint: [UInt8]
-        /// The browser operations a page may ask for, such as the Space a
-        /// Chrome Web Store listing installs into. Weak: the composition owns it.
-        weak var hostCommands: (any BrowserEngineHostCommands)?
         /// The Mac shell, for what only AppKit does.
         let host: any CrestMacShell
         /// The pages' direct path to the binding, which hears the binding's

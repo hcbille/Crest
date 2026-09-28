@@ -3333,6 +3333,10 @@
     "core-lays-out-command-menus": {
       "category": "internal",
       "message": "The core lays out the menu bar's command menus and the launcher's command list, which the Mac shell builds from, so every command keeps a menu item and a shortcut."
+    },
+    "quick-window-closes-with-its-page": {
+      "category": "fixed",
+      "message": "A Quick Window whose page closes itself, such as a sign-in window once you're signed in, now closes even while it's asking whether you want to leave the page."
     }
   }
 }

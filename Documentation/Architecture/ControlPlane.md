@@ -436,7 +436,8 @@ settings and the shortcut settings offer what the device offers, and the page
 a command acts on enables it through its own engine. A capability an engine
 lacks has explicit product behavior, declared in `BrowserEngineRegistration`.
 The Mac shell's AppKit menu bar (`BrowserMacMenuBar`), which both Mac products
-run, reads the same answer and hides what the device does not offer.
+run, builds the core's `ShortcutMenu`s, reads the same answer and hides what the
+device does not offer.
 
 ### Chromium's binding
 
@@ -821,13 +822,62 @@ Limits are data the core reports through the `EnforcedLimits` query
 inputs and storage parts are limited to 64 MiB, and typed messages to their
 `[MessageLimit]` or 16 MiB.
 
+## The Mac shell
+
+Both Mac products run one AppKit shell, `BrowserMacShell`
+(`CrestMac/App/Shell`), whichever engine owns the process. It builds the
+application (`BrowserMacApplication`), or shows native recovery when the session
+cannot open and continues once it can; opens the windows the core names;
+installs the menu bar and the Dock tile; starts sync; and then opens the links,
+documents and sign-ins that arrived before it was ready.
+
+- **Entry points.** The WebKit product enters through `CrestMain`, which runs
+  `NSApplication` with `CrestAppDelegate`. The delegate's application hooks
+  (terminate, reopen, open URLs and the Dock menu) call the shell. The Chromium
+  product keeps Chromium's process, `NSApplication`, run loop and
+  `AppController`. Chromium's patch forwards the application events Crest
+  answers (quit, reopen, external opens, the Dock menu, and a system sign-in
+  and its end) through `CrestMacUI` to `ChromiumMacUI`, which calls the same
+  shell. `ChromiumComposition` builds the engine and the application, and a
+  local key monitor runs Crest's shortcuts before web content, since
+  Chromium's content view takes key equivalents before the menu bar does.
+- **The core decides.** The shell asks the core and presents the answer.
+  `LaunchWindows` names the windows a launch reopens, back to front, and the
+  one that opens on the startup choice, or the setup a first run shows in front
+  of them. `WindowToReopen` answers a Dock click with no window open.
+  `RouteExternalLink` and `RouteLocalDocument` place what other apps open,
+  `EngineWindowPlacement` places a browser the engine created for itself, and
+  `DockMenu` fills the Dock menu. `PrepareToQuit` and `PrepareToCloseWindows`
+  ask each page before a quit or a window's close; a quit waits with
+  `SpaceDeletionUnderway` while a Space is deleted.
+  `RememberWindowsForLaunch` keeps the windows open at an allowed quit. The
+  menu bar builds the core's `ShortcutMenu`s, in their order and groups, and the
+  launcher offers each `ShortcutCommand` that `OffersInPalette`, in catalog
+  order; both show what `EnginesChanged` says the device offers.
+- **What stays native.** Window kinds (`BrowserMacWindowKind`: browser,
+  temporary, private, Quick Window, setup and update details), frames and
+  cascading, key focus and window activity, and the close gate every window
+  shares (`BrowserWindowCloseGate`), which asks the core before a person's
+  close. The shell adds AppKit's application, Edit, Window and Help menus, and
+  places full screen and whole-page translation in the core's menus. Its
+  `BrowserMacDockTile` draws the icon the person picked, with a download badge
+  from the core's download state.
+- **The engine's part.** `BrowserMacEngineHost` is all the shell asks of the
+  engine that owns the process: the About panel's credits; letting go of what
+  it kept for a closed window, and of the profiles named; and a key equivalent
+  no Crest command claimed, such as an extension's `chrome.commands` binding.
+  `ChromiumShellHost` forwards each to Chromium's Mac shell, and
+  `WebKitShellHost` needs none of them.
+
 ## Chromium host
 
 The host overlay uses Chromium's browser startup, `Browser` and
-`TabStripModel`. Its `BrowserWindow` implementation loads `CrestChromiumUI`
-after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
-`BrowserMacApplication.browserWindowContent` in native windows. It has no
-`@main` and does not replace Chromium's application delegate.
+`TabStripModel`. Once Chromium has started, it loads Crest's UI framework
+(`CrestChromiumUIProduct`, or `CrestChromiumUI` for review) and calls its
+exported `crest_chromium_ui_start` with Chromium's Mac shell, the engine
+binding and the page-request table. The framework compiles `CrestShared` and
+`CrestMac` and starts the Mac shell described above. It has no `@main` and
+does not replace Chromium's application delegate.
 
 - **Profiles.** Each Space uses a regular Chromium profile under the engine's
   user-data directory; the product keeps it in
@@ -838,12 +888,11 @@ after startup; the framework compiles `CrestShared` and `CrestMac` and mounts
   extension a person installed. Chromium's password manager is off for every
   page, in Space and private profiles alike.
 - **Identity and lifecycle.** The packager includes Crest's icons and Dock
-  tile plug-in; the host installs Crest's AppKit menus, About identity and
-  shortcut preferences. External URL and document opens reach Crest's own
-  routing, Dock reopen activates or opens a window, the Dock menu is Crest's
-  own in place of Chromium's profiles and incognito window, and startup
-  restores the normal windows open at quit. The product registers Crest for
-  HTTP, HTTPS and HTML documents and carries the Sparkle feed.
+  tile plug-in. Crest's shell installs its menus, About identity and Dock tile,
+  answers external URL and document opens, Dock reopen and the Dock menu in
+  place of Chromium's profiles and incognito window, and reopens the windows
+  open at quit. The product registers Crest for HTTP, HTTPS and HTML documents
+  and carries the Sparkle feed.
 - **Links.** Chromium's binding asks the core `LinkActivation` for each link
   the person follows in an owned page, from its modified-link hook and its
   protected-link throttle: saved-site protection, Peek priority and

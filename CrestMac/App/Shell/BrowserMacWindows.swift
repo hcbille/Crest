@@ -220,7 +220,7 @@ final class BrowserMacWindows {
         show(
             kind, id: request.id, closeGate: model.closeGate,
             cascadingFrom: NSApp.keyWindow.flatMap { browserWindowID(of: $0) == nil ? nil : $0 },
-            activation: activation, content: { _ in application.browserWindowContent(request) },
+            activation: activation, content: { _ in application.browserWindowContent(model) },
             closed: { [weak self] controller in
                 self?.forget(controller)
                 // The core forgets a window the person closed for the next
@@ -234,6 +234,8 @@ final class BrowserMacWindows {
     func openPrivateWindow() {
         guard !bringForwardOpenWindow(of: .private) else { return }
         let privatePages = application.privatePages
+        // A Quick Window the private window's pages open, such as a sign-in
+        // popup, finds its page and workspace through the registry.
         application.pagePoolRegistry.register(
             privatePages, browser: application.privateBrowser, for: privatePages.windowID)
         show(
@@ -251,7 +253,7 @@ final class BrowserMacWindows {
         }
         let profiles = application.privateBrowser.spaceModels.map(\.profileID)
         application.pagePoolRegistry.unregister(application.privatePages, for: controller.windowID)
-        application.closePrivateBrowsing()
+        application.closePrivateBrowsingWindow()
         engineHost.windowClosed(controller.windowID, releasingProfiles: profiles)
     }
 
@@ -293,7 +295,10 @@ final class BrowserMacWindows {
             content: { window in
                 BrowserQuickWindowWindowSurface(
                     model: model, spaceAccess: application.spaceAccess, pagePoolRegistry: application.pagePoolRegistry,
-                    dismiss: { [weak window] in window?.performClose(nil) },
+                    // The content closes the window only when the window is
+                    // done, which a person's close waiting on the page, or a
+                    // refused one, never holds back.
+                    dismiss: { [weak self] in self?.closeQuickWindowWithoutAsking(request.id) },
                     openBrowserWindow: { [weak self] in
                         guard let self, !application.windowCoordinator.activateExistingWindow(for: context.browser)
                         else { return }

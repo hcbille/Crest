@@ -14,7 +14,7 @@ lists what each engine lacks.
 | Layer | Owns | Never owns |
 | --- | --- | --- |
 | Platform UI (SwiftUI on macOS, iOS and iPadOS; WinUI 3 on Windows later) | Views, layout, animation, hover, scroll position, window frames, sidebar width, appearance preferences, presenting the prompts the core asks for, embedding engine views | Browser state, rules, persistence, deciding what happens next |
-| `CrestCore` | Every piece of browser state and every rule: Spaces, tabs, folders, splits, history, archive, windows and what each window shows, pages and their live state, preferences, downloads, permissions, credentials policy, import and export, search and completion, onboarding and setup flows, Quick Window and Peek rules, storage, sync | Rendering, input, compositing, engine handles, image bytes, OS services |
+| `CrestCore` | Every piece of browser state and every rule: Spaces, tabs, folders, splits, history, archive, windows and what each window shows, which windows a launch reopens and where external opens land, pages and their live state, preferences, downloads, permissions, credentials policy, import and export, search and completion, the commands and how the menu bar and launcher lay them out, onboarding and setup flows, Quick Window and Peek rules, storage, sync | Rendering, input, compositing, engine handles, image bytes, OS services |
 | Engine bindings (Chromium in portable C++ with a thin shell per OS; WebKit in Swift) | Creating and closing pages, loading, engine navigation history, find, zoom, capture, printing, DevTools, extensions, network and cookie stores | Deciding browser rules; changing browser state other than by reporting events |
 | OS services (supplied by each platform) | CloudKit transport, Keychain, authentication prompts, notification delivery, file pickers, default-browser registration, software updates | Rules; deciding when to save or sync |
 
@@ -206,9 +206,11 @@ commands the core issues (`CreatePage`, `LoadPage`, `ClosePage`,
 `crest_engine.h` carries them in the same generated wire format, and the
 generator emits a C++ codec for the Chromium binding. Chromium implements it
 in portable C++ and reports events straight to the core, with no Objective-C
-or Swift in between. The Mac shell around it handles only view embedding,
-popups, menus and web authentication. WebKit implements the same contract in
-Swift, once, for macOS and iOS.
+or Swift in between. Chromium's Mac shell around it handles only view
+embedding, popups and web authentication. Crest's own Mac shell, which both
+Mac products run, owns the windows, menus, launch, reopen, external opens and
+quit, and asks the core each decision it makes about them. WebKit implements
+the same contract in Swift, once, for macOS and iOS.
 
 Crest can run more than one engine at a time.
 
@@ -301,7 +303,9 @@ out on one engine does not sign out the other.
 The Windows UI is WinUI 3 in C#, compiled with NativeAOT, with `CrestCore` as
 a project reference in the same process. It calls the core directly and
 reads its records, with no ABI crossing, serialization or second copy of the
-state. As on the Mac, Chromium owns the process and the UI thread, so the
-WinUI views mount as XAML Islands in windows the Chromium host creates. A spike
-must prove that, along with hosting the page surface, before any Windows work
-begins.
+state. As on the Mac, Chromium owns the process and the UI thread. A Windows
+shell asks the core the questions the Mac shell asks, such as which windows a
+launch reopens, where external opens land, whether a quit may go ahead and how
+the menus lay out the commands, and mounts the WinUI views as XAML Islands in
+its windows. A spike must prove that, along with hosting the page surface,
+before any Windows work begins.

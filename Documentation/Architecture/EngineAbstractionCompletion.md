@@ -53,8 +53,8 @@ experimental update channel, with WebKit registered beside it. The WebKit
 runs WebKit on iPhone and iPad.
 
 Chromium's binding is portable C++ inside the engine, keeps Chromium's
-`Browser`s and reports to the core directly; its Mac shell only makes and
-hosts windows, views, popups and system sign-in. WebKit's
+`Browser`s and reports to the core directly; its Mac shell only hosts page
+views, popups and system sign-in in the windows Crest's shell opens. WebKit's
 binding is Swift, shared by macOS and iOS. `BrowserPage`
 (`CrestMac/Infrastructure/Pages`) holds an `any BrowserPageEngineAdapter` and
 names no engine type. `MobileBrowserPage` is typed over WebKit by design,
@@ -71,6 +71,41 @@ keeps each profile's website data store and compiles the content rules its
 pages are built with.
 
 Engine glue, the page hosts and the tests read the core's read model.
+
+Both Mac products run one AppKit shell (`CrestMac/App/Shell`), which owns
+every window, the menu bar, launch and recovery, reopen, the Dock menu and
+tile, external opens, system sign-in and quit. The WebKit product owns its
+process through `CrestMain`. The Chromium product leaves the process,
+`NSApplication`, the run loop and `AppController` to Chromium, whose patch
+forwards the application events Crest answers: quit, reopen, external opens,
+the Dock menu, and a system sign-in and its end. A local key monitor runs
+Crest's shortcuts before web content. The shell's decisions are core queries
+and intents: the windows a launch reopens and the setup in front of them, the
+window a reopen opens, where external opens and an engine's own windows land,
+whether a quit or a window's close may go ahead, and the menu layout and the
+launcher's commands. The shell keeps only what AppKit does: window kinds,
+frames, focus, AppKit's standard menus, and the Dock tile, which draws the icon
+the person picked and a badge for the core's download progress.
+
+A new engine on the Mac supplies:
+
+- a binding for the engine contract, with the capabilities
+  `BrowserEngineRegistration` declares for it;
+- a `BrowserMacEngineHost`: the About panel's credits, releasing what it kept
+  for a closed window and the profiles named, and a key equivalent no Crest
+  command claimed;
+- when it owns the process, an entry that forwards quit, reopen, external
+  opens, the Dock menu and system sign-in to `BrowserMacShell`, as
+  `CrestAppDelegate` and `ChromiumMacUI` do.
+
+A new platform shell supplies:
+
+- its windows, with their kinds, frames and focus;
+- menus built from `ShortcutMenu`, a launcher offering each command that
+  `OffersInPalette`, both narrowed to what the device offers;
+- the presentation of the core's answers to launch, reopen, external opens,
+  engine windows, the app icon's menu, and quit and close;
+- its own standard menus, the app icon and its badge, and the OS services.
 
 ## How each engine behaves
 
@@ -158,9 +193,9 @@ downloads. Launch cleanup and retention run as the core's
 | Site permissions | The permission intents and the `SiteDecision` and `CaptureDecision` queries |
 | Search, completion and the palette | `SearchProvider`, the search engine intents, `PaletteSuggestions` |
 | Windows, sidebar and setup | The window intents, the sidebar outline and drop targets, `SelectionPreview`, the setup draft and flow intents and `FinishSetup` |
-| Shortcuts, launch and media | The shortcut intents and `NumberedSelections`; `LaunchIsolation` and the launch plan; media session arbitration |
+| Shortcuts, menus, launch and media | The shortcut intents, `NumberedSelections` and the `ShortcutMenu` layout; `LaunchIsolation`, the launch plan, `LaunchWindows`, `WindowToReopen`, `EngineWindowPlacement` and `PrepareToQuit`; media session arbitration |
 | Behavior preferences | The session's `appPreferences` record behind `SetAppPreferences`, `SetTranslationRule` and `ImportAppPreferences` |
-| Links and Quick Window | `LinkNavigation`, `RouteExternalLink`, `ExternalWebLink`, `ChooseExternalLinkDestination`, `RememberQuickWindowSpace` and the link preference intents |
+| Links and Quick Window | `LinkNavigation`, `RouteExternalLink`, `RouteLocalDocument`, `ExternalWebLink`, `ChooseExternalLinkDestination`, `RememberQuickWindowSpace` and the link preference intents |
 | Engines | `EnginesChanged`, `ChooseSiteEngine`, `RehostPage`, `ProtectedMediaUnavailable` |
 
 These stay in Swift by design: heraldry vocabulary and composition, favicon

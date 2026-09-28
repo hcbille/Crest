@@ -76,12 +76,6 @@ final class BrowserPageHost {
         popupWindowPages.removeValue(forKey: pageID)
     }
 
-    /// Whether the host keeps `page` for a Quick Window that has not taken
-    /// it yet.
-    func keepsPopupWindowPage(_ page: BrowserPlatformPage) -> Bool {
-        popupWindowPages[page.corePage.id] === page
-    }
-
     /// The tab's resident page.
     func page(for tabID: UUID) -> BrowserPlatformPage? {
         runtimes[tabID]?.page
