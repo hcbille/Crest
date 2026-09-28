@@ -6,54 +6,54 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.265</title>
-            <pubDate>Sat, 26 Sep 2026 00:47:11 +0000</pubDate>
+            <title>0.6.424</title>
+            <pubDate>Mon, 28 Sep 2026 04:49:44 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>experimental</sparkle:channel>
-            <sparkle:version>1141</sparkle:version>
-            <sparkle:shortVersionString>0.6.265</sparkle:shortVersionString>
+            <sparkle:version>1142</sparkle:version>
+            <sparkle:shortVersionString>0.6.424</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-Showing the 12 most recent highlights from 22 user-facing changes.
+Showing the 12 most recent highlights from 50 user-facing changes.
 
 ### Improved
 
-- Changes from your other devices arrive through iCloud Sync without pausing Crest's windows.
-- The command palette now opens out of the address field and closes back into it.
-- The Space selector's outline and its selection now share the same corners.
-- Editing tabs does less work in large sessions.
-- Navigating in a Space with many tabs or a long history does less work.
-- Next and previous tab, and ⌘1–⌘9, now follow the order you see in the sidebar.
-- Dragging in the sidebar now says why a spot won't take what you're holding, a whole split can join the tabs on show or drop into a collapsed folder, and selections stay selectable in long lists.
-- When the sidebar can't take a drop, it tells you in the window's notice instead of an alert you have to dismiss.
+- In the Chromium build, camera, microphone, location, Bluetooth and passkey prompts name Crest instead of Chromium, and Crest no longer includes a helper app that could appear as “Chromium” in Notifications settings.
+- In the Chromium build, tabs running in WebKit now show a small WebKit badge on their icon, so you can see at a glance which pages use WebKit.
+- Sign-in and other popup windows a page opens now appear in a Quick Window in the same Space, stay connected to the page that opened them, and close themselves when the sign-in finishes. Choose Open in to keep one as a tab.
+- The WebKit badge on tab icons is clearer: it now shows a small blue-and-orange tile, which also appears beside WebKit in Site Controls' Opens in menu.
 
 ### Fixed
 
-- A folder you delete just before choosing this device's copy over iCloud's stays deleted on your other devices.
-- A Quick Window page you keep as a tab keeps the page's title instead of its site's name.
-- Tabs moved together in the sidebar can be dragged again right away.
-- Fix the Chromium build crashing on launch when built for release
+- The back-to-tab button in a Picture in Picture video now brings Crest forward on the video's own tab, switching window or Space if needed, in both the Chromium and WebKit builds. When you go back to that tab yourself, the video leaves Picture in Picture and returns to its place on the page, whether it floated automatically or you floated it.
+- Dragging at the very top of a page, like selecting text or using YouTube's search box, no longer moves the window. The sidebar, the strip above the page and the space around it, and the top of a Quick Window, still move the window and do what your title bar double-click setting says.
+- A sign-in window, a new tab or a Peek that a page opens now stays on that page's engine, so signing in with Google from a page moved to WebKit opens one sign-in page that finishes the sign-in, instead of several Chromium tabs.
+- Locking a protected Space, including when Crest goes to the background, now always closes that Space's Picture in Picture video.
+- Window › Move & Resize, the Globe-Control tiling shortcuts and the green button's tiling options work for Crest windows again, while dragging at the very top of a page still selects text instead of moving the window. Double-clicking empty sidebar space opens a new tab again, without also acting as a title bar double-click.
+- A page that opens an empty window first and fills it in afterwards, as some sign-in buttons do, gets its window again instead of nothing. A link or script that opens a new window from a Quick Window or Peek loads in that window again, with Back and Forward, and a form posted that way keeps what it sent.
+- Continue with Google and other sign-in popups open their Quick Window again in a window you closed and opened again, instead of doing nothing.
+- A window you close while a Quick Window over it stays open no longer answers for the window that opens again in its place, so tabs and pop-ups a page opens show in the window you are using.
 
 ---
 
 Experimental builds are signed and notarized snapshots from the selected branch (chromium-control-plane). They may be less reliable than development or stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/588052f3169930ba7e4a98fb61e02e860f087f48...55762d27b8fa48dd6b4ba9d930a8da2649da8ec1) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.265-chromium-control-plane-2026-09-26-1141-r10.1/Installer-Crest-0.6.265-experimental-2026-09-26-55762d2-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/55762d27b8fa48dd6b4ba9d930a8da2649da8ec1...fb37762a5e4e669db1b7981d093c2a4a3af919b1) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.424-chromium-control-plane-2026-09-28-1142-r11.1/Installer-Crest-0.6.424-experimental-2026-09-28-fb37762-arm64.dmg)
 
 [Browse Experimental releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Experimental+builds%22)
 
 ### Downloads
 
-- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.265-experimental-2026-09-26-55762d2-arm64.dmg`
-- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.265-experimental-2026-09-26-55762d2-arm64-WebKit.dmg`
+- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.424-experimental-2026-09-28-fb37762-arm64.dmg`
+- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.424-experimental-2026-09-28-fb37762-arm64-WebKit.dmg`
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.265-chromium-control-plane-2026-09-26-1141-r10.1/Installer-Crest-0.6.265-experimental-2026-09-26-55762d2-arm64-WebKit.dmg" length="28817242" type="application/octet-stream" sparkle:edSignature="L0zIfEjlE4qI4IIl+lK8RMD0W7d3FeskpRj06cRP1XcY8bDMfuc2SuGGkVq5nilpsfd2uPkms7RcRH25okTHDA=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.424-chromium-control-plane-2026-09-28-1142-r11.1/Installer-Crest-0.6.424-experimental-2026-09-28-fb37762-arm64-WebKit.dmg" length="28859738" type="application/octet-stream" sparkle:edSignature="zA9BIClsUxEwBlEVaUAXUIWkk9wOhACNkv0hkETW5fo3z+1ZtnFYzWd5guV4izoeldfSVGLP1dASqY4Z6xk7BQ=="/>
         </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: siY+StqiTxyQTO53BiZFVTal8rKvYGeUYxTsxO/hIx4VOI5lu3cxt/j7SQhc3LArM6Jn1gYVnxRDDPmLwYp1DA==
-length: 3572
+edSignature: Ch78aF8zyrmibEvL7jd/FFq+Fnm2+pj5s9ujWjAlYE/+pjwrMBuuQL0iAXOCpRJk7X4izf5uryx+e8xJErI1Aw==
+length: 5167
 -->
