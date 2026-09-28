@@ -47,11 +47,15 @@ final class BrowserStore {
     /// The Space this window showed when it last followed its session, under
     /// its profile and access policy then.
     @ObservationIgnored private var lastSelectionScope: BrowserSelectionScope
-    @ObservationIgnored private var isClosed = false
+    /// Whether this window closed. The core can open another window under
+    /// the identity it had, as the first window always reopens, so a closed
+    /// store reads and answers to nothing by that identity.
+    @ObservationIgnored private(set) var isClosed = false
 
-    /// What the core says this window shows.
+    /// What the core says this window shows, or what it showed last once it
+    /// closed.
     var window: WindowState {
-        guard let shown = core.state.windows[windowID]?.value else { return lastWindow }
+        guard !isClosed, let shown = core.state.windows[windowID]?.value else { return lastWindow }
         lastWindow = shown
         return shown
     }
@@ -234,9 +238,17 @@ final class BrowserStore {
     /// for anything still holding the store.
     func close() {
         guard !isClosed else { return }
-        isClosed = true
         lastWindow = window
+        isClosed = true
         _ = try? core.send(CloseWindow(windowID: windowID))
+    }
+
+    /// Whether this store is the open window the core names `windowID`, so a
+    /// change the core addresses to that window is for it. A window opened
+    /// again under the same identity is another window with a store of its
+    /// own, so a closed store is none.
+    func isOpen(as windowID: UUID) -> Bool {
+        !isClosed && windowID == self.windowID
     }
 
     isolated deinit {

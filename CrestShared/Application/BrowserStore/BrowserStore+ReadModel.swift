@@ -12,9 +12,10 @@ extension BrowserStore {
         core.state.workspaces[family.workspaceID]
     }
 
-    /// What this window shows in the read model, or nil once the core closed it.
+    /// What this window shows in the read model, or nil once it closed,
+    /// even when another window opened under its identity since.
     var windowModel: WindowStateModel? {
-        core.state.windows[windowID]
+        isClosed ? nil : core.state.windows[windowID]
     }
 
     /// A Space of this window's workspace in the read model.

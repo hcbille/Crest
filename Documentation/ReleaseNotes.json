@@ -3229,6 +3229,10 @@
     "third-party-notices-name-chromium-and-dotnet": {
       "category": "internal",
       "message": "The third-party notices now include the bundled Chromium engine and .NET runtime, and the license audit checks them."
+    },
+    "closed-window-stays-out-of-its-reopened-window": {
+      "category": "fixed",
+      "message": "A window you close while a Quick Window over it stays open no longer answers for the window that opens again in its place, so tabs and pop-ups a page opens show in the window you are using."
     }
   }
 }

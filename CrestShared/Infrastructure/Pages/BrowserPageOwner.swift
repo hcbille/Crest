@@ -46,14 +46,14 @@ protocol BrowserPageOwner: AnyObject, BrowserTabCopying, BrowserTabLinkProviding
 
 extension BrowserPageOwner {
     /// Lets go of each saved or pinned tab's page the core put away as this
-    /// window asked, keeping what brings it back unless the tab returned to
-    /// its saved address, which drops what it kept.
+    /// window asked while it is open, keeping what brings it back unless the
+    /// tab returned to its saved address, which drops what it kept.
     func followPutAwayPages() {
         browser.core.followPutAwayPages(self) { [weak self] in self?.pagePutAway($0) }
     }
 
     private func pagePutAway(_ putAway: TabPagePutAway) {
-        guard putAway.windowID == browser.windowID, putAway.workspaceID == browser.window.workspaceID,
+        guard browser.isOpen(as: putAway.windowID), putAway.workspaceID == browser.window.workspaceID,
             let space = browser.spaceModel(putAway.spaceID)
         else { return }
         _ = host.closeDurablePage(
@@ -62,14 +62,14 @@ extension BrowserPageOwner {
     }
 
     /// Hosts each page an engine opened by itself that the core adopted for a
-    /// tab of this window, keeping its opener, history and script state, as
-    /// the tab's resident page, whichever engine opened it.
+    /// tab of this window while it is open, keeping its opener, history and
+    /// script state, as the tab's resident page, whichever engine opened it.
     func followAdoptedPages() {
         browser.core.followAdoptedPages(self) { [weak self] in self?.adoptedPageOpened($0) }
     }
 
     private func adoptedPageOpened(_ adopted: OfferedPageAdopted) {
-        guard adopted.windowID == browser.windowID, adopted.workspaceID == browser.window.workspaceID,
+        guard browser.isOpen(as: adopted.windowID), adopted.workspaceID == browser.window.workspaceID,
             host.page(for: adopted.tabID) == nil,
             let space = browser.spaceModel(adopted.spaceID),
             let tab = space.tabs.model(adopted.tabID),

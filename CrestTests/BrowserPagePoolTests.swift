@@ -642,21 +642,58 @@ final class BrowserPagePoolTests: XCTestCase {
         XCTAssertEqual(remover.removedProfileIDs, [space.profileID])
     }
 
-    func testRegistryResolvesAndUnregistersTheExactBrowserWindowRuntime() throws {
-        let rootBrowser = BrowserStore.preview()
-        let windowBrowser = rootBrowser.makeWindowStore()
-        let pool = BrowserPagePool(browser: windowBrowser)
-        let registry = BrowserPagePoolRegistry(primary: BrowserPagePool(browser: rootBrowser))
-        let windowID = windowBrowser.windowID
-
-        registry.register(pool, browser: windowBrowser, for: windowID)
-
+    func testAWindowReopenedUnderAClosedWindowsIdentityKeepsItsPagesAndWhatItShows() throws {
+        let first = TabState.Seed(title: "First", url: URL(string: "about:blank#first"), placement: .current)
+        let second = TabState.Seed(title: "Second", url: URL(string: "about:blank#second"), placement: .current)
+        let space = makeSpace(tabs: [first, second], selectedTabID: first.id)
+        let store = hosting(space)
+        let primary = BrowserPagePool(browser: store)
+        let registry = BrowserPagePoolRegistry(primary: primary)
+        let spaceAccess = BrowserSpaceAccessController()
+        // The first window always reopens under the same identity.
+        let windowID = UUID()
+        func openWindow() -> BrowserPagePool {
+            let browser = store.makeWindowStore(BrowserWindowOpening(id: windowID, copying: store.windowID))
+            let pages = primary.makeWindowPool(
+                browser: browser, sharesRuntimes: true, transientBrowsing: BrowserTransientBrowsingCoordinator(),
+                spaceAccess: spaceAccess)
+            registry.register(pages, browser: browser, for: windowID)
+            return pages
+        }
+        let closed = openWindow()
+        present(closed, tab: first.id, in: space.id)
         let runtime = try XCTUnwrap(registry.runtime(for: windowID))
-        XCTAssertTrue(runtime.browser === windowBrowser)
-        XCTAssertTrue(runtime.pages === pool)
+        XCTAssertTrue(runtime.browser === closed.browser)
+        XCTAssertTrue(runtime.pages === closed)
 
-        registry.unregister(pool, for: windowID)
+        // The window closes as the app closes it, while a Quick Window opened
+        // over it keeps its pool.
+        registry.unregister(closed, for: windowID)
+        closed.releaseWindowPresentation()
+        closed.browser.close()
         XCTAssertNil(registry.runtime(for: windowID))
+        registry.register(closed, browser: closed.browser, for: windowID)
+        XCTAssertNil(registry.runtime(for: windowID), "A closed window registers no pages.")
+
+        let reopened = openWindow()
+        present(reopened, tab: second.id, in: space.id)
+        XCTAssertTrue(reopened.browser.isOpen(as: windowID))
+        XCTAssertFalse(
+            closed.browser.isOpen(as: windowID), "Changes the core addresses to the identity are not for it.")
+
+        // What the closed window's pool still does, presenting again or
+        // tearing down late, reaches nothing of the reopened window.
+        closed.select()
+        closed.releaseWindowPresentation()
+        registry.unregister(closed, for: windowID)
+        XCTAssertTrue(registry.runtime(for: windowID)?.pages === reopened)
+        XCTAssertEqual(
+            primary.runtimeStore.registeredPools.filter { $0.windowID == windowID }.map(ObjectIdentifier.init),
+            [ObjectIdentifier(reopened)])
+        XCTAssertTrue(reopened.presentedPage(for: second.id)?.host === reopened)
+        XCTAssertEqual(reopened.browser.shownTab?.id, second.id)
+        XCTAssertNil(closed.browser.windowModel)
+        XCTAssertEqual(closed.browser.shownTab?.id, first.id, "A closed window keeps what it showed last.")
     }
 
     func testSpaceCannotRecreateItsPageWhileProfileDeletionIsSuspended() async throws {

@@ -36,11 +36,14 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
         pools[ObjectIdentifier(pool)] = WeakPool(pool)
     }
 
+    /// Registers `pool` as the pages of window `windowID`, which `browser`
+    /// is while it is open.
     func register(
         _ pool: BrowserPagePool,
         browser: BrowserStore,
         for windowID: UUID
     ) {
+        guard browser.isOpen(as: windowID) else { return }
         register(pool)
         browser.family.pageDismissalAuthorizer = self
         windowRuntimes[windowID] = WeakWindowRuntime(
@@ -53,8 +56,11 @@ final class BrowserPagePoolRegistry: BrowserSpaceDataDeleting {
         pools.removeValue(forKey: ObjectIdentifier(pool))
     }
 
+    /// Unregisters `pool` as the pages of window `windowID`, leaving the
+    /// pages of a window since opened under that identity in place.
     func unregister(_ pool: BrowserPagePool, for windowID: UUID) {
         unregister(pool)
+        guard windowRuntimes[windowID]?.pages === pool else { return }
         windowRuntimes.removeValue(forKey: windowID)
     }
 

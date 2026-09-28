@@ -70,6 +70,11 @@ final class BrowserPagePool:
     /// from this window, in its workspace.
     @ObservationIgnored let browser: BrowserStore
     var windowID: UUID { browser.windowID }
+    /// Whether this pool's window is still open. A pool outlives its window
+    /// while a Quick Window opened over it lasts, and the window reopened
+    /// under the same identity has a pool of its own, so a pool whose window
+    /// closed never registers under that identity again.
+    var isWindowOpen: Bool { !browser.isClosed }
     /// The native window this pool's window is on screen as, while it is.
     @ObservationIgnored private(set) weak var presentationWindow: NSWindow?
     private(set) var isWindowFocused = true
@@ -199,7 +204,7 @@ final class BrowserPagePool:
         followAdoptedPages()
         followPutAwayPages()
         core.followWindowsBroughtForward(self) { [weak self] brought in
-            guard let self, brought.windowID == windowID else { return }
+            guard let self, self.browser.isOpen(as: brought.windowID) else { return }
             bringForward()
         }
         core.followAdoptedWindows(self) { [weak self] in self?.popupWindowAdopted($0) }
@@ -729,11 +734,11 @@ final class BrowserPagePool:
 
     /// Whether this pool is the one to host the window `adopted` names: the
     /// pool that routes the page that asked for it now, or, when no window
-    /// routes that page, the pool of the window the core names.
+    /// routes that page, the pool of the open window the core names.
     private func routesPopupWindow(of adopted: OfferedWindowAdopted) -> Bool {
         guard let source = host.livePages.first(where: { $0.corePage.id == adopted.sourcePageID }),
             let router = source.host
-        else { return adopted.windowID == windowID }
+        else { return browser.isOpen(as: adopted.windowID) }
         return router === self
     }
 

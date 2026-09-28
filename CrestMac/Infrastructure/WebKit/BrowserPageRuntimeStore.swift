@@ -46,11 +46,16 @@ final class BrowserPageRuntimeStore {
         presentations.contains { $0.key != windowID && $0.value.contains(tabID) }
     }
 
+    /// Registers `pool` as its window's, while that window is open. A pool
+    /// that outlived its window never takes the place of the pool of the
+    /// window reopened under its identity.
     func register(_ pool: BrowserPagePool) {
+        guard pool.isWindowOpen else { return }
         pools[pool.windowID] = WeakPool(value: pool)
     }
 
     func updatePresentation(of pool: BrowserPagePool) {
+        guard pool.isWindowOpen else { return }
         register(pool)
         presentations[pool.windowID] = pool.presentedTabIDs
         for tabID in pool.presentedTabIDs {
@@ -67,6 +72,7 @@ final class BrowserPageRuntimeStore {
     }
 
     func focus(_ pool: BrowserPagePool) {
+        guard pool.isWindowOpen else { return }
         for other in registeredPools where other !== pool {
             other.setWindowFocused(false)
         }
@@ -76,7 +82,7 @@ final class BrowserPageRuntimeStore {
     }
 
     func claim(_ tabID: UUID, for pool: BrowserPagePool) {
-        guard pool.presentedTabIDs.contains(tabID), let runtime = runtimes[tabID] else { return }
+        guard pool.isWindowOpen, pool.presentedTabIDs.contains(tabID), let runtime = runtimes[tabID] else { return }
         guard runtime.presentationWindowID != pool.windowID else {
             pool.bindRuntimeRouting(runtime, tabID: tabID)
             return
@@ -92,7 +98,10 @@ final class BrowserPageRuntimeStore {
         revision &+= 1
     }
 
+    /// Unregisters `pool`, when it is the pool registered for its window,
+    /// and hands the pages it routed to the window focused most recently.
     func unregister(_ pool: BrowserPagePool) {
+        guard pools[pool.windowID]?.value === pool else { return }
         presentations.removeValue(forKey: pool.windowID)
         pools.removeValue(forKey: pool.windowID)
         focusOrder.removeValue(forKey: pool.windowID)
