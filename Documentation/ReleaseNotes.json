@@ -3197,6 +3197,10 @@
     "webkit-badge-draws-stacked-tile": {
       "category": "improved",
       "message": "The WebKit badge on tab icons is clearer: it now shows a small blue-and-orange tile, which also appears beside WebKit in Site Controls' Opens in menu."
+    },
+    "window-moves-natively-and-page-top-stays-still": {
+      "category": "fixed",
+      "message": "Window › Move & Resize, the Globe-Control tiling shortcuts and the green button's tiling options work for Crest windows again, while dragging at the very top of a page still selects text instead of moving the window. Double-clicking empty sidebar space opens a new tab again, without also acting as a title bar double-click."
     }
   }
 }

@@ -282,6 +282,9 @@ final class BrowserWebHostView: NSView {
     private var focusRestorationGate = BrowserWebFocusRestorationGate.suppressed
     private var isPageActive = false
     private var focusRestorationAttemptGeneration = 0
+    /// Keeps the window server from dragging the window by this page's top.
+    private lazy var titleBarTracker = BrowserPageTitleBarTracker(page: self)
+    private var titleBarTrackingArea: NSTrackingArea?
 
     override func keyDown(with event: NSEvent) {
         guard let hostedWebView,
@@ -313,6 +316,7 @@ final class BrowserWebHostView: NSView {
     override func layout() {
         super.layout()
         layoutHostedWebView()
+        titleBarTracker.checkPointerSoon()
     }
 
     override func resizeSubviews(withOldSize oldSize: NSSize) {
@@ -442,10 +446,38 @@ final class BrowserWebHostView: NSView {
         focusRestorationAttemptGeneration &+= 1
     }
 
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow !== window {
+            titleBarTracker.release()
+        }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        trackTitleBarPointer()
         guard isPageActive else { return }
         scheduleFocusRestoration()
+    }
+
+    override func viewDidHide() {
+        super.viewDidHide()
+        titleBarTracker.release()
+    }
+
+    override func viewDidUnhide() {
+        super.viewDidUnhide()
+        titleBarTracker.checkPointerSoon()
+    }
+
+    private func trackTitleBarPointer() {
+        guard window != nil else { return }
+        if titleBarTrackingArea == nil {
+            let area = titleBarTracker.makeTrackingArea()
+            addTrackingArea(area)
+            titleBarTrackingArea = area
+        }
+        titleBarTracker.checkPointerSoon()
     }
 
     private func scheduleFocusRestoration() {

@@ -5,8 +5,13 @@ struct BrowserSidebarBackgroundInteractionView: View {
     let createSpace: (() -> Void)?
 
     var body: some View {
+        // Dragging the empty sidebar moves the window. Its double-click opens a
+        // new tab (`BrowserSidebarEmptySpaceNewTabGesture`) rather than acting
+        // as the title bar, as it has since Crest offered it.
         Color.clear
-            .browserWindowChromeGestures()
+            .contentShape(.rect)
+            .gesture(WindowDragGesture())
+            .allowsWindowActivationEvents()
             .contextMenu {
                 ForEach(
                     BrowserSidebarBackgroundInteractionPolicy.actions.filter { $0 != .newSpace || createSpace != nil },
