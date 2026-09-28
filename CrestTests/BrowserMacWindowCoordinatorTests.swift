@@ -231,73 +231,6 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
         XCTAssertTrue(source.browser.shownSpace?.tabs.models.isEmpty == true)
     }
 
-    /// SwiftUI builds a restored window before it hands back the request the
-    /// window was saved with. The window still comes back under its own
-    /// identity, on what it showed, and never on the initial window's model.
-    func testARestoredWindowReopensItsOwnRecordAndNotTheInitialWindow() async throws {
-        var session = SessionState.Seed.preview
-        session.defaultSpaceID = session.spaces[0].id
-        let harness = try BrowserStoredSessionHarness(seed: session)
-        harness.core.engines.register(WebKitEngineBinding(), isDefault: true)
-        let launched = makeCoordinator(over: harness.store)
-        let main = try XCTUnwrap(launched.model(for: .initial))
-        let second = try XCTUnwrap(launched.model(for: .normal(sourceWindowID: main.id)))
-        let space = try XCTUnwrap(harness.store.spaceModels.last)
-        let tab = try XCTUnwrap(space.tabs.models.last)
-        XCTAssertTrue(second.browser.activateSessionTab(tab.id, in: space.id))
-
-        let relaunched = try await harness.relaunch()
-        relaunched.core.engines.register(WebKitEngineBinding(), isDefault: true)
-        let coordinator = makeCoordinator(over: relaunched.store)
-        let center = NotificationCenter()
-        let restoration = BrowserMacWindowRestoration(center: center)
-        let restoredScene = SceneRequest()
-        let initialScene = SceneRequest()
-        let restoring = Task { await restoration.window(presentedBy: { restoredScene.value }, in: coordinator) }
-        let opening = Task { await restoration.window(presentedBy: { initialScene.value }, in: coordinator) }
-        await Task.yield()
-        restoredScene.value = BrowserMacWindowRequest(id: second.id, kind: .normal, sourceWindowID: main.id)
-        center.post(name: NSApplication.didFinishRestoringWindowsNotification, object: nil)
-        let restoredRequest = await restoring.value
-        let initialRequest = await opening.value
-        let restored = try XCTUnwrap(coordinator.model(for: XCTUnwrap(restoredRequest)))
-        let initial = try XCTUnwrap(coordinator.model(for: XCTUnwrap(initialRequest)))
-
-        XCTAssertEqual(restored.id, second.id)
-        XCTAssertEqual(initial.id, BrowserMacWindowRequest.initial.id)
-        XCTAssertEqual(restored.browser.selectedSpaceID, space.id)
-        XCTAssertEqual(restored.browser.shownTab?.id, tab.id)
-        XCTAssertEqual(initial.browser.selectedSpaceID, session.spaces[0].id)
-        // A scene opened without a request while the initial window is open
-        // presents a window of its own.
-        let anotherRequest = await restoration.window(presentedBy: { nil }, in: coordinator)
-        let another = try XCTUnwrap(anotherRequest)
-        XCTAssertFalse([BrowserMacWindowRequest.initial.id, second.id].contains(another.id))
-        XCTAssertFalse(coordinator.model(for: another) === initial)
-    }
-
-    /// SwiftUI saves a window's request with the window. A request an earlier
-    /// build saved restores here, a bare identity reads too, and this build
-    /// saves the spelling an earlier build restores.
-    func testAWindowRequestKeepsTheStoredIdentitySpellingAndReadsABareOne() throws {
-        let spaceID = UUID()
-        let request = BrowserMacWindowRequest.temporary(
-            sourceWindowID: BrowserMacWindowRequest.initial.id,
-            assignment: BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: UUID()))
-
-        let stored = try XCTUnwrap(StoredIdentityJSON.document(of: request) as? [String: Any])
-        XCTAssertEqual(stored["id"] as? [String: String], StoredIdentityJSON.wrapped(request.id))
-        XCTAssertEqual(
-            stored["sourceWindowID"] as? [String: String],
-            StoredIdentityJSON.wrapped(BrowserMacWindowRequest.initial.id))
-        let assignment = try XCTUnwrap(stored["sourceAssignment"] as? [String: Any])
-        XCTAssertEqual(assignment["spaceID"] as? [String: String], StoredIdentityJSON.wrapped(spaceID))
-        XCTAssertEqual(try StoredIdentityJSON.decode(BrowserMacWindowRequest.self, from: stored), request)
-        XCTAssertEqual(
-            try StoredIdentityJSON.decode(BrowserMacWindowRequest.self, from: StoredIdentityJSON.bare(stored)),
-            request)
-    }
-
     /// A lifted row's payload comes back as the same row; the selection the
     /// lift captured stays with the lift and never enters the payload.
     func testDragItemsSurviveTheirTransferEncoding() throws {
@@ -353,10 +286,4 @@ final class BrowserMacWindowCoordinatorTests: XCTestCase {
                 windowLayouts: BrowserWindowLayouts(defaults: nil))
         )
     }
-}
-
-/// The request SwiftUI has handed back to a scene so far.
-@MainActor
-private final class SceneRequest {
-    var value: BrowserMacWindowRequest?
 }

@@ -6,7 +6,7 @@ struct BrowserRootCommandPaletteLayer: View {
     let commandSurfaceNamespace: Namespace.ID
     var contentInsets = EdgeInsets()
 
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.browserMacWindows) private var windows
     @Environment(\.layoutDirection) private var layoutDirection
 
     @ViewBuilder
@@ -20,7 +20,7 @@ struct BrowserRootCommandPaletteLayer: View {
                 selectedTabID: model.browser.shownTab?.id,
                 initialQuery: mode.initialQuery,
                 commands: model.paletteRegistry(
-                    openWindow: openWindow, layoutDirection: layoutDirection, shortcuts: shortcuts),
+                    windows: windows, layoutDirection: layoutDirection, shortcuts: shortcuts),
                 isSourceAvailable: model.isPaletteSourceAvailable,
                 selectTab: model.selectPaletteTab,
                 openURL: { source, url in

@@ -405,46 +405,6 @@ final class BrowserQuickWindowModelTests: XCTestCase {
         )
     }
 
-    func testPresentationIdentityChangesWhenTheTargetWindowRuntimeIsReplaced() throws {
-        let request = BrowserQuickWindowRequest.empty(
-            spaceAssignment: BrowserSpaceRuntimeAssignment(
-                spaceID: UUID(),
-                profileID: UUID()
-            )
-        )
-        let firstBrowser = BrowserStore.privateBrowsing()
-        let firstPages = BrowserPagePool(
-            browser: firstBrowser,
-            browsingMode: .privateBrowsing,
-            usesEphemeralWebsiteDataStores: true
-        )
-        let secondBrowser = BrowserStore.privateBrowsing()
-        let secondPages = BrowserPagePool(
-            browser: secondBrowser,
-            browsingMode: .privateBrowsing,
-            usesEphemeralWebsiteDataStores: true
-        )
-
-        let first = BrowserQuickWindowPresentationIdentity(
-            request: request,
-            context: BrowserQuickWindowBrowsingContext(
-                browser: firstBrowser,
-                pages: firstPages,
-                supportsLivePagePromotion: true
-            )
-        )
-        let replacement = BrowserQuickWindowPresentationIdentity(
-            request: request,
-            context: BrowserQuickWindowBrowsingContext(
-                browser: secondBrowser,
-                pages: secondPages,
-                supportsLivePagePromotion: true
-            )
-        )
-
-        XCTAssertNotEqual(first, replacement)
-    }
-
     func testStaleModelCannotOverwriteOrMutateAReplacementQuickWindow() throws {
         let context = try makeContext()
         context.model.preparePage(isActive: true)

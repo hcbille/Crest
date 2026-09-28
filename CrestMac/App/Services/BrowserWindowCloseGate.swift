@@ -1,14 +1,5 @@
 import AppKit
 
-// MARK: - Types
-
-/// A window whose own `close()` asks its close gate, as the Mac shell's
-/// windows do, so nothing needs to stand between it and its delegate.
-@MainActor
-protocol BrowserCloseGatedWindow: NSWindow {
-    var closeGate: BrowserWindowCloseGate? { get set }
-}
-
 /// Decides whether a window the person asked to close may close, for either
 /// engine's windows. The core asks each page the window's closing would
 /// discard whether it may go, which can wait on a question the page puts to

@@ -1,24 +1,14 @@
 import AppKit
-import SwiftUI
 
 /// Opens what another app hands Crest, a web link or a document, where the
-/// core places it, for either engine's composition. The core names the window
+/// core places it, for either engine's product. The core names the window
 /// and the Space: the frontmost window over the person's own Spaces, never a
 /// private or torn-off tab's window, or with none open, one to open, or for a
-/// link, a Quick Window alone. Unlocking a Space that asks for it stays here,
-/// since it asks the person.
+/// link, a Quick Window alone, whether or not any window is open. Unlocking a
+/// Space that asks for it stays here, since it asks the person.
 @MainActor
 final class BrowserMacExternalOpening {
     // MARK: - Types
-
-    /// How a composition shows what an open lands in.
-    struct Presenter {
-        /// Brings the browser window `request` names forward, opening it when
-        /// it is not open.
-        let showWindow: @MainActor (BrowserMacWindowRequest) -> Void
-        /// Opens a Quick Window for `request`.
-        let openQuickWindow: @MainActor (BrowserQuickWindowRequest) -> Void
-    }
 
     /// Where a link from another app lands, once its Space is open to this
     /// process.
@@ -34,30 +24,32 @@ final class BrowserMacExternalOpening {
     // MARK: - Variables
 
     private unowned let application: BrowserMacApplication
+    private unowned let windows: BrowserMacWindows
 
     // MARK: - Initializers
 
-    init(application: BrowserMacApplication) {
+    init(application: BrowserMacApplication, windows: BrowserMacWindows) {
         self.application = application
+        self.windows = windows
     }
 
     // MARK: - Actions - Opening
 
     /// Opens `urls`: the documents together, then each link in turn.
-    func open(_ urls: [URL], presenter: Presenter) async {
+    func open(_ urls: [URL]) async {
         let documents = urls.filter(\.isFileURL)
-        if !documents.isEmpty { await openDocuments(documents, presenter: presenter) }
-        for url in urls where !url.isFileURL { await openLink(url, presenter: presenter) }
+        if !documents.isEmpty { await openDocuments(documents) }
+        for url in urls where !url.isFileURL { await openLink(url) }
     }
 
     /// Opens a link from another app where the core routes it: in a Quick
     /// Window, or as a new tab in the window it names. Answers whether it
     /// opened.
     @discardableResult
-    func openLink(_ url: URL, presenter: Presenter) async -> Bool {
+    func openLink(_ url: URL) async -> Bool {
         guard let destination = await destination(for: url) else { return false }
         if destination.placement.opensQuickWindow {
-            presenter.openQuickWindow(
+            windows.openQuickWindow(
                 BrowserQuickWindowRequest(
                     url: url, spaceAssignment: destination.assignment, targetWindowID: destination.quickWindowTarget))
             return true
@@ -66,13 +58,13 @@ final class BrowserMacExternalOpening {
             let request = preparedWindow(destination.placement.windowID, opens: destination.placement.opensWindow),
             application.openExternalLink(url, in: destination.assignment, window: request.id)
         else { return false }
-        present(request, with: presenter)
+        present(request)
         return true
     }
 
     /// Opens documents another app handed Crest as tabs in the Space the core
     /// names, which is the one on screen, unlocking it first when it asks.
-    func openDocuments(_ urls: [URL], presenter: Presenter) async {
+    func openDocuments(_ urls: [URL]) async {
         let browser = application.browser
         guard
             let placement = try? browser.core.query(RouteLocalDocument(windowIDs: application.stackedWindowIDs)),
@@ -85,11 +77,10 @@ final class BrowserMacExternalOpening {
             model.browser.spaceModel(matching: assignment) != nil
         else { return }
         BrowserCommandActions(
-            browser: model.browser, pages: model.pages, chrome: model.chrome,
-            openWindow: EnvironmentValues().openWindow, spaceAccess: application.spaceAccess,
-            targetWindowID: model.id
+            browser: model.browser, pages: model.pages, chrome: model.chrome, windows: windows,
+            spaceAccess: application.spaceAccess, targetWindowID: model.id
         ).openLocalDocuments(urls, in: assignment)
-        present(request, with: presenter)
+        present(request)
     }
 
     /// Where a link from another app lands, or nil when it lands nowhere. The
@@ -124,8 +115,10 @@ final class BrowserMacExternalOpening {
         return model == nil ? nil : request
     }
 
-    private func present(_ request: BrowserMacWindowRequest, with presenter: Presenter) {
-        presenter.showWindow(request)
+    /// Brings the window `request` names forward, opening it when it is not
+    /// open, and the app with it.
+    private func present(_ request: BrowserMacWindowRequest) {
+        windows.open(request, activation: .key)
         NSApp.activate(ignoringOtherApps: true)
     }
 }

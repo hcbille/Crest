@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 /// The Dock icon's menu, as the core answers it: Crest's window commands,
 /// then the Spaces a window can show, each drawn as the Space switcher draws
@@ -13,18 +12,6 @@ import SwiftUI
 @MainActor
 final class BrowserMacDockMenu: NSObject {
     // MARK: - Types
-
-    /// Hands the Dock menu the action that opens a SwiftUI composition's
-    /// scenes. AppKit asks the application delegate for the menu outside any
-    /// view, so the composition's windows supply it as they appear.
-    struct SceneOpening: ViewModifier {
-        let dockMenu: BrowserMacDockMenu
-        @Environment(\.openWindow) private var openWindow
-
-        func body(content: Content) -> some View {
-            content.onAppear { dockMenu.openWindow = openWindow }
-        }
-    }
 
     /// A command chosen from the menu, and the window it acts from.
     private struct CommandChoice {
@@ -41,15 +28,13 @@ final class BrowserMacDockMenu: NSObject {
     // MARK: - Variables
 
     private unowned let application: BrowserMacApplication
-    /// Opens the scenes of a composition whose windows SwiftUI presents. One
-    /// that presents its own (`BrowserMacWindowPresentation.host`) never
-    /// calls it.
-    fileprivate(set) var openWindow = EnvironmentValues().openWindow
+    private unowned let windows: BrowserMacWindows
 
     // MARK: - Initializers
 
-    init(application: BrowserMacApplication) {
+    init(application: BrowserMacApplication, windows: BrowserMacWindows) {
         self.application = application
+        self.windows = windows
     }
 
     // MARK: - Actions - Menu
@@ -104,11 +89,7 @@ final class BrowserMacDockMenu: NSObject {
         let request = BrowserMacWindowRequest.normal(sourceWindowID: nil)
         guard let model = application.windowCoordinator.model(for: request) else { return }
         model.browser.selectSpace(choice.space.spaceID)
-        if let host = BrowserMacWindowPresentation.host {
-            host.openWindow(request)
-        } else {
-            openWindow(id: BrowserSceneID.browser.rawValue, value: request)
-        }
+        windows.open(request, activation: .key)
     }
 
     /// The menu bar's commands as they run in the window `windowID`, or as
@@ -116,11 +97,11 @@ final class BrowserMacDockMenu: NSObject {
     private func actions(from windowID: UUID?) -> BrowserCommandActions {
         if let windowID, let model = application.windowCoordinator.existingModel(for: windowID) {
             return BrowserCommandActions(
-                browser: model.browser, pages: model.pages, chrome: model.chrome, openWindow: openWindow,
+                browser: model.browser, pages: model.pages, chrome: model.chrome, windows: windows,
                 spaceAccess: application.spaceAccess, targetWindowID: windowID)
         }
         return BrowserCommandActions(
-            browser: application.browser, pages: application.pages, chrome: application.chrome,
-            openWindow: openWindow, spaceAccess: application.spaceAccess)
+            browser: application.browser, pages: application.pages, chrome: application.chrome, windows: windows,
+            spaceAccess: application.spaceAccess)
     }
 }

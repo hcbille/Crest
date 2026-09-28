@@ -8,18 +8,6 @@ import XCTest
 final class BrowserChromeLayoutTests: XCTestCase {
 
     @MainActor
-    func testSetupActivationRejectsBrowserWithSetupPageTitle() {
-        let browser = NSWindow()
-        browser.identifier = NSUserInterfaceItemIdentifier(BrowserSceneID.browser.rawValue)
-        browser.title = BrowserOnboardingWindowActivation.windowTitle
-        XCTAssertFalse(BrowserOnboardingWindowActivation.isSetupWindow(browser))
-        let setup = NSWindow()
-        setup.identifier = NSUserInterfaceItemIdentifier(BrowserOnboardingCoordinator.sceneID)
-        setup.title = ""
-        XCTAssertTrue(BrowserOnboardingWindowActivation.isSetupWindow(setup))
-    }
-
-    @MainActor
     func testSettingsPresentationKeepsTheLatestDestinationAndSpace() {
         let presentation = BrowserSpaceSettingsPresentationState()
         let first = UUID()

@@ -3,9 +3,6 @@ import SwiftUI
 /// The windowed shell's sidebar adapter: it resolves what this shell can do,
 /// binds the sidebar's ports to the window's card pool, and answers the chrome's
 /// presentation with the settings scene.
-///
-/// The `openWindow` action only exists where the Environment is read, so the
-/// scene-pointing implementations live here rather than travelling down as data.
 struct BrowserRootSidebarContent: View {
     let model: BrowserRootModel
     var sidebarOnRight = false
@@ -14,7 +11,6 @@ struct BrowserRootSidebarContent: View {
     let tabPromotionNamespace: Namespace.ID
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         BrowserSidebar(

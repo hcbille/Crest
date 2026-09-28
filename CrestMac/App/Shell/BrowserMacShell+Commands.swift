@@ -54,13 +54,13 @@ extension BrowserMacShell {
 
     /// Whether `command` can run now: never while a quit is prepared or a
     /// modal window or sheet is up, and otherwise as the key window's own
-    /// commands say. A new window needs no window, and a Quick Window can
-    /// close itself.
+    /// commands say. A new window needs no window, and any window the shell
+    /// opened, such as a Quick Window or setup, can close itself.
     func canPerform(_ command: ShortcutCommand) -> Bool {
         guard !isQuitting, NSApp.modalWindow == nil, NSApp.keyWindow?.attachedSheet == nil else { return false }
         switch command.kind {
         case .newWindow, .newPrivateWindow: return true
-        case .closeWindow, .closeTabOrWindow: return activeActions != nil || windows?.isQuickWindowKey == true
+        case .closeWindow, .closeTabOrWindow: return activeActions != nil || windows?.isShellWindowKey == true
         default: return activeActions?.canPerform(command) == true
         }
     }

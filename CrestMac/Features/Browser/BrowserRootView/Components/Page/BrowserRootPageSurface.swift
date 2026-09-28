@@ -9,7 +9,7 @@ import SwiftUI
 /// pointer may do to it.
 struct BrowserRootPageSurface: View {
     @Environment(\.spaceContentPresentation) private var contentPresentation
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.browserMacWindows) private var windows
     let model: BrowserRootModel
     let space: SpaceModel
     let isSelectedSpace: Bool
@@ -136,7 +136,7 @@ struct BrowserRootPageSurface: View {
                             isCommandPalettePresented:
                                 model.chrome.isCommandPalettePresented,
                             commands: model.paletteRegistry(
-                                openWindow: openWindow, layoutDirection: layoutDirection, shortcuts: shortcuts),
+                                windows: windows, layoutDirection: layoutDirection, shortcuts: shortcuts),
                             previewsStartPage: previewsStartPage
                         )
                     }

@@ -1,15 +1,14 @@
 import SwiftUI
 import UserNotifications
 
-/// Owns the existing app services independently of SwiftUI's process entry
-/// point. Both the normal App and a native engine host mount the same window
-/// content from this composition.
+/// The application's services, which the Mac shell runs for whichever
+/// engine's product owns the process, and the window content every product
+/// shows.
 @MainActor
 final class BrowserMacApplication {
     let browser: BrowserStore
     let cloudSync: BrowserCloudSyncController
     let onboardingProgress: BrowserOnboardingProgressStore
-    let onboardingCoordinator: BrowserOnboardingCoordinator
     let pages: BrowserPagePool
     let chrome: BrowserChromeState
     let transientBrowsing: BrowserTransientBrowsingCoordinator
@@ -53,11 +52,6 @@ final class BrowserMacApplication {
     let launchEnvironment: LaunchEnvironment
     /// The view an engine anchors its popups to behind Site Controls.
     let siteControlAnchor: BrowserSiteControlAnchor?
-    /// The Dock icon's menu, which the composition hands AppKit when it asks.
-    private(set) lazy var dockMenu = BrowserMacDockMenu(application: self)
-    /// Opens the links and documents other apps hand Crest where the core
-    /// places them.
-    private(set) lazy var externalOpening = BrowserMacExternalOpening(application: self)
 
     /// The browser windows, frontmost first, by the identity each has in the
     /// core: the order AppKit stacks them in, then any it leaves out, such as
@@ -258,7 +252,6 @@ final class BrowserMacApplication {
         self.browser = browser
         self.cloudSync = cloudSync
         self.onboardingProgress = onboardingProgress
-        self.onboardingCoordinator = BrowserOnboardingCoordinator()
         let initialLayout = windowLayouts.layout(for: BrowserMacWindowRequest.initial.id)
         self.chrome = BrowserChromeState(
             sidebarIsPresented: initialLayout?.sidebarIsPresented ?? true,
@@ -319,7 +312,6 @@ final class BrowserMacApplication {
             BrowserSettingsView(
                 browser: browser.profileSettingsBrowser, pages: pages, cloudSync: cloudSync,
                 spaceAccess: spaceAccess, dataDeleter: pagePoolRegistry, shortcuts: shortcuts,
-                onboardingCoordinator: onboardingCoordinator,
                 spaceSettingsPresentation: presentation ?? spaceSettingsPresentation,
                 usesLiveSidebar: !browser.isTemporaryWorkspace,
                 tabState: runtime.model(BrowserSettingsTabState.self) { BrowserSettingsTabState() },
@@ -336,8 +328,7 @@ final class BrowserMacApplication {
                 pagePoolRegistry: pagePoolRegistry, spaceAccess: spaceAccess,
                 spaceSettingsPresentation: spaceSettingsPresentation,
                 startupBehavior: request.id == startupWindowID ? startupBehavior : .lastActiveTab,
-                shortcuts: shortcuts, sidebarWidgets: sidebarWidgets, softwareUpdates: softwareUpdates,
-                externalOpening: externalOpening
+                shortcuts: shortcuts, sidebarWidgets: sidebarWidgets, softwareUpdates: softwareUpdates
             )
             .environment(
                 \.browserSettingsTabContent,
@@ -387,7 +378,6 @@ final class BrowserMacApplication {
         .modifier(BrowserSoftwareUpdateDetailsPresentation())
         .background(
             BrowserMacWindowAttachment(
-                closeGate: privateWindowCloseGate,
                 attach: { window in
                     self.privatePages.bindNativeWindow(window)
                     self.privatePages.setWindowFocused(window.isKeyWindow)

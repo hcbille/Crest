@@ -2,14 +2,13 @@ import SwiftUI
 
 /// Full release notes for an update the sidebar is already presenting.
 ///
-/// This scene is deliberately passive: closing it never changes Sparkle's
+/// This window is deliberately passive: closing it never changes Sparkle's
 /// pending choice, and only the sidebar's explicit What's New control opens it.
 struct BrowserSoftwareUpdateDetailsView: View {
     let model: BrowserSoftwareUpdateModel
-    /// Closes the window a process host built for this view. Scenes close
-    /// themselves through the environment instead.
-    var hostClose: (() -> Void)? = nil
-    @Environment(\.dismissWindow) private var dismissWindow
+    /// Closes the window showing this view, once the update it described is
+    /// gone.
+    let closeWindow: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CrestSpacing.large) {
@@ -40,34 +39,23 @@ struct BrowserSoftwareUpdateDetailsView: View {
         .background(CrestBrandTheme.canvas)
         .onChange(of: model.phase, initial: true) { _, phase in
             guard phase == .idle else { return }
-            if let hostClose {
-                hostClose()
-            } else {
-                dismissWindow(id: BrowserSceneID.softwareUpdateDetails.rawValue)
-            }
+            closeWindow()
         }
     }
 }
 
-/// Gives the sidebar's update card the window that shows full release notes:
-/// the process host's when one presents windows, the SwiftUI scene otherwise.
+/// Gives the sidebar's update card the window that shows full release notes.
 struct BrowserSoftwareUpdateDetailsPresentation: ViewModifier {
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.browserMacWindows) private var windows
 
     func body(content: Content) -> some View {
-        content.environment(\.browserSoftwareUpdateDetails) {
-            if let host = BrowserMacWindowPresentation.host {
-                host.openSoftwareUpdateDetails()
-            } else {
-                openWindow(id: BrowserSceneID.softwareUpdateDetails.rawValue)
-            }
-        }
+        content.environment(\.browserSoftwareUpdateDetails) { [windows] in windows?.openSoftwareUpdateDetails() }
     }
 }
 
 #Preview("Update Details") {
     let model = BrowserSoftwareUpdateModel()
-    BrowserSoftwareUpdateDetailsView(model: model)
+    BrowserSoftwareUpdateDetailsView(model: model, closeWindow: {})
         .task {
             model.presentUpdate(
                 title: "Crest 0.5.99",

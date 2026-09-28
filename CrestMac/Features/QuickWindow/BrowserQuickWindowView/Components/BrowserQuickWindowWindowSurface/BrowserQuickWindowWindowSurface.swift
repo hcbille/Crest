@@ -27,14 +27,6 @@ struct BrowserQuickWindowWindowSurface: View {
             )
         }
         .background {
-            BrowserMacWindowAttachment(
-                closeGate: model.closeGate, attach: { _ in }, focusChanged: { _ in }, close: {}
-            )
-            .frame(width: 0, height: 0)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
-        .background {
             BrowserNativeWindowControlsBridge(isVisible: true)
                 .frame(width: 0, height: 0)
                 .allowsHitTesting(false)
@@ -54,4 +46,14 @@ struct BrowserQuickWindowWindowSurface: View {
         guard let space = model.spaceModel else { return false }
         return spaceAccess.isLocked(space)
     }
+}
+
+#Preview("Quick Window") {
+    BrowserQuickWindowWindowSurface(
+        model: BrowserQuickWindowPreviewFixture.makeModel(),
+        spaceAccess: BrowserQuickWindowPreviewFixture.makeAccessController(), pagePoolRegistry: nil, dismiss: {},
+        openBrowserWindow: {}
+    )
+    .environment(BrowserWindowTransparencyPreviewFixture.makeStore())
+    .frame(width: BrowserQuickWindowLayout.defaultWidth, height: BrowserQuickWindowLayout.defaultHeight)
 }

@@ -12,7 +12,9 @@ struct BrowserCommandActions {
     let browser: BrowserStore
     let pages: BrowserPagePool
     let chrome: BrowserChromeState
-    let openWindow: OpenWindowAction
+    /// The shell's windows, which the window commands open; nil where no
+    /// window can open, such as outside a shell window.
+    let windows: BrowserMacWindows?
     var spaceAccess = BrowserSpaceAccessController()
     /// The window a Quick Window should hand its result back to, when the
     /// command was issued from a focused browser window.
@@ -102,9 +104,24 @@ struct BrowserCommandActions {
         browser.allows(command) && route(command).isAvailable
     }
 
-    /// What a command does in the Mac shell, and whether it can do it now.
+    /// What the menu bar calls `command` now, when that follows what the
+    /// window shows, such as Reader's Show or Hide; nil for its own title.
+    func menuTitle(of command: ShortcutCommand) -> LocalizedStringResource? {
+        route(command).title
+    }
+
+    /// Whether what `command` shows or hides is showing, for a command the
+    /// menu bar checks; nil for any other.
+    func isOn(_ command: ShortcutCommand) -> Bool? {
+        route(command).isOn
+    }
+
+    /// What a command does in the Mac shell, whether it can do it now, and
+    /// how the menu bar presents it when that follows the window.
     private struct Route {
         var isAvailable = true
+        var title: LocalizedStringResource?
+        var isOn: Bool?
         let run: @MainActor () -> Void
     }
 
@@ -147,9 +164,11 @@ struct BrowserCommandActions {
         case .toggleReaderMode:
             Route(
                 isAvailable: supportsPageCapability(.reader) && pages.readerModeState.canToggle,
-                run: pages.toggleReaderMode)
+                title: pages.readerModeActionTitle, run: pages.toggleReaderMode)
         case .toggleContentBlocking:
-            Route(isAvailable: supportsEngineCapability(.contentBlocking), run: toggleContentBlocking)
+            Route(
+                isAvailable: supportsEngineCapability(.contentBlocking), title: contentBlockingActionTitle,
+                run: toggleContentBlocking)
         case .findInPage: Route(isAvailable: supportsPageCapability(.find), run: pages.presentFind)
         case .zoomIn: Route(isAvailable: canZoom, run: zoomIn)
         case .zoomOut: Route(isAvailable: canZoom, run: zoomOut)
@@ -167,12 +186,15 @@ struct BrowserCommandActions {
         case .showWebInspector:
             Route(isAvailable: supportsPageCapability(.inspector), run: pages.showWebInspector)
         case .toggleTranslationToolbar:
-            Route(isAvailable: supportsPageCapability(.translation) && !pages.readerModeState.isActive) {
+            Route(
+                isAvailable: supportsPageCapability(.translation) && !pages.readerModeState.isActive,
+                isOn: pages.activePage?.translation.showsToolbar == true
+            ) {
                 guard let page = pages.activePage, !page.readerModeState.isActive else { return }
                 page.translation.toggleToolbarVisibility()
             }
         case .toggleDeveloperToolbar:
-            Route(isAvailable: pages.hasActivePage) {
+            Route(isAvailable: pages.hasActivePage, isOn: pages.activePage?.isDeveloperModeEnabled == true) {
                 if let page = pages.activePage {
                     page.setDeveloperToolbarVisible(!page.isDeveloperModeEnabled)
                 }
@@ -218,44 +240,26 @@ struct BrowserCommandActions {
     }
 
     func openNewWindow() {
-        let request = BrowserMacWindowRequest.normal(sourceWindowID: targetWindowID)
-        if let host = BrowserMacWindowPresentation.host {
-            host.openWindow(request)
-        } else {
-            openWindow(id: BrowserSceneID.browser.rawValue, value: request)
-        }
+        windows?.open(.normal(sourceWindowID: targetWindowID), activation: .key)
     }
 
     func openBlankWindow() {
         guard !browser.isPrivateBrowsing, let space = browser.shownSpace, !spaceAccess.isLocked(space) else {
             return
         }
-        let request = BrowserMacWindowRequest.temporary(
-            sourceWindowID: targetWindowID, assignment: BrowserSpaceRuntimeAssignment(space: space))
-        if let host = BrowserMacWindowPresentation.host {
-            host.openWindow(request)
-        } else {
-            openWindow(id: BrowserSceneID.blankWindow.rawValue, value: request)
-        }
+        windows?.open(
+            .temporary(sourceWindowID: targetWindowID, assignment: BrowserSpaceRuntimeAssignment(space: space)),
+            activation: .key)
     }
 
     func openPrivateWindow() {
-        if let host = BrowserMacWindowPresentation.host {
-            host.openPrivateWindow()
-        } else {
-            openWindow(id: BrowserSceneID.privateBrowser.rawValue)
-        }
+        windows?.openPrivateWindow()
     }
 
     func openQuickWindow() {
         guard let space = browser.shownSpace else { return }
-        let request = BrowserQuickWindowRequest.empty(
-            spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: targetWindowID)
-        if let host = BrowserMacWindowPresentation.host {
-            host.openQuickWindow(request)
-        } else {
-            openWindow(id: BrowserSceneID.quickWindow.rawValue, value: request)
-        }
+        windows?.openQuickWindow(
+            .empty(spaceAssignment: BrowserSpaceRuntimeAssignment(space: space), targetWindowID: targetWindowID))
     }
 
     func closeKeyWindow() {
@@ -376,6 +380,12 @@ struct BrowserCommandActions {
     /// Moves the shown page to `engine`, which loads what it showed there.
     func movePage(to engine: EngineKind) {
         pages.activePage?.corePage.move(to: engine)
+    }
+
+    /// Translates the whole shown page, which its translation toolbar then
+    /// follows.
+    func translatePage() {
+        pages.activePage?.translation.present()
     }
 
     func copyPageLink() {

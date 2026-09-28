@@ -11888,7 +11888,7 @@ struct ShortcutCommand: Hashable, Sendable {
         section: ShortcutSection.view,
         title: LocalizedStringResource("Show or Hide Translation Toolbar"),
         searchTerms: LocalizedStringResource("translate translation language toolbar show hide"),
-        menuTitle: nil,
+        menuTitle: LocalizedStringResource("Show Translation Toolbar"),
         symbol: "translate",
         requiredCapability: EngineCapability.translation,
         selects: nil,

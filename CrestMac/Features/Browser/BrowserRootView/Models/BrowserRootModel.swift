@@ -610,7 +610,7 @@ extension BrowserRootModel {
     /// The commands this window's palettes offer, the overlay's and every
     /// Start Page's, run by the same routes as the menu bar.
     func paletteRegistry(
-        openWindow: OpenWindowAction,
+        windows: BrowserMacWindows?,
         layoutDirection: LayoutDirection,
         shortcuts: BrowserShortcutStore?
     ) -> BrowserCommandPaletteCommandRegistry {
@@ -618,7 +618,7 @@ extension BrowserRootModel {
             browser: browser,
             pages: pages,
             chrome: chrome,
-            openWindow: openWindow,
+            windows: windows,
             spaceAccess: spaceAccess,
             targetWindowID: windowState?.id,
             layoutDirection: layoutDirection,

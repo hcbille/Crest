@@ -5,7 +5,7 @@ import AppKit
 /// the window's close gate first; AppKit still owns `performClose` and the
 /// delegate's checks.
 @MainActor
-final class BrowserMacWindow: NSWindow, BrowserCloseGatedWindow {
+final class BrowserMacWindow: NSWindow {
     // MARK: - Variables
 
     var closeGate: BrowserWindowCloseGate?

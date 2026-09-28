@@ -3,7 +3,7 @@ import SwiftUI
 
 struct BrowserMacWindowScene: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.browserMacWindows) private var windows
 
     let model: BrowserMacWindowModel
     let coordinator: BrowserMacWindowCoordinator
@@ -22,7 +22,6 @@ struct BrowserMacWindowScene: View {
     private let shortcuts: BrowserShortcutStore?
     private let sidebarWidgets: BrowserSidebarWidgetRuntime
     private let softwareUpdates: BrowserSoftwareUpdateService
-    private let externalOpening: BrowserMacExternalOpening
 
     init(
         model: BrowserMacWindowModel,
@@ -33,8 +32,7 @@ struct BrowserMacWindowScene: View {
         startupBehavior: StartupBehavior,
         shortcuts: BrowserShortcutStore? = nil,
         sidebarWidgets: BrowserSidebarWidgetRuntime,
-        softwareUpdates: BrowserSoftwareUpdateService,
-        externalOpening: BrowserMacExternalOpening
+        softwareUpdates: BrowserSoftwareUpdateService
     ) {
         self.model = model
         self.coordinator = coordinator
@@ -45,7 +43,6 @@ struct BrowserMacWindowScene: View {
         self.shortcuts = shortcuts
         self.sidebarWidgets = sidebarWidgets
         self.softwareUpdates = softwareUpdates
-        self.externalOpening = externalOpening
     }
 
     var body: some View {
@@ -77,7 +74,6 @@ struct BrowserMacWindowScene: View {
             \.browserApplicationIcon,
             Image(nsImage: NSApplication.shared.applicationIconImage)
         )
-        .modifier(BrowserExternalLinkHandler(externalOpening: externalOpening, coordinator: coordinator))
         .environment(\.browserPagePresentationWindowID, id)
         .environment(
             \.browserSidebarWindowDrop,
@@ -88,7 +84,6 @@ struct BrowserMacWindowScene: View {
         .background(
             BrowserMacWindowAttachment(
                 prepare: { coordinator.preparePresentation($0, for: id) },
-                closeGate: model.closeGate,
                 attach: { window in
                     guard coordinator.attach(window, to: id) else { return }
                     activateWindow()
@@ -181,13 +176,7 @@ struct BrowserMacWindowScene: View {
             } ?? NSEvent.mouseLocation
         return BrowserMacWindowDropAction(
             coordinator: coordinator, sourceWindowID: id,
-            open: { request in
-                if let host = BrowserMacWindowPresentation.host {
-                    host.openWindow(request)
-                } else {
-                    openWindow(id: BrowserSceneID.blankWindow.rawValue, value: request)
-                }
-            }
+            open: { [windows] request in windows?.open(request, activation: .key) }
         ).perform(lift.item, at: point, grabFraction: lift.anchorFraction)
     }
 

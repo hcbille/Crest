@@ -99,18 +99,7 @@ struct BrowserRootLifecycleModifier: ViewModifier {
                 model.relockProtectedSpaces(spaceIDs)
             }
 
-        return
-            chromeObservedContent
-            .focusedSceneValue(
-                \.browserCommandContext,
-                BrowserCommandContext(
-                    browser: model.browser,
-                    pages: model.pages,
-                    chrome: model.chrome,
-                    windowID: model.windowState?.id,
-                    spaceAccess: model.spaceAccess,
-                )
-            )
+        return chromeObservedContent
     }
 
     /// A Space change and a tab change are different work, so the transition is

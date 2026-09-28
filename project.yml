@@ -108,8 +108,9 @@ targetTemplates:
     sources:
       - path: Documentation/ReleaseNotes.json
         buildPhase: resources
-      # The WebKit composition's entry point, engine selection and
-      # engine-contributed views; the Chromium sources supply their own.
+      # The WebKit composition (its entry point and the shell's WebKit host),
+      # engine selection and engine-contributed views; the Chromium sources
+      # supply their own.
       - path: CrestShared
         excludes:
           - Resources/CrestIcon/Sources
@@ -119,8 +120,7 @@ targetTemplates:
           - Features/Settings/Components/BrowserEngineRegistration+FeatureFlags.swift
       - path: CrestMac
         excludes:
-          - App/CrestApp.swift
-          - App/CrestAppDelegate.swift
+          - App/Composition
           - Features/SiteSettings/Components/BrowserEngineSiteSections.swift
       - path: CrestEngines/Chromium/Apple
         excludes:

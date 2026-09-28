@@ -16,6 +16,8 @@ final class BrowserMacShell {
         let windows: BrowserMacWindows
         let quit: BrowserMacQuit
         let menuBar: BrowserMacMenuBar
+        let dockMenu: BrowserMacDockMenu
+        let externalOpening: BrowserMacExternalOpening
     }
 
     /// A system sign-in that arrived before the launch finished.
@@ -65,6 +67,8 @@ final class BrowserMacShell {
         }
     }
 
+    /// Runs the application the launch built. A test host builds it and
+    /// shows nothing: no window, menu, Dock tile or sync of its own.
     private func run(_ application: BrowserMacApplication) {
         guard running == nil else { return }
         let windows = BrowserMacWindows(application: application, engineHost: engineHost)
@@ -72,16 +76,17 @@ final class BrowserMacShell {
             shell: self, shortcuts: application.shortcuts, state: application.browser.core.state)
         running = Running(
             application: application, windows: windows,
-            quit: BrowserMacQuit(application: application, windows: windows),
-            menuBar: menuBar)
+            quit: BrowserMacQuit(application: application, windows: windows), menuBar: menuBar,
+            dockMenu: BrowserMacDockMenu(application: application, windows: windows),
+            externalOpening: BrowserMacExternalOpening(application: application, windows: windows))
+        recovery?.close()
+        recovery = nil
+        guard application.presentsInstalledApplicationUI else { return }
         #if CREST_REVIEW_BUILD && DEBUG
             listenForReviewCommands()
         #endif
-        BrowserMacWindowPresentation.host = windows
         BrowserMacDockTile.shared.start(following: application.browser.core)
         windows.openLaunchWindows()
-        recovery?.close()
-        recovery = nil
         menuBar.install()
         Task { await application.cloudSync.start() }
         NSApp.activate(ignoringOtherApps: true)
@@ -135,7 +140,7 @@ final class BrowserMacShell {
     /// window list and the items macOS adds itself.
     func dockMenu() -> NSMenu? {
         guard let running, !running.quit.isQuitting else { return nil }
-        return running.application.dockMenu.menu()
+        return running.dockMenu.menu()
     }
 
     // MARK: - Actions - External opens
@@ -152,11 +157,7 @@ final class BrowserMacShell {
             pendingOpens.append(contentsOf: accepted)
             return true
         }
-        let windows = running.windows
-        let presenter = BrowserMacExternalOpening.Presenter(
-            showWindow: { [weak windows] request in windows?.open(request, activation: .key) },
-            openQuickWindow: { [weak windows] request in windows?.openQuickWindow(request) })
-        Task { @MainActor in await running.application.externalOpening.open(accepted, presenter: presenter) }
+        Task { @MainActor in await running.externalOpening.open(accepted) }
         return true
     }
 
@@ -177,7 +178,7 @@ final class BrowserMacShell {
             return true
         }
         Task { @MainActor in
-            guard let destination = await running.application.externalOpening.destination(for: url) else {
+            guard let destination = await running.externalOpening.destination(for: url) else {
                 declined()
                 return
             }

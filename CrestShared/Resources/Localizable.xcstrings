@@ -28,6 +28,21 @@
     "An export is already in progress for this page." : {
 
     },
+    "Capitalize" : {
+
+    },
+    "Check Document Now" : {
+
+    },
+    "Check Grammar With Spelling" : {
+
+    },
+    "Check Spelling While Typing" : {
+
+    },
+    "Correct Spelling Automatically" : {
+
+    },
     "Crest can keep up to %lld saved site permissions. Reset some to save more." : {
 
     },
@@ -49,13 +64,73 @@
     "Crest will quit once the Space is deleted." : {
 
     },
+    "Data Detectors" : {
+
+    },
+    "Find" : {
+
+    },
+    "Find Next" : {
+
+    },
+    "Find Previous" : {
+
+    },
+    "Find…" : {
+
+    },
     "Folders are nested inside each other." : {
+
+    },
+    "Jump to Selection" : {
+
+    },
+    "Make Lower Case" : {
+
+    },
+    "Make Upper Case" : {
+
+    },
+    "Show Spelling and Grammar" : {
+
+    },
+    "Show Substitutions" : {
+
+    },
+    "Smart Copy/Paste" : {
+
+    },
+    "Smart Dashes" : {
+
+    },
+    "Smart Links" : {
+
+    },
+    "Smart Quotes" : {
 
     },
     "Some iCloud records can’t be read. Update Crest on all your devices and try again." : {
 
     },
+    "Speech" : {
+
+    },
+    "Spelling and Grammar" : {
+
+    },
     "Split View needs 2 to %lld tabs. Select fewer tabs or use a smaller split." : {
+
+    },
+    "Start Speaking" : {
+
+    },
+    "Stop Speaking" : {
+
+    },
+    "Substitutions" : {
+
+    },
+    "Text Replacement" : {
 
     },
     "The page could not be exported." : {
@@ -80,6 +155,9 @@
 
     },
     "This page cannot be exported." : {
+
+    },
+    "Transformations" : {
 
     },
     "Two Spaces share a profile." : {
@@ -167,6 +245,9 @@
           }
         }
       }
+    },
+    "Use Selection for Find" : {
+
     },
     "·" : {
       "localizations" : {
@@ -7268,9 +7349,6 @@
     "Its content is still saved. Update Crest to open it." : {
 
     },
-    "Its original Space or browser window is no longer available." : {
-
-    },
     "Its tabs stay in this section, and any nested folders move up one level." : {
 
     },
@@ -9691,9 +9769,6 @@
           }
         }
       }
-    },
-    "Quick Window Unavailable" : {
-
     },
     "Quick Window using %@" : {
 

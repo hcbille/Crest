@@ -10,7 +10,6 @@ struct BrowserSettingsView: View {
     let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     let shortcuts: BrowserShortcutStore
-    let onboardingCoordinator: BrowserOnboardingCoordinator
     let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
     let usesLiveSidebar: Bool
 
@@ -24,7 +23,6 @@ struct BrowserSettingsView: View {
         spaceAccess: BrowserSpaceAccessController = BrowserSpaceAccessController(),
         dataDeleter: (any BrowserSpaceDataDeleting)? = nil,
         shortcuts: BrowserShortcutStore,
-        onboardingCoordinator: BrowserOnboardingCoordinator,
         spaceSettingsPresentation: BrowserSpaceSettingsPresentationState =
             BrowserSpaceSettingsPresentationState(),
         usesLiveSidebar: Bool = true,
@@ -39,7 +37,6 @@ struct BrowserSettingsView: View {
         self.spaceAccess = spaceAccess
         self.dataDeleter = dataDeleter ?? pages
         self.shortcuts = shortcuts
-        self.onboardingCoordinator = onboardingCoordinator
         self.spaceSettingsPresentation = spaceSettingsPresentation
         self.usesLiveSidebar = usesLiveSidebar
     }
@@ -63,7 +60,6 @@ struct BrowserSettingsView: View {
                         spaceAccess: spaceAccess,
                         dataDeleter: dataDeleter,
                         shortcuts: shortcuts,
-                        onboardingCoordinator: onboardingCoordinator,
                         spaceSettingsPresentation: spaceSettingsPresentation,
                         searchText: $tabState.navigation.searchText
                     )
@@ -140,8 +136,7 @@ struct BrowserSettingsView: View {
         browser: browser,
         pages: BrowserPagePool(browser: browser),
         cloudSync: BrowserCloudSyncController(core: browser.core, configuration: nil),
-        shortcuts: BrowserShortcutStore(),
-        onboardingCoordinator: BrowserOnboardingCoordinator()
+        shortcuts: BrowserShortcutStore()
     )
     .environment(BrowserWindowTransparencyPreviewFixture.makeStore())
 }

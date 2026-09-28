@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserSettingsDestinationPage: View {
-    @Environment(\.openWindow) private var openWindow
+    @Environment(\.browserMacWindows) private var windows
 
     let destination: BrowserSettingsDestination
     var tabAssignment: BrowserTabRuntimeAssignment? = nil
@@ -11,7 +11,6 @@ struct BrowserSettingsDestinationPage: View {
     let spaceAccess: BrowserSpaceAccessController
     let dataDeleter: any BrowserSpaceDataDeleting
     let shortcuts: BrowserShortcutStore
-    let onboardingCoordinator: BrowserOnboardingCoordinator
     let spaceSettingsPresentation: BrowserSpaceSettingsPresentationState
     @Binding var searchText: String
 
@@ -94,12 +93,6 @@ struct BrowserSettingsDestinationPage: View {
     }
 
     private func presentSetup(_ request: BrowserOnboardingRequest) {
-        onboardingCoordinator.request = request
-        if let host = BrowserMacWindowPresentation.host {
-            host.openOnboardingWindow(request)
-        } else {
-            openWindow(id: BrowserOnboardingCoordinator.sceneID)
-        }
-        BrowserOnboardingWindowActivation.bringForward()
+        windows?.openOnboardingWindow(request)
     }
 }

@@ -15,8 +15,12 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     private unowned let shell: BrowserMacShell
     private let shortcuts: BrowserShortcutStore
     private let state: CoreState
-    /// Each command's item, whose chord and visibility follow the read model.
-    private var commandItems: [(command: ShortcutCommand, item: NSMenuItem)] = []
+    /// Each command's item, whose chord and visibility follow the read model,
+    /// with the title it was made with.
+    private var commandItems: [(command: ShortcutCommand, item: NSMenuItem, title: String)] = []
+    /// Each application action's item, whose visibility follows the read
+    /// model.
+    private var actionItems: [(action: BrowserMacApplicationAction, item: NSMenuItem)] = []
     /// The menus that hold commands, whose separators follow what is offered.
     private var commandMenus: [NSMenu] = []
     /// The Page menu, which ends with a row for each engine the shown page
@@ -73,6 +77,8 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
             modifiers: [.command, .option, .shift], in: edit)
         standard(String(localized: "Delete"), #selector(NSText.delete(_:)), in: edit)
         standard(String(localized: "Select All"), #selector(NSText.selectAll(_:)), key: "a", in: edit)
+        edit.addItem(.separator())
+        textItems(in: edit)
 
         let view = submenu(String(localized: "View"), in: bar)
         commands(
@@ -105,6 +111,7 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         // hidden. Selection translation stays on the engine's own page context
         // menu, and blocking can come from an extension.
         let page = submenu(String(localized: "Page"), in: bar)
+        applicationItem(.translatePage, in: page)
         commands(
             [
                 .toggleReaderMode, .toggleContentBlocking, nil, .findInPage, nil, .zoomIn, .zoomOut, .actualSize, nil,
@@ -138,13 +145,12 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         if menu === pageMenu { refreshEngineMoves() }
         refreshBindings()
         refreshOffers()
+        refreshTitles(in: menu)
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if let command = item.representedObject as? ShortcutCommand {
-            if command.kind == .toggleDeveloperToolbar {
-                item.state = shell.activeActions?.pages.activePage?.isDeveloperModeEnabled == true ? .on : .off
-            }
+            item.state = shell.activeActions?.isOn(command) == true ? .on : .off
             return shell.canPerform(command)
         }
         if let action = item.representedObject as? BrowserMacApplicationAction {
@@ -181,7 +187,7 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     }
 
     private func refreshBindings() {
-        for (command, item) in commandItems {
+        for (command, item, _) in commandItems {
             let shortcut = shortcuts.shortcut(for: command)
             item.keyEquivalent = shortcut.map { String($0.key.keyEquivalent.character) } ?? ""
             item.keyEquivalentModifierMask = shortcut?.modifiers.appKitModifierFlags ?? []
@@ -210,12 +216,24 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
         for item in engineMoveItems { pageMenu.addItem(item) }
     }
 
+    /// Names each command in `menu` as the key window calls it now, such as
+    /// Reader's Show or Hide, and otherwise as its item was made.
+    private func refreshTitles(in menu: NSMenu) {
+        let actions = shell.activeActions
+        for (command, item, title) in commandItems where item.menu === menu {
+            item.title = actions?.menuTitle(of: command).map { String(localized: $0) } ?? title
+        }
+    }
+
     /// Hides each command the device does not offer, which also takes its
     /// chord out of key equivalent matching, then each separator left leading
     /// a menu, following another or ending it.
     private func refreshOffers() {
-        for (command, item) in commandItems {
+        for (command, item, _) in commandItems {
             item.isHidden = !command.isOffered(in: state)
+        }
+        for (action, item) in actionItems {
+            item.isHidden = !action.isOffered(in: state)
         }
         for menu in commandMenus {
             var lastShown: NSMenuItem?
@@ -231,30 +249,109 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
 
     /// Adds an item for each command, and a separator for each nil.
     private func commands(_ commands: [ShortcutCommand?], in menu: NSMenu) {
-        if !commandMenus.contains(where: { $0 === menu }) { commandMenus.append(menu) }
         for command in commands {
             guard let command else {
                 if let last = menu.items.last, !last.isSeparatorItem { menu.addItem(.separator()) }
                 continue
             }
-            let item = NSMenuItem(
-                title: String(localized: command.menuTitle ?? command.title), action: #selector(runCommand(_:)),
-                keyEquivalent: "")
-            item.image = NSImage(systemSymbolName: command.symbol, accessibilityDescription: nil)
-            item.target = self
-            item.representedObject = command
-            menu.addItem(item)
-            commandItems.append((command, item))
+            self.command(command, in: menu)
         }
+    }
+
+    /// Adds an item for `command`, named `title` or as the command names
+    /// itself in menus.
+    private func command(_ command: ShortcutCommand, titled title: String? = nil, in menu: NSMenu) {
+        if !commandMenus.contains(where: { $0 === menu }) { commandMenus.append(menu) }
+        let title = title ?? String(localized: command.menuTitle ?? command.title)
+        let item = NSMenuItem(title: title, action: #selector(runCommand(_:)), keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: command.symbol, accessibilityDescription: nil)
+        item.target = self
+        item.representedObject = command
+        menu.addItem(item)
+        commandItems.append((command, item, title))
     }
 
     private func applicationItem(_ action: BrowserMacApplicationAction, in menu: NSMenu) {
         let item = NSMenuItem(
             title: String(localized: action.title), action: #selector(runApplicationAction(_:)),
             keyEquivalent: action.keyEquivalent)
+        item.image = action.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
         item.target = self
         item.representedObject = action
         menu.addItem(item)
+        actionItems.append((action, item))
+    }
+
+    /// The Edit menu's text submenus, which AppKit's responder chain answers
+    /// for the field or page that has focus. Find opens Crest's own find bar;
+    /// the rest act on a text view's own find.
+    private func textItems(in edit: NSMenu) {
+        let find = submenu(String(localized: "Find"), in: edit)
+        command(.findInPage, titled: String(localized: "Find…"), in: find)
+        textFinder(String(localized: "Find Next"), .nextMatch, key: "g", in: find)
+        textFinder(
+            String(localized: "Find Previous"), .previousMatch, key: "g", modifiers: [.command, .shift], in: find)
+        // Command-E archives a tab in Crest, so the selection has no chord.
+        textFinder(String(localized: "Use Selection for Find"), .setSearchString, in: find)
+        standard(
+            String(localized: "Jump to Selection"), #selector(NSResponder.centerSelectionInVisibleArea(_:)), key: "j",
+            in: find)
+
+        let spelling = submenu(String(localized: "Spelling and Grammar"), in: edit)
+        standard(
+            String(localized: "Show Spelling and Grammar"), #selector(NSText.showGuessPanel(_:)), key: ":",
+            in: spelling)
+        standard(String(localized: "Check Document Now"), #selector(NSText.checkSpelling(_:)), key: ";", in: spelling)
+        spelling.addItem(.separator())
+        standard(
+            String(localized: "Check Spelling While Typing"), #selector(NSTextView.toggleContinuousSpellChecking(_:)),
+            in: spelling)
+        standard(
+            String(localized: "Check Grammar With Spelling"), #selector(NSTextView.toggleGrammarChecking(_:)),
+            in: spelling)
+        standard(
+            String(localized: "Correct Spelling Automatically"),
+            #selector(NSTextView.toggleAutomaticSpellingCorrection(_:)), in: spelling)
+
+        let substitutions = submenu(String(localized: "Substitutions"), in: edit)
+        standard(
+            String(localized: "Show Substitutions"), #selector(NSTextView.orderFrontSubstitutionsPanel(_:)),
+            in: substitutions)
+        substitutions.addItem(.separator())
+        standard(
+            String(localized: "Smart Copy/Paste"), #selector(NSTextView.toggleSmartInsertDelete(_:)), in: substitutions)
+        standard(
+            String(localized: "Smart Quotes"), #selector(NSTextView.toggleAutomaticQuoteSubstitution(_:)),
+            in: substitutions)
+        standard(
+            String(localized: "Smart Dashes"), #selector(NSTextView.toggleAutomaticDashSubstitution(_:)),
+            in: substitutions)
+        standard(
+            String(localized: "Smart Links"), #selector(NSTextView.toggleAutomaticLinkDetection(_:)), in: substitutions)
+        standard(
+            String(localized: "Data Detectors"), #selector(NSTextView.toggleAutomaticDataDetection(_:)),
+            in: substitutions)
+        standard(
+            String(localized: "Text Replacement"), #selector(NSTextView.toggleAutomaticTextReplacement(_:)),
+            in: substitutions)
+
+        let transformations = submenu(String(localized: "Transformations"), in: edit)
+        standard(String(localized: "Make Upper Case"), #selector(NSResponder.uppercaseWord(_:)), in: transformations)
+        standard(String(localized: "Make Lower Case"), #selector(NSResponder.lowercaseWord(_:)), in: transformations)
+        standard(String(localized: "Capitalize"), #selector(NSResponder.capitalizeWord(_:)), in: transformations)
+
+        let speech = submenu(String(localized: "Speech"), in: edit)
+        standard(String(localized: "Start Speaking"), #selector(NSTextView.startSpeaking(_:)), in: speech)
+        standard(String(localized: "Stop Speaking"), #selector(NSTextView.stopSpeaking(_:)), in: speech)
+    }
+
+    /// Adds an item that asks the focused text view's own find for `action`.
+    private func textFinder(
+        _ title: String, _ action: NSTextFinder.Action, key: String = "", modifiers: NSEvent.ModifierFlags = .command,
+        in menu: NSMenu
+    ) {
+        standard(title, #selector(NSResponder.performTextFinderAction(_:)), key: key, modifiers: modifiers, in: menu)
+        menu.items.last?.tag = action.rawValue
     }
 
     private func submenu(_ title: String, in parent: NSMenu) -> NSMenu {

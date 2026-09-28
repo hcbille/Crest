@@ -251,7 +251,7 @@ public sealed class ShortcutCommand {
     public static readonly ShortcutCommand ToggleTranslationToolbar = new(Kinds.ToggleTranslationToolbar,
         name: "toggleTranslationToolbar", ShortcutSection.View, title: "Show or Hide Translation Toolbar", symbol: "translate",
         shortcuts: Everywhere(Character("l", Command | Shift)), searchTerms: "translate translation language toolbar show hide",
-        requiredCapability: EngineCapability.Translation);
+        menuTitle: "Show Translation Toolbar", requiredCapability: EngineCapability.Translation);
     public static readonly ShortcutCommand OpenFile = new(Kinds.OpenFile, name: "openFile", ShortcutSection.Everyday,
         title: "Open File", symbol: "folder", searchTerms: "open local file document html pdf archive webarchive mhtml",
         menuTitle: "Open File…", availableWhen: ShowingSpace);

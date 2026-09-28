@@ -3301,6 +3301,14 @@
     "dock-icon-download-progress": {
       "category": "improved",
       "message": "Crest's Dock icon shows how many downloads are in progress and how far along they are, and keeps the app icon you picked while it does."
+    },
+    "webkit-build-on-shared-mac-shell": {
+      "category": "improved",
+      "message": "The WebKit build now runs on the same Mac app shell as the Chromium build, so both reopen the windows you left open in the order you left them, and both put links from other apps where your link settings say even with no window open. The first launch after this update reopens your most recently used window at its default size."
+    },
+    "edit-menu-text-tools-in-both-builds": {
+      "category": "improved",
+      "message": "The Chromium build's Edit menu now has Find, Spelling and Grammar, Substitutions, Transformations and Speech, Translate Page appears in the Page menu whenever a page can be translated, and Command-W closes Crest Setup and What's New in Crest there too."
     }
   }
 }

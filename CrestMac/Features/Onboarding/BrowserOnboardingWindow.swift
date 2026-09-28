@@ -1,15 +1,15 @@
 import SwiftUI
 
 struct BrowserOnboardingWindow: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.openWindow) private var openWindow
-
     let request: BrowserOnboardingRequest
     let cloudSync: BrowserCloudSyncController
     let progress: BrowserOnboardingProgressStore
     let spaceAccess: BrowserSpaceAccessController
-    private var hostClose: (() -> Void)?
-    private var hostOpenBrowser: (() -> Void)?
+    /// Closes the window setup shows in.
+    private let closeWindow: () -> Void
+    /// Brings the browser forward once setup finished: the window setup was
+    /// opened from, or the launch it held back.
+    private let openBrowser: () -> Void
 
     @State private var flow: BrowserOnboardingFlow
     @State private var selectedManualSpaceID: UUID?
@@ -21,8 +21,8 @@ struct BrowserOnboardingWindow: View {
         cloudSync: BrowserCloudSyncController,
         progress: BrowserOnboardingProgressStore,
         spaceAccess: BrowserSpaceAccessController,
-        hostClose: (() -> Void)? = nil,
-        hostOpenBrowser: (() -> Void)? = nil
+        closeWindow: @escaping () -> Void,
+        openBrowser: @escaping () -> Void
     ) {
         self.init(
             request: request,
@@ -30,7 +30,7 @@ struct BrowserOnboardingWindow: View {
             progress: progress,
             spaceAccess: spaceAccess,
             flow: BrowserOnboardingFlow(request: request, browser: browser),
-            hostClose: hostClose, hostOpenBrowser: hostOpenBrowser
+            closeWindow: closeWindow, openBrowser: openBrowser
         )
     }
 
@@ -40,15 +40,15 @@ struct BrowserOnboardingWindow: View {
         progress: BrowserOnboardingProgressStore,
         spaceAccess: BrowserSpaceAccessController,
         flow: BrowserOnboardingFlow,
-        hostClose: (() -> Void)? = nil,
-        hostOpenBrowser: (() -> Void)? = nil
+        closeWindow: @escaping () -> Void,
+        openBrowser: @escaping () -> Void
     ) {
         self.request = request
         self.cloudSync = cloudSync
         self.progress = progress
         self.spaceAccess = spaceAccess
-        self.hostClose = hostClose
-        self.hostOpenBrowser = hostOpenBrowser
+        self.closeWindow = closeWindow
+        self.openBrowser = openBrowser
         _flow = State(initialValue: flow)
         _selectedManualSpaceID = State(initialValue: flow.manualSetup.spaces.first?.spaceID)
         _customizationSpaceID = State(initialValue: nil)
@@ -62,28 +62,16 @@ struct BrowserOnboardingWindow: View {
             flow: flow,
             selectedManualSpaceID: $selectedManualSpaceID,
             customizationSpaceID: $customizationSpaceID,
-            close: close,
+            close: closeWindow,
             openCrest: openCrest
         )
         .environment(flow.browser.core)
     }
 
-    private func close() {
-        if let hostClose { hostClose() } else { dismiss() }
-    }
-
     private func openCrest() {
-        let reusesLaunchWindow = progress.isLaunchGateActive
         flow.completeSetup(progress: progress, spaceAccess: spaceAccess) {
-            // Completing the gate turns its existing WindowGroup window into
-            // the browser. Opening the scene again creates a second window.
-            BrowserOnboardingLaunchGateWindow.restore()
-            if let hostOpenBrowser {
-                hostOpenBrowser()
-            } else if !reusesLaunchWindow {
-                openWindow(id: BrowserSceneID.browser.rawValue)
-            }
-            close()
+            openBrowser()
+            closeWindow()
         }
     }
 }
@@ -95,7 +83,9 @@ struct BrowserOnboardingWindow: View {
         cloudSync: fixture.cloudSync,
         progress: fixture.progress,
         spaceAccess: fixture.spaceAccess,
-        flow: fixture.flow
+        flow: fixture.flow,
+        closeWindow: {},
+        openBrowser: {}
     )
     .frame(width: 980, height: 660)
 }

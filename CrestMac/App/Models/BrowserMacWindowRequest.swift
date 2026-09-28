@@ -1,6 +1,7 @@
 import Foundation
 
-/// Scene restoration carries identities only; the application owns the workspace.
+/// A browser window to open, by its identity in the core; the application
+/// owns the workspace it shows.
 struct BrowserMacWindowRequest: Hashable, Identifiable {
     // MARK: - Static Variables
 
@@ -20,7 +21,7 @@ struct BrowserMacWindowRequest: Hashable, Identifiable {
 
     // MARK: - Types
 
-    enum Kind: String, Codable { case normal, temporary }
+    enum Kind { case normal, temporary }
 
     // MARK: - Variables
 
@@ -44,36 +45,5 @@ struct BrowserMacWindowRequest: Hashable, Identifiable {
     /// The request a normal window kept under `id` reopens with.
     static func reopening(_ id: UUID) -> Self {
         id == initial.id ? initial : Self(id: id, kind: .normal)
-    }
-}
-
-// MARK: - Codable
-
-/// SwiftUI saves a window's request for scene restoration, so its identities
-/// keep the stored spelling a build before S6.2 restores.
-extension BrowserMacWindowRequest: Codable {
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case kind
-        case sourceWindowID
-        case sourceAssignment
-    }
-
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            id: try container.decodeIdentity(forKey: .id),
-            kind: try container.decode(Kind.self, forKey: .kind),
-            sourceWindowID: try container.decodeIdentityIfPresent(forKey: .sourceWindowID),
-            sourceAssignment: try container.decodeIfPresent(
-                BrowserSpaceRuntimeAssignment.self, forKey: .sourceAssignment))
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeStoredIdentity(id, forKey: .id)
-        try container.encode(kind, forKey: .kind)
-        try container.encodeStoredIdentityIfPresent(sourceWindowID, forKey: .sourceWindowID)
-        try container.encodeIfPresent(sourceAssignment, forKey: .sourceAssignment)
     }
 }

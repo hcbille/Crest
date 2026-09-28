@@ -103,12 +103,6 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         XCTAssertEqual(coordinator.peekRequest?.id, request.id)
     }
 
-    func testExternalURLsPreferAnExistingBrowserAndOtherwiseCreateOnlyAQuickWindow() {
-        XCTAssertEqual(BrowserExternalLinkScenePolicy.existingBrowserPreference, ["*"])
-        XCTAssertEqual(BrowserExternalLinkScenePolicy.primarySceneActivation, [])
-        XCTAssertEqual(BrowserExternalLinkScenePolicy.quickWindowSceneActivation, ["*"])
-    }
-
     func testEmptyQuickWindowRequestStartsWithoutNavigating() {
         let request = BrowserQuickWindowRequest.empty(
             spaceAssignment: BrowserSpaceRuntimeAssignment(
@@ -118,48 +112,6 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         )
 
         XCTAssertNil(request.initialURL)
-    }
-
-    func testQuickWindowCarriesTheSingletonMainBrowserForPromotion() throws {
-        let request = BrowserQuickWindowRequest(
-            url: try XCTUnwrap(URL(string: "https://example.com/reference")),
-            spaceAssignment: BrowserSpaceRuntimeAssignment(
-                spaceID: UUID(),
-                profileID: UUID()
-            ),
-            targetWindowID: BrowserMacWindowRequest.initial.id
-        )
-
-        XCTAssertEqual(request.targetWindowID, BrowserMacWindowRequest.initial.id)
-
-        let restored = try JSONDecoder().decode(
-            BrowserQuickWindowRequest.self,
-            from: JSONEncoder().encode(request)
-        )
-        XCTAssertEqual(restored.targetWindowID, BrowserMacWindowRequest.initial.id)
-    }
-
-    /// SwiftUI saves a Quick Window's request with the window: its target
-    /// window and Space keep the spelling an earlier build restores, and a
-    /// bare identity reads too.
-    func testQuickWindowRequestKeepsTheStoredIdentitySpellingAndReadsABareOne() throws {
-        let spaceID = UUID()
-        let windowID = UUID()
-        let request = BrowserQuickWindowRequest(
-            url: try XCTUnwrap(URL(string: "https://example.com/reference")),
-            spaceAssignment: BrowserSpaceRuntimeAssignment(spaceID: spaceID, profileID: UUID()),
-            targetWindowID: windowID)
-
-        let stored = try XCTUnwrap(StoredIdentityJSON.document(of: request) as? [String: Any])
-        XCTAssertEqual(stored["targetWindowID"] as? [String: String], StoredIdentityJSON.wrapped(windowID))
-        let assignment = try XCTUnwrap(stored["spaceAssignment"] as? [String: Any])
-        XCTAssertEqual(assignment["spaceID"] as? [String: String], StoredIdentityJSON.wrapped(spaceID))
-        for document in [stored, StoredIdentityJSON.bare(stored)] {
-            let restored = try StoredIdentityJSON.decode(BrowserQuickWindowRequest.self, from: document)
-            XCTAssertEqual(restored.id, request.id)
-            XCTAssertEqual(restored.targetWindowID, windowID)
-            XCTAssertEqual(restored.spaceAssignment, request.spaceAssignment)
-        }
     }
 
     func testQuickWindowPresentationIdentityFocusesAnExactURLInTheSameSpace() throws {
@@ -197,12 +149,6 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         )
         XCTAssertEqual(first.assignment.spaceID, spaceID)
         XCTAssertEqual(first.assignment.profileID, profileID)
-
-        let restored = try JSONDecoder().decode(
-            BrowserQuickWindowRequest.self,
-            from: JSONEncoder().encode(first)
-        )
-        XCTAssertEqual(restored.assignment, assignment)
     }
 
     func testQuickWindowCarriesPresentationOriginWithoutChangingWindowIdentity() throws {
@@ -236,12 +182,6 @@ final class BrowserTransientBrowsingTests: XCTestCase {
         XCTAssertEqual(request.targetWindowID, targetWindowID)
         XCTAssertEqual(request, sameWindowWithoutSource)
         XCTAssertEqual(Set([request, sameWindowWithoutSource]).count, 1)
-
-        let restored = try JSONDecoder().decode(
-            BrowserQuickWindowRequest.self,
-            from: JSONEncoder().encode(request)
-        )
-        XCTAssertEqual(restored.sourcePresentation, source)
     }
 
     func testCoordinatorMatchesTheFullQuickWindowRequestBeyondPublicEquality() throws {

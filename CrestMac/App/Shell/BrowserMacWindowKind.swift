@@ -47,14 +47,14 @@ struct BrowserMacWindowKind: Hashable {
         styleMask: [.titled, .closable, .resizable, .fullSizeContentView], hidesTitle: true,
         hidesTitleBarSeparator: true, contentSize: CGSize(width: 1180, height: 820),
         minimumContentSize: CGSize(width: 980, height: 660),
-        sizingOptions: [], isSingleton: true, identifier: BrowserOnboardingCoordinator.sceneID)
+        sizingOptions: [], isSingleton: true, identifier: "onboarding")
     /// The release notes for the update the sidebar card presents, which keep
     /// their content's minimum size.
     static let updateDetails = BrowserMacWindowKind(
         name: "update-details", title: String(localized: "What's New in Crest"),
         styleMask: [.titled, .closable, .miniaturizable, .resizable],
         contentSize: CGSize(width: 620, height: 520), sizingOptions: [.minSize], isSingleton: true,
-        identifier: BrowserSceneID.softwareUpdateDetails.rawValue)
+        identifier: "software-update-details")
     static let all: [BrowserMacWindowKind] = [browser, temporary, `private`, quick, setup, updateDetails]
 
     // MARK: - Variables
