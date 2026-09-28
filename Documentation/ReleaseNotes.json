@@ -3269,6 +3269,10 @@
     "folder-tree-indexed-lookups": {
       "category": "improved",
       "message": "Organizing tabs in a Space with many nested folders stays quick, because each folder edit looks folders up directly instead of searching them."
+    },
+    "extension-background-window-keeps-focus": {
+      "category": "fixed",
+      "message": "A window an extension opens in the background no longer takes keyboard focus from the window you are typing in."
     }
   }
 }

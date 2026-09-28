@@ -54,6 +54,24 @@
             var value: BrowserQuickWindowRequest
             init(_ value: BrowserQuickWindowRequest) { self.value = value }
         }
+        /// How a window the root opens, or one already open, comes forward.
+        @MainActor
+        private struct WindowActivation {
+            /// The window becomes key and comes to the front.
+            static let key = WindowActivation { window in window.makeKeyAndOrderFront(nil) }
+            /// The window comes forward just behind the key window, which stays
+            /// key, and the app stays active or inactive as it was: a window an
+            /// extension opened without focus.
+            static let background = WindowActivation { window in
+                if let key = NSApp.keyWindow, key !== window, key.isVisible {
+                    window.order(.below, relativeTo: key.windowNumber)
+                } else {
+                    window.orderFront(nil)
+                }
+            }
+
+            let present: @MainActor (NSWindow) -> Void
+        }
         private struct QuickWindowTitle: ViewModifier {
             let model: BrowserQuickWindowModel
             let request: QuickRequest
@@ -629,9 +647,13 @@
             }
         }
 
-        func openWindow(_ request: BrowserMacWindowRequest) {
+        func openWindow(_ request: BrowserMacWindowRequest) { openWindow(request, activation: .key) }
+
+        /// Opens the window `request` names, or brings forward the one open
+        /// under its identity, as `activation` says.
+        private func openWindow(_ request: BrowserMacWindowRequest, activation: WindowActivation) {
             if let existing = windows[request.id] {
-                existing.makeKeyAndOrderFront(nil)
+                activation.present(existing)
                 return
             }
             guard application.windowCoordinator.model(for: request) != nil else { return }
@@ -673,7 +695,7 @@
             } else {
                 window.center()
             }
-            window.makeKeyAndOrderFront(nil)
+            activation.present(window)
         }
 
         /// Places a normal window that has no frame of its own yet: at the size
@@ -844,15 +866,11 @@
                 if focused { window.makeKeyAndOrderFront(nil) }
                 return
             }
-            if instance.windows[id] == nil { instance.openWindow(BrowserMacWindowRequest(id: id, kind: .normal)) }
-            guard let window = instance.windows[id] else { return }
+            instance.openWindow(
+                BrowserMacWindowRequest(id: id, kind: .normal), activation: focused ? .key : .background)
+            guard instance.windows[id] != nil else { return }
             instance.commands.selectSpace(space, in: id)
-            if focused {
-                window.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
-            } else {
-                window.orderFront(nil)
-            }
+            if focused { NSApp.activate(ignoringOtherApps: true) }
         }
 
         static func window(for id: UUID?) -> NSWindow? {
