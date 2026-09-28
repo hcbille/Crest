@@ -6,8 +6,8 @@ using Xunit;
 
 namespace CrestCore.Tests;
 
-/// Address, search-template and retention rules the core applies wherever an
-/// address is typed, an engine is saved or records expire.
+/// Address and retention rules the core applies wherever an address is typed
+/// or records expire.
 public sealed class BrowsingPolicyTests {
     private static SearchProvider Kagi() =>
         SearchProvider.Admit(Guid.Parse("00000000-0000-0000-0000-000000000264"), "Kagi", "https://kagi.com/search?q=%s", null);
@@ -64,9 +64,8 @@ public sealed class BrowsingPolicyTests {
     [Fact]
     public void RetentionAndExplicitDeletionKeepTheirDifferentBoundaryRules() {
         // Retention excludes an exact cutoff and future records. Explicit
-        // deletion includes its start and excludes its end.
-        // The records commands (`records.sweep`, `history.remove_range`) apply
-        // this rule; the stateless policy operations that exposed it are gone.
+        // deletion includes its start and excludes its end. The
+        // `SweepExpiredRecords` and `RemoveHistoryRange` intents apply this rule.
         Assert.Equal([0], RecordRemovalPolicy.Expired([9, 10, 11, 21], 20, 10));
         Assert.Equal([1, 2], RecordRemovalPolicy.WithinRange([9, 10, 11, 20], 10, 20));
         Assert.Empty(RecordRemovalPolicy.WithinRange([10], 20, 10));

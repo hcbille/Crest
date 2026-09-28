@@ -1,8 +1,7 @@
 namespace CrestCore.Contracts;
 
-/// What happens to a download a page started on its own. The
-/// `downloads.automatic` policy spells an action as its `Name`. An action
-/// travels as its index in `All`, so `All` is append-only.
+/// What happens to a download a page started on its own. An action travels as
+/// its index in `All`, so `All` is append-only.
 public sealed class AutomaticDownloadAction {
     #region Types
 

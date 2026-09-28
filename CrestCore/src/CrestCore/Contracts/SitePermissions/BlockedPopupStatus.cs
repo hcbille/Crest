@@ -1,8 +1,7 @@
 namespace CrestCore.Contracts;
 
-/// The one blocked-popup indication a document may show. The `popups.notice`
-/// policy spells a status as its `Name`. A status travels as its index in
-/// `All`, so `All` is append-only.
+/// The one blocked-popup indication a document may show. A status travels as
+/// its index in `All`, so `All` is append-only.
 public sealed class BlockedPopupStatus {
     #region Variables
 

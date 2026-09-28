@@ -1,8 +1,7 @@
 namespace CrestCore.Contracts;
 
-/// Who owns a navigation once its URL scheme is known. The external-scheme
-/// policy spells a disposition as its `Name`. A disposition travels as its
-/// index in `All`, so `All` is append-only.
+/// Who owns a navigation once its URL scheme is known. A disposition travels
+/// as its index in `All`, so `All` is append-only.
 public sealed class ExternalSchemeDisposition {
     #region Types
 

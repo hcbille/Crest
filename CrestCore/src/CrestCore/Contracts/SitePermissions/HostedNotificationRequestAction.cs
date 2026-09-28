@@ -4,9 +4,6 @@ namespace CrestCore.Contracts;
 /// answers one verdict of the site's saved decision: a request prompts only
 /// with user activation, a saved block answers denied, and a grant still needs
 /// the system's consent.
-///
-/// The `notifications.permission_request` policy answer spells an action as
-/// its `Name`.
 public sealed class HostedNotificationRequestAction {
     #region Types
 

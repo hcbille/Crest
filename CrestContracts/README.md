@@ -96,9 +96,9 @@ Session intents name
 the window that issued them; when an intent commits, the device moves that
 window to what the intent chose, repairs every other window of that workspace,
 and publishes `WindowChanged` for each window that changed. Imports
-(`ImportSpaces`, `ImportReviewedSpaces`, `ApplyManualSetup`) are intents too,
-and `ImportPreview`, `ImportReviewSuggestions` and `ImportReviewAnalysis` answer
-the review a person edits before one. The session file never stores a selection; a stored document with the
+(`ImportSpaces`, `ImportReviewedSpaces`, `ApplyManualSetup`) are intents too.
+Setup holds the review a person edits before one, and `ImportPreview` answers
+the session an import would leave. The session file never stores a selection; a stored document with the
 older session-level `selectedSpaceID` and per-Space `selectedTabID` still loads,
 gives its tabs to a window without a record during that launch, and loses them
 at the next save. `SweepExpiredRecords` keeps every tab an open window or a
@@ -119,10 +119,11 @@ Its browsing, records, deletion, transfer, residency and content-blocking rules
 are now owned by the synchronous session, sync and app entry points above.
 `Documentation/Architecture/ControlPlane.md` describes that live path.
 
-History visits, range removal and retention are session edits (the
-`history.visit` command and the `RemoveHistoryRange` and `SweepExpiredRecords`
-intents); retention uses a strict age cutoff and explicit history ranges
-include their start and exclude their end. The
+History visits, range removal and retention are session edits: the core
+records a visit when a page's document finishes loading, and the
+`RemoveHistoryRange` and `SweepExpiredRecords` intents remove visits; retention
+uses a strict age cutoff and explicit history ranges include their start and
+exclude their end. The
 `AddSearchEngine`, `UpdateSearchEngine`, `RemoveSearchEngine` and
 `SelectSearchEngine` intents edit a Space's engines and its choice, refusing with
 `DuplicateSearchEngineName`, `SearchEngineLimitReached`, `InvalidSearchEngine` or
@@ -139,9 +140,9 @@ download events and the native center forwards them as intents. The
 `DownloadProgress` query answers transfer telemetry and ETA with the estimator
 state to send with the next sample, and `DownloadRisk` answers risk reasons and
 whether the person must confirm; the platform supplies only its
-file-system-safe filename and type registry facts. The `downloads.automatic`
-policy operation still answers the automatic-download throttle, because it
-reads a site-permission decision.
+file-system-safe filename and type registry facts. The
+`AutomaticDownloadCheck` query answers the automatic-download throttle from
+the site's saved decision.
 
 The credentials area of `crest_app_*` answers typed queries that carry no
 credential values. `CredentialCapture` takes a form observation as its event,
@@ -165,28 +166,29 @@ and session choices, live in memory, and nothing here syncs. A locked Space
 answers Ask and refuses writes, while resets still apply. `AdoptSitePermissions`
 carries the document earlier releases kept under `crest.site-permissions.v1`
 into the store once.
-The pure `geolocation.origin`, `notifications.origin`,
-`notifications.permission_request`, `popups.notice`, `external.url`,
-`external.local_document`, `external.scheme`, `authentication.handling`,
-`authentication.source_label` and `authentication.fixture_trust` operations
-answer the origin, scheme, popup-notice and HTTP authentication rules. What a
-saved decision means (whether it grants, blocks or asks) travels with the
-generated `SitePermissionDecision`, so no operation answers it. URLs arrive as the platform
+The standalone `SecureOriginCheck`, `NotificationPermissionRequest`,
+`BlockedPopupTransition`, `ExternalWebLink`, `ExternalLocalDocument`,
+`SchemeHandling`, `ChallengeHandling`, `AuthenticationSource` and
+`FixtureServerTrust` queries answer the origin, scheme, popup-notice and HTTP
+authentication rules through `crest_core_answer`. What a saved decision means
+(whether it grants, blocks or asks) travels with the generated
+`SitePermissionDecision`, so no query answers it. URLs arrive as the platform
 parser's facts; every caller refuses, blocks or asks when it gets no answer.
 
-The `ExternalLinkRoute` query takes the link preferences routing reads and the
-Spaces this process holds locked: a link routed to a locked Space answers a Quick
-Window on an unlocked one with `SubstitutesForLockedSpace`, or no Space when none
-can take it. `QuickWindowSite` answers the site key a Quick Window remembers its
-Space under. The `links.route_*` operations carry link routes as
-`{"id","isEnabled","match","pattern","destinationSpaceID"}` with lowercase UUID
-strings. Route edits answer
-the edited route or `{"error":code}`, reorders and removals answer the route
-order, and `links.space_removed` answers what a deleted Space leaves behind.
-`quick_window.*` answer archive lifetime, archive-on-dismissal and retargeting;
-`page.presentation` and `branding.normalize` answer page surfaces and branding
-range rules, and the `BalancedProtectionRules` query answers the Balanced rule
-list.
+Link preferences are device state too, never synced. `AddLinkRoute`,
+`EditLinkRoute`, `MoveLinkRoute`, `RemoveLinkRoute`, `SetLinkBehavior`,
+`ChoosePeekModifier`, `ChooseExternalLinkDestination`,
+`ChooseQuickWindowArchivePolicy` and `RememberQuickWindowSpace` edit them, and
+`LinkPreferencesChanged` carries them. `AdoptLinkPreferences` carries the
+document earlier releases kept under `crest.link-preferences.v1` into the
+device store once. A deleted Space takes its routes with it and is forgotten
+wherever the preferences remembered it. The `RouteExternalLink` query answers
+where a link another app hands a window opens: a link routed to a locked Space
+opens in a Quick Window on an unlocked one with `SubstitutesForLockedSpace`, or
+nowhere when every Space is locked. `LinkNavigation` answers what following a
+link from a page does. `PresentPage` and `NormalizeBranding` answer page
+surfaces and branding range rules, and the `BalancedProtectionRules` query
+answers the Balanced rule list.
 
 Window state is device-local and never enters the session. The
 `OpenWindow`, `CloseWindow`, `ShowSpace`, `ShowTab`, `DismissShownTab`,
@@ -198,15 +200,14 @@ session attached to the device publishes `WorkspaceOpened`, what every
 accepted state changed, and `WorkspaceClosed`, keyed by workspace, and an
 intent answers the pending batch before its own changes. The
 `CanTearOff` query decides whether a dragged tab may leave its window, and
-`FallbackTab` answers the tab a draft Space shows first. `setup.space`, `setup.tab` and `setup.reconcile`
-admit manual-setup draft edits against the import's Space and pinned limits
-and follow Spaces changed elsewhere; `onboarding.completion` and
-`onboarding.guide` decide what finishing setup does. The import review reads
-whole Spaces: `ImportReviewSuggestions` suggests each imported Space's
-destination, duplicates and default tabs, and `ImportReviewAnalysis` reports,
-for the choices a person made, duplicates, matched destination tabs and pinned
-overflow. The
-workspace import rejects a source whose split runs its repair would rewrite.
+`FallbackTab` answers the tab a draft Space shows first. Setup is device
+state as well: the `SetupFlowIntent`s, such as `StartSetup`, `ReviewImport`
+and `FinishSetup`, move it along and publish `SetupFlowChanged`, and the
+`SetupDraftIntent`s edit the manual setup within the Space limit and publish
+`SetupDraftChanged`. The import review setup holds joins each imported Space to
+the existing Space of the same name, leaving out the tabs that Space holds, or
+brings it in as a new Space. The workspace import rejects a source whose split
+runs its repair would rewrite.
 
 Shortcut choices are device state too. `AssignShortcut` binds keys to a
 command and is refused with `ShortcutInUse` naming the offered commands that
@@ -219,11 +220,12 @@ into the device store once, keeping those for commands the core does not know.
 The `NumberedSelections` query maps each numbered command to the zero-based
 tab or Space it reaches for the given counts. `AppConfiguration` names the
 device's platform, whose defaults the shortcut rules read.
-`launch.plan` takes the platform's parsed launch flags and whether first-run
-setup owns the first window, and answers isolation, ephemeral profile storage,
-installed-app presentation and the startup behavior for a person who never
-chose. The `LaunchPlan` query answers the same for the persistent workspace,
-with the startup preference it keeps.
+The standalone `LaunchIsolation` query takes the platform's parsed launch flags
+and answers isolation, ephemeral profile storage, installed-app presentation
+and the startup behavior for a person who never chose, before any app exists.
+The `LaunchPlan` query, which also takes whether first-run setup owns the first
+window, answers the same for the persistent workspace, with the startup
+preference it keeps.
 
 The persistent session's `appPreferences` record holds the app-wide behavior
 preferences (`startupBehavior`, `offersTranslation`, `automaticallyTranslates`,
@@ -236,18 +238,18 @@ language's rule, and `ImportAppPreferences` takes the old defaults values
 has no record. Private and borrowed workspaces refuse them with
 `PersistentWorkspaceRequired`. Value deltas and sync replacement never change
 the record, and sync never uploads it.
-`media.session_event` decides what one sequenced page media-session report does
-(ignored, retired, withdrawn or published, with its ordinal, sibling supersession,
-identity-window eviction and dismissal clearing) and `media.arbitrate` orders at
-most 64 published sessions and names the Now Playing owner; neither carries
-metadata or artwork. The `OpenTab` intent names `AfterTabId`, a tab the new
+The standalone `MediaSessionReport` query decides what one sequenced page
+media-session report does (ignored, retired, withdrawn or published, with its
+ordinal, sibling supersession, identity-window eviction and dismissal clearing)
+and `MediaSessionOrder` orders at most 64 published sessions and names the Now
+Playing owner; neither carries metadata or artwork. The `OpenTab` intent names `AfterTabId`, a tab the new
 tab opens after and outside the split of, instead of an explicit index.
 
 This branch's contract is experimental. Do not advertise external ABI stability
 until the complete contract and compatibility fixtures are ratified.
 
 `tests/native_abi.c` is a native consumer of the actual shared library. It
-exercises the policy, app, engine and session entry points,
+exercises the app, engine and session entry points,
 checking buffer
 ownership, non-consuming size probes, stale commands and invalid handles. The
 managed suite covers the session, sync and domain rules.

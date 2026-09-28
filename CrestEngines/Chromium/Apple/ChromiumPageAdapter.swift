@@ -76,7 +76,7 @@
 
         /// Chromium's page view takes focus through its own responder chain.
         func install(_ focusRestoration: BrowserWebFocusRestorationController) {}
-        /// The engine reports input as a `user_activity` event.
+        /// The engine presents a person's input as `PageInteracted`.
         func monitorUserActivity(for page: BrowserPage) {}
         /// Chromium styles visited links from its own history.
         func styleVisitedLinks(history: [HistoryEntryState]) async {}

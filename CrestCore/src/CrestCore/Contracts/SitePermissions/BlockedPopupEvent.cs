@@ -6,8 +6,7 @@ namespace CrestCore.Contracts;
 /// The page's content bridge coalesces before crossing into native code, and
 /// these transitions are the second boundary: even a hostile page posting
 /// directly to the bridge cannot stack indications or announcements in one
-/// document. The `popups.notice` policy spells an event as its `Name`. An
-/// event travels as its index in `All`, so `All` is append-only.
+/// document. An event travels as its index in `All`, so `All` is append-only.
 public sealed class BlockedPopupEvent {
     #region Variables
 
