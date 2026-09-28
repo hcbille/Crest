@@ -9,8 +9,8 @@ final class BrowserMacWindow: NSWindow {
     // MARK: - Variables
 
     var closeGate: BrowserWindowCloseGate?
-    /// What the window's content does with a mouse's Back and Forward
-    /// buttons, while content that knows its pages is shown.
+    /// What the window's content does with a mouse's Back and Forward buttons
+    /// and with swipes, while content that knows its pages is shown.
     weak var pointerNavigation: (any BrowserMacWindowPointerNavigation)?
 
     // MARK: - Actions - Closing
@@ -28,5 +28,21 @@ final class BrowserMacWindow: NSWindow {
     /// window as part of something wider it already decided.
     func closeAfterApproval() {
         super.close()
+    }
+
+    // MARK: - Actions - Swipes
+
+    /// A swipe no view under the pointer took reaches the window: a Chromium
+    /// page's, which its engine leaves to the browser window, or one a mouse
+    /// sends for its Back and Forward actions. It goes back or forward on the
+    /// page under the pointer, or the window's active page, as the Back and
+    /// Forward commands do; a WebKit page moves through its own swipes.
+    override func swipe(with event: NSEvent) {
+        if let action = BrowserSidebarMouseButtonPolicy.action(forSwipeDeltaX: event.deltaX),
+            pointerNavigation?.navigate(action, swipedAt: event) == true
+        {
+            return
+        }
+        super.swipe(with: event)
     }
 }

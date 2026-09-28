@@ -3369,6 +3369,10 @@
     "mouse-back-forward-one-page-every-click": {
       "category": "fixed",
       "message": "A mouse's Back and Forward buttons move one page per click, every time, including on pages that run in Chromium."
+    },
+    "swipe-back-forward-on-chromium-pages": {
+      "category": "fixed",
+      "message": "Swiping back and forward works on pages that run in Chromium, including a mouse's Back and Forward actions set up in Logitech Options+ and three-finger swipes between pages."
     }
   }
 }

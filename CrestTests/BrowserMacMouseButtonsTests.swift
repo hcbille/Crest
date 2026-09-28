@@ -21,6 +21,10 @@ final class BrowserMacMouseButtonsTests: XCTestCase {
             presses.append(action)
             return takesPresses
         }
+
+        func navigate(_ action: BrowserSidebarMouseButtonAction, swipedAt event: NSEvent) -> Bool {
+            false
+        }
     }
 
     // MARK: - Actions - Tests

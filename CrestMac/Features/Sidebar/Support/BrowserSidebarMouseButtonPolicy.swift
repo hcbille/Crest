@@ -1,3 +1,5 @@
+import CoreGraphics
+
 enum BrowserSidebarMousePointerScope: Equatable {
     case webpage
     case sidebar
@@ -20,6 +22,15 @@ enum BrowserSidebarMouseButtonPolicy {
         default:
             nil
         }
+    }
+
+    /// A swipe no page took goes back when it moves right, a positive
+    /// `deltaX`, and forward when it moves left, as WebKit's views and
+    /// Chrome's windows read it. A vertical swipe does neither.
+    static func action(forSwipeDeltaX deltaX: CGFloat) -> BrowserSidebarMouseButtonAction? {
+        if deltaX > 0 { return .previousSpace }
+        if deltaX < 0 { return .nextSpace }
+        return nil
     }
 
     static func disposition(

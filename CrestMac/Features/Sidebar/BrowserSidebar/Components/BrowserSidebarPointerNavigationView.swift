@@ -1,11 +1,12 @@
 import AppKit
 
 /// Answers for a browser window's content when a mouse's Back or Forward
-/// button is pressed. It covers the sidebar and asks for the window's pages
-/// at event time, so it tells a press over a page from one over the sidebar.
-/// It answers while it is in a window; the shell's `BrowserMacMouseButtons`
-/// pairs each press it took with its release, so SwiftUI rebuilding or moving
-/// this view in between changes nothing.
+/// button is pressed, or a swipe no page took reaches the window. It covers
+/// the sidebar and asks for the window's pages at event time, so it tells a
+/// press over a page from one over the sidebar. It answers while it is in a
+/// window; the shell's `BrowserMacMouseButtons` pairs each press it took with
+/// its release, so SwiftUI rebuilding or moving this view in between changes
+/// nothing.
 @MainActor
 final class BrowserSidebarPointerNavigationView: NSView, BrowserMacWindowPointerNavigation {
     // MARK: - Variables
@@ -14,6 +15,8 @@ final class BrowserSidebarPointerNavigationView: NSView, BrowserMacWindowPointer
     /// The window's live pages, asked for at event time so a page created or
     /// released since the last SwiftUI update is never consulted.
     var navigationTargets: @MainActor @Sendable () -> [any BrowserSidebarMouseNavigationTarget]
+    /// The page the window shows, which a swipe over no page moves.
+    var activeTarget: @MainActor @Sendable () -> (any BrowserSidebarMouseNavigationTarget)?
 
     // MARK: - Initializers
 
@@ -21,10 +24,12 @@ final class BrowserSidebarPointerNavigationView: NSView, BrowserMacWindowPointer
         perform: @escaping @MainActor @Sendable (BrowserSidebarMouseButtonAction) -> Void,
         navigationTargets:
             @escaping @MainActor @Sendable ()
-            -> [any BrowserSidebarMouseNavigationTarget]
+            -> [any BrowserSidebarMouseNavigationTarget],
+        activeTarget: @escaping @MainActor @Sendable () -> (any BrowserSidebarMouseNavigationTarget)?
     ) {
         self.perform = perform
         self.navigationTargets = navigationTargets
+        self.activeTarget = activeTarget
         super.init(frame: .zero)
     }
 
@@ -70,6 +75,14 @@ final class BrowserSidebarPointerNavigationView: NSView, BrowserMacWindowPointer
         else { return false }
 
         execute(disposition, in: page)
+        return true
+    }
+
+    func navigate(_ action: BrowserSidebarMouseButtonAction, swipedAt event: NSEvent) -> Bool {
+        guard event.window === window, let page = pageUnderPointer(for: event) ?? activeTarget(),
+            canNavigate(action, in: page)
+        else { return false }
+        navigate(action, in: page)
         return true
     }
 

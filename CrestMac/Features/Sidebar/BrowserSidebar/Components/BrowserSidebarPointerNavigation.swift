@@ -4,11 +4,13 @@ struct BrowserSidebarPointerNavigation: NSViewRepresentable {
     let isSidebarVisible: Bool
     let perform: @MainActor @Sendable (BrowserSidebarMouseButtonAction) -> Void
     let navigationTargets: @MainActor @Sendable () -> [any BrowserSidebarMouseNavigationTarget]
+    let activeTarget: @MainActor @Sendable () -> (any BrowserSidebarMouseNavigationTarget)?
 
     func makeNSView(context: Context) -> BrowserSidebarPointerNavigationView {
         let view = BrowserSidebarPointerNavigationView(
             perform: perform,
-            navigationTargets: navigationTargets
+            navigationTargets: navigationTargets,
+            activeTarget: activeTarget
         )
         view.isHidden = !isSidebarVisible
         return view
@@ -20,6 +22,7 @@ struct BrowserSidebarPointerNavigation: NSViewRepresentable {
     ) {
         nsView.perform = perform
         nsView.navigationTargets = navigationTargets
+        nsView.activeTarget = activeTarget
         nsView.isHidden = !isSidebarVisible
         nsView.answerForWindow()
     }

@@ -260,6 +260,14 @@ final class BrowserChromeLayoutTests: XCTestCase {
         }
     }
 
+    /// A swipe no page took, such as a mouse's Back action over a Chromium
+    /// page, moves the way WebKit's views and Chrome's windows move it.
+    func testUnhandledSwipeGoesBackOnAPositiveDeltaAsTheEnginesDo() {
+        XCTAssertEqual(BrowserSidebarMouseButtonPolicy.action(forSwipeDeltaX: 1), .previousSpace)
+        XCTAssertEqual(BrowserSidebarMouseButtonPolicy.action(forSwipeDeltaX: -1), .nextSpace)
+        XCTAssertNil(BrowserSidebarMouseButtonPolicy.action(forSwipeDeltaX: 0))
+    }
+
     func testAuxiliaryMouseButtonsRemainUnclaimedOutsidePageAndSidebar() {
         for action in [
             BrowserSidebarMouseButtonAction.previousSpace,
