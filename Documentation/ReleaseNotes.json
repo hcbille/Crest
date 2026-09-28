@@ -3313,6 +3313,10 @@
     "extension-closed-tabs-close-once": {
       "category": "fixed",
       "message": "A tab or window an extension closes now closes in Crest instead of leaving a blank tab behind, and a site can close only a tab or window that another page opened."
+    },
+    "dock-keeps-picked-icon-during-downloads": {
+      "category": "fixed",
+      "message": "The Dock keeps the app icon you picked while downloads run."
     }
   }
 }

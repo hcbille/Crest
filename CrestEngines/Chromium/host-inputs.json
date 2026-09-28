@@ -302,5 +302,9 @@
   "chrome/browser/resource_coordinator/tab_lifecycle_unit.cc": {
     "before": "b5424d86b4adeb250e2697b215d630fe5dee37bdbf8a646accbfee780d2c5050",
     "after": "57fd2adce0146df64058a0a9dd8849d1768cbe26d0e84dc42d398b52f85e49ec"
+  },
+  "chrome/browser/ui/cocoa/dock_icon.mm": {
+    "before": "b01fc554e8616e1a38f8ba94358decda2227245596edee21c86e42ef3c8fb581",
+    "after": "596ce6227afb1e4d7fb90f06699cb42db7349d71c3b314ac012574cf8f10170a"
   }
 }

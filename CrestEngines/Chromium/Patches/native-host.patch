@@ -2153,3 +2153,27 @@
  
    const base::TimeTicks discard_start_time = NowTicks();
  
+--- a/chrome/browser/ui/cocoa/dock_icon.mm
++++ b/chrome/browser/ui/cocoa/dock_icon.mm
+@@ -10,6 +10,7 @@
+ #include "base/apple/foundation_util.h"
+ #include "base/check_op.h"
+ #include "base/time/time.h"
++#include "chrome/browser/ui/crest/crest_chrome_hooks.h"  // nogncheck
+ #include "content/public/browser/browser_thread.h"
+ #include "ui/gfx/scoped_ns_graphics_context_save_gstate_mac.h"
+ 
+@@ -191,7 +192,12 @@
+ 
+ + (DockIcon*)sharedDockIcon {
+   static DockIcon* icon = [] {
+-    NSApp.dockTile.contentView = [[DockTileView alloc] init];
++    // Crest draws its own Dock tile: the icon the person picked and the
++    // downloads its core keeps. Without this view, the download setters below
++    // change nothing.
++    if (!crest::IsEnabled()) {
++      NSApp.dockTile.contentView = [[DockTileView alloc] init];
++    }
+     return [[DockIcon alloc] init];
+   }();
+ 
