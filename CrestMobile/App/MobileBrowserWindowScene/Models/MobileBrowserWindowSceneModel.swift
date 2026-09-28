@@ -201,7 +201,7 @@ final class MobileBrowserWindowSceneModel {
     func routeExternalURL(_ url: URL) async -> Bool {
         guard BrowserCorePolicy.acceptsExternalURL(url),
             let placement = try? browser.core.query(
-                RouteExternalLink(windowID: browser.windowID, url: url.absoluteString)),
+                RouteExternalLink(windowIDs: [browser.windowID], url: url.absoluteString)),
             let spaceID = placement.spaceID,
             let space = browser.spaceModel(spaceID),
             await spaceAccess.unlock(space)

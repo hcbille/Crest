@@ -278,6 +278,7 @@ enum Rejection: Equatable, Error, Sendable {
     case spaceAlreadyExists(SpaceAlreadyExists)
     case spaceBeingDeleted(SpaceBeingDeleted)
     case spaceDataNotErased(SpaceDataNotErased)
+    case spaceDeletionUnderway(SpaceDeletionUnderway)
     case spaceLimitReached(SpaceLimitReached)
     case spaceLocked(SpaceLocked)
     case spaceProfileChanged(SpaceProfileChanged)
@@ -361,6 +362,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .sitePermissionLimitReached(let value): value.message
         case .spaceAlreadyExists(let value): value.message
         case .spaceBeingDeleted(let value): value.message
+        case .spaceDeletionUnderway(let value): value.message
         case .spaceLimitReached(let value): value.message
         case .spaceLocked(let value): value.message
         case .spaceProfileChanged(let value): value.message
@@ -603,6 +605,10 @@ struct AdoptOfferedPage: Equatable, Sendable {
     let profileID: UUID
     let isPrivate: Bool
     let windowID: UUID
+}
+
+struct AdoptOpenWindows: Intent, WindowIntent, Equatable, Sendable {
+    let windowIDs: [UUID]
 }
 
 struct AdoptSetupCompletion: Intent, SetupFlowIntent, Equatable, Sendable {
@@ -2073,6 +2079,20 @@ struct EngineState: Equatable, Sendable {
     let isDefault: Bool
 }
 
+struct EngineWindowPlace: Equatable, Sendable {
+    let windowID: UUID?
+    let spaceID: UUID?
+    let opensWindow: Bool
+}
+
+struct EngineWindowPlacement: Query, Equatable, Sendable {
+    typealias Answer = EngineWindowPlace
+
+    let profileID: UUID
+    let ownWindow: Bool
+    let windowIDs: [UUID]
+}
+
 struct EnginesChanged: Equatable, Sendable {
     let roster: EngineRoster
 }
@@ -2208,6 +2228,8 @@ struct ExternalLinkPlacement: Equatable, Sendable {
     let spaceID: UUID?
     let opensQuickWindow: Bool
     let substitutesForLockedSpace: Bool
+    let windowID: UUID?
+    let opensWindow: Bool
 }
 
 struct ExternalLocalDocument: Query, Equatable, Sendable {
@@ -2852,7 +2874,28 @@ struct LaunchPlan: Query, Equatable, Sendable {
     let workspaceID: UUID
     let platform: DevicePlatform
     let environment: LaunchEnvironment
-    let hasActiveLaunchGate: Bool
+}
+
+struct LaunchSetup: Query, Equatable, Sendable {
+    typealias Answer = LaunchSetupGate
+
+    let environment: LaunchEnvironment
+}
+
+struct LaunchSetupGate: Equatable, Sendable {
+    let setup: SetupEntry?
+}
+
+struct LaunchWindowPlan: Equatable, Sendable {
+    let windowIDs: [UUID]
+    let startupWindowID: UUID
+    let setup: SetupEntry?
+}
+
+struct LaunchWindows: Query, Equatable, Sendable {
+    typealias Answer = LaunchWindowPlan
+
+    let environment: LaunchEnvironment
 }
 
 struct LayoutInspector: PageRequest, Equatable, Sendable {
@@ -2988,6 +3031,12 @@ struct LocalDocumentFacts: Equatable, Sendable {
     var hasUser: Bool
     var hasPath: Bool
     var host: String?
+}
+
+struct LocalDocumentPlacement: Equatable, Sendable {
+    let windowID: UUID?
+    let spaceID: UUID?
+    let opensWindow: Bool
 }
 
 struct LockAllSpaces: Intent, SpaceAccessIntent, Equatable, Sendable {
@@ -4045,6 +4094,10 @@ struct RememberQuickWindowSpace: Intent, LinkIntent, Equatable, Sendable {
     let spaceID: UUID
 }
 
+struct RememberWindowsForLaunch: Intent, WindowIntent, Equatable, Sendable {
+    let windowIDs: [UUID]
+}
+
 struct RememberedSite: Equatable, Sendable {
     let site: String
     let spaceID: UUID
@@ -4108,6 +4161,11 @@ struct ReopenClosedTab: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
     let spaceID: UUID
+}
+
+struct ReopenedWindow: Equatable, Sendable {
+    let windowID: UUID
+    let opensWindow: Bool
 }
 
 struct ReorderSpaces: Intent, SessionIntent, Equatable, Sendable {
@@ -4222,8 +4280,14 @@ struct ReviewImport: Intent, SetupFlowIntent, Equatable, Sendable {
 struct RouteExternalLink: Query, Equatable, Sendable {
     typealias Answer = ExternalLinkPlacement
 
-    let windowID: UUID
+    let windowIDs: [UUID]
     let url: String
+}
+
+struct RouteLocalDocument: Query, Equatable, Sendable {
+    typealias Answer = LocalDocumentPlacement
+
+    let windowIDs: [UUID]
 }
 
 struct SamePage: Query, Equatable, Sendable {
@@ -4985,6 +5049,14 @@ struct SpaceDeletionState: Equatable, Sendable, Identifiable {
     var profileID: UUID
 }
 
+struct SpaceDeletionUnderway: Equatable, Sendable {
+    let spaceIDs: [UUID]
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Crest will quit once the Space is deleted.")
+    }
+}
+
 struct SpaceLimitReached: Equatable, Sendable {
     let limit: Int
 
@@ -5731,6 +5803,12 @@ struct WindowState: Equatable, Sendable, Identifiable {
     let splitColumnShares: [SplitColumnShares]
     let cards: [ShownCards]
     let unavailableCommands: [ShortcutCommand]
+}
+
+struct WindowToReopen: Query, Equatable, Sendable {
+    typealias Answer = ReopenedWindow
+
+    let windowIDs: [UUID]
 }
 
 struct WorkspaceBusy: Equatable, Sendable {
@@ -7515,6 +7593,7 @@ struct DataRetention: Hashable, Sendable {
 }
 
 /// The members of the core's `DevicePlatform`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `forcesSetup`.
 struct DevicePlatform: Hashable, Sendable {
     let tag: Int
     let name: String

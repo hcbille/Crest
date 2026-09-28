@@ -170,8 +170,12 @@ final class CrestCore {
     /// `completion` once it ends: whether every page it covers may go and, for
     /// a quit, whether the person agreed to stop downloads in progress. A
     /// request the core refuses, such as one made while another preparation is
-    /// under way, answers false at once.
-    func prepareToClose(_ request: some CloseRequest, completion: @escaping @MainActor (Bool) -> Void) {
+    /// under way, answers false at once, or hands `refused` the rule that
+    /// refused it when there is one to hear it.
+    func prepareToClose(
+        _ request: some CloseRequest, refused: (@MainActor (Rejection) -> Void)? = nil,
+        completion: @escaping @MainActor (Bool) -> Void
+    ) {
         let quits = request.quits
         if quits { isQuitting = true }
         closeWaiters[request.requestID] = { [weak self] allowed in
@@ -181,7 +185,13 @@ final class CrestCore {
         do {
             try send(request)
         } catch {
-            closeWaiters.removeValue(forKey: request.requestID)?(false)
+            let waiter = closeWaiters.removeValue(forKey: request.requestID)
+            guard let refused else {
+                waiter?(false)
+                return
+            }
+            if quits { isQuitting = false }
+            refused(error)
         }
     }
 

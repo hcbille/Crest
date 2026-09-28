@@ -99,6 +99,37 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void SetupHoldsTheLaunchBackUntilItFinishesOnADeviceThatNeverCompletedItOrWhenForced() {
+        var session = SavedSession().Document["session"]!;
+        using var device = new TestDevice(session);
+        var window = device.Showing(session);
+        var forced = LaunchEnvironment.Installed with { ForcesDesktopSetup = true };
+        SetupEntry? Gate(LaunchEnvironment environment) => device.Query(new LaunchSetup(environment)).Setup;
+        StartupBehavior Startup(DevicePlatform platform) =>
+            device.Query(new LaunchPlan(device.Workspace, platform, LaunchEnvironment.Installed)).Startup;
+
+        // Setup holds the Mac's first window back, which then shows the tab the
+        // person left; on a phone it covers the browser, which opens as chosen.
+        Assert.Equal(SetupEntry.FirstRun, Gate(LaunchEnvironment.Installed));
+        Assert.Equal(SetupEntry.FirstRun, device.Query(new LaunchWindows(LaunchEnvironment.Installed)).Setup);
+        Assert.Equal(StartupBehavior.LastActiveTab, Startup(DevicePlatform.Desktop));
+        Assert.Equal(StartupBehavior.ShowStartPage, Startup(DevicePlatform.Mobile));
+
+        // A device that completed setup opens straight away, unless the launch
+        // forces setup on its platform.
+        device.Send(new AdoptSetupCompletion(Completed: true));
+        Assert.Null(Gate(LaunchEnvironment.Installed));
+        Assert.Equal(StartupBehavior.ShowStartPage, Startup(DevicePlatform.Desktop));
+        Assert.Equal(SetupEntry.FirstRun, Gate(forced));
+        Assert.Null(Gate(LaunchEnvironment.Installed with { ForcesMobileSetup = true }));
+
+        // Finishing setup opens the gate for the rest of the run, whatever the launch forced.
+        device.Send(new StartSetup(device.Workspace, SetupEntry.FirstRun));
+        device.Send(new FinishSetup(window));
+        Assert.Null(Gate(forced));
+    }
+
+    [Fact]
     public void CompletionIsAdoptedOnceAndKeptInTheDeviceStore() {
         using var directory = new StorageDirectory();
         var document = SavedSession().Document["session"]!.AsObject();

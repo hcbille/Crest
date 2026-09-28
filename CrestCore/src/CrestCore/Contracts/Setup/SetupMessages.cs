@@ -8,6 +8,10 @@ public sealed record ImportPasswordRoutes(IReadOnlyList<ImportPasswordRoute> Rou
 /// The Spaces one password goes to, none when it goes nowhere.
 public sealed record ImportPasswordRoute(IReadOnlyList<Guid> SpaceIds);
 
+/// The setup a launch holds its windows back for until it finishes, or null
+/// when it holds them back for none.
+public sealed record LaunchSetupGate(SetupEntry? Setup);
+
 #endregion
 
 #region Changes

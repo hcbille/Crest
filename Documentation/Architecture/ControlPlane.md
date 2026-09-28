@@ -681,7 +681,13 @@ core no longer hosts, or that another engine hosts, changes nothing.
   at a time, through `CheckBeforeUnload`, and asks the person about downloads
   in progress before a quit. It publishes `CloseReady` with whether the close
   may proceed; it may not when a page that agreed has shown another document
-  since.
+  since. Closing the last window of a private or torn-off tab's workspace
+  asks every page of that workspace, whichever window hosts it. A quit waits
+  while a Space is being deleted and the engines are still erasing its
+  profile: `PrepareToQuit` is refused with `SpaceDeletionUnderway`, the
+  platform shows its notice and asks again once the deletion moves on. Once a
+  quit is allowed, the windows still open stay the ones the next launch
+  reopens.
 - **Picture in Picture.** Each page reports its Picture in Picture activity
   in its snapshot. When a window shows a page again, or the page's Space locks,
   is being deleted or is gone, the core sends the page's engine

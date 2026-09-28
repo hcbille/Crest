@@ -8,7 +8,16 @@ public sealed record OpenedWindowSelected(bool Selects);
 /// The Space an external link opens in and whether it opens as a Quick Window
 /// there. `SubstitutesForLockedSpace` says the routed Space was locked and this
 /// one stands in for it. `SpaceId` is null when no Space may take the link.
-public sealed record ExternalLinkPlacement(Guid? SpaceId, bool OpensQuickWindow, bool SubstitutesForLockedSpace);
+/// `WindowId` is the window the link opens in, or a Quick Window promotes into:
+/// an open one, or with `OpensWindow`, one to open. It is null when the link
+/// opens nowhere, or in a Quick Window with no window open.
+public sealed record ExternalLinkPlacement(Guid? SpaceId, bool OpensQuickWindow, bool SubstitutesForLockedSpace, Guid? WindowId,
+    bool OpensWindow);
+
+/// The window and Space a document another app hands Crest opens in: an open
+/// window, or with `OpensWindow`, one to open. Both are null when no Space may
+/// take it.
+public sealed record LocalDocumentPlacement(Guid? WindowId, Guid? SpaceId, bool OpensWindow);
 
 #endregion
 

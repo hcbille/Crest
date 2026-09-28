@@ -58,13 +58,20 @@ internal sealed class Window {
     /// release kept in the session, which a window without a record adopts.
     public static Window Launching(Guid id, Guid workspaceId, bool saved, SessionState session,
         IReadOnlyDictionary<Guid, Guid> legacyTabs) {
-        var available = Showable(session).ToArray();
-        var launch = available.FirstOrDefault(space => space.Id == session.DefaultSpaceId) ?? available.FirstOrDefault();
+        var launch = LaunchSpace(session);
         var window = new Window(id, workspaceId, saved, launch?.Id ?? Guid.Empty,
             legacyTabs.Where(entry => session.Spaces.Any(space => space.Id == entry.Key && Contains(space, entry.Value)))
                 .ToDictionary(entry => entry.Key, entry => (Guid?)entry.Value), [], []);
         if (launch is not null) window.ShowSpace(launch);
         return window;
+    }
+
+    /// The Space a window without a record opens on over `session`: its
+    /// default Space unless that is being deleted, else the first Space, or
+    /// none while every Space is going.
+    public static SpaceState? LaunchSpace(SessionState session) {
+        var available = Showable(session).ToArray();
+        return available.FirstOrDefault(space => space.Id == session.DefaultSpaceId) ?? available.FirstOrDefault();
     }
 
     /// What the window shows over `session`, as the platform reads it: what

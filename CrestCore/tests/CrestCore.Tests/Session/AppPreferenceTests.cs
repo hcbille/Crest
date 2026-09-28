@@ -11,9 +11,8 @@ namespace CrestCore.Tests;
 /// The persistent workspace imports the old settings once and keeps the
 /// preferences on this device; the launch plan reads its startup choice.
 public sealed partial class BrowserContractsTests {
-    private static LaunchPlan LaunchPlan(Guid workspace, DevicePlatform? platform = null, bool gate = false,
-        LaunchEnvironment? environment = null) =>
-        new(workspace, platform ?? DevicePlatform.Desktop, environment ?? LaunchEnvironment.Installed, gate);
+    private static LaunchPlan LaunchPlan(Guid workspace, DevicePlatform? platform = null, LaunchEnvironment? environment = null) =>
+        new(workspace, platform ?? DevicePlatform.Desktop, environment ?? LaunchEnvironment.Installed);
 
     private static LegacyAppPreferences LegacyPreferences() => new(StartupBehavior: "lastActiveTab", OffersTranslation: false,
         AutomaticallyTranslates: true, TranslationRules: """{"sources":{"es":{"isEnabled":true,"targetID":"en"}}}""",
@@ -26,6 +25,7 @@ public sealed partial class BrowserContractsTests {
         byte[] saved;
         using (var device = new TestDevice(session)) {
             var authority = device.Authority;
+            device.Send(new AdoptSetupCompletion(Completed: true));
             Assert.Equal(StartupBehavior.ShowStartPage, device.Query(LaunchPlan(device.Workspace)).Startup);
             device.Send(new ImportAppPreferences(device.Workspace, LegacyPreferences()));
             saved = authority.Checkpoint().Read("core");
@@ -48,6 +48,7 @@ public sealed partial class BrowserContractsTests {
         relaunched.Send(new ImportAppPreferences(relaunched.Workspace, new("showStartPage", null, null, null, false, null, null, null,
             null)));
         Assert.Same(kept, restored.Current.AppPreferences);
+        relaunched.Send(new AdoptSetupCompletion(Completed: true));
         Assert.Equal(StartupBehavior.LastActiveTab, relaunched.Query(LaunchPlan(relaunched.Workspace)).Startup);
     }
 
@@ -96,16 +97,19 @@ public sealed partial class BrowserContractsTests {
         var platform = DevicePlatform.Named(platformName)!;
         var session = SavedSession().Document["session"]!.AsObject();
         session["appPreferences"] = new JsonObject { ["startupBehavior"] = "lastActiveTab" };
-        using (var device = new TestDevice(session))
-            Assert.Equal(StartupBehavior.LastActiveTab, device.Query(LaunchPlan(device.Workspace, platform, gate)).Startup);
+        using (var device = new TestDevice(session)) {
+            device.Send(new AdoptSetupCompletion(Completed: !gate));
+            Assert.Equal(StartupBehavior.LastActiveTab, device.Query(LaunchPlan(device.Workspace, platform)).Startup);
+        }
         session["appPreferences"] = new JsonObject { ["startupBehavior"] = "showStartPage" };
         using var shows = new TestDevice(session);
+        shows.Send(new AdoptSetupCompletion(Completed: !gate));
         Assert.Equal(gate ? StartupBehavior.LastActiveTab : StartupBehavior.ShowStartPage,
-            shows.Query(LaunchPlan(shows.Workspace, platform, gate)).Startup);
+            shows.Query(LaunchPlan(shows.Workspace, platform)).Startup);
         // Setup and isolated fixtures restore their staged tab; the mobile showcase always opens the Start Page.
-        Assert.Equal(StartupBehavior.LastActiveTab, shows.Query(LaunchPlan(shows.Workspace, platform, false,
+        Assert.Equal(StartupBehavior.LastActiveTab, shows.Query(LaunchPlan(shows.Workspace, platform,
             LaunchEnvironment.Installed with { RequestsIsolatedSession = true })).Startup);
-        Assert.Equal(StartupBehavior.ShowStartPage, shows.Query(LaunchPlan(shows.Workspace, DevicePlatform.Mobile, false,
+        Assert.Equal(StartupBehavior.ShowStartPage, shows.Query(LaunchPlan(shows.Workspace, DevicePlatform.Mobile,
             LaunchEnvironment.Installed with { PresentsShowcase = true })).Startup);
     }
 }

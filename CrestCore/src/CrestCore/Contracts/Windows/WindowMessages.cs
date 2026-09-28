@@ -31,6 +31,21 @@ public sealed record SplitJoinCandidateTab(Guid? TabId);
 /// or null when none is open, when a chosen Space opens a window on itself.
 public sealed record DockMenuContent(IReadOnlyList<DockMenuCommand> Commands, IReadOnlyList<DockMenuSpace> Spaces, Guid? WindowId);
 
+/// The windows a launch opens, back to front, each a saved window's identity:
+/// the frontmost, `StartupWindowId`, takes the startup choice. `Setup` is the
+/// setup that opens in front of them, and holds them back until it finishes,
+/// or null when none does.
+public sealed record LaunchWindowPlan(IReadOnlyList<Guid> WindowIds, Guid StartupWindowId, SetupEntry? Setup);
+
+/// The window that comes to the person: an open one, or with `OpensWindow`, a
+/// saved window's identity to open.
+public sealed record ReopenedWindow(Guid WindowId, bool OpensWindow);
+
+/// The window an engine-created browser window's tabs join and the Space they
+/// belong to: an open window, or with `OpensWindow`, a new one to open. Both
+/// are null when the tabs are declined.
+public sealed record EngineWindowPlace(Guid? WindowId, Guid? SpaceId, bool OpensWindow);
+
 /// One Space in the Dock icon's menu, drawn as the Space switcher draws it:
 /// its name, symbol, accent and the look it wears, which says whether its
 /// icon is its crest or its symbol. `IsShown` checks the Space the frontmost

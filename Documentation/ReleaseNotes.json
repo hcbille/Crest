@@ -3281,6 +3281,18 @@
     "engine-hosted-page-typed": {
       "category": "internal",
       "message": "Shared page code names what an engine built for a page as its own type, and the WebKit pieces it carried now live with the WebKit engine."
+    },
+    "chromium-first-run-setup": {
+      "category": "new",
+      "message": "The Chromium build now opens first-run setup on a Mac where Crest hasn't been set up yet, as the WebKit build does, and opens your windows once setup finishes."
+    },
+    "quit-waits-for-space-deletion": {
+      "category": "improved",
+      "message": "Quitting while a Space is being deleted now tells you Crest will quit once the Space is gone, and then quits by itself, instead of quitting midway or ignoring the request."
+    },
+    "external-opens-follow-link-settings": {
+      "category": "improved",
+      "message": "Links and documents from other apps open in your frontmost Crest window, and with no window open they follow your link settings instead of always opening a Quick Window. The Chromium build reopens its windows in the order you left them, with only the front one taking focus."
     }
   }
 }

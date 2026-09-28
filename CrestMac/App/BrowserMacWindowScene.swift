@@ -22,6 +22,7 @@ struct BrowserMacWindowScene: View {
     private let shortcuts: BrowserShortcutStore?
     private let sidebarWidgets: BrowserSidebarWidgetRuntime
     private let softwareUpdates: BrowserSoftwareUpdateService
+    private let externalOpening: BrowserMacExternalOpening
 
     init(
         model: BrowserMacWindowModel,
@@ -32,7 +33,8 @@ struct BrowserMacWindowScene: View {
         startupBehavior: StartupBehavior,
         shortcuts: BrowserShortcutStore? = nil,
         sidebarWidgets: BrowserSidebarWidgetRuntime,
-        softwareUpdates: BrowserSoftwareUpdateService
+        softwareUpdates: BrowserSoftwareUpdateService,
+        externalOpening: BrowserMacExternalOpening
     ) {
         self.model = model
         self.coordinator = coordinator
@@ -43,6 +45,7 @@ struct BrowserMacWindowScene: View {
         self.shortcuts = shortcuts
         self.sidebarWidgets = sidebarWidgets
         self.softwareUpdates = softwareUpdates
+        self.externalOpening = externalOpening
     }
 
     var body: some View {
@@ -74,15 +77,7 @@ struct BrowserMacWindowScene: View {
             \.browserApplicationIcon,
             Image(nsImage: NSApplication.shared.applicationIconImage)
         )
-        .modifier(
-            BrowserExternalLinkHandler(
-                browser: browser,
-                pages: pages,
-                chrome: chrome,
-                spaceAccess: spaceAccess,
-                targetWindowID: id
-            )
-        )
+        .modifier(BrowserExternalLinkHandler(externalOpening: externalOpening, coordinator: coordinator))
         .environment(\.browserPagePresentationWindowID, id)
         .environment(
             \.browserSidebarWindowDrop,

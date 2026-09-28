@@ -82,8 +82,8 @@ public sealed partial class BrowserContractsTests {
         var locked = Identity(session).Space;
         var open = SpaceId(session["spaces"]![1]!);
         app.Send(new ShowSpace(window, open));
-        ExternalLinkPlacement Route(string url) => app.Query(new RouteExternalLink(window, url));
-        var substituted = new ExternalLinkPlacement(open, OpensQuickWindow: true, SubstitutesForLockedSpace: true);
+        ExternalLinkPlacement Route(string url) => app.Query(new RouteExternalLink([window], url));
+        var substituted = new ExternalLinkPlacement(open, OpensQuickWindow: true, SubstitutesForLockedSpace: true, window, OpensWindow: false);
 
         // A route, the chosen Space and a remembered site each name the locked Space.
         var route = Guid.NewGuid();
@@ -98,13 +98,44 @@ public sealed partial class BrowserContractsTests {
 
         // Once unlocked, each opens where it names.
         TestGrants.Unlock(app.Send, workspace, locked);
-        Assert.Equal(new ExternalLinkPlacement(locked, false, false), Route("https://example.com/a"));
-        Assert.Equal(new ExternalLinkPlacement(locked, true, false), Route("https://example.org/b"));
+        Assert.Equal(new ExternalLinkPlacement(locked, false, false, window, false), Route("https://example.com/a"));
+        Assert.Equal(new ExternalLinkPlacement(locked, true, false, window, false), Route("https://example.org/b"));
 
         // With every Space locked, the link opens nowhere.
         app.Send(new LockSpace(locked));
         app.Send(new SetSpaceAccess(workspace, open, SpaceAccessPolicy.DeviceOwnerAuthentication));
-        Assert.Equal(new ExternalLinkPlacement(null, false, false), Route("https://example.com/a"));
+        Assert.Equal(new ExternalLinkPlacement(null, false, false, null, false), Route("https://example.com/a"));
+    }
+
+    [Fact]
+    public void ALinkOrDocumentFromAnotherAppGoesToTheFrontWindowOverThePersonsSpacesOrOpensOne() {
+        using var directory = new StorageDirectory();
+        var (app, workspace, spaces) = DeviceApp(directory);
+        using var disposal = app;
+        var (first, second) = (SpaceId(spaces[0]!), SpaceId(spaces[1]!));
+        Guid back = Guid.NewGuid(), front = Guid.NewGuid(), privateWindow = Guid.NewGuid();
+        app.Send(new OpenWindow(back, workspace, Saved: true, null, first, [], RestoresTabs: true));
+        app.Send(new OpenWindow(front, workspace, Saved: true, null, second, [], RestoresTabs: true));
+        var privateWorkspace = TestWorkspaces.Opened(app.Send(new OpenWorkspace(WorkspaceKind.Private, Seed: null)));
+        app.Send(new OpenWindow(privateWindow, privateWorkspace, Saved: false, null, null, [], RestoresTabs: true));
+        app.Send(new ChooseExternalLinkDestination(ExternalLinkDestination.MostRecentSpace, SpaceId: null));
+        ExternalLinkPlacement Route(params Guid[] stacked) => app.Query(new RouteExternalLink(stacked, "https://example.com/"));
+        LocalDocumentPlacement Document(params Guid[] stacked) => app.Query(new RouteLocalDocument(stacked));
+
+        // A link or a document goes to the frontmost window over the person's
+        // own Spaces, never a private one in front of it, on the Space it shows.
+        Assert.Equal(new ExternalLinkPlacement(second, false, false, front, OpensWindow: false), Route(privateWindow, front, back));
+        Assert.Equal(new ExternalLinkPlacement(first, false, false, back, OpensWindow: false), Route(back, front));
+        Assert.Equal(new LocalDocumentPlacement(front, second, OpensWindow: false), Document(privateWindow, front, back));
+
+        // With none of them open, each goes where it would with one: to the
+        // window used last, which opens on what it showed, or a Quick Window alone.
+        app.Send(new CloseWindow(front));
+        app.Send(new CloseWindow(back));
+        Assert.Equal(new ExternalLinkPlacement(second, false, false, front, OpensWindow: true), Route(privateWindow));
+        Assert.Equal(new LocalDocumentPlacement(front, second, OpensWindow: true), Document());
+        app.Send(new ChooseExternalLinkDestination(ExternalLinkDestination.QuickWindow, SpaceId: null));
+        Assert.Equal(new ExternalLinkPlacement(second, true, false, null, OpensWindow: false), Route(privateWindow));
     }
 
     [Fact]

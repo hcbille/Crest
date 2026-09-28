@@ -90,14 +90,12 @@
         private var browserMenu: CrestChromiumMenu?
         private var quitting = false
         private var hasStopped = false
-        /// Which normal windows were open, newest last. Window contents and
-        /// selection stay in `BrowserWindowStateStore`, and frames stay in AppKit's
-        /// own autosave records; this list only records how many windows the
-        /// SwiftUI `WindowGroup` would have restored, which AppKit cannot tell a
-        /// framework-hosted window itself.
-        private var restorableWindowIDs: [UUID] = []
-        private let restorationDefaults: UserDefaults?
-        private static let restorableWindowsKey = "crest.chromium.windows.v1"
+        /// The windows this launch opens, held back while first-run setup
+        /// stands in front of them.
+        private var heldLaunch: LaunchWindowPlan?
+        /// Where an earlier release listed the windows open at quit, before the
+        /// core kept them.
+        private static let legacyWindowListKey = "crest.chromium.windows.v1"
 
         /// Starts Crest over the Mac shell's `host`, registering Chromium's C++
         /// `binding`, built against the engine contract `fingerprint` names, with
@@ -199,8 +197,6 @@
                 },
                 reviewPersistenceID: "chromium-native-ui-review")
             chromium.hostCommands = application
-            restorationDefaults = Self.restorationDefaults()
-            restorableWindowIDs = Self.storedRestorableWindowIDs(in: restorationDefaults)
             super.init()
             chromium.follow(application.browser.core)
         }
@@ -380,6 +376,8 @@
                         guard let self else { return }
                         if let id = source?.id, let browserWindow = self.windows[id] {
                             browserWindow.makeKeyAndOrderFront(nil)
+                        } else if let held = self.heldLaunch {
+                            self.open(held)
                         } else {
                             self.openWindow(.normal(sourceWindowID: nil))
                         }
@@ -444,39 +442,74 @@
             return UserDefaults(suiteName: BrowserLaunchEnvironment.isolatedDefaultsSuiteName(isolationID: isolationID))
         }
 
-        private static func storedRestorableWindowIDs(in defaults: UserDefaults?) -> [UUID] {
-            guard let stored = defaults?.array(forKey: restorableWindowsKey) as? [String] else { return [] }
-            return stored.compactMap(UUID.init(uuidString:))
+        /// Hands the core the window list an earlier release kept in its
+        /// defaults, which the core carries once, then forgets the list. A list
+        /// the core could not save stays for the next launch.
+        private func adoptLegacyWindowList() {
+            let defaults = Self.restorationDefaults()
+            guard let stored = defaults?.array(forKey: Self.legacyWindowListKey) as? [String] else { return }
+            do {
+                try application.browser.core.send(
+                    AdoptOpenWindows(windowIDs: stored.compactMap(UUID.init(uuidString:))))
+                defaults?.removeObject(forKey: Self.legacyWindowListKey)
+            } catch {
+                DiagnosticLog.windows.notice(
+                    "The core could not keep the windows an earlier release listed: \(DiagnosticLog.describe(error))")
+            }
         }
 
-        private func persistRestorableWindowIDs() {
-            restorationDefaults?.set(restorableWindowIDs.map { $0.uuidString }, forKey: Self.restorableWindowsKey)
-        }
-
-        /// Reopens the normal windows the previous session left open. Private and
-        /// Quick Windows are deliberately not restored.
+        /// Opens what the core says this launch opens: the windows the person
+        /// left open, or first-run setup in front of them, which holds them
+        /// back until it finishes. Private and Quick Windows are never restored.
         private func restoreWindows() {
-            let restored = restorableWindowIDs
-            restorableWindowIDs = []
-            for id in restored { openWindow(.reopening(id)) }
-            if windows.isEmpty { openWindow(.initial) }
-            let front = restored.first { windows[$0] != nil } ?? windows.keys.first
-            if let front, let window = windows[front] { window.makeKeyAndOrderFront(nil) }
+            adoptLegacyWindowList()
+            guard
+                let plan = try? application.browser.core.query(
+                    LaunchWindows(environment: application.launchEnvironment))
+            else {
+                openWindow(.initial)
+                return
+            }
+            if let setup = plan.setup {
+                heldLaunch = plan
+                openOnboardingWindow(BrowserOnboardingRequest(entryPoint: setup))
+                return
+            }
+            open(plan)
         }
 
-        /// A Dock click or `Open` with no Crest window. The SwiftUI application
-        /// brings an existing window forward and otherwise opens the initial
-        /// window; Chromium must not create a browser of its own here because it
-        /// would have no registered native window.
+        /// Opens the launch's windows back to front, each coming forward
+        /// without focus, and the frontmost last, as the key window on the
+        /// startup choice.
+        private func open(_ plan: LaunchWindowPlan) {
+            heldLaunch = nil
+            application.startupWindowID = plan.startupWindowID
+            for id in plan.windowIDs {
+                openWindow(.reopening(id), activation: id == plan.startupWindowID ? .key : .background)
+            }
+        }
+
+        /// A Dock click or `Open` with no Crest window. An open window comes
+        /// forward; with none, setup does while it holds the launch back, and
+        /// otherwise the window the core names opens. Chromium must not create
+        /// a browser of its own here because it would have no registered native
+        /// window.
         static func reopen() -> Bool {
             guard let instance, !instance.quitting else { return false }
+            let application = instance.application
             if let window = activeNativeWindow ?? instance.privateWindow
-                ?? instance.quickWindows.values.first?.window
+                ?? instance.quickWindows.values.first?.window ?? instance.onboardingWindow
             {
                 if window.isMiniaturized { window.deminiaturize(nil) }
                 window.makeKeyAndOrderFront(nil)
-            } else {
-                instance.openWindow(.initial)
+            } else if let setup = try? application.browser.core.query(
+                LaunchSetup(environment: application.launchEnvironment)
+            ).setup {
+                instance.openOnboardingWindow(BrowserOnboardingRequest(entryPoint: setup))
+            } else if let reopened = try? application.browser.core.query(
+                WindowToReopen(windowIDs: application.stackedWindowIDs))
+            {
+                instance.openWindow(.reopening(reopened.windowID))
             }
             NSApp.activate(ignoringOtherApps: true)
             return true
@@ -516,77 +549,14 @@
         }
 
         private func openExternalURLs(_ urls: [URL]) {
-            Task { @MainActor in
-                let documents = urls.filter { $0.isFileURL }
-                if !documents.isEmpty { await openLocalDocuments(documents) }
-                for url in urls where !url.isFileURL { await openExternalURL(url) }
-            }
+            Task { @MainActor in await application.externalOpening.open(urls, presenter: presenter) }
         }
 
-        /// The window an external open belongs to. A tear-off window owns a
-        /// disposable workspace, so it never receives one; if no normal window is
-        /// left, one opens. An external open rarely arrives while Crest is
-        /// frontmost, so there is usually no key window to ask.
-        private func externalTargetModel() -> BrowserMacWindowModel? {
-            let active = activeModel.flatMap { $0.isTemporary ? nil : $0 }
-            if active == nil, restorableWindowIDs.isEmpty { openWindow(.initial) }
-            return active
-                ?? restorableWindowIDs.reversed().lazy
-                .compactMap({ self.application.windowCoordinator.existingModel(for: $0) }).first
-        }
-
-        /// A document opened from Finder, Open With or `open -a Crest` is not a web
-        /// link and has no host to route on. It belongs in the Space on screen.
-        private func openLocalDocuments(_ urls: [URL]) async {
-            guard let model = externalTargetModel(), let space = model.browser.shownSpace else { return }
-            let assignment = BrowserSpaceRuntimeAssignment(space: space)
-            guard await application.spaceAccess.unlock(space),
-                model.browser.spaceModel(matching: assignment) != nil
-            else { return }
-            BrowserCommandActions(
-                browser: model.browser, pages: model.pages, chrome: model.chrome,
-                openWindow: EnvironmentValues().openWindow, spaceAccess: application.spaceAccess,
-                targetWindowID: model.id
-            ).openLocalDocuments(urls, in: assignment)
-            windows[model.id]?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-        }
-
-        /// Where a link from another app lands: the window that receives it, the
-        /// Space its routing names, and whether it opens as a Quick Window.
-        private func externalDestination(for url: URL) async
-            -> (
-                model: BrowserMacWindowModel, assignment: BrowserSpaceRuntimeAssignment,
-                placement: ExternalLinkPlacement
-            )?
-        {
-            guard let model = externalTargetModel() else { return nil }
-            let browser = model.browser
-            // A link that arrived from another process never raises the biometric
-            // prompt for a locked Space; the core opens it in a Quick Window on an
-            // unlocked one.
-            guard
-                let placement = try? browser.core.query(
-                    RouteExternalLink(windowID: browser.windowID, url: url.absoluteString)),
-                let spaceID = placement.spaceID, let space = browser.spaceModel(spaceID)
-            else { return nil }
-            let assignment = BrowserSpaceRuntimeAssignment(space: space)
-            guard await application.spaceAccess.unlock(space), browser.spaceModel(matching: assignment) != nil else {
-                return nil
-            }
-            return (model, assignment, placement)
-        }
-
-        private func openExternalURL(_ url: URL) async {
-            guard let (model, assignment, placement) = await externalDestination(for: url) else { return }
-            if placement.opensQuickWindow {
-                openQuickWindow(
-                    BrowserQuickWindowRequest(url: url, spaceAssignment: assignment, targetWindowID: model.id))
-                return
-            }
-            guard commands.openExternalLink(url, in: assignment, window: model.id) else { return }
-            windows[model.id]?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+        /// Shows what an external open lands in through this root's own windows.
+        private var presenter: BrowserMacExternalOpening.Presenter {
+            BrowserMacExternalOpening.Presenter(
+                showWindow: { [weak self] request in self?.openWindow(request) },
+                openQuickWindow: { [weak self] request in self?.openQuickWindow(request) })
         }
 
         // MARK: - System sign-in
@@ -620,12 +590,14 @@
 
         private func openAuthenticationSession(_ url: URL, id: UUID) {
             Task { @MainActor in
-                guard let (model, assignment, _) = await externalDestination(for: url) else {
+                guard let destination = await application.externalOpening.destination(for: url) else {
                     host.cancelAuthenticationSession(window: id)
                     return
                 }
                 openQuickWindow(
-                    BrowserQuickWindowRequest(id: id, url: url, spaceAssignment: assignment, targetWindowID: model.id))
+                    BrowserQuickWindowRequest(
+                        id: id, url: url, spaceAssignment: destination.assignment,
+                        targetWindowID: destination.quickWindowTarget))
                 guard let window = quickWindows[id]?.window else {
                     host.cancelAuthenticationSession(window: id)
                     return
@@ -671,9 +643,6 @@
                 let autosaveName = "crest.chromium.window.\(request.id.uuidString)"
                 if !window.setFrameUsingName(autosaveName) { placeNewWindow(window) }
                 window.setFrameAutosaveName(autosaveName)
-                restorableWindowIDs.removeAll { $0 == request.id }
-                restorableWindowIDs.append(request.id)
-                persistRestorableWindowIDs()
             } else {
                 window.center()
             }
@@ -766,12 +735,8 @@
             // the window, since AppKit gives it to no other window while this one
             // is alive, so the window reopened under this identity keeps saving.
             window.setFrameAutosaveName("")
-            // A window the user closed is not restored; windows still open at quit
-            // are, so a terminating application keeps its recorded list.
-            if !quitting, restorableWindowIDs.contains(id) {
-                restorableWindowIDs.removeAll { $0 == id }
-                persistRestorableWindowIDs()
-            }
+            // The core forgets a window the person closed for the next launch,
+            // and keeps the ones still open once a quit was allowed.
             application.windowCoordinator.closeWindow(id)
             NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: window)
         }
@@ -779,49 +744,29 @@
         // MARK: - Engine-created windows
 
         /// Reserves the Crest window that will host a Browser the engine created
-        /// for itself and names the Space its tabs belong to.
+        /// for itself and names the Space its tabs belong to, as the core places
+        /// them over the windows as AppKit stacks them.
         ///
         /// Crest is one window. The Browser's tabs join the window the person is
         /// using, and only `chrome.windows.create` (`ownWindow`) opens another,
         /// because that extension asked for a window by name. Nothing is
         /// presented here: the engine creates the Browser first and offers its
         /// tabs afterwards, and a renderer popup keeps its opener's window
-        /// instead. A profile with no Space to host it is declined, so the
+        /// instead. The core declines a profile with no Space to host it, so the
         /// engine drops those tabs rather than routing them into an unrelated
-        /// Space. An off-the-record profile belongs to the private window and is
-        /// declined outright when that window is closed. A Space that is locked or
-        /// being deleted is declined as well, so engine-created tabs never appear
-        /// inside one the user has not unlocked.
+        /// Space, an off-the-record profile once the private window is closed,
+        /// and a Space that is locked or being deleted, so engine-created tabs
+        /// never appear inside one the person has not unlocked.
         static func reserveEngineWindow(forProfile profile: UUID, ownWindow: Bool) -> (window: UUID, space: UUID)? {
             guard let instance, !instance.quitting else { return nil }
-            // A profile belongs to exactly one Space. Resolve that Space instead of
-            // accepting whichever one matched first, and refuse an ambiguous answer.
-            func host(in browser: BrowserStore) -> SpaceModel? {
-                let owners = browser.spaceModels.filter { $0.profileID == profile }
-                guard owners.count == 1, let space = owners.first,
-                    !browser.deletingSpaceIDs.contains(space.id),
-                    !instance.application.spaceAccess.isLocked(space)
-                else { return nil }
-                return space
-            }
-            let privateBrowser = instance.application.privateBrowser
-            if privateBrowser.spaceModels.contains(where: { $0.profileID == profile }) {
-                guard let space = host(in: privateBrowser),
-                    let identifier = instance.privateWindow?.identifier.flatMap({ UUID(uuidString: $0.rawValue) })
-                else { return nil }
-                return (identifier, space.id)
-            }
-            guard let space = host(in: instance.application.browser) else { return nil }
-            if !ownWindow, let window = instance.engineWindowTarget { return (window, space.id) }
-            return (UUID(), space.id)
-        }
-
-        /// The open window an engine-created Browser's tabs join: the normal
-        /// window in front, or else the one opened last. A tear-off window owns a
-        /// disposable workspace, so it never receives them.
-        private var engineWindowTarget: UUID? {
-            if let active = activeModel, !active.isTemporary { return active.id }
-            return restorableWindowIDs.last { windows[$0] != nil }
+            let application = instance.application
+            guard
+                let place = try? application.browser.core.query(
+                    EngineWindowPlacement(
+                        profileID: profile, ownWindow: ownWindow, windowIDs: application.stackedWindowIDs)),
+                let window = place.windowID, let space = place.spaceID
+            else { return nil }
+            return (window, space)
         }
 
         /// Opens the window reserved for an engine-created Browser, just before its
@@ -893,24 +838,27 @@
         static func deferQuit() -> Bool {
             guard let instance, !instance.hasStopped else { return false }
             guard !instance.quitting else { return true }
-            // A Space whose data is being deleted finishes that first; the quit
-            // waits for the person to ask again.
-            guard instance.application.browser.deletingSpaceIDs.isEmpty else { return true }
             instance.quitting = true
-            instance.persistRestorableWindowIDs()
-            instance.application.quitPreparation.prepare { allowed in
-                guard allowed else {
-                    instance.quitting = false
-                    return
-                }
-                Task { @MainActor in
-                    for quick in Array(instance.quickWindows.values) { quick.window.closeAfterApproval() }
-                    await instance.commands.flushPendingPersistenceBeforeQuit()
-                    instance.host.disposePages()
-                    instance.hasStopped = true
-                    instance.host.completeQuit()
-                }
-            }
+            // A quit the core defers while a Space is deleted is asked for again
+            // once the deletion moves on.
+            instance.application.quitPreparation.prepare(
+                retry: { _ = deferQuit() },
+                completion: { allowed in
+                    guard allowed else {
+                        instance.quitting = false
+                        return
+                    }
+                    // The core keeps the windows open now for the next launch
+                    // before any of them closes as the app goes.
+                    instance.application.rememberWindowsForLaunch()
+                    Task { @MainActor in
+                        for quick in Array(instance.quickWindows.values) { quick.window.closeAfterApproval() }
+                        await instance.commands.flushPendingPersistenceBeforeQuit()
+                        instance.host.disposePages()
+                        instance.hasStopped = true
+                        instance.host.completeQuit()
+                    }
+                })
             return true
         }
 

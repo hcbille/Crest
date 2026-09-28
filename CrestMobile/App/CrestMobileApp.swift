@@ -154,10 +154,8 @@ private final class BrowserMobileApplication {
         // once from what an older release kept in its defaults.
         _ = try? core.send(AdoptSetupCompletion(completed: legacyDevice.setupCompleted))
         onboardingProgress = BrowserOnboardingProgressStore(
-            core: core,
-            forceWelcome: forceOnboarding,
-            forceSetup: launchEnvironment.forcesMobileOnboardingSetup
-        )
+            core: core, environment: launchEnvironment.coreEnvironment,
+            forcesSetup: launchEnvironment.forcesMobileOnboardingSetup)
         let onboardingCoordinator = BrowserOnboardingCoordinator()
         self.onboardingCoordinator = onboardingCoordinator
         self.pages = pages

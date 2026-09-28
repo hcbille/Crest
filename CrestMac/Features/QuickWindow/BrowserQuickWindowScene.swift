@@ -9,6 +9,8 @@ struct BrowserQuickWindowScene: View {
     let preferences: BrowserTransientBrowsingPreferences
     let previewModel: BrowserQuickWindowModel?
     let windowCoordinator: BrowserMacWindowCoordinator?
+    /// Opens a link or document this scene receives where the core places it.
+    let externalOpening: BrowserMacExternalOpening?
 
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.openWindow) private var openWindow
@@ -21,6 +23,7 @@ struct BrowserQuickWindowScene: View {
         spaceAccess: BrowserSpaceAccessController,
         pagePoolRegistry: BrowserPagePoolRegistry,
         windowCoordinator: BrowserMacWindowCoordinator,
+        externalOpening: BrowserMacExternalOpening,
         preferences: BrowserTransientBrowsingPreferences? = nil
     ) {
         _request = request
@@ -29,6 +32,7 @@ struct BrowserQuickWindowScene: View {
         self.spaceAccess = spaceAccess
         self.pagePoolRegistry = pagePoolRegistry
         self.windowCoordinator = windowCoordinator
+        self.externalOpening = externalOpening
         self.preferences = preferences ?? .production(core: browser.core)
         previewModel = nil
     }
@@ -44,6 +48,7 @@ struct BrowserQuickWindowScene: View {
         self.spaceAccess = spaceAccess
         pagePoolRegistry = nil
         windowCoordinator = nil
+        externalOpening = nil
         preferences = .isolated
         previewModel = model
     }
@@ -97,47 +102,26 @@ struct BrowserQuickWindowScene: View {
         )
     }
 
+    /// Opens a link or document SwiftUI delivered to this scene, which it
+    /// does when no browser window is open, where the core places it: a link
+    /// that opens in a Quick Window shows here, and anything that goes to a
+    /// browser window takes this one's place.
     private func routeExternalURL(_ url: URL) async {
-        guard BrowserCorePolicy.acceptsExternalURL(url) else { return }
+        let accepted =
+            url.isFileURL ? BrowserCorePolicy.acceptsLocalDocument(url) : BrowserCorePolicy.acceptsExternalURL(url)
+        guard accepted, let externalOpening, let windowCoordinator else { return }
         isRoutingExternalURL = true
         defer { isRoutingExternalURL = false }
-        let targetWindowID = request?.targetWindowID
-        guard
-            let initialContext = contextResolver?.context(
-                targetWindowID: targetWindowID
-            )
-        else { return }
-        // The core never routes to a locked Space, so the unlock below only
-        // confirms the Space is still open to this process.
-        guard
-            let placement = try? initialContext.browser.core.query(
-                RouteExternalLink(windowID: initialContext.browser.windowID, url: url.absoluteString)),
-            let spaceID = placement.spaceID,
-            let space = initialContext.browser.spaceModel(spaceID)
-        else { return }
-        let assignment = BrowserSpaceRuntimeAssignment(space: space)
-        guard await spaceAccess.unlock(space),
-            let context = contextResolver?.context(
-                targetWindowID: targetWindowID
-            ),
-            context.browser.spaceModel(matching: assignment) != nil
-        else {
-            return
-        }
-
-        if placement.opensQuickWindow {
-            request = BrowserQuickWindowRequest(
-                url: url,
-                spaceAssignment: assignment,
-                targetWindowID: targetWindowID
-            )
-            return
-        }
-        guard context.browser.openNewTab(url: url, matching: assignment) != nil else { return }
-        context.pages.select()
-        context.pages.navigate(to: url.absoluteString)
-        openBrowserWindow()
-        dismissWindow()
+        let scenes = BrowserMacExternalOpening.Presenter.scenes(openWindow, coordinator: windowCoordinator)
+        let requestBinding = $request
+        await externalOpening.open(
+            [url],
+            presenter: BrowserMacExternalOpening.Presenter(
+                showWindow: { opened in
+                    scenes.showWindow(opened)
+                    dismissWindow()
+                },
+                openQuickWindow: { replacement in requestBinding.wrappedValue = replacement }))
     }
 
     private func openBrowserWindow() {

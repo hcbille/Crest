@@ -194,7 +194,9 @@ internal static class RecordedIntents {
         return changes;
     }
 
-    /// The query a recorded `launch.plan` read became, or null for any other request.
+    /// The query a recorded `launch.plan` read became, or null for any other
+    /// request. Whether setup held the launch back is the device's to say now,
+    /// from whether it completed setup, which `SetupCompleted` answers.
     public static LaunchPlan? LaunchPlan(JsonObject request, Guid workspace) {
         if (request["operation"]!.GetValue<string>() != "launch.plan") return null;
         var environment = request["environment"]!.AsObject();
@@ -202,8 +204,12 @@ internal static class RecordedIntents {
         return new(workspace, DevicePlatform.Named(request["platform"]!.GetValue<string>())!, new(Flag("testRuntime"),
             Flag("previewRuntime"), Flag("isolatedSession"), Flag("namedProfile"), Flag("isolatedCloudSync"), Flag("resetSession"),
             Flag("showcase"), Flag("inMemoryCredentials"), Flag("onboardingWelcome"), Flag("desktopSetup"), Flag("mobileSetup"),
-            Flag("performanceHarness"), Flag("updateTestFeed")), request["hasActiveLaunchGate"]!.GetValue<bool>());
+            Flag("performanceHarness"), Flag("updateTestFeed")));
     }
+
+    /// Whether the device a recorded `launch.plan` read asked about had
+    /// completed setup: it had unless setup held that launch back.
+    public static bool SetupCompleted(JsonObject request) => !request["hasActiveLaunchGate"]!.GetValue<bool>();
 
     /// A launch plan in the spelling the recorded answers compare against.
     public static JsonObject Encode(LaunchDecision plan) => new() {

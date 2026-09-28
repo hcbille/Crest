@@ -18,4 +18,17 @@ public sealed record QuitWithDownloadsAsked(Guid PromptId, Guid RequestId, int L
 /// Another close preparation, `RequestId`, is still under way.
 public sealed record ClosePreparationUnderway(Guid RequestId) : Rejection;
 
+/// The app waits to quit until the Spaces `SpaceIds` finish being deleted,
+/// which a quit would interrupt. The platform tells the person and asks to
+/// quit again once a deletion moves on.
+public sealed record SpaceDeletionUnderway(IReadOnlyList<Guid> SpaceIds) : Rejection {
+    #region Variables
+
+    /// What the person is told.
+    [Localized]
+    public string Message => "Crest will quit once the Space is deleted.";
+
+    #endregion
+}
+
 #endregion

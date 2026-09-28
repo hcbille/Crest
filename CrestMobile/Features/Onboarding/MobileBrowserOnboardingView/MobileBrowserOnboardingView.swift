@@ -234,7 +234,8 @@ struct MobileBrowserOnboardingView: View {
 
 #Preview("Mobile Onboarding — Root") {
     let fixture = MobileBrowserPreviewFixture()
-    let progress = BrowserOnboardingProgressStore(core: fixture.browser.core, forceWelcome: true)
+    let progress = BrowserOnboardingProgressStore(
+        core: fixture.browser.core, environment: BrowserLaunchEnvironment.current.coreEnvironment)
     MobileBrowserOnboardingView(
         request: BrowserOnboardingRequest(
             entryPoint: .firstRun,

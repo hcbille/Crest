@@ -229,6 +229,81 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void ALaunchReopensTheWindowsLeftOpenBackToFrontOrTheOneUsedLast() {
+        using var directory = new StorageDirectory();
+        Guid back = Guid.NewGuid(), closed = Guid.NewGuid(), minimized = Guid.NewGuid(), front = Guid.NewGuid();
+        var installed = LaunchEnvironment.Installed;
+        {
+            var (app, workspace, _) = DeviceApp(directory);
+            using var disposal = app;
+            foreach (var window in new[] { back, closed, minimized, front })
+                app.Send(new OpenWindow(window, workspace, Saved: true, null, null, [], RestoresTabs: true));
+            app.Send(new OpenWindow(Guid.NewGuid(), workspace, Saved: false, null, null, [], RestoresTabs: true));
+            // A window the person closed is not reopened, and one never saved is not either.
+            app.Send(new CloseWindow(closed));
+            Assert.Equal([back, minimized, front], app.Query(new LaunchWindows(installed)).WindowIds);
+
+            // At quit the platform says how its windows stack; one it left out
+            // goes behind. Once the quit is allowed, the windows closing as
+            // the app goes are still the ones to reopen.
+            app.Send(new RememberWindowsForLaunch([back, Guid.NewGuid(), front]));
+            Assert.Contains(app.Send(new PrepareToQuit(Guid.NewGuid())), change => change is CloseReady { Allowed: true });
+            foreach (var window in new[] { back, minimized, front }) app.Send(new CloseWindow(window));
+        }
+        {
+            var (relaunched, workspace, _) = DeviceApp(directory);
+            using var disposal = relaunched;
+            var plan = relaunched.Query(new LaunchWindows(installed));
+            Assert.Equal([minimized, front, back], plan.WindowIds);
+            Assert.Equal(back, plan.StartupWindowId);
+            // With every window closed, the Dock brings back the one used last.
+            relaunched.Send(new OpenWindow(minimized, workspace, Saved: true, null, null, [], RestoresTabs: true));
+            Assert.Equal(new ReopenedWindow(minimized, OpensWindow: false), relaunched.Query(new WindowToReopen([minimized])));
+            relaunched.Send(new CloseWindow(minimized));
+            Assert.Equal(new ReopenedWindow(minimized, OpensWindow: true), relaunched.Query(new WindowToReopen([])));
+            relaunched.Send(new RememberWindowsForLaunch([]));
+        }
+        var (again, _, _) = DeviceApp(directory);
+        using var againDisposal = again;
+        Assert.Equal([minimized], again.Query(new LaunchWindows(installed)).WindowIds);
+        using var fresh = new StorageDirectory();
+        var (first, _, _) = DeviceApp(fresh);
+        using var firstDisposal = first;
+        Assert.NotEqual(Guid.Empty, Assert.Single(first.Query(new LaunchWindows(installed)).WindowIds));
+    }
+
+    [Fact]
+    public void TheChromiumWindowListIsCarriedOnceAndNeverOverWindowsTheDeviceReopens() {
+        using var directory = new StorageDirectory();
+        Guid[] listed = [Guid.NewGuid(), Guid.NewGuid()];
+        var installed = LaunchEnvironment.Installed;
+        {
+            var (app, workspace, _) = DeviceApp(directory);
+            using var disposal = app;
+            foreach (var window in listed) app.Send(new OpenWindow(window, workspace, Saved: true, null, null, [], RestoresTabs: true));
+            foreach (var window in listed) app.Send(new CloseWindow(window));
+            Assert.Empty(Own(app.Send(new AdoptOpenWindows(listed))));
+            Assert.Equal(listed, app.Query(new LaunchWindows(installed)).WindowIds);
+            app.Send(new AdoptOpenWindows([listed[1]]));
+            Assert.Equal(listed, app.Query(new LaunchWindows(installed)).WindowIds);
+        }
+        var (relaunched, _, _) = DeviceApp(directory);
+        using (relaunched) {
+            relaunched.Send(new AdoptOpenWindows([Guid.NewGuid()]));
+            Assert.Equal(listed, relaunched.Query(new LaunchWindows(installed)).WindowIds);
+        }
+
+        // A device the other composition already reopens windows for keeps them.
+        using var other = new StorageDirectory();
+        var (kept, keptWorkspace, _) = DeviceApp(other);
+        using var keptDisposal = kept;
+        var own = Guid.NewGuid();
+        kept.Send(new OpenWindow(own, keptWorkspace, Saved: true, null, null, [], RestoresTabs: true));
+        kept.Send(new AdoptOpenWindows(listed));
+        Assert.Equal([own], kept.Query(new LaunchWindows(installed)).WindowIds);
+    }
+
+    [Fact]
     public void ADraggedTabMayLeaveOnlyAloneFromAnUnchangedSpace() {
         using var directory = new StorageDirectory();
         var (app, workspace, spaces) = DeviceApp(directory);

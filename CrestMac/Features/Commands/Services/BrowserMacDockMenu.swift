@@ -46,16 +46,6 @@ final class BrowserMacDockMenu: NSObject {
     /// calls it.
     fileprivate(set) var openWindow = EnvironmentValues().openWindow
 
-    /// The browser windows, frontmost first, by the identity each has in the
-    /// core: the order AppKit stacks them in, then any it leaves out, such as
-    /// a minimized one.
-    private var stackedWindowIDs: [UUID] {
-        let pools = [application.privatePages] + application.windowCoordinator.openWindowPages
-        let windows = pools.compactMap { pool in pool.presentationWindow.map { (window: $0, id: pool.windowID) } }
-        let stacked = NSApp.orderedWindows.compactMap { window in windows.first { $0.window === window }?.id }
-        return stacked + windows.map(\.id).filter { !stacked.contains($0) }
-    }
-
     // MARK: - Initializers
 
     init(application: BrowserMacApplication) {
@@ -66,7 +56,8 @@ final class BrowserMacDockMenu: NSObject {
 
     /// The menu the Dock shows now, or nil when the core cannot answer.
     func menu() -> NSMenu? {
-        guard let content = try? application.browser.core.query(DockMenu(windowIDs: stackedWindowIDs)) else {
+        guard let content = try? application.browser.core.query(DockMenu(windowIDs: application.stackedWindowIDs))
+        else {
             return nil
         }
         let menu = NSMenu()

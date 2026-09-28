@@ -183,9 +183,13 @@ Link preferences are device state too, never synced. `AddLinkRoute`,
 document earlier releases kept under `crest.link-preferences.v1` into the
 device store once. A deleted Space takes its routes with it and is forgotten
 wherever the preferences remembered it. The `RouteExternalLink` query answers
-where a link another app hands a window opens: a link routed to a locked Space
-opens in a Quick Window on an unlocked one with `SubstitutesForLockedSpace`, or
-nowhere when every Space is locked. `LinkNavigation` answers what following a
+where a link another app hands Crest opens, over the windows as the platform
+stacks them: the Space and window, which is the frontmost over the persistent
+session or, with none open, one to open (`OpensWindow`), or a Quick Window
+alone. A link routed to a locked Space opens in a Quick Window on an unlocked
+one with `SubstitutesForLockedSpace`, or nowhere when every Space is locked.
+`RouteLocalDocument` answers the same for a document, which opens in the Space
+on screen. `LinkNavigation` answers what following a
 link from a page does. `PresentPage` and `NormalizeBranding` answer page
 surfaces and branding range rules, and the `BalancedProtectionRules` query
 answers the Balanced rule list.
@@ -194,7 +198,18 @@ Window state is device-local and never enters the session. The
 `OpenWindow`, `CloseWindow`, `ShowSpace`, `ShowTab`, `DismissShownTab`,
 `ResizeSplitColumns` and one-time `AdoptWindowRecords` intents on `crest_app_*`
 own it; windows over the persistent session keep their records in device tables
-beside the session, sixteen at most. Showing a tab records its
+beside the session, sixteen at most. The device store also keeps the saved
+windows the next launch reopens, back to front: opening one puts it in front,
+closing one forgets it unless a quit was allowed, and
+`RememberWindowsForLaunch` orders them as the platform stacks its windows at
+quit, saving before it returns. `AdoptOpenWindows` carries the list the
+Chromium composition kept under `crest.chromium.windows.v1` once. The
+`LaunchWindows` query answers the windows a launch opens, the frontmost that
+takes the startup choice, and the setup that holds them back: first-run setup
+on a device that has not completed it or in a launch that forces it, until it
+finishes in this run, which `LaunchSetup` also answers. `WindowToReopen`
+answers the window the Dock brings back, and `EngineWindowPlacement` where an
+engine-created browser window's tabs go. Showing a tab records its
 `lastActivatedAt` as a change of its own and publishes `TabsChanged`. Each
 session attached to the device publishes `WorkspaceOpened`, what every
 accepted state changed, and `WorkspaceClosed`, keyed by workspace, and an
@@ -223,9 +238,9 @@ device's platform, whose defaults the shortcut rules read.
 The standalone `LaunchIsolation` query takes the platform's parsed launch flags
 and answers isolation, ephemeral profile storage, installed-app presentation
 and the startup behavior for a person who never chose, before any app exists.
-The `LaunchPlan` query, which also takes whether first-run setup owns the first
-window, answers the same for the persistent workspace, with the startup
-preference it keeps.
+The `LaunchPlan` query answers the same for the persistent workspace, with the
+startup preference it keeps, while first-run setup that holds the first window
+back, as the device decides, restores the last active tab.
 
 The persistent session's `appPreferences` record holds the app-wide behavior
 preferences (`startupBehavior`, `offersTranslation`, `automaticallyTranslates`,

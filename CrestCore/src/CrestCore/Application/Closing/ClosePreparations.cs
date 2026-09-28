@@ -8,8 +8,9 @@ namespace CrestCore.Application;
 /// time; the first that asks to stay ends the preparation not allowed. A page
 /// that goes meanwhile has nothing to ask, and one that shows another document
 /// after it agreed voids the answer. Quitting with downloads in progress then
-/// asks the person.
-internal sealed class ClosePreparations(Pages pages, Downloads downloads, IIdSource ids) {
+/// asks the person, and a quit allowed tells the device, whose windows then
+/// stay the ones the next launch reopens.
+internal sealed class ClosePreparations(Device device, Pages pages, Downloads downloads, DataDeletions deletions, IIdSource ids) {
     #region Types
 
     internal sealed class Preparation(Guid requestId, bool quits, IEnumerable<Guid> pageIds) {
@@ -40,6 +41,13 @@ internal sealed class ClosePreparations(Pages pages, Downloads downloads, IIdSou
 
     /// The pages this device hosts, which a preparation asks.
     internal Pages Pages => pages;
+
+    /// This device's windows and the workspaces they show.
+    internal Device Device => device;
+
+    /// Erasing what the engines keep for a profile, which a Space's deletion
+    /// waits on.
+    internal DataDeletions DataDeletions => deletions;
 
     #endregion
 
@@ -108,6 +116,7 @@ internal sealed class ClosePreparations(Pages pages, Downloads downloads, IIdSou
     internal void Finish(bool allowed, ChangeFeed changes) {
         var preparation = underway!;
         underway = null;
+        if (preparation.Quits && allowed) device.AcceptQuit();
         if (preparation.PromptId is { } prompt) changes.Publish(new PromptSettled(prompt));
         changes.Publish(new CloseReady(preparation.RequestId, allowed));
     }

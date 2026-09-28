@@ -110,14 +110,34 @@ internal sealed partial class Device {
     /// The one Space of `profileId` the person may see: held by an attached
     /// workspace, not locked and not being deleted. Null when no Space or more
     /// than one holds the profile.
-    internal Guid? OnlySpaceOf(Guid profileId) {
-        NativeSessionAuthority[] attached;
-        lock (gate) attached = [.. workspaces.Values];
-        var owners = attached.SelectMany(workspace => workspace.Current.Spaces.Where(space => space.ProfileId == profileId)
-            .Select(space => (Workspace: workspace, Space: space))).DistinctBy(owner => owner.Space.Id).ToList();
+    internal Guid? OnlySpaceOf(Guid profileId) => OnlyShowableSpaceOf(profileId)?.SpaceId;
+
+    /// The one Space of `profileId` the person may see, with the workspace
+    /// that owns it rather than one that borrows it: held by an attached
+    /// workspace, not locked and not being deleted. Null when no Space or more
+    /// than one holds the profile.
+    internal (Guid WorkspaceId, Guid SpaceId)? OnlyShowableSpaceOf(Guid profileId) {
+        KeyValuePair<Guid, NativeSessionAuthority>[] attached;
+        lock (gate) attached = [.. workspaces];
+        var owners = attached.OrderByDescending(workspace => workspace.Value.Kind.OwnsSpaces)
+            .SelectMany(workspace => workspace.Value.Current.Spaces.Where(space => space.ProfileId == profileId)
+                .Select(space => (Workspace: workspace, Space: space))).DistinctBy(owner => owner.Space.Id).ToList();
         if (owners.Count != 1) return null;
         var (owner, only) = owners[0];
-        return owner.IsDeleting(only.Id) || owner.IsLocked(only) ? null : only.Id;
+        return owner.Value.IsDeleting(only.Id) || owner.Value.IsLocked(only) ? null : (owner.Key, only.Id);
+    }
+
+    /// The workspaces closing the windows `windowIds` leaves without an open
+    /// window, of a kind whose pages go with their windows, so each goes with
+    /// its last window, and every page of it with that window.
+    internal IReadOnlySet<Guid> EndingWorkspaces(IReadOnlySet<Guid> windowIds) {
+        ArgumentNullException.ThrowIfNull(windowIds);
+        lock (gate) {
+            var ending = open.Values.Where(window => windowIds.Contains(window.Id)).Select(window => window.WorkspaceId).ToHashSet();
+            ending.RemoveWhere(workspaceId => workspaces.GetValueOrDefault(workspaceId)?.Kind.SharesPagesAcrossWindows != false
+                || open.Values.Any(window => window.WorkspaceId == workspaceId && !windowIds.Contains(window.Id)));
+            return ending;
+        }
     }
 
     /// The attached workspace, or null for one that is gone.

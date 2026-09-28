@@ -10,6 +10,7 @@ namespace CrestCore.Contracts;
 /// false it keeps only that Space and shows no tab until one is chosen.
 /// `ShowingTabs` then name the tab it shows in those Spaces, and
 /// `ShowingSpaceId` the Space it opens on, keeping what it shows there.
+/// A saved window opens in front of the others the next launch reopens.
 /// Opening a window that is already open answers what it shows.
 public sealed record OpenWindow(Guid WindowId, Guid WorkspaceId, bool Saved, Guid? CopyingWindowId, Guid? ShowingSpaceId,
     IReadOnlyList<ShownTab> ShowingTabs, bool RestoresTabs) : WindowIntent {
@@ -38,6 +39,7 @@ public sealed record OpenWindow(Guid WindowId, Guid WorkspaceId, bool Saved, Gui
             if (ShowingSpaceId is { } showing && session.Spaces.Any(space => space.Id == showing)) window.MoveTo(showing);
             window.Repair(session);
             device.OpenWindows[window.Id] = window;
+            if (Saved) device.Reopen(window.Id);
             turn.Changes.Publish(device.Publishing(window, session)!);
         }
     }

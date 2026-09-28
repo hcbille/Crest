@@ -1,8 +1,14 @@
 import Foundation
+import Observation
 
 /// Prepares a quit through the core, for either engine's composition: the core
 /// asks every page whether it may go, then asks the person whether to stop the
 /// downloads still in progress, which this shows as an alert on the key window.
+///
+/// While a Space is being deleted the core defers the quit. This tells the
+/// person Crest will quit once the Space is deleted, and asks the entry point
+/// to quit again whenever the deletions this device runs move on, until the
+/// core allows it.
 @MainActor
 final class BrowserQuitPreparation {
     // MARK: - Variables
@@ -11,26 +17,83 @@ final class BrowserQuitPreparation {
     private let dialogs = BrowserDialogPresenter()
     /// How to close the question about downloads in progress, while it waits.
     private var dismissals: [UUID: BrowserPromptDismissal] = [:]
+    /// The Spaces this device is deleting now, here or in the core, which a
+    /// deferred quit watches.
+    private let deletingSpaces: @MainActor () -> Set<UUID>
+    /// The deferred quit whose wait is current; an older one's is dropped.
+    private var waiting: UUID?
+    /// A quit waits for a Space's deletion, and the person was told.
+    private var isDeferred = false
 
     // MARK: - Initializers
 
-    init(core: CrestCore) {
+    init(core: CrestCore, deletingSpaces: @escaping @MainActor () -> Set<UUID>) {
         self.core = core
+        self.deletingSpaces = deletingSpaces
         core.followPrompts(self) { [weak self] change in self?.ask(change) }
     }
 
     // MARK: - Actions - Quitting
 
     /// Asks the core whether the app may quit, and calls `completion` with the
-    /// answer on a later turn of the main actor.
-    func prepare(completion: @escaping @MainActor (Bool) -> Void) {
+    /// answer on a later turn of the main actor. A quit the core defers while
+    /// a Space is being deleted answers false, and `retry` runs once the
+    /// deletion moved on, so the entry point asks to quit again.
+    func prepare(retry: @escaping @MainActor () -> Void, completion: @escaping @MainActor (Bool) -> Void) {
         guard let core else {
             Task { @MainActor in completion(false) }
             return
         }
-        core.prepareToClose(PrepareToQuit(requestID: UUID())) { allowed in
-            Task { @MainActor in completion(allowed) }
+        core.prepareToClose(
+            PrepareToQuit(requestID: UUID()),
+            refused: { [weak self] rejection in
+                if case .spaceDeletionUnderway(let underway) = rejection {
+                    self?.waitForSpaceDeletions(underway, retry: retry)
+                } else {
+                    self?.settle()
+                }
+                Task { @MainActor in completion(false) }
+            },
+            completion: { [weak self] allowed in
+                self?.settle()
+                Task { @MainActor in completion(allowed) }
+            })
+    }
+
+    /// The quit ended, allowed or refused for a reason no deletion settles.
+    private func settle() {
+        waiting = nil
+        isDeferred = false
+    }
+
+    // MARK: - Actions - Space deletion
+
+    /// Tells the person, once per quit, that Crest quits when the Space is
+    /// deleted, and calls `retry` once the Spaces this device is deleting
+    /// change.
+    private func waitForSpaceDeletions(_ underway: SpaceDeletionUnderway, retry: @escaping @MainActor () -> Void) {
+        if !isDeferred {
+            isDeferred = true
+            BrowserNoticeCenter.shared.post(
+                BrowserNotice(message: String(localized: underway.message), systemImage: "trash"))
         }
+        let wait = UUID()
+        waiting = wait
+        watchSpaceDeletions(since: deletingSpaces(), wait: wait, retry: retry)
+    }
+
+    /// Calls `retry` for the deferred quit `wait` once the Spaces being
+    /// deleted differ from `deleting`, watching them until then.
+    private func watchSpaceDeletions(since deleting: Set<UUID>, wait: UUID, retry: @escaping @MainActor () -> Void) {
+        guard waiting == wait else { return }
+        let now = withObservationTracking {
+            deletingSpaces()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.watchSpaceDeletions(since: deleting, wait: wait, retry: retry) }
+        }
+        guard now != deleting else { return }
+        waiting = nil
+        retry()
     }
 
     // MARK: - Actions - Prompts

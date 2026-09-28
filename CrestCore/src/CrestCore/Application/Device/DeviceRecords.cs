@@ -3,18 +3,18 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-/// What the device store holds: every saved window's record, the persistent
-/// session's site permission choices in storage order and its site engine
-/// choices least recent first, the person's shortcut choices and link
-/// preferences, the unfinished manual setup it keeps for the next launch,
-/// whether this device has completed setup, and what it has adopted from an
-/// installed release.
-internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOnlyList<SitePermissionRecord> SitePermissions,
-    IReadOnlyList<SiteEngineChoice> SiteEngines, ShortcutOverrides Shortcuts, LinkPreferences Links, KeptSetupDraft? SetupDraft,
-    bool SetupCompleted, IReadOnlySet<DeviceAdoption> Adopted) {
+/// What the device store holds: every saved window's record, the saved
+/// windows the next launch reopens, back to front, the persistent session's
+/// site permission choices in storage order and its site engine choices least
+/// recent first, the person's shortcut choices and link preferences, the
+/// unfinished manual setup it keeps for the next launch, whether this device
+/// has completed setup, and what it has adopted from an installed release.
+internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOnlyList<Guid> Reopening,
+    IReadOnlyList<SitePermissionRecord> SitePermissions, IReadOnlyList<SiteEngineChoice> SiteEngines, ShortcutOverrides Shortcuts,
+    LinkPreferences Links, KeptSetupDraft? SetupDraft, bool SetupCompleted, IReadOnlySet<DeviceAdoption> Adopted) {
     #region Static Variables
 
-    public static readonly DeviceRecords Empty = new([], [], [], ShortcutOverrides.None, LinkPreferencePolicy.Default,
+    public static readonly DeviceRecords Empty = new([], [], [], [], ShortcutOverrides.None, LinkPreferencePolicy.Default,
         SetupDraft: null, SetupCompleted: false, new HashSet<DeviceAdoption>());
 
     #endregion
@@ -30,6 +30,7 @@ internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOn
 
     public bool Equals(DeviceRecords? other) => other is not null
         && Windows.SequenceEqual(other.Windows)
+        && Reopening.SequenceEqual(other.Reopening)
         && SitePermissions.SequenceEqual(other.SitePermissions)
         && SiteEngines.SequenceEqual(other.SiteEngines)
         && Shortcuts.SameAs(other.Shortcuts)

@@ -131,6 +131,7 @@ internal sealed class SqliteConnection : IDisposable {
             + "PRIMARY KEY (window, space))");
         Execute("CREATE TABLE IF NOT EXISTS device_window_split (window TEXT NOT NULL, split_group TEXT NOT NULL, "
             + "position INTEGER NOT NULL, share REAL NOT NULL, PRIMARY KEY (window, split_group, position))");
+        Execute("CREATE TABLE IF NOT EXISTS device_window_reopen (id TEXT PRIMARY KEY, position INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_marker (name TEXT PRIMARY KEY)");
         Execute("CREATE TABLE IF NOT EXISTS device_adoption (name TEXT PRIMARY KEY)");
         Execute("CREATE TABLE IF NOT EXISTS device_site_permission (id TEXT PRIMARY KEY, space TEXT NOT NULL, scheme TEXT NOT NULL, "
@@ -156,8 +157,8 @@ internal sealed class SqliteConnection : IDisposable {
 
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
-    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadSitePermissions(), ReadSiteEngines(), ReadShortcuts(), ReadLinks(),
-        ReadSetupDraft(), ReadSetupCompleted(), ReadAdoptions());
+    public DeviceRecords ReadDevice() => new(ReadWindows(), ReadReopening(), ReadSitePermissions(), ReadSiteEngines(), ReadShortcuts(),
+        ReadLinks(), ReadSetupDraft(), ReadSetupCompleted(), ReadAdoptions());
 
     private List<SavedWindow> ReadWindows() {
         var windows = new Dictionary<Guid, (Guid ShownSpace, long Used)>();
@@ -180,6 +181,15 @@ internal sealed class SqliteConnection : IDisposable {
             [.. shares.Where(share => share.Window == window.Key).GroupBy(share => share.Group)
                 .Select(group => new SplitColumnShares(group.Key, [.. group.Select(share => share.Share)]))],
             window.Value.Used)).OrderBy(record => record.Used)];
+    }
+
+    /// The saved windows the next launch reopens, back to front.
+    private List<Guid> ReadReopening() {
+        var windows = new List<Guid>();
+        Rows("SELECT id FROM device_window_reopen ORDER BY position", statement => {
+            if (Identity(statement, 0) is { } id) windows.Add(id);
+        });
+        return windows;
     }
 
     private List<SitePermissionRecord> ReadSitePermissions() {
@@ -284,6 +294,7 @@ internal sealed class SqliteConnection : IDisposable {
     /// every part. The caller runs it inside a transaction.
     public void WriteDevice(DeviceRecords records, DeviceRecords? written) {
         if (written is null || !records.Windows.SequenceEqual(written.Windows)) WriteWindows(records.Windows);
+        if (written is null || !records.Reopening.SequenceEqual(written.Reopening)) WriteReopening(records.Reopening);
         if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
         if (written is null || !records.SiteEngines.SequenceEqual(written.SiteEngines)) WriteSiteEngines(records.SiteEngines);
         if (written is null || !records.Shortcuts.SameAs(written.Shortcuts)) WriteShortcuts(records.Shortcuts);
@@ -317,6 +328,19 @@ internal sealed class SqliteConnection : IDisposable {
                         Checked(Sqlite.sqlite3_bind_double(statement, 4, group.Shares[column]));
                     });
                 }
+        }
+    }
+
+    /// The saved windows the next launch reopens, in order, back to front.
+    private void WriteReopening(IReadOnlyList<Guid> windows) {
+        Execute("DELETE FROM device_window_reopen");
+        for (int position = 0; position < windows.Count; position++) {
+            var window = windows[position];
+            int index = position;
+            Insert("INSERT INTO device_window_reopen(id, position) VALUES(?,?)", statement => {
+                Bind(statement, 1, Spelling(window));
+                Checked(Sqlite.sqlite3_bind_int64(statement, 2, index));
+            });
         }
     }
 

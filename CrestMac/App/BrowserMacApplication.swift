@@ -45,11 +45,29 @@ final class BrowserMacApplication {
     let memoryPressure: BrowserMemoryPressureMonitor?
     let systemNowPlaying: BrowserSystemNowPlayingCoordinator?
     let startupBehavior: StartupBehavior
+    /// The window that opens on `startupBehavior`: the frontmost of the
+    /// windows the launch opened. Every other window opens on the tab it left.
+    var startupWindowID = BrowserMacWindowRequest.initial.id
     let presentsInstalledApplicationUI: Bool
+    /// The launch flags as the core reads them.
+    let launchEnvironment: LaunchEnvironment
     /// The view an engine anchors its popups to behind Site Controls.
     let siteControlAnchor: BrowserSiteControlAnchor?
     /// The Dock icon's menu, which the composition hands AppKit when it asks.
     private(set) lazy var dockMenu = BrowserMacDockMenu(application: self)
+    /// Opens the links and documents other apps hand Crest where the core
+    /// places them.
+    private(set) lazy var externalOpening = BrowserMacExternalOpening(application: self)
+
+    /// The browser windows, frontmost first, by the identity each has in the
+    /// core: the order AppKit stacks them in, then any it leaves out, such as
+    /// a minimized one. The core's window decisions read them in this order.
+    var stackedWindowIDs: [UUID] {
+        let pools = [privatePages] + windowCoordinator.openWindowPages
+        let windows = pools.compactMap { pool in pool.presentationWindow.map { (window: $0, id: pool.windowID) } }
+        let stacked = NSApp.orderedWindows.compactMap { window in windows.first { $0.window === window }?.id }
+        return stacked + windows.map(\.id).filter { !stacked.contains($0) }
+    }
 
     /// - Parameters:
     ///   - defaultEngine: The engine new pages open on; nil makes it WebKit,
@@ -230,14 +248,9 @@ final class BrowserMacApplication {
         // once from what an older release kept in its defaults.
         _ = try? core.send(AdoptSetupCompletion(completed: legacyDevice.setupCompleted))
         let onboardingProgress = BrowserOnboardingProgressStore(
-            core: core,
-            forceWelcome: launchEnvironment.forcesOnboardingWelcome,
-            forceSetup: launchEnvironment.forcesMacOnboardingSetup
-        )
-        let startupBehavior = browser.startupBehavior(
-            for: launchEnvironment,
-            hasActiveLaunchGate: onboardingProgress.isLaunchGateActive
-        )
+            core: core, environment: launchEnvironment.coreEnvironment,
+            forcesSetup: launchEnvironment.forcesMacOnboardingSetup)
+        let startupBehavior = browser.startupBehavior(for: launchEnvironment)
         // The core carries what each window showed into its own records once;
         // launch cleanup then keeps every tab a saved window will show.
         windowLayouts.adoptLegacyRecords(into: core)
@@ -276,7 +289,9 @@ final class BrowserMacApplication {
         self.pages = pages
         self.privatePages = privatePages
         pagePoolRegistry = BrowserPagePoolRegistry(primary: pages, spaceAccess: spaceAccess)
-        quitPreparation = BrowserQuitPreparation(core: core)
+        quitPreparation = BrowserQuitPreparation(core: core) {
+            browser.deletingSpaceIDs.union(privateBrowser.deletingSpaceIDs)
+        }
         privateWindowCloseGate = BrowserWindowCloseGate(core: core) { [windowID = privateBrowser.windowID] in
             PrepareToCloseWindows(requestID: UUID(), windowIDs: [windowID])
         }
@@ -290,6 +305,7 @@ final class BrowserMacApplication {
         }
         self.systemNowPlaying = systemNowPlaying
         self.startupBehavior = startupBehavior
+        self.launchEnvironment = launchEnvironment.coreEnvironment
         memoryPressure = usesIsolatedLaunch ? nil : BrowserMemoryPressureMonitor(core: core, pools: pagePoolRegistry)
         browser.family.configureSpaceDataCleanup(pagePoolRegistry, from: browser)
         memoryPressure?.start()
@@ -319,8 +335,9 @@ final class BrowserMacApplication {
                 model: model, coordinator: windowCoordinator,
                 pagePoolRegistry: pagePoolRegistry, spaceAccess: spaceAccess,
                 spaceSettingsPresentation: spaceSettingsPresentation,
-                startupBehavior: request == .initial ? startupBehavior : .lastActiveTab,
-                shortcuts: shortcuts, sidebarWidgets: sidebarWidgets, softwareUpdates: softwareUpdates
+                startupBehavior: request.id == startupWindowID ? startupBehavior : .lastActiveTab,
+                shortcuts: shortcuts, sidebarWidgets: sidebarWidgets, softwareUpdates: softwareUpdates,
+                externalOpening: externalOpening
             )
             .environment(
                 \.browserSettingsTabContent,
@@ -387,6 +404,13 @@ final class BrowserMacApplication {
                 }
             )
         )
+    }
+
+    /// Keeps the browser windows open now, as AppKit stacks them, for the
+    /// next launch to reopen. Sent once a quit is allowed, before any window
+    /// closes as the app goes; the core saves them before it returns.
+    func rememberWindowsForLaunch() {
+        _ = try? browser.core.send(RememberWindowsForLaunch(windowIDs: stackedWindowIDs))
     }
 
     func closePrivateBrowsingWindow() {

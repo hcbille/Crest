@@ -91,13 +91,14 @@ internal sealed partial class Device {
         }
     }
 
-    /// Setup finished as `finish` said: this device has completed setup, the
-    /// flow shows what it did, and the platform opens the guide in
-    /// `guideSpaceId` when it names one.
+    /// Setup finished as `finish` said: this device has completed setup, no
+    /// launch gate holds for the rest of this run, the flow shows what it did,
+    /// and the platform opens the guide in `guideSpaceId` when it names one.
     public void FinishedSetup(SetupFinish finish, Guid? guideSpaceId, ChangeFeed changes) {
         ArgumentNullException.ThrowIfNull(finish);
         ArgumentNullException.ThrowIfNull(changes);
         lock (gate) {
+            setupFinishedThisRun = true;
             if (!setupCompleted) {
                 setupCompleted = true;
                 storage?.EnqueueDevice(Records());

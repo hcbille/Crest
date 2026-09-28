@@ -96,6 +96,7 @@ internal sealed partial class Device {
         this.requestTurn = requestTurn;
         this.closeBorrower = closeBorrower;
         foreach (var record in records.Windows) saved[record.Id] = record;
+        reopening.AddRange(records.Reopening.Distinct());
         lastUse = records.Windows.Count == 0 ? 0 : records.Windows.Max(record => record.Used);
         keptPermissions.Restore(records.SitePermissions);
         keptEngines.Restore(records.SiteEngines);
@@ -304,8 +305,9 @@ internal sealed partial class Device {
     }
 
     /// Everything the device store keeps, as it stands. The caller holds the device lock.
-    internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. keptPermissions.PersistentRecords],
-        [.. keptEngines.Choices], shortcuts, links, keptSetupDraft, setupCompleted, new HashSet<DeviceAdoption>(adopted));
+    internal DeviceRecords Records() => new([.. saved.Values.OrderBy(record => record.Used)], [.. reopening],
+        [.. keptPermissions.PersistentRecords], [.. keptEngines.Choices], shortcuts, links, keptSetupDraft, setupCompleted,
+        new HashSet<DeviceAdoption>(adopted));
 
     #endregion
 

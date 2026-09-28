@@ -91,11 +91,16 @@ public sealed partial class BrowserContractsTests {
         app.Report(engine, new BeforeUnloadAnswered(borrowedPage, Proceeds: true));
         Assert.Equal([new CloseReady(torn, Allowed: true)], app.Drain());
 
-        // The private window's pages go with it, and one may keep it open.
+        // The private window's pages go with it, as does every other page of
+        // its workspace, whichever window hosts it, and one may keep it open.
+        var privateQuick = Live(privateWorkspace, app.Workspace(privateWorkspace).Current.Spaces.Single().Id, null, window);
+        app.Drain();
         var closingPrivate = Guid.NewGuid();
         app.Send(new PrepareToCloseWindows(closingPrivate, [privateWindow]));
         Assert.Equal(new CheckBeforeUnload(privatePage), binding.Commands[^1]);
-        app.Report(engine, new BeforeUnloadAnswered(privatePage, Proceeds: false));
+        app.Report(engine, new BeforeUnloadAnswered(privatePage, Proceeds: true));
+        Assert.Equal(new CheckBeforeUnload(privateQuick), binding.Commands[^1]);
+        app.Report(engine, new BeforeUnloadAnswered(privateQuick, Proceeds: false));
         Assert.Equal([new CloseReady(closingPrivate, Allowed: false)], app.Drain());
     }
 

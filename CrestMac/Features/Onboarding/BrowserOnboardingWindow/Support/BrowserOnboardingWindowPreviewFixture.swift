@@ -31,7 +31,8 @@ struct BrowserOnboardingWindowPreviewFixture {
         self.request = request
         self.browser = browser
         cloudSync = .isolated(core: browser.core)
-        progress = BrowserOnboardingProgressStore(core: browser.core, forceWelcome: true)
+        progress = BrowserOnboardingProgressStore(
+            core: browser.core, environment: BrowserLaunchEnvironment.current.coreEnvironment)
         self.flow = flow
         spaceAccess = BrowserSpaceAccessController(authenticator: BrowserPreviewAuthenticator(result: false))
     }

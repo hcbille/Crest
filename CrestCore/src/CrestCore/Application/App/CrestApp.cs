@@ -93,7 +93,7 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
             pages = new(device, engines, clock, ids);
             prompts = new(device, pages);
             engineDownloads = new(downloads, device, pages, ids);
-            closePreparations = new(pages, downloads, ids);
+            closePreparations = new(device, pages, downloads, dataDeletions, ids);
             access = new(device, grants);
             cloudTransport = new(storage: null, device);
             cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed);
@@ -104,7 +104,7 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
         pages = new(device, engines, clock, ids);
         prompts = new(device, pages);
         engineDownloads = new(downloads, device, pages, ids);
-        closePreparations = new(pages, downloads, ids);
+        closePreparations = new(device, pages, downloads, dataDeletions, ids);
         access = new(device, grants);
         cloudTransport = new(storage, device);
         cloudSync = new(cloudTransport, clock, StoredSessionIsDisposableSeed);

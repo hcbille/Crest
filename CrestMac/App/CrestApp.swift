@@ -97,7 +97,8 @@ struct CrestApp: App {
                     pages: application.pages,
                     spaceAccess: application.spaceAccess,
                     pagePoolRegistry: application.pagePoolRegistry,
-                    windowCoordinator: application.windowCoordinator
+                    windowCoordinator: application.windowCoordinator,
+                    externalOpening: application.externalOpening
                 )
                 .modifier(BrowserChromeAppearancePersistence())
                 .environment(application.windowTransparency)
