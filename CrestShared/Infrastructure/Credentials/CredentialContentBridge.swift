@@ -1,31 +1,10 @@
 import Foundation
-import WebKit
 
+/// The credential bridge every engine's pages run: its script and the name
+/// its messages arrive under. How an engine installs it lives with the engine.
 @MainActor
 enum BrowserCredentialContentBridge {
     static let messageHandlerName = "crestCredentials"
-    static let contentWorld = WKContentWorld.world(name: "com.pauldavis.crest.credentials")
-
-    static func install(
-        in userContentController: WKUserContentController,
-        receive: @escaping @MainActor (WKScriptMessage) -> Void
-    ) -> BrowserCredentialScriptMessageProxy {
-        let proxy = BrowserCredentialScriptMessageProxy(receive: receive)
-        userContentController.add(
-            proxy,
-            contentWorld: contentWorld,
-            name: messageHandlerName
-        )
-        userContentController.addUserScript(
-            WKUserScript(
-                source: source,
-                injectionTime: .atDocumentStart,
-                forMainFrameOnly: false,
-                in: contentWorld
-            )
-        )
-        return proxy
-    }
 
     #if DEBUG
         private static let testingMethods = #"""

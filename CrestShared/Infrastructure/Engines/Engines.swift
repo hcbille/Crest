@@ -2,6 +2,14 @@ import Foundation
 import OSLog
 import Observation
 
+// MARK: - Types
+
+/// What an engine's binding built for the platform to host for one page the
+/// core opened: WebKit's page, or the platform's host of a page an engine the
+/// core runs directly created. Each platform hosts it its own way.
+@MainActor
+protocol EngineHostedPage: AnyObject {}
+
 /// The engine bindings the core hosts pages on, by kind. A composition
 /// registers the engines it carries, one of them as the default, and new pages
 /// open on the default. The core decides whether a page opens and on which
@@ -23,7 +31,7 @@ final class Engines {
         /// window.
         let intent: OpenPage
         /// What the engine's binding built for the platform to host.
-        var built: AnyObject?
+        var built: (any EngineHostedPage)?
 
         init(page: CorePage, intent: OpenPage) {
             self.page = page
@@ -53,7 +61,7 @@ final class Engines {
     /// engine the core runs directly created.
     struct OpenedPage {
         let page: CorePage
-        let built: AnyObject
+        let built: any EngineHostedPage
     }
 
     /// Carries the core's commands for one engine to its binding.
@@ -85,10 +93,10 @@ final class Engines {
     @ObservationIgnored private var opened: [UUID: WeakPage] = [:]
     /// What an engine the core moved a page to built for it, until the page's
     /// owner takes it.
-    @ObservationIgnored private var moved: [UUID: AnyObject] = [:]
+    @ObservationIgnored private var moved: [UUID: any EngineHostedPage] = [:]
     /// What a binding built for a page the core adopted from its engine's
     /// offer, such as a popup WebKit made, until the page's owner hosts it.
-    @ObservationIgnored private var offered: [UUID: AnyObject] = [:]
+    @ObservationIgnored private var offered: [UUID: any EngineHostedPage] = [:]
     /// The icon each page last reported, until a tab adopts it and the bytes
     /// move to `FaviconAssets` under that tab.
     @ObservationIgnored private var pageIcons: [UUID: Data] = [:]
@@ -173,7 +181,7 @@ final class Engines {
 
     /// What the platform hosts for a page the core opened on an engine it runs
     /// directly, which creates the page on its own.
-    private func nativeHost(for page: CorePage) -> AnyObject? {
+    private func nativeHost(for page: CorePage) -> (any EngineHostedPage)? {
         guard let kind = page.state?.engine, let binding = natives[kind] else { return nil }
         return binding.host(page)
     }
@@ -193,21 +201,21 @@ final class Engines {
     /// Hands the page's owner what `built` is: the page an engine built for a
     /// page the core moved to it. The owner takes it before the engine reports
     /// the page created, so the core's first load reaches the new page.
-    func handOver(_ built: AnyObject, movedPage page: CorePage) {
+    func handOver(_ built: any EngineHostedPage, movedPage page: CorePage) {
         moved[page.id] = built
         page.engineMoved?()
     }
 
     /// Keeps `built`, the page a binding built for page `pageID`, which the
     /// core adopted from the binding's offer, until the page's owner hosts it.
-    func handOver(_ built: AnyObject, adoptedPage pageID: UUID) {
+    func handOver(_ built: any EngineHostedPage, adoptedPage pageID: UUID) {
         offered[pageID] = built
     }
 
     /// What the platform hosts for `page` now that the core moved it off
     /// engine `current`: the page its new engine's binding built, or the host
     /// of an engine the core runs directly. Nil when it did not move.
-    func movedHost(for page: CorePage, from current: EngineKind) -> AnyObject? {
+    func movedHost(for page: CorePage, from current: EngineKind) -> (any EngineHostedPage)? {
         if let built = moved.removeValue(forKey: page.id) { return built }
         guard let kind = page.state?.engine, kind != current, let binding = natives[kind] else { return nil }
         return binding.host(page)

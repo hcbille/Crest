@@ -7,7 +7,7 @@ import Foundation
 /// create a page. `BrowserPage` holds one and reaches its engine only through
 /// it and the `BrowserPageEngine` port.
 @MainActor
-protocol BrowserPageEngineAdapter: AnyObject {
+protocol BrowserPageEngineAdapter: EngineHostedPage {
     var engine: any BrowserPageEngine { get }
     /// The page's direct path to its engine: going back, reloading, finding
     /// text, capturing and exporting the page, and carrying Crest's site

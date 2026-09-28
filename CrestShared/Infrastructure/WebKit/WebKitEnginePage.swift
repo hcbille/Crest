@@ -7,7 +7,7 @@ import WebKit
 /// the core handed it, and keeps what brings it back when the core closes it
 /// keeping its state.
 @MainActor
-final class WebKitEnginePage {
+final class WebKitEnginePage: EngineHostedPage {
     // MARK: - Variables
 
     /// The core's page this one is.

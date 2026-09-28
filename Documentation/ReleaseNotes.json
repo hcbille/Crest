@@ -3277,6 +3277,10 @@
     "closing-windows-asks-leaving-pages": {
       "category": "fixed",
       "message": "Closing the private window, a window you tore a tab into, or a Quick Window now lets a page with unsaved work ask before it goes. Closing a regular window no longer asks, since its tabs stay open."
+    },
+    "engine-hosted-page-typed": {
+      "category": "internal",
+      "message": "Shared page code names what an engine built for a page as its own type, and the WebKit pieces it carried now live with the WebKit engine."
     }
   }
 }

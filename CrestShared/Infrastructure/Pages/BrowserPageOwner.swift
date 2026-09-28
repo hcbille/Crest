@@ -1,5 +1,4 @@
 import Foundation
-import WebKit
 
 /// A window's owner of the pages its workspace's host keeps: a Mac window's
 /// page pool, or an iPhone or iPad scene's page store. What every owner does
@@ -346,31 +345,5 @@ extension BrowserPageOwner {
     /// Gives every page the host keeps the new default zoom.
     func defaultPageZoomDidChange(to zoom: CGFloat) {
         host.defaultPageZoomDidChange(to: zoom)
-    }
-}
-
-// MARK: - Script messages
-
-extension BrowserPageOwner {
-    // A popup shares its opener's `WKUserContentController`, so its bridges
-    // post to the opener's handlers; each message goes to the page whose web
-    // view sent it.
-
-    func routeGeolocationMessage(_ message: WKScriptMessage) {
-        residentPage(sending: message)?.receiveGeolocationMessage(message)
-    }
-
-    func routeBlockedPopupMessage(_ message: WKScriptMessage) {
-        residentPage(sending: message)?.receiveBlockedPopupMessage(message)
-    }
-
-    func routeMediaSessionMessage(_ message: WKScriptMessage) {
-        residentPage(sending: message)?.receiveMediaSessionMessage(message)
-    }
-
-    /// The resident page whose web view posted `message`.
-    func residentPage(sending message: WKScriptMessage) -> BrowserPlatformPage? {
-        guard let sourceWebView = message.webView else { return nil }
-        return host.residentPages.first { $0.webKitView === sourceWebView }
     }
 }

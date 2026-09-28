@@ -50,7 +50,7 @@
 
         // MARK: - Actions - Pages
 
-        func host(_ page: CorePage) -> AnyObject {
+        func host(_ page: CorePage) -> any EngineHostedPage {
             let native = ChromiumNativePage(id: page.id, engine: self)
             hold(native)
             return ChromiumPageAdapter(native)

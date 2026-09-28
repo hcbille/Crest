@@ -504,14 +504,7 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     /// bars, a find or a translation, goes with it.
     private func moveToNewEngine() {
         guard let hosted = corePage.movedHost(from: pageEngine.registration.kind) else { return }
-        let adapter: any BrowserPageEngineAdapter
-        if let webKitPage = hosted as? WebKitEnginePage {
-            adapter = BrowserWebKitPageAdapter(page: webKitPage)
-        } else if let native = hosted as? any BrowserPageEngineAdapter {
-            adapter = native
-        } else {
-            preconditionFailure("An engine built something other than a desktop page.")
-        }
+        let adapter = hosted.makeDesktopAdapter()
         translation.reset()
         linkContextCapture.clear()
         findSession.dismiss(using: enginePage)

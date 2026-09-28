@@ -935,14 +935,7 @@ final class BrowserPagePool:
             let opened = alreadyOpened
                 ?? browser.openPage(in: space.id, for: tabID, presenting: presentation, opener: opener)
         else { return nil }
-        let engine: any BrowserPageEngineAdapter
-        if let webKitPage = opened.built as? WebKitEnginePage {
-            engine = BrowserWebKitPageAdapter(page: webKitPage)
-        } else if let adapter = opened.built as? any BrowserPageEngineAdapter {
-            engine = adapter
-        } else {
-            preconditionFailure("An engine built something other than a desktop page.")
-        }
+        let engine = opened.built.makeDesktopAdapter()
         let routing = BrowserPageWindowRouting(pool: self)
         let page = BrowserPage(
             corePage: opened.page,

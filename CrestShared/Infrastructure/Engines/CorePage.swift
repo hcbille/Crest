@@ -50,7 +50,7 @@ final class CorePage {
 
     /// What the platform hosts for the page now that the core moved it off
     /// engine `current`; nil when it did not move.
-    func movedHost(from current: EngineKind) -> AnyObject? {
+    func movedHost(from current: EngineKind) -> (any EngineHostedPage)? {
         core?.engines.movedHost(for: self, from: current)
     }
 

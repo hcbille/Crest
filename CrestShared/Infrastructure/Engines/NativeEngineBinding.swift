@@ -21,7 +21,7 @@ protocol NativeEngineBinding: AnyObject {
 
     /// What the platform hosts for `page`, which the engine creates on its own
     /// once the core asks it to.
-    func host(_ page: CorePage) -> AnyObject
+    func host(_ page: CorePage) -> any EngineHostedPage
 
     /// The icon the engine found for the document `pageID` shows, which the
     /// binding keeps until a tab adopts it.
