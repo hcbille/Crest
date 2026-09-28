@@ -3265,6 +3265,10 @@
     "core-published-lists-read-only": {
       "category": "internal",
       "message": "The session, sidebar and change lists the core accepts or publishes are read-only, so nothing that holds one can change the core's state behind its back."
+    },
+    "folder-tree-indexed-lookups": {
+      "category": "improved",
+      "message": "Organizing tabs in a Space with many nested folders stays quick, because each folder edit looks folders up directly instead of searching them."
     }
   }
 }

@@ -3,15 +3,31 @@ using CrestCore.Contracts;
 namespace CrestCore.Domain;
 
 /// The same bounded forest and stable tab-boundary ordering used by Crest's native sidebars.
+/// A tree reads its folders as they stand when it is made.
 public sealed class FolderTree(IReadOnlyList<FolderState> folders) {
-    #region Variables
+    #region Static Variables
 
     public const int MaximumDepth = FolderState.MaximumDepth;
     public const int MaximumCount = 500;
 
     #endregion
 
+    #region Variables
+
+    /// Each folder by its identity, the first of any that share one, so a
+    /// lookup never searches the list.
+    private readonly Dictionary<Guid, FolderState> byId = Index(folders);
+
+    #endregion
+
     #region Actions - Organization
+
+    private static Dictionary<Guid, FolderState> Index(IReadOnlyList<FolderState> folders) {
+        ArgumentNullException.ThrowIfNull(folders);
+        var index = new Dictionary<Guid, FolderState>(folders.Count);
+        foreach (var folder in folders) index.TryAdd(folder.Id, folder);
+        return index;
+    }
 
     public static IReadOnlyList<FolderState> RepairPreorder(IReadOnlyList<FolderState> source) {
         List<FolderState> accepted = [];
@@ -80,8 +96,8 @@ public sealed class FolderTree(IReadOnlyList<FolderState> folders) {
 
     #region Mutators
 
-    public FolderState Folder(Guid id) => folders.FirstOrDefault(f => f.Id == id)
-        ?? throw new BrowserRuleException(BrowserRuleCodes.UnknownFolder);
+    public FolderState Folder(Guid id) => byId.TryGetValue(id, out var folder) ? folder
+        : throw new BrowserRuleException(BrowserRuleCodes.UnknownFolder);
 
     public IEnumerable<FolderState> Children(Guid? id) => folders.Where(f => f.ParentId == id);
 
