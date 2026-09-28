@@ -3337,6 +3337,10 @@
     "quick-window-closes-with-its-page": {
       "category": "fixed",
       "message": "A Quick Window whose page closes itself, such as a sign-in window once you're signed in, now closes even while it's asking whether you want to leave the page."
+    },
+    "sign-in-popup-test-waits-for-its-page": {
+      "category": "internal",
+      "message": "The sign-in popup test waits for the consent page to finish loading before it clicks."
     }
   }
 }

@@ -780,6 +780,13 @@ final class BrowserWebCompatibilityTests: XCTestCase {
             try await waitUntil("the Quick Window to show the popup on screen") {
                 popup.webView.window === shown && shown.isVisible && popup.webView.bounds.width > 0
             }
+            // The address changes when the consent page commits, before its
+            // body is parsed, so the button is waited for rather than assumed.
+            try await waitUntil("the consent page's button to load") {
+                try await self.stringResult(
+                    from: popup.webView, script: "return document.querySelector('#continue') ? 'ready' : '';")
+                    == "ready"
+            }
             _ = try await stringResult(
                 from: popup.webView, script: "document.querySelector('#continue').click(); return 'clicked';")
 
