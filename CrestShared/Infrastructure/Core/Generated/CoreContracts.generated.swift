@@ -10181,6 +10181,7 @@ struct ShortcutCommand: Hashable, Sendable {
     let defaultShortcuts: [ShortcutDefault]
     let paletteRest: Int?
     let offersInPalette: Bool
+    let isReservedFromPages: Bool
 
     private init(
         tag: Int,
@@ -10196,7 +10197,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: Int?,
         defaultShortcuts: [ShortcutDefault],
         paletteRest: Int?,
-        offersInPalette: Bool
+        offersInPalette: Bool,
+        isReservedFromPages: Bool
     ) {
         self.tag = tag
         self.kind = kind
@@ -10212,6 +10214,7 @@ struct ShortcutCommand: Hashable, Sendable {
         self.defaultShortcuts = defaultShortcuts
         self.paletteRest = paletteRest
         self.offersInPalette = offersInPalette
+        self.isReservedFromPages = isReservedFromPages
     }
 
     static let newWindow = ShortcutCommand(
@@ -10239,7 +10242,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: 1,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let newBlankWindow = ShortcutCommand(
         tag: 1,
@@ -10261,7 +10265,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let newTab = ShortcutCommand(
         tag: 2,
@@ -10288,7 +10293,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: true
     )
     static let newQuickWindow = ShortcutCommand(
         tag: 3,
@@ -10315,7 +10321,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let newPrivateWindow = ShortcutCommand(
         tag: 4,
@@ -10342,7 +10349,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let closeTabOrWindow = ShortcutCommand(
         tag: 5,
@@ -10369,7 +10377,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let closeWindow = ShortcutCommand(
         tag: 6,
@@ -10396,7 +10405,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let openLocation = ShortcutCommand(
         tag: 7,
@@ -10423,7 +10433,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let back = ShortcutCommand(
         tag: 8,
@@ -10450,7 +10461,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let forward = ShortcutCommand(
         tag: 9,
@@ -10477,7 +10489,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let reloadPage = ShortcutCommand(
         tag: 10,
@@ -10504,7 +10517,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let stopLoading = ShortcutCommand(
         tag: 11,
@@ -10531,7 +10545,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let reloadFromOrigin = ShortcutCommand(
         tag: 12,
@@ -10558,7 +10573,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let toggleSelectedTabPinned = ShortcutCommand(
         tag: 13,
@@ -10585,7 +10601,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let duplicateTab = ShortcutCommand(
         tag: 14,
@@ -10601,7 +10618,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let reopenClosedTab = ShortcutCommand(
         tag: 15,
@@ -10628,7 +10646,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: 2,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let clearUnpinnedTabs = ShortcutCommand(
         tag: 16,
@@ -10655,7 +10674,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let archiveTab = ShortcutCommand(
         tag: 17,
@@ -10682,7 +10702,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let previousTab = ShortcutCommand(
         tag: 18,
@@ -10709,7 +10730,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let nextTab = ShortcutCommand(
         tag: 19,
@@ -10736,7 +10758,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let mostRecentTab = ShortcutCommand(
         tag: 20,
@@ -10763,7 +10786,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: true
     )
     static let selectTab1 = ShortcutCommand(
         tag: 21,
@@ -10790,7 +10814,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab2 = ShortcutCommand(
         tag: 22,
@@ -10817,7 +10842,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab3 = ShortcutCommand(
         tag: 23,
@@ -10844,7 +10870,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab4 = ShortcutCommand(
         tag: 24,
@@ -10871,7 +10898,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab5 = ShortcutCommand(
         tag: 25,
@@ -10898,7 +10926,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab6 = ShortcutCommand(
         tag: 26,
@@ -10925,7 +10954,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab7 = ShortcutCommand(
         tag: 27,
@@ -10952,7 +10982,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab8 = ShortcutCommand(
         tag: 28,
@@ -10979,7 +11010,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectTab9 = ShortcutCommand(
         tag: 29,
@@ -11006,7 +11038,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let previousSpace = ShortcutCommand(
         tag: 30,
@@ -11033,7 +11066,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let nextSpace = ShortcutCommand(
         tag: 31,
@@ -11060,7 +11094,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let selectSpace1 = ShortcutCommand(
         tag: 32,
@@ -11087,7 +11122,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace2 = ShortcutCommand(
         tag: 33,
@@ -11114,7 +11150,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace3 = ShortcutCommand(
         tag: 34,
@@ -11141,7 +11178,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace4 = ShortcutCommand(
         tag: 35,
@@ -11168,7 +11206,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace5 = ShortcutCommand(
         tag: 36,
@@ -11195,7 +11234,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace6 = ShortcutCommand(
         tag: 37,
@@ -11222,7 +11262,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace7 = ShortcutCommand(
         tag: 38,
@@ -11249,7 +11290,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace8 = ShortcutCommand(
         tag: 39,
@@ -11276,7 +11318,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let selectSpace9 = ShortcutCommand(
         tag: 40,
@@ -11303,7 +11346,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: false
+        offersInPalette: false,
+        isReservedFromPages: false
     )
     static let toggleReaderMode = ShortcutCommand(
         tag: 41,
@@ -11319,7 +11363,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let toggleContentBlocking = ShortcutCommand(
         tag: 42,
@@ -11335,7 +11380,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let findInPage = ShortcutCommand(
         tag: 43,
@@ -11362,7 +11408,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let zoomIn = ShortcutCommand(
         tag: 44,
@@ -11389,7 +11436,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let zoomOut = ShortcutCommand(
         tag: 45,
@@ -11416,7 +11464,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let actualSize = ShortcutCommand(
         tag: 46,
@@ -11443,7 +11492,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let copyPageLink = ShortcutCommand(
         tag: 47,
@@ -11470,7 +11520,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let copyPageLinkAsMarkdown = ShortcutCommand(
         tag: 48,
@@ -11497,7 +11548,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let sharePage = ShortcutCommand(
         tag: 49,
@@ -11513,7 +11565,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let exportPDF = ShortcutCommand(
         tag: 50,
@@ -11529,7 +11582,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let saveWebArchive = ShortcutCommand(
         tag: 51,
@@ -11545,7 +11599,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let printPage = ShortcutCommand(
         tag: 52,
@@ -11572,7 +11627,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let toggleSidebar = ShortcutCommand(
         tag: 53,
@@ -11599,7 +11655,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: 5,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let showHistory = ShortcutCommand(
         tag: 54,
@@ -11626,7 +11683,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: 3,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let showArchive = ShortcutCommand(
         tag: 55,
@@ -11642,7 +11700,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let showDownloads = ShortcutCommand(
         tag: 56,
@@ -11669,7 +11728,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: 4,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let showWebInspector = ShortcutCommand(
         tag: 57,
@@ -11696,7 +11756,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let splitWithNextTab = ShortcutCommand(
         tag: 58,
@@ -11712,7 +11773,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let focusNextSplitCard = ShortcutCommand(
         tag: 59,
@@ -11739,7 +11801,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let focusPreviousSplitCard = ShortcutCommand(
         tag: 60,
@@ -11766,7 +11829,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let removeTabFromSplit = ShortcutCommand(
         tag: 61,
@@ -11782,7 +11846,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let separateSplitTabs = ShortcutCommand(
         tag: 62,
@@ -11809,7 +11874,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let moveSplitCardLeft = ShortcutCommand(
         tag: 63,
@@ -11836,7 +11902,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let moveSplitCardRight = ShortcutCommand(
         tag: 64,
@@ -11863,7 +11930,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let toggleDeveloperToolbar = ShortcutCommand(
         tag: 65,
@@ -11890,7 +11958,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let toggleTranslationToolbar = ShortcutCommand(
         tag: 66,
@@ -11917,7 +11986,8 @@ struct ShortcutCommand: Hashable, Sendable {
             )
         ],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
     static let openFile = ShortcutCommand(
         tag: 67,
@@ -11933,7 +12003,8 @@ struct ShortcutCommand: Hashable, Sendable {
         number: nil,
         defaultShortcuts: [],
         paletteRest: nil,
-        offersInPalette: true
+        offersInPalette: true,
+        isReservedFromPages: false
     )
 
     static let all: [ShortcutCommand] = [

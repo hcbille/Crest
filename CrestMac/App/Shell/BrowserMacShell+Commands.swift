@@ -16,12 +16,19 @@ extension BrowserMacShell {
 
     // MARK: - Actions - Shortcuts
 
-    /// Runs the Crest command `event`'s chord is bound to, before the view
-    /// that has focus sees it; a chord no command claims goes to the engine
-    /// for the active page. Answers whether it was taken. An engine whose
-    /// views take key equivalents before the menu bar does calls this for
-    /// every key down, so Crest's shortcuts win over web content.
-    func handleShortcut(_ event: NSEvent) -> Bool {
+    /// Runs the Crest command `event`'s chord is bound to, or an engine
+    /// binding no Crest command claims, such as an extension's, and answers
+    /// whether it was taken. The shell is offered every key down before any
+    /// view sees it, when an engine is about to hand one to a page, and when
+    /// the menu bar's items let one go.
+    ///
+    /// While `pageSeesFirst`, a page is still to see the key, as in other
+    /// browsers: only a command the core reserves from pages, and an engine
+    /// binding, run now. The page's engine hands a key the page lets go to the
+    /// menu bar, which runs the command then. Otherwise Crest's own views,
+    /// such as the location field or the sidebar, get every Crest shortcut
+    /// before they see the key.
+    func handleShortcut(_ event: NSEvent, pageSeesFirst: Bool) -> Bool {
         guard let windows, let application, event.type == .keyDown,
             NSApp.modalWindow == nil, NSApp.keyWindow?.attachedSheet == nil,
             (NSApp.keyWindow?.firstResponder as? ShortcutRecorderButton)?.isRecording != true,
@@ -32,7 +39,8 @@ extension BrowserMacShell {
             return true
         }
         guard !isQuitting else { return true }
-        if shortcut == BrowserShortcut(key: .character(","), modifiers: .command) {
+        // The application menu runs Settings once a page lets the key go.
+        if !pageSeesFirst, shortcut == BrowserShortcut(key: .character(","), modifiers: .command) {
             BrowserMacApplicationAction.settings.perform(in: self)
             return true
         }
@@ -41,11 +49,13 @@ extension BrowserMacShell {
         let context = windows.activeContext
         guard context != nil || windows.isQuickWindowKey else { return false }
         if let command = application.shortcuts.command(for: event, isEnabled: canPerform) {
+            guard command.isReservedFromPages || !pageSeesFirst else { return false }
             perform(command)
             return true
         }
-        // Crest's own shortcuts win. What is left can belong to the engine,
-        // such as an extension's binding in the active page's Space.
+        // What no Crest command claims can belong to the engine, such as an
+        // extension's binding in the active page's Space, which goes ahead of
+        // the page as it does in Chrome.
         guard let page = context?.pages.activePage else { return false }
         return engineHost.handleUnclaimedShortcut(event, page: page)
     }

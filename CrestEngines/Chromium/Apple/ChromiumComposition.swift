@@ -3,10 +3,10 @@
     import CrestCoreABI
 
     /// Crest over Chromium. Chromium owns the process and its `AppController`;
-    /// Crest's shared Mac shell owns every window, the menu bar, launch,
-    /// reopen, outside opens and quit. This builds the engine and the
-    /// application the shell runs, puts Crest's shortcuts ahead of web
-    /// content, and keeps what only the Chromium adapter reads.
+    /// Crest's shared Mac shell owns every window, the menu bar, shortcuts,
+    /// launch, reopen, outside opens and quit. This builds the engine and the
+    /// application the shell runs, and keeps what only the Chromium adapter
+    /// reads.
     @MainActor
     enum ChromiumComposition {
         // MARK: - Static Variables
@@ -18,9 +18,6 @@
         private(set) static var engineHost: (any CrestMacShell)?
         /// Chromium, the default engine, once the launch built the application.
         private(set) static var chromiumEngine: ChromiumEngine?
-        /// Runs Crest's shortcuts before Chromium's content view, which takes
-        /// key equivalents before the menu bar does.
-        private static var keyMonitor: Any?
         /// Where an earlier release listed the windows open at quit, before the
         /// core kept them.
         private static let legacyWindowListKey = "crest.chromium.windows.v1"
@@ -42,9 +39,6 @@
             engineHost = host
             let shell = BrowserMacShell(engineHost: ChromiumShellHost(host: host))
             self.shell = shell
-            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                shell.handleShortcut(event) ? nil : event
-            }
             // A recovery retry builds the engine and the application again.
             shell.start {
                 let chromium = ChromiumEngine(host: host, table: binding, fingerprint: fingerprint, pages: pages)

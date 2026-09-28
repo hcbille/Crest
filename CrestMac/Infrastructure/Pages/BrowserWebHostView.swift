@@ -475,6 +475,18 @@ final class BrowserWebHostView: NSView {
 
     // MARK: - Actions - Keyboard
 
+    /// Whether `responder` is a page's own view shown in a host, or a view
+    /// inside it, such as the engine's content view or an inspector docked
+    /// beside the page, rather than one of Crest's.
+    static func isPageContent(_ responder: NSResponder?) -> Bool {
+        var view = responder as? NSView
+        while let current = view, let superview = current.superview {
+            if let host = superview as? BrowserWebHostView { return host.hostedWebView === current }
+            view = superview
+        }
+        return false
+    }
+
     override func keyDown(with event: NSEvent) {
         guard let hostedWebView,
             let responder = window?.firstResponder as? NSView,

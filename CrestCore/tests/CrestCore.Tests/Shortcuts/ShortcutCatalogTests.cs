@@ -55,6 +55,15 @@ public sealed class ShortcutCatalogTests {
         Assert.DoesNotContain(groups, group => group.Count == 0);
     }
 
+    /// A focused page sees every other command's keys first, as in other
+    /// browsers, so only opening, closing and switching tabs and windows stay
+    /// out of its reach.
+    [Fact]
+    public void OnlyOpeningClosingAndSwitchingTabsAndWindowsAreReservedFromPages() => Assert.Equal([
+        "newWindow", "newTab", "newPrivateWindow", "closeTabOrWindow", "closeWindow", "reopenClosedTab", "previousTab", "nextTab",
+        "mostRecentTab"
+    ], ShortcutCommand.All.Where(command => command.IsReservedFromPages).Select(command => command.Name));
+
     [Theory]
     [InlineData("desktop")]
     [InlineData("mobile")]

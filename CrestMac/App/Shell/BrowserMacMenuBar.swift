@@ -47,7 +47,8 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
     /// core's menus where the Mac keeps them: whole-page translation leads
     /// Page, and full screen ends View.
     func install() {
-        let bar = NSMenu()
+        let bar = BrowserMacMainMenu()
+        bar.shell = shell
         applicationMenu(in: bar)
         for menu in ShortcutMenu.all {
             let items = submenu(String(localized: menu.title), in: bar)

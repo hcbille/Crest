@@ -79,7 +79,9 @@ process through `CrestMain`. The Chromium product leaves the process,
 `NSApplication`, the run loop and `AppController` to Chromium, whose patch
 forwards the application events Crest answers: quit, reopen, external opens,
 the Dock menu, and a system sign-in and its end. A local key monitor runs
-Crest's shortcuts before web content. The shell's decisions are core queries
+Crest's shortcuts before Crest's own views, and only the commands the core
+reserves from pages before a focused page, which sees the rest first and hands
+what it lets go to the menu bar. The shell's decisions are core queries
 and intents: the windows a launch reopens and the setup in front of them, the
 window a reopen opens, where external opens and an engine's own windows land,
 whether a quit or a window's close may go ahead, and the menu layout and the

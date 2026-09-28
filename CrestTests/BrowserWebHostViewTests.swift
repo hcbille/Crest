@@ -53,6 +53,23 @@ final class BrowserWebHostViewTests: XCTestCase {
         XCTAssertEqual(terminal.unhandledSelectors, [#selector(NSResponder.keyDown(with:))])
     }
 
+    /// A page sees a shortcut before Crest only while focus is in the page's
+    /// own view; Crest's views beside it keep Crest's shortcuts first.
+    func testOnlyThePageViewAndViewsInsideItArePageContent() {
+        let setup = focusHostSetup()
+        let inside = NSView()
+        setup.webView.addSubview(inside)
+        let field = NSTextField(string: "Native field")
+        setup.host.addSubview(field)
+
+        XCTAssertTrue(BrowserWebHostView.isPageContent(setup.webView))
+        XCTAssertTrue(BrowserWebHostView.isPageContent(inside))
+        XCTAssertFalse(BrowserWebHostView.isPageContent(setup.host))
+        XCTAssertFalse(BrowserWebHostView.isPageContent(field))
+        XCTAssertFalse(BrowserWebHostView.isPageContent(setup.window))
+        XCTAssertFalse(BrowserWebHostView.isPageContent(nil))
+    }
+
     func testNativeHandlerCanChangeTheResponderChainDuringWebFallback() throws {
         let setup = focusHostSetup()
         let handler = BrowserKeyboardHandlerProbe()

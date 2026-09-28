@@ -37,6 +37,11 @@ final class BrowserMacShell {
     /// which can be while recovery is on screen; they open once it has.
     private var pendingOpens: [URL] = []
     private var pendingSignIns: [PendingSignIn] = []
+    /// Offers every key down to `handleShortcut` before any view sees it.
+    /// Both engines' page views take key equivalents before the menu bar
+    /// does, so this is where Crest's shortcuts go ahead of a page when the
+    /// core reserves them from pages, and ahead of Crest's own views always.
+    private var keyMonitor: Any?
 
     /// The application, once the launch built it.
     var application: BrowserMacApplication? { running?.application }
@@ -88,6 +93,10 @@ final class BrowserMacShell {
         BrowserMacDockTile.shared.start(following: application.browser.core)
         windows.openLaunchWindows()
         menuBar.install()
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let pageSeesFirst = BrowserWebHostView.isPageContent(NSApp.keyWindow?.firstResponder)
+            return self?.handleShortcut(event, pageSeesFirst: pageSeesFirst) == true ? nil : event
+        }
         Task { await application.cloudSync.start() }
         NSApp.activate(ignoringOtherApps: true)
         openPending()

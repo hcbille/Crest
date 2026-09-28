@@ -838,9 +838,18 @@ documents and sign-ins that arrived before it was ready.
   `AppController`. Chromium's patch forwards the application events Crest
   answers (quit, reopen, external opens, the Dock menu, and a system sign-in
   and its end) through `CrestMacUI` to `ChromiumMacUI`, which calls the same
-  shell. `ChromiumComposition` builds the engine and the application, and a
-  local key monitor runs Crest's shortcuts before web content, since
-  Chromium's content view takes key equivalents before the menu bar does.
+  shell. `ChromiumComposition` builds the engine and the application.
+- **Shortcuts.** Both engines' page views take key equivalents before the
+  menu bar does, so the shell offers every key down to its shortcuts first,
+  through a local key monitor. While Crest's own views have focus, Crest's
+  shortcuts win. While a page has focus it sees the key first, as in other
+  browsers, and only the commands the core marks `IsReservedFromPages` run
+  ahead of it: opening, closing and switching tabs and windows, plus quit. An
+  extension's `chrome.commands` binding also goes ahead of the page, as in
+  Chrome. WebKit hands a key the page lets go back to AppKit, and Chromium's
+  browser window hands it to the menu bar; the menu bar's top menu runs the
+  command, and asks the shell for a chord no item matches, such as ⌘= for
+  zoom's ⌘+.
 - **The core decides.** The shell asks the core and presents the answer.
   `LaunchWindows` names the windows a launch reopens, back to front, and the
   one that opens on the startup choice, or the setup a first run shows in front

@@ -3349,6 +3349,10 @@
     "fullscreen-standard-title-bar": {
       "category": "fixed",
       "message": "In full screen, the title bar that slides down with the menu bar looks like the standard one instead of a blank block over the page."
+    },
+    "pages-get-first-say-over-shortcuts": {
+      "category": "fixed",
+      "message": "Pages get first say over shortcuts such as \u2318F, as in other browsers, so a document editor like Google Docs opens its own Find. \u2318T, \u2318W and \u2318N always stay Crest's."
     }
   }
 }

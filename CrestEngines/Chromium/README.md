@@ -449,7 +449,8 @@ API. `setOptions` that retracts an entry, and an extension that unloads, close
 the card they were showing.
 
 An extension's `chrome.commands` bindings are matched in the host after Crest's
-own shortcuts have had the key equivalent: a named command is delivered as
+own shortcuts have had the key equivalent, and before the page sees it, as in
+Chrome: a named command is delivered as
 `commands.onCommand` with the active-tab grant Chromium requires, and an
 `_execute_action` binding runs the action through Crest's own button path,
 anchoring its popup to the extension's pinned tile or, when it has none, to the

@@ -9,11 +9,12 @@ namespace CrestCore.Contracts;
 ///
 /// A command carries everything that differs by command: its stored `Name`,
 /// its section, its English title, search terms and symbol, its default keys
-/// on each platform, the engine capability its whole feature needs, and, for
-/// a numbered command, what it selects. Persisted shortcut overrides are keyed
-/// by `Name`, so a name never changes. `All` is append-only, and its order is
-/// the order the settings list shows within a section. Each command sits in
-/// one group of one `ShortcutMenu`, which is where the menu bar shows it.
+/// on each platform, the engine capability its whole feature needs, whether a
+/// focused page sees its keys first, and, for a numbered command, what it
+/// selects. Persisted shortcut overrides are keyed by `Name`, so a name never
+/// changes. `All` is append-only, and its order is the order the settings list
+/// shows within a section. Each command sits in one group of one
+/// `ShortcutMenu`, which is where the menu bar shows it.
 public sealed class ShortcutCommand {
     #region Types
 
@@ -79,13 +80,15 @@ public sealed class ShortcutCommand {
     #region Variables
 
     public static readonly ShortcutCommand NewWindow = new(Kinds.NewWindow, name: "newWindow", ShortcutSection.Everyday,
-        title: "New Window", symbol: "macwindow.badge.plus", shortcuts: Everywhere(Character("n", Command)), paletteRest: 1);
+        title: "New Window", symbol: "macwindow.badge.plus", shortcuts: Everywhere(Character("n", Command)), paletteRest: 1,
+        reservedFromPages: true);
     public static readonly ShortcutCommand NewBlankWindow = new(Kinds.NewBlankWindow, name: "newBlankWindow",
         ShortcutSection.Everyday, title: "New Blank Window", symbol: "macwindow.badge.plus",
         shortcuts: [new(DevicePlatform.Desktop, Character("n", Command | Option), YieldsToOverrides: true)],
         searchTerms: "temporary disposable unsynced window", availableWhen: facts => facts.ShowsSpace && !facts.IsPrivate);
     public static readonly ShortcutCommand NewTab = new(Kinds.NewTab, name: "newTab", ShortcutSection.Everyday,
-        title: "New Tab", symbol: "plus.square", shortcuts: Everywhere(Character("t", Command)), offersInPalette: false);
+        title: "New Tab", symbol: "plus.square", shortcuts: Everywhere(Character("t", Command)), offersInPalette: false,
+        reservedFromPages: true);
     // The Mac moves the Quick Window one modifier up to make room for the blank window.
     public static readonly ShortcutCommand NewQuickWindow = new(Kinds.NewQuickWindow, name: "newQuickWindow",
         ShortcutSection.Everyday, title: "New Quick Window", symbol: "macwindow.badge.plus",
@@ -96,12 +99,13 @@ public sealed class ShortcutCommand {
         searchTerms: "little arc quick lookup", availableWhen: ShowingSpace);
     public static readonly ShortcutCommand NewPrivateWindow = new(Kinds.NewPrivateWindow, name: "newPrivateWindow",
         ShortcutSection.Everyday, title: "New Private Window", symbol: "eyeglasses",
-        shortcuts: Everywhere(Character("n", Command | Shift)), searchTerms: "incognito private browsing");
+        shortcuts: Everywhere(Character("n", Command | Shift)), searchTerms: "incognito private browsing", reservedFromPages: true);
     public static readonly ShortcutCommand CloseTabOrWindow = new(Kinds.CloseTabOrWindow, name: "closeTabOrWindow",
         ShortcutSection.Everyday, title: "Close Current Tab or Window", symbol: "xmark.square",
-        shortcuts: Everywhere(Character("w", Command)), searchTerms: "close archive current tab window");
+        shortcuts: Everywhere(Character("w", Command)), searchTerms: "close archive current tab window", reservedFromPages: true);
     public static readonly ShortcutCommand CloseWindow = new(Kinds.CloseWindow, name: "closeWindow", ShortcutSection.Everyday,
-        title: "Close Window", symbol: "xmark.square", shortcuts: Everywhere(Character("w", Command | Shift)));
+        title: "Close Window", symbol: "xmark.square", shortcuts: Everywhere(Character("w", Command | Shift)),
+        reservedFromPages: true);
     public static readonly ShortcutCommand OpenLocation = new(Kinds.OpenLocation, name: "openLocation",
         ShortcutSection.Everyday, title: "Open Location", symbol: "magnifyingglass",
         shortcuts: Everywhere(Character("l", Command)), searchTerms: "change current tab url address focus", offersInPalette: false);
@@ -125,7 +129,7 @@ public sealed class ShortcutCommand {
     public static readonly ShortcutCommand ReopenClosedTab = new(Kinds.ReopenClosedTab, name: "reopenClosedTab",
         ShortcutSection.Tabs, title: "Reopen Last Closed Tab", symbol: "arrow.uturn.backward",
         shortcuts: Everywhere(Character("t", Command | Shift)), menuTitle: "Reopen Closed Tab", paletteRest: 2,
-        availableWhen: facts => facts.HasArchivedTabs);
+        availableWhen: facts => facts.HasArchivedTabs, reservedFromPages: true);
     public static readonly ShortcutCommand ClearUnpinnedTabs = new(Kinds.ClearUnpinnedTabs, name: "clearUnpinnedTabs",
         ShortcutSection.Tabs, title: "Clear Unpinned Tabs", symbol: "sparkles",
         shortcuts: Everywhere(Character("k", Command | Shift)), searchTerms: "clean tidy archive unpinned tabs");
@@ -134,13 +138,14 @@ public sealed class ShortcutCommand {
         availableWhen: facts => facts.ShownTab is { IsStartPage: false } shown && shown.Placement == TabPlacement.Current);
     public static readonly ShortcutCommand PreviousTab = new(Kinds.PreviousTab, name: "previousTab", ShortcutSection.Tabs,
         title: "Previous Tab", symbol: "chevron.up", shortcuts: Everywhere(Special(ShortcutSpecialKey.UpArrow, Command | Option)),
-        searchTerms: "switch cycle tabs up down arrow");
+        searchTerms: "switch cycle tabs up down arrow", reservedFromPages: true);
     public static readonly ShortcutCommand NextTab = new(Kinds.NextTab, name: "nextTab", ShortcutSection.Tabs,
         title: "Next Tab", symbol: "chevron.down", shortcuts: Everywhere(Special(ShortcutSpecialKey.DownArrow, Command | Option)),
-        searchTerms: "switch cycle tabs up down arrow");
+        searchTerms: "switch cycle tabs up down arrow", reservedFromPages: true);
     public static readonly ShortcutCommand MostRecentTab = new(Kinds.MostRecentTab, name: "mostRecentTab",
         ShortcutSection.Tabs, title: "Most Recent Tab", symbol: "arrow.left.arrow.right",
-        shortcuts: Everywhere(Special(ShortcutSpecialKey.Tab, Control)), searchTerms: "toggle recent switch tabs");
+        shortcuts: Everywhere(Special(ShortcutSpecialKey.Tab, Control)), searchTerms: "toggle recent switch tabs",
+        reservedFromPages: true);
     public static readonly ShortcutCommand SelectTab1 = SelectingTab(name: "selectTab1", number: 1);
     public static readonly ShortcutCommand SelectTab2 = SelectingTab(name: "selectTab2", number: 2);
     public static readonly ShortcutCommand SelectTab3 = SelectingTab(name: "selectTab3", number: 3);
@@ -319,6 +324,14 @@ public sealed class ShortcutCommand {
     /// themselves.
     public bool OffersInPalette { get; }
 
+    /// Whether the browser runs the command before a page with focus sees its
+    /// keys. A page sees every other command's keys first, as in other
+    /// browsers: a document editor that handles them runs its own Find or
+    /// Save, and the browser runs the command only when the page lets the keys
+    /// go. Opening, closing and switching tabs and windows stay the browser's,
+    /// so no page can keep a person in it.
+    public bool IsReservedFromPages { get; }
+
     /// Whether a window can run the command now, by what it shows. Commands
     /// that act on a page also ask the page's engine, which the platform does.
     private readonly Func<WindowCommandFacts, bool> availableWhen;
@@ -330,7 +343,7 @@ public sealed class ShortcutCommand {
     private ShortcutCommand(Kinds kind, string name, ShortcutSection section, string title, string symbol,
         IReadOnlyList<ShortcutDefault>? shortcuts = null, string? searchTerms = null, string? menuTitle = null,
         EngineCapability? requiredCapability = null, NumberedSelectionTarget? selects = null, int? number = null, int? paletteRest = null,
-        bool offersInPalette = true, Func<WindowCommandFacts, bool>? availableWhen = null) {
+        bool offersInPalette = true, Func<WindowCommandFacts, bool>? availableWhen = null, bool reservedFromPages = false) {
         Kind = kind;
         Name = name;
         Section = section;
@@ -344,6 +357,7 @@ public sealed class ShortcutCommand {
         DefaultShortcuts = shortcuts ?? [];
         PaletteRest = paletteRest;
         OffersInPalette = offersInPalette;
+        IsReservedFromPages = reservedFromPages;
         this.availableWhen = availableWhen ?? (_ => true);
     }
 
