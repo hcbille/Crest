@@ -3200,7 +3200,7 @@
     },
     "window-moves-natively-and-page-top-stays-still": {
       "category": "fixed",
-      "message": "Window › Move & Resize, the Globe-Control tiling shortcuts and the green button's tiling options work for Crest windows again, while dragging at the very top of a page still selects text instead of moving the window. Double-clicking empty sidebar space opens a new tab again, without also acting as a title bar double-click."
+      "message": "Window \u203a Move & Resize, the Globe-Control tiling shortcuts and the green button's tiling options work for Crest windows again, while dragging at the very top of a page still selects text instead of moving the window. Double-clicking empty sidebar space opens a new tab again, without also acting as a title bar double-click."
     },
     "blank-popups-and-quick-window-popups-open-again": {
       "category": "fixed",
@@ -3225,6 +3225,10 @@
     "docs-describe-the-finished-design": {
       "category": "internal",
       "message": "The architecture and contributor documents describe the finished design, including popups in Quick Windows, the opener-engine rule, Picture in Picture, the title-bar guard and web notifications, instead of the restructure's plans and status."
+    },
+    "third-party-notices-name-chromium-and-dotnet": {
+      "category": "internal",
+      "message": "The third-party notices now include the bundled Chromium engine and .NET runtime, and the license audit checks them."
     }
   }
 }
