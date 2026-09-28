@@ -13,8 +13,18 @@ struct BrowserNativeWindowChromeSnapshot {
     let buttonVisibility: [(NSWindow.ButtonType, Bool)]
 }
 
+/// Styles the window that shows Crest's chrome, which acts as the window's
+/// title bar: the title bar is transparent and shows no title, and the
+/// window's own controls sit on the sidebar.
+///
+/// In fullscreen the title bar slides down over the page with the menu bar,
+/// so there it is the system's standard one, from the moment the window is
+/// fullscreen until it starts to leave. Neither writes the fullscreen bit of
+/// the style mask, which AppKit owns during its transitions.
 @MainActor
 final class BrowserNativeWindowControlsHostView: NSView {
+    // MARK: - Variables
+
     private var originalChrome: BrowserNativeWindowChromeSnapshot?
     private var chromeToolbar: NSToolbar?
     private var windowObservers: [NSObjectProtocol] = []
@@ -31,6 +41,11 @@ final class BrowserNativeWindowControlsHostView: NSView {
             applyBrowserChrome()
         }
     }
+    /// Whether the window shows the system's standard title bar: while it is
+    /// fullscreen, and not once it starts to leave.
+    private var showsStandardTitleBar = false
+
+    // MARK: - Actions - Window
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         if newWindow !== window {
@@ -41,6 +56,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        showsStandardTitleBar = window?.styleMask.contains(.fullScreen) ?? false
         captureOriginalChrome()
         observeWindow()
         applyBrowserChrome()
@@ -55,6 +71,8 @@ final class BrowserNativeWindowControlsHostView: NSView {
         nil
     }
 
+    // MARK: - Actions - Chrome
+
     func applyBrowserChrome() {
         guard let window else { return }
         // The window stays movable, so its title bar and the system's window
@@ -63,15 +81,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         if !window.styleMask.contains(.fullSizeContentView) {
             window.styleMask.insert(.fullSizeContentView)
         }
-        if window.titleVisibility != .hidden {
-            window.titleVisibility = .hidden
-        }
-        if !window.titlebarAppearsTransparent {
-            window.titlebarAppearsTransparent = true
-        }
-        if window.titlebarSeparatorStyle != .none {
-            window.titlebarSeparatorStyle = .none
-        }
+        applyTitleBar(to: window)
         applySystemToolbarMetrics(to: window)
         let shouldShowWindowControls =
             BrowserNativeWindowControlsPolicy.showsWindowControls(
@@ -85,6 +95,24 @@ final class BrowserNativeWindowControlsHostView: NSView {
             button.isHidden = shouldHide
         }
         positionWindowControls()
+    }
+
+    /// Shows the title bar as Crest's chrome, transparent and without a title
+    /// or separator, or while the window is fullscreen as the system's
+    /// standard one.
+    private func applyTitleBar(to window: NSWindow) {
+        let standard = showsStandardTitleBar
+        let titleVisibility: NSWindow.TitleVisibility = standard ? .visible : .hidden
+        if window.titleVisibility != titleVisibility {
+            window.titleVisibility = titleVisibility
+        }
+        if window.titlebarAppearsTransparent == standard {
+            window.titlebarAppearsTransparent = !standard
+        }
+        let separatorStyle: NSTitlebarSeparatorStyle = standard ? .automatic : .none
+        if window.titlebarSeparatorStyle != separatorStyle {
+            window.titlebarSeparatorStyle = separatorStyle
+        }
     }
 
     /// Move the existing AppKit controls inside their titlebar, retaining their
@@ -180,6 +208,8 @@ final class BrowserNativeWindowControlsHostView: NSView {
         }
     }
 
+    // MARK: - Actions - Observing
+
     private func observeWindow() {
         stopObservingWindow()
         guard let window else { return }
@@ -190,6 +220,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
             NSWindow.didResizeNotification,
             NSWindow.willEnterFullScreenNotification,
             NSWindow.didEnterFullScreenNotification,
+            NSWindow.willExitFullScreenNotification,
             NSWindow.didExitFullScreenNotification,
         ]
         windowObservers = names.map { name in
@@ -199,22 +230,38 @@ final class BrowserNativeWindowControlsHostView: NSView {
                 queue: .main
             ) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    if name == NSWindow.didUpdateNotification {
-                        self?.positionWindowControls()
-                        return
-                    }
-                    if name == NSWindow.willEnterFullScreenNotification, let self {
-                        let position = self.sidebarPosition
-                        self.sidebarPosition = 0
-                        self.positionWindowControls()
-                        self.sidebarPosition = position
-                        return
-                    }
-                    DispatchQueue.main.async { [weak self] in
-                        self?.applyBrowserChrome()
-                    }
+                    self?.windowChanged(name)
                 }
             }
+        }
+    }
+
+    private func windowChanged(_ name: Notification.Name) {
+        switch name {
+        case NSWindow.didUpdateNotification:
+            positionWindowControls()
+            return
+        case NSWindow.willEnterFullScreenNotification:
+            let position = sidebarPosition
+            sidebarPosition = 0
+            positionWindowControls()
+            sidebarPosition = position
+            return
+        case NSWindow.didEnterFullScreenNotification:
+            showsStandardTitleBar = true
+        case NSWindow.willExitFullScreenNotification:
+            // The title bar returns to the window as it leaves fullscreen, so
+            // it is Crest's again before it does.
+            showsStandardTitleBar = false
+            if let window { applyTitleBar(to: window) }
+            return
+        case NSWindow.didExitFullScreenNotification:
+            showsStandardTitleBar = false
+        default:
+            break
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.applyBrowserChrome()
         }
     }
 

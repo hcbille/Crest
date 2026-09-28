@@ -270,70 +270,53 @@ extension BrowserNativePageSurfaceLifecycle {
     func presentationGeometryDidChange() {}
 }
 
+/// Shows a page's engine-owned view where SwiftUI placed this host.
+///
+/// SwiftUI can hold two hosts for one page at once, and either can be the one
+/// it dismantles first. It keeps updating an outgoing host after the incoming
+/// one claimed the view, and an outgoing subtree that still renders during its
+/// removal, such as the window's chrome giving way to a page shown fullscreen,
+/// can build a host for the page after the incoming one did. The newest claim
+/// shows the view, a stale update never takes it back, and when the host
+/// showing it lets go, the view returns to the newest host still claiming it
+/// in the same window, so it always ends up in whichever host survives. A
+/// host in another window keeps waiting for its own window to present the
+/// page again.
 @MainActor
 final class BrowserWebHostView: NSView {
+    // MARK: - Static Variables
+
     private static let lifecycleSignposter = OSSignposter(
         subsystem: "com.pauldavis.crest",
         category: "BrowserSurfaceLifecycle"
     )
+    /// Every host that claimed a page view and has not let it go.
+    private static let claimants = NSHashTable<BrowserWebHostView>.weakObjects()
+    /// The number of claims made so far, which orders them.
+    private static var claimCount = 0
+
+    // MARK: - Variables
 
     private weak var hostedWebView: NSView?
     private(set) weak var focusRestoration: BrowserWebFocusRestorationController?
-    private var focusRestorationGate = BrowserWebFocusRestorationGate.suppressed
-    private var isPageActive = false
-    private var focusRestorationAttemptGeneration = 0
+    /// The window this host was last in, which it keeps while SwiftUI takes it
+    /// out of the window on its way to being dismantled.
+    private weak var lastWindow: NSWindow?
     /// Keeps the window server from dragging the window by this page's top.
     private lazy var titleBarTracker = BrowserPageTitleBarTracker(page: self)
     private var titleBarTrackingArea: NSTrackingArea?
+    private var focusRestorationGate = BrowserWebFocusRestorationGate.suppressed
+    private var isPageActive = false
+    private var focusRestorationAttemptGeneration = 0
+    /// When this host claimed `hostedWebView`: the newest claim is the largest.
+    private var claim = 0
 
-    override func keyDown(with event: NSEvent) {
-        guard let hostedWebView,
-            let responder = window?.firstResponder as? NSView,
-            responder === hostedWebView || responder.isDescendant(of: hostedWebView)
-        else {
-            super.keyDown(with: event)
-            return
-        }
+    // MARK: - Actions - Hosting
 
-        // The engine has already offered this key to the page and its input
-        // context. Preserve native fallback handlers without interpreting or
-        // dispatching the key to the engine again. Only the terminal, unhandled
-        // key-down feedback is unnecessary in a browsing view.
-        let fallback = BrowserWebKeyboardFallback()
-        var tail: NSResponder = self
-        while let next = tail.nextResponder {
-            tail = next
-        }
-        tail.nextResponder = fallback
-        defer {
-            if tail.nextResponder === fallback {
-                tail.nextResponder = fallback.nextResponder
-            }
-        }
-        super.keyDown(with: event)
-    }
-
-    override func layout() {
-        super.layout()
-        layoutHostedWebView()
-        titleBarTracker.checkPointerSoon()
-    }
-
-    override func resizeSubviews(withOldSize oldSize: NSSize) {
-        // SwiftUI can give an entering or departing host an empty frame. Do
-        // not send that transient viewport to the engine's rendering process.
-        layoutHostedWebView()
-    }
-
-    private func layoutHostedWebView() {
-        guard !bounds.isEmpty,
-            let hostedWebView,
-            hostedWebView.superview === self,
-            hostedWebView.frame != bounds
-        else { return }
-        hostedWebView.frame = bounds
-    }
-
+    /// Claims `webView` and shows it here, unless `allowsAttachment` says this
+    /// host's window no longer presents the page, which lets it go. Asking
+    /// again for the view this host already claimed changes nothing, even when
+    /// a newer host took it meanwhile: that host shows it until it lets go.
     func attach(
         _ webView: NSView,
         focusRestoration: BrowserWebFocusRestorationController? = nil,
@@ -351,8 +334,8 @@ final class BrowserWebHostView: NSView {
             if webView.superview != nil {
                 // A newer SwiftUI host has already taken ownership. A stale
                 // update from a disappearing Peek must not steal it back.
-                // Keep the weak identity so repeated updates remain stale;
-                // an unattached view can still return through the path below.
+                // Keep the claim so repeated updates remain stale; an
+                // unattached view can still return through the path below.
                 self.focusRestoration = nil
                 isPageActive = false
                 return
@@ -377,7 +360,46 @@ final class BrowserWebHostView: NSView {
             "Detach Previous Page View",
             detachInterval
         )
-        self.focusRestoration = focusRestoration
+        Self.claimCount &+= 1
+        claim = Self.claimCount
+        hostedWebView = webView
+        Self.claimants.add(self)
+        show(webView, focusRestoration: focusRestoration)
+    }
+
+    /// Lets go of the view this host claimed. When it was showing it, the view
+    /// leaves and moves to the newest other host in its window that still
+    /// claims it.
+    func detach() {
+        guard let hostedWebView else { return }
+        Self.claimants.remove(self)
+        let showsHostedWebView = hostedWebView.superview === self
+        if showsHostedWebView {
+            (hostedWebView as? any BrowserNativePageSurfaceLifecycle)?.willDetach(from: self)
+            hostedWebView.removeFromSuperview()
+        }
+        let focusRestoration = focusRestoration
+        let placement = window ?? lastWindow
+        self.hostedWebView = nil
+        self.focusRestoration = nil
+        isPageActive = false
+        focusRestorationAttemptGeneration &+= 1
+        guard showsHostedWebView else { return }
+        Self.claimants.allObjects
+            .filter { $0.hostedWebView === hostedWebView && $0.isPlaced(with: placement) }
+            .max { $0.claim < $1.claim }?
+            .show(hostedWebView, focusRestoration: focusRestoration)
+    }
+
+    /// Whether this host is in `window`, or either has yet to join one.
+    private func isPlaced(with window: NSWindow?) -> Bool {
+        guard let window, let placement = self.window ?? lastWindow else { return true }
+        return placement === window
+    }
+
+    /// Puts `webView`, which this host claimed, on screen here.
+    private func show(_ webView: NSView, focusRestoration: BrowserWebFocusRestorationController?) {
+        self.focusRestoration = focusRestoration ?? self.focusRestoration
 
         let removeInterval = Self.lifecycleSignposter.beginInterval(
             "Remove Page View From Parent"
@@ -406,9 +428,10 @@ final class BrowserWebHostView: NSView {
             "Add Page View Subview",
             addInterval
         )
-        hostedWebView = webView
         (webView as? any BrowserNativePageSurfaceLifecycle)?.didAttach(to: self)
     }
+
+    // MARK: - Actions - Focus
 
     func updateFocusPresentation(
         isPageActive: Bool,
@@ -434,17 +457,75 @@ final class BrowserWebHostView: NSView {
         }
     }
 
-    func detach() {
-        guard let hostedWebView else { return }
-        if hostedWebView.superview === self {
-            (hostedWebView as? any BrowserNativePageSurfaceLifecycle)?.willDetach(from: self)
-            hostedWebView.removeFromSuperview()
-        }
-        self.hostedWebView = nil
-        focusRestoration = nil
-        isPageActive = false
+    private func scheduleFocusRestoration() {
         focusRestorationAttemptGeneration &+= 1
+        let generation = focusRestorationAttemptGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                self.focusRestorationAttemptGeneration == generation,
+                self.isPageActive,
+                self.hostedWebView?.superview === self
+            else { return }
+            self.focusRestoration?.restoreIfNeeded(
+                in: self,
+                gate: self.focusRestorationGate
+            )
+        }
     }
+
+    // MARK: - Actions - Keyboard
+
+    override func keyDown(with event: NSEvent) {
+        guard let hostedWebView,
+            let responder = window?.firstResponder as? NSView,
+            responder === hostedWebView || responder.isDescendant(of: hostedWebView)
+        else {
+            super.keyDown(with: event)
+            return
+        }
+
+        // The engine has already offered this key to the page and its input
+        // context. Preserve native fallback handlers without interpreting or
+        // dispatching the key to the engine again. Only the terminal, unhandled
+        // key-down feedback is unnecessary in a browsing view.
+        let fallback = BrowserWebKeyboardFallback()
+        var tail: NSResponder = self
+        while let next = tail.nextResponder {
+            tail = next
+        }
+        tail.nextResponder = fallback
+        defer {
+            if tail.nextResponder === fallback {
+                tail.nextResponder = fallback.nextResponder
+            }
+        }
+        super.keyDown(with: event)
+    }
+
+    // MARK: - Actions - Layout
+
+    override func layout() {
+        super.layout()
+        layoutHostedWebView()
+        titleBarTracker.checkPointerSoon()
+    }
+
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        // SwiftUI can give an entering or departing host an empty frame. Do
+        // not send that transient viewport to the engine's rendering process.
+        layoutHostedWebView()
+    }
+
+    private func layoutHostedWebView() {
+        guard !bounds.isEmpty,
+            let hostedWebView,
+            hostedWebView.superview === self,
+            hostedWebView.frame != bounds
+        else { return }
+        hostedWebView.frame = bounds
+    }
+
+    // MARK: - Actions - Window
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         if newWindow !== window {
@@ -455,6 +536,7 @@ final class BrowserWebHostView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        if let window { lastWindow = window }
         trackTitleBarPointer()
         guard isPageActive else { return }
         scheduleFocusRestoration()
@@ -478,22 +560,6 @@ final class BrowserWebHostView: NSView {
             titleBarTrackingArea = area
         }
         titleBarTracker.checkPointerSoon()
-    }
-
-    private func scheduleFocusRestoration() {
-        focusRestorationAttemptGeneration &+= 1
-        let generation = focusRestorationAttemptGeneration
-        DispatchQueue.main.async { [weak self] in
-            guard let self,
-                self.focusRestorationAttemptGeneration == generation,
-                self.isPageActive,
-                self.hostedWebView?.superview === self
-            else { return }
-            self.focusRestoration?.restoreIfNeeded(
-                in: self,
-                gate: self.focusRestorationGate
-            )
-        }
     }
 }
 

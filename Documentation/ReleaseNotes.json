@@ -3341,6 +3341,14 @@
     "sign-in-popup-test-waits-for-its-page": {
       "category": "internal",
       "message": "The sign-in popup test waits for the consent page to finish loading before it clicks."
+    },
+    "fullscreen-video-no-longer-black": {
+      "category": "fixed",
+      "message": "Videos you play full screen, such as on YouTube, show again instead of a black screen."
+    },
+    "fullscreen-standard-title-bar": {
+      "category": "fixed",
+      "message": "In full screen, the title bar that slides down with the menu bar looks like the standard one instead of a blank block over the page."
     }
   }
 }

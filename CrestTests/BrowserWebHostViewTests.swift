@@ -156,6 +156,25 @@ final class BrowserWebHostViewTests: XCTestCase {
         XCTAssertTrue(view.detachedHosts.first === newHost)
     }
 
+    func testAPageReturnsToTheSurvivingHostWhenTheNewerHostGoesFirst() {
+        let view = BrowserNativeSurfaceProbe()
+        let survivingHost = BrowserWebHostView()
+        let outgoingHost = BrowserWebHostView()
+
+        // A page shown fullscreen replaces the window's chrome, and the
+        // outgoing chrome, still rendering during its removal, builds a host
+        // for the page after the incoming one did.
+        survivingHost.attach(view)
+        outgoingHost.attach(view)
+        survivingHost.attach(view)
+        XCTAssertTrue(view.superview === outgoingHost)
+
+        BrowserPlatformWebView.dismantleNSView(outgoingHost, coordinator: ())
+
+        XCTAssertTrue(view.superview === survivingHost, "The page must stay on screen in the host SwiftUI keeps.")
+        XCTAssertTrue(view.attachedHosts.last === survivingHost)
+    }
+
     func testFocusPolicyRequiresAPermittedOwnerAndNoCompetingPresentation() {
         let allowed = BrowserWebFocusRestorationGate(
             browserChromeOwnsFocus: false,
