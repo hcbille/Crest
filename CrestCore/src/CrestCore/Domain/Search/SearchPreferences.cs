@@ -139,17 +139,5 @@ public sealed class SearchPreferences {
             CustomProviders.Where(p => p.Name != key).ToList().AsReadOnly(), SuggestionsEnabled);
     }
 
-    public string Resolve(string input, bool allowsInternalPages) {
-        var value = input.Trim();
-        var resolution = value == BrowserUrlConstants.AboutBlank ? new AddressResolution(value, null)
-            : AddressResolution.Resolve(input, Selected, allowsInternalPages)
-                ?? throw new BrowserRuleException(BrowserRuleCodes.InvalidAddress);
-        string address = resolution.Url;
-        if (resolution.SearchQuery is null && Uri.TryCreate(address, UriKind.Absolute, out var uri)
-            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)) address = uri.AbsoluteUri;
-        BrowserSpace.ValidateUrl(address, allowsInternalPages);
-        return address;
-    }
-
     #endregion
 }

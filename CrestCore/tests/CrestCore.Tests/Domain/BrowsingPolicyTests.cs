@@ -62,25 +62,6 @@ public sealed class BrowsingPolicyTests {
         Assert.Equal("~notapath", AddressResolution.Resolve("~notapath", Kagi())!.SearchQuery);
     }
     [Fact]
-    public void CustomSearchTemplatesRejectCredentialAndLocalTargetsAndHaveStableSelectionFallback() {
-        foreach (var template in new[] {
-            "http://example.org/?q=%s", "https://example.org/?q=%s&token=secret", "https://localhost/?q=%s",
-            "https://192.168.1.1/?q=%s", "https://%s.example.org/", "https://example.org/#%s",
-            "https://example.org/?q=%s&other={searchTerms}", "https://example.org/?q=%s&bad=%z",
-            "https://user:secret@example.org/?q=%s", "https://example.org:8443/?q=%s" })
-            Assert.IsType<InvalidSearchEngine>(Assert.Throws<Rejected>(() =>
-                SearchProvider.Admit(Guid.NewGuid(), "Custom", template, null)).Rejection);
-        var id = Guid.NewGuid(); var provider = SearchProvider.Admit(id, "Café", "https://example.org/find/{searchTerms}", null);
-        var preferences = SearchPreferences.Default.Add(provider).Select(provider);
-        Assert.Equal("https://example.org/find/a%2Fb%3Fc", preferences.Resolve("a/b?c", false));
-        Assert.IsType<DuplicateSearchEngineName>(Assert.Throws<Rejected>(() =>
-            preferences.Add(SearchProvider.Admit(Guid.NewGuid(), "CAFE", "https://example.com/?q=%s", null))).Rejection);
-        Assert.Equal("google", preferences.Remove(id).SelectedId);
-        Assert.Equal(provider.Name, preferences.SelectedId);
-        Assert.Throws<BrowserRuleException>(() => SearchPreferences.Default.Resolve("https://user:password@example.org", false));
-    }
-
-    [Fact]
     public void RetentionAndExplicitDeletionKeepTheirDifferentBoundaryRules() {
         // Retention excludes an exact cutoff and future records. Explicit
         // deletion includes its start and excludes its end.

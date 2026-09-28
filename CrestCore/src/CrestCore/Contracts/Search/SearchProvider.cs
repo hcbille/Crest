@@ -122,16 +122,6 @@ public sealed class SearchProvider {
             string.IsNullOrWhiteSpace(suggestions) ? null : ValidateTemplate(suggestions));
     }
 
-    /// A stored custom engine that no longer validates never runs its own
-    /// template: queries go to Google, as the selection fallback does.
-    public static SearchProvider CustomOrDefault(Guid id, string name, string search, string? suggestions) {
-        try {
-            return Admit(id, name, search, suggestions);
-        } catch (Rejected) {
-            return Google;
-        }
-    }
-
     private static Rejected Flawed(SearchEngineFlaw flaw) => new(new InvalidSearchEngine(flaw));
 
     private static string ValidateTemplate(string value) {

@@ -39,8 +39,6 @@ public sealed partial class NativeSessionAuthority {
 
     #region Actions - Device
 
-    private static Guid? OptionalId(JsonNode? value) => value is null ? null : Id(value);
-
     internal void AttachDevice(Device value, Guid workspace) {
         lock (Gate) {
             if (device is not null && !ReferenceEquals(device, value))

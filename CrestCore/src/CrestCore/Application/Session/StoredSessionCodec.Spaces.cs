@@ -67,10 +67,6 @@ internal static partial class StoredSessionCodec {
 
     internal static JsonArray EncodeHistory(IEnumerable<HistoryEntryState> history) => EncodeAll(history, Encode);
 
-    /// The tab an older Space stored as its selection. Selection is window state,
-    /// so the Space never keeps it; an import reads it once as the tab to show.
-    internal static Guid? LegacySelectedTab(JsonNode? node) => OptionalIdentity(Object(node)[Key.LegacySelectedTab]);
-
     /// A stored accent; one this build cannot name is indigo.
     internal static SpaceAccent DecodeAccent(JsonNode? node) => SpaceAccent.Named(TolerantText(node)) ?? SpaceAccent.Indigo;
 

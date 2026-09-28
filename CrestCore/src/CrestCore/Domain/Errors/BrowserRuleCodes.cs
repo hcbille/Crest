@@ -13,7 +13,6 @@ public static class BrowserRuleCodes {
     public const string InvalidHistoryRange = "invalid_history_range";
     public const string InvalidHistoryVisit = "invalid_history_visit";
     public const string InvalidIdentity = "invalid_identity";
-    public const string InvalidName = "invalid_name";
     public const string InvalidNativeKind = "invalid_native_kind";
     public const string InvalidRecordDate = "invalid_record_date";
     public const string InvalidRecoveryIdentity = "invalid_recovery_identity";
@@ -24,7 +23,6 @@ public static class BrowserRuleCodes {
     public const string InvalidSavedUrl = "invalid_saved_url";
     public const string InvalidSessionTransaction = "invalid_session_transaction";
     public const string InvalidShortcut = "invalid_shortcut";
-    public const string InvalidSpaceOrder = "invalid_space_order";
     public const string InvalidSplit = "invalid_split";
     public const string InvalidSyncDate = "invalid_sync_date";
     public const string InvalidSyncDeletion = "invalid_sync_deletion";
@@ -40,8 +38,6 @@ public static class BrowserRuleCodes {
     public const string ProfileLeaseRevoked = "profile_lease_revoked";
     public const string SessionReleased = "session_released";
     public const string SessionTransactionInProgress = "session_transaction_in_progress";
-    public const string SpaceLimitReached = "space_limit_reached";
-    public const string SpaceLocked = "space_locked";
     public const string StaleBorrowedSource = "stale_borrowed_source";
     public const string SyncClockExhausted = "sync_clock_exhausted";
     public const string SyncIdentityMismatch = "sync_identity_mismatch";
@@ -52,8 +48,6 @@ public static class BrowserRuleCodes {
     public const string UnknownFolder = "unknown_folder";
     public const string UnsupportedUrl = "unsupported_url";
     public const string VersionMismatch = "version_mismatch";
-
-    // Site permissions and origins.
 
     #endregion
 }

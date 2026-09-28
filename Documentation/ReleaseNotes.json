@@ -3233,6 +3233,10 @@
     "closed-window-stays-out-of-its-reopened-window": {
       "category": "fixed",
       "message": "A window you close while a Quick Window over it stays open no longer answers for the window that opens again in its place, so tabs and pop-ups a page opens show in the window you are using."
+    },
+    "core-and-engine-dead-code-removed": {
+      "category": "internal",
+      "message": "Declarations nothing calls any more are gone from the core and the Chromium extension views."
     }
   }
 }

@@ -69,12 +69,10 @@ public sealed class SearchPolicyTests {
     }
 
     [Fact]
-    public void CustomEnginesBuildTheirOwnURLsAndAStoredInvalidOneNeverRuns() {
+    public void CustomEnginesBuildTheirOwnURLs() {
         Assert.Equal("https://kagi.com/api/autosuggest?q=crest%20browser",
             Kagi("https://kagi.com/search?q=%s", "https://kagi.com/api/autosuggest?q=%s").Suggest("crest browser"));
         Assert.Null(Kagi("https://kagi.com/search?q=%s").Suggest("crest"));
-        Assert.Equal("https://www.google.com/search?q=secret",
-            SearchProvider.CustomOrDefault(Guid.Parse(KagiId), "Kagi", "http://127.0.0.1/search?q=%s", null).Search("secret"));
     }
 
     [Fact]

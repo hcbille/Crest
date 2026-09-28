@@ -74,15 +74,6 @@ internal sealed class EngineDownloads(Downloads downloads, Device device, Pages 
     /// The downloads' prompts waiting on the person.
     internal Dictionary<Guid, Waiting> WaitingPrompts => waiting;
 
-    /// The download ledger the engines' downloads are recorded in.
-    internal Downloads Downloads => downloads;
-
-    /// The device whose Spaces a download belongs to.
-    internal Device Device => device;
-
-    /// The pages downloads come from.
-    internal Pages Pages => pages;
-
     /// Where the identities of new records come from.
     internal IIdSource Ids => ids;
 

@@ -271,10 +271,6 @@ internal static partial class StoredSessionCodec {
             ? (int)number : throw new BrowserRuleException(BrowserRuleCodes.InvalidSavedState);
     }
 
-    private static void Put(JsonObject value, string key, JsonNode? member) {
-        if (member is not null) value[key] = member;
-    }
-
     private static void Put(JsonObject value, string key, string? member) {
         if (member is not null) value[key] = member;
     }

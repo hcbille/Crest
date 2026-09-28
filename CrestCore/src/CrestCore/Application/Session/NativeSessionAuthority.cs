@@ -97,10 +97,6 @@ public sealed partial class NativeSessionAuthority {
         if (identities.Index(value) is { } flaw) throw new Rejected(new InvalidSession(flaw));
     }
 
-    /// A Space's settings without its records, as settings commands answer them.
-    /// Split metadata stays: windows read it with the settings.
-    private static SpaceState Settings(SpaceState space) => space with { Tabs = [], Folders = [], ArchivedTabs = [], History = [] };
-
     internal static SessionState Replacing(SessionState session, params SpaceState[] edited) => session with {
         Spaces = session.Spaces.Select(space => edited.FirstOrDefault(value => value.Id == space.Id) ?? space).ToArray()
     };
