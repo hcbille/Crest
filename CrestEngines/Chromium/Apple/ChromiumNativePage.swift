@@ -140,7 +140,7 @@
                 anchor ?? BrowserExtensionPopupAnchor(screenPoint: NSEvent.mouseLocation, sourceWindow: surface.window)
             guard let source = anchor.presentationSource(fallbackWindow: surface.window) else { return }
             if host?.runExtension(extensionID, page: pageID, anchorView: source.view, anchorRect: source.rect) != true {
-                CrestChromiumRoot.showNativeNotice(
+                ChromiumComposition.showNativeNotice(
                     "This extension action is unavailable on this page.", icon: "puzzlepiece.extension")
             }
         }
@@ -206,7 +206,7 @@
         /// this page's own Space — a listing can never reach another Space or a
         /// private window, which keeps no persistent extension state.
         func performStoreRequest(_ extensionID: String, removes: Bool) {
-            let store = CrestChromiumRoot.extensions
+            let store = ChromiumComposition.extensions
             guard !isPrivateBrowsing, let profileID, let space = hostCommands?.extensionSpace(forProfile: profileID)
             else {
                 refreshStoreState()

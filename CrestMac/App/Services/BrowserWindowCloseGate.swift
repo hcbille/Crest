@@ -2,7 +2,7 @@ import AppKit
 
 // MARK: - Types
 
-/// A window whose own `close()` asks its close gate, as the Chromium host's
+/// A window whose own `close()` asks its close gate, as the Mac shell's
 /// windows do, so nothing needs to stand between it and its delegate.
 @MainActor
 protocol BrowserCloseGatedWindow: NSWindow {

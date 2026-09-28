@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Uses the same selected palette and system appearance as the Dock icon.
 struct BrowserPlatformCurrentAppIcon: View {
-    @AppStorage(BrowserMacAppIconAssets.preferenceKey, store: BrowserMacAppIconPreference.defaults)
+    @AppStorage(BrowserMacAppIconAssets.preferenceKey, store: BrowserMacDockTile.shared.defaults)
     private var selectedName = ""
     @State private var appearanceRevision = 0
     @State private var appearanceObserver: BrowserMacAppIconAppearanceObserver?

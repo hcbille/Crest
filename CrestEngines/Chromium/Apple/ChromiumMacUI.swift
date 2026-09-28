@@ -2,83 +2,94 @@
     import AppKit
 
     /// Crest's own UI, as Chromium's Mac shell asks for it: its windows, the
-    /// application's quit, reopen and external opens, system sign-in, and what the
-    /// engine's browser window asks of Crest's. The root answers every one.
+    /// application's quit, reopen and external opens, system sign-in, and what
+    /// the engine's browser window asks of Crest's. Crest's shared Mac shell
+    /// answers each one; the composition answers what only Chromium asks.
     @MainActor
     final class ChromiumMacUI: NSObject, CrestMacUI {
-        // MARK: - Windows
+        // MARK: - Types
+
+        private final class Placement: NSObject, CrestEngineWindowPlacement {
+            let window: UUID
+            let space: UUID
+
+            init(window: UUID, space: UUID) {
+                self.window = window
+                self.space = space
+            }
+        }
+
+        // MARK: - Variables
+
+        private var shell: BrowserMacShell? { ChromiumComposition.shell }
+
+        // MARK: - Actions - Windows
 
         func window(id: UUID?) -> NSWindow? {
-            CrestChromiumRoot.window(for: id)
+            shell?.window(for: id)
         }
 
         func reserveEngineWindow(profile: UUID, ownWindow: Bool) -> (any CrestEngineWindowPlacement)? {
-            CrestChromiumRoot.reserveEngineWindow(forProfile: profile, ownWindow: ownWindow).map {
+            shell?.reserveEngineWindow(forProfile: profile, ownWindow: ownWindow).map {
                 Placement(window: $0.window, space: $0.space)
             }
         }
 
         func presentEngineWindow(_ windowID: UUID, space spaceID: UUID, focused: Bool) {
-            CrestChromiumRoot.presentEngineWindow(windowID, space: spaceID, focused: focused)
+            shell?.presentEngineWindow(windowID, space: spaceID, focused: focused)
         }
 
-        // MARK: - Application
+        // MARK: - Actions - Application
 
-        func deferQuit() -> Bool { CrestChromiumRoot.deferQuit() }
+        func deferQuit() -> Bool { ChromiumComposition.deferQuit() }
 
-        func reopen() -> Bool { CrestChromiumRoot.reopen() }
+        func reopen() -> Bool { shell?.reopen() ?? false }
 
-        func openExternal(_ urls: [URL]) -> Bool { CrestChromiumRoot.openExternalURLs(urls) }
+        func openExternal(_ urls: [URL]) -> Bool { shell?.openExternal(urls) ?? false }
 
-        func dockMenu() -> NSMenu? { CrestChromiumRoot.dockMenu() }
+        func dockMenu() -> NSMenu? { shell?.dockMenu() }
 
         func openAuthenticationSession(_ url: URL, window windowID: UUID) -> Bool {
-            CrestChromiumRoot.openAuthenticationSession(url, window: windowID)
+            guard let host = ChromiumComposition.engineHost else { return false }
+            return shell?.openAuthenticationSession(url, window: windowID) {
+                host.cancelAuthenticationSession(window: windowID)
+            } ?? false
         }
 
         func closeAuthenticationSession(window windowID: UUID) {
-            CrestChromiumRoot.closeAuthenticationSession(windowID)
+            shell?.closeAuthenticationSession(windowID)
         }
 
-        // MARK: - The engine's browser window
+        // MARK: - Actions - The engine's browser window
 
-        func handleShortcut(_ event: NSEvent) -> Bool { CrestChromiumRoot.handleShortcutEvent(event) }
+        func handleShortcut(_ event: NSEvent) -> Bool { shell?.handleShortcut(event) ?? false }
 
-        func focusLocation() { CrestChromiumRoot.focusLocation() }
+        func focusLocation() { shell?.focusLocation() }
 
-        func bookmarkActivePage() { CrestChromiumRoot.bookmarkActivePage() }
+        func bookmarkActivePage() { shell?.bookmarkActivePage() }
 
-        func translatePage() { CrestChromiumRoot.translatePage() }
+        func translatePage() { ChromiumComposition.translatePage() }
 
-        func translate(_ text: String) { CrestChromiumRoot.translateText(text) }
+        func translate(_ text: String) { ChromiumComposition.translateText(text) }
 
-        func showTabSearch() { CrestChromiumRoot.showTabSearch() }
+        func showTabSearch() { shell?.showTabSearch() }
 
         func showUnavailable(_ feature: UnavailableEngineFeature) {
-            CrestChromiumRoot.showNativeNotice(feature.message, icon: feature.symbol)
+            ChromiumComposition.showNativeNotice(feature.message, icon: feature.symbol)
         }
 
         func showEngineNotice(_ message: String, kind: EngineNoticeKind) {
-            CrestChromiumRoot.showNativeNotice(message, icon: kind == .linkCopied ? "link" : "checkmark.circle")
+            ChromiumComposition.showNativeNotice(message, icon: kind == .linkCopied ? "link" : "checkmark.circle")
         }
 
-        // MARK: - Pages
+        // MARK: - Actions - Pages
 
         func addPageMenuItems(to menu: NSMenu, page pageID: UUID, link: URL?, selection: String?) {
-            CrestChromiumRoot.chromiumEngine?.page(pageID)?.addMenuItems(to: menu, link: link, selection: selection)
+            ChromiumComposition.chromiumEngine?.page(pageID)?.addMenuItems(to: menu, link: link, selection: selection)
         }
 
         func beginLinkDrag(_ url: URL, title: String, page pageID: UUID) -> Bool {
-            CrestChromiumRoot.chromiumEngine?.page(pageID)?.beginLinkDrag(url, title: title) == true
-        }
-
-        private final class Placement: NSObject, CrestEngineWindowPlacement {
-            let window: UUID
-            let space: UUID
-            init(window: UUID, space: UUID) {
-                self.window = window
-                self.space = space
-            }
+            ChromiumComposition.chromiumEngine?.page(pageID)?.beginLinkDrag(url, title: title) == true
         }
     }
 

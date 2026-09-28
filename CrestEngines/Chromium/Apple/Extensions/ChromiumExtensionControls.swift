@@ -5,7 +5,7 @@ struct BrowserPinnedExtensionStrip: View {
     /// The Space whose row this is, in the read model.
     let space: SpaceModel
     let browser: BrowserStore
-    private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
+    private var store: ChromiumExtensionStore { ChromiumComposition.extensions }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BrowserExtensionSidePanelHost.self) private var sidePanel: BrowserExtensionSidePanelHost?
 
@@ -72,7 +72,7 @@ struct ChromiumExtensionControls: View {
     let space: SpaceModel
     let url: URL?
     let dismiss: () -> Void
-    private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
+    private var store: ChromiumExtensionStore { ChromiumComposition.extensions }
     @Environment(BrowserExtensionSidePanelHost.self) private var sidePanel: BrowserExtensionSidePanelHost?
 
     var body: some View {
@@ -80,7 +80,7 @@ struct ChromiumExtensionControls: View {
             Divider()
             BrowserSiteExtensionsSection(
                 actions: store.actions(for: page),
-                manageExtensions: { afterDismiss { CrestChromiumRoot.openExtensionSettings() } },
+                manageExtensions: { afterDismiss { ChromiumComposition.openExtensionSettings() } },
                 perform: { action, anchor in
                     let retained = anchor?.replacingSourceWindow(page.surface.window)
                     afterDismiss { page.runExtension(action.id, anchor: retained) }

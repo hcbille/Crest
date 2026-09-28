@@ -12,7 +12,7 @@ struct BrowserPlatformLookAndFeelResetSection: View {
             transparency.isEnabled = BrowserWindowTransparencyPolicy.defaultEnabled
             transparency.strength = BrowserWindowTransparencyPolicy.defaultStrength
             animatesSpacePages = SpacePageMotionPreference.defaultValue
-            _ = BrowserMacAppIconPreference.select("")
+            _ = BrowserMacDockTile.shared.select("")
         }
     }
 }

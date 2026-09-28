@@ -51,7 +51,7 @@
             case .open where isShowing:
                 break
             default:
-                let action = CrestChromiumRoot.extensions.actions(for: page).first { $0.id == extensionID }
+                let action = ChromiumComposition.extensions.actions(for: page).first { $0.id == extensionID }
                 present(
                     extensionID, title: action?.displayName ?? extensionID,
                     icon: action?.icon, page: page, host: host)
@@ -82,7 +82,7 @@
                     }
                     return
                 }
-                CrestChromiumRoot.showNativeNotice(
+                ChromiumComposition.showNativeNotice(
                     "This extension's side panel is unavailable on this page.",
                     icon: "sidebar.right")
                 return

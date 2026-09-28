@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BrowserPlatformAppIconSettingsSection: View {
-    @AppStorage(BrowserMacAppIconAssets.preferenceKey, store: BrowserMacAppIconPreference.defaults)
+    @AppStorage(BrowserMacAppIconAssets.preferenceKey, store: BrowserMacDockTile.shared.defaults)
     private var selectedName = ""
     @State private var showsError = false
     @State private var appearanceRevision = 0
@@ -40,13 +40,13 @@ struct BrowserPlatformAppIconSettingsSection: View {
 
     private var resettable: CrestResettableSetting {
         CrestResettableSetting(title: "App icon", isDefault: selectedName.isEmpty) {
-            showsError = !BrowserMacAppIconPreference.select("")
+            showsError = !BrowserMacDockTile.shared.select("")
         }
     }
 
     private func iconChoice(name: String, title: LocalizedStringKey, preview: String) -> some View {
         Button {
-            showsError = !BrowserMacAppIconPreference.select(name)
+            showsError = !BrowserMacDockTile.shared.select(name)
         } label: {
             VStack(spacing: 6) {
                 Image(

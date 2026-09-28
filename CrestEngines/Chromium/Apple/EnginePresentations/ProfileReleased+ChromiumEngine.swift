@@ -3,7 +3,7 @@
 
     extension ProfileReleased {
         @MainActor func present(on engine: ChromiumEngine) {
-            CrestChromiumRoot.profileReleased(self)
+            ChromiumComposition.profileReleased(self)
         }
     }
 #endif

@@ -684,6 +684,9 @@
     "Customize how your Space looks." : {
 
     },
+    "Cut" : {
+
+    },
     "Dangerous Site" : {
 
     },
@@ -1873,6 +1876,9 @@
     "About" : {
 
     },
+    "About Crest" : {
+
+    },
     "About Page Translation" : {
 
     },
@@ -2926,6 +2932,9 @@
         }
       }
     },
+    "Bring All to Front" : {
+
+    },
     "Browse all emblems (%lld)" : {
 
     },
@@ -3861,6 +3870,9 @@
         }
       }
     },
+    "Copy" : {
+
+    },
     "Copy as Markdown" : {
       "localizations" : {
         "ar" : {
@@ -4472,6 +4484,9 @@
       "extractionState" : "manual"
     },
     "Crest reads this catalog from the WebKit framework installed on this Mac. Feature availability and defaults may change when macOS updates." : {
+
+    },
+    "Crest Recovery" : {
 
     },
     "Crest released this temporary page to reduce memory use." : {
@@ -5481,6 +5496,9 @@
     "Enter a valid URL template." : {
 
     },
+    "Enter Full Screen" : {
+
+    },
     "Error code" : {
 
     },
@@ -5802,6 +5820,9 @@
           }
         }
       }
+    },
+    "File" : {
+
     },
     "Files & Folders" : {
 
@@ -6284,6 +6305,9 @@
     "Height" : {
 
     },
+    "Help" : {
+
+    },
     "Heraldry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6306,6 +6330,9 @@
         }
       }
     },
+    "Hide Crest" : {
+
+    },
     "Hide Details" : {
       "localizations" : {
         "ar" : {
@@ -6317,6 +6344,9 @@
       }
     },
     "Hide Now Playing" : {
+
+    },
+    "Hide Others" : {
 
     },
     "Hide Password" : {
@@ -7674,6 +7704,9 @@
     "Microphone" : {
 
     },
+    "Minimize" : {
+
+    },
     "Monogram" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8595,6 +8628,9 @@
         }
       }
     },
+    "Open Page in %@" : {
+
+    },
     "Open Peek with" : {
       "localizations" : {
         "ar" : {
@@ -9017,6 +9053,12 @@
           }
         }
       }
+    },
+    "Paste" : {
+
+    },
+    "Paste and Match Style" : {
+
     },
     "Pattern" : {
       "extractionState" : "stale",
@@ -9677,6 +9719,9 @@
         }
       }
     },
+    "Quit Crest" : {
+
+    },
     "Raven" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9787,6 +9832,9 @@
       }
     },
     "Reddit is public. Remove passwords, private URLs, browsing history, and other sensitive information before posting. Use GitHub Issues for reports with a Crest version, Apple platform, and repeatable steps." : {
+
+    },
+    "Redo" : {
 
     },
     "Refresh Languages" : {
@@ -11230,6 +11278,9 @@
         }
       }
     },
+    "Services" : {
+
+    },
     "Set as Default…" : {
 
     },
@@ -11403,6 +11454,9 @@
       }
     },
     "Show a static custom icon or emoji instead of folder artwork." : {
+
+    },
+    "Show All" : {
 
     },
     "Show Archive" : {
@@ -13465,6 +13519,9 @@
     "Unavailable" : {
 
     },
+    "Undo" : {
+
+    },
     "Undo shuffle" : {
 
     },
@@ -13936,6 +13993,9 @@
     "Video" : {
 
     },
+    "View" : {
+
+    },
     "View & Tools" : {
       "localizations" : {
         "ar" : {
@@ -14272,6 +14332,9 @@
 
     },
     "Yours on every device" : {
+
+    },
+    "Zoom" : {
 
     },
     "Zoom In" : {

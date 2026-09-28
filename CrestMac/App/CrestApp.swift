@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The WebKit composition's entry point. The Chromium framework is entered
-/// through `CrestChromiumRoot` and excludes this file.
+/// through `ChromiumComposition`, which runs the shared Mac shell, and
+/// excludes this file.
 @main
 struct CrestApp: App {
     @NSApplicationDelegateAdaptor private var delegate: CrestAppDelegate
@@ -39,7 +40,7 @@ struct CrestApp: App {
                     }
                 }
                 .task {
-                    BrowserMacAppIconPreference.restore()
+                    BrowserMacDockTile.shared.start(following: application.browser.core)
                     await application.cloudSync.start()
                 }
                 .modifier(BrowserMacDockMenu.SceneOpening(dockMenu: application.dockMenu))

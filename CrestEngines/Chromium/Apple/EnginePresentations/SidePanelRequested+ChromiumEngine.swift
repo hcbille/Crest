@@ -3,7 +3,7 @@
 
     extension SidePanelRequested {
         @MainActor func present(on engine: ChromiumEngine) {
-            CrestChromiumRoot.routeSidePanel(self)
+            ChromiumComposition.routeSidePanel(self)
         }
     }
 #endif

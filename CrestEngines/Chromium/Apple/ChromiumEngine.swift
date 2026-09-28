@@ -97,7 +97,7 @@
                 page.ask(asked, dismissal: dismissal(for: asked.promptID))
             }
             if case .extensionInstallAsked(let asked) = change {
-                CrestChromiumRoot.extensions.review(asked) { [weak self] accepted, withholds in
+                ChromiumComposition.extensions.review(asked) { [weak self] accepted, withholds in
                     self?.answer(
                         AnswerExtensionInstall(
                             promptID: asked.promptID, accepted: accepted, withholdsSiteAccess: withholds))
@@ -207,6 +207,6 @@
     ) {
         let contract = Array(UnsafeBufferPointer(start: fingerprint, count: fingerprintLength))
         host.attach(ui: ChromiumMacUI())
-        CrestChromiumRoot.start(host: host, binding: binding.pointee, fingerprint: contract, pages: pages.pointee)
+        ChromiumComposition.start(host: host, binding: binding.pointee, fingerprint: contract, pages: pages.pointee)
     }
 #endif

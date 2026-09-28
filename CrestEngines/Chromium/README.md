@@ -264,8 +264,10 @@ Use the Release configuration of `CrestChromiumUI` for performance comparisons.
 
 The host keeps Chromium's process and application lifecycle. The Swift framework
 contains no application entry point. `CrestChromiumUI` compiles Crest's existing
-shared and macOS UI, and `CrestChromiumRoot` mounts `BrowserMacApplication` in
-native windows. `ChromiumNativePage` supplies the WebContents view inside the
+shared and macOS UI, and `ChromiumComposition` starts the Mac shell both products
+share (`CrestMac/App/Shell`), which mounts `BrowserMacApplication` in its AppKit
+windows and menu bar; `ChromiumShellHost` answers the little the shell asks of
+Chromium. `ChromiumNativePage` supplies the WebContents view inside the
 existing page card.
 
 The pinned toolbar row belongs to the Space rather than to a page. Its actions

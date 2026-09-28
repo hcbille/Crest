@@ -41,7 +41,7 @@ final class ChromiumExtensionStore {
     /// button instead of leaving it in the progress label.
     @ObservationIgnored private var installCompletion: (@MainActor () -> Void)?
 
-    var spaces: [BrowserSpaceIdentity] { CrestChromiumRoot.extensionSpaces }
+    var spaces: [BrowserSpaceIdentity] { ChromiumComposition.extensionSpaces }
     /// Whether this Space's engine profile may be read and prepared here.
     ///
     /// Ownership is decided by `(spaceID, profileID)` against the store family
@@ -52,16 +52,16 @@ final class ChromiumExtensionStore {
     /// has no persistent engine profile of its own — and a locked Space are all
     /// refused. Callers with no window fall back to the application list.
     func authorized(_ space: BrowserSpaceIdentity, in browser: BrowserStore? = nil) -> Bool {
-        guard !CrestChromiumRoot.isSpaceLocked(space) else { return false }
+        guard !ChromiumComposition.isSpaceLocked(space) else { return false }
         guard let browser else {
             return spaces.contains { $0.id == space.id && $0.profileID == space.profileID }
         }
-        guard CrestChromiumRoot.ownsExtensionProfiles(browser) else { return false }
+        guard ChromiumComposition.ownsExtensionProfiles(browser) else { return false }
         return browser.spaceModel(matching: space.assignment) != nil
     }
     func refresh() {
         revision &+= 1
-        guard CrestChromiumRoot.chromiumEngine != nil else { return }
+        guard ChromiumComposition.chromiumEngine != nil else { return }
         let profiles = Set(spaces.map { $0.profileID })
         installed = installed.filter { profiles.contains($0.key) }
         for space in spaces where installed[space.profileID] != nil {
@@ -71,11 +71,11 @@ final class ChromiumExtensionStore {
 
     /// What the engine has installed in the Space's profile.
     private static func installed(in space: BrowserSpaceIdentity) -> [Installed] {
-        guard let pages = CrestChromiumRoot.chromiumEngine?.pages else { return [] }
+        guard let pages = ChromiumComposition.chromiumEngine?.pages else { return [] }
         return pages.request(InstalledExtensions(profileID: space.profileID)).extensions.map(Installed.init)
     }
     func load(_ space: BrowserSpaceIdentity, in browser: BrowserStore? = nil) async {
-        guard authorized(space, in: browser), let engine = CrestChromiumRoot.chromiumEngine else { return }
+        guard authorized(space, in: browser), let engine = ChromiumComposition.chromiumEngine else { return }
         let ready = await engine.prepareProfile(space.profileID)
         guard ready, authorized(space, in: browser) else { return }
         installed[space.profileID] = Self.installed(in: space)
@@ -95,7 +95,7 @@ final class ChromiumExtensionStore {
         for space: BrowserSpaceIdentity, page: ChromiumNativePage?
     ) -> [BrowserExtensionActionPresentation] {
         _ = revision
-        guard let pages = CrestChromiumRoot.chromiumEngine?.pages else { return [] }
+        guard let pages = ChromiumComposition.chromiumEngine?.pages else { return [] }
         let live = Dictionary(
             page?.extensions.map { ($0.id, $0) } ?? [],
             uniquingKeysWith: { first, _ in first })
@@ -117,20 +117,20 @@ final class ChromiumExtensionStore {
         _ action: BrowserExtensionActionPresentation, space: BrowserSpaceIdentity,
         anchor: BrowserExtensionPopupAnchor?
     ) {
-        let fallback = CrestChromiumRoot.activeNativeWindow
+        let fallback = ChromiumComposition.activeNativeWindow
         let anchor =
             anchor
             ?? BrowserExtensionPopupAnchor(
                 screenPoint: NSEvent.mouseLocation,
                 sourceWindow: fallback)
-        guard let host = CrestChromiumRoot.engineHost,
+        guard let host = ChromiumComposition.engineHost,
             let source = anchor.presentationSource(fallbackWindow: fallback),
             let windowID = source.view.window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) }),
             host.runExtension(
                 action.id, profile: space.profileID, window: windowID,
                 anchorView: source.view, anchorRect: source.rect)
         else {
-            CrestChromiumRoot.showNativeNotice(
+            ChromiumComposition.showNativeNotice(
                 String(localized: "This extension action needs an open page."),
                 icon: "puzzlepiece.extension")
             return
@@ -155,12 +155,12 @@ final class ChromiumExtensionStore {
     func command(
         _ command: ExtensionCommand, extensionID: String = "", space: BrowserSpaceIdentity, window: NSWindow? = nil
     ) -> Bool {
-        guard authorized(space), let pages = CrestChromiumRoot.chromiumEngine?.pages,
-            let window = window ?? CrestChromiumRoot.activeNativeWindow
+        guard authorized(space), let pages = ChromiumComposition.chromiumEngine?.pages,
+            let window = window ?? ChromiumComposition.activeNativeWindow
         else { return false }
         let options = installed[space.profileID]?.first { $0.id == extensionID }?.options
         if let destination = command.destination(extensionID, options), let url = URL(string: destination) {
-            return CrestChromiumRoot.openExtensionURL(url, in: space, window: window)
+            return ChromiumComposition.openExtensionURL(url, in: space, window: window)
         }
         guard let change = command.change else { return false }
         let accepted = pages.request(
@@ -247,7 +247,7 @@ final class ChromiumExtensionStore {
                     self?.confirmRemoval(record, space: space)
                 })
         }
-        if let source = anchor?.presentationSource(fallbackWindow: CrestChromiumRoot.activeNativeWindow) {
+        if let source = anchor?.presentationSource(fallbackWindow: ChromiumComposition.activeNativeWindow) {
             menu.popUp(positioning: nil, at: NSPoint(x: source.rect.minX, y: source.rect.minY), in: source.view)
         } else {
             menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
@@ -299,7 +299,7 @@ final class ChromiumExtensionStore {
                     }
                 }
             }
-            if let window = CrestChromiumRoot.activeNativeWindow {
+            if let window = ChromiumComposition.activeNativeWindow {
                 alert.beginSheetModal(for: window, completionHandler: complete)
             } else {
                 complete(alert.runModal())
@@ -320,7 +320,7 @@ final class ChromiumExtensionStore {
         completion: (@MainActor () -> Void)? = nil
     ) {
         guard installation == nil, authorized(space),
-            let window = anchor?.window ?? CrestChromiumRoot.activeNativeWindow
+            let window = anchor?.window ?? ChromiumComposition.activeNativeWindow
         else {
             completion?()
             return
@@ -447,7 +447,7 @@ final class ChromiumExtensionInstallation {
     }
     func start() async {
         for target in store.spaces { await store.load(target) }
-        guard !canceled, let host = CrestChromiumRoot.engineHost else { return }
+        guard !canceled, let host = ChromiumComposition.engineHost else { return }
         let session = URLSession(configuration: .ephemeral)
         defer { session.invalidateAndCancel() }
         do {
@@ -491,7 +491,7 @@ final class ChromiumExtensionInstallation {
         installing = false
     }
     private func installPackage(in target: BrowserSpaceIdentity) async throws {
-        guard !canceled, store.authorized(target), let package, let host = CrestChromiumRoot.engineHost,
+        guard !canceled, store.authorized(target), let package, let host = ChromiumComposition.engineHost,
             let windowID = window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) })
         else { throw URLError(.cancelled) }
         targetSpace = target

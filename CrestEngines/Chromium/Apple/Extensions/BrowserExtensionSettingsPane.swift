@@ -6,7 +6,7 @@ struct BrowserExtensionSettingsPane: View {
     var requestedSpaceID: UUID?
     var requestRevision = 0
     @State private var selectedSpaceID: UUID?
-    private var store: ChromiumExtensionStore { CrestChromiumRoot.extensions }
+    private var store: ChromiumExtensionStore { ChromiumComposition.extensions }
     private var space: BrowserSpaceIdentity? {
         browser.spaceModel(selectedSpaceID ?? browser.selectedSpaceID)?.identity
     }

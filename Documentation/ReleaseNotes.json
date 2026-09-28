@@ -3293,6 +3293,14 @@
     "external-opens-follow-link-settings": {
       "category": "improved",
       "message": "Links and documents from other apps open in your frontmost Crest window, and with no window open they follow your link settings instead of always opening a Quick Window. The Chromium build reopens its windows in the order you left them, with only the front one taking focus."
+    },
+    "one-mac-shell-for-both-engines": {
+      "category": "internal",
+      "message": "Both Mac builds share one AppKit shell for their windows, menu bar, launch, reopen, outside opens and quit, and the Chromium build now runs on it; its windows tell their content when they are minimized or hidden."
+    },
+    "dock-icon-download-progress": {
+      "category": "improved",
+      "message": "Crest's Dock icon shows how many downloads are in progress and how far along they are, and keeps the app icon you picked while it does."
     }
   }
 }

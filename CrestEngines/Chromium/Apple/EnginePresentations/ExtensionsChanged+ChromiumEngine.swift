@@ -3,7 +3,7 @@
 
     extension ExtensionsChanged {
         @MainActor func present(on engine: ChromiumEngine) {
-            CrestChromiumRoot.extensions.refresh()
+            ChromiumComposition.extensions.refresh()
         }
     }
 #endif
