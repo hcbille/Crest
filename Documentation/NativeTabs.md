@@ -26,7 +26,7 @@ Settings in a temporary macOS workspace retain their native tab locally while ed
 4. Add only the capabilities the content needs to the native action port, with assignment and access checks at the boundary.
 5. Cover persistence, unknown-kind round trips, native-only and mixed-split presentation, stale-assignment rejection, and release of runtime state when its loaded lifetime ends. Review visible state restoration through the real interface.
 
-Notes and Widgets are not implemented by this change. The descriptor and host provide their integration point; document persistence, per-content state restoration, and platform availability belong to each future content type.
+The descriptor and host are the integration point for new content types, such as notes or widgets; document persistence, per-content state restoration, and platform availability belong to each content type.
 
 ## Compatibility
 
@@ -34,7 +34,7 @@ The optional descriptor preserves decoding of existing website and Start Page ta
 
 ## Getting Started
 
-Both shells render native guides. Mac teaches tabs, Split View, and extensions; mobile has one touch-oriented page for pinned, saved, and open tabs plus folders. The practice store, artwork, and actual sidebar rows are shared. Setup and mobile Settings use the same adaptive appearance workspace; phones show a compact preview above the choices, while tablets can place the sidebar on the left.
+Both shells render native guides. Mac teaches tabs and Split View; mobile has one touch-oriented page for pinned, saved, and open tabs plus folders. The practice store, artwork, and actual sidebar rows are shared. Setup and mobile Settings use the same adaptive appearance workspace; phones show a compact preview above the choices, while tablets can place the sidebar on the left.
 
 Initial setup opens or reuses a Saved guide in the first ordered normal Space. Finishing setup is the core's: it applies a pending manual setup, records in the device store that this device completed setup, and names the Space the guide opens in, refusing while that Space is locked. The shell then asks to unlock it and finishes again, and the core checks again. A cancelled unlock leaves setup unfinished. The launch plan is decided before setup finishes, so the normal startup preference cannot replace the guide.
 

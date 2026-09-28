@@ -3221,6 +3221,10 @@
     "app-tests-trimmed-to-contracts": {
       "category": "internal",
       "message": "The app test suites drop tests that repeat a rule the core's own tests cover, re-test shared page code on iPhone, or check copy, and the test helpers nothing calls."
+    },
+    "docs-describe-the-finished-design": {
+      "category": "internal",
+      "message": "The architecture and contributor documents describe the finished design, including popups in Quick Windows, the opener-engine rule, Picture in Picture, the title-bar guard and web notifications, instead of the restructure's plans and status."
     }
   }
 }

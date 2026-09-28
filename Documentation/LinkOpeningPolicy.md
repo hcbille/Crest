@@ -1,35 +1,42 @@
 # Link opening
 
-General settings contains one focus preference, **Focus new tabs opened from links**.
-Its stored key and default remain unchanged. Existing users keep their saved choice;
-payloads without the key use `false`.
+The core decides where a followed link or an opened window goes, on both
+engines and every platform: the `LinkNavigation` query and the engines'
+`LinkActivation` question for a followed link, and `PageOffered` for a window
+an engine made. General settings contains one focus preference, **Focus new
+tabs opened from links**, which the core keeps in the device store's link
+preferences (`LinkBehavior.FocusesNewTabs`); preferences without it use `false`.
 
-| WebKit intent | Focus off | Focus on | Loading owner |
-| --- | --- | --- | --- |
-| Command-click or middle-click link | Background tab | Selected tab | Crest starts the original request immediately |
-| Same gesture with Shift | Selected tab | Background tab | Crest starts the original request immediately |
-| Accepted scripted new window with the same modifier/button intent | Background tab | Selected tab | WebKit drives its supplied view immediately |
-| Direct link or scripted same-page navigation | Current page | Current page | WebKit |
-| Unmodified `target=_blank`, form target, or accepted `window.open` | Selected tab | Selected tab | WebKit |
-| Explicit window, download, Peek, Quick Window, or Space destination action | Existing action semantics | Existing action semantics | Existing action owner |
+| Gesture | Focus off | Focus on |
+| --- | --- | --- |
+| Command-click or middle-click link | Background tab | Selected tab |
+| Same gesture with Shift | Selected tab | Background tab |
+| Scripted new window with the same modifier or button gesture | Background tab | Selected tab |
+| Direct link or scripted same-page navigation | Current page | Current page |
+| Plain click leaving a pinned or saved tab's site, with automatic Peek on | Peek | Peek |
+| Unmodified `target=_blank`, form target, or `window.open` without popup features | Selected tab beside the opener | Selected tab beside the opener |
+| `window.open` asking for a popup window, on the Mac | Quick Window over the opener's window | Quick Window over the opener's window |
+| Any new window from a Quick Window or Peek | Loads in that Quick Window or Peek | Loads in that Quick Window or Peek |
+| Explicit window, download, Peek, Quick Window, or Space destination action | Existing action semantics | Existing action semantics |
 
 The Command/Option preference for Peek still determines which modifier means
 "new tab". Shift reverses the focus choice only for a reported new-tab gesture.
-The same shared decision applies on macOS and iPadOS. A script that does not
+The same decision applies on macOS, iPhone and iPad; iPhone and iPad have no
+Quick Window, so a popup window opens there as a tab. A script that does not
 preserve a link or new-window gesture cannot be classified from the appearance
 of its card. Crest does not rewrite sites or infer missing input intent.
 
-Popup permissions remain WebKit's decision. Selection policy is evaluated only
-after WebKit accepts the new-window request. Crest adopts the supplied configuration
-and leaves its first navigation to WebKit, preserving opener identity, writable
-blank windows, request bodies, and the source profile.
+A page another page opens stays on its opener's engine, whatever the site's
+engine choice. The engine loads the page it made for a new window, so opener
+identity, writable blank windows, request bodies and the source profile
+survive.
 
 ## Loading and residency
 
 Intentionally opened background links start immediately. Selecting the new tab
-reuses that page. On iPhone and iPad the initial navigation is protected from
-memory pressure until it finishes or fails; on the Mac memory pressure treats the
-page like any other tab page off screen.
+reuses that page. Memory pressure never unloads a page that has not shown a
+document yet, on any platform; afterwards it treats the page like any other tab
+page off screen.
 
 Entering a Space is a separate action. An existing unloaded tab remains unloaded
 on mere Space entry, and the Mac shows Start Page until explicit tab selection.
@@ -49,6 +56,6 @@ contract before exposing that choice.
 - [Creating a new WebKit view](https://developer.apple.com/documentation/webkit/wkuidelegate/webview(_:createwebviewwith:for:windowfeatures:))
 - [Safari tab settings](https://support.apple.com/guide/safari/tabs-ibrw1045/mac)
 
-Delegate tests cover supplied navigation intent. Site-specific event handling
-and physical keyboard or pointer behavior also need validation in the running
-browser.
+The core's link policy tests cover these decisions. Site-specific event
+handling and physical keyboard or pointer behavior also need validation in the
+running browser.

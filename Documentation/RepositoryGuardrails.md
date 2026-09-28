@@ -77,7 +77,7 @@ The check enforces these high-confidence contracts:
 
 The Xcode 27 patterns follow Apple's [TN3211](https://developer.apple.com/documentation/technotes/tn3211-resolving-swiftui-source-incompatibilities-for-state-and-contentbuilder). They supplement compiler validation; they do not attempt to parse every legal Swift expression.
 
-`Config/ArchitectureGuardrails.json` is the machine-readable exception register. Every entry is exact and carries a reason. All WebExtension feature, Application, Infrastructure, and platform-adapter paths are enrolled; none are hidden behind a path exclusion. Consult the register for the current exemptions.
+`Config/ArchitectureGuardrails.json` is the machine-readable exception register. Every entry is exact and carries a reason. All Application, Infrastructure, and platform-adapter paths are enrolled; none are hidden behind a path exclusion. Consult the register for the current exemptions.
 
 An exemption is not precedent for another file: add new debt only with a focused review and a written reason, and prefer removing entries as ownership improves.
 
@@ -98,7 +98,7 @@ The guard applies Crest's deliberately small organization contract across `Crest
 - Root screens compose meaningful, narrowly scoped `View` types. Large root `body` implementations and large computed view builders remain guarded, but small owner-scoped subviews and values may stay in the same file.
 - Put previews beside the components that own editable UI: controls, rows, cards, artwork, and meaningful content sections. A view that only arranges other components does not need another preview; use the children's canvases when tweaking their appearance. Keep the existing screen previews for integration review. Use named `#Preview` blocks inside `#if DEBUG`, representative states, realistic dimensions, and `@Previewable @State` bindings for interactive controls. Preview a button style through a real button in the style's source file. Any preview that exists must remain deterministic and reject known live persistence, network, Keychain, filesystem, WebKit-store, default-web-view, asynchronous remote-image, and production-composition dependencies. Reuse the feature's preview fixtures, keep identities and dates fixed, and separate saved preferences from the visual content before previewing a view that owns `@AppStorage` state.
 
-`Config/VerticalStructureDebt.json` remains the exact ledger for the few machine-enforced rules. It is currently empty. A new violation must be fixed or recorded with a focused reason; resolving one removes the stale entry in the same change.
+`Config/VerticalStructureDebt.json` remains the exact ledger for the few machine-enforced rules. A new violation must be fixed or recorded with a focused reason; resolving one removes the stale entry in the same change.
 
 Tests lock behavior whose regression would break a user workflow, persistence or migration contract, security boundary, data transformation, platform integration, or other costly invariant. Do not add tests merely to pin localization copy, design-token values, accessibility identifier strings, previews, file paths, declaration placement, or a mechanical refactor. Repository scripts may keep a small focused suite for their durable failure modes.
 
@@ -141,8 +141,6 @@ Swift tests or direct app validation.
 The supported guards follow the same dependency direction as production code. Framework-neutral default-browser and passkey values and policies stay in Domain, their observable workflow controllers stay in Application, and AuthenticationServices, AppKit, UIKit, and Security bridges stay in shared or platform Infrastructure. Launch flags are parsed by `BrowserLaunchEnvironment`, evaluated by the Application launch policy, and read from the process only by the Infrastructure adapter; BrowserStore composition consumes that typed value.
 
 Structural assertions check current owners and reject superseded paths. Keep those checks recursive where they protect a layer or framework boundary, and match declarations or signatures flexibly enough to allow formatting and typed parameters without accepting a different contract. The Python tooling itself must remain compatible with the Python 3.9 runtime bundled with Xcode.
-
-WebExtension compatibility, access, and permission values and pure policies live in Domain; runtime summaries remain Application projections; localized copy lives in Presentation; Safari discovery stays under `CrestMac`; and native-messaging capability detection stays in each platform Infrastructure root. The recursive neutrality and ownership checks cover these paths without exclusions.
 
 ## Periphery evidence audit
 

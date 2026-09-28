@@ -22,9 +22,9 @@ time for a signed and notarized update to reach users before public disclosure.
 
 ## Scope
 
-High-value boundaries include Space isolation, WebKit data stores, Keychain
-access, extension installation and native messaging, update signatures,
-archive import, external navigation, and CloudKit synchronization. Ordinary
-website behavior inside WebKit, unsupported extension APIs, and reports that
-require access to somebody else's device or account are generally outside the
-project's control.
+High-value boundaries include Space isolation, engine profiles and website
+data stores, Keychain access, extension installation and native messaging,
+update signatures, archive import, external navigation, and CloudKit
+synchronization. Ordinary website behavior inside the page engine, unsupported
+extension APIs, and reports that require access to somebody else's device or
+account are generally outside the project's control.

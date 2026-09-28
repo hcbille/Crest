@@ -7,7 +7,7 @@ build and release requirements for contributors.
 ## Start here
 
 - [Architecture](ARCHITECTURE.md) covers Space isolation, persistence,
-  credentials, synchronization, and the native/WebKit boundary.
+  credentials, synchronization, and the engine boundary.
 - [Roadmap](ROADMAP.md) lists public release outcomes and platform gates.
 - [Repository guardrails](RepositoryGuardrails.md) describes source layout,
   validation, dependencies, and public-source checks.
@@ -20,8 +20,9 @@ build and release requirements for contributors.
 - [Desktop Picture in Picture](Architecture/DesktopPictureInPicture.md)
 - [Link opening](LinkOpeningPolicy.md)
 - [Native tab content](NativeTabs.md)
+- [Core architecture](Architecture/CoreArchitecture.md)
 - [Portable control plane](Architecture/ControlPlane.md)
-- [Engine abstraction status](Architecture/EngineAbstractionCompletion.md)
+- [Engine abstraction](Architecture/EngineAbstractionCompletion.md)
 
 ## Project participation
 

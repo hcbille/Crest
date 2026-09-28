@@ -54,7 +54,7 @@ Switching Spaces changes more than the color of the window. It changes the brows
 - **Quick Window on Mac.** Open a link from another app using the right Space’s signed-in session. Promote it to a regular tab when it deserves to stay. Link Routing sends matching external links to their chosen Space.
 - **Shared windows on Mac.** Open another window onto the same Spaces and tabs, with its own selection. Use a disposable Blank Window for temporary tabs with your Space’s signed-in session, or create one by dragging a tab outside the window.
 - **Search and commands.** Open a URL, search the web, find tabs and history in your Space, or run a command from one field. Choose custom search engines and optional suggestions. Mac shortcuts can be rebound.
-- **Getting Started.** Learn tabs, pins, and folders in an interactive browser tab, with Split View practice and extension guidance on Mac.
+- **Getting Started.** Learn tabs, pins, and folders in an interactive browser tab, with Split View practice on Mac.
 
 ![Two pages open side by side in a Split View group in Crest on Mac](Website/assets/crest-split-view-mac.png)
 
@@ -64,7 +64,7 @@ Switching Spaces changes more than the color of the window. It changes the brows
 | --- | --- |
 | On-device translation | Detect a page’s language, translate into a supported language, or show the original. Optional automatic translation uses downloaded languages. Apple may ask to download additional languages. |
 | Reader and page tools | Read supported articles with fewer distractions, find text, adjust zoom, share links, copy Markdown links, print, and export PDF or web archives where supported. |
-| Extensions on Mac | Install compatible Chrome Web Store, Firefox Add-ons, or Safari Web Extensions. Use popups, tab-specific side panels, and Firefox sidebars within the owning Space. [Compatibility varies.](https://crestbrowser.com/guides/extension-compatibility/) |
+| Extensions on Mac | In the Chromium build, install Chrome Web Store extensions. Use popups and tab-specific side panels within the owning Space. [Compatibility varies.](https://crestbrowser.com/guides/extension-compatibility/) |
 | Developer tools on Mac | Preview phone, desktop, and custom viewport sizes; capture pages; open Console, Network, and Web Inspector. The toolbar appears on localhost, or on any site with **Shift-Command-I**. |
 | Media | Control eligible active media from the sidebar. On Mac, keep supported videos visible with Picture in Picture, including optional automatic PiP. |
 | Downloads and uploads | Follow download progress and revisit files in Downloads. On iPhone and iPad, upload through Photos, camera, or Files. |
@@ -97,15 +97,18 @@ The same Spaces, shaped for each screen. iPad keeps the sidebar beside your page
 
 ## Built as an Apple-platform app
 
-Crest is written in Swift and SwiftUI. Shared policies and features live in `CrestShared`; each platform owns its actual window, WebKit host, commands, and adaptive presentation.
+Crest's browser state and rules live in a portable core written in C# and compiled with NativeAOT. The apps are written in Swift and SwiftUI: shared features live in `CrestShared`, and each platform owns its windows, engine hosting, commands, and adaptive presentation. On Mac, pages render in Chromium or WebKit; iPhone and iPad use WebKit.
 
 ```text
-CrestShared/   Domain, application, infrastructure, features, design system
-CrestMac/      macOS app and platform-specific presentation
-CrestMobile/   iPhone and iPad app and platform-specific presentation
+CrestCore/       Portable core: session, sync, pages, and browser rules
+CrestContracts/  C ABI header and ABI checks for the core library
+CrestEngines/    Chromium host overlay, patches, and engine binding
+CrestShared/     Domain, application, infrastructure, features, design system
+CrestMac/        macOS app and platform-specific presentation
+CrestMobile/     iPhone and iPad app and platform-specific presentation
 ```
 
-Read [the architecture overview](Documentation/ARCHITECTURE.md) for Space isolation, persistence, credentials, synchronization, and the WebKit boundary.
+Read [the architecture overview](Documentation/ARCHITECTURE.md) for Space isolation, persistence, credentials, synchronization, and the engine boundary.
 
 ## Build Crest
 

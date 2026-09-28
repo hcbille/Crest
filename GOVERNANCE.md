@@ -23,7 +23,7 @@ Crest name and visual identity remain governed by [TRADEMARKS.md](TRADEMARKS.md)
   [GitHub Issues](https://github.com/pauljoda/Crest/issues).
 - Planned release outcomes are summarized in the public GitHub Project and
   milestones.
-- Architecture decisions preserve Space isolation, live WebKit page identity,
+- Architecture decisions preserve Space isolation, live page identity,
   native Apple-platform behavior, security boundaries, and sustainable
   maintenance.
 - The maintainer makes the final call when platform constraints, security,

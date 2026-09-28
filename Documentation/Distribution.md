@@ -26,7 +26,7 @@ channel. GitHub's
 [release search](https://docs.github.com/en/repositories/releasing-projects-on-github/searching-a-repositorys-releases)
 accepts `prerelease:false`, `prerelease:true "Nightly builds"`, and
 `prerelease:true "Development builds"` to filter channels using their release-note
-descriptions. The links work for both the old channel releases and new tagged builds.
+descriptions.
 Only stable releases receive GitHub's Latest designation. Manual dispatch
 offers development and nightly; stable publication requires a tag push.
 
@@ -87,9 +87,8 @@ Every product or architecture commit adds a stable entry ID, category, and
 purpose-written message. The generator reads the selected channel's cursor,
 groups the later public entries into New, Improved, and Fixed highlights, omits
 `internal` entries, and limits long ranges to the 12 most recent highlights.
-The catalog's immutable publication baselines bootstrap the current Crest 0.4.0
-stable, 0.4.4 development, and 0.4.5 nightly positions until the workflow writes
-the live cursor file. Because entry identity and cursor position are independent
+The catalog's immutable publication baselines name each channel's starting
+entry until the workflow writes the live cursor file. Because entry identity and cursor position are independent
 of commit hashes, rebases and other history rewrites do not repeat published
 copy or block a nightly. The same concise notes appear on GitHub and as
 structured Markdown in Sparkle's update interface.

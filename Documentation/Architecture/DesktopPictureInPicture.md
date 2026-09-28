@@ -1,9 +1,10 @@
 # Desktop Picture in Picture
 
-Crest uses macOS's native video Picture in Picture presentation, including its
-system window and controls. Automatic entry is enabled by default and can be
-disabled in Settings → General → Video. Manual entry remains available when
-automatic entry is disabled.
+On WebKit pages, Crest uses macOS's native video Picture in Picture
+presentation, including its system window and controls; Chromium pages use
+Chromium's own Picture in Picture window. Automatic entry is enabled by default
+and can be disabled in Settings → General → Video. Manual entry remains
+available when automatic entry is disabled.
 
 ## WebKit integration
 
@@ -32,10 +33,6 @@ Reference implementation and definitions:
 - [Native PiP control routing](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/mac/VideoPresentationInterfaceMac.mm)
 - [Inline-return delegate dispatch](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/Cocoa/UIDelegate.mm)
 
-The original desktop preference investigation used WebKit commit
-`824d434d74a36754b75566c9939b0aef46e21757`. The links above follow upstream so
-future investigations can compare changes.
-
 ## Ownership and tab transitions
 
 `BrowserPagePool` requests automatic entry only for pages leaving the visible
@@ -43,7 +40,10 @@ tab set. Moving focus between cards in a visible split does not enter PiP.
 If multiple cards leave together, the focused card is considered first.
 Entering an unlocked empty Space or start page follows the same departure
 lifecycle. Locking a protected Space withdraws its pages' pending automatic
-requests.
+requests. A departing WebKit page enters through Crest's bridge in the page,
+after the player checks below. A departing Chromium page that is playing, and
+not already in Picture in Picture, enters through the `EnterPictureInPicture`
+page request, which asks Chromium's media session to move its video.
 
 Coming back to the source page ends its PiP session, whether Crest started it
 automatically or the person entered it: the video returns to its place in the
@@ -90,9 +90,9 @@ permission. It is a best-effort snapshot: macOS provides no public atomic PiP
 reservation shared with other applications, and the agent identity is an OS
 implementation detail.
 
-The page controller tracks the exact frame, document, video, and automatic
-request ID. JavaScript revalidates the player synchronously immediately before
-requesting PiP through WebKit's native evaluation context. A promise result,
+The WebKit page controller tracks the exact frame, document, video, and
+automatic request ID. JavaScript revalidates the player synchronously
+immediately before requesting PiP through WebKit's native evaluation context. A promise result,
 native presentation callback, and four-second timeout settle the request.
 Returning during entry cancels the matching request and returns a late
 presentation inline. Automatic cancellation never targets an unrelated
@@ -107,7 +107,8 @@ background, as the core asks.
 
 ## Recognizing an interactive player
 
-The bridge runs in a named isolated content world in every frame. Popups may
+These checks apply to WebKit pages. The bridge runs in a named isolated content
+world in every frame. Popups may
 share a user-content controller, so scripts are installed once per controller
 and messages are routed by their originating WKWebView.
 

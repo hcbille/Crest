@@ -8,14 +8,10 @@ and iPad use WebKit. Both engines, both platforms and every composition share
 the same core, the same UI and the same sync records.
 
 This document describes the design as the code implements it.
-[CoreArchitecture.md](CoreArchitecture.md) states the target and wins where the
-two differ. [Engine abstraction status](EngineAbstractionCompletion.md) lists
-what each engine still lacks. [The contract](../../CrestContracts/README.md)
-describes the C ABI and the wire in detail.
-
-Anything marked **TRANSITIONAL** below is a known intermediate state with a
-named package that removes it. When that package lands, update the paragraph
-and drop the marker.
+[Core architecture](CoreArchitecture.md) sets out the layers and the modeling
+rules, and [Engine abstraction](EngineAbstractionCompletion.md) lists what each
+engine lacks. [The contract](../../CrestContracts/README.md) describes the C ABI
+and the wire in detail.
 
 ## Compositions
 
@@ -51,8 +47,9 @@ The UI reaches the core and the engines through two objects, and each call
 site shows which one it uses.
 
 - **Through the core.** A state change is an intent sent with `core.send`,
-  and a question is a query asked with `core.query`. The UI reads state only
-  from the read model, `core.state`.
+  and a question is a query asked with `core.query`; a query that needs no
+  session is asked with `CrestCore.answer`. The UI reads state only from the
+  read model, `core.state`.
 - **Direct to the engine.** View work goes to the page's engine: embedding
   the view, input, scrolling, zoom, find, reload, back and forward, DevTools,
   printing, capture and export. What that work causes, such as a committed
@@ -101,10 +98,13 @@ its logic does not compile.
 Swift receives each union as an enum, and each case's payload carries its
 logic the same way, in an extension beside its receiver: a change applies
 itself to the read model (`apply(to: CoreState)`, in
-`Changes/Area/Change+CoreState.swift`), an engine command performs itself on
-the WebKit binding (`perform(on:)`), a page request answers itself from
-WebKit's pages (`answer(on:)`, a requirement of `PageRequest`), and a
-presentation presents itself on the Chromium engine (`present(on:)`). Each
+`CrestShared/Infrastructure/Core/Changes/<Area>/<Change>+CoreState.swift`), an
+engine command performs itself on the WebKit binding (`perform(on:)`, in
+`Infrastructure/WebKit/Commands`), a page request answers itself from WebKit's
+pages (`answer(on:)`, a requirement of `PageRequest`, in
+`Infrastructure/WebKit/Requests`), and a presentation presents itself on the
+Chromium engine (`present(on:)`, in
+`CrestEngines/Chromium/Apple/EnginePresentations`). Each
 enum's method only forwards, with an exhaustive switch: the generator writes
 `Change.apply(to:)` and `EnginePresentation.pageID`, and each binding writes
 its own forwarder beside its payloads' files. A new case without its logic
@@ -323,7 +323,7 @@ records, merging, ordering, scheduling and the payload codec.
   leaves the records, clock and pending uploads intact.
 - `SyncRecordBody` reads and writes each payload or tombstone in the journal's
   form and in the CloudKit form, keeps the members this build does not know,
-  and computes the schema a record needs. Swift's `CloudRecordCodec` only maps
+  and computes the schema a record needs. Swift's `BrowserCloudRecordCodec` only maps
   those bytes and the envelope onto a `CKRecord`.
 - Incoming records arrive as cloud sync intents (`MergeSyncRecords`,
   `MergeCloudSnapshot`, `ReplaceWithCloudRecords`,
@@ -409,8 +409,8 @@ The engine contract is a set of contract records like intents and changes:
 - **Page requests** the UI makes of a page's binding directly for view work,
   answered at once, and **engine presentations** the binding sends back when
   such work finishes later or when the view must show something the core does
-  not keep (link hover, fullscreen, the engine's bars, extension changes). The
-  core never sees these.
+  not keep (link hover, fullscreen, the engine's bars, extension changes, a
+  document's notifications). The core never sees these.
 
 The engine contract has its own fingerprint, covering only its wire, so an
 edit elsewhere in the contracts leaves a prebuilt engine valid. The generator
@@ -682,6 +682,25 @@ core no longer hosts, or that another engine hosts, changes nothing.
   in progress before a quit. It publishes `CloseReady` with whether the close
   may proceed; it may not when a page that agreed has shown another document
   since.
+- **Picture in Picture.** Each page reports its Picture in Picture activity
+  in its snapshot. When a window shows a page again, or the page's Space locks,
+  is being deleted or is gone, the core sends the page's engine
+  `ExitPictureInPicture`, and it asks again at once if a page of a locked Space
+  reports Picture in Picture. The Picture in Picture window's return control
+  reports `PictureInPictureReturned`, and the core shows the page's tab in the
+  window that hosts it (`WindowBroughtForward`); the return never opens a
+  window. Automatic entry is the platform's, through each engine's own path
+  (see [Desktop Picture in Picture](DesktopPictureInPicture.md)).
+- **Web notifications.** A document's notifications on either engine show
+  through Crest's own delivery on the Mac. Chromium presents
+  `WebNotificationPosted` and `WebNotificationClosed`, and WebKit pages post
+  through Crest's bridge in the page. The page shows each one as Crest's
+  (`BrowserPage.showWebNotification`) when the Space's choice for the site
+  allows notifications and the system lets Crest show them. A click brings the
+  page's tab and Crest forward, then tells the document, which on Chromium
+  hears it through `AnswerWebNotification`. A page whose document changes or
+  that leaves its engine takes its notifications down. Chromium closes a
+  notification a service worker or an extension posts.
 - **Residency.** Every device reports memory pressure with
   `ReportMemoryPressure`, and the core unloads the tab pages off screen longest, as many as the device's
   platform gives back: never one a window shows, one showing no document yet,

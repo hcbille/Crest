@@ -1,13 +1,10 @@
-# Engine abstraction status
+# Engine abstraction
 
 Crest has one engine contract with two bindings, WebKit and Chromium, and keeps
-every browser rule in the portable core. This document records what each work
-package has done and what it still lacks. Read [ControlPlane.md](ControlPlane.md)
-for how the design works, and [CoreArchitecture.md](CoreArchitecture.md) for
-the target, which wins where they differ. Follow `AGENTS.md` for versioning,
-release notes and tests.
-
-Items marked **TRANSITIONAL** name the package that removes them.
+every browser rule in the portable core. This document lists who owns what,
+the rules every engine keeps, what each engine lacks, and how to place a new
+feature. Read [ControlPlane.md](ControlPlane.md) for how the design works, and
+[CoreArchitecture.md](CoreArchitecture.md) for the modeling rules.
 
 ## Ownership
 
@@ -21,7 +18,7 @@ Scrolling, pointer input, compositing, focus and page zoom stay inside the
 engine and never cross the core boundary. A core intent owns every saved or
 shared transition, and a binding reports what the engine did.
 
-Rules every package keeps:
+Rules every engine keeps:
 
 - A Space is one profile on every engine. No path may share a profile across
   Spaces, or create a page, transfer, export or network request for a locked
@@ -31,9 +28,12 @@ Rules every package keeps:
   private browsing opens, shares nothing with any Space, runs no extension a
   person installed, and is destroyed with everything in it when the window
   closes.
-- Crest is a single-window app. New windows appear only from a user action or
-  an explicit extension `windows.create`. DevTools, popups and side panels dock
-  inside the Crest window.
+- Crest never opens a window the person did not ask for. New windows appear
+  only from a person's action or an explicit extension `windows.create`; a
+  window a page asks for, such as a sign-in popup, opens as a Quick Window over
+  its opener's window. DevTools and side panels dock inside the Crest window.
+- A page another page opens stays on its opener's engine. A site's engine
+  choice and the default engine apply only to pages the person opens.
 - Capability declarations in `BrowserEngineRegistration` describe what the
   binding really does. The core offers what the default engine supports and
   what each engine a page is open on supports, and the page's own engine
@@ -70,146 +70,86 @@ keep only presentation and each platform's own commands. WebKit's binding
 keeps each profile's website data store and compiles the content rules its
 pages are built with.
 
-Engine glue, the page hosts and the tests read the core's read model; no Swift
-copy of the session remains.
+Engine glue, the page hosts and the tests read the core's read model.
 
-## Work packages
+## How each engine behaves
 
-### WP0. Manual smoke of Chromium-owned surfaces. Remaining
-
-Nobody has recorded the checklist yet. Run it in a review package and mark
-each item as works, wrong window or missing: `alert`, `confirm` and `prompt`;
-`<input type=file>` with single and multiple selection; a Basic-auth URL;
-`<input type=color>`; fullscreen video and Escape; a site notification's
-permission and delivery; the PiP button; a protected video that moves to
-WebKit, and Move Back.
-
-What the code does today:
+Both engines:
 
 - Script dialogs, before-unload, and HTTP Basic and Digest challenges are
   questions the binding raises with the core, which the page's host presents.
-- Page fullscreen reports its state to the shared shell, which shows the video
-  without browser chrome and restores the shell on Escape.
-- The host has no hook for the file chooser or the color picker, so both use
-  Chromium's own engine surfaces.
-- A page's notifications reach Crest's own system delivery, which WebKit
-  pages share: the core decides whether one shows, a click brings its tab
-  forward, and the document hears the click.
-
-### WP1. Dead-code sweep. Done
-
-The value-level session edit surface, its exports, the retired kernel and the
-Swift rule copies the core replaced are gone. Launch cleanup and retention run
-as the core's `SweepExpiredRecords` intent.
-
-### WP2. Page port. Done, with gaps
-
-Done:
-
-- **Content scripts.** Crest's bridges run on Chromium in an isolated world
-  the page cannot reach; WebKit installs its own through its user content
-  controller. Link hover, user activity, blocked popups, media sessions and
-  favicons arrive from Chromium as engine presentations.
-- **Page split.** The page and its engine-neutral extensions live in
-  `CrestMac/Infrastructure/Pages` and `CrestShared/Infrastructure/Pages`. The
-  engine builds each page, and the pool wraps what it built in the page's
-  adapter. Back and forward menus read the engine's history on both engines.
-- **Zoom, find and navigation.** The page applies each Space's default zoom
-  above the engine. Both engines wrap find; Chromium reports the match total.
-- **Popups.** Chromium relays blocked popups and applies each Space's
-  automatic-popup decision; allowing the site opens the popups the blocker
-  held back.
-- **Downloads.** Both engines run their downloads as the engine's own and
-  report them to the core's ledger.
-
-Remaining, TRANSITIONAL:
-
-- `CredentialContentBridge.swift` in `CrestShared/Infrastructure/Credentials`
-  still imports WebKit to install the WebKit credential bridge.
-- The transient page lease carries WebKit content-rule lists.
-
-Remaining otherwise:
-
-- Focus restoration on Chromium relies on the engine's responder chain;
-  nobody has verified it end to end.
-- Quick Window and setup windows have no extension side-panel host.
-
-### WP3. Security indicator, certificates and HTTP auth. Done, with one gap
-
-Each page's live state carries an engine-neutral `PageSecurity`, whose members
-carry the title, symbol and detail Site Controls shows. Chromium reports it in
-every snapshot; WebKit derives it from the scheme, mixed content, the trust
-result and any override. Basic and Digest authentication are questions the
-core asks through the page's host on both engines.
-
-Remaining: certificate errors on Chromium show Chromium's own interstitial,
-and proceeding is the engine profile's decision, as its registration declares.
-A proceed-anyway owned by Crest, with the override kept by the core, is not
-built.
-
-### WP4. Credentials on Chromium. Done
-
-The credential bridge runs through the content-script channel on Chromium.
-Capture, fill, save and recency rules are core queries that carry no
-password. The host turns Chromium's password manager off for every page, so
-its bubbles never appear. iCloud Passwords runs through its extension, and
-passkeys go through the system sheet. Password files are read, planned and
-written by the core without keeping any secret (see ControlPlane.md).
-
-### WP5. Site permissions, geolocation and notifications. Done, with gaps
-
-Permission choices are records in the core's device store, changed by typed
-intents and answered by the `SiteDecision` and `CaptureDecision` queries.
-Permission requests are questions the binding raises with the core, which
-answers from the Space's choices or asks the person. Chromium receives
-decisions as content settings; WebKit applies them through its delegates, and
-withdrawing a camera or microphone grant ends capture.
-
-Remaining, as the Chromium registration declares:
-
-- The host has no command to stop live camera, microphone or location use.
-  Revocation relies on Chromium ending capture once the setting blocks it.
-- Chromium shows no notification a service worker or an extension posts;
-  it closes each one at once. Only a page's own notifications reach Crest.
-
-### WP6. Capability truth and UI hygiene. Done
-
+- Permission requests are questions the binding raises with the core, which
+  answers from the Space's choices or asks the person. Chromium receives
+  decisions as content settings; WebKit applies them through its delegates, and
+  withdrawing a camera or microphone grant ends capture.
+- Each page's live state carries an engine-neutral `PageSecurity`, whose
+  members carry the title, symbol and detail Site Controls shows. Chromium
+  reports it in every snapshot; WebKit derives it from the scheme, mixed
+  content, the trust result and any override.
+- On the Mac, a document's notifications reach Crest's own system delivery:
+  the core decides whether one shows, a click brings its tab forward, and the document
+  hears the click.
+- Both engines run their downloads as the engine's own and report them to the
+  core's ledger. Archives follow the engine: `.webarchive` on WebKit, `.mhtml`
+  on Chromium.
 - The core publishes the registered engines and what the device offers as
   `EnginesChanged`. Menus, the launcher, settings and the shortcut settings
   offer that, and the page a command acts on enables it through its own
   engine: on the Chromium product, Reader appears once a WebKit page is open
-  and stays dimmed on Chromium pages.
-- When content blocking is unavailable, the Privacy pane says that blocking
-  comes from the extensions the person installs.
-- Archives follow the engine: `.webarchive` on WebKit, `.mhtml` on Chromium.
-- Internal pages follow the `internal-pages` capability.
-- Every declared capability gates UI or services, or belongs to
-  `EngineCapability.Required`.
+  and stays dimmed on Chromium pages. Internal pages follow the
+  `internal-pages` capability, and every declared capability gates UI or
+  services or belongs to `EngineCapability.Required`.
 
-### WP7. WebKit symmetry. Done
+Chromium:
 
-WebKit reports each page's media activity to the core as it changes,
-including its real Picture in Picture activity, so residency never asks pages
-first. A page it closes keeping its state hands the core its history, which
-the tab's next page restores, as Chromium's do. Its pages ask the core how a
-followed link opens (`LinkActivation`) and stage Peek navigation through the
-core (`StageLink`), keeping the source request and website data store, and it
-prepares a page close through WebKit's before-unload path. A staged Peek carries the URL
-and referrer only, because WebKit does not expose the initiating frame's
-security context to a second page; the registration declares that limit.
-WebKit extensions are retired, and the WebKit registration declares
-`extensions` unavailable.
+- Crest's bridges run in an isolated world the page cannot reach. Link hover,
+  user activity, blocked popups, media sessions and favicons arrive as engine
+  presentations. The credential bridge runs through the same content-script
+  channel; capture, fill, save and recency rules are core queries that carry
+  no password. The host turns Chromium's password manager off for every page.
+- Page fullscreen reports its state to the shared shell, which shows the video
+  without browser chrome and restores the shell on Escape.
+- The file chooser and the color picker are Chromium's own surfaces, since the
+  host has no hook for them.
+- Focus restoration relies on the engine's responder chain.
+- Certificate errors show Chromium's own interstitial, and proceeding is the
+  engine profile's decision, as its registration declares. Crest has no
+  proceed-anyway of its own.
+- The host has no command to stop live camera, microphone or location use;
+  revocation relies on Chromium ending capture once the setting blocks it.
+- Chromium shows no notification a service worker or an extension posts; it
+  closes each one at once.
+- Relayed blocked popups follow each Space's automatic-popup decision, and
+  allowing the site opens the popups the blocker held back.
 
-### WP8. Core extraction of the rule aggregates. Done, with one leftover
+WebKit:
 
-Every aggregate is core domain and application code with focused tests,
+- WebKit reports each page's media activity to the core as it changes,
+  including its Picture in Picture activity, so residency never asks pages
+  first. A page it closes keeping its state hands the core its history, which
+  the tab's next page restores.
+- A staged Peek carries the URL and referrer only, because WebKit does not
+  expose the initiating frame's security context to a second page; the
+  registration declares that limit.
+- WebKit has no extensions; its registration declares `extensions`
+  unavailable.
+- Two shared files still name WebKit types: `CredentialContentBridge.swift`
+  installs the WebKit credential bridge, and the transient page lease carries
+  WebKit content-rule lists.
+
+Neither Quick Window nor the setup windows host an extension side panel.
+
+## The core's surface
+
+Every rule aggregate is core domain and application code with focused tests,
 reached through typed intents and queries. Queries that need no session are
 answered without an app (`crest_core_answer`): address and page comparisons,
 translation choices, import discovery, launch isolation, branding
 normalization, page presentation, external links and local documents, scheme
-handling, authentication handling and labels, fixture server trust, media
-session arbitration, secure origins, notification requests, blocked popups
-and automatic downloads.
+handling, authentication handling and labels, media session arbitration,
+secure origins, notification requests, blocked popups and automatic
+downloads. Launch cleanup and retention run as the core's
+`SweepExpiredRecords` intent.
 
 | Aggregate | Core surface |
 | --- | --- |
@@ -220,20 +160,19 @@ and automatic downloads.
 | Windows, sidebar and setup | The window intents, the sidebar outline and drop targets, `SelectionPreview`, the setup draft and flow intents and `FinishSetup` |
 | Shortcuts, launch and media | The shortcut intents and `NumberedSelections`; `LaunchIsolation` and the launch plan; media session arbitration |
 | Behavior preferences | The session's `appPreferences` record behind `SetAppPreferences`, `SetTranslationRule` and `ImportAppPreferences` |
-| Links and Quick Window | `ExternalLinkRoute`, `QuickWindowSite`, `LinkNavigation` and the link preference intents |
+| Links and Quick Window | `LinkNavigation`, `RouteExternalLink`, `ExternalWebLink`, `ChooseExternalLinkDestination`, `RememberQuickWindowSpace` and the link preference intents |
 | Engines | `EnginesChanged`, `ChooseSiteEngine`, `RehostPage`, `ProtectedMediaUnavailable` |
 
 These stay in Swift by design: heraldry vocabulary and composition, favicon
 palette extraction, sidebar widgets, Peek motion and presentation phases,
 tear-off placement geometry, drag geometry and default-browser prompt cadence.
 
-### WP9. Verification and release gates. Partly done
+## Builds and packaging
 
-Done:
-
-- Builds: `Crest`, `CrestChromiumUI`, `CrestChromiumUIProduct` and
-  `CrestMobile`; `dotnet test` and `lint-dotnet.sh`; the C and C++ ABI checks.
-- Review packaging for runtime checks:
+- The builds are `Crest`, `CrestChromiumUI`, `CrestChromiumUIProduct` and
+  `CrestMobile`, with `dotnet test`, `lint-dotnet.sh` and the C and C++ ABI
+  checks.
+- Review packaging for runtime checks runs
   `Scripts/control-plane/apply-chromium-host.py`, then
   `build-chromium-baseline.py`, then `package-chromium-host.py` in review mode
   with a throwaway user-data directory. Never launch the unbranded Chromium
@@ -245,40 +184,13 @@ Done:
   sandbox and would strand installed data.
 - The Safe Storage keychain item name must not change. A rename rotates the
   encryption key and resets Chromium's tracked preferences.
+- The Chromium product ships on the experimental update channel. When it
+  merges, `release.yml` must publish the Chromium product as the default Mac
+  download with WebKit as the alternate, each with its own development and
+  stable feeds, and `project.yml`'s default update channel moves from
+  `experimental` to `development`.
 
-Remaining:
-
-- The WP0 manual smoke checklist.
-- Which streaming services play in a WebKit page inside Crest, and whether
-  some need Safari's user agent.
-- Cross-engine sync convergence between the Chromium Mac product and an
-  iPhone through the isolated CloudKit review zone, verified from records as
-  well as UI.
-- The upgrade on a physical device, and a sync run against a real account with
-  installed Spaces.
-- Manual product review of every flow on both engines before early user
-  testing.
-
-### WP10. Multiple engines. Done
-
-- Engines in the read model, the `protected-media` capability, and offering by
-  the default engine and the engines that host pages.
-- Per-site engine choices in the device store, consulted when a tab's page
-  opens, and a restore state kept per engine.
-- `RehostPage`, the moves toward a site's chosen engine, and the Site Controls
-  engine row.
-- The protected media fallback with its notice and Move Back, and Chromium's
-  report of a missing Widevine or PlayReady key system.
-
-A moved page takes its new engine's adapter and view in place, and WebKit's
-binding builds a page no owner asked for when the core moves one to it, from
-its own stores and rules.
-Deleting a Space and clearing a site's data reach every registered engine,
-started or not.
-
-## Deferred
-
-The product owner has deferred these:
+## Not built, by decision
 
 - A Crest color picker for `<input type=color>`. Chromium's own picker is used.
 - A Crest popups UI beyond the blocked-popup relay and Site Controls.
@@ -288,14 +200,6 @@ The product owner has deferred these:
   Views window; a system PiP needs a video-frame bridge from Chromium's video
   surface. Do not use macOS's private PIP framework without a separate product
   decision.
-
-## Future merge work
-
-The branch stays on the experimental update channel, and no merge is
-scheduled. When it merges, `release.yml` must publish the Chromium product as
-the default Mac download with WebKit as the alternate, each with its own
-development and stable feeds, and `project.yml`'s default update channel must
-move from `experimental` to `development`.
 
 ## Ownership decision guide
 
@@ -312,5 +216,6 @@ Use this when a new feature arrives:
    engine `#if` flags.
 4. Does it touch a locked Space? The core gate must reject it, and the
    presentation layer must not build its content.
-5. Does it open a window? Only from a user action or an explicit extension
-   request. Otherwise it reuses the current window or docks inside it.
+5. Does it open a window? Only from a person's action or an explicit extension
+   request; a window a page asks for opens as a Quick Window over its opener's
+   window. Otherwise it reuses the current window or docks inside it.

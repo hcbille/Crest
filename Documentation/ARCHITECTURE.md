@@ -2,7 +2,7 @@
 
 Crest is a native SwiftUI browser for Apple silicon. It treats a **Space** as the primary privacy and organization boundary.
 
-Browser rules live in a portable .NET core, and pages render through one of two engine adapters. On Mac, Chromium is the default engine and WebKit is the alternate desktop build. iPhone and iPad use WebKit. Both engines share the same core, UI and sync records. See [Portable browser control plane](Architecture/ControlPlane.md) and [Engine abstraction status](Architecture/EngineAbstractionCompletion.md).
+Browser rules live in a portable .NET core, and pages render through one of two engine adapters. On Mac, Chromium is the default engine and WebKit is the alternate desktop build. iPhone and iPad use WebKit. Both engines share the same core, UI and sync records. See [Portable browser control plane](Architecture/ControlPlane.md) and [Engine abstraction](Architecture/EngineAbstractionCompletion.md).
 
 ## Source map
 
@@ -43,13 +43,13 @@ Local state is durable first. CloudKit synchronizes portable Space, tab, history
 
 Crest can import browser bookmarks and sessions, and its portable archive format keeps migration separate from live CloudKit records. Archive readers validate identifiers and relationships before applying imported state.
 
-Import adapters share URL and whitespace sanitation while retaining their own title limits, fallback rules, and errors. Arc bookmark and session imports read one typed source document and apply separate placement and traversal policies. Related background-page metadata and completed visits publish together, using one combined persistence scope.
+The core reads other browsers' data. Its import readers share URL and whitespace sanitation while retaining their own title limits, fallback rules, and errors. An import is one core intent, saved with its sync journal before it returns.
 
 ## Windows on macOS
 
-**New Window** opens another view of the same browsing workspace. `BrowserStoreFamily` owns one observable session; each `BrowserStore` retains only its window's selections and projects them over that session. Changes are visible across windows before persistence. Mutations run on the main actor, and family revisions reject stale background sync work. A restored window keeps its own Space and tab selections, including an intentionally empty selection.
+**New Window** opens another view of the same browsing workspace. The core owns the session and what each window shows (`ShowSpace`, `ShowTab`). Each window's `BrowserStore` reads the core's read model and sends intents, so an edit is visible in every window before it is saved. A sync merge commits only against the revision it read, so stale background work is refused. A restored window keeps its own Space and tab selections, including an intentionally empty selection.
 
-Normal windows share a `BrowserPageRuntimeStore`. Each tab has one `BrowserTabRuntime` owning its live page and native history. The focused window hosts the live view; other windows showing the same tab use its preview and can take over presentation. Native tab models share the same workspace lifetime. Closing a normal window releases its presentation while retaining shared tabs and their loaded state.
+Normal windows share a `BrowserPageRuntimeStore` and one `BrowserPageHost` over the workspace. Each tab has one `BrowserTabRuntime` owning its live page and native history. The focused window hosts the live view; other windows showing the same tab use its preview and can take over presentation. Native tab models share the same workspace lifetime. Closing a normal window releases its presentation while retaining shared tabs and their loaded state.
 
 **Blank Window** creates a temporary workspace with no initial tabs. It borrows the source Space's website profile, credentials, permissions, identity, and settings. Its tabs, pins, folders, history, archive, favicons, and tab-state storage remain local and in memory, with no sync coordinator or window restoration. Settings edit the canonical source profile through a separate selection facade. Source policy changes apply immediately; removing or replacing the source profile ends the temporary workspace. Closing it discards its local browsing records.
 
@@ -57,9 +57,13 @@ Dragging one tab between workspaces moves its existing identity and runtime, inc
 
 The torn-off window appears with the grabbed point on its measured sidebar row aligned to the release location, constrained to that display's usable frame. Placement is applied once before revealing the window; later sidebar layout changes do not move it. If the row cannot be measured promptly, the committed window appears at the drop location without discarding its tab.
 
+A window a page asks for, such as a sign-in popup, opens as a Quick Window over the window that shows its opener, in the opener's Space and on the opener's engine. It never becomes a window of its own.
+
+Crest's windows stay movable, so Move & Resize, the green button's tiling, the Globe-Control tiling keys and a display change all move them. The window's content extends under the title bar, where the window server would otherwise drag the window by a press at the very top of a page. While the pointer is on a page under the title bar, or 32 points below it, the page's `BrowserPageTitleBarTracker` claims the window's `BrowserWindowTitleBarGuard`, which makes the window unmovable until the pointer leaves; holding Globe and Control hands the window back for the tiling keys. Crest's own chrome, the navigation strip and the backdrop, acts as the title bar (`BrowserWindowTitleBarSurface`): it moves the window and runs the double-click action the person chose in System Settings.
+
 ## Scenes on iPhone and iPad
 
-The mobile app declares a `WindowGroup` keyed by `BrowserWindowID` and supports multiple scenes on iPad. Each scene projects its own selections over the shared `BrowserStoreFamily`, so tab and Space edits reach other scenes immediately. Each scene owns a separate `MobileBrowserPageStore`, live WebKit views, native tab runtimes, and private browsing session. Sharing tab records does not share a live page or its form state between mobile scenes.
+The mobile app declares a `WindowGroup` keyed by `MobileWindowRequest` and supports multiple scenes on iPad. Each scene shows its own selections over the shared workspace, so tab and Space edits reach other scenes immediately. Each scene owns a separate `MobileBrowserPageStore`, live WebKit views, native tab runtimes, and private browsing session. Sharing tab records does not share a live page or its form state between mobile scenes.
 
 The macOS window coordinator, live-page handoff and mirrored preview, Blank Window commands, and tab tear-off placement are composed only by the Mac app. Mobile keeps its existing scene lifecycle and keyboard shortcuts; it uses the shared data and persistence safeguards without adopting those Mac presentation features.
 
@@ -73,7 +77,7 @@ On macOS, Crest requests browser-wide passkey consent through AuthenticationServ
 
 ## Engine boundary
 
-The core decides navigation, download, content-blocking, authentication, permission, failure-recovery and website-data rules. `BrowserPage` holds an engine-neutral `BrowserPageEngine`, and each engine adapter supplies the page view and engine services. Capabilities declared in `BrowserEngineRegistration` decide which features the UI offers. Shared policy adapts presentation to the current layout and input capabilities.
+The core decides navigation, download, content-blocking, authentication, permission, failure-recovery and website-data rules. `BrowserPage` holds an engine-neutral `BrowserPageEngineAdapter`, whose `BrowserPageEngine` supplies the page view, and each engine adapter supplies the engine services. Capabilities declared in `BrowserEngineRegistration` decide which features the UI offers. Shared policy adapts presentation to the current layout and input capabilities.
 
 `BrowserFaviconSession` owns capture, fallback, and retry lifetime through a document adapter on WebKit; Chromium reports favicons itself. Authenticated icon discovery stays inside the live WebKit context; public fallback remains credential-free and profile-scoped. Native pages invalidate requests on navigation and icon changes and stop them on removal.
 

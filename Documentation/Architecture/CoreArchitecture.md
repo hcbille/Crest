@@ -4,11 +4,10 @@ Crest's state and app logic live in one portable core, `CrestCore`, written in
 C#. Each platform supplies only its UI, its engine bindings and its OS
 services. Adding a platform means writing those three things and nothing else.
 
-This document is the target design and the plan for reaching it. Where
-[ControlPlane.md](ControlPlane.md) or
-[EngineAbstractionCompletion.md](EngineAbstractionCompletion.md) describe
-ownership differently, this document wins. Those two describe the code as it is
-today and are rewritten when the restructure finishes.
+This document sets out the layers, the two paths from the UI and the
+modeling rules. [ControlPlane.md](ControlPlane.md) describes how the code
+implements them, and [EngineAbstractionCompletion.md](EngineAbstractionCompletion.md)
+lists what each engine lacks.
 
 ## Layers
 
@@ -34,8 +33,8 @@ The UI reaches the core and the engines through two objects, and each call
 site shows which one it uses.
 
 - **Through the core.** Anything that changes state is an intent object sent
-  to the core: `core.send(OpenTab(...), from: window)`. The UI reads state
-  only from the core's published model: `core.state`.
+  to the core: `core.send(OpenTab(...))`, with the intent naming its window.
+  The UI reads state only from the core's published model: `core.state`.
 - **Direct to the engine.** View work goes straight to the page's engine
   through an `EnginePage`: embedding the view, input, scrolling, zoom, find,
   reload, back and forward, DevTools, printing and capture. `EnginePage` has
@@ -47,21 +46,13 @@ site shows which one it uses.
   work on every update and buy nothing.
 
 ```swift
-struct PageCard: View {
-    let page: PageState                                // the core's model of this page
-    @Environment(CrestCore.self) private var core
-    @Environment(Engines.self) private var engines
+// Direct to the engine: view work on the page's current engine.
+page.enginePage.zoom(to: 1.25)
+page.enginePage.reload(bypassingCache: false)
 
-    var body: some View {
-        let enginePage = engines.page(page)            // the page's current engine
-        EngineView(enginePage)                          // re-hosts when page.engine changes
-            .toolbar {
-                Button("Zoom In") { enginePage.zoom(.in) }                               // direct
-                Button("Reload") { enginePage.reload() }                                  // direct
-                Button("Open in WebKit") { core.send(RehostPage(page, on: .webKit)) }     // through the core
-            }
-    }
-}
+// Through the core: moving the page to WebKit changes state, so it is an
+// intent. The page's host re-hosts the view when the page's engine changes.
+try core.send(RehostPage(pageID: page.corePage.id, engine: .webKit))
 ```
 
 A search for `core.send(` lists every state change the UI can start. A search
@@ -70,7 +61,7 @@ for `EnginePage` lists every direct engine call.
 ## Modeling rules
 
 1. Everything that crosses a boundary is a named type. Intents (`OpenTab`),
-   published changes (`TabOpened`), engine commands (`LoadPage`) and engine
+   published changes (`TabsChanged`), engine commands (`LoadPage`) and engine
    events (`NavigationCommitted`) are records. Nothing is identified by an
    operation string or a code. The generator gives each type its wire tag, and
    the source never spells one.
@@ -121,14 +112,12 @@ for `EnginePage` lists every direct engine call.
    answer themselves (`Answer`). Swift receives each union as an enum whose
    one method forwards, with an exhaustive switch, to its payload's own
    method (`change.apply(to: state)`, `command.perform(on: binding)`); a
-   listener for a few cases uses `if case`. Capability sets are flags. No
-   capability is a string.
+   listener for a few cases uses `if case`. Engine capabilities are a fixed
+   set (`EngineCapability`). No capability is a string.
 4. Identifiers are plain `Guid` in C# and `UUID` in Swift, and they appear only
    at boundaries. Inside the core, methods take the objects themselves
    (`window.Show(space, tab)`), not their identifiers. Crest does not wrap a
-   GUID in a type just to name it. The Swift `TabID`, `SpaceID`, `FolderID`,
-   `SplitGroupID` and `BrowserWindowID` wrappers retire next, now that the
-   Swift session copy is gone.
+   GUID in a type just to name it; Swift uses `UUID` for every identity.
 5. A wrapper type is justified only when it carries behavior or an invariant,
    as `SiteOrigin` does with normalization. A record whose constructor
    normalizes its fields is marked `[NormalizedOnConstruction]`. Swift receives
@@ -155,12 +144,12 @@ for `EnginePage` lists every direct engine call.
 
 | Object | Holds | Saved | Synced |
 | --- | --- | --- | --- |
-| `Session` | Spaces, each with its profile, tabs, folders, splits, history and archive | Yes | Yes, as today |
+| `Session` | Spaces, each with its profile, tabs, folders, splits, history and archive | Yes | Yes |
 | `Device` | Windows and what each shows (the Space, and the tab in each Space), split column shares, engine choices per site, site permission and shortcut choices, device-local preferences | Yes, in the device store (a private Space's choices stay in memory) | Never |
 | `Pages` | Each open page: its owner (a tab, or a Quick Window, Peek or Settings request), its engine, and the live state rules read (URL and title before commit, loading, back and forward availability, security, failure, media activity) | Never | Never |
 | `Prompts` | Permission, authentication and other questions waiting on the person | Never | Never |
 | `Engines` | The registered engine bindings and their capabilities | Never | Never |
-| `Downloads` | The existing ledger | As today | Never |
+| `Downloads` | The download ledger | Never | Never |
 
 The core publishes typed changes and never resends unchanged state. It
 derives them by comparing each accepted state with the one before, never
@@ -212,7 +201,7 @@ token only after the merge it covers is on disk.
 
 The engine contract is a set of contract records like intents and changes:
 commands the core issues (`CreatePage`, `LoadPage`, `ClosePage`,
-`ResolvePermission`, …) and events the binding reports (`NavigationCommitted`,
+`SettlePermission`, …) and events the binding reports (`NavigationCommitted`,
 `PageCrashed`, `PermissionRequested`, `ProtectedMediaUnavailable`, …).
 `crest_engine.h` carries them in the same generated wire format, and the
 generator emits a C++ codec for the Chromium binding. Chromium implements it
@@ -237,6 +226,9 @@ Crest can run more than one engine at a time.
   its current engine, creates it on the new one and loads the same URL. The
   page keeps its tab, and the UI re-hosts the view because `page.engine`
   changed.
+- A page another page opens stays on its opener's engine: a popup, a
+  `target=_blank` link, and the Peek or split a link opens. A site's engine
+  choice and the default engine apply only to pages the person opens.
 
 ### Recording navigations
 
@@ -275,15 +267,16 @@ Crest licenses nothing for this: it uses the platform's WebKit.
    to the site open in WebKit directly, without the reload.
 
 ```csharp
-void On(ProtectedMediaUnavailable e)
-{
-    var page = Pages[e.Page];
-    var fallback = Engines.PlayingProtectedMedia(except: page.Engine);
-    if (fallback is null || page.WasRehostedFor(RehostReason.ProtectedMedia)) return;
-
-    page.Rehost(fallback, RehostReason.ProtectedMedia);
-    Device.EngineChoices.Remember(page.Site, fallback.Kind);
-    Changes.Publish(new PageRehosted(page, fallback.Kind, RehostReason.ProtectedMedia));
+public sealed record ProtectedMediaUnavailable(Guid PageId, KeySystem KeySystem) : PageEvent(PageId) {
+    internal override void Apply(Pages pages, Page page, PageTurn turn) {
+        if (page.Phase != PagePhase.Live || pages.Shown(page) is not { } space || page.MovedFor(RehostReason.ProtectedMedia)
+            || pages.Engines.PlayingProtectedMedia(page.Engine) is not { } fallback
+            || page.DocumentAddress is not { } address || new WebAddress(address).Origin is not { } origin
+            || pages.Device.ChosenEngine(space.Id, origin) is not null)
+            return;
+        pages.Device.Choose(space.Id, origin, fallback.Kind);
+        pages.Rehost(page, fallback, address, RehostReason.ProtectedMedia, turn);
+    }
 }
 ```
 
@@ -295,9 +288,6 @@ unsupported-key-system result. It passes through the frame's
 so an advertisement's probe moves nothing. The notice with "Move back" is the
 top-of-window notice. Moving back records the engine the page left as the
 site's choice, and the fallback never runs for a site that has a choice.
-
-These still need proving: which streaming services play in a WebKit page
-inside Crest, and whether some need Safari's user agent.
 
 ### Sign-in on a moved page
 
@@ -315,83 +305,3 @@ state. As on the Mac, Chromium owns the process and the UI thread, so the
 WinUI views mount as XAML Islands in windows the Chromium host creates. A spike
 must prove that, along with hosting the page surface, before any Windows work
 begins.
-
-## Work packages
-
-Each package moves a live path and deletes the path it replaces in the same
-change. Nothing is built beside the app. The earlier message-based kernel was
-built beside the app, was never called, and was deleted.
-
-### A. One typed contract
-
-- The contract records, the generator, and the generated Swift models and C
-  header.
-- A public typed application API: `CrestApp` with intent handlers, queries and
-  the change feed.
-- The session model becomes typed aggregates instead of JSON trees.
-- Operation strings, code tables and hand-written codecs go on both sides.
-- Engine capabilities become flags.
-
-Done when no operation string, rule code string or hand-written wire model
-remains, and the existing commands run through the typed API.
-
-### B. Change feed, storage and the device store
-
-- The core publishes typed change batches.
-- The core owns SQLite and decides what to save and when.
-- The device store holds windows and selection, with a one-time migration from
-  `BrowserWindowState`.
-- The Swift session copy, the per-command rebuild and apply code, the 87
-  `persist(` calls and `TransactionalSessionPersistence` go. Done: Swift keeps
-  only the read model, and tests build sessions as typed seeds.
-
-Done when Swift holds only the generated read model and durable saves run off
-the main thread.
-
-### C. Engine contract and page lifecycle
-
-- `crest_engine.h`, and the core's `Pages` and `Engines`.
-- Navigation commit first. It replaces the SwiftUI `.onChange` triggers.
-- Then crashes, permissions, downloads, before-unload and residency.
-- `crest_chrome_host.mm` splits into portable C++ and a Mac shell. The
-  Objective-C bridge and the `CrestRoot` callbacks go.
-- One WebKit binding for macOS and iOS. `BrowserPagePool` and
-  `MobileBrowserPageStore` shrink to view hosting.
-- Live page state moves into `Pages`.
-
-Done when the UI reaches engines only through `EnginePage` and the core, and
-both engines report through one event path.
-
-### D. Multiple engines
-
-- Engine registration, per-page engines and `RehostPage`.
-- The protected media fallback.
-- Per-site engine choices, and capabilities read from each page's engine.
-
-Done when a DRM page on the Chromium product plays after moving to WebKit, and
-later visits open there directly.
-
-### E. Remaining app logic
-
-These move into the core:
-
-- import parsers
-- command palette ranking and URL completion
-- credential CSV and the save flow
-- onboarding and setup flows
-- the sync controller's state machine
-- Quick Window and Peek rules
-- the store's remaining rules
-
-The Swift copies of rules the core already has go.
-
-Done when the Swift targets hold only views, the client, engine bindings and
-OS services.
-
-### F. Cleanup
-
-- Retire the typed Swift ID wrappers, the hand-written control-plane layer,
-  and dead types and flags.
-- Remove tests that covered deleted code, following `AGENTS.md`.
-- Rewrite `ControlPlane.md` and `EngineAbstractionCompletion.md` to describe
-  the finished design.
