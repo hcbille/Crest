@@ -25,7 +25,7 @@ public sealed partial class BrowserTabCollection {
     public IReadOnlyList<FolderState> Folders => folders.AsReadOnly();
     public IReadOnlyList<SplitGroupState> SplitGroups => splitGroups.AsReadOnly();
     public IReadOnlyList<ArchivedTabState> Archive => archive.AsReadOnly();
-    public IReadOnlyList<TabState> TabStates => tabs.Select(tab => tab.State).ToArray();
+    public IReadOnlyList<TabState> TabStates => [.. tabs.Select(tab => tab.State)];
 
     #endregion
 
@@ -43,8 +43,8 @@ public sealed partial class BrowserTabCollection {
         ArgumentNullException.ThrowIfNull(space);
         return space with {
             Tabs = TabStates,
-            Folders = folders.ToArray(),
-            SplitGroups = splitGroups.ToArray(),
+            Folders = [.. folders],
+            SplitGroups = [.. splitGroups],
             ArchivedTabs = [.. space.ArchivedTabs, .. archive]
         };
     }

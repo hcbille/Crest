@@ -168,8 +168,8 @@ public sealed class DownloadLedger {
     private static TimeSpan? Shorter(TimeSpan? existing, TimeSpan? proposed) =>
         existing is not { } current ? proposed : proposed is not { } next ? current : TimeSpan.FromTicks(Math.Min(current.Ticks, next.Ticks));
 
-    private List<Guid> RemoveWhere(Predicate<DownloadState> predicate) {
-        var removed = items.Where(item => predicate(item)).Select(item => item.Id).ToList();
+    private IReadOnlyList<Guid> RemoveWhere(Predicate<DownloadState> predicate) {
+        IReadOnlyList<Guid> removed = [.. items.Where(item => predicate(item)).Select(item => item.Id)];
         items.RemoveAll(predicate);
         return removed;
     }

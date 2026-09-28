@@ -57,11 +57,11 @@ internal static class SessionChanges {
             else resent.Add(space.Id);
         }
         var retained = next.Spaces.Select(space => space.Id).Where(id => before.ContainsKey(id) && !resent.Contains(id)).ToHashSet();
-        var added = next.Spaces.Where(space => !retained.Contains(space.Id)).ToArray();
-        var removed = previous.Spaces.Select(space => space.Id).Where(id => !retained.Contains(id)).ToArray();
-        var order = next.Spaces.Select(space => space.Id).ToArray();
+        IReadOnlyList<SpaceState> added = [.. next.Spaces.Where(space => !retained.Contains(space.Id))];
+        IReadOnlyList<Guid> removed = [.. previous.Spaces.Select(space => space.Id).Where(id => !retained.Contains(id))];
+        IReadOnlyList<Guid> order = [.. next.Spaces.Select(space => space.Id)];
         var placed = previous.Spaces.Select(space => space.Id).Where(retained.Contains).Concat(added.Select(space => space.Id));
-        if (added.Length > 0 || removed.Length > 0 || !placed.SequenceEqual(order))
+        if (added.Count > 0 || removed.Count > 0 || !placed.SequenceEqual(order))
             changes.Add(new SpacesChanged(workspaceId, added, removed, placed.SequenceEqual(order) ? null : order));
         changes.AddRange(spaceChanges);
         if (previous.DefaultSpaceId != next.DefaultSpaceId
@@ -145,11 +145,11 @@ internal static class SessionChanges {
         if (before.SequenceEqual(after)) return true;
         var old = new Dictionary<Guid, T>(before.Count);
         if (!before.All(row => old.TryAdd(identity(row), row))) return false;
-        var order = after.Select(identity).ToArray();
+        IReadOnlyList<Guid> order = [.. after.Select(identity)];
         var present = order.ToHashSet();
-        if (present.Count != order.Length) return false;
-        var removed = before.Select(identity).Where(id => !present.Contains(id)).ToArray();
-        var updated = after.Where(row => !old.TryGetValue(identity(row), out var was) || !Equals(was, row)).ToArray();
+        if (present.Count != order.Count) return false;
+        IReadOnlyList<Guid> removed = [.. before.Select(identity).Where(id => !present.Contains(id))];
+        IReadOnlyList<T> updated = [.. after.Where(row => !old.TryGetValue(identity(row), out var was) || !Equals(was, row))];
         var moved = updated.Select(identity).ToHashSet();
         var placed = recordedFirst
             ? updated.Select(identity).Concat(before.Select(identity).Where(id => present.Contains(id) && !moved.Contains(id)))
@@ -209,7 +209,7 @@ internal static class SessionChanges {
         } else {
             placed = added.Count == 0 ? kept.SequenceEqual(shown) : end == 0 && kept.Concat(added).SequenceEqual(shown);
         }
-        rows = new(updated, removed, placed ? null : [.. after.Select(identity)]);
+        rows = new([.. updated], [.. removed], placed ? null : [.. after.Select(identity)]);
         return true;
     }
 

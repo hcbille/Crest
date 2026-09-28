@@ -75,9 +75,9 @@ internal sealed class Window {
         ArgumentNullException.ThrowIfNull(session);
         var space = Showable(session).FirstOrDefault(candidate => candidate.Id == ShownSpaceId);
         var shown = space is not null && Tab(space.Id) is { } tabId ? space.Tabs.FirstOrDefault(tab => tab.Id == tabId) : null;
-        var cards = session.Spaces.OrderBy(candidate => candidate.Id)
+        IReadOnlyList<ShownCards> cards = [.. session.Spaces.OrderBy(candidate => candidate.Id)
             .Select(candidate => Tab(candidate.Id) is { } tabId && Contains(candidate, tabId) ? Cards(candidate, tabId) : null)
-            .OfType<ShownCards>().ToArray();
+            .OfType<ShownCards>()];
         int shownCards = shown is null ? 0 : cards.First(candidate => candidate.SpaceId == ShownSpaceId).TabIds.Count;
         var facts = new WindowCommandFacts(space is not null, isPrivate, shown, space?.ArchivedTabs.Count > 0,
             space is not null && shown is not null && space.SplitCandidate(shown.Id) is not null, shownCards);

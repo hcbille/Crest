@@ -56,7 +56,7 @@ internal sealed record StoredSession(SessionState? Session, NativeSyncJournal? J
         legacySelection = DecodeLegacySelection(document);
         var session = StoredSessionCodec.DecodeSession(document);
         return session with {
-            Spaces = session.Spaces.Select(space => space with { History = DecodeHistory(parts, space.Id) }).ToArray()
+            Spaces = [.. session.Spaces.Select(space => space with { History = DecodeHistory(parts, space.Id) })]
         };
     }
 

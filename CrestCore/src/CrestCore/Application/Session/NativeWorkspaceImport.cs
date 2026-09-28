@@ -273,7 +273,7 @@ internal sealed class NativeWorkspaceImport {
             });
         }).ToArray();
         var existing = isNew ? [] : destination.State.Tabs;
-        destination.State = destination.State with { Folders = folders.ToArray(), Tabs = [.. existing, .. edited] };
+        destination.State = destination.State with { Folders = [.. folders], Tabs = [.. existing, .. edited] };
         // A new Space shows its first imported tab.
         if (isNew && edited.FirstOrDefault() is { } first) destination.ShownTab = first.Id;
     }
@@ -361,10 +361,10 @@ internal sealed class NativeWorkspaceImport {
             return entry with { Id = id };
         }).ToArray();
         space.State = space.State with {
-            Folders = folders.Select(folder => folder with { ParentId = Mapped(folder.ParentId) }).ToArray(),
-            Tabs = space.State.Tabs.Select(tab => tab.FolderId == Mapped(tab.FolderId) ? tab
-                : Copied(tab, tab with { FolderId = Mapped(tab.FolderId) })).ToArray(),
-            History = history
+            Folders = [.. folders.Select(folder => folder with { ParentId = Mapped(folder.ParentId) })],
+            Tabs = [.. space.State.Tabs.Select(tab => tab.FolderId == Mapped(tab.FolderId) ? tab
+                : Copied(tab, tab with { FolderId = Mapped(tab.FolderId) }))],
+            History = [.. history]
         };
     }
 

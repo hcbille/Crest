@@ -44,15 +44,15 @@ public sealed record SidebarOutline(IReadOnlyList<SidebarList> Lists) {
                 if (tab.Placement == section && !tab.IsStartPage) listed.Add(tab);
             var items = Fold(listed, section.HoldsSplits);
             IReadOnlyList<SidebarRow> top = section.HoldsFolders
-                ? Nest(section, items, listed, nodes, insides)
+                ? [.. Nest(section, items, listed, nodes, insides)]
                 : [.. items.Select(item => item.Row(parentFolderId: null, depth: 0))];
             lists.Add(new SidebarList(section, FolderId: null, top));
         }
         var seen = new HashSet<Guid>();
         foreach (var folder in folders)
             if (seen.Add(folder.Id))
-                lists.Add(new SidebarList(folder.Location, folder.Id, insides.TryGetValue(folder.Id, out var rows) ? rows : []));
-        return new(lists);
+                lists.Add(new SidebarList(folder.Location, folder.Id, insides.TryGetValue(folder.Id, out var rows) ? [.. rows] : []));
+        return new([.. lists]);
     }
 
     /// The folders the sidebar can list, top-level folders first in the Space's order,
@@ -99,8 +99,7 @@ public sealed record SidebarOutline(IReadOnlyList<SidebarList> Lists) {
             int end = index + 1;
             while (end < listed.Count && listed[end].SplitGroupId == group) end++;
             if (end - index >= SplitGroupState.MinimumShownMembers) {
-                var members = new Guid[end - index];
-                for (int member = index; member < end; member++) members[member - index] = listed[member].Id;
+                IReadOnlyList<Guid> members = [.. listed[index..end].Select(member => member.Id)];
                 items.Add(new Item(group, SidebarRowKind.Split, tab.FolderId, members));
                 (folded ??= []).Add(group);
             } else {
@@ -305,7 +304,7 @@ public sealed record SidebarOutline(IReadOnlyList<SidebarList> Lists) {
             }
             if (was is null || !was.Equals(list)) changed.Add(list);
         }
-        return (changed, [.. folders.Keys.Where(id => !kept.Contains(id))]);
+        return ([.. changed], [.. folders.Keys.Where(id => !kept.Contains(id))]);
     }
 
     #endregion

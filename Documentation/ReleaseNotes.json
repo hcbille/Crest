@@ -3261,6 +3261,10 @@
     "core-reports-arrive-whole": {
       "category": "fixed",
       "message": "A page closed while it is still loading no longer leaves its old details behind, and updates from iCloud or a page always arrive in one piece."
+    },
+    "core-published-lists-read-only": {
+      "category": "internal",
+      "message": "The session, sidebar and change lists the core accepts or publishes are read-only, so nothing that holds one can change the core's state behind its back."
     }
   }
 }

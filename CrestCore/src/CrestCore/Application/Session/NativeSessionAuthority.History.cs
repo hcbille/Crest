@@ -51,8 +51,8 @@ public sealed partial class NativeSessionAuthority {
         WithoutHistory(space, (entry, _) => removes(entry));
 
     internal SpaceState WithoutHistory(SpaceState space, Func<HistoryEntryState, int, bool> removes) {
-        var kept = space.History.Where((entry, index) => !removes(entry, index)).ToArray();
-        return kept.Length == space.History.Count ? space : space with { History = kept };
+        IReadOnlyList<HistoryEntryState> kept = [.. space.History.Where((entry, index) => !removes(entry, index))];
+        return kept.Count == space.History.Count ? space : space with { History = kept };
     }
 
     #endregion

@@ -78,7 +78,7 @@ internal static partial class StoredSessionCodec {
                 Folders = [.. space.Folders, folder],
                 Tabs = [.. space.Tabs.Select(tab => Joins(tab) ? tab with { FolderId = folderId } : tab)]
             };
-            session = session with { Spaces = spaces };
+            session = session with { Spaces = [.. spaces] };
         }
         return session;
     }

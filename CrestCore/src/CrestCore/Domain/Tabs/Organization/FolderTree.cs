@@ -42,7 +42,7 @@ public sealed class FolderTree(IReadOnlyList<FolderState> folders) {
         void Append(Guid? parent) {
             foreach (var folder in Children(parent)) { result.Add(folder); Append(folder.Id); }
         }
-        Append(null); return result;
+        Append(null); return [.. result];
     }
 
     public HashSet<Guid> EmptyPredecessors(Guid? before, Guid? anchor, Guid? parent,

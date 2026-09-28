@@ -43,11 +43,12 @@ public sealed class WireReader(ReadOnlyMemory<byte> bytes) {
     /// A list's count. Every element occupies at least one byte.
     public int ReadCount() => checked((int)ReadBounded((ulong)Remaining, "count"));
 
+    /// A list, which nothing can change once it is read.
     public IReadOnlyList<T> ReadList<T>(Func<T> readElement) {
         ArgumentNullException.ThrowIfNull(readElement);
         var items = new T[ReadCount()];
         for (int index = 0; index < items.Length; index++) items[index] = readElement();
-        return items;
+        return Array.AsReadOnly(items);
     }
 
     /// An optional's presence byte.

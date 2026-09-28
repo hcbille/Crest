@@ -68,7 +68,7 @@ public static class NativeSessionMaintenance {
             });
         var spaceIds = new RuntimeIdentityRegistry(ids); var profiles = new RuntimeIdentityRegistry(ids);
         var tabIds = new RuntimeIdentityRegistry(ids); var assets = new List<TabOrigin>();
-        var repaired = spaces.Select((space, spaceIndex) => {
+        IReadOnlyList<SpaceState> repaired = [.. spaces.Select((space, spaceIndex) => {
             // Cleanup that is under way keeps the Space exactly as it was, and
             // its identities stay claimed so no other Space can take them.
             if (pending.Contains(space.Id)) {
@@ -113,12 +113,12 @@ public static class NativeSessionMaintenance {
             });
             return identified with {
                 Folders = folders,
-                Tabs = tabs.Select((tab, index) => tab with { SplitGroupId = groups[index] }).ToArray(),
-                ArchivedTabs = archive.ToArray(),
-                History = space.History.Take(HistoryPolicy.MaximumEntries).ToArray(),
+                Tabs = [.. tabs.Select((tab, index) => tab with { SplitGroupId = groups[index] })],
+                ArchivedTabs = [.. archive],
+                History = [.. space.History.Take(HistoryPolicy.MaximumEntries)],
                 SplitGroups = MergedSplitGroups(space.SplitGroups)
             };
-        }).ToArray();
+        })];
         origins = assets;
         // A launch Space that is gone falls back to the first Space that stays.
         var active = repaired.Select(space => space.Id).ToHashSet();
@@ -134,14 +134,14 @@ public static class NativeSessionMaintenance {
         var session = StoredSessionCodec.DecodeSession(source);
         var pending = session.SpaceDeletions.Select(deletion => deletion.SpaceId).ToHashSet();
         bool changed = false;
-        var spaces = session.Spaces.Select(space => {
+        IReadOnlyList<SpaceState> spaces = [.. session.Spaces.Select(space => {
             if (pending.Contains(space.Id)) return space;
             var retention = space.Settings.BrowsingPreferences.DataRetention;
             var history = Retained(space.History, entry => entry.LastVisitedAt, Lifetime(retention.History), now);
             var archive = Retained(space.ArchivedTabs, archived => archived.ArchivedAt, Lifetime(retention.Archive), now);
             changed |= history.Count != space.History.Count || archive.Count != space.ArchivedTabs.Count;
             return space with { History = history, ArchivedTabs = archive };
-        }).ToArray();
+        })];
         return new() { ["session"] = StoredSessionCodec.Encode(session with { Spaces = spaces }), ["changed"] = changed };
     }
 
@@ -149,7 +149,7 @@ public static class NativeSessionMaintenance {
         if (lifetime is not { } seconds) return records;
         var expired = RecordRemovalPolicy.Expired(records.Select(record => StoredSessionCodec.Seconds(date(record))).ToArray(), now, seconds)
             .ToHashSet();
-        return records.Where((_, index) => !expired.Contains(index)).ToArray();
+        return [.. records.Where((_, index) => !expired.Contains(index))];
     }
 
     private static double? Lifetime(DataRetention retention) => retention.Lifetime?.TotalSeconds;
@@ -202,7 +202,7 @@ public static class NativeSessionMaintenance {
                 normalized = normalized with { Tint = previous.Tint, TintModifiedAt = previous.TintModifiedAt };
             groups[index] = normalized;
         }
-        return groups;
+        return [.. groups];
     }
 
     private static DateTimeOffset? Normalized(DateTimeOffset? clock) => clock is { } value ? BrowserEditTimestamp.Normalize(value) : null;

@@ -33,9 +33,7 @@ internal abstract record PageEdit(Guid PageId, Guid SpaceId, DateTimeOffset At) 
     protected static SpaceState Replacing(SpaceState space, int index, BrowserTab tab) {
         var state = tab.State;
         if (state == space.Tabs[index]) return space;
-        var tabs = space.Tabs.ToArray();
-        tabs[index] = state;
-        return space with { Tabs = tabs };
+        return space with { Tabs = [.. space.Tabs.Select((existing, position) => position == index ? state : existing)] };
     }
 
     protected static int IndexOf(SpaceState space, Guid tabId) {

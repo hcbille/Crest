@@ -35,11 +35,11 @@ internal static partial class StoredSessionCodec {
                 DecodeAccessPolicy(value[Key.AccessPolicy]),
                 Flag(value[Key.IsSavedTabsExpanded]) ?? true,
                 OptionalDate(value[Key.SavedTabsExpansionModifiedAt])),
-            Items(value[Key.Folders]).Select(DecodeFolder).ToArray(),
-            Items(value[Key.Tabs]).Select(DecodeTab).ToArray(),
-            Items(value[Key.SplitGroups]).Select(DecodeSplitGroup).ToArray(),
-            Items(value[Key.ArchivedTabs]).Select(DecodeArchivedTab).ToArray(),
-            Items(value[Key.History]).Select(DecodeHistoryEntry).ToArray());
+            [.. Items(value[Key.Folders]).Select(DecodeFolder)],
+            [.. Items(value[Key.Tabs]).Select(DecodeTab)],
+            [.. Items(value[Key.SplitGroups]).Select(DecodeSplitGroup)],
+            [.. Items(value[Key.ArchivedTabs]).Select(DecodeArchivedTab)],
+            [.. Items(value[Key.History]).Select(DecodeHistoryEntry)]);
     }
 
     internal static JsonObject Encode(SpaceState space) {
@@ -86,7 +86,7 @@ internal static partial class StoredSessionCodec {
     internal static SessionState DecodeSession(JsonNode? node) {
         var value = Object(node);
         var spaces = value[Key.Spaces] as JsonArray ?? throw new BrowserRuleException(BrowserRuleCodes.InvalidSavedState);
-        return new(spaces.Select(DecodeSpace).ToArray(),
+        return new([.. spaces.Select(DecodeSpace)],
             OptionalIdentity(value[Key.DefaultSpaceId]), OptionalIdentity(value[Key.DisposableSeedMarker]),
             DecodeSpaceDeletions(value[Key.SpaceDeletions]) ?? [],
             value[Key.AppPreferences] is JsonObject preferences ? DecodeAppPreferences(preferences) : null);
@@ -104,9 +104,9 @@ internal static partial class StoredSessionCodec {
     /// The Space deletions a session stores, or null when it stores none.
     internal static IReadOnlyList<SpaceDeletionState>? DecodeSpaceDeletions(JsonNode? node) => node switch {
         null => null,
-        JsonArray intents => intents.Select(intent => intent is JsonObject value
+        JsonArray intents => [.. intents.Select(intent => intent is JsonObject value
             ? new SpaceDeletionState(Identity(value[Key.OperationId]), Identity(value[Key.SpaceId]), Identity(value[Key.ProfileId]))
-            : throw new BrowserRuleException(BrowserRuleCodes.InvalidDeletionIntent)).ToArray(),
+            : throw new BrowserRuleException(BrowserRuleCodes.InvalidDeletionIntent))],
         _ => throw new BrowserRuleException(BrowserRuleCodes.InvalidDeletionIntent)
     };
 

@@ -33,7 +33,7 @@ internal static partial class StoredSessionCodec {
         var (builtIn, custom) = SearchSelection(TolerantText(value[Key.SelectedSearchProviderId])
             ?? TolerantText(value[Key.LegacySearchProvider]));
         return new(builtIn, custom,
-            Items(value[Key.CustomSearchProviders]).OfType<JsonObject>().Select(CustomSearchProvider).OfType<CustomSearchProvider>().ToArray(),
+            [.. Items(value[Key.CustomSearchProviders]).OfType<JsonObject>().Select(CustomSearchProvider).OfType<CustomSearchProvider>()],
             TolerantFlag(value[Key.SearchSuggestionsEnabled]) ?? false, cleanup,
             ContentBlockingPolicy.Named(TolerantText(value[Key.ContentBlockingPolicy])) ?? ContentBlockingPolicy.Balanced,
             new(Kept(Key.History), Kept(Key.Archive), Kept(Key.Downloads)));

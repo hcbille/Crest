@@ -98,7 +98,7 @@ public sealed partial class NativeSessionAuthority {
     }
 
     internal static SessionState Replacing(SessionState session, params SpaceState[] edited) => session with {
-        Spaces = session.Spaces.Select(space => edited.FirstOrDefault(value => value.Id == space.Id) ?? space).ToArray()
+        Spaces = [.. session.Spaces.Select(space => edited.FirstOrDefault(value => value.Id == space.Id) ?? space)]
     };
 
     #endregion
