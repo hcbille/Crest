@@ -11,7 +11,6 @@ import os
 
 enum BrowserDeveloperCaptureError: Error {
     case pageUnavailable
-    case dimensionsUnavailable
     case encodingFailed
 }
 
@@ -385,17 +384,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         pageEngine.load(request)
     }
 
-    /// Replays a request WebKit classified as web-content navigation in this
-    /// page without granting it the broader trust of an app-initiated load.
-    func loadWebContentRequest(_ request: URLRequest) {
-        if pageEngine.reportsNavigationState {
-            load(request)
-            return
-        }
-        prepareForNavigation(to: request.url)
-        pageEngine.load(request)
-    }
-
     /// The adapter's tagged, opaque history. Uncommitted pages return nil so
     /// an empty renderer cannot overwrite a useful archive.
     var interactionState: Data? {
@@ -714,11 +702,6 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
     func refreshReaderModeAvailability() async {
         await readerModeSession?.refreshAvailability()
-    }
-
-    func setReaderModeActive(_ isActive: Bool) async throws {
-        guard let readerModeSession else { throw BrowserReaderModeError.articleUnavailable }
-        try await readerModeSession.setActive(isActive)
     }
 
     func toggleReaderMode() {

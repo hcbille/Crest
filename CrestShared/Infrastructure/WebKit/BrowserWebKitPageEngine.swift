@@ -69,10 +69,6 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
         return webView.backForwardList.currentItem?.url
     }
 
-    func evaluateInMainFrame(_ body: String) async -> Any? {
-        try? await webView.callAsyncJavaScript(body, arguments: [:], contentWorld: .defaultClient)
-    }
-
     var backHistory: [BrowserNavigationHistoryItem] {
         history.backItems.reversed().enumerated().map { Self.item($0.element, depth: $0.offset + 1) }
     }
@@ -164,9 +160,6 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
             closeCompletion = completion
             scheduleCloseTimeout()
         }
-
-        /// True when a close this port requested owns the panel being shown.
-        var isPreparingToClose: Bool { closeCompletion != nil }
 
         /// The person is deciding; a prompt has no time limit.
         func beforeUnloadPanelWillAppear() { closeTimeout?.cancel() }

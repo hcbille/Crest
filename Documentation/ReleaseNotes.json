@@ -3213,6 +3213,10 @@
     "diagnostic-log-keeps-no-addresses": {
       "category": "internal",
       "message": "Crest's diagnostic log names a refused request by its rule alone, so it never keeps a site or an address, and the logging left over from earlier investigations is gone."
+    },
+    "app-dead-code-after-restructure": {
+      "category": "internal",
+      "message": "The apps drop code the restructure left without callers: an unused download lookup, web-content load and reader toggle, a never-built device-validation trust path, two unused palette values, and two store logos nothing shows."
     }
   }
 }

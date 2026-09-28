@@ -242,12 +242,6 @@ extension MobileBrowserPage: WKNavigationDelegate {
                 URLCredential?
             ) -> Void
     ) {
-        #if CREST_PHYSICAL_VALIDATION
-            if let credential = MobilePhysicalValidationServerTrust.credential(for: challenge) {
-                completionHandler(.useCredential, credential)
-                return
-            }
-        #endif
         if let identity = BrowserServerTrustIdentity.challengeIdentity(
             for: challenge
         ) {

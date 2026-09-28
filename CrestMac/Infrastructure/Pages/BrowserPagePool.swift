@@ -669,14 +669,6 @@ final class BrowserPagePool:
         return true
     }
 
-    /// The Space a download belongs to when the engine names its source page.
-    func engineDownloadAssignment(pageID: String, profileID: UUID) -> BrowserSpaceRuntimeAssignment? {
-        guard let page = host.livePages.first(where: { $0.corePage.id == UUID(uuidString: pageID) }),
-            page.profileID == profileID, !browser.deletingSpaceIDs.contains(page.spaceID)
-        else { return nil }
-        return BrowserSpaceRuntimeAssignment(spaceID: page.spaceID, profileID: page.profileID)
-    }
-
     /// Honors `window.close()` for a page web content opened: a popup window's
     /// page closes its Quick Window, or goes before one took it, and a tab's
     /// page closes its tab through the same store path the tab list's close

@@ -24,12 +24,4 @@ enum BrowserEngineImplementation: String, Codable, Sendable {
         case .chromiumMacOS: .chromium
         }
     }
-
-    /// The platform name used in the descriptor's human-readable scope.
-    var platformName: String {
-        switch self {
-        case .webKitMacOS, .chromiumMacOS: "macOS"
-        case .webKitIOS: "iOS"
-        }
-    }
 }

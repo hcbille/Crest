@@ -4,12 +4,6 @@ import UIKit
 import UniformTypeIdentifiers
 import WebKit
 
-#if CREST_PHYSICAL_VALIDATION
-    import CryptoKit
-    import OSLog
-    import Security
-#endif
-
 @Observable
 @MainActor
 final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
@@ -682,10 +676,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         await readerModeSession.refreshAvailability()
     }
 
-    func setReaderModeActive(_ isActive: Bool) async throws {
-        try await readerModeSession.setActive(isActive)
-    }
-
     func toggleReaderMode() {
         readerModeSession.toggle()
     }
@@ -1141,8 +1131,5 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         )
     }
 }
-
-#if CREST_PHYSICAL_VALIDATION
-#endif
 
 extension MobileBrowserPage: WebKitPageHosting {}

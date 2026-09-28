@@ -15,7 +15,6 @@ extension BrandColor {
     static let rose = BrandColor(red: 0.72, green: 0.25, blue: 0.42, alpha: 1)
     static let sand = BrandColor(red: 0.82, green: 0.72, blue: 0.56, alpha: 1)
     static let folderDefault = BrandColor(red: 0.43, green: 0.48, blue: 0.54, alpha: 1)
-    static let privateBrowsingPurple = BrandColor(red: 0.58, green: 0.30, blue: 0.76, alpha: 1)
 
     static let presets: [BrandColor] = [
         .ink, .indigo, .ocean, .sky, .teal, .sage, .gold, .ember, .rose, .sand,

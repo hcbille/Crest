@@ -29,17 +29,4 @@ extension BrowserCorePolicy {
         let question = AuthenticationSource(host: host, port: port, scheme: nonEmpty(scheme))
         return (try? CrestCore.answer(question))?.label ?? emptyHostLabel
     }
-
-    /// Whether the physical-validation fixture build trusts this server
-    /// certificate. An unavailable core trusts nothing.
-    static func trustsPhysicalValidationServer(
-        bundleIdentifier: String?, expectedCertificateSHA256: String?,
-        actualCertificateSHA256: String
-    ) -> Bool {
-        let question = FixtureServerTrust(
-            bundleIdentifier: nonEmpty(bundleIdentifier),
-            expectedCertificateSha256: nonEmpty(expectedCertificateSHA256),
-            actualCertificateSha256: actualCertificateSHA256)
-        return (try? CrestCore.answer(question))?.trusted ?? false
-    }
 }

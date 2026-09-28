@@ -8,7 +8,6 @@ extension SpaceCrest {
     /// The most colors a crest's own palette holds, as the core enforces it.
     static var maximumPaletteCount: Int { CapacityLimits.current.crestPalette }
     static let plateScaleRange = 0.7...1.15
-    static let edgeWidthRange = 0.0...1.0
     static let divisionCountRange = 2...8
     static let ordinaryWidthRange = 0.5...1.6
     static let trimWeightRange = 0.5...2.0

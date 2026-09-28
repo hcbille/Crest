@@ -11,7 +11,5 @@ The vector assets in `CrestShared/Resources/GettingStartedLogos.xcassets` were o
 | GuideWikipedia | wikipedia.svg | Wikipedia practice tab |
 | GuideAllTrails | alltrails.svg | Trail guide practice tab |
 | GuideTodoist | todoist.svg | Packing list practice tab |
-| GuideChrome | chrome.svg | Chrome Web Store link |
-| GuideFirefox | firefox-browser.svg | Firefox Add-ons link |
 
-Source files are unchanged. The practice model rasterizes a small PNG once per asset to exercise Crest's actual favicon pipeline; store buttons use the vectors directly. Brand names and marks belong to their respective owners and identify example websites or extension stores. Their inclusion does not imply affiliation or endorsement. The collection's software license does not transfer ownership of the marks.
+Source files are unchanged. The practice model rasterizes a small PNG once per asset to exercise Crest's actual favicon pipeline. Brand names and marks belong to their respective owners and identify example websites. Their inclusion does not imply affiliation or endorsement. The collection's software license does not transfer ownership of the marks.

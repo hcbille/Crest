@@ -28,9 +28,6 @@ protocol BrowserPageEngine: AnyObject {
     /// Content bridges run by the engine itself, or nil when the page installs
     /// them through the engine's own API.
     var contentScripting: (any BrowserPageContentScripting)? { get }
-    /// Runs `body` as an async function in a world of the main frame's current
-    /// document that the page cannot see; nil when it produced no value.
-    func evaluateInMainFrame(_ body: String) async -> Any?
 }
 
 extension BrowserPageEngine {
@@ -38,9 +35,6 @@ extension BrowserPageEngine {
     @discardableResult func synchronizeHistory() -> URL? { nil }
     func stageNavigation(_ navigation: BrowserEngineNavigation, expecting url: URL) -> Bool { false }
     var contentScripting: (any BrowserPageContentScripting)? { nil }
-    func evaluateInMainFrame(_ body: String) async -> Any? {
-        await contentScripting?.callAsyncJavaScriptInMainFrame(body)
-    }
 }
 
 /// A link an engine staged for a new page's first load, which keeps the

@@ -128,16 +128,6 @@ extension BrowserPage {
         }
     }
 
-    /// Whether `navigationAction` would replace this page's own main frame.
-    ///
-    /// WebKit reports no target frame at all for a new-window request, because the
-    /// frame does not exist yet. Reading a missing frame as this page's main frame
-    /// is what turns a `target="_blank"` link into a navigation that replaces the
-    /// page the user is on.
-    func isTopLevelNavigation(_ navigationAction: WKNavigationAction) -> Bool {
-        navigationAction.targetFrame?.isMainFrame == true
-    }
-
     /// Whether this page's own web view sent `scriptMessage`.
     ///
     /// A popup shares its opener's `WKUserContentController`, so the opener's
