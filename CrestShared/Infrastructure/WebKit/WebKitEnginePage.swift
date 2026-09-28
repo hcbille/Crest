@@ -84,8 +84,15 @@ final class WebKitEnginePage {
 
     /// Loads `url` as the app's own load, once the page's host is ready for it.
     func load(_ url: URL) {
-        host?.prepareToLoad(url)
-        engine.load(URLRequest(url: url))
+        load(URLRequest(url: url))
+    }
+
+    /// Loads `request` as `load(_:)` does, keeping its method, body and
+    /// headers, such as the referrer of a window the page's document asked
+    /// for, which the core kept in this page.
+    func load(_ request: URLRequest) {
+        if let url = request.url { host?.prepareToLoad(url) }
+        engine.load(request)
     }
 
     // MARK: - Actions - Links
@@ -117,11 +124,12 @@ final class WebKitEnginePage {
     }
 
     /// Offers the core `popup`, the page WebKit made for this page's
-    /// document heading to `url`, and answers the page the core adopted it
-    /// as, which its owner already hosts, or nil when the core refused it.
-    /// The core decides where it shows; it runs on WebKit, as its opener does.
-    func offer(_ popup: WebKitPopup, heading url: URL?, foreground: Bool) -> WebKitEnginePage? {
-        binding?.offer(popup, from: self, heading: url, foreground: foreground)
+    /// document to load `request`, and answers the page the core adopted it
+    /// as, which its owner already hosts, or nil when the core refused it or
+    /// kept it in this page. The core decides where it shows; it runs on
+    /// WebKit, as its opener does.
+    func offer(_ popup: WebKitPopup, for request: URLRequest, foreground: Bool) -> WebKitEnginePage? {
+        binding?.offer(popup, from: self, for: request, foreground: foreground)
     }
 
     /// What brings the page back as it is: WebKit's history, at the address

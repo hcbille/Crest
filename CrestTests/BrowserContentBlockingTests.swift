@@ -128,7 +128,10 @@ final class BrowserContentBlockingTests: XCTestCase {
             )
             configuration.userContentController.add(extensionRuleList)
             let page = try XCTUnwrap(
-                browser.openWebKitPopup(from: opener.webKit, configuration: configuration).map {
+                browser.openWebKitPopup(
+                    from: opener.webKit, configuration: configuration,
+                    loading: URLRequest(url: try XCTUnwrap(URL(string: "about:blank")))
+                ).map {
                     opened in
                     BrowserPage(
                         corePage: opened.core,
@@ -450,9 +453,9 @@ extension BrowserStore {
     /// would be, for a test that hosts the page itself. Nil when the core
     /// refuses it.
     fileprivate func openWebKitPopup(
-        from opener: WebKitEnginePage, configuration: WKWebViewConfiguration
+        from opener: WebKitEnginePage, configuration: WKWebViewConfiguration, loading request: URLRequest
     ) -> (core: CorePage, webKit: WebKitEnginePage)? {
-        guard let popup = opener.offer(WebKitPopup(configuration: configuration), heading: nil, foreground: false),
+        guard let popup = opener.offer(WebKitPopup(configuration: configuration), for: request, foreground: false),
             let opened = core.engines.host(popup.id)
         else { return nil }
         return (opened.page, popup)

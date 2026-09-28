@@ -88,8 +88,9 @@ extension BrowserPage: WKUIDelegate {
         let webKitPage = webKitAdapter?.webKitPage
         let foreground = corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
         let popup = WebKitPopup(configuration: configuration, wantsWindow: windowFeatures.requestsPopupWindow)
-        return popups.resolveOpen(for: navigationAction, currentURL: webView.url) { requestedURL in
-            webKitPage?.offer(popup, heading: requestedURL, foreground: foreground)?.webView
+        let request = navigationAction.request
+        return popups.resolveOpen(for: navigationAction, currentURL: webView.url) { _ in
+            webKitPage?.offer(popup, for: request, foreground: foreground)?.webView
         }
     }
 

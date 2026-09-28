@@ -1,4 +1,5 @@
 using CrestCore.Application;
+using CrestCore.Domain;
 
 namespace CrestCore.Contracts;
 
@@ -101,11 +102,15 @@ public sealed record PageOffered(Guid OfferId, Guid ProfileId, Guid? SourcePageI
         return true;
     }
 
-    /// A Quick Window's or Peek's page loads the web address a page it opened
-    /// was heading to. One whose engine holds no page, whose Space may not
-    /// show it now, or an address that is not the web loads nothing.
+    /// A Quick Window's or Peek's page loads the address a page it opened was
+    /// heading to: a web address, or the empty document at a fragment its
+    /// opener named, which is an address on every engine. One whose engine
+    /// holds no page, whose Space may not show it now, or any other address
+    /// loads nothing, as the bare empty document an engine reports for a
+    /// window that has no address yet does.
     private void LoadInSource(Pages pages, Page source, PageTurn turn) {
-        if (!source.Phase.HoldsEnginePage || new WebAddress(Url).Origin is null
+        if (!source.Phase.HoldsEnginePage
+            || new WebAddress(Url).Origin is null && !Url.StartsWith(BrowserUrlConstants.AboutBlank + "#", StringComparison.Ordinal)
             || pages.Device.Attached(source.WorkspaceId) is not { } workspace || Hostable(workspace, source.SpaceId) is null)
             return;
         pages.Update(source, turn.Changes, () => source.Load(Url));

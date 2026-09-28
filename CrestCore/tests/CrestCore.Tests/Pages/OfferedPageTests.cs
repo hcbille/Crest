@@ -184,7 +184,12 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal("https://sign-in.example/", Assert.IsType<PageChanged>(Assert.Single(app.Drain())).Page.Live.PendingUrl);
         Assert.Equal(tabs, CurrentTabs(app, workspace, space).Count);
 
-        // A page with no web address yet loads nothing in its opener.
+        // The empty document at a fragment the opener named is an address, and
+        // loads there too; a page with no address yet loads nothing.
+        var fragment = Guid.NewGuid();
+        app.Report(engine, new PageOffered(fragment, profile, peek, window, SpaceId: null, "about:blank#done", Foreground: true));
+        Assert.Equal([new RejectOfferedPage(fragment), new LoadPage(peek, "about:blank#done")], binding.Commands[^2..]);
+        app.Drain();
         var blank = Guid.NewGuid();
         app.Report(engine, new PageOffered(blank, profile, peek, window, SpaceId: null, "about:blank", Foreground: true));
         Assert.Equal(new RejectOfferedPage(blank), binding.Commands[^1]);

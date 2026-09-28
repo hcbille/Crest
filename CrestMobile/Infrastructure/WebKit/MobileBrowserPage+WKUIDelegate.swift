@@ -111,9 +111,9 @@ extension MobileBrowserPage: WKUIDelegate {
         recordAcceptedPopup()
         let foreground = corePage.selectsOpenedWindow(gesture: navigationAction.linkGesture)
         let webKitPage = webKitPage
-        return popupCoordinator.resolveOpen(for: navigationAction, currentURL: webView.url) { requestedURL in
-            webKitPage.offer(WebKitPopup(configuration: configuration), heading: requestedURL, foreground: foreground)?
-                .webView
+        let request = navigationAction.request
+        return popupCoordinator.resolveOpen(for: navigationAction, currentURL: webView.url) { _ in
+            webKitPage.offer(WebKitPopup(configuration: configuration), for: request, foreground: foreground)?.webView
         }
     }
 

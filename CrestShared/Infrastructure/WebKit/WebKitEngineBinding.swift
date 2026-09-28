@@ -39,6 +39,11 @@ final class WebKitEngineBinding: EngineBinding {
     struct Offer {
         let popup: WebKitPopup
         let space: SpaceModel?
+        /// The page that asked for the window.
+        let sourcePageID: UUID
+        /// What the window was asked to load, which the page that asked for it
+        /// loads instead when the core keeps the window in that page.
+        let request: URLRequest
     }
 
     /// A modified link's request one of this binding's pages staged for the
@@ -242,23 +247,29 @@ final class WebKitEngineBinding: EngineBinding {
     // MARK: - Actions - Offered pages
 
     /// Offers the core `popup`, the page WebKit made for `opener`'s document
-    /// heading to `url`, as `PageOffered` from its opener, and answers the
+    /// to load `request`, as `PageOffered` from its opener, and answers the
     /// page the core adopted it as, or nil when the core refused it. The core
     /// decides where the page shows, and it runs on WebKit, its opener's
-    /// engine. A popup that wants a window of its own is offered as one, in
+    /// engine; one the core keeps in the opener instead, as a Quick Window or
+    /// Peek keeps what it opens, loads `request` there. A window asked for
+    /// with no address heads to the empty document. A popup that wants a
+    /// window of its own is offered as one, in
     /// its opener's Space, on the Mac, whose Quick Windows show it; iPhone and
     /// iPad show every popup as a tab. The core adopts or refuses it on this
     /// stack, while WebKit waits, and the changes it made are applied before
     /// this returns, so the page's owner hosts the page, and answers its
     /// navigations, before WebKit starts the first one.
-    func offer(_ popup: WebKitPopup, from opener: WebKitEnginePage, heading url: URL?, foreground: Bool)
-        -> WebKitEnginePage?
-    {
+    func offer(
+        _ popup: WebKitPopup, from opener: WebKitEnginePage, for request: URLRequest, foreground: Bool
+    ) -> WebKitEnginePage? {
         guard let engines else { return nil }
         let offerID = UUID()
         let source = engines.core.state.pages[opener.id]
         let space = source.flatMap { engines.core.state.workspaces[$0.workspaceID]?.spaces.model($0.spaceID) }
-        offers[offerID] = Offer(popup: popup, space: space)
+        // `window.open()` without a destination reaches WebKit as a request
+        // with no URL, or an empty one.
+        let url = request.url.map(\.absoluteString).flatMap { $0.isEmpty ? nil : $0 } ?? "about:blank"
+        offers[offerID] = Offer(popup: popup, space: space, sourcePageID: opener.id, request: request)
         defer { offers[offerID] = nil }
         #if os(macOS)
             let window = popup.wantsWindow ? source?.spaceID : nil
@@ -268,7 +279,7 @@ final class WebKitEngineBinding: EngineBinding {
         report(
             PageOffered(
                 offerID: offerID, profileID: opener.profileID, sourcePageID: opener.id, windowID: nil, spaceID: window,
-                url: url?.absoluteString ?? "about:blank", foreground: foreground))
+                url: url, foreground: foreground))
         guard let page = adoptedOffers.removeValue(forKey: offerID) else { return nil }
         engines.core.drain()
         return page

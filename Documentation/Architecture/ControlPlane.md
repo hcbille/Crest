@@ -622,7 +622,12 @@ core no longer hosts, or that another engine hosts, changes nothing.
   window whose redirects stay in it; its `window.close()` closes the Quick
   Window, and Open in makes it a tab with its opener intact. Otherwise a
   transient page keeps what it opens: the core rejects the offer and loads
-  the address in the Quick Window or Peek itself. A tab's offer becomes a new
+  the address in the Quick Window or Peek itself, in one page with its native
+  history. A web address or the empty document at a fragment loads there; the
+  bare `about:blank` an engine reports for a window with no address yet loads
+  nothing. WebKit loads the window's own request there, keeping its method,
+  body and referrer, and offers a `window.open()` with no address as
+  `about:blank`. A tab's offer becomes a new
   tab beside the tab, in its Space and window. Anything else joins the
   window's reserved Space, or else the Space it shows, after the tab it shows.
   The core refuses an offer for a locked or deleting Space, one of another
