@@ -6,54 +6,38 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.447</title>
-            <pubDate>Mon, 28 Sep 2026 20:36:03 +0000</pubDate>
+            <title>0.6.448</title>
+            <pubDate>Mon, 28 Sep 2026 20:55:55 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>experimental</sparkle:channel>
-            <sparkle:version>1144</sparkle:version>
-            <sparkle:shortVersionString>0.6.447</sparkle:shortVersionString>
+            <sparkle:version>1145</sparkle:version>
+            <sparkle:shortVersionString>0.6.448</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-Showing the 12 most recent highlights from 20 user-facing changes.
-
-### Improved
-
-- The WebKit build now runs on the same Mac app shell as the Chromium build, so both reopen the windows you left open in the order you left them, and both put links from other apps where your link settings say even with no window open. The first launch after this update reopens your most recently used window at its default size.
-- The Chromium build's Edit menu now has Find, Spelling and Grammar, Substitutions, Transformations and Speech, Translate Page appears in the Page menu whenever a page can be translated, and Command-W closes Crest Setup and What's New in Crest there too.
-
 ### Fixed
 
-- A tab or window an extension closes now closes in Crest instead of leaving a blank tab behind, and a site can close only a tab or window that another page opened.
-- The Dock keeps the app icon you picked while downloads run.
-- Windows and tabs an extension opens, such as a password manager's pop-out, can close themselves again when they're done.
-- A search from a new tab on iPhone shows its page right away instead of a blank screen.
-- Setup no longer waits forever when iCloud doesn't answer: after a few seconds you can set up without it, and sync tries iCloud again on its own.
-- A Quick Window whose page closes itself, such as a sign-in window once you're signed in, now closes even while it's asking whether you want to leave the page.
-- Videos you play full screen, such as on YouTube, show again instead of a black screen.
-- In full screen, the title bar that slides down with the menu bar looks like the standard one instead of a blank block over the page.
-- Pages get first say over shortcuts such as ⌘F, as in other browsers, so a document editor like Google Docs opens its own Find. ⌘T, ⌘W and ⌘N always stay Crest's.
-- Now Playing shows the track's artwork again for pages that run in Chromium, including artwork from sites you're signed in to, sized to fit music and video.
+- A mouse's Back and Forward buttons move one page per click on pages that run in Chromium, instead of two.
 
 ---
 
 Experimental builds are signed and notarized snapshots from the selected branch (chromium-control-plane). They may be less reliable than development or stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/097e7c5693ad707340a0205db01203594fe2bb68...5c1f7be5895f2cf0fd77562cfba97111fe841d3a) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.447-chromium-control-plane-2026-09-28-1144-r14.1/Installer-Crest-0.6.447-experimental-2026-09-28-5c1f7be-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/5c1f7be5895f2cf0fd77562cfba97111fe841d3a...298f215f8cc518621317c6038e0870fa9d197c7e) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.448-chromium-control-plane-2026-09-28-1145-r15.1/Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64.dmg)
 
 [Browse Experimental releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Experimental+builds%22)
 
 ### Downloads
 
-- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.447-experimental-2026-09-28-5c1f7be-arm64.dmg`
-- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.447-experimental-2026-09-28-5c1f7be-arm64-WebKit.dmg`
+- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64.dmg`
+- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64-WebKit.dmg`
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.447-chromium-control-plane-2026-09-28-1144-r14.1/Installer-Crest-0.6.447-experimental-2026-09-28-5c1f7be-arm64-WebKit.dmg" length="28908378" type="application/octet-stream" sparkle:edSignature="gCfU7U0cMqV1UQGkvMb2eMs++ok5+c6FX1hmel7cE8Boh/dfJSu3V49ZLwF30o/tmQGSP6nTPZxrbOWRDLdkBQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.448-chromium-control-plane-2026-09-28-1145-r15.1/Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64-WebKit.dmg" length="28886361" type="application/octet-stream" sparkle:edSignature="Q7aNlukD0iaC1euYlgBcB/HXX+qK19bvaQ2xSJZEqscCmq/xnWygoEKpsh57KCQPIrVXFx+XLIIREXC0NY01DQ=="/>
         </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: AjHUFOaCIpghOGgljKn503Y4SFS39q8yr3bq9xJgogqLfkEl3kxutVx/Fn7pvC5ANys07BR8dX5cj3Pt5g8/CA==
-length: 4344
+edSignature: W703sNJahQTxo3+84XeArQCLXog6zQYfGWBIcd1K1H/w/puhBcV9Nl9g1ddhUVDdJtL7tc2oz+aT3l0eC4itBQ==
+length: 2482
 -->
