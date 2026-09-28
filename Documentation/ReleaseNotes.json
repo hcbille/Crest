@@ -3357,6 +3357,10 @@
     "now-playing-artwork-on-chromium": {
       "category": "fixed",
       "message": "Now Playing shows the track's artwork again for pages that run in Chromium, including artwork from sites you're signed in to, sized to fit music and video."
+    },
+    "chromium-runner-builds-inside-its-workspace": {
+      "category": "internal",
+      "message": "The Chromium engine builder accepts the checkout its own Actions runner makes inside the build workspace."
     }
   }
 }

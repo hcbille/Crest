@@ -80,6 +80,17 @@ class WorkspaceTests(unittest.TestCase):
                     validate_workspace(workspace, repo)
             self.assertEqual(validate_workspace(root / "CrestChromium", repo), (root / "CrestChromium").resolve())
 
+    def test_the_workspace_runner_may_check_crest_out_in_its_own_work_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "CrestChromium"
+            checkout = workspace / "runner-work" / "Crest" / "Crest"
+            checkout.mkdir(parents=True)
+            self.assertEqual(validate_workspace(workspace, checkout), workspace.resolve())
+            elsewhere = workspace / "sources" / "Crest"
+            elsewhere.mkdir(parents=True)
+            with self.assertRaises(ValueError):
+                validate_workspace(workspace, elsewhere)
+
     def test_host_refresh_requires_every_patch_hunk_and_preserves_source(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

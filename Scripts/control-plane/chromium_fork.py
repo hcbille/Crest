@@ -22,6 +22,8 @@ import chromium_engine
 
 REPO = Path(__file__).resolve().parents[2]
 ENGINE = Path("CrestEngines/Chromium")
+# The directory the workspace's Actions runner works in.
+RUNNER_WORK = "runner-work"
 TAG = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-([0-9]+)\.([0-9]+)")
 PREPARATION_FIELDS = ("chromium", "ungoogledMac", "ungoogled", "inputs", "patches", "crestPatches", "esbuild")
 
@@ -85,7 +87,10 @@ def preparation_key(repo, lock):
 
 def validate_workspace(root, repo):
     root, repo = root.expanduser().resolve(), repo.resolve()
-    if root == repo or repo in root.parents or root in repo.parents:
+    # The Actions runner the workspace hosts checks Crest out under its own
+    # work directory, which holds no Chromium source or build output.
+    checked_out_by_runner = root / RUNNER_WORK in repo.parents
+    if root == repo or repo in root.parents or (root in repo.parents and not checked_out_by_runner):
         raise ValueError("The build workspace must be separate from the Crest checkout")
     if root == Path.home() or root == Path("/"):
         raise ValueError("Choose a dedicated Chromium workspace directory")

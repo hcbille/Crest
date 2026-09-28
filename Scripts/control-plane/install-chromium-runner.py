@@ -7,7 +7,7 @@ import platform
 import socket
 import subprocess
 
-from chromium_fork import REPO, download, run, sha256, validate_workspace
+from chromium_fork import REPO, RUNNER_WORK, download, run, sha256, validate_workspace
 
 
 def main():
@@ -37,7 +37,7 @@ def main():
     # Do not print the registration token or store it in a command transcript.
     subprocess.run([str(runner / "config.sh"), "--unattended", "--url", f"https://github.com/{args.repository}",
                     "--token", registration["token"], "--name", f"crest-chromium-{socket.gethostname().split('.')[0]}",
-                    "--labels", "crest-chromium", "--work", str(root / "runner-work")], cwd=runner, check=True)
+                    "--labels", "crest-chromium", "--work", str(root / RUNNER_WORK)], cwd=runner, check=True)
     (runner / ".path").write_text(f"{root / 'tools/bin'}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin")
     run(runner / "svc.sh", "install", cwd=runner)
     run(runner / "svc.sh", "start", cwd=runner)
