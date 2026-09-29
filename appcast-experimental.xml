@@ -6,36 +6,38 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.453</title>
-            <pubDate>Tue, 29 Sep 2026 02:35:40 +0000</pubDate>
+            <title>0.6.455</title>
+            <pubDate>Tue, 29 Sep 2026 14:43:40 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>experimental</sparkle:channel>
-            <sparkle:version>1147</sparkle:version>
-            <sparkle:shortVersionString>0.6.453</sparkle:shortVersionString>
+            <sparkle:version>1148</sparkle:version>
+            <sparkle:shortVersionString>0.6.455</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
+### New
+
+- Site settings have a Screen Sharing choice, so you can block a site from asking to share your screen; macOS still asks what to share every time.
+
 ### Fixed
 
-- The pointer hides over a video playing full screen in a window that was already full screen, and pages that change the pointer no longer wait for the mouse to move.
-- In full screen, the title bar that slides down with the menu bar goes away with it instead of leaving a white or black bar across the top of the window or video.
-- With Crest already in full screen, a full-screen video covers the whole screen, and Esc brings the sidebar back while Crest stays in full screen.
+- Screen sharing on pages that run in Chromium uses the macOS sharing picker and needs no Screen Recording permission, and Crest no longer asks for that permission over and over.
 
 ---
 
 Experimental builds are signed and notarized snapshots from the selected branch (chromium-control-plane). They may be less reliable than development or stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/c25e1a13018e5b2d11e3833afcef7f0228c4a334...bd4583669a18f3338ef58dc0ebefec32e25c2a4b) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.453-chromium-control-plane-2026-09-29-1147-r17.1/Installer-Crest-0.6.453-experimental-2026-09-29-bd45836-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/bd4583669a18f3338ef58dc0ebefec32e25c2a4b...b76bdf469cf5b0f47847b0b9370d8bd4994e7f49) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.455-chromium-control-plane-2026-09-29-1148-r18.1/Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64.dmg)
 
 [Browse Experimental releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Experimental+builds%22)
 
 ### Downloads
 
-- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.453-experimental-2026-09-29-bd45836-arm64.dmg`
-- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.453-experimental-2026-09-29-bd45836-arm64-WebKit.dmg`
+- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64.dmg`
+- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64-WebKit.dmg`
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.453-chromium-control-plane-2026-09-29-1147-r17.1/Installer-Crest-0.6.453-experimental-2026-09-29-bd45836-arm64.dmg" length="214283296" type="application/octet-stream" sparkle:edSignature="8CruF5eNqRj4uK4G/F1vVsKO9p3zPM8f6X7wn/l129iu7LdlBBU7U3vUdKDftdEkRrWh3BKHoRLTQ+y/BfIACw=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.455-chromium-control-plane-2026-09-29-1148-r18.1/Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64.dmg" length="214305314" type="application/octet-stream" sparkle:edSignature="hfMdM5WiiyMltOfxGWl9G+wV7pMZpnHc7hrBZnv3UkA0Q/3c8IVTghfERZXFl9lWSff+Fx9sJpWFcq7qsQ8+Cw=="/>
         </item>
         <item>
             <title>0.6.133</title>
@@ -84,6 +86,6 @@ Experimental builds are signed and notarized snapshots from the selected branch 
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: Gq8zKKv8tSgjoIY6Hr5aOZzY7UimE8hbdPu167QVhGiSUS/EWGIF8V/hCK0zYPZuZ76cu3awxgczWU+awHlYCA==
-length: 5982
+edSignature: RBsrj4eZROOQ5NkJ04ZsQ0z0iJDRkz3vwhNWnxvXbe88AwYrPwP24IcvT7+uFGNcCW1/2bGSTQTHXukdJjr/Cw==
+length: 5839
 -->
