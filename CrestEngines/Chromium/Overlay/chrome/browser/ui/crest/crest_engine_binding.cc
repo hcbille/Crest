@@ -1475,6 +1475,11 @@ bool KeepsPageResident(content::WebContents* contents) {
   return IsEnabled() && contents && EngineBinding::Get().PageFor(contents);
 }
 
+bool KeepsPageLoaded(content::WebContents* contents) {
+  EnginePage* page = IsEnabled() && contents ? EngineBinding::Get().PageFor(contents) : nullptr;
+  return page && page->MediaActivity() != engine::PageMediaActivity::kNone;
+}
+
 // A modified click the core sends to a tab or to Peek. Any other, in a page
 // Crest does not show or one the core leaves to the engine, keeps Chromium's
 // own path, including an Option-click's original renderer download with

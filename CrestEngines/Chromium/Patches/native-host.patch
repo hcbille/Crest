@@ -2621,3 +2621,36 @@
    std::move(picker_callback_).Run(source);
  }
  
+--- a/components/performance_manager/freezing/freezer.cc
++++ b/components/performance_manager/freezing/freezer.cc
+@@ -7,10 +7,15 @@
+ #include "base/functional/bind.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/task/task_traits.h"
++#include "build/build_config.h"
+ #include "components/performance_manager/public/graph/page_node.h"
+ #include "content/public/browser/visibility.h"
+ #include "content/public/browser/web_contents.h"
+ 
++#if BUILDFLAG(IS_MAC)
++#include "chrome/browser/ui/crest/crest_chrome_hooks.h"  // nogncheck
++#endif
++
+ namespace performance_manager {
+ 
+ void Freezer::MaybeFreezePageNode(const PageNode* page_node) {
+@@ -23,6 +28,14 @@
+   if (contents->GetVisibility() == content::Visibility::VISIBLE) {
+     return;
+   }
++#if BUILDFLAG(IS_MAC)
++  // Crest keeps a page running media loaded however long nobody looks at
++  // it: a video in Picture in Picture, playing or paused, sound, or a
++  // capture. Freezing would stop it as surely as unloading it.
++  if (crest::IsEnabled() && crest::KeepsPageLoaded(contents.get())) {
++    return;
++  }
++#endif
+ 
+   contents->SetPageFrozen(true);
+ }

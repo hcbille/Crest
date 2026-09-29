@@ -326,5 +326,9 @@
   "content/browser/media/capture/native_screen_capture_picker_mac.mm": {
     "before": "1de5f0e6a678b87519d569efa2e7f6a78e162d588ac71f98da7085a7d653dcdf",
     "after": "e550576f4f5de11d237532b546fdd4d62f3dc6cfe6001c36a61f0ce7585610c0"
+  },
+  "components/performance_manager/freezing/freezer.cc": {
+    "before": "5cafb9a71c23ab72d7348c7659d730d2d92b4ccc89cce33c47025dc659890bad",
+    "after": "46d211d1e7d9ac2956cbbaabe345a2ec0423ebd347ea0cef78758710068cc758"
   }
 }

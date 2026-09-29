@@ -60,6 +60,11 @@ bool RequestPageClose(content::WebContents* contents);
 // Whether `contents` is a Crest page, which Chromium never discards: the core
 // decides when a page unloads, and a discard replaces the tab's WebContents.
 bool KeepsPageResident(content::WebContents* contents);
+// Whether `contents` is a Crest page running media, which Chromium never
+// freezes: a video in Picture in Picture, playing or paused, sound, or a
+// camera, microphone or screen capture. The core keeps such a page loaded
+// however long nobody looks at it.
+bool KeepsPageLoaded(content::WebContents* contents);
 // Shares HTTP Basic and Digest prompts with Crest's per-Space credential flow.
 // False leaves a WebContents that Crest does not own to Chromium.
 bool PresentHTTPAuthentication(content::WebContents* contents, const net::AuthChallengeInfo& challenge,
