@@ -3389,6 +3389,10 @@
     "screen-sharing-site-setting": {
       "category": "new",
       "message": "Site settings have a Screen Sharing choice, so you can block a site from asking to share your screen; macOS still asks what to share every time."
+    },
+    "chromium-screen-sharing-system-picker": {
+      "category": "fixed",
+      "message": "Screen sharing on pages that run in Chromium uses the macOS sharing picker and needs no Screen Recording permission, and Crest no longer asks for that permission over and over."
     }
   }
 }

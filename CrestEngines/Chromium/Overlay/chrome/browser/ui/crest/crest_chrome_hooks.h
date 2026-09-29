@@ -9,12 +9,14 @@
 
 #include <string>
 #include <functional>
+#include <memory>
 
 class Browser;
+class DesktopMediaPicker;
 class GURL;
 class Profile;
 enum class ToastId;
-namespace content { class WebContents; class NavigationThrottleRegistry; class JavaScriptDialogManager; struct DropData; struct OpenURLParams; }
+namespace content { class WebContents; class NavigationThrottleRegistry; class JavaScriptDialogManager; struct DesktopMediaID; struct DropData; struct MediaStreamRequest; struct OpenURLParams; }
 namespace net { class AuthChallengeInfo; }
 namespace views { class Widget; }
 
@@ -113,6 +115,18 @@ bool RouteModifiedLink(content::WebContents* source, content::OpenURLParams& par
 // Crest presents script dialogs for its pages with the same native presenter
 // WebKit uses. Other Chromium pages keep their engine dialog manager.
 content::JavaScriptDialogManager* JavaScriptDialogManagerFor(content::WebContents* contents);
+// Screen sharing. A page's getDisplayMedia() asks the system's own sharing
+// picker once Crest's core lets the page's site ask, so Chromium's picker,
+// which lists and captures every window to show thumbnails, is never made.
+// `SharesScreenThroughSystem` says whether Crest takes `request`, and
+// `CreateScreenSharingPicker` makes its picker.
+bool SharesScreenThroughSystem(const content::MediaStreamRequest& request);
+std::unique_ptr<DesktopMediaPicker> CreateScreenSharingPicker(const content::MediaStreamRequest& request);
+// Whether capturing `source` for `contents` may go ahead as far as the
+// system's Screen Recording access goes. The system's picker needs none; any
+// other display or window capture does, and the engine asks the system for it
+// at most once per launch.
+bool AllowsScreenCapture(content::WebContents* contents, const content::DesktopMediaID& source);
 #ifdef __OBJC__
 // Crest's own UI, which the UI framework attaches when it starts; nil before.
 id<CrestMacUI> MacUI();

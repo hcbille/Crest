@@ -34,6 +34,7 @@ class EnginePrompts final : public content::JavaScriptDialogManager {
   using Report = base::RepeatingCallback<void(engine::EngineEvent)>;
   using AuthenticationReply = std::function<void(bool, const std::u16string&, const std::u16string&)>;
   using InstallReply = base::OnceCallback<void(bool accepted, bool withholds_site_access)>;
+  using ShareReply = base::OnceCallback<void(bool proceeds)>;
 
   explicit EnginePrompts(Report report);
   EnginePrompts(const EnginePrompts&) = delete;
@@ -54,6 +55,17 @@ class EnginePrompts final : public content::JavaScriptDialogManager {
   std::unique_ptr<permissions::PermissionPrompt> Prompt(const engine::Guid& page,
                                                          permissions::PermissionPrompt::Delegate* delegate);
   bool Settle(const engine::SettlePermission& settlement);
+
+  // A document at `origin` in `page`, whose top-level document is at
+  // `top_level_origin`, asked to share the screen. The core answers from the
+  // page's Space: `reply` hears whether the request goes on to the system's
+  // own sharing picker, which asks the person, or is refused. Answers the
+  // question's identity, for `WithdrawShare` when the request ends first.
+  engine::Guid AskToShareScreen(const engine::Guid& page,
+                                const GURL& origin,
+                                const GURL& top_level_origin,
+                                ShareReply reply);
+  void WithdrawShare(const engine::Guid& id);
 
   // Whether to install the extension an install the window `window` started
   // verified; `reply` hears the answer, or a decline when nobody can give one.
@@ -92,6 +104,10 @@ class EnginePrompts final : public content::JavaScriptDialogManager {
     engine::Guid page;
     AuthenticationReply reply;
   };
+  struct Share {
+    engine::Guid page;
+    ShareReply reply;
+  };
 
   void Open(content::WebContents* contents,
             content::RenderFrameHost* frame,
@@ -114,6 +130,7 @@ class EnginePrompts final : public content::JavaScriptDialogManager {
   std::map<engine::Guid, Challenge> challenges_;
   std::map<engine::Guid, base::WeakPtr<PermissionPrompt>> permissions_;
   std::map<engine::Guid, InstallReply> installs_;
+  std::map<engine::Guid, Share> shares_;
   base::WeakPtrFactory<EnginePrompts> weak_factory_{this};
 };
 

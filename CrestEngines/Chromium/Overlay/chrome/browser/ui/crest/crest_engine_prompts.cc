@@ -175,12 +175,16 @@ class EnginePrompts::PermissionPrompt final : public permissions::PermissionProm
 
 EnginePrompts::EnginePrompts(Report report) : report_(std::move(report)) {}
 
-// Installs still waiting are declined, so the installer never waits on a
-// binding that is gone.
+// Installs and screen sharing still waiting are declined, so neither waits on
+// a binding that is gone.
 EnginePrompts::~EnginePrompts() {
   auto installs = std::move(installs_);
   for (auto& [id, reply] : installs) {
     std::move(reply).Run(false, false);
+  }
+  auto shares = std::move(shares_);
+  for (auto& [id, share] : shares) {
+    std::move(share.reply).Run(false);
   }
 }
 
@@ -336,6 +340,12 @@ std::unique_ptr<permissions::PermissionPrompt> EnginePrompts::Prompt(
 }
 
 bool EnginePrompts::Settle(const engine::SettlePermission& settlement) {
+  if (auto share = shares_.find(settlement.prompt_id); share != shares_.end()) {
+    auto reply = std::move(share->second.reply);
+    shares_.erase(share);
+    std::move(reply).Run(settlement.grants);
+    return true;
+  }
   auto found = permissions_.find(settlement.prompt_id);
   if (found == permissions_.end()) {
     return false;
@@ -351,6 +361,29 @@ bool EnginePrompts::Settle(const engine::SettlePermission& settlement) {
 
 void EnginePrompts::Withdrawn(const engine::Guid& id) {
   if (permissions_.erase(id)) {
+    report_.Run(engine::PromptWithdrawn{.prompt_id = id});
+  }
+}
+
+// Screen sharing.
+
+engine::Guid EnginePrompts::AskToShareScreen(const engine::Guid& page,
+                                             const GURL& origin,
+                                             const GURL& top_level_origin,
+                                             ShareReply reply) {
+  const engine::Guid id = RandomGuid();
+  shares_[id] = Share{.page = page, .reply = std::move(reply)};
+  report_.Run(engine::PermissionRequested{
+      .prompt_id = id,
+      .page_id = page,
+      .question = {.permission = engine::SitePermission::kScreenSharing,
+                   .origin = SiteOriginOf(origin),
+                   .top_level_origin = SiteOriginOf(top_level_origin)}});
+  return id;
+}
+
+void EnginePrompts::WithdrawShare(const engine::Guid& id) {
+  if (shares_.erase(id)) {
     report_.Run(engine::PromptWithdrawn{.prompt_id = id});
   }
 }
@@ -378,6 +411,7 @@ bool EnginePrompts::Settle(const engine::SettleExtensionInstall& settlement) {
 
 void EnginePrompts::Forget(const engine::Guid& page) {
   std::erase_if(challenges_, [&](const auto& entry) { return entry.second.page == page; });
+  std::erase_if(shares_, [&](const auto& entry) { return entry.second.page == page; });
 }
 
 }  // namespace crest

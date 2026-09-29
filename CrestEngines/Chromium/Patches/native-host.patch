@@ -170,7 +170,7 @@
        // If the web authentication request is still pending, remove it from the
 --- a/chrome/browser/ui/BUILD.gn
 +++ b/chrome/browser/ui/BUILD.gn
-@@ -3448,6 +3448,43 @@
+@@ -3448,6 +3448,45 @@
        "browser_mac.h",
        "fullscreen_util_mac.cc",
        "fullscreen_util_mac.h",
@@ -208,13 +208,15 @@
 +      "crest/crest_engine_profiles.h",
 +      "crest/crest_engine_prompts.cc",
 +      "crest/crest_engine_prompts.h",
++      "crest/crest_engine_screen_sharing.cc",
++      "crest/crest_engine_screen_sharing.h",
 +      "crest/crest_engine_store.cc",
 +      "crest/crest_engine_store.h",
 +      "crest/CrestChromiumHost.h",
        "views/certificate_viewer_mac_views.mm",
        "views/frame/browser_frame_view_factory_mac.mm",
        "views/frame/browser_frame_view_mac.h",
-@@ -3487,6 +3524,13 @@
+@@ -3487,6 +3526,13 @@
        "//ui/accelerated_widget_mac",
      ]
      include_dirs = [ "$target_gen_dir" ]
@@ -2176,4 +2178,446 @@
 +    }
      return [[DockIcon alloc] init];
    }();
+ 
+--- a/chrome/browser/chrome_browser_field_trials.cc
++++ b/chrome/browser/chrome_browser_field_trials.cc
+@@ -55,6 +55,10 @@
+ #include "ui/gl/gl_switches.h"
+ #endif
+ 
++#if BUILDFLAG(IS_MAC)
++#include "media/base/media_switches.h"
++#endif
++
+ #if BUILDFLAG(IS_CHROMEOS)
+ #include "chrome/common/channel_info.h"
+ #include "chromeos/ash/services/multidevice_setup/public/cpp/first_run_field_trial.h"
+@@ -115,6 +119,18 @@
+ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
+     base::FeatureList* feature_list) {
+   variations::FeatureOverrides feature_overrides(*feature_list);
++
++#if BUILDFLAG(IS_MAC)
++  // Crest shares a page's screen through the system's own picker, which asks
++  // the person what to share and needs no Screen Recording access, and a page
++  // asks only in response to the person, as in Safari. A command line can
++  // still turn either off.
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch("crest-control-plane")) {
++    feature_overrides.EnableFeature(media::kUseSCContentSharingPicker);
++    feature_overrides.EnableFeature(
++        blink::features::kGetDisplayMediaRequiresUserActivation);
++  }
++#endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(IS_LINUX)
+   // On Linux/Desktop platform variants, such as ozone/wayland, some features
+--- a/chrome/browser/media/webrtc/display_media_access_handler.cc
++++ b/chrome/browser/media/webrtc/display_media_access_handler.cc
+@@ -53,6 +53,7 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/media/webrtc/system_media_capture_permissions_mac.h"
++#include "chrome/browser/ui/crest/crest_chrome_hooks.h"  // nogncheck
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+@@ -340,8 +341,17 @@
+     WebContents* web_contents,
+     const content::MediaStreamRequest& request,
+     content::MediaResponseCallback callback) {
+-  std::unique_ptr<DesktopMediaPicker> picker =
+-      picker_factory_->CreatePicker(&request);
++  std::unique_ptr<DesktopMediaPicker> picker;
++#if BUILDFLAG(IS_MAC)
++  // Crest asks the system's own sharing picker, after its core lets the
++  // page's site ask.
++  if (crest::SharesScreenThroughSystem(request)) {
++    picker = crest::CreateScreenSharingPicker(request);
++  }
++#endif  // BUILDFLAG(IS_MAC)
++  if (!picker) {
++    picker = picker_factory_->CreatePicker(&request);
++  }
+   if (!picker) {
+     std::move(callback).Run(blink::mojom::StreamDevicesSet(),
+                             MediaStreamRequestResult::NOT_SUPPORTED,
+@@ -569,8 +579,16 @@
+         std::move(includable_web_contents_filter), web_contents);
+   }
+ 
+-  auto source_lists = picker_factory_->CreateMediaList(
+-      media_types, web_contents, includable_web_contents_filter);
++  std::vector<std::unique_ptr<DesktopMediaList>> source_lists;
++#if BUILDFLAG(IS_MAC)
++  // The system's picker lists what can be shared itself, so Crest lists and
++  // captures nothing before the person picks.
++  if (!crest::SharesScreenThroughSystem(pending_request.request))
++#endif  // BUILDFLAG(IS_MAC)
++  {
++    source_lists = picker_factory_->CreateMediaList(
++        media_types, web_contents, includable_web_contents_filter);
++  }
+ 
+   // base::Unretained(this) is safe because DisplayMediaAccessHandler is owned
+   // by MediaCaptureDevicesDispatcher, which is a lazy singleton which is
+@@ -685,12 +703,20 @@
+       (media_id.type == DesktopMediaID::TYPE_WEB_CONTENTS) &&
+       media_id.web_contents_id.disable_local_echo;
+ 
++  bool display_notification = display_notification_;
++#if BUILDFLAG(IS_MAC)
++  // The system shows what Crest shares and offers to stop it, and Crest opens
++  // no window of its own for that.
++  display_notification =
++      display_notification &&
++      !crest::SharesScreenThroughSystem(pending_request.request);
++#endif  // BUILDFLAG(IS_MAC)
+   GetDevicesForDesktopCapture(
+       web_contents, media_id, pending_request.request.video_type,
+       pending_request.request.audio_type,
+       pending_request.request.security_origin, media_id.audio_share,
+       disable_local_echo, pending_request.request.suppress_local_audio_playback,
+-      pending_request.request.restrict_own_audio, display_notification_,
++      pending_request.request.restrict_own_audio, display_notification,
+       GetApplicationTitle(web_contents),
+       pending_request.request.captured_surface_control_active,
+       base::BindOnce(&DisplayMediaAccessHandler::
+@@ -778,11 +804,17 @@
+   // presence of the window_id indicates the window to be captured is a Chromium
+   // window which will be captured internally, the macOS screen capture APIs
+   // will not be used.
+-  if (system_media_permissions::ScreenCaptureNeedsSystemLevelPermissions() &&
+-      (media_id.type == DesktopMediaID::TYPE_SCREEN ||
+-       (media_id.type == DesktopMediaID::TYPE_WINDOW && !media_id.window_id)) &&
+-      system_media_permissions::CheckSystemScreenCapturePermission() !=
+-          system_permission_settings::SystemPermission::kAllowed) {
++  //
++  // Crest asks the system for Screen Recording access once, and only for a
++  // source that needs it; what the system's picker chose never does.
++  if (crest::IsEnabled()
++          ? !crest::AllowsScreenCapture(web_contents.get(), media_id)
++          : system_media_permissions::ScreenCaptureNeedsSystemLevelPermissions() &&
++                (media_id.type == DesktopMediaID::TYPE_SCREEN ||
++                 (media_id.type == DesktopMediaID::TYPE_WINDOW &&
++                  !media_id.window_id)) &&
++                system_media_permissions::CheckSystemScreenCapturePermission() !=
++                    system_permission_settings::SystemPermission::kAllowed) {
+     RejectRequest(web_contents.get(),
+                   MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM);
+     return;
+--- a/chrome/browser/media/webrtc/desktop_capture_access_handler.cc
++++ b/chrome/browser/media/webrtc/desktop_capture_access_handler.cc
+@@ -68,6 +68,7 @@
+ 
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/media/webrtc/system_media_capture_permissions_mac.h"
++#include "chrome/browser/ui/crest/crest_chrome_hooks.h"  // nogncheck
+ #endif  // BUILDFLAG(IS_MAC)
+ 
+ using ::blink::mojom::MediaStreamRequestResult;
+@@ -409,9 +410,17 @@
+       return;
+     }
+ #if BUILDFLAG(IS_MAC)
+-    if (system_media_permissions::ScreenCaptureNeedsSystemLevelPermissions() &&
+-        system_media_permissions::CheckSystemScreenCapturePermission() !=
+-            system_permission_settings::SystemPermission::kAllowed) {
++    // Crest asks the system for Screen Recording access once per launch.
++    if (crest::IsEnabled()
++            ? !crest::AllowsScreenCapture(
++                  web_contents,
++                  content::DesktopMediaID(content::DesktopMediaID::TYPE_SCREEN,
++                                          webrtc::kFullDesktopScreenId))
++            : system_media_permissions::
++                      ScreenCaptureNeedsSystemLevelPermissions() &&
++                  system_media_permissions::
++                          CheckSystemScreenCapturePermission() !=
++                      system_permission_settings::SystemPermission::kAllowed) {
+       std::move(pending_request->callback)
+           .Run(blink::mojom::StreamDevicesSet(),
+                MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
+@@ -475,9 +484,14 @@
+     return;
+   }
+ #if BUILDFLAG(IS_MAC)
+-  if (media_id.type != content::DesktopMediaID::TYPE_WEB_CONTENTS &&
+-      system_media_permissions::CheckSystemScreenCapturePermission() !=
+-          system_permission_settings::SystemPermission::kAllowed) {
++  // Crest asks the system for Screen Recording access once per launch, and
++  // only for a source that needs it.
++  if (crest::IsEnabled()
++          ? !crest::AllowsScreenCapture(web_contents, media_id)
++          : media_id.type != content::DesktopMediaID::TYPE_WEB_CONTENTS &&
++                system_media_permissions::
++                        CheckSystemScreenCapturePermission() !=
++                    system_permission_settings::SystemPermission::kAllowed) {
+     std::move(pending_request->callback)
+         .Run(blink::mojom::StreamDevicesSet(),
+              MediaStreamRequestResult::PERMISSION_DENIED_BY_SYSTEM,
+--- a/chrome/browser/media/webrtc/thumbnail_capturer_mac.mm
++++ b/chrome/browser/media/webrtc/thumbnail_capturer_mac.mm
+@@ -198,6 +198,22 @@
+   return window_id;
+ }
+ 
++// Whether ScreenCaptureKit refused a call because Crest lacks Screen Recording
++// access. Asking again cannot succeed until the person allows it, and each ask
++// can raise the system's prompt, so the capturer stops rather than retry.
++bool DeclinedAccess(NSError* error) {
++  if (!error) {
++    return false;
++  }
++  if (@available(macOS 13.0, *)) {
++    if ([error.domain isEqualToString:SCStreamErrorDomain] &&
++        error.code == SCStreamErrorUserDeclined) {
++      return true;
++    }
++  }
++  return !CGPreflightScreenCaptureAccess();
++}
++
+ class ScreenshotManagerCapturer {
+  public:
+   using ContentFilterCallback = base::RepeatingCallback<
+@@ -208,15 +224,19 @@
+       int max_frame_rate,
+       ContentFilterCallback get_display_content_filter_callback,
+       ContentFilterCallback get_window_content_filter_callback,
+-      SampleCallback sample_callback);
++      SampleCallback sample_callback,
++      base::RepeatingClosure declined_callback);
+   void SelectSources(const std::vector<ThumbnailCapturer::SourceId>& ids,
+                      gfx::Size thumbnail_size);
++  // Stops capturing for good: the system declined access.
++  void Stop();
+ 
+  private:
+   void API_AVAILABLE(macos(14.0)) OnRecurrentCaptureTimer();
+   void API_AVAILABLE(macos(14.0))
+       OnCapturedFrame(base::apple::ScopedCFTypeRef<CGImageRef> cg_image,
+-                      ThumbnailCapturer::SourceId source_id);
++                      ThumbnailCapturer::SourceId source_id,
++                      bool declined);
+   void API_AVAILABLE(macos(14.0))
+       CaptureSource(ThumbnailCapturer::SourceId source_id);
+ 
+@@ -239,6 +259,12 @@
+   // Callback that is used whenever a thumbnail is captured.
+   SampleCallback sample_callback_;
+ 
++  // Called when the system declines a capture for lack of access.
++  base::RepeatingClosure declined_callback_;
++
++  // Set once the system declined access; nothing is captured after.
++  bool stopped_ = false;
++
+   // The number of calls to SCScreenshotManager for which we have not yet
+   // received the corresponding callback with a captured frame (or potentially
+   // an error).
+@@ -266,12 +292,14 @@
+     int max_frame_rate,
+     ContentFilterCallback get_display_content_filter_callback,
+     ContentFilterCallback get_window_content_filter_callback,
+-    SampleCallback sample_callback)
++    SampleCallback sample_callback,
++    base::RepeatingClosure declined_callback)
+     : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
+       type_(type),
+       get_display_content_filter_callback_(get_display_content_filter_callback),
+       get_window_content_filter_callback_(get_window_content_filter_callback),
+-      sample_callback_(sample_callback) {
++      sample_callback_(sample_callback),
++      declined_callback_(std::move(declined_callback)) {
+   if (@available(macOS 14.0, *)) {
+     capture_frame_timer_.Start(
+         FROM_HERE, base::Milliseconds(1000.0 / max_frame_rate), this,
+@@ -283,6 +311,9 @@
+     const std::vector<ThumbnailCapturer::SourceId>& ids,
+     gfx::Size thumbnail_size) {
+   DCHECK(task_runner_->RunsTasksInCurrentSequence());
++  if (stopped_) {
++    return;
++  }
+ 
+   thumbnail_size_ = thumbnail_size;
+ 
+@@ -309,9 +340,16 @@
+   }
+ }
+ 
++void ScreenshotManagerCapturer::Stop() {
++  DCHECK(task_runner_->RunsTasksInCurrentSequence());
++  stopped_ = true;
++  capture_frame_timer_.Stop();
++  capture_queue_.clear();
++}
++
+ void ScreenshotManagerCapturer::OnRecurrentCaptureTimer() {
+   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+-  if (capture_queue_.empty()) {
++  if (stopped_ || capture_queue_.empty()) {
+     return;
+   }
+ 
+@@ -358,12 +396,19 @@
+ 
+ void ScreenshotManagerCapturer::OnCapturedFrame(
+     base::apple::ScopedCFTypeRef<CGImageRef> cg_image,
+-    ThumbnailCapturer::SourceId source_id) {
++    ThumbnailCapturer::SourceId source_id,
++    bool declined) {
+   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+ 
+-  // Schedule a new capture of this window since we got a callback.
+   CHECK_GT(capture_calls_in_flight_, 0u);
+   --capture_calls_in_flight_;
++  if (declined) {
++    declined_callback_.Run();
++  }
++  if (stopped_) {
++    return;
++  }
++  // Schedule a new capture of this window since we got a callback.
+   capture_queue_.push_back(source_id);
+ 
+   if (cg_image) {
+@@ -403,7 +448,8 @@
+   auto handler = ^(CGImageRef sampleBuffer, NSError* error) {
+     base::apple::ScopedCFTypeRef<CGImageRef> scopedImage(
+         error ? nil : sampleBuffer, base::scoped_policy::RETAIN);
+-    captured_frame_callback.Run(scopedImage, source_id);
++    captured_frame_callback.Run(scopedImage, source_id,
++                                DeclinedAccess(error));
+   };
+   ++capture_calls_in_flight_;
+   [SCScreenshotManager captureImageWithFilter:filter
+@@ -418,6 +464,8 @@
+            std::optional<content::DesktopMediaID::Id>>
+       pip_ids;
+   SCShareableContent* __strong content;
++  // The system declined the shareable content for lack of access.
++  bool declined = false;
+ 
+  private:
+   friend class base::RefCountedThreadSafe<UpdateContext>;
+@@ -483,6 +531,8 @@
+   NSArray<SCWindow*>* FilterOutUnshareable(NSArray<SCWindow*>* windows);
+   void OnCapturedFrame(base::apple::ScopedCFTypeRef<CGImageRef> image,
+                        ThumbnailCapturer::SourceId source_id);
++  // The system declined access: stops listing and capturing for good.
++  void OnAccessDeclined();
+ 
+   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+   DesktopMediaList::Type type_;
+@@ -509,6 +559,7 @@
+   // Used for testing to disable the sorting of windows using CGWindowList.
+   bool sort_window_list_ = true;
+   bool update_in_progress_ = false;
++  bool access_declined_ = false;
+ 
+   std::unique_ptr<ScreenshotManagerCapturer> screenshot_manager_capturer_;
+ 
+@@ -567,6 +618,8 @@
+       base::BindRepeating(&ThumbnailCapturerMac::GetWindowContentFilter,
+                           base::Unretained(this)),
+       base::BindRepeating(&ThumbnailCapturerMac::OnCapturedFrame,
++                          weak_factory_.GetWeakPtr()),
++      base::BindRepeating(&ThumbnailCapturerMac::OnAccessDeclined,
+                           weak_factory_.GetWeakPtr()));
+ }
+ 
+@@ -635,13 +688,25 @@
+         base::SysNSStringToUTF8(is_title_empty
+                                     ? window.owningApplication.applicationName
+                                     : window.title)});
++  }
++}
++
++void ThumbnailCapturerMac::OnAccessDeclined() {
++  DCHECK(task_runner_->RunsTasksInCurrentSequence());
++  if (access_declined_) {
++    return;
++  }
++  access_declined_ = true;
++  refresh_timer_.Stop();
++  if (screenshot_manager_capturer_) {
++    screenshot_manager_capturer_->Stop();
+   }
+ }
+ 
+ void ThumbnailCapturerMac::UpdateWindowsList() {
+   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+ 
+-  if (update_in_progress_) {
++  if (update_in_progress_ || access_declined_) {
+     return;
+   }
+   update_in_progress_ = true;
+@@ -699,6 +764,7 @@
+         if (content && !error) {
+           context->content = content;
+         }
++        context->declined = DeclinedAccess(error);
+         barrier.Run();
+       },
+       context, barrier));
+@@ -721,6 +787,11 @@
+   SCShareableContent* content = context->content;
+ 
+   ++shareable_content_callbacks_;
++  if (context->declined) {
++    ++shareable_content_errors_;
++    OnAccessDeclined();
++    return;
++  }
+   if (!content) {
+     DVLOG(2) << "Could not get shareable content.";
+     ++shareable_content_errors_;
+--- a/content/browser/media/capture/native_screen_capture_picker_mac.mm
++++ b/content/browser/media/capture/native_screen_capture_picker_mac.mm
+@@ -190,8 +190,10 @@
+     base::OnceClosure error_callback,
+     base::OnceCallback<void(DesktopMediaID::Id)> stop_audio_callback) {
+   DCHECK(device_task_runner_->RunsTasksInCurrentSequence());
++  // TYPE_NONE lets the person choose a window or a display in one picker.
+   CHECK(type == DesktopMediaID::Type::TYPE_SCREEN ||
+-        type == DesktopMediaID::Type::TYPE_WINDOW);
++        type == DesktopMediaID::Type::TYPE_WINDOW ||
++        type == DesktopMediaID::Type::TYPE_NONE);
+   if (@available(macOS 14.0, *)) {
+     active_picker_source_id_++;
+     active_picker_type_ = type;
+@@ -248,6 +250,15 @@
+       VLOG(1) << "NSCPM::Open: Show screen-sharing picker for source id = "
+               << active_picker_source_id_;
+       LogToUma(SCContentSharingPickerOperation::kPresentScreen_Start);
++    } else if (type == DesktopMediaID::Type::TYPE_NONE) {
++      config.allowedPickerModes = SCContentSharingPickerModeSingleWindow |
++                                  SCContentSharingPickerModeSingleDisplay;
++      picker.defaultConfiguration = config;
++      picker.maximumStreamCount = max_stream_count;
++      [picker present];
++      VLOG(1) << "NSCPM::Open: Show window or screen picker for source id = "
++              << active_picker_source_id_;
++      LogToUma(SCContentSharingPickerOperation::kPresentWindow_Start);
+     } else {
+       config.allowedPickerModes = SCContentSharingPickerModeSingleWindow;
+       picker.defaultConfiguration = config;
+@@ -370,6 +381,17 @@
+ 
+   Source source;
+   source.id = session_id;
++  // A picker that offered both kinds says which the person chose: a display
++  // carries its ID, and a window none.
++  if (active_picker_type_ == DesktopMediaID::Type::TYPE_NONE &&
++      filter.style == SCShareableContentStyleDisplay) {
++    source.display_id = CGMainDisplayID();
++    if (@available(macOS 15.2, *)) {
++      if (SCDisplay* display = filter.includedDisplays.firstObject) {
++        source.display_id = display.displayID;
++      }
++    }
++  }
+   std::move(picker_callback_).Run(source);
+ }
  
