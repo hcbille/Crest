@@ -6,38 +6,39 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.448</title>
-            <pubDate>Mon, 28 Sep 2026 20:55:55 +0000</pubDate>
+            <title>0.6.450</title>
+            <pubDate>Tue, 29 Sep 2026 00:23:46 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>experimental</sparkle:channel>
-            <sparkle:version>1145</sparkle:version>
-            <sparkle:shortVersionString>0.6.448</sparkle:shortVersionString>
+            <sparkle:version>1146</sparkle:version>
+            <sparkle:shortVersionString>0.6.450</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
 ### Fixed
 
-- A mouse's Back and Forward buttons move one page per click on pages that run in Chromium, instead of two.
+- A mouse's Back and Forward buttons move one page per click, every time, including on pages that run in Chromium.
+- Swiping back and forward works on pages that run in Chromium, including a mouse's Back and Forward actions set up in Logitech Options+ and three-finger swipes between pages.
 
 ---
 
 Experimental builds are signed and notarized snapshots from the selected branch (chromium-control-plane). They may be less reliable than development or stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/5c1f7be5895f2cf0fd77562cfba97111fe841d3a...298f215f8cc518621317c6038e0870fa9d197c7e) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.448-chromium-control-plane-2026-09-28-1145-r15.1/Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/298f215f8cc518621317c6038e0870fa9d197c7e...c25e1a13018e5b2d11e3833afcef7f0228c4a334) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.450-chromium-control-plane-2026-09-28-1146-r16.1/Installer-Crest-0.6.450-experimental-2026-09-28-c25e1a1-arm64.dmg)
 
 [Browse Experimental releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Experimental+builds%22)
 
 ### Downloads
 
-- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64.dmg`
-- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64-WebKit.dmg`
+- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.450-experimental-2026-09-28-c25e1a1-arm64.dmg`
+- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.450-experimental-2026-09-28-c25e1a1-arm64-WebKit.dmg`
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.448-chromium-control-plane-2026-09-28-1145-r15.1/Installer-Crest-0.6.448-experimental-2026-09-28-298f215-arm64-WebKit.dmg" length="28886361" type="application/octet-stream" sparkle:edSignature="Q7aNlukD0iaC1euYlgBcB/HXX+qK19bvaQ2xSJZEqscCmq/xnWygoEKpsh57KCQPIrVXFx+XLIIREXC0NY01DQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.450-chromium-control-plane-2026-09-28-1146-r16.1/Installer-Crest-0.6.450-experimental-2026-09-28-c25e1a1-arm64-WebKit.dmg" length="28903771" type="application/octet-stream" sparkle:edSignature="i6YyjU2/1PIy0NrC+1FfPsFcrqCu8ikKeq7fsvyuQM53SsRbXSkarRIal8zNmkkKGhyim86Mg35uFladZ8M6BA=="/>
         </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: W703sNJahQTxo3+84XeArQCLXog6zQYfGWBIcd1K1H/w/puhBcV9Nl9g1ddhUVDdJtL7tc2oz+aT3l0eC4itBQ==
-length: 2482
+edSignature: NiWhXF1ndlyH9KRQFoT8x9oUIghDDn9P7m2/lUP6msJI886DAikqgs4rdYEdVDVSsWd8t23xq21U12mwXd84Dw==
+length: 2665
 -->
