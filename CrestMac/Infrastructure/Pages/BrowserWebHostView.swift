@@ -263,10 +263,15 @@ final class BrowserWebFocusRestorationController {
 protocol BrowserNativePageSurfaceLifecycle: AnyObject {
     func didAttach(to host: BrowserWebHostView)
     func willDetach(from host: BrowserWebHostView)
+    /// The host showing this view started or stopped presenting its page to
+    /// the person, as its Space did, while the view stayed in it; see
+    /// `BrowserWebHostView.presentsPage`.
+    func presentationDidChange(in host: BrowserWebHostView)
     func presentationGeometryDidChange()
 }
 
 extension BrowserNativePageSurfaceLifecycle {
+    func presentationDidChange(in host: BrowserWebHostView) {}
     func presentationGeometryDidChange() {}
 }
 
@@ -307,6 +312,12 @@ final class BrowserWebHostView: NSView {
     private var titleBarTrackingArea: NSTrackingArea?
     private var focusRestorationGate = BrowserWebFocusRestorationGate.suppressed
     private var isPageActive = false
+    /// Whether the window presents this host's page to the person. A Space
+    /// the window does not show keeps its page's view in its host, for the
+    /// Space's preview as the person swipes to it and so the page keeps its
+    /// place, but its engine treats the page as off screen, as it does a tab
+    /// the person switched away from.
+    private(set) var presentsPage = true
     private var focusRestorationAttemptGeneration = 0
     /// When this host claimed `hostedWebView`: the newest claim is the largest.
     private var claim = 0
@@ -429,6 +440,23 @@ final class BrowserWebHostView: NSView {
             addInterval
         )
         (webView as? any BrowserNativePageSurfaceLifecycle)?.didAttach(to: self)
+    }
+
+    /// Whether the page may take focus as it comes back on screen: it is its
+    /// window's focused page and nothing of Crest's, such as the address
+    /// field or the command palette, owns focus.
+    var allowsPageFocus: Bool { isPageActive && focusRestorationGate.allowsWebPageFocus }
+
+    // MARK: - Actions - Presentation
+
+    /// Tells the page's engine the page left the screen or came back when the
+    /// window stops or starts presenting it, as a tab switch does by moving
+    /// the page's view out of and into a host. The view stays here all along.
+    func updatePresentation(presentsPage: Bool) {
+        guard presentsPage != self.presentsPage else { return }
+        self.presentsPage = presentsPage
+        guard let hostedWebView, hostedWebView.superview === self else { return }
+        (hostedWebView as? any BrowserNativePageSurfaceLifecycle)?.presentationDidChange(in: self)
     }
 
     // MARK: - Actions - Focus

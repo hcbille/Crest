@@ -3401,6 +3401,10 @@
     "page-presentation-diagnostics": {
       "category": "internal",
       "message": "Crest's Pages log records which pages each window shows, when Chromium is told to show or hide one, Picture in Picture, memory pressure and a page's first input after it returns."
+    },
+    "space-return-shows-pages": {
+      "category": "fixed",
+      "message": "Pages in a Space you leave rest like background tabs, and coming back shows them, split views included, the way switching to their tab does, without taking focus from the address field or the command palette."
     }
   }
 }

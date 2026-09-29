@@ -192,6 +192,40 @@ final class BrowserWebHostViewTests: XCTestCase {
         XCTAssertTrue(view.attachedHosts.last === survivingHost)
     }
 
+    /// A Space the window stops showing keeps its page's view in its host,
+    /// so leaving it and coming back never moves the view; the host tells the
+    /// page it left the screen and came back instead, once each, as a tab
+    /// switch does.
+    func testASpaceRoundTripHidesAndShowsItsPageOnceWithoutMovingItsView() {
+        let view = BrowserNativeSurfaceProbe()
+        let host = BrowserWebHostView()
+        host.attach(view)
+
+        host.updatePresentation(presentsPage: false)
+        host.updatePresentation(presentsPage: false)
+        host.updatePresentation(presentsPage: true)
+        host.updatePresentation(presentsPage: true)
+
+        XCTAssertTrue(view.superview === host)
+        XCTAssertEqual(view.presentedOnAttach, [true])
+        XCTAssertEqual(view.presentations, [false, true])
+        XCTAssertTrue(view.detachedHosts.isEmpty)
+    }
+
+    /// A page that joins the host of a Space the window does not show learns
+    /// it is off screen as it joins, and comes on screen once its Space does.
+    func testAPageJoiningAHiddenSpaceShowsOnlyWhenItsSpaceReturns() {
+        let view = BrowserNativeSurfaceProbe()
+        let host = BrowserWebHostView()
+        host.updatePresentation(presentsPage: false)
+        host.attach(view)
+
+        host.updatePresentation(presentsPage: true)
+
+        XCTAssertEqual(view.presentedOnAttach, [false])
+        XCTAssertEqual(view.presentations, [true])
+    }
+
     func testFocusPolicyRequiresAPermittedOwnerAndNoCompetingPresentation() {
         let allowed = BrowserWebFocusRestorationGate(
             browserChromeOwnsFocus: false,
@@ -788,6 +822,14 @@ private final class BrowserFocusRefusingWindow: NSWindow {
 private final class BrowserNativeSurfaceProbe: NSView, BrowserNativePageSurfaceLifecycle {
     var attachedHosts: [BrowserWebHostView] = []
     var detachedHosts: [BrowserWebHostView] = []
-    func didAttach(to host: BrowserWebHostView) { attachedHosts.append(host) }
+    /// Whether each host presented the page as the surface joined it.
+    var presentedOnAttach: [Bool] = []
+    /// Each presentation the surface heard of while it stayed in its host.
+    var presentations: [Bool] = []
+    func didAttach(to host: BrowserWebHostView) {
+        attachedHosts.append(host)
+        presentedOnAttach.append(host.presentsPage)
+    }
     func willDetach(from host: BrowserWebHostView) { detachedHosts.append(host) }
+    func presentationDidChange(in host: BrowserWebHostView) { presentations.append(host.presentsPage) }
 }

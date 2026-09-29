@@ -32,6 +32,10 @@
         weak var linkDrag: BrowserLinkDragController?
         private var host: (any CrestMacShell)?
         private var created = false
+        /// Whether the engine shows the page now, as this page last asked it
+        /// to, so a surface that joins its window and its host at once, or a
+        /// host told twice, asks once.
+        private var isShown = false
         private(set) var disposed = false
         /// What waits for the engine: each script evaluation by its identity.
         var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
@@ -94,23 +98,56 @@
             engine?.navigate(pageID, to: url)
         }
 
-        func attachIfPossible() {
-            // The binding creates the page the core opened; its view joins
-            // the window once both exist.
-            guard !disposed, created,
-                let windowID = surface.window?.identifier.flatMap({ UUID(uuidString: $0.rawValue) }),
-                let pages,
-                pages.request(MovePageToWindow(pageID: pageID, windowID: windowID)),
+        /// Puts the page's view in its surface once the binding created the
+        /// page and the surface is in a window, and shows the page there, as
+        /// its window's own page, when its host presents it. The engine
+        /// focuses a page it shows; one that may not take focus hands it back
+        /// to what held it. A host that only draws a Space the window
+        /// does not show keeps the page hidden from the engine.
+        func attachIfPossible(takingFocus takesFocus: Bool = true) {
+            guard !disposed, created, let window = surface.window,
+                let windowID = window.identifier.flatMap({ UUID(uuidString: $0.rawValue) }), let pages
+            else { return }
+            guard surface.isPresented else {
+                if let view = host?.view(forPage: pageID) { embed(view) }
+                detach()
+                return
+            }
+            guard pages.request(MovePageToWindow(pageID: pageID, windowID: windowID)),
                 let view = host?.view(forPage: pageID)
             else { return }
-            if view.superview !== surface {
-                view.removeFromSuperview()
-                view.frame = surface.bounds
-                view.autoresizingMask = [.width, .height]
-                surface.addSubview(view)
-            }
+            embed(view)
+            guard !isShown else { return }
+            let responder = window.firstResponder
             let shown = pages.request(ShowPage(pageID: pageID))
+            isShown = shown
             DiagnosticLog.pages.notice("Chromium page \(pageID) shows in window \(windowID) (shown: \(shown))")
+            guard !takesFocus, window.firstResponder !== responder else { return }
+            window.makeFirstResponder(Self.focusOwner(of: responder))
+        }
+
+        /// The host presenting the page's view started or stopped presenting
+        /// it, as its Space did: the page comes back on screen, or leaves it,
+        /// as it does when the person switches tabs.
+        func presentationDidChange(takingFocus takesFocus: Bool) {
+            if surface.isPresented { attachIfPossible(takingFocus: takesFocus) } else { detach() }
+        }
+
+        private func embed(_ view: NSView) {
+            guard view.superview !== surface else { return }
+            view.removeFromSuperview()
+            view.frame = surface.bounds
+            view.autoresizingMask = [.width, .height]
+            surface.addSubview(view)
+        }
+
+        /// What takes focus back from a page the engine focused: a text
+        /// field whose field editor held it, or the responder itself.
+        private static func focusOwner(of responder: NSResponder?) -> NSResponder? {
+            guard let editor = responder as? NSTextView, editor.isFieldEditor,
+                let field = editor.delegate as? NSResponder
+            else { return responder }
+            return field
         }
 
         // MARK: Content bridges
@@ -236,7 +273,8 @@
 
         /// A page still being created takes the zoom once it exists.
         func detach() {
-            guard created else { return }
+            guard created, isShown else { return }
+            isShown = false
             DiagnosticLog.pages.notice("Chromium page \(pageID) hides")
             pages?.request(HidePage(pageID: pageID))
         }
@@ -390,7 +428,12 @@
         }
         func didAttach(to host: BrowserWebHostView) { page?.attachIfPossible() }
         func willDetach(from host: BrowserWebHostView) { page?.detach() }
+        func presentationDidChange(in host: BrowserWebHostView) {
+            page?.presentationDidChange(takingFocus: host.allowsPageFocus)
+        }
         func presentationGeometryDidChange() { layoutEngineView() }
+        /// Whether the host this surface is in presents its page to the person.
+        var isPresented: Bool { (superview as? BrowserWebHostView)?.presentsPage ?? true }
     }
     extension ChromiumNativePage: BrowserPageContentScripting {
         func install(_ script: BrowserContentScript, receive: @escaping @MainActor (BrowserContentMessage) -> Void)
