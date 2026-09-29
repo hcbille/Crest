@@ -6,42 +6,40 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.455</title>
-            <pubDate>Tue, 29 Sep 2026 14:43:44 +0000</pubDate>
+            <title>0.6.458</title>
+            <pubDate>Tue, 29 Sep 2026 17:00:25 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>experimental</sparkle:channel>
-            <sparkle:version>1148</sparkle:version>
-            <sparkle:shortVersionString>0.6.455</sparkle:shortVersionString>
+            <sparkle:version>1149</sparkle:version>
+            <sparkle:shortVersionString>0.6.458</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-### New
-
-- Site settings have a Screen Sharing choice, so you can block a site from asking to share your screen; macOS still asks what to share every time.
-
 ### Fixed
 
-- Screen sharing on pages that run in Chromium uses the macOS sharing picker and needs no Screen Recording permission, and Crest no longer asks for that permission over and over.
+- A tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera or microphone stays open and loaded however long you are away from it.
+- Pages in a Space you leave rest like background tabs, and coming back shows them, split views included, the way switching to their tab does, without taking focus from the address field or the command palette.
+- Chromium never freezes a background tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera, microphone or screen.
 
 ---
 
 Experimental builds are signed and notarized snapshots from the selected branch (chromium-control-plane). They may be less reliable than development or stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/bd4583669a18f3338ef58dc0ebefec32e25c2a4b...b76bdf469cf5b0f47847b0b9370d8bd4994e7f49) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.455-chromium-control-plane-2026-09-29-1148-r18.1/Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/b76bdf469cf5b0f47847b0b9370d8bd4994e7f49...6038460e44e19cf5b2d42e2e6f738a21df020e2c) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.458-chromium-control-plane-2026-09-29-1149-r19.1/Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64.dmg)
 
 [Browse Experimental releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Experimental+builds%22)
 
 ### Downloads
 
-- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64.dmg`
-- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64-WebKit.dmg`
+- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64.dmg`
+- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64-WebKit.dmg`
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.455-chromium-control-plane-2026-09-29-1148-r18.1/Installer-Crest-0.6.455-experimental-2026-09-29-b76bdf4-arm64-WebKit.dmg" length="28909914" type="application/octet-stream" sparkle:edSignature="3rJ9NSlsxP/1Qszoem0TN8ZRldvZVnYT1efXWA2RWVE7zkQLB7T82fvZGIYttsohPc+msLd5E/5NE14ofD4yDQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.458-chromium-control-plane-2026-09-29-1149-r19.1/Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64-WebKit.dmg" length="28917593" type="application/octet-stream" sparkle:edSignature="yOAoG79wBuFoj7hy8/wKVgjtrlcMfzjwGyO7Nyp45XhzTVl6pBqbBEzGruDIkDMFknAib0VDS/QJ/Oh20ODrCg=="/>
         </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: fBW+o3/0wrKvwKKZP7KahP/Tnii3tTG6b1NQHLN2CGNgZc2GDEHoXAXozzyEraSPIExEfGFLTTBqbDltzqV+Dg==
-length: 2710
+edSignature: /Fcu9/BJMDGSpWe3MbRWe2Ym0vSNnGAfGK1DDc1mRBOakydDA5FbD+4Nja7xBi85ZiVXQhL8d5TiC5qcda+FBA==
+length: 2919
 -->
