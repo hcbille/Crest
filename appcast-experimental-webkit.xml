@@ -6,40 +6,48 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.458</title>
-            <pubDate>Tue, 29 Sep 2026 17:00:25 +0000</pubDate>
+            <title>0.6.459</title>
+            <pubDate>Tue, 29 Sep 2026 23:30:52 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>experimental</sparkle:channel>
-            <sparkle:version>1149</sparkle:version>
-            <sparkle:shortVersionString>0.6.458</sparkle:shortVersionString>
+            <sparkle:version>1150</sparkle:version>
+            <sparkle:shortVersionString>0.6.459</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
+### New
+
+- Choose your default browsing engine and add, edit or remove website engine rules in Settings. Chromium is recommended, while WebKit offers native handling and FairPlay video.
+
+### Improved
+
+- WebKit sessions leave Chromium unloaded until you open a Chromium website or extension. Once loaded, it stays ready until you quit Crest.
+- The default Mac download includes Chromium and WebKit, with a separate WebKit build available. Each build keeps its own update channel.
+- The final experimental update moves your update preference to Development so future Crest updates continue there.
+
 ### Fixed
 
-- A tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera or microphone stays open and loaded however long you are away from it.
-- Pages in a Space you leave rest like background tabs, and coming back shows them, split views included, the way switching to their tab does, without taking focus from the address field or the command palette.
-- Chromium never freezes a background tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera, microphone or screen.
+- Extensions can move, resize and restore Crest windows using their normal window controls.
 
 ---
 
-Experimental builds are signed and notarized snapshots from the selected branch (chromium-control-plane). They may be less reliable than development or stable releases.
+This is the final experimental update. Installing it switches updates to Development, where future releases continue after this branch merges into main.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/b76bdf469cf5b0f47847b0b9370d8bd4994e7f49...6038460e44e19cf5b2d42e2e6f738a21df020e2c) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.458-chromium-control-plane-2026-09-29-1149-r19.1/Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/6038460e44e19cf5b2d42e2e6f738a21df020e2c...cd860d3e9e30be0c5c9953608dde79b54bc77bd2) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/experimental-0.6.459-chromium-control-plane-2026-09-29-1150-r20.1/Installer-Crest-0.6.459-experimental-2026-09-29-cd860d3-arm64.dmg)
 
 [Browse Experimental releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Experimental+builds%22)
 
 ### Downloads
 
-- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64.dmg`
-- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64-WebKit.dmg`
+- **Crest** (Chromium engine, recommended): `Installer-Crest-0.6.459-experimental-2026-09-29-cd860d3-arm64.dmg`
+- **Crest WebKit** (alternate, WebKit engine, updates on its own feed): `Installer-Crest-0.6.459-experimental-2026-09-29-cd860d3-arm64-WebKit.dmg`
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.458-chromium-control-plane-2026-09-29-1149-r19.1/Installer-Crest-0.6.458-experimental-2026-09-29-6038460-arm64-WebKit.dmg" length="28917593" type="application/octet-stream" sparkle:edSignature="yOAoG79wBuFoj7hy8/wKVgjtrlcMfzjwGyO7Nyp45XhzTVl6pBqbBEzGruDIkDMFknAib0VDS/QJ/Oh20ODrCg=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/experimental-0.6.459-chromium-control-plane-2026-09-29-1150-r20.1/Installer-Crest-0.6.459-experimental-2026-09-29-cd860d3-arm64-WebKit.dmg" length="29085018" type="application/octet-stream" sparkle:edSignature="TfN4+1RB3wAxUTeX1GdWqMk3n0BPCJ86lemWOpQz/BwAZkV9U+l9H0UUkJ8ctWo9Ag5MFiLftLZ1CQyMR4r1AA=="/>
         </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: /Fcu9/BJMDGSpWe3MbRWe2Ym0vSNnGAfGK1DDc1mRBOakydDA5FbD+4Nja7xBi85ZiVXQhL8d5TiC5qcda+FBA==
-length: 2919
+edSignature: bBd07Jr4VCXTTD+R9lpOQhsapX/rXRCjZj3Bn+758DUo4LEKiRKqijtu+kDmsw2MQMh3f9FbfR9sTDXqs+51BA==
+length: 3046
 -->
