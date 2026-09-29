@@ -21,12 +21,20 @@ struct BrowserNativeWindowChromeSnapshot {
 /// so there it is the system's standard one, from the moment the window is
 /// fullscreen until it starts to leave. Neither writes the fullscreen bit of
 /// the style mask, which AppKit owns during its transitions.
+///
+/// The window's toolbar only holds the title bar's metrics, so it shows only
+/// outside fullscreen, whoever shows it. AppKit keeps a fullscreen window's
+/// visible toolbar on screen once the title bar has revealed, and an empty one
+/// would stay behind as a bar across the top of the window.
 @MainActor
 final class BrowserNativeWindowControlsHostView: NSView {
     // MARK: - Variables
 
     private var originalChrome: BrowserNativeWindowChromeSnapshot?
     private var chromeToolbar: NSToolbar?
+    /// Follows the toolbar's visibility, which SwiftUI's bar appearance sets
+    /// to shown whenever the window's content changes its bar preferences.
+    private var toolbarVisibilityObservation: NSKeyValueObservation?
     private var windowObservers: [NSObjectProtocol] = []
     private var nativeButtonOrigins: [NSWindow.ButtonType: CGFloat] = [:]
     var sidebarPosition: CGFloat = 0
@@ -157,6 +165,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
         for (type, wasHidden) in originalChrome.buttonVisibility {
             window.standardWindowButton(type)?.isHidden = wasHidden
         }
+        toolbarVisibilityObservation = nil
         chromeToolbar = nil
         self.originalChrome = nil
     }
@@ -192,6 +201,12 @@ final class BrowserNativeWindowControlsHostView: NSView {
             toolbar.displayMode = .iconOnly
             toolbar.insertItem(withItemIdentifier: .flexibleSpace, at: 0)
             chromeToolbar = toolbar
+            toolbarVisibilityObservation = toolbar.observe(\.isVisible) { [weak self] _, _ in
+                // Settle after whoever changed it finishes its own update.
+                DispatchQueue.main.async { [weak self] in
+                    self?.applyBrowserChrome()
+                }
+            }
         }
 
         if window.toolbar !== toolbar {

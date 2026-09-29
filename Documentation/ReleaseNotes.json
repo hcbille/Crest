@@ -3377,6 +3377,10 @@
     "pointer-hides-over-fullscreen-video": {
       "category": "fixed",
       "message": "The pointer hides over a video playing full screen in a window that was already full screen, and pages that change the pointer no longer wait for the mouse to move."
+    },
+    "fullscreen-title-bar-leaves-no-bar": {
+      "category": "fixed",
+      "message": "In full screen, the title bar that slides down with the menu bar goes away with it instead of leaving a white or black bar across the top of the window or video."
     }
   }
 }
