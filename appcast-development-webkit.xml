@@ -1,18 +1,16 @@
-<?xml version="1.0" standalone="yes"?>
-<!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
--->
-<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
         <title>Crest</title>
         <item>
             <title>0.6.460</title>
-            <pubDate>Tue, 29 Sep 2026 23:55:38 +0000</pubDate>
+            <pubDate>Tue, 29 Sep 2026 23:55:42 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
             <sparkle:version>1151</sparkle:version>
             <sparkle:shortVersionString>0.6.460</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
@@ -47,36 +45,10 @@ Development builds contain the newest changes and may be less reliable than stab
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.460-2026-09-29-1151-r144.1/Installer-Crest-0.6.460-development-2026-09-29-0cca896-arm64.dmg" length="214647836" type="application/octet-stream" sparkle:edSignature="R2gECqzUhEZY2v+p9UvjebRC1Gh81wDMhNEdrXeurxDFhE/RMjkcm2B9Ev78mjkMRmtEg0Dzuulj8nZ/GThaAQ=="/>
-        </item>
-        <item>
-            <title>0.6.33</title>
-            <pubDate>Fri, 18 Sep 2026 19:55:28 +0000</pubDate>
-            <link>https://crestbrowser.com/</link>
-            <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1131</sparkle:version>
-            <sparkle:shortVersionString>0.6.33</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[## Highlights
-
-### Improved
-
-- Choose whether Now Playing appears in the sidebar.
-
----
-
-Development builds contain the newest changes and may be less reliable than stable releases.
-
-[View all changes](https://github.com/pauljoda/Crest/compare/52264922f1b6a3c65a84819ee0ecfadbc4cf0de5...43a75820a1534c3c69fef3d98a20baaa9d73baa1) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.33-2026-09-18-1131-r131.1/Installer-Crest-0.6.33-development-2026-09-18-43a7582-arm64.dmg)
-
-[Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
-]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.33-2026-09-18-1131-r131.1/Installer-Crest-0.6.33-development-2026-09-18-43a7582-arm64.dmg" length="27155764" type="application/octet-stream" sparkle:edSignature="QnpP9TsT9/r+NaaUuBXUSZjbO4ST5dTz9gpKPgXjMBxzUQ1xGdWBTsN71fFOeZ77PSP+2NwFHbKRMayN1l8DCw=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.460-2026-09-29-1151-r144.1/Installer-Crest-0.6.460-development-2026-09-29-0cca896-arm64-WebKit.dmg" length="29081433" type="application/octet-stream" sparkle:edSignature="jxVCu/4+pFA9ZzOUXlVn3bvJtmkRQMMnp8W0efI6skO3WZ5X8QPaCgmkvO2SuiWoPdjbg9TaQfTHdQIMjZScBA=="></enclosure>
         </item>
     </channel>
-</rss>
-<!-- sparkle-signatures:
-edSignature: z20GEgwQ3J/6wwiuhFxFk2ywJNm7iseC+1q1iV2NxYGlSKO4gHGiMADZFeaLAPrjooF1UQj7QEQfTC+GEGRLAg==
-length: 5492
+</rss><!-- sparkle-signatures:
+edSignature: yONo0psb29tDKD64M8EUQgIWwtsryQ88Xgtj8Gckc7ul2i3h+qH7JffOFFsUGAKh+xDx8qe+MqtTzAdXpcJ5BQ==
+length: 3920
 -->

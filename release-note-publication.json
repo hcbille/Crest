@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "choose-sidebar-widget-visibility",
+    "development": "engine-settings-localization-catalog",
     "nightly": "choose-inactive-tab-scheduling"
   }
 }
