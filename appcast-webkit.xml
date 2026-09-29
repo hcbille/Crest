@@ -1,0 +1,81 @@
+<?xml version="1.0" standalone="yes"?>
+<!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+-->
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Crest</title>
+        <item>
+            <title>0.6.34</title>
+            <pubDate>Wed, 23 Sep 2026 13:47:45 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:channel>nightly</sparkle:channel>
+            <sparkle:version>1137</sparkle:version>
+            <sparkle:shortVersionString>0.6.34</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+### Maintenance
+
+- Reliability and internal improvements.
+
+---
+
+Nightly builds contain the newest changes and may be less reliable than stable releases.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/f6dea9d91064bdf84198de6a4764118d798203e5...fbb48de01b0a79d19164f9cab6dd0a0adfab97bf) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.6.34-2026-09-23-1137-r137.1/Installer-Crest-0.6.34-nightly-2026-09-23-fbb48de-arm64.dmg)
+
+[Browse Nightly releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Nightly+builds%22)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.6.34-2026-09-23-1137-r137.1/Installer-Crest-0.6.34-nightly-2026-09-23-fbb48de-arm64.dmg" length="27166508" type="application/octet-stream" sparkle:edSignature="GaW1A1hyU6liPxofSBKpn3ddmgCBc3v0W+W8v32g4EJJcaZpa9fBvku4gnHexADbcxUM3unJq6OmlJOTW8S3Bw=="/>
+        </item>
+        <item>
+            <title>0.6.33</title>
+            <pubDate>Fri, 18 Sep 2026 21:01:06 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:version>1132</sparkle:version>
+            <sparkle:shortVersionString>0.6.33</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+Showing the 12 most recent highlights from 39 user-facing changes.
+
+### New
+
+- Middle-click a split title to close the split and all its tabs.
+- Choose to return saved tabs to their saved URL with one favicon click on Mac.
+
+### Improved
+
+- Choose whether unloaded tabs appear dimmed in Look and Feel settings
+- Quick Window Space indicators now use balanced padding.
+- Choose whether Now Playing appears in the sidebar.
+
+### Fixed
+
+- Select webpage text and use controls near the top edge without moving the window
+- Save the displayed PDF directly from the built-in preview
+- Quick Windows follow your browser border size while keeping balanced spacing around their controls
+- Image-converter extensions can save JPEGs repeatedly and keep their image menus after restarting Crest
+- Return from Picture in Picture to the tab and browser window that started playback
+- Prevent password manager popups and login-field suggestions from repeatedly reloading webpages
+- Settings remain fully visible while switching between Spaces.
+
+---
+
+Stable releases are signed, notarized, and ready for everyday use.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/69ea275c3b4020c24b543d5a8b0cc53611f35869...e261a9d3ca7b427d346b69a0830128b9cefae94b) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/v0.6.33/Installer-Crest-0.6.33-arm64.dmg)
+
+[Browse Stable releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Afalse)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/v0.6.33/Installer-Crest-0.6.33-arm64.dmg" length="27149556" type="application/octet-stream" sparkle:edSignature="AKgEI1YX5lURUdgLYhcKq0nnEhj55f2kEHFW953BMiBouz2BQOdGWtJPB4ysnX2RDHDeNHIdnCuyRPn9xUR1CA=="/>
+        </item>
+    </channel>
+</rss>
+<!-- sparkle-signatures:
+edSignature: 23rIeRQen8SoBDiOzZJQNhig7zBgWAPMxXFR2wjRKFIzLQKhq0U+FSUKnpnkBnPZ37N2Y90Vh3CQT+Ieqc2XDw==
+length: 4276
+-->
