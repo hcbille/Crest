@@ -109,7 +109,8 @@
                 view.autoresizingMask = [.width, .height]
                 surface.addSubview(view)
             }
-            pages.request(ShowPage(pageID: pageID))
+            let shown = pages.request(ShowPage(pageID: pageID))
+            DiagnosticLog.pages.notice("Chromium page \(pageID) shows in window \(windowID) (shown: \(shown))")
         }
 
         // MARK: Content bridges
@@ -236,6 +237,7 @@
         /// A page still being created takes the zoom once it exists.
         func detach() {
             guard created else { return }
+            DiagnosticLog.pages.notice("Chromium page \(pageID) hides")
             pages?.request(HidePage(pageID: pageID))
         }
 

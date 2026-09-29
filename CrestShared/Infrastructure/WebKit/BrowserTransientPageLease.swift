@@ -82,8 +82,15 @@ final class BrowserTransientPageLease {
 
     /// Unloads the page, keeping what the lease needs to bring it back, so the
     /// core still knows what it showed when its window keeps or archives it.
+    /// A page the core knows runs media, such as a video playing or paused
+    /// in Picture in Picture, a sound playing or a screen being shared, stays.
     func releaseForMemoryPressure() {
         guard let page else { return }
+        guard page.corePage.live.media.isEmpty else {
+            DiagnosticLog.pages.notice("Memory pressure keeps page \(pageID), which runs media")
+            return
+        }
+        DiagnosticLog.pages.notice("Memory pressure releases page \(pageID)")
         reloadURL = page.live.documentURL ?? reloadURL
         unloaded = page.corePage
         page.release(keepingState: true)

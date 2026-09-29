@@ -27,7 +27,7 @@ public sealed record SetBrowsingPreferences(Guid WorkspaceId, Guid SpaceId, bool
         var configured = workspace.Configured(space, space.Settings with { BrowsingPreferences = preferences });
         if (before.CurrentTabCleanup == preferences.CurrentTabCleanup && before.DataRetention == preferences.DataRetention)
             return new(NativeSessionAuthority.Replacing(turn.Basis, configured), SyncStaging.Edit);
-        var kept = workspace.Device?.ShownTabs(workspace.WorkspaceId);
+        var kept = workspace.TabsCleanupKeeps(turn);
         var swept = workspace.Expired(workspace.CleanedUp(configured, turn.Now, kept), turn.Now);
         return new(NativeSessionAuthority.Replacing(turn.Basis, swept),
             workspace.SameRecords(configured, swept) ? SyncStaging.Edit : SyncStaging.Expiry);

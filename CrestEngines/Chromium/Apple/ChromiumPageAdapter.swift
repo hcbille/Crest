@@ -123,6 +123,7 @@
 
         func beginAutomaticPictureInPicture(completion: @escaping @MainActor (Bool) -> Void) {
             guard page.enterPictureInPicture() else {
+                DiagnosticLog.pages.notice("Chromium page \(page.id) plays no video to float in Picture in Picture")
                 completion(false)
                 return
             }
@@ -132,6 +133,8 @@
                 // resulting browser state before releasing the reservation.
                 do { try await Task.sleep(for: .milliseconds(600)) } catch { return }
                 guard let self else { return }
+                DiagnosticLog.pages.notice(
+                    "Chromium page \(self.page.id) floats in Picture in Picture: \(self.isPictureInPictureActive)")
                 self.completion?(self.isPictureInPictureActive)
                 self.completion = nil
                 self.check = nil

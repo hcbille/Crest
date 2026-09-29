@@ -3393,6 +3393,14 @@
     "chromium-screen-sharing-system-picker": {
       "category": "fixed",
       "message": "Screen sharing on pages that run in Chromium uses the macOS sharing picker and needs no Screen Recording permission, and Crest no longer asks for that permission over and over."
+    },
+    "media-pages-stay-loaded": {
+      "category": "fixed",
+      "message": "A tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera or microphone stays open and loaded however long you are away from it."
+    },
+    "page-presentation-diagnostics": {
+      "category": "internal",
+      "message": "Crest's Pages log records which pages each window shows, when Chromium is told to show or hide one, Picture in Picture, memory pressure and a page's first input after it returns."
     }
   }
 }

@@ -9,6 +9,10 @@ struct DiagnosticLog: Sendable {
     // MARK: - Static Variables
 
     static let links = DiagnosticLog(category: "Links")
+    /// Which pages each window shows, the engine told to show or hide a page,
+    /// Picture in Picture and what memory pressure takes back. Pages are named
+    /// by their identities, never their addresses.
+    static let pages = DiagnosticLog(category: "Pages")
     static let popups = DiagnosticLog(category: "Popups")
     static let shortcuts = DiagnosticLog(category: "Shortcuts")
     static let sitePermissions = DiagnosticLog(category: "SitePermissions")

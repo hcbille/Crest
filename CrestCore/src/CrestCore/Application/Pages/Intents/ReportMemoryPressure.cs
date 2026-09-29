@@ -4,9 +4,10 @@ namespace CrestCore.Contracts;
 
 /// The system asks for memory back at `Level`. The core unloads pages nobody
 /// sees, off screen longest first, as many as the device's platform gives
-/// back at that level. A page a window shows, one playing, capturing or in
-/// Picture in Picture, one whose tab keeps its page loaded, and a Quick
-/// Window's or Peek's page all stay.
+/// back at that level. A page a window shows, one running media (playing,
+/// capturing, or holding a Picture in Picture window, even paused), one
+/// whose tab keeps its page loaded, and a Quick Window's or Peek's page all
+/// stay.
 public sealed record ReportMemoryPressure(MemoryPressureLevel Level) : PageIntent {
     #region Actions - Pages
 
@@ -18,11 +19,9 @@ public sealed record ReportMemoryPressure(MemoryPressureLevel Level) : PageInten
     /// it. Each page unloaded closes keeping its state, which its tab keeps.
     internal override void Apply(Pages pages, PageTurn turn) {
         pages.Stamp(pages.Clock.Now, turn.Issue);
-        const PageMediaActivity keepsLoaded = PageMediaActivity.Playing | PageMediaActivity.Capturing | PageMediaActivity.PictureInPicture;
         var candidates = pages.All
             .Where(page => page.TabId is not null && page.Phase == PagePhase.Live && page.HiddenSince is not null
-                && page.Live.Url is not null && page.Engine.Supports(EngineCapability.PageResidency)
-                && (page.Live.Media & keepsLoaded) == 0
+                && page.Live.Url is not null && page.Engine.Supports(EngineCapability.PageResidency) && !page.RunsMedia
                 && pages.Tab(page) is { KeepsPageLoaded: false })
             .OrderBy(page => page.HiddenSince).ThenBy(page => page.Id)
             .ToArray();

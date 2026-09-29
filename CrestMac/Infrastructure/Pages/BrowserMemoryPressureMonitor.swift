@@ -51,7 +51,13 @@ final class BrowserMemoryPressureMonitor {
     func relieve(_ level: MemoryPressureLevel, at time: Date = .now) {
         guard coalescer.shouldHandle(level, at: time) else { return }
         for pool in pools.livePools { pool.relieveMemoryPressure(level) }
-        _ = try? core?.send(ReportMemoryPressure(level: level))
+        let changes = (try? core?.send(ReportMemoryPressure(level: level))) ?? []
+        let unloaded = changes.compactMap { change -> UUID? in
+            guard case .pageUnloaded(let unloaded) = change else { return nil }
+            return unloaded.tabID
+        }
+        DiagnosticLog.pages.notice(
+            "Memory pressure \(level.name) unloads the pages of tabs \(unloaded.map(\.uuidString))")
     }
 
     deinit {

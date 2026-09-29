@@ -59,8 +59,18 @@ public sealed partial class NativeSessionAuthority {
 
     #region Actions - Retention
 
+    /// The tabs cleanup keeps open in this workspace however long they went
+    /// unused: those its windows show or its saved windows will show, and
+    /// those whose pages run media, such as a video playing in Picture in
+    /// Picture or a screen being shared.
+    internal IReadOnlySet<Guid>? TabsCleanupKeeps(SessionTurn turn) {
+        var shown = Device?.ShownTabs(WorkspaceId);
+        if (turn.Pages?.TabsRunningMedia(WorkspaceId) is not { Count: > 0 } media) return shown;
+        return shown is null ? media : shown.Union(media).ToHashSet();
+    }
+
     /// `space` with its open tabs unused for longer than its cleanup lifetime
-    /// archived, keeping `kept`: the tabs windows show and saved windows will.
+    /// archived, keeping `kept`: the tabs `TabsCleanupKeeps` names.
     internal SpaceState CleanedUp(SpaceState space, DateTimeOffset now, IReadOnlySet<Guid>? kept) {
         if (space.Settings.BrowsingPreferences.CurrentTabCleanup.Lifetime is not { } lifetime) return space;
         var edited = BrowserTabCollection.Restore(space);

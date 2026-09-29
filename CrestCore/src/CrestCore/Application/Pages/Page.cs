@@ -88,6 +88,12 @@ internal sealed class Page {
     /// Picture in Picture, or is about to.
     public bool ShowsPictureInPicture => Phase == PagePhase.Live && shown.Media.HasFlag(PageMediaActivity.PictureInPicture);
 
+    /// Whether the page runs media its engine last reported: playing or
+    /// audible, capturing a camera, microphone or screen, or holding a
+    /// Picture in Picture window, playing or paused. Such a page stays loaded
+    /// whatever memory pressure or cleanup would otherwise take.
+    public bool RunsMedia => Phase == PagePhase.Live && shown.Media != PageMediaActivity.None;
+
     /// How many times in a row the page's renderer stopped where a window
     /// showed it, or came back once shown, since a document last finished
     /// loading or the person asked for one.

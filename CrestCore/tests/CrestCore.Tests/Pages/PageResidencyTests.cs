@@ -8,8 +8,9 @@ namespace CrestCore.Tests;
 
 /// Memory pressure unloads the pages off screen longest, never one a window
 /// shows, one running media, one showing no document yet or one whose tab
-/// keeps its page loaded, and a tab whose page was unloaded restores it only
-/// while the tab is still open.
+/// keeps its page loaded, cleanup never archives a tab whose page runs media,
+/// and a tab whose page was unloaded restores it only while the tab is still
+/// open.
 public sealed partial class BrowserContractsTests {
     /// A desktop host whose clock the test moves, on an engine that can bring
     /// pages back, with one window open over a saved session whose one tab
@@ -55,11 +56,18 @@ public sealed partial class BrowserContractsTests {
         var (_, blank) = ShowNewTab(app, engine, clock, workspace, window, space, "https://blank.example/", blank: true);
         var (_, first) = ShowNewTab(app, engine, clock, workspace, window, space, "https://first.example/");
         var (_, playing) = ShowNewTab(app, engine, clock, workspace, window, space, "https://playing.example/");
+        var (_, floating) = ShowNewTab(app, engine, clock, workspace, window, space, "https://floating.example/");
+        var (_, sharing) = ShowNewTab(app, engine, clock, workspace, window, space, "https://sharing.example/");
         var (_, second) = ShowNewTab(app, engine, clock, workspace, window, space, "https://second.example/");
         var (left, leftPage) = ShowNewTab(app, engine, clock, workspace, window, space, "https://left.example/");
         var (right, rightPage) = ShowNewTab(app, engine, clock, workspace, window, space, "https://right.example/");
         app.Send(new JoinSplit(workspace, window, space, right, left, null));
         app.Report(engine, new PageStateChanged(playing, Showing("https://playing.example/") with { Media = PageMediaActivity.Playing }));
+        // A video paused in its Picture in Picture window, and a screen being
+        // shared, run media as much as a video playing does.
+        app.Report(engine, new PageStateChanged(floating,
+            Showing("https://floating.example/") with { Media = PageMediaActivity.PictureInPicture }));
+        app.Report(engine, new PageStateChanged(sharing, Showing("https://sharing.example/") with { Media = PageMediaActivity.Capturing }));
         app.Drain();
 
         // A warning takes back one page on the desktop: the one off screen
@@ -67,14 +75,35 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal([first], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Warning))));
         Assert.Equal(new ClosePage(first, KeepsState: true), binding.Commands[^1]);
 
-        // Critical pressure takes half of what is left, at least one; the page
-        // playing, the page showing nothing yet and both cards of the split on
-        // screen stay whatever the level.
+        // Critical pressure takes half of what is left, at least one; the pages
+        // running media, the page showing nothing yet and both cards of the
+        // split on screen stay whatever the level.
         Assert.Equal([second], Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Critical))));
         Assert.Empty(Unloaded(app.Send(new ReportMemoryPressure(MemoryPressureLevel.Critical))));
         Assert.DoesNotContain(binding.Commands, command => command is ClosePage closing
-            && (closing.PageId == kept || closing.PageId == blank || closing.PageId == playing || closing.PageId == leftPage
-                || closing.PageId == rightPage));
+            && (closing.PageId == kept || closing.PageId == blank || closing.PageId == playing || closing.PageId == floating
+                || closing.PageId == sharing || closing.PageId == leftPage || closing.PageId == rightPage));
+    }
+
+    [Fact]
+    public void CleanupKeepsATabOpenWhileItsPageRunsMedia() {
+        var (app, engine, _, clock, workspace, window, space, _) = ResidentHost();
+        using var disposal = app;
+        var (quiet, _) = ShowNewTab(app, engine, clock, workspace, window, space, "https://quiet.example/");
+        var (floating, floatingPage) = ShowNewTab(app, engine, clock, workspace, window, space, "https://floating.example/");
+        ShowNewTab(app, engine, clock, workspace, window, space, "https://shown.example/");
+        app.Report(engine, new PageStateChanged(floatingPage,
+            Showing("https://floating.example/") with { Media = PageMediaActivity.PictureInPicture }));
+        app.Drain();
+
+        // A day after the tab was last used, cleanup archives the tab nobody
+        // used, but not the one whose video still floats in Picture in Picture.
+        IEnumerable<TabState> Tabs() => app.Workspace(workspace).Current.Spaces.Single(candidate => candidate.Id == space).Tabs;
+        clock.Now = Tabs().Single(tab => tab.Id == quiet).LastActivatedAt + TimeSpan.FromDays(1);
+        app.Send(new CleanUpCurrentTabs(workspace, space));
+        var open = Tabs().Select(tab => tab.Id).ToArray();
+        Assert.DoesNotContain(quiet, open);
+        Assert.Contains(floating, open);
     }
 
     [Fact]

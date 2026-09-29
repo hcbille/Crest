@@ -1041,6 +1041,12 @@ final class BrowserPagePool:
 
     /// Puts `presentedTabIDs` on screen in order with `tabID` focused.
     private func activate(_ tabID: UUID?, presenting presentedTabIDs: [UUID]) {
+        if tabID != activeTabID || presentedTabIDs != self.presentedTabIDs {
+            let focused = tabID?.uuidString ?? "none"
+            DiagnosticLog.pages.notice(
+                "Window \(windowID) presents \(presentedTabIDs.map(\.uuidString)), focusing \(focused)")
+            tabID.flatMap { tabRuntimes[$0]?.page }?.awaitInputSincePresented()
+        }
         prepareFocusTransition(to: tabID.flatMap { tabRuntimes[$0]?.page })
         requestAutomaticPictureInPicture(forDeparturesBefore: presentedTabIDs)
         for arrivingTabID in presentedTabIDs where !self.presentedTabIDs.contains(arrivingTabID) {
@@ -1061,7 +1067,10 @@ final class BrowserPagePool:
         where requested.insert(tabID).inserted
             && !runtimeStore.isPresented(tabID, outside: windowID)
         {
-            tabRuntimes[tabID]?.page.pictureInPicture?.leaveTab()
+            guard let pictureInPicture = tabRuntimes[tabID]?.page.pictureInPicture else { continue }
+            DiagnosticLog.pages.notice(
+                "Tab \(tabID) leaves window \(windowID); its video may float in Picture in Picture")
+            pictureInPicture.leaveTab()
         }
     }
 

@@ -287,6 +287,12 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
         if (page.ShowsPictureInPicture && (shownAgain || Shown(page) is null)) issue(page.Engine, new ExitPictureInPicture(page.Id));
     }
 
+    /// The tabs of `workspaceId` whose pages run media, which stay open and
+    /// loaded however long nobody looks at them.
+    internal IReadOnlySet<Guid> TabsRunningMedia(Guid workspaceId) =>
+        open.Values.Where(page => page.WorkspaceId == workspaceId && page.RunsMedia).Select(page => page.TabId).OfType<Guid>()
+            .ToHashSet();
+
     /// Forgets what a tab kept once the tab is gone from its Space, closed or
     /// archived, or its Space is gone or being deleted.
     public void PruneRestoreStates() {

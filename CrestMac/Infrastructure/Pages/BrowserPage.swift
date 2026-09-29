@@ -163,6 +163,9 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     @ObservationIgnored var linkDestinationHost: BrowserLinkDestinationHost
     @ObservationIgnored var mediaSessionCoordinator: BrowserMediaSessionPageCoordinator?
     @ObservationIgnored private var userActivityHandler: (() -> Void)?
+    /// Whether a window brought the page on screen and the person has not
+    /// used it since, which the diagnostic log notes once they do.
+    @ObservationIgnored private var awaitsInputSincePresented = false
     @ObservationIgnored let credentialSession: BrowserCredentialSession
     var credentialState: BrowserCredentialPageState<BrowserCredentialSession.FillTarget> {
         credentialSession.state
@@ -421,6 +424,12 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
     func stopMonitoringUserActivity() {
         userActivityHandler = nil
+    }
+
+    /// Notes in the diagnostic log the person's first input after a window
+    /// brought the page on screen, as the engine reports it.
+    func awaitInputSincePresented() {
+        awaitsInputSincePresented = true
     }
 
     /// Takes the tab's current context: its title, placement and icon.
@@ -1112,6 +1121,10 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         case .contentFullscreenChanged(let active):
             isContentFullscreen = active
         case .userActivity:
+            if awaitsInputSincePresented {
+                awaitsInputSincePresented = false
+                DiagnosticLog.pages.notice("Page \(corePage.id) takes the person's input")
+            }
             userActivityHandler?()
         case .linkHovered(let destination):
             linkHover?.receiveEngineHover(destination)
