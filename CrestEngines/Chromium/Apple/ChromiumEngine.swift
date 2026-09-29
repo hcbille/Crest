@@ -15,7 +15,7 @@
         let table: crest_engine_binding_t
         let fingerprint: [UInt8]
         /// The Mac shell, for what only AppKit does.
-        let host: any CrestMacShell
+        private(set) var host: (any CrestMacShell)?
         /// The pages' direct path to the binding, which hears the binding's
         /// presentations from the engine's start on.
         private(set) var pages: NativeEnginePages!
@@ -43,6 +43,23 @@
                 guard let self else { return }
                 presentation.present(on: self)
             }
+        }
+
+        init(runtime: ChromiumRuntime) {
+            table = runtime.table
+            fingerprint = CoreCodec.engineFingerprint
+            pages = NativeEnginePages(
+                start: { [weak runtime] in runtime?.requestStart() },
+                present: { [weak self] presentation in
+                    guard let self else { return }
+                    presentation.present(on: self)
+                })
+        }
+
+        func attach(host: any CrestMacShell, pages: crest_engine_pages_t) {
+            precondition(self.host == nil, "Chromium's runtime attaches once per launch.")
+            self.host = host
+            self.pages.bind(pages)
         }
 
         // MARK: - Actions - Pages
@@ -147,6 +164,7 @@
         /// Loads a Space's profile so its extensions can be listed before anything
         /// opens in it; answers whether it is ready.
         func prepareProfile(_ profileID: UUID) async -> Bool {
+            await ChromiumComposition.runtime?.whenReady()
             let preparationID = UUID()
             return await withCheckedContinuation { continuation in
                 guard pages.request(PrepareProfile(profileID: profileID, preparationID: preparationID)) else {
@@ -158,7 +176,8 @@
         }
 
         func icon(of pageID: UUID) -> Data? {
-            pages.request(PageIcon(pageID: pageID)).image
+            guard host != nil else { return nil }
+            return pages.request(PageIcon(pageID: pageID)).image
         }
 
         /// The live page the engine names with `id`, for requests that arrive
@@ -196,6 +215,10 @@
     /// engine binding to register with the core the framework creates, and the
     /// pages' direct path to it. Public so a Release build, which hides
     /// internal symbols, still exports it for Chromium's lookup by name.
+    @MainActor
+    @_cdecl("crest_native_host_run")
+    public func crestNativeHostRun() -> Int32 { ChromiumComposition.runNative() }
+
     @MainActor
     @_cdecl("crest_chromium_ui_start")
     public func crestChromiumUIStart(

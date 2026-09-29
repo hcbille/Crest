@@ -58,11 +58,11 @@ private struct BrowserPinnedTabsGrid: View {
     }
 }
 
-extension BrowserPinnedTabsDropSection: Equatable {
+extension BrowserPinnedTabsDropSection: @MainActor Equatable {
     /// The section is equal to one over the same Space and window, as SwiftUI
     /// compares a view's inputs: a page that redraws for anything else leaves
     /// the grid alone.
-    nonisolated static func == (lhs: BrowserPinnedTabsDropSection, rhs: BrowserPinnedTabsDropSection) -> Bool {
+    static func == (lhs: BrowserPinnedTabsDropSection, rhs: BrowserPinnedTabsDropSection) -> Bool {
         lhs.context == rhs.context
     }
 }

@@ -9,12 +9,16 @@ namespace CrestCore.Application;
 /// bytes never enter the session; the result identifies which live assets to
 /// reattach, even when repair changed a colliding tab or Space identity.
 public static class NativeSessionMaintenance {
-    #region Variables
+    #region Static Variables
 
     /// What the Space made for an empty session is called and wears when the
     /// native caller supplies none.
     private const string BlankSpaceName = "Space 1";
     private const string BlankSpaceSymbol = "square.grid.2x2.fill";
+
+    #endregion
+
+    #region Types
 
     /// Where a repaired tab's native assets come from.
     internal sealed record TabOrigin(int SpaceIndex, int TabIndex, Guid SourceSpaceId, Guid SourceTabId);
@@ -131,7 +135,12 @@ public static class NativeSessionMaintenance {
     /// a Space that is being deleted keeps everything. `{"session", "changed"}`.
     public static JsonObject Retain(JsonObject source, double now) {
         if (!double.IsFinite(now)) throw new BrowserRuleException(BrowserRuleCodes.InvalidSavedDate);
-        var session = StoredSessionCodec.DecodeSession(source);
+        var retained = Retain(StoredSessionCodec.DecodeSession(source), StoredSessionCodec.Date(now), out var changed);
+        return new() { ["session"] = StoredSessionCodec.Encode(retained), ["changed"] = changed };
+    }
+
+    internal static SessionState Retain(SessionState session, DateTimeOffset at, out bool removed) {
+        var now = StoredSessionCodec.Seconds(at);
         var pending = session.SpaceDeletions.Select(deletion => deletion.SpaceId).ToHashSet();
         bool changed = false;
         IReadOnlyList<SpaceState> spaces = [.. session.Spaces.Select(space => {
@@ -142,7 +151,8 @@ public static class NativeSessionMaintenance {
             changed |= history.Count != space.History.Count || archive.Count != space.ArchivedTabs.Count;
             return space with { History = history, ArchivedTabs = archive };
         })];
-        return new() { ["session"] = StoredSessionCodec.Encode(session with { Spaces = spaces }), ["changed"] = changed };
+        removed = changed;
+        return session with { Spaces = spaces };
     }
 
     private static IReadOnlyList<T> Retained<T>(IReadOnlyList<T> records, Func<T, DateTimeOffset> date, double? lifetime, double now) {

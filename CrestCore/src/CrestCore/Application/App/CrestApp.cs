@@ -90,6 +90,7 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
         var grants = new SpaceAccessAuthority();
         if (configuration.StorageDirectory is not { } directory) {
             device = new(configuration.Platform, storage: null, DeviceRecords.Empty, grants, Announce, RequestTurn, CloseBorrower);
+            engines.Prefer(device.DefaultEngine);
             pages = new(device, engines, clock, ids);
             prompts = new(device, pages);
             engineDownloads = new(downloads, device, pages, ids);
@@ -101,6 +102,7 @@ public sealed partial class CrestApp : IQueryAnswers, IEngineAnswers, IDisposabl
         }
         storage = SessionStorage.Open(directory, Announce, out var loaded);
         device = new(configuration.Platform, storage, storage.Device, grants, Announce, RequestTurn, CloseBorrower);
+        engines.Prefer(device.DefaultEngine);
         pages = new(device, engines, clock, ids);
         prompts = new(device, pages);
         engineDownloads = new(downloads, device, pages, ids);

@@ -26,6 +26,33 @@ public sealed record SpaceState(
 
     #region Variables
 
+    /// Collections are owned when constructed or replaced on a copy.
+    public IReadOnlyList<FolderState> Folders {
+        get;
+        init => field = [.. value];
+    } = [.. Folders];
+
+    public IReadOnlyList<TabState> Tabs {
+        get;
+        init => field = [.. value];
+    } = [.. Tabs];
+
+    public IReadOnlyList<SplitGroupState> SplitGroups {
+        get;
+        init => field = [.. value];
+    } = [.. SplitGroups];
+
+    public IReadOnlyList<ArchivedTabState> ArchivedTabs {
+        get;
+        init => field = [.. value];
+    } = [.. ArchivedTabs];
+
+    public IReadOnlyList<HistoryEntryState> History {
+        get;
+        init => field = [.. value];
+    } = [.. History];
+
+
     /// <summary>What the Space's sidebar lists, resolved from its tabs and folders. It is
     /// resolved once for the lists it reads; a copy made with <c>with</c> keeps it only
     /// while it holds the same tab and folder lists.</summary>

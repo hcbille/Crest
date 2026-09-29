@@ -51,8 +51,10 @@
         let pages: BrowserPagePool
 
         var body: some View {
-            BrowserPinnedExtensionStrip(
-                page: pinnedActionPage, space: space, browser: browser)
+            if browser.core.state.defaultEngineSupports(.extensions) || pinnedActionPage != nil {
+                BrowserPinnedExtensionStrip(
+                    page: pinnedActionPage, space: space, browser: browser)
+            }
         }
 
         private var pinnedActionPage: ChromiumNativePage? {

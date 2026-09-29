@@ -17,7 +17,7 @@ and the wire in detail.
 
 | Target | UI | Engines | Launch |
 | --- | --- | --- | --- |
-| `CrestChromiumUIProduct`, packaged by `package-chromium-host.py --product` | `CrestShared` and `CrestMac` inside the Chromium host | Chromium (default), WebKit | Installed; the experimental channel's default download |
+| `CrestChromiumUIProduct`, packaged by `package-chromium-host.py --product` | `CrestShared` and `CrestMac` inside the Chromium host | Chromium (default), WebKit | Installed; the default desktop download |
 | `Crest` | `CrestShared` and `CrestMac` | WebKit | Installed; the alternate desktop build |
 | `CrestMobile` | `CrestShared` and `CrestMobile` | WebKit | Installed |
 | `CrestChromiumUI`, `CrestNativeCore`, `CrestMobileNativeCore` | The same UI | As their product | Review: `CREST_REVIEW_BUILD` names an isolated launch |
@@ -825,7 +825,7 @@ inputs and storage parts are limited to 64 MiB, and typed messages to their
 ## The Mac shell
 
 Both Mac products run one AppKit shell, `BrowserMacShell`
-(`CrestMac/App/Shell`), whichever engine owns the process. It builds the
+(`CrestMac/App/Shell`). It builds the
 application (`BrowserMacApplication`), or shows native recovery when the session
 cannot open and continues once it can; opens the windows the core names;
 installs the menu bar and the Dock tile; starts sync; and then opens the links,
@@ -834,11 +834,12 @@ documents and sign-ins that arrived before it was ready.
 - **Entry points.** The WebKit product enters through `CrestMain`, which runs
   `NSApplication` with `CrestAppDelegate`. The delegate's application hooks
   (terminate, reopen, open URLs and the Dock menu) call the shell. The Chromium
-  product keeps Chromium's process, `NSApplication`, run loop and
-  `AppController`. Chromium's patch forwards the application events Crest
-  answers (quit, reopen, external opens, the Dock menu, and a system sign-in
-  and its end) through `CrestMacUI` to `ChromiumMacUI`, which calls the same
-  shell. `ChromiumComposition` builds the engine and the application.
+  product enters through `crest_native_host_run`, runs `ChromiumApplication`
+  with `ChromiumApplicationDelegate`, and starts the same native shell and
+  core before loading Chromium. The engine's first page or extension stops
+  the initial AppKit loop and enters Chromium's normal browser loop. Crest
+  keeps its delegate and windows; Chromium attaches its binding and event
+  adapter to that existing application. Once started it remains until quit.
 - **Shortcuts.** Both engines' page views take key equivalents before the
   menu bar does, so the shell offers every key down to its shortcuts first,
   through a local key monitor. While Crest's own views have focus, Crest's
@@ -872,21 +873,32 @@ documents and sign-ins that arrived before it was ready.
   `BrowserMacDockTile` draws the icon the person picked, with a download badge
   from the core's download state.
 - **The engine's part.** `BrowserMacEngineHost` is all the shell asks of the
-  engine that owns the process: the About panel's credits; letting go of what
+  engine: the About panel's credits; letting go of what
   it kept for a closed window, and of the profiles named; and a key equivalent
   no Crest command claimed, such as an extension's `chrome.commands` binding.
-  `ChromiumShellHost` forwards each to Chromium's Mac shell, and
-  `WebKitShellHost` needs none of them.
+  `ChromiumRuntimeShell` forwards to Chromium's Mac shell after it is loaded,
+  and `WebKitShellHost` needs none of them.
 
 ## Chromium host
 
 The host overlay uses Chromium's browser startup, `Browser` and
-`TabStripModel`. Once Chromium has started, it loads Crest's UI framework
-(`CrestChromiumUIProduct`, or `CrestChromiumUI` for review) and calls its
-exported `crest_chromium_ui_start` with Chromium's Mac shell, the engine
-binding and the page-request table. The framework compiles `CrestShared` and
-`CrestMac` and starts the Mac shell described above. It has no `@main` and
-does not replace Chromium's application delegate.
+`TabStripModel`. A packaged host first loads only Crest's UI framework
+(`CrestChromiumUIProduct`, or `CrestChromiumUI` for review), whose exported
+`crest_native_host_run` starts the native shell. `ChromiumRuntime` exposes a
+stable deferred binding to the core. On the first Chromium request, the
+launcher loads Chromium and enters its normal startup. Chromium calls
+`crest_chromium_ui_start` with its Mac shell, binding and page-request table;
+the framework attaches these to the existing runtime and drains its queued
+commands. It has no `@main`. Crest owns `NSApplication` and its delegate;
+Chromium contributes native event processing and accessibility without
+replacing them. A WebKit-only session never loads Chromium's framework.
+
+Settings exposes the device's preferred default and exact-origin website
+rules through `GetEnginePreferences`, `SelectDefaultEngine`,
+`EditEngineRule` and `ForgetEngineRule`. These choices are local device data,
+not synchronized browsing state. Private-page choices are absent from this
+projection. Opening Extensions may start Chromium even with WebKit preferred;
+merely visiting engine Settings does not.
 
 - **Profiles.** Each Space uses a regular Chromium profile under the engine's
   user-data directory; the product keeps it in

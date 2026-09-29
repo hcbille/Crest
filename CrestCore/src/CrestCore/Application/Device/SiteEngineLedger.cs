@@ -48,5 +48,9 @@ internal sealed class SiteEngineLedger {
     public EngineKind? Chosen(Guid? spaceId, SiteOrigin origin) =>
         choices.LastOrDefault(choice => choice.SpaceId == spaceId && choice.Origin == origin)?.Engine;
 
+    /// Forgets an explicit choice, so the site follows the default again.
+    public bool Forget(Guid? spaceId, SiteOrigin origin) =>
+        choices.RemoveAll(choice => choice.SpaceId == spaceId && choice.Origin == origin) > 0;
+
     #endregion
 }

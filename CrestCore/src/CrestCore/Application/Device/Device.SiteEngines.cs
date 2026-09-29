@@ -14,6 +14,17 @@ internal sealed partial class Device {
     private readonly SiteEngineLedger keptEngines = new();
     /// Every other Space's choices, which live as long as the process.
     private readonly SiteEngineLedger passingEngines = new();
+    private EngineKind? defaultEngine;
+
+    /// The person's default choice, separate from what this composition carries.
+    internal EngineKind? DefaultEngine => defaultEngine;
+
+    /// Persistent engine choices only. Private choices never enter Settings.
+    internal EnginePreferences EnginePreferences {
+        get {
+            lock (gate) return new(defaultEngine, [.. keptEngines.Choices.Select(choice => new SiteEngineRule(choice.Origin, choice.Engine))]);
+        }
+    }
 
     #endregion
 
@@ -31,11 +42,52 @@ internal sealed partial class Device {
         if (locked) throw new Rejected(new SpaceLocked(spaceId));
         lock (gate) {
             if (keeps) {
-                if (keptEngines.Choose(new(null, origin, engine))) storage?.EnqueueDevice(Records());
+                if (keptEngines.Choose(new(null, origin, engine))) {
+                    storage?.EnqueueDevice(Records());
+                    announce(new EnginePreferencesChanged(EnginePreferences));
+                }
             } else {
                 passingEngines.Choose(new(spaceId, origin, engine));
             }
         }
+    }
+
+    #endregion
+
+    #region Actions - Engine settings
+
+    /// Chooses the default for future pages, without moving existing pages.
+    internal void PreferEngine(EngineKind? engine, ChangeFeed changes) {
+        lock (gate) {
+            if (defaultEngine == engine) return;
+            defaultEngine = engine;
+            KeepEnginePreferences(changes);
+        }
+    }
+
+    /// Adds or edits an ordinary website rule. An edit can change its origin
+    /// atomically; a private page's menu continues to use its passing ledger.
+    internal void EditEngineRule(SiteOrigin? previous, SiteOrigin origin, EngineKind engine, ChangeFeed changes) {
+        if (!origin.IsValid) throw new Rejected(new InvalidSiteOrigin(origin));
+        if (previous is not null && !previous.IsValid) throw new Rejected(new InvalidSiteOrigin(previous));
+        lock (gate) {
+            bool changed = previous is not null && previous != origin && keptEngines.Forget(null, previous);
+            changed |= keptEngines.Choose(new(null, origin, engine));
+            if (changed) KeepEnginePreferences(changes);
+        }
+    }
+
+    /// Returns a website to the default engine.
+    internal void ForgetEngineRule(SiteOrigin origin, ChangeFeed changes) {
+        if (!origin.IsValid) throw new Rejected(new InvalidSiteOrigin(origin));
+        lock (gate) {
+            if (keptEngines.Forget(null, origin)) KeepEnginePreferences(changes);
+        }
+    }
+
+    private void KeepEnginePreferences(ChangeFeed changes) {
+        storage?.EnqueueDevice(Records());
+        changes.Publish(new EnginePreferencesChanged(EnginePreferences));
     }
 
     #endregion

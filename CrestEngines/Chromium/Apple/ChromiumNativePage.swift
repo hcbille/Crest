@@ -30,7 +30,7 @@
         weak var menuHost: (any BrowserPageContextMenuHost)?
         /// Crest's own drag of a link out of the page.
         weak var linkDrag: BrowserLinkDragController?
-        private var host: (any CrestMacShell)?
+        private var host: (any CrestMacShell)? { engine?.host }
         private var created = false
         /// Whether the engine shows the page now, as this page last asked it
         /// to, so a surface that joins its window and its host at once, or a
@@ -45,7 +45,6 @@
             pageID = id
             self.id = id.uuidString
             self.engine = engine
-            host = engine.host
             isPrivateBrowsing = false
             observer = { _ in }
             surface.page = self
@@ -287,7 +286,6 @@
             BrowserExtensionSidePanelHosts.release(pageID)
             surface.devToolsView = nil
             for subview in surface.subviews { subview.removeFromSuperview() }
-            host = nil
             for (_, evaluation) in evaluations { evaluation.resume(returning: nil) }
             evaluations = [:]
         }

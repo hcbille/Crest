@@ -2,6 +2,24 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+// Chromium's event and accessibility integration, attached only when its
+// runtime starts. The application and its delegate remain Crest's own.
+NS_SWIFT_UI_ACTOR
+@protocol CrestEngineApplicationEvents <NSObject>
+- (void)processEvent:(NSEvent *)event forwarding:(void (NS_NOESCAPE ^)(void))forwarding;
+- (void)addObserver:(void *)observer NS_SWIFT_NAME(add(observer:));
+- (void)removeObserver:(void *)observer NS_SWIFT_NAME(remove(observer:));
+- (BOOL)observeKey:(nullable NSString *)key value:(nullable id)value context:(nullable void *)context;
+- (void)prepareAccessibility;
+- (void)setEnhancedAccessibility:(BOOL)enabled;
+- (nullable id)focusedAccessibilityElement;
+@end
+
+NS_SWIFT_UI_ACTOR
+@protocol CrestEngineApplicationHosting <NSObject>
+- (void)attachApplicationEvents:(id<CrestEngineApplicationEvents>)events;
+@end
+
 // A Chromium feature whose own UI this build never shows. Crest says so in a
 // notice instead, in its own words.
 typedef NS_ENUM(NSInteger, CrestUnavailableFeature) {
@@ -40,6 +58,10 @@ NS_SWIFT_UI_ACTOR
 // The Crest window named `windowID`, or with none, the window an engine
 // surface with no window of its own is shown in.
 - (nullable NSWindow *)windowWithID:(nullable NSUUID *)windowID NS_SWIFT_NAME(window(id:));
+// The native shell keeps the frame and state a zoomed or fullscreen window
+// returns to. Coordinates stay in AppKit's screen space at this boundary.
+- (NSRect)restoredFrameForWindow:(NSWindow *)window NS_SWIFT_NAME(restoredFrame(for:));
+- (BOOL)wasWindowZoomedBeforeFullScreen:(NSWindow *)window NS_SWIFT_NAME(wasZoomedBeforeFullScreen(_:));
 // Reserves the Crest window for a Browser the engine created for itself and
 // names the Space its tabs belong to. Crest is one window: the Browser joins
 // the window the person is using, and only a window `chrome.windows.create`

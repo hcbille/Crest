@@ -22,7 +22,7 @@ class DirectDistributionContractTests(unittest.TestCase):
         self.assertIn('--previous-entry "$RELEASE_NOTE_MARKER"', workflow)
         self.assertIn("release_note_publication.py advance", workflow)
         self.assertIn(
-            'git -C "$updates_checkout" add "$appcast_filename" README.md '
+            'git -C "$updates_checkout" add "$appcast_filename" "$webkit_appcast_filename" README.md '
             '"$release_note_state_filename"',
             workflow,
         )
@@ -59,13 +59,16 @@ class DirectDistributionContractTests(unittest.TestCase):
             "com.apple.developer.icloud-container-identifiers:0",
             "keychain-access-groups:0",
             "diskutil image create from",
-            "--volumeName Crest",
+            '--volumeName "$volume"',
             "--format ULFO",
         ):
             with self.subTest(required=required):
                 self.assertIn(required, workflow)
 
-        self.assertNotIn("CODE_SIGNING_ALLOWED=NO", workflow)
+        archive = workflow.split("xcodebuild archive", 1)[1].split("xcodebuild -exportArchive", 1)[0]
+        self.assertNotIn("CODE_SIGNING_ALLOWED=NO", archive)
+        self.assertIn('--distribution', workflow)
+        self.assertIn('codesign --verify --deep --strict --verbose=2 "$chromium_app"', workflow)
         self.assertNotIn("CODE_SIGN_STYLE=Automatic", workflow)
         self.assertNotIn("hdiutil create", workflow)
 

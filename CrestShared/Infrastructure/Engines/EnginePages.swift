@@ -6,12 +6,20 @@ import Foundation
 /// answers the same requests; the core never sees them.
 @MainActor
 protocol EnginePages: AnyObject {
+    /// Whether synchronous queries can reach the engine. A deferred runtime
+    /// accepts view actions while starting, but has no document to query yet.
+    var isReady: Bool { get }
+
     /// Asks the engine for `request` and answers what it answered.
     @discardableResult
     func request<Request: PageRequest>(_ request: Request) -> Request.Answer
 
     /// Sends `page` the presentations about it, while it lives.
     func attach(_ page: EnginePage)
+}
+
+extension EnginePages {
+    var isReady: Bool { true }
 }
 
 /// The pages attached to one engine's direct path, held weakly so each goes

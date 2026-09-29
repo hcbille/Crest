@@ -9,5 +9,6 @@ enum BrowserPlatformSettingsDestinationCatalog {
         // command table are macOS surfaces.
         destination != .featureFlags
             && destination != .shortcuts
+            && destination != .engines
     }
 }

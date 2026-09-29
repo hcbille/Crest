@@ -12,6 +12,29 @@ final class BrowserMacWindow: NSWindow {
     /// What the window's content does with a mouse's Back and Forward buttons
     /// and with swipes, while content that knows its pages is shown.
     weak var pointerNavigation: (any BrowserMacWindowPointerNavigation)?
+    private var frameBeforeZoom: NSRect?
+    private(set) var wasZoomedBeforeFullScreen = false
+
+    /// The frame the window returns to after zoom or fullscreen. A normal
+    /// window answers its current frame, including any extension-driven move.
+    var restoredFrame: NSRect {
+        isZoomed || styleMask.contains(.fullScreen) ? frameBeforeZoom ?? frame : frame
+    }
+
+    // MARK: - Actions - Window state
+
+    override func zoom(_ sender: Any?) {
+        if !isZoomed, !styleMask.contains(.fullScreen) { frameBeforeZoom = frame }
+        super.zoom(sender)
+    }
+
+    override func toggleFullScreen(_ sender: Any?) {
+        if !styleMask.contains(.fullScreen) {
+            wasZoomedBeforeFullScreen = isZoomed
+            if !isZoomed { frameBeforeZoom = frame }
+        }
+        super.toggleFullScreen(sender)
+    }
 
     // MARK: - Actions - Closing
 

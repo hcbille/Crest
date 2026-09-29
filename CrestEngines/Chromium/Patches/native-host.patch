@@ -65,7 +65,42 @@
  #include "chrome/browser/ui/browser_command_controller.h"
  #include "chrome/browser/ui/browser_commands.h"
  #include "chrome/browser/ui/browser_live_tab_context.h"
-@@ -930,6 +931,9 @@
+@@ -790,12 +791,14 @@
+ + (AppController*)sharedController {
+   static AppController* sharedController = [] {
+     AppController* sharedController = [[AppController alloc] init];
+-    NSApp.delegate = sharedController;
++    if (!base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host"))
++      NSApp.delegate = sharedController;
+     return sharedController;
+   }();
+ 
+   CHECK_NE(nil, sharedController);
+-  CHECK_EQ(NSApp.delegate, sharedController);
++  if (!base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host"))
++    CHECK_EQ(NSApp.delegate, sharedController);
+   return sharedController;
+ }
+ 
+@@ -804,6 +807,7 @@
+     // -[NSMenu cr_menuItemForKeyEquivalentEvent:] lives in /content, but
+     // we need to execute special update code before the search begins.
+     // Setting this block gives us the hook we need.
++    if (!base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host"))
+     [NSMenu cr_setMenuItemForKeyEquivalentEventPreSearchBlock:^{
+       // We avoid calling -[NSMenuDelegate menuNeedsUpdate:] on each submenu's
+       // delegate as that can be slow. Instead, we update the relevant
+@@ -913,7 +917,8 @@
+   [self initMenuState];
+ 
+   // Initialize the Profile menu.
+-  [self initProfileMenu];
++  if (!base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host"))
++    [self initProfileMenu];
+ }
+ 
+ - (void)unregisterEventHandlers {
+@@ -930,6 +935,9 @@
  }
  
  - (void)tryToTerminateApplication {
@@ -75,23 +110,42 @@
    if ([self confirmQuitIfNeeded] == ConfirmQuitResultAborted) {
      return;
    }
-@@ -1122,7 +1126,15 @@
-       GlobalBrowserCollection::GetInstance()->FindBrowserWithWindow(
+@@ -1123,6 +1131,14 @@
            gfx::NativeWindow([notify object]));
    if (!browser)
-+    return;
+     return;
 +
 +  // Crest owns the application menu and tab organization. Retain Chromium
 +  // profile/lifecycle context without attaching Chrome menu bridges.
 +  if (crest::IsEnabled()) {
 +    _lastActiveBrowser = browser->GetWeakPtr();
 +    [self setLastProfile:browser->GetProfile()];
-     return;
++    return;
 +  }
  
    // Since we may have different windows with different profiles, we clear the
    // subscription each time a window becomes the main.
-@@ -1855,6 +1867,12 @@
+@@ -1306,7 +1322,8 @@
+   _quitWithAppsController = new QuitWithAppsController();
+ 
+   // Dynamically update shortcuts for "Close Window" and "Close Tab" menu items.
+-  [self fileMenu].delegate = self;
++  if (!base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host"))
++    [self fileMenu].delegate = self;
+ 
+   // Instantiate the ProfileAttributesStorage observer so that we can get
+   // notified when a profile is deleted.
+@@ -1325,7 +1342,8 @@
+   }
+ 
+   // Makes "Services" menu items available.
+-  [self registerServicesMenuTypesTo:[notify object]];
++  if (!base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host"))
++    [self registerServicesMenuTypesTo:[notify object]];
+ 
+   _startupComplete = YES;
+ 
+@@ -1855,6 +1873,12 @@
    if (browser_shutdown::IsTryingToQuit())
      return NO;
  
@@ -104,7 +158,7 @@
    // Bring all browser windows to the front. Specifically, this brings them in
    // front of any app windows. FocusWindowSet will also unminimize the most
    // recently minimized window if no windows in the set are visible.
-@@ -2053,6 +2071,11 @@
+@@ -2053,6 +2077,11 @@
  }
  
  - (void)application:(NSApplication*)sender openURLs:(NSArray<NSURL*>*)urls {
@@ -116,7 +170,7 @@
    StartupTabs startupTabs;
    for (NSURL* url in urls) {
      // Handle the google-chrome:// scheme (and chromium://).
-@@ -2137,6 +2160,13 @@
+@@ -2137,6 +2166,13 @@
  }
  
  - (NSMenu*)applicationDockMenu:(NSApplication*)sender {
@@ -130,10 +184,11 @@
    NSMenu* dockMenu = [[NSMenu alloc] initWithTitle:@""];
  
    BOOL profilesAdded = [_profileMenuController insertItemsIntoMenu:dockMenu
-@@ -2197,6 +2227,14 @@
+@@ -2196,6 +2232,14 @@
+ - (void)setLastProfile:(Profile*)profile {
    if (profile == _lastProfile)
      return;
- 
++
 +  if (crest::IsEnabled()) {
 +    // These observers update Chrome menu commands, which Crest replaces.
 +    // Keeping the profile itself is still required by Chromium app services.
@@ -141,11 +196,10 @@
 +    _lastProfile = profile;
 +    return;
 +  }
-+
+ 
    // If _lastProfile becomes null, remember the last state of Cmd+Shift+T so the
    // command can continue working (or stay disabled). This is primarily meant
-   // for the zero-profile state.
-@@ -2502,6 +2540,11 @@
+@@ -2502,6 +2546,11 @@
  - (void)beginHandlingWebAuthenticationSessionRequest:
      (ASWebAuthenticationSessionRequest*)request {
    dispatch_async(dispatch_get_main_queue(), ^{
@@ -157,7 +211,7 @@
      // Start tracking the pending request, so it's possible to cancel it before
      // the session actually starts.
      NSUUID* key = request.UUID;
-@@ -2519,6 +2562,10 @@
+@@ -2519,6 +2568,10 @@
  - (void)cancelWebAuthenticationSessionRequest:
      (ASWebAuthenticationSessionRequest*)request {
    dispatch_async(dispatch_get_main_queue(), ^{
@@ -266,25 +320,25 @@
      read_anything_side_panel_controller_ =
 --- a/chrome/app/chrome_exe_main_mac.cc
 +++ b/chrome/app/chrome_exe_main_mac.cc
-@@ -19,7 +19,14 @@
+@@ -19,6 +19,13 @@
  #include <unistd.h>
  
  #include <memory>
 +#include <string>
 +#include <string_view>
 +#include <vector>
- 
++
 +#if !defined(HELPER_EXECUTABLE)
 +#include "chrome/app/crest_user_data_dir.h"
 +#endif
-+
+ 
  #include "base/allocator/early_zone_registration_apple.h"
  #include "base/compiler_specific.h"
- #include "build/branding_buildflags.h"
-@@ -156,6 +163,59 @@
+@@ -155,6 +162,85 @@
+   if (rv != 0) {
      FatalError("_NSGetExecutablePath: get path failed.");
    }
- 
++
 +#if !defined(HELPER_EXECUTABLE)
 +  const std::string executable(exec_path.get());
 +  const auto directory = executable.substr(0, executable.find_last_of('/'));
@@ -336,11 +390,36 @@
 +    argc = static_cast<int>(product_argv.size()) - 1;
 +    argv = product_argv.data();
 +  }
-+#endif
 +
++  // Crest owns AppKit and its core before Chromium is needed. Its launch loop
++  // returns one only when a page or an explicit engine feature needs Chromium;
++  // WebKit-only browsing never loads the Chromium framework below.
++  std::vector<char*> native_argv;
++  std::string native_switch = "--crest-app-owned-host";
++  if (access((directory + "/../Resources/Crest-App-Owned-Host").c_str(), F_OK) == 0) {
++    void* ui = nullptr;
++    for (const char* name : {"CrestChromiumUI", "CrestChromiumUIProduct"}) {
++      const std::string path = directory + "/../Frameworks/" + name + ".framework/" + name;
++      if (access(path.c_str(), F_OK) != 0) continue;
++      ui = dlopen(path.c_str(), RTLD_LAZY | RTLD_LOCAL | RTLD_FIRST);
++      if (!ui) FatalError("dlopen %s: %s.", path.c_str(), dlerror());
++      break;
++    }
++    if (!ui) FatalError("Crest's native host framework is missing.");
++    using NativeHostRun = int (*)();
++    const auto run = reinterpret_cast<NativeHostRun>(dlsym(ui, "crest_native_host_run"));
++    if (!run) FatalError("Crest's native host entry point is missing: %s.", dlerror());
++    if (run() != 1) return 0;
++    for (int i = 0; i < argc; ++i) native_argv.push_back(UNSAFE_TODO(argv[i]));
++    native_argv.push_back(native_switch.data());
++    native_argv.push_back(nullptr);
++    argc = static_cast<int>(native_argv.size()) - 1;
++    argv = native_argv.data();
++  }
++#endif
+ 
  #if defined(HELPER_EXECUTABLE)
    sandbox::SeatbeltExecServer::CreateFromArgumentsResult seatbelt =
-       sandbox::SeatbeltExecServer::CreateFromArguments(exec_path.get(), argc,
 --- a/chrome/browser/ui/startup/startup_browser_creator.cc
 +++ b/chrome/browser/ui/startup/startup_browser_creator.cc
 @@ -34,6 +34,9 @@
@@ -2654,3 +2733,187 @@
  
    contents->SetPageFrozen(true);
  }
+--- a/chrome/browser/chrome_browser_main_mac.mm
++++ b/chrome/browser/chrome_browser_main_mac.mm
+@@ -155,11 +155,17 @@
+   }
+ 
+   // Create the app delegate by requesting the shared AppController.
+-  CHECK_EQ(nil, NSApp.delegate);
++  const bool app_owned = base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host");
++  if (!app_owned) CHECK_EQ(nil, NSApp.delegate);
+   AppController* app_controller = AppController.sharedController;
+   CHECK_NE(nil, NSApp.delegate);
++  if (app_owned) {
++    [[NSNotificationCenter defaultCenter] addObserver:app_controller
++        selector:@selector(applicationWillTerminate:)
++        name:NSApplicationWillTerminateNotification object:NSApp];
++  }
+ 
+-  chrome::BuildMainMenu(NSApp, app_controller,
++  if (!app_owned) chrome::BuildMainMenu(NSApp, app_controller,
+                         l10n_util::GetStringUTF16(IDS_PRODUCT_NAME),
+                         /*is_pwa=*/false,
+                         /*is_rtl=*/base::i18n::IsRTL());
+@@ -179,6 +185,11 @@
+ void ChromeBrowserMainPartsMac::PostProfileInit(Profile* profile,
+                                                 bool is_initial_profile) {
+   ChromeBrowserMainPartsPosix::PostProfileInit(profile, is_initial_profile);
++  if (is_initial_profile &&
++      base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host")) {
++    [AppController.sharedController applicationDidFinishLaunching:
++        [NSNotification notificationWithName:NSApplicationDidFinishLaunchingNotification object:NSApp]];
++  }
+ }
+ 
+ void ChromeBrowserMainPartsMac::DidEndMainMessageLoop() {
+--- a/chrome/browser/chrome_browser_application_mac.mm
++++ b/chrome/browser/chrome_browser_application_mac.mm
+@@ -5,6 +5,7 @@
+ #import "chrome/browser/chrome_browser_application_mac.h"
+ 
+ #include <Carbon/Carbon.h>  // for <HIToolbox/Events.h>
++#import "chrome/browser/ui/crest/CrestChromiumHost.h"
+ 
+ #include "base/apple/call_with_eh_frame.h"
+ #include "base/apple/foundation_util.h"
+@@ -34,9 +35,21 @@
+ // Used as a killswitch if this has unintended consequences.
+ BASE_FEATURE(kForwardCmdKeyUpEventsToWindow, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
++namespace {
++void AttachCrestApplicationEvents();
++}
++
+ namespace chrome_browser_application_mac {
+ 
+ void RegisterBrowserCrApp() {
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host")) {
++    CHECK(NSApp);
++    CHECK(NSApp.delegate);
++    CHECK([NSApp respondsToSelector:@selector(isHandlingSendEvent)]);
++    CHECK([NSApp respondsToSelector:@selector(setHandlingSendEvent:)]);
++    AttachCrestApplicationEvents();
++    return;
++  }
+   [BrowserCrApplication sharedApplication];
+ 
+   // If there was an invocation to NSApp prior to this method, then the NSApp
+@@ -50,7 +63,10 @@
+ }
+ 
+ void CancelTerminate() {
+-  [NSApp cancelTerminate:nil];
++  if (base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host"))
++    [AppController.sharedController stopTryingToTerminateApplication];
++  else
++    [NSApp cancelTerminate:nil];
+ }
+ 
+ }  // namespace chrome_browser_application_mac
+@@ -507,3 +523,105 @@
+ }
+ 
+ @end
++
++// The browser runtime integrates with an application that already exists. Its
++// observer and accessibility state belongs to this adapter, never to another
++// NSApplication or delegate.
++@interface CrestApplicationEvents : NSObject <CrestEngineApplicationEvents>
++@end
++
++@implementation CrestApplicationEvents {
++  base::ObserverList<content::NativeEventProcessorObserver>::Unchecked _observers;
++  std::unique_ptr<content::ScopedAccessibilityMode> _voiceover_mode;
++  std::unique_ptr<content::ScopedAccessibilityMode> _general_mode;
++  BOOL _accessibility_ready;
++  BOOL _voiceover_enabled;
++  int _enhanced_requests;
++}
++
++- (void)processEvent:(NSEvent*)event forwarding:(void (NS_NOESCAPE ^)(void))forwarding {
++  base::apple::CallWithEHFrame(^{
++    base::mac::ScopedSendingEvent sending_event;
++    content::ScopedNotifyNativeEventProcessorObserver notify(&self->_observers, event);
++    const bool jis_key = event.type == NSEventTypeKeyDown &&
++        (event.keyCode == kVK_JIS_Eisu || event.keyCode == kVK_JIS_Kana);
++    const bool command_key_up = event.type == NSEventTypeKeyUp &&
++        (event.modifierFlags & NSEventModifierFlagCommand) &&
++        base::FeatureList::IsEnabled(kForwardCmdKeyUpEventsToWindow);
++    if (jis_key || command_key_up)
++      [NSApp.keyWindow sendEvent:event];
++    else
++      forwarding();
++  });
++}
++
++- (void)addObserver:(void*)observer {
++  _observers.AddObserver(static_cast<content::NativeEventProcessorObserver*>(observer));
++}
++
++- (void)removeObserver:(void*)observer {
++  _observers.RemoveObserver(static_cast<content::NativeEventProcessorObserver*>(observer));
++}
++
++- (BOOL)observeKey:(NSString*)key value:(id)value context:(void*)context {
++  if (![key isEqualToString:@"voiceOverEnabled"] ||
++      context != content::BrowserAccessibilityState::GetInstance())
++    return NO;
++  _accessibility_ready = YES;
++  _voiceover_enabled = [value boolValue];
++  [self enableCompleteMode:_voiceover_enabled];
++  return YES;
++}
++
++- (void)enableCompleteMode:(BOOL)enabled {
++  if (enabled) {
++    if (!_voiceover_mode)
++      _voiceover_mode = content::BrowserAccessibilityState::GetInstance()
++          ->CreateScopedModeForProcess(ui::kAXModeComplete |
++                                       ui::AXMode::kFromPlatform |
++                                       ui::AXMode::kScreenReader);
++  } else {
++    _voiceover_mode.reset();
++  }
++}
++
++- (void)prepareAccessibility {
++  if (!_accessibility_ready || _general_mode || _voiceover_mode) return;
++  const ui::AXMode mode = base::FeatureList::IsEnabled(
++      features::kSonomaAccessibilityActivationRefinements)
++      ? ui::AXMode::kNativeAPIs : ui::kAXModeBasic;
++  _general_mode = content::BrowserAccessibilityState::GetInstance()
++      ->CreateScopedModeForProcess(mode | ui::AXMode::kFromPlatform);
++}
++
++- (void)setEnhancedAccessibility:(BOOL)enabled {
++  if (!_accessibility_ready || _voiceover_enabled) return;
++  if (!enabled && _enhanced_requests == 0) {
++    [self enableCompleteMode:NO];
++    return;
++  }
++  _enhanced_requests += enabled ? 1 : -1;
++  [NSObject cancelPreviousPerformRequestsWithTarget:self
++      selector:@selector(enableCompleteModeAfterDelay) object:nil];
++  if (_enhanced_requests > 0)
++    [self performSelector:@selector(enableCompleteModeAfterDelay)
++               withObject:nil afterDelay:2.0];
++}
++
++- (void)enableCompleteModeAfterDelay {
++  _enhanced_requests = 0;
++  [self enableCompleteMode:YES];
++}
++
++- (id)focusedAccessibilityElement {
++  return ui::AccessibilityFocusOverrider::GetFocusedUIElement();
++}
++@end
++
++namespace {
++void AttachCrestApplicationEvents() {
++  CHECK([NSApp conformsToProtocol:@protocol(CrestEngineApplicationHosting)]);
++  [(id<CrestEngineApplicationHosting>)NSApp attachApplicationEvents:
++      [[CrestApplicationEvents alloc] init]];
++}
++}

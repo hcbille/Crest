@@ -13,6 +13,21 @@ public sealed record SessionState(
     Guid? DisposableSeedMarker,
     IReadOnlyList<SpaceDeletionState> SpaceDeletions,
     AppPreferences? AppPreferences) {
+    #region Variables
+
+    /// Collections are owned when constructed or replaced on a copy.
+    public IReadOnlyList<SpaceState> Spaces {
+        get;
+        init => field = [.. value];
+    } = [.. Spaces];
+
+    public IReadOnlyList<SpaceDeletionState> SpaceDeletions {
+        get;
+        init => field = [.. value];
+    } = [.. SpaceDeletions];
+
+    #endregion
+
     #region Actions - Equality
 
     public bool Equals(SessionState? other) => ReferenceEquals(this, other) || other is not null

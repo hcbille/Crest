@@ -194,12 +194,22 @@ jobs:
             printf 'should_publish=%s\n' "$should_publish"
           } >> "$GITHUB_OUTPUT"
 
-  release:
-    name: Sign, notarize, and publish
+  engine:
+    name: Prepare Chromium engine
     needs: preflight
     if: needs.preflight.outputs.should_publish == 'true'
+    uses: ./.github/workflows/chromium-engine.yml
+    permissions:
+      contents: write
+    with:
+      source_sha: ${{ github.sha }}
+
+  release:
+    name: Sign, notarize, and publish
+    needs: [preflight, engine]
+    if: needs.preflight.outputs.should_publish == 'true'
     runs-on: xcode-27
-    timeout-minutes: 90
+    timeout-minutes: 180
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -218,6 +228,7 @@ jobs:
       - name: Build, sign, and notarize
         shell: zsh {0}
         env:
+          GH_TOKEN: ${{ github.token }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
@@ -226,18 +237,22 @@ jobs:
           DEVELOPER_ID_PROVISIONING_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 }}
           RELEASE_ASSET_BASE: ${{ needs.preflight.outputs.asset_base }}
           RELEASE_BUILD_NUMBER: ${{ needs.preflight.outputs.build_number }}
+          SOURCE_SHA: ${{ github.sha }}
           RELEASE_CHANNEL: ${{ needs.preflight.outputs.channel }}
         run: |
           set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 
           release_root="$RUNNER_TEMP/crest-release"
           archive_path="$release_root/Crest.xcarchive"
           export_path="$release_root/export"
           publish_path="$release_root/publish"
-          staging_path="$release_root/dmg-root"
           installer_name="Installer-${RELEASE_ASSET_BASE}.dmg"
           checksum_name="Checksum-${RELEASE_ASSET_BASE}.dmg.sha256"
           symbols_name="Debug-Symbols-${RELEASE_ASSET_BASE}.dSYM.zip"
+          webkit_installer_name="Installer-${RELEASE_ASSET_BASE}-WebKit.dmg"
+          webkit_checksum_name="Checksum-${RELEASE_ASSET_BASE}-WebKit.dmg.sha256"
+          webkit_symbols_name="Debug-Symbols-${RELEASE_ASSET_BASE}-WebKit.dSYM.zip"
           keychain_path="$RUNNER_TEMP/crest-signing.keychain-db"
           api_key_path="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           p12_path="$RUNNER_TEMP/developer-id-application.p12"
@@ -259,7 +274,7 @@ jobs:
           }
           trap cleanup_signing EXIT INT TERM HUP
 
-          mkdir -p "$release_root" "$publish_path" "$staging_path"
+          mkdir -p "$release_root" "$publish_path"
           print -r -- "$DEVELOPER_ID_APPLICATION_P12_BASE64" | base64 -D > "$p12_path"
           print -r -- "$APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64" | base64 -D > "$api_key_path"
           print -r -- "$DEVELOPER_ID_PROVISIONING_PROFILE_BASE64" \
@@ -297,6 +312,36 @@ jobs:
             exit 1
           fi
 
+          notarize() {
+            xcrun notarytool submit "$1" \
+              --key "$api_key_path" \
+              --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
+              --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
+              --wait
+          }
+
+          # Notarize an app, then wrap it in a signed, notarized disk image.
+          package_disk_image() {
+            local app="$1" image="$2" volume="$3" staging="$release_root/dmg-$4"
+            local archive="$release_root/$4-notarization.zip"
+            ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
+            notarize "$archive"
+            xcrun stapler staple "$app"
+            xcrun stapler validate "$app"
+            spctl --assess --type execute --verbose=4 "$app"
+            mkdir -p "$staging"
+            ditto "$app" "$staging/Crest.app"
+            ln -s /Applications "$staging/Applications"
+            diskutil image create from --volumeName "$volume" --format ULFO "$staging" "$image"
+            codesign --force --timestamp --sign "$identity_hash" "$image"
+            notarize "$image"
+            xcrun stapler staple "$image"
+            xcrun stapler validate "$image"
+            spctl --assess --type open --context context:primary-signature --verbose=4 "$image"
+          }
+
+          # --- WebKit: the alternate download, and the source of the product's
+          # resolved entitlements. ---
           xcodebuild archive \
             -project Crest.xcodeproj \
             -scheme Crest \
@@ -320,7 +365,9 @@ jobs:
           test -d "$app_path"
           codesign --verify --deep --strict --verbose=2 "$app_path"
           test "$(defaults read "$app_path/Contents/Info" CFBundleIdentifier)" = "com.pauldavis.crest"
+          test "$(defaults read "$app_path/Contents/Info" CrestDefaultUpdateChannel)" = "$RELEASE_CHANNEL"
           test "$(lipo -archs "$app_path/Contents/MacOS/Crest")" = "arm64"
+
           exported_entitlements="$release_root/exported-entitlements.plist"
           codesign -d --entitlements :- "$app_path" \
             > "$exported_entitlements" 2>/dev/null
@@ -332,48 +379,87 @@ jobs:
             = "iCloud.com.pauldavis.crest"
           test "$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$exported_entitlements")" \
             = "3U2R97HLXF.com.pauldavis.crest"
+          if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$exported_entitlements" >/dev/null 2>&1; then
+            print -u2 "The product entitlements must not enable the app sandbox; it would strand installed data."
+            exit 1
+          fi
 
-          notarization_zip="$release_root/Crest-notarization.zip"
-          ditto -c -k --sequesterRsrc --keepParent "$app_path" "$notarization_zip"
-          xcrun notarytool submit "$notarization_zip" \
-            --key "$api_key_path" \
-            --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
-            --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
-            --wait
-          xcrun stapler staple "$app_path"
-          xcrun stapler validate "$app_path"
-          spctl --assess --type execute --verbose=4 "$app_path"
-
-          ditto "$app_path" "$staging_path/Crest.app"
-          ln -s /Applications "$staging_path/Applications"
-          dmg_path="$publish_path/$installer_name"
-          diskutil image create from \
-            --volumeName Crest \
-            --format ULFO \
-            "$staging_path" \
-            "$dmg_path"
-          codesign --force --timestamp --sign "$identity_hash" "$dmg_path"
-          xcrun notarytool submit "$dmg_path" \
-            --key "$api_key_path" \
-            --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
-            --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
-            --wait
-          xcrun stapler staple "$dmg_path"
-          xcrun stapler validate "$dmg_path"
-          spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg_path"
-
+          package_disk_image "$app_path" "$publish_path/$webkit_installer_name" "Crest WebKit" webkit
           ditto -c -k --keepParent \
             "$archive_path/dSYMs/Crest.app.dSYM" \
+            "$publish_path/$webkit_symbols_name"
+
+          # --- Chromium: the default download. The engine is prebuilt and
+          # published once per engine revision; see
+          # Scripts/control-plane/publish-chromium-engine.py. ---
+          engine_root="$release_root/engine"
+          engine_tag="$(python3 Scripts/control-plane/chromium_engine.py tag)"
+          engine_asset="$(python3 Scripts/control-plane/chromium_engine.py asset)"
+          mkdir -p "$engine_root"
+          if ! gh release download "$engine_tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern "$engine_asset" \
+              --pattern "${engine_asset}.sha256" \
+              --dir "$engine_root"; then
+            print -u2 "No Chromium engine is published for this branch's engine sources ($engine_tag)."
+            print -u2 "On the build Mac: apply the host, run build-chromium-baseline.py, then"
+            print -u2 "Scripts/control-plane/publish-chromium-engine.py --source <chromium src> --ninja <ninja>."
+            exit 1
+          fi
+          (cd "$engine_root" && shasum -a 256 -c "${engine_asset}.sha256")
+          ditto -x -k "$engine_root/$engine_asset" "$engine_root"
+          test -d "$engine_root/Chromium.app"
+
+          # The native core the UI framework links against, then the framework.
+          (cd CrestCore && "$HOME/.dotnet/dotnet" publish src/CrestCore.Native \
+            -c Release -r osx-arm64 --nologo)
+          core_library="$PWD/CrestCore/src/CrestCore.Native/bin/Release/net10.0/osx-arm64/publish/CrestCore.Native.dylib"
+          test -f "$core_library"
+          xcodebuild build \
+            -project Crest.xcodeproj \
+            -scheme CrestChromiumUIProduct \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/crest-release-derived-data" \
+            CURRENT_PROJECT_VERSION="$RELEASE_BUILD_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO
+          ui_framework="$RUNNER_TEMP/crest-release-derived-data/Build/Products/Release/CrestChromiumUIProduct.framework"
+          test -d "$ui_framework"
+
+          mkdir -p "$release_root/chromium"
+          chromium_app="$release_root/chromium/Crest.app"
+          CREST_DEFAULT_UPDATE_CHANNEL="$RELEASE_CHANNEL" python3 Scripts/control-plane/package-chromium-host.py \
+            --browser "$engine_root/Chromium.app" \
+            --product \
+            --distribution \
+            --ui "$ui_framework" \
+            --core "$core_library" \
+            --entitlements "$exported_entitlements" \
+            --provisioning-profile "$profile_path" \
+            --signing-identity "$identity_hash" \
+            --output "$chromium_app"
+          codesign --verify --deep --strict --verbose=2 "$chromium_app"
+          test "$(defaults read "$chromium_app/Contents/Info" CFBundleIdentifier)" = "com.pauldavis.crest"
+          test "$(defaults read "$chromium_app/Contents/Info" CrestDefaultUpdateChannel)" = "$RELEASE_CHANNEL"
+          test "$(defaults read "$chromium_app/Contents/Info" CFBundleVersion)" = "$RELEASE_BUILD_NUMBER"
+
+          package_disk_image "$chromium_app" "$publish_path/$installer_name" "Crest" chromium
+          ditto -c -k --keepParent \
+            "$ui_framework.dSYM" \
             "$publish_path/$symbols_name"
+
           (
             cd "$publish_path"
             shasum -a 256 "$installer_name" > "$checksum_name"
+            shasum -a 256 "$webkit_installer_name" > "$webkit_checksum_name"
           )
 
       - name: Attest release disk image
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: ${{ runner.temp }}/crest-release/publish/Installer-${{ needs.preflight.outputs.asset_base }}.dmg
+          subject-path: |
+            ${{ runner.temp }}/crest-release/publish/Installer-${{ needs.preflight.outputs.asset_base }}.dmg
+            ${{ runner.temp }}/crest-release/publish/Installer-${{ needs.preflight.outputs.asset_base }}-WebKit.dmg
 
       - name: Create GitHub Release
         shell: zsh {0}
@@ -422,6 +508,9 @@ jobs:
           installer_name="Installer-${RELEASE_ASSET_BASE}.dmg"
           checksum_name="Checksum-${RELEASE_ASSET_BASE}.dmg.sha256"
           symbols_name="Debug-Symbols-${RELEASE_ASSET_BASE}.dSYM.zip"
+          webkit_installer_name="Installer-${RELEASE_ASSET_BASE}-WebKit.dmg"
+          webkit_checksum_name="Checksum-${RELEASE_ASSET_BASE}-WebKit.dmg.sha256"
+          webkit_symbols_name="Debug-Symbols-${RELEASE_ASSET_BASE}-WebKit.dSYM.zip"
 
           release_note_arguments=(
             --repository "$GITHUB_REPOSITORY"
@@ -442,6 +531,9 @@ jobs:
           installer_asset="$publish_path/$installer_name"
           checksum_asset="$publish_path/$checksum_name"
           symbols_asset="$publish_path/$symbols_name"
+          webkit_installer_asset="$publish_path/$webkit_installer_name"
+          webkit_checksum_asset="$publish_path/$webkit_checksum_name"
+          webkit_symbols_asset="$publish_path/$webkit_symbols_name"
 
           if [[ "$RELEASE_CHANNEL" != "stable" ]]; then
             ensure_prerelease
@@ -450,13 +542,19 @@ jobs:
               --release-tag "$RELEASE_TAG" \
               --asset "$installer_asset" \
               --asset "$checksum_asset" \
-              --asset "$symbols_asset"
+              --asset "$symbols_asset" \
+              --asset "$webkit_installer_asset" \
+              --asset "$webkit_checksum_asset" \
+              --asset "$webkit_symbols_asset"
           else
             release_arguments=(
               "$RELEASE_TAG"
               "$installer_asset"
               "$checksum_asset"
               "$symbols_asset"
+              "$webkit_installer_asset"
+              "$webkit_checksum_asset"
+              "$webkit_symbols_asset"
               --title "$RELEASE_TITLE"
               --notes-file "$release_notes"
               --verify-tag
@@ -502,13 +600,15 @@ jobs:
           updates_checkout="$RUNNER_TEMP/crest-updates-branch"
           release_root="$RUNNER_TEMP/crest-release"
           installer_name="Installer-${RELEASE_ASSET_BASE}.dmg"
-          release_notes_name="Installer-${RELEASE_ASSET_BASE}.md"
+          webkit_installer_name="Installer-${RELEASE_ASSET_BASE}-WebKit.dmg"
           release_note_state_filename="release-note-publication.json"
           mkdir -p "$sparkle_root" "$feed_source" "$updates_checkout"
           if [[ "$RELEASE_CHANNEL" == "development" ]]; then
             appcast_filename=appcast-development.xml
+            webkit_appcast_filename=appcast-development-webkit.xml
           else
             appcast_filename=appcast.xml
+            webkit_appcast_filename=appcast-webkit.xml
           fi
           if [[ "$RELEASE_CHANNEL" == "stable" ]]; then
             maximum_versions=0
@@ -525,40 +625,37 @@ jobs:
           tar -xf "$sparkle_root/Sparkle-${sparkle_version}.tar.xz" -C "$sparkle_root"
 
           retry_github git fetch origin updates
-          if git cat-file -e "FETCH_HEAD:${appcast_filename}" 2>/dev/null; then
-            git show "FETCH_HEAD:${appcast_filename}" \
-              > "$feed_source/${appcast_filename}"
-          fi
-          cp \
-            "$release_root/publish/$installer_name" \
-            "$feed_source/$installer_name"
-          cp \
-            "$release_root/release-notes.md" \
-            "$feed_source/$release_notes_name"
-
-          appcast_arguments=(
-            --ed-key-file -
-            --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/"
-            --link "https://crestbrowser.com/"
-            --versions "$RELEASE_BUILD_NUMBER"
-            --maximum-versions "$maximum_versions"
-            --embed-release-notes
-            -o "$feed_source/${appcast_filename}"
-          )
-          if [[ "$RELEASE_CHANNEL" != "stable" ]]; then
-            appcast_arguments+=(--channel "$RELEASE_CHANNEL")
-          fi
-          print -r -- "$SPARKLE_EDDSA_PRIVATE_KEY" \
-            | "$sparkle_root/bin/generate_appcast" \
-                "${appcast_arguments[@]}" \
-                "$feed_source"
-          expected_enclosure_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${installer_name}"
-          if ! rg --fixed-strings \
-            "url=\"${expected_enclosure_url}\"" \
-            "$feed_source/${appcast_filename}"; then
-            print -u2 "The generated appcast does not point to the release asset."
-            exit 1
-          fi
+          # Update each product composition through its own signed feed.
+          generate_feed() {
+            local appcast="$1" installer="$2" source="$3"
+            mkdir -p "$source"
+            if git cat-file -e "FETCH_HEAD:${appcast}" 2>/dev/null; then
+              git show "FETCH_HEAD:${appcast}" > "$source/${appcast}"
+            fi
+            cp "$release_root/publish/$installer" "$source/$installer"
+            cp "$release_root/release-notes.md" "$source/${installer%.dmg}.md"
+            local -a appcast_arguments=(
+              --ed-key-file -
+              --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/"
+              --link "https://crestbrowser.com/"
+              --versions "$RELEASE_BUILD_NUMBER"
+              --maximum-versions "$maximum_versions"
+              --embed-release-notes
+              -o "$source/${appcast}"
+            )
+            if [[ "$RELEASE_CHANNEL" != "stable" ]]; then
+              appcast_arguments+=(--channel "$RELEASE_CHANNEL")
+            fi
+            print -r -- "$SPARKLE_EDDSA_PRIVATE_KEY" \
+              | "$sparkle_root/bin/generate_appcast" "${appcast_arguments[@]}" "$source"
+            local expected="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${installer}"
+            if ! rg --fixed-strings "url=\"${expected}\"" "$source/${appcast}"; then
+              print -u2 "The generated ${appcast} does not point to its release asset."
+              exit 1
+            fi
+          }
+          generate_feed "$appcast_filename" "$installer_name" "$feed_source"
+          generate_feed "$webkit_appcast_filename" "$webkit_installer_name" "$feed_source-webkit"
 
           git -C "$updates_checkout" init --initial-branch=updates
           git -C "$updates_checkout" remote add origin \
@@ -572,6 +669,7 @@ jobs:
           cp \
             "$feed_source/${appcast_filename}" \
             "$updates_checkout/${appcast_filename}"
+          cp "$feed_source-webkit/${webkit_appcast_filename}" "$updates_checkout/${webkit_appcast_filename}"
           printf '%s\n' \
             '# Crest software updates' \
             '' \
@@ -582,7 +680,7 @@ jobs:
             --state "$updates_checkout/$release_note_state_filename" \
             --channel "$RELEASE_CHANNEL" \
             --output "$updates_checkout/$release_note_state_filename"
-          git -C "$updates_checkout" add "$appcast_filename" README.md "$release_note_state_filename"
+          git -C "$updates_checkout" add "$appcast_filename" "$webkit_appcast_filename" README.md "$release_note_state_filename"
           git -C "$updates_checkout" config user.name "github-actions[bot]"
           git -C "$updates_checkout" config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
@@ -597,6 +695,7 @@ jobs:
             "$RUNNER_TEMP/crest-release" \
             "$RUNNER_TEMP/crest-release-derived-data" \
             "$RUNNER_TEMP/crest-appcast-source" \
+            "$RUNNER_TEMP/crest-appcast-source-webkit" \
             "$RUNNER_TEMP/crest-updates-branch" \
             "$RUNNER_TEMP/Sparkle-2.9.5" \
             -depth -delete 2>/dev/null || true

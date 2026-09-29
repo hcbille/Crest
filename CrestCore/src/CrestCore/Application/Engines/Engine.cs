@@ -37,7 +37,7 @@ public sealed class Engine {
     internal bool Supports(EngineCapability capability) => capabilities.Contains(capability);
 
     /// The engine as the read model shows it.
-    internal EngineState State => new(Kind, [.. EngineCapability.All.Where(Supports)], IsDefault);
+    internal EngineState State(bool isDefault) => new(Kind, [.. EngineCapability.All.Where(Supports)], isDefault);
 
     #endregion
 

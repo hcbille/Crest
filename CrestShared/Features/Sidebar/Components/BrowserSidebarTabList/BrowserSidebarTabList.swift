@@ -63,11 +63,11 @@ private struct BrowserCurrentTabsSeam: View {
     }
 }
 
-extension BrowserSidebarTabList: Equatable {
+extension BrowserSidebarTabList: @MainActor Equatable {
     /// The list is equal to one over the same Space and window with the same
     /// settings, as SwiftUI compares a view's inputs: a page that redraws for
     /// anything else leaves the list alone.
-    nonisolated static func == (lhs: BrowserSidebarTabList, rhs: BrowserSidebarTabList) -> Bool {
+    static func == (lhs: BrowserSidebarTabList, rhs: BrowserSidebarTabList) -> Bool {
         lhs.context == rhs.context && lhs.alwaysShowsSavedTabs == rhs.alwaysShowsSavedTabs
             && lhs.showsClearAction == rhs.showsClearAction
     }

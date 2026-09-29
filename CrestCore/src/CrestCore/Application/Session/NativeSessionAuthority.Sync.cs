@@ -157,25 +157,22 @@ public sealed partial class NativeSessionAuthority {
     private Convergence Converge(NativeSyncTransaction transaction, SessionState basis, IncomingSyncRecords records,
         bool replacing, DateTimeOffset now, IIdSource ids) {
         var journal = transaction.Journal;
-        var seconds = StoredSessionCodec.Seconds(now);
         var emptySpace = SpaceTemplate.Ordinary.Make(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid, number: 1, now);
         var removals = (transaction.Superseded?.Removals ?? SyncRemovals.None).Reasons(SyncDeletionReason.Superseded);
-        var result = NativeSyncSessionTransition.Prepare(journal, StoredSessionCodec.Encode(basis), records.Batch(), replacing,
-            seconds, StoredSessionCodec.Encode(emptySpace), Access, ids, removals);
+        var result = NativeSyncSessionTransition.Prepare(journal, basis, records.Batch(), replacing, now, emptySpace, Access, ids, removals);
         _ = result.Journal.Read();
-        var session = StoredSessionCodec.DecodeSession(result.Materialization["session"]);
-        return new(result.Journal, session, new(Copies(basis, session, result.Materialization["assets"]!.AsArray()), Favicon: null));
+        return new(result.Journal, result.Session, new(Copies(basis, result.Session, result.Origins), Favicon: null));
     }
 
     /// The tabs repair gave a new identity that the session held before, each
     /// with the tab it was.
-    private static IReadOnlyList<SessionTabCopy> Copies(SessionState basis, SessionState next, JsonArray assets) {
+    private static IReadOnlyList<SessionTabCopy> Copies(SessionState basis, SessionState next, IReadOnlyList<NativeSessionMaintenance.TabOrigin> origins) {
         var held = basis.Spaces.SelectMany(space => space.Tabs.Select(tab => (space.Id, tab.Id))).ToHashSet();
         var copies = new List<SessionTabCopy>();
-        foreach (var asset in assets) {
-            var space = next.Spaces[SyncJson.Int(asset!["spaceIndex"]!)];
-            var copy = space.Tabs[SyncJson.Int(asset["tabIndex"]!)].Id;
-            var source = (StoredSessionCodec.Identity(asset["sourceSpaceID"]), StoredSessionCodec.Identity(asset["sourceTabID"]));
+        foreach (var origin in origins) {
+            var space = next.Spaces[origin.SpaceIndex];
+            var copy = space.Tabs[origin.TabIndex].Id;
+            var source = (origin.SourceSpaceId, origin.SourceTabId);
             if (copy != source.Item2 && held.Contains(source)) copies.Add(new(source.Item2, copy));
         }
         return copies;

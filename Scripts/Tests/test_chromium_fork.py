@@ -120,15 +120,15 @@ class WorkspaceTests(unittest.TestCase):
 
 
 class PromotionTests(unittest.TestCase):
-    def test_automatic_publication_requires_opt_in_and_stays_on_experimental(self):
-        policy = {"automaticChannel": "experimental", "integrationBranch": "chromium-control-plane", "automaticMajorUpdates": False}
+    def test_automatic_publication_requires_opt_in_and_development_on_main(self):
+        policy = {"automaticChannel": "development", "integrationBranch": "main", "automaticMajorUpdates": False}
         arguments = dict(enabled="true", default_branch="main", major_update=False)
         self.assertTrue(publication.automatic_release_allowed(policy, **arguments))
         for name, value in (("enabled", "false"), ("enabled", None),
                             ("default_branch", "chromium-control-plane"), ("major_update", True)):
             with self.subTest(gate=name):
                 self.assertFalse(publication.automatic_release_allowed(policy, **(arguments | {name: value})))
-        for channel in ("stable", "development", "nightly"):
+        for channel in ("stable", "experimental", "nightly"):
             with self.subTest(channel=channel):
                 self.assertFalse(publication.automatic_release_allowed(policy | {"automaticChannel": channel}, **arguments))
 

@@ -286,6 +286,8 @@ def main():
         (resources / "Crest-Native-Host").write_text("Native Crest host composition.\n")
     else:
         (resources / "Crest-Isolated-Experiment").write_text("Explicit experimental profile required.\n")
+    if args.ui:
+        (resources / "Crest-App-Owned-Host").write_text("Crest starts engines on demand.\n")
     shutil.copy2(repo / "CrestEngines/Chromium/ThirdParty/Mori-LICENSE", resources / "Crest-Mori-LICENSE.txt")
     info_path = output / "Contents/Info.plist"
     with info_path.open("rb") as stream:

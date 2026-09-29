@@ -9,6 +9,13 @@ namespace CrestCore.Contracts;
 public sealed record SidebarRow(Guid Id, SidebarRowKind Kind, Guid? ParentFolderId, int Depth, IReadOnlyList<Guid> Members) {
     #region Variables
 
+    /// Collections are owned when constructed or replaced on a copy.
+    public IReadOnlyList<Guid> Members {
+        get;
+        init => field = [.. value];
+    } = [.. Members];
+
+
     /// <summary>What the row places in the sidebar's order: a folder itself, or the tabs
     /// the row shows.</summary>
     public IEnumerable<Guid> Listed => Kind.OpensList ? [Id] : Members;

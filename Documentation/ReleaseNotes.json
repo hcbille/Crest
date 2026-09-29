@@ -3409,6 +3409,34 @@
     "chromium-media-pages-never-frozen": {
       "category": "fixed",
       "message": "Chromium never freezes a background tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera, microphone or screen."
+    },
+    "engine-default-and-website-rules": {
+      "category": "new",
+      "message": "Choose your default browsing engine and add, edit or remove website engine rules in Settings. Chromium is recommended, while WebKit offers native handling and FairPlay video."
+    },
+    "chromium-loads-when-needed": {
+      "category": "improved",
+      "message": "WebKit sessions leave Chromium unloaded until you open a Chromium website or extension. Once loaded, it stays ready until you quit Crest."
+    },
+    "dual-engine-default-desktop-download": {
+      "category": "improved",
+      "message": "The default Mac download includes Chromium and WebKit, with a separate WebKit build available. Each build keeps its own update channel."
+    },
+    "session-snapshots-own-nested-values": {
+      "category": "internal",
+      "message": "Published session snapshots own their nested collections, including record copies, so callers cannot mutate accepted browsing state."
+    },
+    "chromium-extension-window-geometry": {
+      "category": "fixed",
+      "message": "Extensions can move, resize and restore Crest windows using their normal window controls."
+    },
+    "cloud-convergence-typed-session": {
+      "category": "internal",
+      "message": "Cloud convergence materializes and repairs typed sessions while keeping local credentials, page assets and pending profile deletion work on the receiving device."
+    },
+    "experimental-updates-continue-on-development": {
+      "category": "improved",
+      "message": "The final experimental update moves your update preference to Development so future Crest updates continue there."
     }
   }
 }

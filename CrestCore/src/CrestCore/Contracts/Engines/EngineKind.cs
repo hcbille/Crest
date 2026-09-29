@@ -8,6 +8,8 @@ namespace CrestCore.Contracts;
 public enum EngineMark {
     /// A blue tile stacked on a warm one, seen from above at an angle.
     StackedTile,
+    /// A blue globe for an engine using Chromium.
+    Globe,
 }
 
 #endregion
@@ -18,7 +20,7 @@ public enum EngineMark {
 public sealed class EngineKind {
     #region Static Variables
 
-    public static readonly EngineKind Chromium = new(name: "chromium", title: "Chromium", mark: null,
+    public static readonly EngineKind Chromium = new(name: "chromium", title: "Chromium", mark: EngineMark.Globe,
         pageDescription: "Runs in Chromium");
     public static readonly EngineKind WebKit = new(name: "webkit", title: "WebKit", mark: EngineMark.StackedTile,
         pageDescription: "Runs in WebKit");
@@ -39,9 +41,8 @@ public sealed class EngineKind {
     public string TitleComment { get; } = "The name of a browser engine. Keep the product name as it is.";
 
     /// The mark that stands for the engine beside its name and on the badge a
-    /// tab's icon wears while its page runs on it. Chromium has none: it is
-    /// the engine a device with both opens pages on, so its pages are the
-    /// expected case and need no mark.
+    /// tab's icon wears while its page runs on it. The roster badges pages
+    /// that use an engine other than the person's default.
     public EngineMark? Mark { get; }
 
     /// What a tab says about the engine its page runs on to someone who

@@ -139,6 +139,7 @@ internal sealed class SqliteConnection : IDisposable {
             + "modified_at REAL NOT NULL, position INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_site_engine (scheme TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL, "
             + "engine TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY (scheme, host, port))");
+        Execute("CREATE TABLE IF NOT EXISTS device_engine (id INTEGER PRIMARY KEY CHECK (id = 0), engine TEXT NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_shortcut (command TEXT PRIMARY KEY, key TEXT, special INTEGER NOT NULL, "
             + "modifiers INTEGER NOT NULL)");
         Execute("CREATE TABLE IF NOT EXISTS device_link (id INTEGER PRIMARY KEY CHECK (id = 0), destination TEXT NOT NULL, "
@@ -158,7 +159,14 @@ internal sealed class SqliteConnection : IDisposable {
     /// Everything the device store holds. A row whose identities or names do
     /// not read is left out.
     public DeviceRecords ReadDevice() => new(ReadWindows(), ReadReopening(), ReadSitePermissions(), ReadSiteEngines(), ReadShortcuts(),
-        ReadLinks(), ReadSetupDraft(), ReadSetupCompleted(), ReadAdoptions());
+        ReadLinks(), ReadSetupDraft(), ReadSetupCompleted(), ReadAdoptions(), ReadDefaultEngine());
+
+    /// The person's preference remains available even in a single-engine product.
+    private EngineKind? ReadDefaultEngine() {
+        EngineKind? engine = null;
+        Rows("SELECT engine FROM device_engine WHERE id = 0", statement => engine = EngineKind.Named(Sqlite.ColumnText(statement, 0)));
+        return engine;
+    }
 
     private List<SavedWindow> ReadWindows() {
         var windows = new Dictionary<Guid, (Guid ShownSpace, long Used)>();
@@ -297,6 +305,7 @@ internal sealed class SqliteConnection : IDisposable {
         if (written is null || !records.Reopening.SequenceEqual(written.Reopening)) WriteReopening(records.Reopening);
         if (written is null || !records.SitePermissions.SequenceEqual(written.SitePermissions)) WriteSitePermissions(records.SitePermissions);
         if (written is null || !records.SiteEngines.SequenceEqual(written.SiteEngines)) WriteSiteEngines(records.SiteEngines);
+        if (written is null || records.DefaultEngine != written.DefaultEngine) WriteDefaultEngine(records.DefaultEngine);
         if (written is null || !records.Shortcuts.SameAs(written.Shortcuts)) WriteShortcuts(records.Shortcuts);
         if (written is null || !records.Links.Equals(written.Links)) WriteLinks(records.Links);
         if (written is null || !KeptSetupDraft.Same(records.SetupDraft, written.SetupDraft)) WriteSetupDraft(records.SetupDraft);
@@ -366,6 +375,13 @@ internal sealed class SqliteConnection : IDisposable {
                     Checked(Sqlite.sqlite3_bind_int64(statement, 10, index));
                 });
         }
+    }
+
+    /// The person's explicit default, absent while following the composition.
+    private void WriteDefaultEngine(EngineKind? engine) {
+        Execute("DELETE FROM device_engine");
+        if (engine is not null)
+            Insert("INSERT INTO device_engine(id, engine) VALUES(0,?)", statement => Bind(statement, 1, engine.Name));
     }
 
     /// The site engine choices, least recent first, each engine by `Name`.

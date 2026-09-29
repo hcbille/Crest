@@ -6,6 +6,11 @@ extension EngineMark {
     @MainActor @ViewBuilder var artwork: some View {
         switch self {
         case .stackedTile: EngineStackedTileMark()
+        case .globe:
+            Image(systemName: "globe")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.blue)
         }
     }
 }

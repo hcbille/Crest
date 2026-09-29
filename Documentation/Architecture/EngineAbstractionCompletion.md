@@ -47,8 +47,8 @@ Rules every engine keeps:
 
 The core owns the session, the device and the pages on every shipping target.
 On macOS the Chromium composition (`CrestChromiumUIProduct`, packaged by
-`package-chromium-host.py --product`) is the default download on the
-experimental update channel, with WebKit registered beside it. The WebKit
+`package-chromium-host.py --product`) is the default desktop product, with
+WebKit registered beside it. The WebKit
 `Crest` target is published as the alternate desktop build, and `CrestMobile`
 runs WebKit on iPhone and iPad.
 
@@ -75,10 +75,14 @@ Engine glue, the page hosts and the tests read the core's read model.
 Both Mac products run one AppKit shell (`CrestMac/App/Shell`), which owns
 every window, the menu bar, launch and recovery, reopen, the Dock menu and
 tile, external opens, system sign-in and quit. The WebKit product owns its
-process through `CrestMain`. The Chromium product leaves the process,
-`NSApplication`, the run loop and `AppController` to Chromium, whose patch
-forwards the application events Crest answers: quit, reopen, external opens,
-the Dock menu, and a system sign-in and its end. A local key monitor runs
+process through `CrestMain`. The dual-engine product starts Crest's native
+application, core and shell before loading Chromium. `ChromiumRuntime`
+starts Chromium's normal browser loop on the first page or extension that
+needs it, attaches its binding to the existing core and replays pending
+commands. Crest retains its application delegate and windows throughout the
+handoff. Chromium supplies an event adapter for its native views and
+accessibility, and receives termination notifications for its normal shutdown.
+Once loaded, Chromium remains initialized until quit. A local key monitor runs
 Crest's shortcuts before Crest's own views, and only the commands the core
 reserves from pages before a focused page, which sees the rest first and hands
 what it lets go to the menu bar. The shell's decisions are core queries
@@ -96,9 +100,8 @@ A new engine on the Mac supplies:
 - a `BrowserMacEngineHost`: the About panel's credits, releasing what it kept
   for a closed window and the profiles named, and a key equivalent no Crest
   command claimed;
-- when it owns the process, an entry that forwards quit, reopen, external
-  opens, the Dock menu and system sign-in to `BrowserMacShell`, as
-  `CrestAppDelegate` and `ChromiumMacUI` do.
+- an on-demand runtime integration when the engine needs its own browser
+  loop, preserving the native application's delegate, windows and core.
 
 A new platform shell supplies:
 
@@ -198,7 +201,15 @@ downloads. Launch cleanup and retention run as the core's
 | Shortcuts, menus, launch and media | The shortcut intents, `NumberedSelections` and the `ShortcutMenu` layout; `LaunchIsolation`, the launch plan, `LaunchWindows`, `WindowToReopen`, `EngineWindowPlacement` and `PrepareToQuit`; media session arbitration |
 | Behavior preferences | The session's `appPreferences` record behind `SetAppPreferences`, `SetTranslationRule` and `ImportAppPreferences` |
 | Links and Quick Window | `LinkNavigation`, `RouteExternalLink`, `RouteLocalDocument`, `ExternalWebLink`, `ChooseExternalLinkDestination`, `RememberQuickWindowSpace` and the link preference intents |
-| Engines | `EnginesChanged`, `ChooseSiteEngine`, `RehostPage`, `ProtectedMediaUnavailable` |
+| Engines | `EnginesChanged`, `EnginePreferencesChanged`, `SelectDefaultEngine`, `EditEngineRule`, `ForgetEngineRule`, `ChooseSiteEngine`, `RehostPage`, `ProtectedMediaUnavailable` |
+
+The device stores a preferred default engine and exact-origin website rules
+locally. Settings edits the same rules that page-menu choices and protected
+media fallback use. Private choices remain scoped to their private Space.
+Changing the default starts no engine and moves no existing page. An
+unavailable preference is retained but falls back to the product's default.
+Chromium is the dual-engine product's recommended default. WebKit preference
+keeps Chromium unloaded until a Chromium website or extension is opened.
 
 These stay in Swift by design: heraldry vocabulary and composition, favicon
 palette extraction, sidebar widgets, Peek motion and presentation phases,
@@ -214,18 +225,18 @@ tear-off placement geometry, drag geometry and default-browser prompt cadence.
   `build-chromium-baseline.py`, then `package-chromium-host.py` in review mode
   with a throwaway user-data directory. Never launch the unbranded Chromium
   build directly, because its keychain item prompts.
-- Product packaging: `.github/workflows/experimental-release.yml` downloads
+- Product packaging: `.github/workflows/release.yml` and
+  `.github/workflows/experimental-release.yml` download
   the prebuilt engine, packages `CrestChromiumUIProduct`, signs it with Crest's
   entitlements and embedded provisioning profile, and notarizes both apps.
   Never use the review entitlements file for the product: it turns on the app
   sandbox and would strand installed data.
 - The Safe Storage keychain item name must not change. A rename rotates the
   encryption key and resets Chromium's tracked preferences.
-- The Chromium product ships on the experimental update channel. When it
-  merges, `release.yml` must publish the Chromium product as the default Mac
-  download with WebKit as the alternate, each with its own development and
-  stable feeds, and `project.yml`'s default update channel moves from
-  `experimental` to `development`.
+- `release.yml` publishes Chromium as the default Mac download and WebKit
+  as the alternate, each with its own development and stable feeds.
+  `project.yml` defaults to the development update channel. Update feeds
+  follow the product family, independently of the chosen engine preference.
 
 ## Not built, by decision
 

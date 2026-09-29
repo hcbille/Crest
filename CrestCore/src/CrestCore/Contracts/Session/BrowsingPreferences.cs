@@ -15,6 +15,16 @@ public sealed record BrowsingPreferences(
     CurrentTabCleanup CurrentTabCleanup,
     ContentBlockingPolicy ContentBlocking,
     DataRetentionPreferences DataRetention) {
+    #region Variables
+
+    /// Collections are owned when constructed or replaced on a copy.
+    public IReadOnlyList<CustomSearchProvider> CustomSearchProviders {
+        get;
+        init => field = [.. value];
+    } = [.. CustomSearchProviders];
+
+    #endregion
+
     #region Actions - Equality
 
     public bool Equals(BrowsingPreferences? other) => other is not null

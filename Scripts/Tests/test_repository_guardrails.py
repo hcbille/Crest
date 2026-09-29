@@ -85,6 +85,13 @@ class ArchitectureGuardTests(unittest.TestCase):
             {"layer-import"},
         )
 
+    def test_application_can_coordinate_with_the_portable_synchronization_module(self) -> None:
+        self.write_source(
+            "CrestShared/Application/AccountCheck.swift",
+            "import Synchronization\nstruct AccountCheck {}\n",
+        )
+        self.assertEqual(self.violation_rules(), set())
+
     def test_platform_frameworks_stay_in_their_native_roots(self) -> None:
         self.write_source(
             "CrestMobile/BadMobile.swift", "import AppKit\nstruct BadMobile {}\n"

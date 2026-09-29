@@ -45,6 +45,12 @@ final class CoreState {
         set { publish(newValue, into: \.enginesStorage, as: \.engines) }
     }
     @ObservationIgnored private var enginesStorage: EngineRoster?
+    /// Ordinary engine choices on this device. Private site choices are absent.
+    var enginePreferences: EnginePreferences {
+        get { observed(\.enginePreferencesStorage, as: \.enginePreferences) }
+        set { publish(newValue, into: \.enginePreferencesStorage, as: \.enginePreferences) }
+    }
+    @ObservationIgnored private var enginePreferencesStorage = EnginePreferences(defaultEngine: nil, rules: [])
     /// The newest file revision the core has on disk, counting the stored
     /// session's edits and this device's saved windows; zero before its first
     /// save and for a core that keeps nothing.

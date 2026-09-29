@@ -71,7 +71,9 @@ final class ChromiumExtensionStore {
 
     /// What the engine has installed in the Space's profile.
     private static func installed(in space: BrowserSpaceIdentity) -> [Installed] {
-        guard let pages = ChromiumComposition.chromiumEngine?.pages else { return [] }
+        guard ChromiumComposition.engineHost != nil, let pages = ChromiumComposition.chromiumEngine?.pages else {
+            return []
+        }
         return pages.request(InstalledExtensions(profileID: space.profileID)).extensions.map(Installed.init)
     }
     func load(_ space: BrowserSpaceIdentity, in browser: BrowserStore? = nil) async {
@@ -95,7 +97,9 @@ final class ChromiumExtensionStore {
         for space: BrowserSpaceIdentity, page: ChromiumNativePage?
     ) -> [BrowserExtensionActionPresentation] {
         _ = revision
-        guard let pages = ChromiumComposition.chromiumEngine?.pages else { return [] }
+        guard ChromiumComposition.engineHost != nil, let pages = ChromiumComposition.chromiumEngine?.pages else {
+            return []
+        }
         let live = Dictionary(
             page?.extensions.map { ($0.id, $0) } ?? [],
             uniquingKeysWith: { first, _ in first })

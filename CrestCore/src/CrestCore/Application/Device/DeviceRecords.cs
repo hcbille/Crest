@@ -11,7 +11,8 @@ namespace CrestCore.Application;
 /// has completed setup, and what it has adopted from an installed release.
 internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOnlyList<Guid> Reopening,
     IReadOnlyList<SitePermissionRecord> SitePermissions, IReadOnlyList<SiteEngineChoice> SiteEngines, ShortcutOverrides Shortcuts,
-    LinkPreferences Links, KeptSetupDraft? SetupDraft, bool SetupCompleted, IReadOnlySet<DeviceAdoption> Adopted) {
+    LinkPreferences Links, KeptSetupDraft? SetupDraft, bool SetupCompleted, IReadOnlySet<DeviceAdoption> Adopted,
+    EngineKind? DefaultEngine = null) {
     #region Static Variables
 
     public static readonly DeviceRecords Empty = new([], [], [], [], ShortcutOverrides.None, LinkPreferencePolicy.Default,
@@ -33,6 +34,7 @@ internal sealed record DeviceRecords(IReadOnlyList<SavedWindow> Windows, IReadOn
         && Reopening.SequenceEqual(other.Reopening)
         && SitePermissions.SequenceEqual(other.SitePermissions)
         && SiteEngines.SequenceEqual(other.SiteEngines)
+        && DefaultEngine == other.DefaultEngine
         && Shortcuts.SameAs(other.Shortcuts)
         && Links.Equals(other.Links)
         && KeptSetupDraft.Same(SetupDraft, other.SetupDraft)

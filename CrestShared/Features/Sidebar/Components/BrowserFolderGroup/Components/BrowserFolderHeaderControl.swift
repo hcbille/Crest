@@ -87,7 +87,7 @@ struct BrowserFolderHeaderControl: View {
 /// while the folder holds the shown tab where every folder stays visible. It
 /// reads the folder's tabs only for that emphasis, so the rest of the header
 /// redraws for neither.
-private struct BrowserFolderHeaderTitle: View, Equatable {
+private struct BrowserFolderHeaderTitle: View, @MainActor Equatable {
     let folder: FolderStateModel
     let context: BrowserSidebarListContext
     let tintsTitle: Bool
@@ -114,7 +114,7 @@ private struct BrowserFolderHeaderTitle: View, Equatable {
         return context.space.tabIDs(inFolder: folder.id).contains { context.window.shownTabIDs.contains($0) }
     }
 
-    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+    static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.folder === rhs.folder && lhs.context == rhs.context && lhs.tintsTitle == rhs.tintsTitle
             && lhs.emphasizesShownTab == rhs.emphasizesShownTab
     }

@@ -197,10 +197,10 @@ struct BrowserSidebarTabRow: View {
     }
 }
 
-extension BrowserSidebarTabRow: Equatable {
+extension BrowserSidebarTabRow: @MainActor Equatable {
     /// Rows are equal when they stand for the same tab in the same place, as
     /// SwiftUI compares a view's inputs: a list that redraws leaves them be.
-    nonisolated static func == (lhs: BrowserSidebarTabRow, rhs: BrowserSidebarTabRow) -> Bool {
+    static func == (lhs: BrowserSidebarTabRow, rhs: BrowserSidebarTabRow) -> Bool {
         lhs.tab === rhs.tab && lhs.context == rhs.context && lhs.isSplitGroupMember == rhs.isSplitGroupMember
             && lhs.followingTabID == rhs.followingTabID
     }

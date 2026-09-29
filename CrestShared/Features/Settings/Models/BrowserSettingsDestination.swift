@@ -19,6 +19,7 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
     /// pane switches over the kind.
     enum Kinds: Sendable {
         case general
+        case engines
         case lookAndFeel
         case links
         case shortcuts
@@ -32,7 +33,7 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
         case about
     }
 
-    // MARK: - Variables
+    // MARK: - Static Variables
 
     // The hues are the website palette's fixed hues rather than system colors,
     // so a destination reads the same on both platforms and in both appearances.
@@ -46,6 +47,10 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
         searchTerms:
             "appearance theme transparency page zoom percentage sidebar left right borderless window fullscreen layout interface animation motion page cards folder highlights counts borders preview density spacing padding scale icons",
         symbol: "paintpalette", color: CrestBrandPalette.coral)
+    static let engines = BrowserSettingsDestination(
+        kind: .engines, name: "engines", title: "Engines", subtitle: "Default engine and website rules",
+        searchTerms: "Chromium WebKit hybrid default browser engine websites rules protected video DRM compatibility",
+        symbol: "cpu", color: CrestBrandPalette.sky)
     static let links = BrowserSettingsDestination(
         kind: .links, name: "links", title: "Links", subtitle: "Quick Window and Peek",
         searchTerms: "external apps Quick Window Peek pinned saved routing open", symbol: "link",
@@ -94,9 +99,11 @@ struct BrowserSettingsDestination: Hashable, Identifiable, Sendable {
 
     /// Every destination, in catalog order.
     static let all: [BrowserSettingsDestination] = [
-        general, lookAndFeel, links, shortcuts, spaces, sync, privacy, passwords, extensions, featureFlags,
+        general, engines, lookAndFeel, links, shortcuts, spaces, sync, privacy, passwords, extensions, featureFlags,
         advanced, about,
     ]
+
+    // MARK: - Variables
 
     let kind: Kinds
     let name: String

@@ -34,6 +34,7 @@ static_assert(!std::is_abstract_v<CrestBrowserWindow>);
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/gfx/range/range.h"
+#include "ui/gfx/mac/coordinate_conversion.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/color/color_provider_manager.h"
@@ -729,7 +730,11 @@ void CrestBrowserWindow::Maximize() { if (!IsMaximized()) [crest::WindowForBrows
 
 void CrestBrowserWindow::Minimize() { [crest::WindowForBrowser(browser_) miniaturize:nil]; }
 
-void CrestBrowserWindow::Restore() { [crest::WindowForBrowser(browser_) deminiaturize:nil]; }
+void CrestBrowserWindow::Restore() {
+  NSWindow* window = crest::WindowForBrowser(browser_);
+  if (window.isMiniaturized) [window deminiaturize:nil];
+  if (window.isZoomed) [window zoom:nil];
+}
 
 void CrestBrowserWindow::FlashFrame(bool flash) {}
 
@@ -1020,11 +1025,14 @@ bool CrestBrowserWindow::IsUnframedModeEnabled() const {
 }
 
 bool CrestBrowserWindow::GetCanResize() {
-  return false;
+  return (crest::WindowForBrowser(browser_).styleMask & NSWindowStyleMaskResizable) != 0;
 }
 
 ui::mojom::WindowShowState CrestBrowserWindow::GetWindowShowState() const {
-  return {};
+  if (IsFullscreen()) return ui::mojom::WindowShowState::kFullscreen;
+  if (IsMinimized()) return ui::mojom::WindowShowState::kMinimized;
+  if (IsMaximized()) return ui::mojom::WindowShowState::kMaximized;
+  return ui::mojom::WindowShowState::kNormal;
 }
 
 void CrestBrowserWindow::ShowChromeLabs() {
@@ -1085,25 +1093,32 @@ gfx::Rect CrestBrowserWindow::GetBounds() const {
   if (!window) {
     return gfx::Rect(0, 0, 1280, 820);
   }
-  NSRect f = window.frame;
-  NSScreen* screen = window.screen ?: NSScreen.screens.firstObject;
-  const CGFloat flipped_y = NSMaxY(screen.frame) - NSMaxY(f);
-  return gfx::Rect(NSMinX(f), flipped_y, NSWidth(f), NSHeight(f));
+  return gfx::ScreenRectFromNSRect(window.frame);
 }
 
 gfx::Rect CrestBrowserWindow::GetRestoredBounds() const {
-  return GetBounds();
+  NSWindow* window = crest::WindowForBrowser(browser_);
+  if (!window) return GetBounds();
+  return gfx::ScreenRectFromNSRect([crest::MacUI() restoredFrameForWindow:window]);
 }
 
 ui::mojom::WindowShowState CrestBrowserWindow::GetRestoredState() const {
-  return ui::mojom::WindowShowState::kNormal;
+  NSWindow* window = crest::WindowForBrowser(browser_);
+  const bool zoomed = IsFullscreen() ? [crest::MacUI() wasWindowZoomedBeforeFullScreen:window] : IsMaximized();
+  return zoomed ? ui::mojom::WindowShowState::kMaximized : ui::mojom::WindowShowState::kNormal;
 }
 
 bool CrestBrowserWindow::IsVisible() const {
   return crest::WindowForBrowser(browser_).isVisible;
 }
 
-void CrestBrowserWindow::SetBounds(const gfx::Rect& bounds) {}
+void CrestBrowserWindow::SetBounds(const gfx::Rect& bounds) {
+  NSWindow* window = crest::WindowForBrowser(browser_);
+  if (!window || IsFullscreen()) return;
+  // Chromium and extensions use the primary display's top-left origin, even
+  // for windows on other displays. Use the inverse of GetBounds's conversion.
+  [window setFrame:gfx::ScreenRectToNSRect(bounds) display:YES];
+}
 
 bool CrestLocationBar::IsMouseHovered() const { return false; }
 bool CrestLocationBar::IsFocusWithin() const {

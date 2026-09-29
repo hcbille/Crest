@@ -90,9 +90,6 @@ final class BrowserMacShell {
         recovery?.close()
         recovery = nil
         guard application.presentsInstalledApplicationUI else { return }
-        #if CREST_REVIEW_BUILD && DEBUG
-            listenForReviewCommands()
-        #endif
         BrowserMacDockTile.shared.start(following: application.browser.core)
         windows.openLaunchWindows()
         menuBar.install()

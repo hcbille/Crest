@@ -164,6 +164,7 @@ final class EnginePage: BrowserFindExecuting {
     /// the engine's certificates with an SSL policy for `host`, for the
     /// certificate sheet; nil when the document came over no verified TLS.
     func serverTrust(host: String?) -> SecTrust? {
+        guard pages.isReady, !closed else { return nil }
         let chain = pages.request(PageCertificates(pageID: id)).certificates
         guard !chain.isEmpty else { return nil }
         let certificates = chain.compactMap { SecCertificateCreateWithData(nil, $0 as CFData) }
@@ -191,7 +192,8 @@ final class EnginePage: BrowserFindExecuting {
 
     /// Whether an inspector is open on the page.
     var isInspected: Bool {
-        pages.request(PageInspected(pageID: id))
+        guard pages.isReady, !closed else { return false }
+        return pages.request(PageInspected(pageID: id))
     }
 
     /// Whether an inspector opened on `panel` starts there, rather than
@@ -246,7 +248,8 @@ final class EnginePage: BrowserFindExecuting {
 
     /// What media the page runs now, as far as the engine knows.
     var mediaActivity: PageMediaActivity {
-        pages.request(PageMedia(pageID: id)).activity
+        guard pages.isReady, !closed else { return [] }
+        return pages.request(PageMedia(pageID: id)).activity
     }
 
     /// Moves the video the page plays into Picture in Picture; false when it

@@ -29,6 +29,14 @@
             shell?.window(for: id)
         }
 
+        func restoredFrame(for window: NSWindow) -> NSRect {
+            (window as? BrowserMacWindow)?.restoredFrame ?? window.frame
+        }
+
+        func wasZoomedBeforeFullScreen(_ window: NSWindow) -> Bool {
+            (window as? BrowserMacWindow)?.wasZoomedBeforeFullScreen ?? false
+        }
+
         func reserveEngineWindow(profile: UUID, ownWindow: Bool) -> (any CrestEngineWindowPlacement)? {
             shell?.reserveEngineWindow(forProfile: profile, ownWindow: ownWindow).map {
                 Placement(window: $0.window, space: $0.space)

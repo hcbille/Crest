@@ -58,22 +58,21 @@ enum BrowserSoftwareUpdateChannel: String, Identifiable, Sendable, CaseIterable 
     }
 
     var customFeedURL: URL? {
+        feedURL(for: BrowserEngineRegistration.current.implementationId.family)
+    }
+
+    /// Feeds follow the installed product composition. A WebKit preference
+    /// inside the Chromium product keeps updating that same dual-engine app.
+    func feedURL(for engine: BrowserEngineImplementation.Family) -> URL? {
+        let suffix = engine == .webKit ? "-webkit" : ""
+        let filename: String
         switch self {
         case .stable, .nightly:
-            nil
-        case .development:
-            URL(
-                string: "https://raw.githubusercontent.com/pauljoda/Crest/updates/appcast-development.xml"
-            )
-        case .experimental:
-            // Experimental publishes the Chromium build as its default and a
-            // WebKit build as an alternate download. Each follows its own feed,
-            // so an update never changes the engine someone chose.
-            URL(
-                string: BrowserEngineRegistration.current.implementationId.family == .webKit
-                    ? "https://raw.githubusercontent.com/pauljoda/Crest/updates/appcast-experimental-webkit.xml"
-                    : "https://raw.githubusercontent.com/pauljoda/Crest/updates/appcast-experimental.xml"
-            )
+            guard engine == .webKit else { return nil }
+            filename = "appcast-webkit.xml"
+        case .development: filename = "appcast-development\(suffix).xml"
+        case .experimental: filename = "appcast-experimental\(suffix).xml"
         }
+        return URL(string: "https://raw.githubusercontent.com/pauljoda/Crest/updates/\(filename)")
     }
 }

@@ -9,7 +9,7 @@
   },
   "chrome/browser/app_controller_mac.mm": {
     "before": "f82d0e17923e264fbb1bf472637e40332d69afc347a3dda391bd3f681076bc5e",
-    "after": "ab91fc3b23fde76f359a24e52bb66316627a184d48a5c6a66b57fd4f626f2e3d"
+    "after": "2a5be0c20e698cc54c0df561fe0c3c49d9bea27c15248fa3bbfc84d52bb6697a"
   },
   "chrome/browser/ui/BUILD.gn": {
     "before": "d00a05b597c3f25aa7e7eea8b777f5fbcebd1e67ace0e4d0e926a75a62f79ee3",
@@ -21,7 +21,7 @@
   },
   "chrome/app/chrome_exe_main_mac.cc": {
     "before": "25f658e9ec691cac969f684f279410816632bd92fb55f2c4a0a8cbb19b90178c",
-    "after": "0c6473b9eda495beaf10d013b7159498b0110157aef474538226bf52159880af"
+    "after": "cf0bbfec9595e35f97de8be600a2a127bda7224f31dd1e5fe4ca2c8b6d4dba12"
   },
   "chrome/browser/ui/startup/startup_browser_creator.cc": {
     "before": "82bcf41052f6fd73d3bd079f5b72487edc83c7ac7d59f98c21f140f3b37fd2cb",
@@ -330,5 +330,13 @@
   "components/performance_manager/freezing/freezer.cc": {
     "before": "5cafb9a71c23ab72d7348c7659d730d2d92b4ccc89cce33c47025dc659890bad",
     "after": "46d211d1e7d9ac2956cbbaabe345a2ec0423ebd347ea0cef78758710068cc758"
+  },
+  "chrome/browser/chrome_browser_main_mac.mm": {
+    "before": "d4d7671a8befd46724bf25d861a53acec76e5de280ce9128dcba514cec3e3490",
+    "after": "99949bcfa50ddc9342ae3d30987793aabd1e9970f13ef60f083d44617621f86f"
+  },
+  "chrome/browser/chrome_browser_application_mac.mm": {
+    "before": "4e35e033d61fd132be0be0e0990226cb3f06fb4caf407e93d670c33db5303faa",
+    "after": "e5e88dd4e447305525edf6293e908f788e98bb302c30e3baeedbf18d72d112ea"
   }
 }

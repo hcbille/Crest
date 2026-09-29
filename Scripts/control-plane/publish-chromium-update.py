@@ -13,8 +13,8 @@ import chromium_engine
 
 def automatic_release_allowed(policy, *, enabled, default_branch, major_update):
     return (enabled == "true"
-            and policy["automaticChannel"] == "experimental"
-            and policy["integrationBranch"] != default_branch
+            and policy["automaticChannel"] == "development"
+            and policy["integrationBranch"] == default_branch
             and (not major_update or policy["automaticMajorUpdates"]))
 
 

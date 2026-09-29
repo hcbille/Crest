@@ -30,11 +30,11 @@ struct BrowserSidebarListRows<Trailing: View>: View {
     }
 }
 
-extension BrowserSidebarListRows: Equatable {
+extension BrowserSidebarListRows: @MainActor Equatable {
     /// Rows views are equal when they draw the same list for the same Space and
     /// window, as SwiftUI compares a view's inputs, so a section that redraws
     /// leaves its list alone. What trails the rows depends only on those.
-    nonisolated static func == (lhs: BrowserSidebarListRows, rhs: BrowserSidebarListRows) -> Bool {
+    static func == (lhs: BrowserSidebarListRows, rhs: BrowserSidebarListRows) -> Bool {
         lhs.list === rhs.list && lhs.context == rhs.context
     }
 }
@@ -84,11 +84,11 @@ struct BrowserSidebarListRow: View {
     }
 }
 
-extension BrowserSidebarListRow: Equatable {
+extension BrowserSidebarListRow: @MainActor Equatable {
     /// Rows are equal when they stand for the same objects in the same place,
     /// as SwiftUI compares a view's inputs, so a list that redraws leaves every
     /// unchanged row alone.
-    nonisolated static func == (lhs: BrowserSidebarListRow, rhs: BrowserSidebarListRow) -> Bool {
+    static func == (lhs: BrowserSidebarListRow, rhs: BrowserSidebarListRow) -> Bool {
         lhs.item == rhs.item && lhs.context == rhs.context
     }
 }

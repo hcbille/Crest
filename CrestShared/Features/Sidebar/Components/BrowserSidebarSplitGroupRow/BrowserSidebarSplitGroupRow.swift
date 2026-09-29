@@ -239,10 +239,10 @@ struct BrowserSidebarSplitGroupRow: View {
     }
 }
 
-extension BrowserSidebarSplitGroupRow: Equatable {
+extension BrowserSidebarSplitGroupRow: @MainActor Equatable {
     /// Rows are equal when they stand for the same members in the same place,
     /// as SwiftUI compares a view's inputs: a list that redraws leaves them be.
-    nonisolated static func == (lhs: BrowserSidebarSplitGroupRow, rhs: BrowserSidebarSplitGroupRow) -> Bool {
+    static func == (lhs: BrowserSidebarSplitGroupRow, rhs: BrowserSidebarSplitGroupRow) -> Bool {
         lhs.groupID == rhs.groupID && lhs.members.elementsEqual(rhs.members, by: ===) && lhs.context == rhs.context
             && lhs.followingTabID == rhs.followingTabID
     }

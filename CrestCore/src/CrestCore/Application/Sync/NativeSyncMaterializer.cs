@@ -3,223 +3,176 @@ using System.Text.Json.Nodes;
 using CrestCore.Contracts;
 using CrestCore.Domain;
 
-using static CrestCore.Application.NativeSyncProjection;
-
 namespace CrestCore.Application;
 
-/// Converts shared records into the native session document. Device credentials
-/// and engine-local pages come only from the receiving device's checkpoint.
+/// Shared records become a typed session. Credentials, native pages and image
+/// choices come only from this device; encoding stays at the journal boundary.
 public static class NativeSyncMaterializer {
     #region Actions - Materialization
 
-    private static Guid? OptionalId(JsonNode? node) => node is null ? null : Id(node);
+    public static JsonObject Materialize(JsonObject session, JsonNode preferences, IReadOnlyList<JsonObject> records, double now,
+        SpaceAccessAuthority? access = null) => StoredSessionCodec.Encode(Materialize(StoredSessionCodec.DecodeSession(session),
+            NativeSyncProjection.Preferences(preferences), records.Select(SyncSessionRecord.Read).ToArray(), StoredSessionCodec.Date(now), access));
 
-    private static JsonObject SwiftId(Guid id) => new() { ["rawValue"] = id.ToString("D") };
+    internal static SessionState Materialize(SessionState session, SyncPreferences policy, IReadOnlyList<SyncSessionRecord> records,
+        DateTimeOffset now, SpaceAccessAuthority? access) {
+        var owners = records.Where(record => record.Kind == SyncRecordKind.Folder).ToDictionary(record => record.Id, record => record.SpaceId);
+        var deleted = records.Where(record => record.Kind == SyncRecordKind.Folder && record.Tombstone is not null).Select(record => record.Id).ToHashSet();
+        var locals = session.Spaces.ToDictionary(space => space.Id);
+        var pending = session.SpaceDeletions.Select(deletion => deletion.SpaceId).ToHashSet();
+        var brandingIds = records.Where(record => record.Kind == SyncRecordKind.Space && record.SuppliesBranding).Select(record => record.Id).ToHashSet();
+        var spaces = new List<SpaceState>();
+        var profiles = new HashSet<Guid>();
+        foreach (var remote in Payloads<SpacePayload>(records).OrderBy(space => space.OrderToken, StringComparer.Ordinal)
+            .ThenBy(space => space.Id.ToString("D"), StringComparer.Ordinal)) {
+            if (!profiles.Add(remote.ProfileId)) throw Error(SyncRecordFlaw.SharedProfile, remote.ProfileId);
+            locals.TryGetValue(remote.Id, out var local);
+            if (local is not null && local.ProfileId != remote.ProfileId) throw Error(SyncRecordFlaw.ProfileChanged, remote.Id);
+            if (pending.Contains(remote.Id) && local is not null) { spaces.Add(local); continue; }
+            var folders = Folders(remote.Id, records, policy, local, owners, deleted);
+            var tabs = Tabs(remote.Id, records, policy, local, folders, owners, deleted);
+            var archive = Archive(remote.Id, records, policy, local, tabs);
+            var history = History(remote.Id, records, policy, local);
+            var localSplitIds = (local?.Tabs ?? []).Where(tab => !Portable(tab) && tab.SplitGroupId is not null)
+                .Select(tab => tab.SplitGroupId!.Value).ToHashSet();
+            var groups = remote.SplitGroups is { } supplied ? supplied.Select(Group).ToList() : (local?.SplitGroups ?? []).ToList();
+            var groupIds = groups.Select(group => group.Id).ToHashSet();
+            groups.AddRange((local?.SplitGroups ?? []).Where(group => localSplitIds.Contains(group.Id) && !groupIds.Contains(group.Id)));
+            if (tabs.Count == 0) tabs.Add(new(Guid.NewGuid(), TabKind.StartPage.Name, null, null, null, TabKind.StartPage.Symbol,
+                null, null, null, TabPlacement.Current, null, null, now, null, null, null, false));
+            var settings = new SpaceSettings(remote.Name, remote.Symbol, remote.Accent, brandingIds.Contains(remote.Id) ? remote.Branding : null, remote.BrowsingPreferences,
+                local?.Settings.CredentialPreferences ?? StoredSessionCodec.DefaultCredentialPreferences, AccessPolicy(local, remote, access),
+                remote.IsSavedTabsExpanded, remote.SavedTabsExpansionModifiedAt?.Moment);
+            spaces.Add(new(remote.Id, remote.ProfileId, settings, folders, tabs, groups, archive, history));
+        }
+        foreach (var id in pending.Where(id => spaces.All(space => space.Id != id))) {
+            var local = locals[id];
+            if (!profiles.Add(local.ProfileId)) throw Error(SyncRecordFlaw.SharedProfile, local.ProfileId);
+            spaces.Add(local);
+        }
+        return spaces.Count == 0 ? session : session with { Spaces = spaces, DisposableSeedMarker = null };
+    }
 
-    private static JsonArray Array(IEnumerable<JsonNode> items) => new(items.Select(n => n.DeepClone()).ToArray());
+    private static IEnumerable<T> Payloads<T>(IReadOnlyList<SyncSessionRecord> records, Guid? space = null) where T : SyncPayload =>
+        records.Where(record => space is null || record.SpaceId == space).Select(record => record.Payload).OfType<T>();
 
-    private static IEnumerable<JsonNode> Local(JsonNode? space, string section) => space is null ? [] : Items(space, section).Select(n => n!);
+    private static bool Portable(TabState tab) => SyncContentPolicy.IncludesTab(tab.Url, tab.NativeContent is not null,
+        tab.SavedUrl ?? (tab.Placement.IsDurable ? tab.Url : null));
 
-    private static IEnumerable<JsonNode> Ordered(IEnumerable<JsonNode> source) => source
-        .OrderBy(n => Text(n["orderToken"]), StringComparer.Ordinal).ThenBy(n => Id(n["id"]).ToString("D"), StringComparer.Ordinal);
+    private static bool Portable(TabPayload tab) => SyncContentPolicy.IncludesTab(tab.Url?.Text, tab.NativeContent is not null,
+        tab.SavedUrl?.Text ?? (tab.Placement.IsDurable ? tab.Url?.Text : null));
 
-    private static IEnumerable<JsonNode> Payloads(IEnumerable<JsonObject> records, string kind, Guid? space = null)
-        => records.Where(r => Text(r["payload"]?["type"]) == kind && (space is null || Id(r["spaceID"]) == space))
-            .Select(r => r["payload"]!["value"]!);
-
-    private static FolderState Folder(JsonNode node) => new(Id(node["id"]), Placement(node, "location"), Text(node["title"])!,
-        ParentId: OptionalId(node["parentID"]));
-
-    private static Dictionary<Guid, FolderState> LocalFolders(JsonNode? space)
-        => Local(space, StoredSessionCodec.Key.Folders).Select(Folder).ToDictionary(f => f.Id);
+    private static Dictionary<Guid, FolderState> LocalFolders(SpaceState? local) => (local?.Folders ?? []).ToDictionary(folder => folder.Id);
 
     private static SyncRecordsFlawedException Error(SyncRecordFlaw flaw, Guid subject) => new(flaw, subject);
 
-    /// A Space's access policy rides whole-record last-writer-wins: there is no
-    /// modification stamp for it on the wire, and adding one would change the
-    /// record format. Raising protection therefore always applies, and lowering
-    /// it applies only where this device already holds the grant that removing
-    /// protection requires. A rejected remote value simply loses to the local
-    /// record on the next upload, so the two devices still converge.
-    private static JsonNode? AccessPolicy(JsonNode? local, JsonNode remote, SpaceAccessAuthority? access, Guid space, Guid profile) {
-        var incoming = remote["accessPolicy"]?.DeepClone();
-        if (local is null) return incoming;
-        bool Guarded(JsonNode? value) => StoredSessionCodec.DecodeAccessPolicy(value) != SpaceAccessPolicy.Open;
-        if (!Guarded(local["accessPolicy"]) || Guarded(remote["accessPolicy"])) return incoming;
-        var assignment = new SpaceAccessAssignment(space, profile);
-        bool granted = access is not null && !Locked(access, assignment);
-        return granted ? incoming : local["accessPolicy"]!.DeepClone();
-    }
-
-    private static bool Locked(SpaceAccessAuthority access, SpaceAccessAssignment assignment) {
-        lock (access) return access.IsLocked(assignment, true);
-    }
-
-    public static JsonObject Materialize(JsonObject session, JsonNode preferences, IReadOnlyList<JsonObject> records, double now,
-        SpaceAccessAuthority? access = null) {
-        var policy = Preferences(preferences);
-        var owners = records.Where(r => Text(r["id"]?["kind"]) == SyncRecordKind.Folder.Name)
-            .ToDictionary(r => Id(r["id"]!["value"]), r => Id(r["spaceID"]));
-        var deleted = records.Where(r => Text(r["id"]?["kind"]) == SyncRecordKind.Folder.Name && r["tombstone"] is not null)
-            .Select(r => Id(r["id"]!["value"])).ToHashSet();
-        var localSpaces = Items(session, "spaces").ToDictionary(n => Id(n!["id"]), n => n!);
-        var pending = (session["spaceDeletions"] as JsonArray ?? new()).Select(n => Id(n!["spaceID"])).ToHashSet();
-        var spaces = new JsonArray();
-        HashSet<Guid> profiles = [];
-        foreach (var remote in Ordered(Payloads(records, SyncRecordKind.Space.Name))) {
-            var id = Id(remote["id"]); var profile = Id(remote["profileID"]);
-            if (!profiles.Add(profile)) throw Error(SyncRecordFlaw.SharedProfile, profile);
-            localSpaces.TryGetValue(id, out var local);
-            if (local is not null && Id(local["profile"]!["id"]) != profile) throw Error(SyncRecordFlaw.ProfileChanged, id);
-            if (pending.Contains(id) && local is not null) { spaces.Add(local.DeepClone()); continue; }
-            var folders = Folders(id, records, policy, local, owners, deleted);
-            var tabs = Tabs(id, records, policy, local, folders, owners, deleted);
-            var archive = Archive(id, records, policy, local, tabs, now);
-            var history = History(id, records, policy, local);
-            var localSplitIds = Local(local, StoredSessionCodec.Key.Tabs).Where(t => !PortableTab(t) && t["splitGroupID"] is not null)
-                .Select(t => Id(t["splitGroupID"])).ToHashSet();
-            var groups = (remote["splitGroups"] is JsonArray supplied ? supplied.Select(n => n!) : Local(local, "splitGroups")).ToList();
-            var groupIds = groups.Select(g => Id(g["id"])).ToHashSet();
-            groups.AddRange(Local(local, "splitGroups").Where(g => localSplitIds.Contains(Id(g["id"])) && !groupIds.Contains(Id(g["id"]))));
-            if (tabs.Count == 0) tabs.Add(new JsonObject {
-                ["id"] = SwiftId(Guid.NewGuid()),
-                ["title"] = "Start Page",
-                ["symbol"] = "flag.fill",
-                ["placement"] = TabPlacement.Current.Name,
-                ["lastActivatedAt"] = now
-            });
-            var value = Fields(remote, "id", "name", "symbol", "accent", "branding", "browsingPreferences", "accessPolicy",
-                "isSavedTabsExpanded", "savedTabsExpansionModifiedAt");
-            value["profile"] = new JsonObject { ["id"] = remote["profileID"]!.DeepClone() };
-            if (AccessPolicy(local, remote, access, id, profile) is { } accessPolicy) value["accessPolicy"] = accessPolicy;
-            else value.Remove("accessPolicy");
-            value[StoredSessionCodec.Key.Folders] = Array(folders); value[StoredSessionCodec.Key.Tabs] = Array(tabs); value["splitGroups"] = Array(groups);
-            value[StoredSessionCodec.Key.ArchivedTabs] = Array(archive); value[StoredSessionCodec.Key.History] = Array(history);
-            if (local?["credentialPreferences"] is { } credentials) value["credentialPreferences"] = credentials.DeepClone();
-            spaces.Add((JsonNode)value);
+    /// Raising protection always applies. Removing it requires this device's
+    /// grant; the next upload restores the guarded policy when it was refused.
+    private static SpaceAccessPolicy AccessPolicy(SpaceState? local, SpacePayload remote, SpaceAccessAuthority? access) {
+        if (local is null || local.Settings.AccessPolicy == SpaceAccessPolicy.Open || remote.AccessPolicy != SpaceAccessPolicy.Open)
+            return remote.AccessPolicy;
+        if (access is not null) {
+            lock (access) {
+                if (!access.IsLocked(new(remote.Id, remote.ProfileId), true)) return remote.AccessPolicy;
+            }
         }
-        foreach (var id in pending.Where(id => !spaces.Any(s => Id(s!["id"]) == id))) {
-            var local = localSpaces[id];
-            if (!profiles.Add(Id(local["profile"]!["id"]))) throw Error(SyncRecordFlaw.SharedProfile, Id(local["profile"]!["id"]));
-            spaces.Add(local.DeepClone());
-        }
-        var result = session.DeepClone().AsObject();
-        if (spaces.Count == 0) return result;
-        result.Remove("disposableSeedMarker");
-        result["spaces"] = spaces;
-        return result;
+        return local.Settings.AccessPolicy;
     }
 
-    private static List<JsonNode> Folders(Guid space, IReadOnlyList<JsonObject> records, SyncPreferences policy, JsonNode? local,
+    private static SplitGroupState Group(SplitGroupPayload group) => new(group.Id, group.CustomTitle, group.TitleModifiedAt?.Moment,
+        group.CustomIconSymbol, group.IconModifiedAt?.Moment, group.Tint, group.TintModifiedAt?.Moment);
+
+    #endregion
+
+    #region Actions - Folders and tabs
+
+    private static List<FolderState> Folders(Guid space, IReadOnlyList<SyncSessionRecord> records, SyncPreferences policy, SpaceState? local,
         IReadOnlyDictionary<Guid, Guid> owners, HashSet<Guid> deleted) {
-        var synced = Ordered(Payloads(records, SyncRecordKind.Folder.Name, space).Where(f => policy.Includes(Placement(f, "location")))).ToArray();
+        var colorIds = records.Where(record => record.Kind == SyncRecordKind.Folder && record.SuppliesFolderColor).Select(record => record.Id).ToHashSet();
+        var synced = Payloads<FolderPayload>(records, space).Where(folder => policy.Includes(folder.Location))
+            .OrderBy(folder => folder.OrderToken, StringComparer.Ordinal).ThenBy(folder => folder.Id.ToString("D"), StringComparer.Ordinal)
+            .Select(folder => new FolderState(folder.Id, folder.Location, folder.Title, folder.Symbol, colorIds.Contains(folder.Id) ? folder.Color : null, folder.ParentId,
+                folder.IsCollapsed, folder.CollapseModifiedAt?.Moment, folder.OrderAnchorTabId)).ToArray();
         IReadOnlyList<FolderState> resolved;
-        try { resolved = SyncFolderMaterialization.Resolve(space, synced.Select(Folder).ToArray(), owners, LocalFolders(local), deleted); } catch (BrowserRuleException) { throw Error(SyncRecordFlaw.InvalidFolderHierarchy, space); }
-        var byId = synced.ToDictionary(f => Id(f["id"]));
-        var result = resolved.Select(folder => {
-            var value = Fields(byId[folder.Id], "id", "title", "location", "symbol", "color", "isCollapsed", "collapseModifiedAt", "orderAnchorTabID");
-            if (folder.ParentId is { } parent) value["parentID"] = SwiftId(parent);
-            return (JsonNode)value;
-        }).ToList();
-        var included = resolved.Select(f => f.Id).ToHashSet();
-        result.AddRange(Local(local, StoredSessionCodec.Key.Folders).Where(f => !included.Contains(Id(f["id"])) && !policy.Includes(Placement(f, "location"))));
-        return result;
+        try { resolved = SyncFolderMaterialization.Resolve(space, synced, owners, LocalFolders(local), deleted); } catch (BrowserRuleException) { throw Error(SyncRecordFlaw.InvalidFolderHierarchy, space); }
+        var included = resolved.Select(folder => folder.Id).ToHashSet();
+        return [.. resolved, .. (local?.Folders ?? []).Where(folder => !included.Contains(folder.Id) && !policy.Includes(folder.Location))];
     }
 
-    private static JsonObject Tab(JsonNode remote, JsonNode? local, bool archived = false) {
-        var value = Fields(remote, "id", "title", "url", "nativeContent", "symbol", "lastActivatedAt", "positionModifiedAt",
-            "customTitle", "titleModifiedAt", "keepsPageLoaded");
-        value["placement"] = archived ? JsonValue.Create(TabPlacement.Current.Name) : remote["placement"]!.DeepClone();
-        if (!archived) {
-            if (Placement(remote).IsDurable && SavedUrl(remote) is { } saved) value["savedURL"] = saved;
-            value["splitGroupID"] = remote["splitGroupID"]?.DeepClone();
-        }
-        if (local is not null)
-            foreach (string field in new[] { "faviconURL", "iconAccent", "storedIconMode" })
-                if (local[field] is { } asset) value[field] = asset.DeepClone();
-        return value;
-    }
+    private static TabState Tab(TabPayload remote, TabState? local, bool archived = false) => new(remote.Id, remote.Title,
+        remote.Url is { } url ? url.Spelled ?? url.Text : null, remote.NativeContent,
+        !archived && remote.Placement.IsDurable ? remote.SavedUrl?.Spelled ?? remote.SavedUrl?.Text ?? remote.Url?.Spelled ?? remote.Url?.Text : null,
+        remote.Symbol, local?.FaviconUrl, local?.IconAccent, local?.StoredIconMode, archived ? TabPlacement.Current : remote.Placement,
+        null, archived ? null : remote.SplitGroupId, remote.LastActivatedAt.Moment, remote.PositionModifiedAt?.Moment,
+        remote.CustomTitle, remote.TitleModifiedAt?.Moment, remote.KeepsPageLoaded);
 
-    private static List<JsonNode> Tabs(Guid space, IReadOnlyList<JsonObject> records, SyncPreferences policy, JsonNode? local,
-        IReadOnlyList<JsonNode> folders, IReadOnlyDictionary<Guid, Guid> owners, HashSet<Guid> deleted) {
-        var locals = Local(local, StoredSessionCodec.Key.Tabs).ToArray();
-        var localOnly = locals.Select((tab, index) => (tab, index)).Where(t => !PortableTab(t.tab)).ToArray();
-        var localOnlyIds = localOnly.Select(t => Id(t.tab["id"]))
-            .Concat(Local(local, StoredSessionCodec.Key.ArchivedTabs).Where(a => !PortableTab(a["tab"]!)).Select(a => Id(a["tab"]!["id"]))).ToHashSet();
-        var synced = Ordered(Payloads(records, SyncRecordKind.Tab.Name, space)
-                .Where(t => PortableTab(t) && !localOnlyIds.Contains(Id(t["id"])) && policy.Includes(Placement(t))))
-            .OrderBy(t => Placement(t).Rank).ToArray();
-        var syncedIds = synced.Select(t => Id(t["id"])).ToHashSet();
-        var result = locals.Where(t => PortableTab(t) && !policy.Includes(Placement(t)) && !syncedIds.Contains(Id(t["id"]))).ToList();
-        var byId = locals.ToDictionary(t => Id(t["id"]));
-        var folderIds = folders.Select(f => Id(f["id"])).ToHashSet();
+    private static List<TabState> Tabs(Guid space, IReadOnlyList<SyncSessionRecord> records, SyncPreferences policy, SpaceState? local,
+        IReadOnlyList<FolderState> folders, IReadOnlyDictionary<Guid, Guid> owners, HashSet<Guid> deleted) {
+        var locals = local?.Tabs ?? [];
+        var localOnly = locals.Select((tab, index) => (tab, index)).Where(item => !Portable(item.tab)).ToArray();
+        var localOnlyIds = localOnly.Select(item => item.tab.Id).Concat((local?.ArchivedTabs ?? [])
+            .Where(archived => !Portable(archived.Tab)).Select(archived => archived.Tab.Id)).ToHashSet();
+        var synced = Payloads<TabPayload>(records, space).Where(tab => Portable(tab) && !localOnlyIds.Contains(tab.Id) && policy.Includes(tab.Placement))
+            .OrderBy(tab => tab.OrderToken, StringComparer.Ordinal).ThenBy(tab => tab.Id.ToString("D"), StringComparer.Ordinal)
+            .OrderBy(tab => tab.Placement.Rank).ToArray();
+        var syncedIds = synced.Select(tab => tab.Id).ToHashSet();
+        var result = locals.Where(tab => Portable(tab) && !policy.Includes(tab.Placement) && !syncedIds.Contains(tab.Id)).ToList();
+        var byId = locals.ToDictionary(tab => tab.Id);
+        var folderIds = folders.Select(folder => folder.Id).ToHashSet();
         var localFolders = LocalFolders(local);
-        foreach (var tab in synced) {
-            Guid? folder = OptionalId(tab["folderID"]);
-            if (Placement(tab).HoldsFolders && folder is { } missing && !folderIds.Contains(missing)) {
-                if (owners.TryGetValue(missing, out var owner) && owner != space) throw Error(SyncRecordFlaw.DanglingFolder, Id(tab["id"]));
+        foreach (var remote in synced) {
+            var folder = remote.FolderId;
+            if (remote.Placement.HoldsFolders && folder is { } missing && !folderIds.Contains(missing)) {
+                if (owners.TryGetValue(missing, out var owner) && owner != space) throw Error(SyncRecordFlaw.DanglingFolder, remote.Id);
                 if (!SyncFolderMaterialization.TryPromote(missing, folderIds, localFolders, deleted, out folder)) continue;
             }
-            var value = Tab(tab, byId.GetValueOrDefault(Id(tab["id"])));
-            if (Placement(tab).HoldsFolders && folder is { } resolved) value["folderID"] = SwiftId(resolved);
-            result.Add(value);
+            result.Add(Tab(remote, byId.GetValueOrDefault(remote.Id)) with { FolderId = remote.Placement.HoldsFolders ? folder : null });
         }
-        if (!TabPlacement.All.All(placement => placement.Holds(result.Count(t => Placement(t) == placement)))) throw Error(SyncRecordFlaw.TooManyPinnedTabs, space);
+        if (!TabPlacement.All.All(placement => placement.Holds(result.Count(tab => tab.Placement == placement))))
+            throw Error(SyncRecordFlaw.TooManyPinnedTabs, space);
         foreach (var (tab, index) in localOnly) result.Insert(Math.Min(index, result.Count), tab);
         return result;
     }
 
-    private static List<JsonNode> Archive(Guid space, IReadOnlyList<JsonObject> records, SyncPreferences policy, JsonNode? local,
-        IReadOnlyList<JsonNode> tabs, double now) {
-        if (!policy.HistoryAndArchive) return Local(local, StoredSessionCodec.Key.ArchivedTabs).ToList();
-        var active = tabs.Select(t => Id(t["id"])).ToHashSet();
-        var byId = Local(local, StoredSessionCodec.Key.ArchivedTabs).ToDictionary(a => Id(a["tab"]!["id"]));
-        var localOnly = byId.Values.Where(a => !PortableTab(a["tab"]!) && !active.Contains(Id(a["tab"]!["id"]))).ToArray();
-        var localOnlyIds = localOnly.Select(a => Id(a["tab"]!["id"])).ToHashSet();
-        var remote = Payloads(records, SyncRecordKind.Archive.Name, space).Where(a => PortableTab(a["tab"]!)
-            && !localOnlyIds.Contains(Id(a["tab"]!["id"])) && !active.Contains(Id(a["tab"]!["id"])))
-            .OrderBy(a => Text(a["tab"]!["orderToken"]), StringComparer.Ordinal)
-            .ThenBy(a => Id(a["tab"]!["id"]).ToString("D"), StringComparer.Ordinal);
-        List<JsonNode> result = [];
-        foreach (var archive in remote) {
-            byId.TryGetValue(Id(archive["tab"]!["id"]), out var previous);
-            var value = new JsonObject {
-                ["tab"] = Tab(archive["tab"]!, previous?["tab"], archived: true),
-                ["archivedAt"] = archive["archivedAt"]!.DeepClone()
-            };
-            if (previous is not null) {
-                value["reason"] = previous["reason"]!.DeepClone(); value["deletionOrigin"] = previous["deletionOrigin"]?.DeepClone();
-            } else {
-                var received = ArchiveReason.Received(ArchiveReason.Named(Text(archive["reason"]))?.IsExplicitDeletion == true);
-                value["reason"] = received.StoredReason;
-                if (received.DeletionOrigin is { } origin) value["deletionOrigin"] = origin;
-            }
-            result.Add(value);
+    #endregion
+
+    #region Actions - Archive and history
+
+    private static List<ArchivedTabState> Archive(Guid space, IReadOnlyList<SyncSessionRecord> records, SyncPreferences policy, SpaceState? local,
+        IReadOnlyList<TabState> tabs) {
+        if (!policy.HistoryAndArchive) return [.. local?.ArchivedTabs ?? []];
+        var active = tabs.Select(tab => tab.Id).ToHashSet();
+        var byId = (local?.ArchivedTabs ?? []).ToDictionary(archived => archived.Tab.Id);
+        var localOnly = byId.Values.Where(archived => !Portable(archived.Tab) && !active.Contains(archived.Tab.Id)).ToArray();
+        var localOnlyIds = localOnly.Select(archived => archived.Tab.Id).ToHashSet();
+        var remote = Payloads<ArchivePayload>(records, space).Where(archived => Portable(archived.Tab)
+            && !localOnlyIds.Contains(archived.Tab.Id) && !active.Contains(archived.Tab.Id))
+            .OrderBy(archived => archived.Tab.OrderToken, StringComparer.Ordinal).ThenBy(archived => archived.Id.ToString("D"), StringComparer.Ordinal);
+        var result = remote.Select(archived => {
+            byId.TryGetValue(archived.Id, out var previous);
+            return new ArchivedTabState(Tab(archived.Tab, previous?.Tab, archived: true), archived.ArchivedAt.Moment,
+                previous?.Reason ?? ArchiveReason.Received(archived.Reason.IsExplicitDeletion));
+        }).ToList();
+        var projected = result.Select(archived => archived.Tab.Id).ToHashSet();
+        var localTabs = (local?.Tabs ?? []).Where(Portable).ToDictionary(tab => tab.Id);
+        foreach (var record in records.Where(record => record.Kind == SyncRecordKind.Tab && record.SpaceId == space
+            && record.Tombstone?.Reason.IsExplicit == true)) {
+            if (projected.Contains(record.Id) || !localTabs.TryGetValue(record.Id, out var tab)) continue;
+            result.Add(new(tab with { Placement = TabPlacement.Current, FolderId = null, SavedUrl = null, SplitGroupId = null },
+                record.Tombstone!.DeletedAt.Moment, ArchiveReason.Received(explicitDeletion: true)));
         }
-        var projected = result.Select(a => Id(a["tab"]!["id"])).ToHashSet();
-        var localTabs = Local(local, StoredSessionCodec.Key.Tabs).Where(PortableTab).ToDictionary(t => Id(t["id"]));
-        foreach (var record in records.Where(r => Text(r["id"]?["kind"]) == SyncRecordKind.Tab.Name && Id(r["spaceID"]) == space
-            && SyncDeletionReason.Named(Text(r["tombstone"]?["reason"]))?.IsExplicit == true)) {
-            var id = Id(record["id"]!["value"]);
-            if (projected.Contains(id) || !localTabs.TryGetValue(id, out var tab)) continue;
-            result.Add(new JsonObject {
-                ["tab"] = Tab(tab, tab, archived: true),
-                ["reason"] = ArchiveReason.Received(explicitDeletion: true).StoredReason,
-                ["deletionOrigin"] = ArchiveReason.Received(explicitDeletion: true).DeletionOrigin,
-                ["archivedAt"] = record["tombstone"]?["deletedAt"]?.DeepClone() ?? JsonValue.Create(now)
-            });
-        }
-        return result.Concat(localOnly).OrderByDescending(a => SyncJson.Double(a["archivedAt"]!)).ToList();
+        return [.. result.Concat(localOnly).OrderByDescending(archived => archived.ArchivedAt)];
     }
 
-    private static List<JsonNode> History(Guid space, IReadOnlyList<JsonObject> records, SyncPreferences policy, JsonNode? local) {
-        if (!policy.HistoryAndArchive) return Local(local, StoredSessionCodec.Key.History).ToList();
-        var localOnly = Local(local, StoredSessionCodec.Key.History).Where(h => !SyncContentPolicy.Includes(Text(h["url"]))).ToArray();
-        var localIds = localOnly.Select(h => Id(h["id"])).ToHashSet();
-        var synced = Payloads(records, SyncRecordKind.History.Name, space).Where(h => SyncContentPolicy.Includes(Text(h["url"])) && !localIds.Contains(Id(h["id"])))
-            .OrderByDescending(h => SyncJson.Double(h["lastVisitedAt"]!)).ThenBy(h => Id(h["id"]).ToString("D"), StringComparer.Ordinal)
-            .Take(HistoryPolicy.MaximumEntries).Select(h => (JsonNode)Fields(h, "id", "url", "title", "firstVisitedAt", "lastVisitedAt", "visitCount"));
-        return synced.Concat(localOnly).OrderByDescending(h => SyncJson.Double(h["lastVisitedAt"]!)).ToList();
+    private static List<HistoryEntryState> History(Guid space, IReadOnlyList<SyncSessionRecord> records, SyncPreferences policy, SpaceState? local) {
+        if (!policy.HistoryAndArchive) return [.. local?.History ?? []];
+        var localOnly = (local?.History ?? []).Where(entry => !SyncContentPolicy.Includes(entry.Url)).ToArray();
+        var localIds = localOnly.Select(entry => entry.Id).ToHashSet();
+        var synced = Payloads<HistoryPayload>(records, space).Where(entry => SyncContentPolicy.Includes(entry.Url.Text) && !localIds.Contains(entry.Id))
+            .OrderByDescending(entry => entry.LastVisitedAt.ReferenceSeconds).ThenBy(entry => entry.Id.ToString("D"), StringComparer.Ordinal)
+            .Take(HistoryPolicy.MaximumEntries).Select(entry => new HistoryEntryState(entry.Id, entry.Url.Spelled ?? entry.Url.Text, entry.Title,
+                entry.FirstVisitedAt.Moment, entry.LastVisitedAt.Moment, checked((int)entry.VisitCount)));
+        return [.. synced.Concat(localOnly).OrderByDescending(entry => entry.LastVisitedAt)];
     }
 
     #endregion

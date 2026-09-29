@@ -7,6 +7,16 @@ namespace CrestCore.Contracts;
 /// folder or section is collapsed.
 /// </summary>
 public sealed record SidebarList(TabPlacement Section, Guid? FolderId, IReadOnlyList<SidebarRow> Rows) {
+    #region Variables
+
+    /// Collections are owned when constructed or replaced on a copy.
+    public IReadOnlyList<SidebarRow> Rows {
+        get;
+        init => field = [.. value];
+    } = [.. Rows];
+
+    #endregion
+
     #region Actions - Equality
 
     public bool Equals(SidebarList? other) => other is not null

@@ -3,7 +3,7 @@ run-name: Chromium ${{ inputs.operation || 'check' }}
 
 on:
   push:
-    branches: [chromium-control-plane]
+    branches: [main]
     paths: [.github/workflows/chromium.yml]
   schedule:
     - cron: '41 */6 * * *'
@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ vars.CHROMIUM_INTEGRATION_BRANCH || 'chromium-control-plane' }}
+          ref: main
           persist-credentials: false
       - name: Resolve the trusted integration branch and upstream release
         id: plan
@@ -175,7 +175,7 @@ jobs:
       pull-requests: write
       actions: write
     steps:
-      - name: Merge the verified update and publish it to experimental
+      - name: Merge the verified update and publish it to Development
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -202,10 +202,9 @@ jobs:
           policy = json.loads(base64.b64decode(content['content']))
           default = json.loads(gh('api', f'repos/{repo}'))['default_branch']
           branch = policy['integrationBranch']
-          if policy['automaticChannel'] != 'experimental' or branch == default:
-              raise SystemExit('Automatic publication is only supported for the experimental branch')
+          if policy['automaticChannel'] != 'development' or branch != default:
+              raise SystemExit('Automatic publication requires Development on the default branch')
           # Dispatch explicitly because GITHUB_TOKEN pushes do not trigger workflows.
-          # The release preflight refuses a branch that moved after this merge.
-          gh('workflow', 'run', 'experimental-release.yml', '--ref', branch,
-             '-f', f'source_ref={branch}', '-f', f'expected_sha={sha}')
+          # Publish trusted main, including any newer merges that arrived meanwhile.
+          gh('workflow', 'run', 'release.yml', '--ref', branch, '-f', 'channel=development')
           PY

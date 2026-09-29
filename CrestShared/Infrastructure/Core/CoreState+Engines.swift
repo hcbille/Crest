@@ -6,6 +6,8 @@ extension CoreState {
     /// Whether the device offers `capability` anywhere a person can find a
     /// feature, such as a menu or a settings page: the default engine or an
     /// engine a page is open on supports it, or no engine has registered yet.
+    /// Extension management remains available for an installed engine even
+    /// before it starts; opening that feature explicitly starts its runtime.
     /// Whether a page can use it is its own engine's answer.
     func offers(_ capability: EngineCapability) -> Bool {
         engines?.offered.contains(capability) ?? true

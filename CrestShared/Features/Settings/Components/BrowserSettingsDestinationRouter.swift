@@ -43,6 +43,10 @@ struct BrowserSettingsDestinationRouter: View {
         switch destination.kind {
         case .general:
             BrowserGeneralSettingsPane(browser: browser, spaceAccess: spaceAccess)
+        case .engines:
+            #if os(macOS)
+                BrowserEngineSettingsPane(core: browser.core)
+            #endif
         case .lookAndFeel:
             BrowserLookAndFeelSettingsPane(space: browser.shownSpace.map(BrowserSpaceAppearance.init(space:)))
         case .links:

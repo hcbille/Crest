@@ -120,6 +120,7 @@ enum Change: Equatable, Sendable {
     case downloadStarted(DownloadStarted)
     case downloadUpdated(DownloadUpdated)
     case downloadsRemoved(DownloadsRemoved)
+    case enginePreferencesChanged(EnginePreferencesChanged)
     case enginesChanged(EnginesChanged)
     case extensionInstallAsked(ExtensionInstallAsked)
     case foldersChanged(FoldersChanged)
@@ -495,6 +496,7 @@ extension Change {
         case .downloadStarted(let change): change.apply(to: state)
         case .downloadUpdated(let change): change.apply(to: state)
         case .downloadsRemoved(let change): change.apply(to: state)
+        case .enginePreferencesChanged(let change): change.apply(to: state)
         case .enginesChanged(let change): change.apply(to: state)
         case .extensionInstallAsked(let change): change.apply(to: state)
         case .foldersChanged(let change): change.apply(to: state)
@@ -1972,6 +1974,12 @@ struct DuplicateTabs: Intent, SessionIntent, Equatable, Sendable {
     let selection: TabSelection
 }
 
+struct EditEngineRule: Intent, Equatable, Sendable {
+    let previousOrigin: SiteOrigin?
+    let origin: SiteOrigin
+    let engine: EngineKind
+}
+
 struct EditLinkRoute: Intent, LinkIntent, Equatable, Sendable {
     static let maximumPatternLength: Int = 2048
 
@@ -2029,6 +2037,15 @@ struct EngineLacksCapability: Equatable, Sendable {
 }
 
 struct EngineNotRegistered: Equatable, Sendable {
+}
+
+struct EnginePreferences: Equatable, Sendable {
+    let defaultEngine: EngineKind?
+    let rules: [SiteEngineRule]
+}
+
+struct EnginePreferencesChanged: Equatable, Sendable {
+    let preferences: EnginePreferences
 }
 
 struct EngineRegistration: Equatable, Sendable {
@@ -2438,6 +2455,15 @@ struct FoldersChanged: Equatable, Sendable {
 
 struct ForgetCloudZone: Intent, CloudTransportIntent, Equatable, Sendable {
     let loss: CloudZoneLoss
+}
+
+struct ForgetEngineRule: Intent, Equatable, Sendable {
+    let origin: SiteOrigin
+}
+
+struct GetEnginePreferences: Query, Equatable, Sendable {
+    typealias Answer = EnginePreferences
+
 }
 
 struct GoToHistoryOffset: PageRequest, Equatable, Sendable {
@@ -4389,6 +4415,10 @@ struct SecureOriginVerdict: Equatable, Sendable {
     let allowed: Bool
 }
 
+struct SelectDefaultEngine: Intent, Equatable, Sendable {
+    let engine: EngineKind?
+}
+
 struct SelectSearchEngine: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -4875,6 +4905,11 @@ struct SiteDecision: Query, Equatable, Sendable {
     let origin: SiteOrigin
     let permission: SitePermission
     let detail: String?
+}
+
+struct SiteEngineRule: Equatable, Sendable {
+    let origin: SiteOrigin
+    let engine: EngineKind
 }
 
 struct SiteOrigin: Hashable, Sendable {
@@ -6236,6 +6271,7 @@ enum EngineDownloadWarning: Int, CaseIterable, Sendable {
 
 enum EngineMark: Int, CaseIterable, Sendable {
     case stackedTile = 0
+    case globe = 1
 }
 
 enum ExtensionChange: Int, CaseIterable, Sendable {
@@ -8216,7 +8252,7 @@ struct EngineKind: Hashable, Sendable {
         tag: 0,
         name: "chromium",
         title: LocalizedStringResource("Chromium", comment: "The name of a browser engine. Keep the product name as it is."),
-        mark: nil,
+        mark: .globe,
         pageDescription: LocalizedStringResource("Runs in Chromium", comment: "Said of a tab whose page runs in this browser engine rather than the default one. Keep the product name as it is.")
     )
     static let webKit = EngineKind(

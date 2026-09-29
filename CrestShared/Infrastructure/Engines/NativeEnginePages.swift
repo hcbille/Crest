@@ -10,11 +10,14 @@ import Foundation
 final class NativeEnginePages: EnginePages {
     // MARK: - Variables
 
-    private let table: crest_engine_pages_t
+    private var table: crest_engine_pages_t?
+    private var startingRequests: [[UInt8]] = []
+    private var start: (@MainActor () -> Void)?
     /// Hears each presentation the binding sends.
     private let present: @MainActor (EnginePresentation) -> Void
     /// The pages that hear the presentations about them.
     private var attached = AttachedEnginePages()
+    var isReady: Bool { table != nil }
 
     // MARK: - Initializers
 
@@ -22,12 +25,39 @@ final class NativeEnginePages: EnginePages {
     /// presentations to `present` from now on; this object must outlive the
     /// binding, as the composition that owns it does.
     init(table: crest_engine_pages_t, present: @escaping @MainActor (EnginePresentation) -> Void) {
-        self.table = table
         self.present = present
+        bind(table)
+    }
+
+    /// A registered engine can start after its first page is requested. View
+    /// actions made while that runtime starts are replayed once it is ready.
+    init(start: @escaping @MainActor () -> Void, present: @escaping @MainActor (EnginePresentation) -> Void) {
+        self.start = start
+        self.present = present
+    }
+
+    func bind(_ table: crest_engine_pages_t) {
+        precondition(self.table == nil, "An engine's page binding attaches once per launch.")
+        self.table = table
+        start = nil
         guard let presentTo = table.present_to else {
             preconditionFailure("The engine binding has no way to present. Rebuild the engine.")
         }
         presentTo(table.context, receiveEnginePresentation, Unmanaged.passUnretained(self).toOpaque())
+    }
+
+    /// Called after the engine's queued create commands, so watches and view
+    /// actions find the pages those commands created.
+    func replayStartingRequests() {
+        guard let table, let send = table.request, let release = table.release else { return }
+        let requests = startingRequests
+        startingRequests = []
+        for bytes in requests {
+            var answer = crest_buffer_t()
+            let status = bytes.withUnsafeBufferPointer { send(table.context, $0.baseAddress, $0.count, &answer) }
+            release(table.context, &answer)
+            precondition(status == CREST_OK, "The engine could not decode a queued page request.")
+        }
     }
 
     // MARK: - Actions - Requests
@@ -35,11 +65,22 @@ final class NativeEnginePages: EnginePages {
     /// Asks the binding for `request` and answers what it answered.
     @discardableResult
     func request<Request: PageRequest>(_ request: Request) -> Request.Answer {
+        var writer = WireWriter()
+        request.encodePageRequest(into: &writer)
+        guard let table else {
+            // A page being created only watches its view and sets its zoom.
+            // Those Boolean actions can wait; queries require a ready page.
+            precondition(Request.Answer.self == Bool.self, "\(type(of: request)) requires a ready engine.")
+            startingRequests.append(writer.bytes)
+            start?()
+            var reader = WireReader([0])
+            do { return try Request.decodeAnswer(from: &reader) } catch {
+                preconditionFailure("A Boolean page action has an invalid answer codec.")
+            }
+        }
         guard let send = table.request, let release = table.release else {
             preconditionFailure("The engine binding takes no requests. Rebuild the engine.")
         }
-        var writer = WireWriter()
-        request.encodePageRequest(into: &writer)
         var answer = crest_buffer_t()
         let status = writer.bytes.withUnsafeBufferPointer { bytes in
             send(table.context, bytes.baseAddress, bytes.count, &answer)

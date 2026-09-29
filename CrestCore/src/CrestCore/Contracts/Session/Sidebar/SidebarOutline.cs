@@ -29,6 +29,16 @@ public sealed record SidebarOutline(IReadOnlyList<SidebarList> Lists) {
 
     #endregion
 
+    #region Variables
+
+    /// Collections are owned when constructed or replaced on a copy.
+    public IReadOnlyList<SidebarList> Lists {
+        get;
+        init => field = [.. value];
+    } = [.. Lists];
+
+    #endregion
+
     #region Actions - Building
 
     /// <summary>The outline a Space with these tabs and folders shows.</summary>

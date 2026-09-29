@@ -481,7 +481,7 @@ host restores its core-managed Spaces directly, without Chrome's profile picker.
 
 ## Releasing
 
-The experimental release checks for the engine matching its selected commit.
+Desktop releases check for the engine matching their selected commit.
 If missing, `Ensure Chromium engine` builds it on the registered Apple Silicon
 Mac. `Maintain Chromium fork` can also build engines and upstream update PRs.
 App signing jobs download the published engine and build Crest's UI.
@@ -499,14 +499,24 @@ It refuses to publish unless the checkout holds this branch's patch output,
 overlay, and contract headers, uses the pinned performance configuration, and
 the build has nothing left to do. It uploads the zipped `Chromium.app`, checksum,
 and provenance into a draft, then publishes `chromium-engine-<key>` only when all
-uploads succeed. Published artifacts are never overwritten. The experimental
-release workflow downloads the engine matching its branch, builds the native
+uploads succeed. Published artifacts are never overwritten. The release
+workflows download the engine matching their commit, build the native
 core and `CrestChromiumUIProduct`, and packages the product with
 `package-chromium-host.py --product --distribution`: every executable, library
 and bundle is signed innermost first with the hardened runtime and a secure
 timestamp, the renderer and GPU helpers keep Chromium's JIT entitlement, and
 the app receives Crest's resolved entitlements, taken from the notarized
 WebKit export built in the same run, over Chromium's device entitlements. The
-workflow then notarizes the app and its disk image. The Chromium build is the default download on `appcast-experimental.xml`; the
-WebKit build is published beside it as an alternate on
-`appcast-experimental-webkit.xml`, and each follows only its own feed.
+workflows then notarize the app and its disk image. The dual-engine Chromium
+build is the default desktop download; WebKit is published beside it as an
+alternate. Each installed product follows its own feed, regardless of the
+engine chosen for pages.
+
+The final experimental publication remains on `appcast-experimental.xml` and
+`appcast-experimental-webkit.xml`, but bundles Development as the default update
+channel. On first launch after that install, Crest adopts Development once;
+subsequent user channel choices remain respected. Keep those final experimental
+feeds available so installations that update later can still make the transition.
+Development build numbers exceed every published channel and both products.
+Merging a PR into main dispatches the development release. Chromium maintenance
+also targets main and publishes verified engine updates to Development.

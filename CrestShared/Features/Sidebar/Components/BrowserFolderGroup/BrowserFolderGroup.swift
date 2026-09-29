@@ -353,10 +353,10 @@ struct BrowserFolderGroup: View {
     }
 }
 
-extension BrowserFolderGroup: Equatable {
+extension BrowserFolderGroup: @MainActor Equatable {
     /// Groups are equal when they stand for the same folder in the same place,
     /// as SwiftUI compares a view's inputs: a list that redraws leaves them be.
-    nonisolated static func == (lhs: BrowserFolderGroup, rhs: BrowserFolderGroup) -> Bool {
+    static func == (lhs: BrowserFolderGroup, rhs: BrowserFolderGroup) -> Bool {
         lhs.folder === rhs.folder && lhs.depth == rhs.depth && lhs.context == rhs.context
     }
 }

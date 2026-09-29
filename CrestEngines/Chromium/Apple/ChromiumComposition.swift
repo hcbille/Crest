@@ -2,11 +2,10 @@
     import AppKit
     import CrestCoreABI
 
-    /// Crest over Chromium. Chromium owns the process and its `AppController`;
-    /// Crest's shared Mac shell owns every window, the menu bar, shortcuts,
-    /// launch, reopen, outside opens and quit. This builds the engine and the
-    /// application the shell runs, and keeps what only the Chromium adapter
-    /// reads.
+    /// Crest's native application with a deferred Chromium runtime. Its shared
+    /// Mac shell owns windows, menus, launch, outside opens and quit. Chromium
+    /// starts its browser services and event pump when first needed and stays
+    /// loaded until quit, attached to the application's existing core.
     @MainActor
     enum ChromiumComposition {
         // MARK: - Static Variables
@@ -18,6 +17,8 @@
         private(set) static var engineHost: (any CrestMacShell)?
         /// Chromium, the default engine, once the launch built the application.
         private(set) static var chromiumEngine: ChromiumEngine?
+        private(set) static var runtime: ChromiumRuntime?
+        private static var applicationDelegate: ChromiumApplicationDelegate?
         /// Where an earlier release listed the windows open at quit, before the
         /// core kept them.
         private static let legacyWindowListKey = "crest.chromium.windows.v1"
@@ -31,6 +32,11 @@
             host: any CrestMacShell, binding: crest_engine_binding_t, fingerprint: [UInt8],
             pages: crest_engine_pages_t
         ) {
+            if let runtime {
+                engineHost = host
+                runtime.bind(host: host, binding: binding, fingerprint: fingerprint, pages: pages)
+                return
+            }
             guard shell == nil else { return }
             // The Dock plug-in runs outside the browser process, including after
             // quit. App artwork uses the isolated app's domain, not an
@@ -54,6 +60,41 @@
                     reviewPersistenceID: "chromium-native-ui-review")
                 chromium.follow(application.browser.core)
                 chromiumEngine = chromium
+                adoptLegacyWindowList(into: application)
+                return application
+            }
+        }
+
+        /// Starts AppKit without loading Chromium's framework. The launcher
+        /// enters Chromium only after this loop exits for its first command.
+        static func runNative() -> Int32 {
+            UserDefaults.standard.register(defaults: ["ApplePersistenceIgnoreState": true])
+            let application = ChromiumApplication.shared
+            let delegate = ChromiumApplicationDelegate()
+            applicationDelegate = delegate
+            application.delegate = delegate
+            application.run()
+            return runtime?.startRequested == true ? 1 : 0
+        }
+
+        static func startNative() {
+            guard shell == nil else { return }
+            BrowserMacDockTile.shared.defaults = .standard
+            let runtime = ChromiumRuntime()
+            self.runtime = runtime
+            let shell = BrowserMacShell(engineHost: ChromiumRuntimeShell())
+            self.shell = shell
+            shell.start {
+                let application = try BrowserMacApplication(
+                    defaultEngine: runtime,
+                    siteControlAnchor: BrowserSiteControlAnchor {
+                        let anchor = BrowserExtensionPopupAnchorView()
+                        anchor.site = .menu
+                        return anchor
+                    },
+                    reviewPersistenceID: "chromium-native-ui-review")
+                runtime.engine.follow(application.browser.core)
+                chromiumEngine = runtime.engine
                 adoptLegacyWindowList(into: application)
                 return application
             }

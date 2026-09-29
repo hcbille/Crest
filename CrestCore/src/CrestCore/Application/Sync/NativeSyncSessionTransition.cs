@@ -8,74 +8,83 @@ namespace CrestCore.Application;
 /// Prepares the session and journal together. Local edits stage before incoming
 /// records; repair and retention finish before either resulting value is returned.
 /// Publication and durable storage must accept this pair together.
-public sealed record NativeSyncSessionTransition(NativeSyncJournal Journal, JsonObject Materialization) {
-    #region Actions - Sync
+public sealed record NativeSyncSessionTransition {
+    #region Variables
 
-    /// The journal and repaired session that merging `incoming`, records in the
-    /// journal's form, into `local`, a whole session in the stored format, or
-    /// replacing it with them, make at `now` in seconds since 2001 under the
-    /// journal's sync categories. A merge first stages `local`, deleting each
-    /// record the edits it covers removed for the reason `removals` names for
-    /// it, else as superseded. `emptySpace` is the Space a session left with
-    /// none takes, and `ids` gives repaired records new identities.
-    internal static NativeSyncSessionTransition Prepare(NativeSyncJournal journal, JsonObject local, JsonArray incoming,
-        bool replacing, double now, JsonObject? emptySpace, SpaceAccessAuthority? access, IIdSource? ids,
-        IReadOnlyDictionary<string, SyncDeletionReason>? removals = null) {
-        if (!double.IsFinite(now)) throw new BrowserRuleException(BrowserRuleCodes.InvalidSavedDate);
-        var preferences = journal.Preferences;
-        var next = journal;
-        if (!replacing && local["disposableSeedMarker"] is null)
-            next = next.Stage(local.DeepClone().AsObject(), SyncDeletionReason.Superseded, now, removals);
-        next = replacing ? next.Replace(incoming) : next.Merge(incoming);
-        // Only an accepted explicit Space tombstone authorizes deleting this
-        // device's profile. Missing records, tab deletion and retention do not.
-        local = local.DeepClone().AsObject();
-        var pendingIds = (local["spaceDeletions"] as JsonArray ?? new())
-            .Select(n => NativeSessionAuthority.Id(n!["spaceID"])).ToHashSet();
-        foreach (var record in next.Records.Where(r => r!["id"]?["kind"]?.GetValue<string>() == SyncRecordKind.Space.Name
-            && SyncDeletionReason.Named(r["tombstone"]?["reason"]?.GetValue<string>())?.IsExplicit == true)) {
-            var id = NativeSessionAuthority.Id(record!["id"]!["value"]);
-            var space = local["spaces"]!.AsArray().FirstOrDefault(s => NativeSessionAuthority.Id(s!["id"]) == id);
-            if (space is null || !pendingIds.Add(id)) continue;
-            var intents = local["spaceDeletions"] as JsonArray;
-            if (intents is null) local["spaceDeletions"] = intents = new JsonArray();
-            intents.Add((JsonNode)new JsonObject {
-                ["spaceID"] = space["id"]!.DeepClone(),
-                ["profileID"] = space["profile"]!["id"]!.DeepClone(),
-                ["operationID"] = Guid.NewGuid().ToString("D")
-            });
-        }
-        var raw = replacing && incoming.Count == 0
-            ? new JsonObject { ["spaces"] = new JsonArray() }
-            : NativeSyncMaterializer.Materialize(local, preferences,
-                NativeSyncEvaluator.Reconcile(next.Records).Select(n => n!.AsObject()).ToArray(), now, access);
-        var repaired = NativeSessionMaintenance.Repair(raw, now, emptySpace, ids);
-        var retained = NativeSessionMaintenance.Retain(repaired["session"]!.AsObject(), now);
-        bool removed = retained["changed"]!.GetValue<bool>();
-        repaired["session"] = retained["session"]!.DeepClone();
-        // Cleanup already authorized on this device must survive remote deletion,
-        // replacement and retention until its local adapters acknowledge it.
-        if (local["spaceDeletions"] is JsonArray pending && pending.Count > 0) {
-            var result = repaired["session"]!.AsObject();
-            result["spaceDeletions"] = pending.DeepClone();
-            var spaces = result["spaces"]!.AsArray();
-            foreach (var intent in pending) {
-                var id = NativeSessionAuthority.Id(intent!["spaceID"]);
-                var original = local["spaces"]!.AsArray().Single(s => NativeSessionAuthority.Id(s!["id"]) == id)!;
-                var existing = spaces.FirstOrDefault(s => NativeSessionAuthority.Id(s!["id"]) == id);
-                if (existing is not null) spaces[spaces.IndexOf(existing)] = original.DeepClone();
-                else spaces.Add(original.DeepClone());
-            }
-        }
-        // The app-wide behavior preferences are device-local. Incoming records
-        // and cloud replacement never carry or replace them.
-        if (local[StoredSessionCodec.Key.AppPreferences] is { } appPreferences)
-            repaired["session"]![StoredSessionCodec.Key.AppPreferences] = appPreferences.DeepClone();
-        if (!replacing || removed)
-            next = next.Stage(repaired["session"]!.DeepClone().AsObject(), removed ? SyncDeletionReason.Retention : SyncDeletionReason.Superseded,
-                now);
-        return new(next, repaired);
+    private readonly JsonObject? legacyLocal;
+
+    public NativeSyncJournal Journal { get; }
+    internal SessionState Session { get; }
+    internal IReadOnlyList<NativeSessionMaintenance.TabOrigin> Origins { get; }
+
+    /// The legacy native checkpoint answer, encoded only when the caller needs
+    /// that boundary. In-process convergence uses Session and Origins directly.
+    public JsonObject Materialization => NativeSyncCheckpointCodec.Encode(Session, Origins, legacyLocal);
+
+    #endregion
+
+    #region Constructors
+
+    private NativeSyncSessionTransition(NativeSyncJournal journal, SessionState session,
+        IReadOnlyList<NativeSessionMaintenance.TabOrigin> origins, JsonObject? legacyLocal = null) {
+        Journal = journal;
+        Session = session;
+        Origins = origins;
+        this.legacyLocal = legacyLocal;
     }
 
     #endregion
+
+    #region Actions - Sync
+
+    internal static NativeSyncSessionTransition Prepare(NativeSyncJournal journal, JsonObject local, JsonArray incoming,
+        bool replacing, double now, JsonObject? emptySpace, SpaceAccessAuthority? access, IIdSource? ids,
+        IReadOnlyDictionary<string, SyncDeletionReason>? removals = null) {
+        var prepared = Prepare(journal, StoredSessionCodec.DecodeSession(local), incoming, replacing, StoredSessionCodec.Date(now),
+            emptySpace is null ? null : StoredSessionCodec.DecodeSpace(emptySpace), access, ids ?? new SystemIdSource(), removals);
+        return new(prepared.Journal, prepared.Session, prepared.Origins, local.DeepClone().AsObject());
+    }
+
+    /// Stage local edits, accept incoming records, materialize and repair a typed
+    /// session, retaining local deletion work and device preferences throughout.
+    internal static NativeSyncSessionTransition Prepare(NativeSyncJournal journal, SessionState local, JsonArray incoming,
+        bool replacing, DateTimeOffset now, SpaceState? emptySpace, SpaceAccessAuthority? access, IIdSource ids,
+        IReadOnlyDictionary<string, SyncDeletionReason>? removals = null) {
+        var seconds = StoredSessionCodec.Seconds(now);
+        var next = journal;
+        if (!replacing && local.DisposableSeedMarker is null)
+            next = next.Stage(StoredSessionCodec.Encode(local), SyncDeletionReason.Superseded, seconds, removals);
+        next = replacing ? next.Replace(incoming) : next.Merge(incoming);
+        var records = NativeSyncEvaluator.Reconcile(next.Records).Select(record => SyncSessionRecord.Read(record!.AsObject())).ToArray();
+        // Only accepted explicit Space tombstones authorize erasing a local
+        // profile. Cleanup remains pending until that device acknowledges it.
+        var pending = local.SpaceDeletions.ToList();
+        var pendingIds = pending.Select(deletion => deletion.SpaceId).ToHashSet();
+        foreach (var record in records.Where(record => record.Kind == SyncRecordKind.Space && record.Tombstone?.Reason.IsExplicit == true)) {
+            var space = local.Spaces.FirstOrDefault(space => space.Id == record.Id);
+            if (space is not null && pendingIds.Add(space.Id)) pending.Add(new(Guid.NewGuid(), space.Id, space.ProfileId));
+        }
+        local = local with { SpaceDeletions = pending };
+        var raw = replacing && incoming.Count == 0 ? local with { Spaces = [], DisposableSeedMarker = null }
+            : NativeSyncMaterializer.Materialize(local, NativeSyncProjection.Preferences(journal.Preferences), records, now, access);
+        var repaired = NativeSessionMaintenance.Repair(raw, now, emptySpace, ids, out var origins);
+        repaired = NativeSessionMaintenance.Retain(repaired, now, out var removed);
+        if (pending.Count > 0) {
+            var spaces = repaired.Spaces.ToList();
+            foreach (var intent in pending) {
+                var original = local.Spaces.Single(space => space.Id == intent.SpaceId);
+                int index = spaces.FindIndex(space => space.Id == intent.SpaceId);
+                if (index < 0) spaces.Add(original);
+                else spaces[index] = original;
+            }
+            repaired = repaired with { Spaces = spaces, SpaceDeletions = pending };
+        }
+        repaired = repaired with { AppPreferences = local.AppPreferences };
+        if (!replacing || removed)
+            next = next.Stage(StoredSessionCodec.Encode(repaired), removed ? SyncDeletionReason.Retention : SyncDeletionReason.Superseded, seconds);
+        return new(next, repaired, origins);
+    }
+
+    #endregion
+
 }

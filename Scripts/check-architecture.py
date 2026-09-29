@@ -15,7 +15,7 @@ SOURCE_ROOTS = ("CrestShared", "CrestMac", "CrestMobile")
 LAYER_IMPORT_POLICIES = {
     "CrestShared/Domain/": frozenset({"Foundation"}),
     "CrestShared/Application/": frozenset(
-        {"Dispatch", "Foundation", "Observation"}
+        {"Dispatch", "Foundation", "Observation", "Synchronization"}
     ),
 }
 PLATFORM_FRAMEWORK_OWNERS = {

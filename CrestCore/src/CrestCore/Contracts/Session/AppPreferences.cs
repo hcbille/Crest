@@ -20,6 +20,16 @@ public sealed record AppPreferences(StartupBehavior Startup, bool OffersTranslat
 
     #endregion
 
+    #region Variables
+
+    /// Collections are owned when constructed or replaced on a copy.
+    public IReadOnlyList<TranslationRule> TranslationRules {
+        get;
+        init => field = [.. value];
+    } = [.. TranslationRules];
+
+    #endregion
+
     #region Actions - Equality
 
     public bool Equals(AppPreferences? other) => other is not null

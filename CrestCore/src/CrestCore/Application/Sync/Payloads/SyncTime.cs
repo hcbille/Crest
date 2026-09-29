@@ -18,6 +18,8 @@ internal readonly record struct SyncTime(double ReferenceSeconds) {
     /// The moment in seconds since 1970, as the cloud spells it.
     public double UnixSeconds => ReferenceSeconds + EpochDistance;
 
+    public DateTimeOffset Moment => StoredSessionCodec.Date(ReferenceSeconds);
+
     #endregion
 
     #region Actions - Conversion

@@ -10,7 +10,11 @@ import xml.etree.ElementTree as ElementTree
 
 
 SPARKLE_VERSION = "{http://www.andymatuschak.org/xml-namespaces/sparkle}version"
-APPCAST_FILENAMES = ("appcast.xml", "appcast-development.xml")
+APPCAST_FILENAMES = (
+    "appcast.xml", "appcast-webkit.xml",
+    "appcast-development.xml", "appcast-development-webkit.xml",
+    "appcast-experimental.xml", "appcast-experimental-webkit.xml",
+)
 
 
 def next_build_number(git_ref: str, minimum: int) -> int:

@@ -36,6 +36,7 @@
 #include "components/sessions/core/serialized_navigation_entry.h"
 #include "content/public/browser/restore_type.h"
 #include "chrome/browser/ui/crest/crest_permission_prompt.h"
+#import "chrome/browser/app_controller_mac.h"
 #include "chrome/browser/ui/crest/crest_engine_extensions.h"
 #include "chrome/browser/ui/crest/crest_engine_profiles.h"
 #include "chrome/browser/ui/crest/crest_extension_prompt.h"
@@ -914,7 +915,11 @@ using CrestChromiumUIStart = void (*)(id<CrestMacShell> shell, const crest_engin
 }
 - (void)completeQuit {
   State().quitting = true;
-  [NSApp terminate:nil];
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("crest-app-owned-host")) {
+    [AppController.sharedController tryToTerminateApplication];
+  } else {
+    [NSApp terminate:nil];
+  }
 }
 @end
 
