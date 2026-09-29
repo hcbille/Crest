@@ -3373,6 +3373,10 @@
     "swipe-back-forward-on-chromium-pages": {
       "category": "fixed",
       "message": "Swiping back and forward works on pages that run in Chromium, including a mouse's Back and Forward actions set up in Logitech Options+ and three-finger swipes between pages."
+    },
+    "pointer-hides-over-fullscreen-video": {
+      "category": "fixed",
+      "message": "The pointer hides over a video playing full screen in a window that was already full screen, and pages that change the pointer no longer wait for the mouse to move."
     }
   }
 }

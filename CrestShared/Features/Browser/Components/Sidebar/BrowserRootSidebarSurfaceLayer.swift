@@ -40,11 +40,12 @@ struct BrowserRootSidebarSurfaceLayer<Content: View>: View {
             .contentShape(.interaction, .rect)
             #if os(macOS)
                 .overlay {
-                    BrowserSidebarHoverTracker(
-                        isEnabled: presentation.showsSidebar,
-                        onHoverChange: hoverChanged
-                    )
-                    .accessibilityHidden(true)
+                    // A hidden sidebar tracks nothing, and its tracker would
+                    // stay over the page it slid away from, where it would
+                    // take the page's cursor updates.
+                    if presentation.showsSidebar {
+                        BrowserSidebarHoverTracker(onHoverChange: hoverChanged).accessibilityHidden(true)
+                    }
                 }
             #else
                 .onHover(perform: hoverChanged)

@@ -7,13 +7,6 @@ import AppKit
 @MainActor
 final class BrowserSidebarHoverTrackingView: NSView {
     var onHoverChange: @MainActor @Sendable (Bool) -> Void
-    var isEnabled = true {
-        didSet {
-            guard isEnabled != oldValue, !isEnabled else { return }
-            trackingMenus.removeAll()
-            lastReportedHover = nil
-        }
-    }
 
     private let notificationCenter: NotificationCenter
     private let pointerLocation: @MainActor () -> NSPoint
@@ -89,7 +82,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
     }
 
     func refreshPointerHover() {
-        guard isEnabled, window != nil else { return }
+        guard window != nil else { return }
         let isHovering = !trackingMenus.isEmpty || isPointerInside
         // A newly revealed sidebar starts offscreen while it slides in.
         // Absence before its first entry is not a pointer exit.
@@ -114,7 +107,7 @@ final class BrowserSidebarHoverTrackingView: NSView {
     }
 
     @objc private func menuTrackingBegan(_ notification: Notification) {
-        guard isEnabled, let menu = notification.object as? NSMenu,
+        guard let menu = notification.object as? NSMenu,
             !trackingMenus.isEmpty || isPointerInside
         else { return }
         trackingMenus.insert(ObjectIdentifier(menu))
