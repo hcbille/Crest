@@ -79,6 +79,30 @@ public sealed partial class BrowserContractsTests {
     }
 
     [Fact]
+    public void ScreenSharingGoesOnToTheSystemsPickerUnlessBlockedAndIsNeverAllowedAhead() {
+        var (app, engine, binding, page, _, _, space, _) = LivePage();
+        using var disposal = app;
+        var origin = new SiteOrigin("https", "meet.example", 443);
+        var sharing = new PermissionQuestion(SitePermission.ScreenSharing, origin, origin);
+
+        // Ask lets the request through to the system's own question, and Crest asks nobody.
+        var first = Guid.NewGuid();
+        app.Report(engine, new PermissionRequested(first, page, sharing));
+        Assert.Empty(app.Drain());
+        Assert.Equal(new SettlePermission(first, Grants: true, Remembers: false), binding.Commands[^1]);
+
+        // Nothing allows a site ahead of that question; a block refuses it.
+        Assert.Equal(new InvalidSitePermissionGrant(SitePermission.ScreenSharing),
+            Refusal(app, new DecideSitePermission(space, origin, SitePermission.ScreenSharing, null,
+                SitePermissionDecision.GrantPersistently)));
+        app.Send(new DecideSitePermission(space, origin, SitePermission.ScreenSharing, null, SitePermissionDecision.DenyPersistently));
+        var second = Guid.NewGuid();
+        app.Report(engine, new PermissionRequested(second, page, sharing));
+        Assert.Empty(app.Drain());
+        Assert.Equal(new SettlePermission(second, Grants: false, Remembers: true), binding.Commands[^1]);
+    }
+
+    [Fact]
     public void ABlockTheSpaceTakesWhileAPermissionQuestionWaitsOutranksThePersonsAnswer() {
         var (app, engine, binding, page, _, _, space, _) = LivePage();
         using var disposal = app;

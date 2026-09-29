@@ -186,6 +186,24 @@
                         ? "info.circle" : icon))
         }
 
+        /// A page asked to capture the screen in a way that needs Screen
+        /// Recording access, which the system has not given Crest. The engine
+        /// asked the system once and says so once per launch; the notice
+        /// points at the setting rather than asking again.
+        static func showScreenRecordingNotice() {
+            BrowserNoticeCenter.shared.post(
+                BrowserNotice(
+                    message: String(localized: "Allow Crest in Screen & System Audio Recording to capture your screen"),
+                    systemImage: "rectangle.dashed.badge.record",
+                    action: BrowserNoticeAction(title: String(localized: "Open System Settings")) {
+                        guard
+                            let settings = URL(
+                                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+                        else { return }
+                        NSWorkspace.shared.open(settings)
+                    }))
+        }
+
         // MARK: - Actions - Translation
 
         /// Chromium's own translate bubble asks for whole-page translation,

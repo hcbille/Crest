@@ -231,6 +231,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidSiteHost(InvalidSiteHost)
     case invalidSiteOrigin(InvalidSiteOrigin)
     case invalidSitePermissionDetail(InvalidSitePermissionDetail)
+    case invalidSitePermissionGrant(InvalidSitePermissionGrant)
     case invalidSpaceOrder(InvalidSpaceOrder)
     case invalidSplitColumnShares(InvalidSplitColumnShares)
     case invalidSplitIcon(InvalidSplitIcon)
@@ -431,6 +432,7 @@ enum EnginePresentation: Equatable, Sendable {
     case popupBlocked(PopupBlocked)
     case profilePrepared(ProfilePrepared)
     case profileReleased(ProfileReleased)
+    case screenCaptureAccessMissing(ScreenCaptureAccessMissing)
     case sidePanelRequested(SidePanelRequested)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
@@ -466,6 +468,7 @@ enum EnginePresentation: Equatable, Sendable {
         case .pageViewUnavailable(let value): value.pageID
         case .peekRequested(let value): value.pageID
         case .popupBlocked(let value): value.pageID
+        case .screenCaptureAccessMissing(let value): value.pageID
         case .sidePanelRequested(let value): value.pageID
         case .storeInstallRequested(let value): value.pageID
         case .storeRemovalRequested(let value): value.pageID
@@ -2752,6 +2755,10 @@ struct InvalidSitePermissionDetail: Equatable, Sendable {
     let limit: Int
 }
 
+struct InvalidSitePermissionGrant: Equatable, Sendable {
+    let permission: SitePermission
+}
+
 struct InvalidSpaceOrder: Equatable, Sendable {
 }
 
@@ -4339,6 +4346,10 @@ struct SchemeHandling: Query, Equatable, Sendable {
 
     let scheme: String?
     let appInitiated: Bool
+}
+
+struct ScreenCaptureAccessMissing: Equatable, Sendable {
+    let pageID: UUID
 }
 
 struct ScriptDialogAsked: Equatable, Sendable {
@@ -12665,6 +12676,7 @@ struct SitePermission: Hashable, Sendable {
     let askChoiceTitle: LocalizedStringResource
     let isMedia: Bool
     let isEngineEnforced: Bool
+    let isAskedBySystem: Bool
     let components: [SitePermission]
 
     private init(
@@ -12677,6 +12689,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource,
         isMedia: Bool,
         isEngineEnforced: Bool,
+        isAskedBySystem: Bool,
         components: [SitePermission]
     ) {
         self.tag = tag
@@ -12688,6 +12701,7 @@ struct SitePermission: Hashable, Sendable {
         self.askChoiceTitle = askChoiceTitle
         self.isMedia = isMedia
         self.isEngineEnforced = isEngineEnforced
+        self.isAskedBySystem = isAskedBySystem
         self.components = components
     }
 
@@ -12701,6 +12715,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Ask"),
         isMedia: true,
         isEngineEnforced: true,
+        isAskedBySystem: false,
         components: []
     )
     static let microphone = SitePermission(
@@ -12713,6 +12728,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Ask"),
         isMedia: true,
         isEngineEnforced: true,
+        isAskedBySystem: false,
         components: []
     )
     static let cameraAndMicrophone = SitePermission(
@@ -12725,6 +12741,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Ask"),
         isMedia: true,
         isEngineEnforced: false,
+        isAskedBySystem: false,
         components: [SitePermission.camera, SitePermission.microphone]
     )
     static let location = SitePermission(
@@ -12737,6 +12754,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Ask"),
         isMedia: false,
         isEngineEnforced: true,
+        isAskedBySystem: false,
         components: []
     )
     static let notifications = SitePermission(
@@ -12749,6 +12767,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Ask"),
         isMedia: false,
         isEngineEnforced: true,
+        isAskedBySystem: false,
         components: []
     )
     static let popups = SitePermission(
@@ -12761,6 +12780,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Default (Block)"),
         isMedia: false,
         isEngineEnforced: false,
+        isAskedBySystem: false,
         components: []
     )
     static let automaticDownloads = SitePermission(
@@ -12773,6 +12793,7 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Default (Ask after First)"),
         isMedia: false,
         isEngineEnforced: false,
+        isAskedBySystem: false,
         components: []
     )
     static let externalApplications = SitePermission(
@@ -12785,6 +12806,20 @@ struct SitePermission: Hashable, Sendable {
         askChoiceTitle: LocalizedStringResource("Ask"),
         isMedia: false,
         isEngineEnforced: false,
+        isAskedBySystem: false,
+        components: []
+    )
+    static let screenSharing = SitePermission(
+        tag: 8,
+        name: "screenSharing",
+        title: LocalizedStringResource("Screen Sharing"),
+        symbol: "rectangle.inset.filled.and.person.filled",
+        requestTitle: LocalizedStringResource("Wants to share your screen"),
+        askTitle: LocalizedStringResource("Ask"),
+        askChoiceTitle: LocalizedStringResource("Ask"),
+        isMedia: false,
+        isEngineEnforced: false,
+        isAskedBySystem: true,
         components: []
     )
 
@@ -12796,7 +12831,8 @@ struct SitePermission: Hashable, Sendable {
         notifications,
         popups,
         automaticDownloads,
-        externalApplications
+        externalApplications,
+        screenSharing
     ]
 
     static func named(_ name: String?) -> SitePermission? {

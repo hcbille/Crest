@@ -24,8 +24,10 @@ struct BrowserSitePermissionRecordRow: View {
 
             Menu(record.decision.title) {
                 Group {
-                    Button("Allow", systemImage: "checkmark.circle") {
-                        set(.grantPersistently)
+                    if !record.permission.isAskedBySystem {
+                        Button("Allow", systemImage: "checkmark.circle") {
+                            set(.grantPersistently)
+                        }
                     }
                     Button("Block", systemImage: "nosign") {
                         set(.denyPersistently)

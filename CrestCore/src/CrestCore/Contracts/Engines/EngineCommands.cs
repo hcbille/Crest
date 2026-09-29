@@ -82,7 +82,9 @@ public sealed record SettleAuthentication(Guid PromptId, AuthenticationCredentia
 public sealed record SettleExtensionInstall(Guid PromptId, bool Accepted, bool WithholdsSiteAccess) : EngineCommand;
 
 /// Answers a permission request: whether it `Grants` it, and whether the
-/// answer holds for the site's later requests or this one alone.
+/// answer holds for the site's later requests or this one alone. For a
+/// capability the system asks about itself, a grant lets the request go on to
+/// the system's question.
 public sealed record SettlePermission(Guid PromptId, bool Grants, bool Remembers) : EngineCommand;
 
 /// Closes a script dialog as the person answered it, or declined when no one

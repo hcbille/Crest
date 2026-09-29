@@ -32,6 +32,7 @@
             case .popupBlocked(let presentation): presentation.present(on: engine)
             case .profilePrepared(let presentation): presentation.present(on: engine)
             case .profileReleased(let presentation): presentation.present(on: engine)
+            case .screenCaptureAccessMissing(let presentation): presentation.present(on: engine)
             case .sidePanelRequested(let presentation): presentation.present(on: engine)
             case .storeInstallRequested(let presentation): presentation.present(on: engine)
             case .storeRemovalRequested(let presentation): presentation.present(on: engine)

@@ -179,6 +179,13 @@ public sealed record MediaSessionChanged(Guid PageId, string Document, long Sequ
     string? Title, string? Artist, string? Album, byte[]? Artwork, MediaPlayback Playback, bool Audible, bool Muted,
     IReadOnlyList<MediaSessionAction> Actions) : EnginePagePresentation(PageId);
 
+/// A document in the page asked to capture the screen in a way that needs the
+/// system's Screen Recording access, which Crest does not have. The engine
+/// asked the system for it once and refused the request; the platform says
+/// where the person can allow it. Sharing through the system's own picker
+/// never needs that access.
+public sealed record ScreenCaptureAccessMissing(Guid PageId) : EnginePagePresentation(PageId);
+
 /// Whether a media session plays.
 public enum MediaPlayback {
     /// It has nothing to play.

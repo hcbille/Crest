@@ -3385,6 +3385,10 @@
     "fullscreen-video-in-fullscreen-window": {
       "category": "fixed",
       "message": "With Crest already in full screen, a full-screen video covers the whole screen, and Esc brings the sidebar back while Crest stays in full screen."
+    },
+    "screen-sharing-site-setting": {
+      "category": "new",
+      "message": "Site settings have a Screen Sharing choice, so you can block a site from asking to share your screen; macOS still asks what to share every time."
     }
   }
 }

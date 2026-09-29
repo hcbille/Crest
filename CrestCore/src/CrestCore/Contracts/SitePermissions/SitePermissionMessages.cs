@@ -49,6 +49,10 @@ public sealed record InvalidSiteOrigin(SiteOrigin Origin) : Rejection;
 /// A choice's detail is empty or longer than `Limit` characters.
 public sealed record InvalidSitePermissionDetail(int Limit) : Rejection;
 
+/// A grant for `Permission`, which the system asks the person about each
+/// time, so a site can only be blocked from it.
+public sealed record InvalidSitePermissionGrant(SitePermission Permission) : Rejection;
+
 /// This device already keeps `Limit` saved site permission choices.
 public sealed record SitePermissionLimitReached(int Limit) : Rejection {
     #region Variables

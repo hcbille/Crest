@@ -16,8 +16,12 @@ struct BrowserSitePermissionRow: View {
                     Button(permission.askChoiceTitle, systemImage: "questionmark.circle") {
                         setDecision(.ask)
                     }
-                    Button("Allow", systemImage: "checkmark.circle") {
-                        setDecision(.grantPersistently)
+                    // The system asks each time for some capabilities, so
+                    // nothing allows a site ahead of that question.
+                    if !permission.isAskedBySystem {
+                        Button("Allow", systemImage: "checkmark.circle") {
+                            setDecision(.grantPersistently)
+                        }
                     }
                     Button("Block", systemImage: "nosign") {
                         setDecision(.denyPersistently)

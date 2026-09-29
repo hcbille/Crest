@@ -28,9 +28,13 @@ public sealed class SitePermission {
         askChoiceTitle: "Default (Ask after First)");
     public static readonly SitePermission ExternalApplications = new(name: "externalApplications", title: "External Apps",
         symbol: "arrow.up.forward.app", requestTitle: "Requests permission");
+    // The system's sharing picker asks each time; a site can only be blocked.
+    public static readonly SitePermission ScreenSharing = new(name: "screenSharing", title: "Screen Sharing",
+        symbol: "rectangle.inset.filled.and.person.filled", requestTitle: "Wants to share your screen", isAskedBySystem: true);
 
     public static IReadOnlyList<SitePermission> All { get; } =
-        [Camera, Microphone, CameraAndMicrophone, Location, Notifications, Popups, AutomaticDownloads, ExternalApplications];
+        [Camera, Microphone, CameraAndMicrophone, Location, Notifications, Popups, AutomaticDownloads, ExternalApplications,
+            ScreenSharing];
 
     public string Name { get; }
 
@@ -61,6 +65,12 @@ public sealed class SitePermission {
     /// decides it and the engine is told the answer.
     public bool IsEngineEnforced { get; }
 
+    /// The system asks the person itself each time a site uses the
+    /// capability, as its screen sharing picker does. Ask lets a request
+    /// through to that question, and a site can be blocked but never allowed
+    /// ahead of it.
+    public bool IsAskedBySystem { get; }
+
     /// The capabilities a combined request asks for together, empty for one
     /// that stands alone. A decision for the combination answers for each of
     /// them, and a block on any of them blocks the combination.
@@ -72,7 +82,7 @@ public sealed class SitePermission {
 
     private SitePermission(string name, string title, string symbol, string requestTitle, bool isMedia = false,
         IReadOnlyList<SitePermission>? components = null, string askTitle = "Ask", string askChoiceTitle = "Ask",
-        bool isEngineEnforced = false) {
+        bool isEngineEnforced = false, bool isAskedBySystem = false) {
         Name = name;
         Title = title;
         Symbol = symbol;
@@ -81,6 +91,7 @@ public sealed class SitePermission {
         AskChoiceTitle = askChoiceTitle;
         IsMedia = isMedia;
         IsEngineEnforced = isEngineEnforced;
+        IsAskedBySystem = isAskedBySystem;
         Components = components ?? [];
     }
 

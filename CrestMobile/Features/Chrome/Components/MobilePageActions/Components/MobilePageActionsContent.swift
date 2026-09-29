@@ -187,7 +187,9 @@ struct MobilePageActionsContent: View {
     private func sitePermissions(for page: MobileBrowserPage) -> some View {
         if let origin = page.live.documentURL.flatMap(SiteOrigin.init(url:)) {
             Menu("Site Permissions", systemImage: "slider.horizontal.3") {
-                ForEach(SitePermission.all, id: \.self) { permission in
+                // A page on iOS cannot share the screen, so that choice is
+                // not offered here.
+                ForEach(SitePermission.all.filter { $0 != .screenSharing }, id: \.self) { permission in
                     Picker(
                         permission.title,
                         selection: Binding {

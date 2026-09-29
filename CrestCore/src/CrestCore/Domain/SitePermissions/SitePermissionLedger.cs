@@ -34,7 +34,8 @@ public sealed class SitePermissionLedger {
     #region Actions - Persistence
 
     /// Replaces the persistent records with `records`, in order. Records that
-    /// are not persistent choices, or that repeat an earlier record's identity
+    /// are not persistent choices, grant a capability the system asks about
+    /// each time, or that repeat an earlier record's identity
     /// or its Space, origin, capability and detail, are left out, as lookups
     /// always answered from the first; so are records beyond the limit. Session
     /// choices stay. Returns how many records were kept.
@@ -46,7 +47,8 @@ public sealed class SitePermissionLedger {
         foreach (var record in records) {
             if (persistent.Count >= MaximumRecords) break;
             if (record.Id == Guid.Empty || record.Space == Guid.Empty || !IsValidDetail(record.Detail) || !record.Origin.IsValid
-                || !record.Decision.IsPersistent || !double.IsFinite(record.ModifiedAt)) continue;
+                || !record.Decision.IsPersistent || !IsAvailable(record.Permission, record.Decision)
+                || !double.IsFinite(record.ModifiedAt)) continue;
             if (!identities.Add(record.Id) || !seen.Add((record.Space, Key(record)))) continue;
             persistent.Add(record);
         }
@@ -100,8 +102,9 @@ public sealed class SitePermissionLedger {
     /// persistent answer replaces both and keeps an existing record's identity.
     /// `recordId` names the record a new persistent choice creates, and `now`
     /// is when it was made, in seconds of the stored epoch. Throws `Rejected`
-    /// for an origin or a detail the rules cannot read, and for a new record
-    /// beyond the limit.
+    /// for an origin or a detail the rules cannot read, for a grant of a
+    /// capability the system asks about each time, and for a new record beyond
+    /// the limit.
     public SitePermissionOutcome Set(Guid space, SiteOrigin origin, SitePermission permission, string? detail,
         SitePermissionDecision decision, Guid recordId, double now) {
         ArgumentNullException.ThrowIfNull(origin);
@@ -109,6 +112,7 @@ public sealed class SitePermissionLedger {
         ArgumentNullException.ThrowIfNull(decision);
         if (!origin.IsValid) throw new Rejected(new InvalidSiteOrigin(origin));
         if (!IsValidDetail(detail)) throw new Rejected(new InvalidSitePermissionDetail(MaximumDetailLength));
+        if (!IsAvailable(permission, decision)) throw new Rejected(new InvalidSitePermissionGrant(permission));
         var key = new SitePermissionKey(origin, permission, detail);
         bool persistenceChanged = false;
         if (decision.IsPersistent) {
@@ -153,6 +157,11 @@ public sealed class SitePermissionLedger {
     private static SitePermissionKey Key(SitePermissionRecord record) => new(record.Origin, record.Permission, record.Detail);
 
     private static bool IsValidDetail(string? detail) => detail is null || (detail.Length is > 0 and <= MaximumDetailLength);
+
+    /// Whether a site may be given `decision` for `permission`: the system
+    /// asks about some capabilities each time, so nothing grants them ahead.
+    private static bool IsAvailable(SitePermission permission, SitePermissionDecision decision) =>
+        !(decision.Grants && permission.IsAskedBySystem);
 
     /// One choice's identity within a Space.
     private readonly record struct SitePermissionKey(SiteOrigin Origin, SitePermission Permission, string? Detail);

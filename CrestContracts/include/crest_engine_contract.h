@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0xd7, 0x46, 0x91, 0x12, 0x6a, 0x13, 0xb2, 0x9d, 0xea, 0xe0, 0xfe, 0xb8, 0x1d, 0x72, 0x59, 0x9d, 0xf9, 0xa7, 0xfc, 0x46, 0xbd, 0xaf, 0x07, 0xe3, 0xf7, 0x1b, 0x63, 0xe1, 0xa6, 0xd3, 0xf1, 0xf4};
+    0xbf, 0x8a, 0x90, 0x44, 0x4f, 0xfe, 0xcf, 0xfa, 0x5a, 0x30, 0xa5, 0x22, 0x9b, 0x01, 0xb8, 0x7c, 0xaa, 0x41, 0xdd, 0xef, 0xbd, 0x78, 0x64, 0x32, 0x4c, 0x67, 0x4b, 0x4c, 0x42, 0xb0, 0xdb, 0xf3};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -619,10 +619,11 @@ enum class SitePermission : uint32_t {
   kPopups = 5,
   kAutomaticDownloads = 6,
   kExternalApplications = 7,
+  kScreenSharing = 8,
 };
 inline void Write(WireWriter& writer, SitePermission value) { writer.WriteVarint(static_cast<uint32_t>(value)); }
 inline bool Read(WireReader& reader, SitePermission& value) {
-  value = static_cast<SitePermission>(reader.ReadEnum(8));
+  value = static_cast<SitePermission>(reader.ReadEnum(9));
   return reader.ok();
 }
 
@@ -2756,6 +2757,18 @@ inline bool Read(WireReader& reader, SaveInteractionState& value) {
   return Read(reader, value.page_id);
 }
 
+struct ScreenCaptureAccessMissing {
+  Guid page_id = {};
+
+  friend bool operator==(const ScreenCaptureAccessMissing&, const ScreenCaptureAccessMissing&) = default;
+};
+inline void Write(WireWriter& writer, const ScreenCaptureAccessMissing& value) {
+  Write(writer, value.page_id);
+}
+inline bool Read(WireReader& reader, ScreenCaptureAccessMissing& value) {
+  return Read(reader, value.page_id);
+}
+
 struct ScriptDialogQuestion {
   JavaScriptDialogKind kind = {};
   std::string message;
@@ -3790,7 +3803,7 @@ inline bool Read(WireReader& reader, PageRequest& value) {
   }
 }
 
-using EnginePresentation = std::variant<ContentFullscreenChanged, ContentMessagePosted, ContentScriptEvaluated, ExtensionsChanged, FindFinished, InfoBarRemoved, InfoBarShown, InspectorClosed, InspectorLayoutChanged, LinkHovered, MediaSessionChanged, PageCaptured, PageExported, PageHistoryChanged, PageInteracted, PageLoadingChanged, PageNavigationCommitted, PageNavigationFailed, PageNavigationStarted, PageRendererGone, PageThemeChanged, PageViewClosed, PageViewReady, PageViewUnavailable, PeekRequested, PopupBlocked, ProfilePrepared, ProfileReleased, SidePanelRequested, StoreInstallRequested, StoreRemovalRequested, WebNotificationClosed, WebNotificationPosted>;
+using EnginePresentation = std::variant<ContentFullscreenChanged, ContentMessagePosted, ContentScriptEvaluated, ExtensionsChanged, FindFinished, InfoBarRemoved, InfoBarShown, InspectorClosed, InspectorLayoutChanged, LinkHovered, MediaSessionChanged, PageCaptured, PageExported, PageHistoryChanged, PageInteracted, PageLoadingChanged, PageNavigationCommitted, PageNavigationFailed, PageNavigationStarted, PageRendererGone, PageThemeChanged, PageViewClosed, PageViewReady, PageViewUnavailable, PeekRequested, PopupBlocked, ProfilePrepared, ProfileReleased, ScreenCaptureAccessMissing, SidePanelRequested, StoreInstallRequested, StoreRemovalRequested, WebNotificationClosed, WebNotificationPosted>;
 inline void Write(WireWriter& writer, const EnginePresentation& value) {
   writer.WriteVarint(value.index());
   std::visit([&writer](const auto& member) { Write(writer, member); }, value);
@@ -3966,30 +3979,36 @@ inline bool Read(WireReader& reader, EnginePresentation& value) {
       return true;
     }
     case 28: {
-      SidePanelRequested member;
+      ScreenCaptureAccessMissing member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 29: {
-      StoreInstallRequested member;
+      SidePanelRequested member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 30: {
-      StoreRemovalRequested member;
+      StoreInstallRequested member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 31: {
-      WebNotificationClosed member;
+      StoreRemovalRequested member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 32: {
+      WebNotificationClosed member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
+    case 33: {
       WebNotificationPosted member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
