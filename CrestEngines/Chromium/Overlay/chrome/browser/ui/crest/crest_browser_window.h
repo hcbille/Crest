@@ -11,6 +11,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include <string>
 #include <vector>
@@ -150,6 +151,7 @@ class CrestExclusiveAccessContext : public ExclusiveAccessContext {
   content::WebContents* GetWebContentsForExclusiveAccess() override;
   bool CanUserEnterFullscreen() const override;
   bool CanUserExitFullscreen() const override;
+  void UpdateUIForTabFullscreen() override;
 
  private:
   // The Browser's window finished entering (`entered`) or leaving fullscreen.
@@ -164,6 +166,8 @@ class CrestExclusiveAccessContext : public ExclusiveAccessContext {
   Browser* browser_;
   // The page shown fullscreen, from its request until its fullscreen ends.
   base::WeakPtr<content::WebContents> content_fullscreen_;
+  // When a page last stopped showing alone in a window that stays fullscreen.
+  base::TimeTicks page_left_fullscreen_window_;
   // The observers of the window's fullscreen transitions.
   void* window_fullscreen_observers_ = nullptr;
   void* fullscreen_disclosure_ = nullptr;

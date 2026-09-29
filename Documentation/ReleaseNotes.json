@@ -3381,6 +3381,10 @@
     "fullscreen-title-bar-leaves-no-bar": {
       "category": "fixed",
       "message": "In full screen, the title bar that slides down with the menu bar goes away with it instead of leaving a white or black bar across the top of the window or video."
+    },
+    "fullscreen-video-in-fullscreen-window": {
+      "category": "fixed",
+      "message": "With Crest already in full screen, a full-screen video covers the whole screen, and Esc brings the sidebar back while Crest stays in full screen."
     }
   }
 }

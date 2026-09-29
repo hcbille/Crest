@@ -24,6 +24,9 @@ static_assert(!std::is_abstract_v<CrestBrowserWindow>);
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/sharing_message/sharing_dialog_data.h"
@@ -37,6 +40,11 @@ static_assert(!std::is_abstract_v<CrestBrowserWindow>);
 
 
 namespace {
+
+// How long after a page leaves the fullscreen window it showed alone in the
+// window keeps its fullscreen against a held Escape: longer than Chromium waits
+// for a held Escape before it ends the browser's fullscreen.
+constexpr base::TimeDelta kPageEscapeHoldGuard = base::Milliseconds(2000);
 
 // Crest's chrome shortcuts (⌘S toggle sidebar, ⌘T toggle omnibox, …) belong to
 // the SwiftUI registry. Claim them here — in the browser's keyboard pre-handler
@@ -478,6 +486,26 @@ void CrestExclusiveAccessContext::WindowFullscreenChanged(bool entered) {
   }
 }
 
+void CrestExclusiveAccessContext::UpdateUIForTabFullscreen() {
+  // A page's fullscreen in a window that is already fullscreen neither enters
+  // nor leaves the window's fullscreen: Chromium only updates the window's UI,
+  // as its own windows hide their toolbar. The page shows alone while it holds
+  // the window's exclusive access, and goes back among Crest's chrome when it
+  // lets go, leaving the window fullscreen as it was.
+  content::WebContents* contents = GetWebContentsForExclusiveAccess();
+  FullscreenController* controller =
+      browser_->GetFeatures().exclusive_access_manager()->fullscreen_controller();
+  if (contents && controller->exclusive_access_tab() == contents) {
+    content_fullscreen_ = contents->GetWeakPtr();
+    crest::ReportContentFullscreen(contents, true);
+    return;
+  }
+  if (content_fullscreen_) {
+    page_left_fullscreen_window_ = base::TimeTicks::Now();
+  }
+  EndContentFullscreen();
+}
+
 void CrestExclusiveAccessContext::EndContentFullscreen() {
   content::WebContents* contents = content_fullscreen_.get();
   content_fullscreen_.reset();
@@ -526,7 +554,11 @@ bool CrestExclusiveAccessContext::CanUserEnterFullscreen() const {
 }
 
 bool CrestExclusiveAccessContext::CanUserExitFullscreen() const {
-  return true;
+  // The Escape that ends a page's fullscreen ends only the page's. Chromium
+  // ends the browser's fullscreen when Escape is held, and a page going back
+  // among Crest's chrome leaves the window for a moment, so the key's release
+  // can reach the window instead of the page, and a tap would read as held.
+  return base::TimeTicks::Now() - page_left_fullscreen_window_ > kPageEscapeHoldGuard;
 }
 
 void CrestExclusiveAccessContext::ShowFullscreenDisclosure(
