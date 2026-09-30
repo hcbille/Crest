@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "extension-popups-open-as-tabs",
+    "development": "updates-install-after-restart",
     "nightly": "choose-inactive-tab-scheduling"
   }
 }
