@@ -6,6 +6,50 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
+            <title>0.6.465</title>
+            <pubDate>Wed, 30 Sep 2026 15:18:59 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:channel>nightly</sparkle:channel>
+            <sparkle:version>1156</sparkle:version>
+            <sparkle:shortVersionString>0.6.465</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+Showing the 12 most recent highlights from 217 user-facing changes.
+
+### New
+
+- Choose your default browsing engine and add, edit or remove website engine rules in Settings. Chromium is recommended, while WebKit offers native handling and FairPlay video.
+
+### Improved
+
+- WebKit sessions leave Chromium unloaded until you open a Chromium website or extension. Once loaded, it stays ready until you quit Crest.
+- The default Mac download includes Chromium and WebKit, with a separate WebKit build available. Each build keeps its own update channel.
+- The final experimental update moves your update preference to Development so future Crest updates continue there.
+- Crest for Mac is one download with both engines. Copies of the separate WebKit download update to it automatically.
+- Extension popups, such as a password manager's settings popout, open as a tab in your current window instead of a new window.
+
+### Fixed
+
+- Extensions can move, resize and restore Crest windows using their normal window controls.
+- Chromium pages keep rendering while you swipe between Spaces instead of turning gray.
+- Pressing Return in Find moves to the next match instead of skipping several ahead.
+- Clicking a field in the other half of a split view lets you type there on the first click.
+- Crest no longer quits when an extension closes its popup window, as Bitwarden does after you turn on unlock with biometrics.
+- Restarting to install an update, or choosing Quit from the Dock, quits Crest so the update installs instead of waiting forever.
+
+---
+
+Nightly builds contain the newest changes and may be less reliable than stable releases.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/fbb48de01b0a79d19164f9cab6dd0a0adfab97bf...ccc2d1febcd4cacbc393b9ad18c91346760fda38) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.6.465-2026-09-30-1156-r149.1/Installer-Crest-0.6.465-nightly-2026-09-30-ccc2d1f-arm64.dmg)
+
+[Browse Nightly releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Nightly+builds%22)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.6.465-2026-09-30-1156-r149.1/Installer-Crest-0.6.465-nightly-2026-09-30-ccc2d1f-arm64.dmg" length="214682133" type="application/octet-stream" sparkle:edSignature="seasAKJObDUZhARreW95hUPjlcaCreFFKfAJNS39x7jKo5ZMEE41B9fezX69sYXN7xRVvUCRShVIWySgmDDhCA=="/>
+        </item>
+        <item>
             <title>0.6.34</title>
             <pubDate>Wed, 23 Sep 2026 13:47:45 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
@@ -76,6 +120,6 @@ Stable releases are signed, notarized, and ready for everyday use.
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 23rIeRQen8SoBDiOzZJQNhig7zBgWAPMxXFR2wjRKFIzLQKhq0U+FSUKnpnkBnPZ37N2Y90Vh3CQT+Ieqc2XDw==
-length: 4276
+edSignature: J7tBOg8d4WKQcgnVkAKiSTLpaWmMBKxGHHJs8o3deVDjMJgM/uOa6VdTcFGFbQxcySo3WmAJr6WxYtf3PxtUAA==
+length: 7307
 -->

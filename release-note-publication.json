@@ -3,6 +3,6 @@
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
     "development": "updates-install-after-restart",
-    "nightly": "choose-inactive-tab-scheduling"
+    "nightly": "updates-install-after-restart"
   }
 }
