@@ -6,29 +6,35 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.462</title>
-            <pubDate>Wed, 30 Sep 2026 11:08:13 +0000</pubDate>
+            <title>0.6.464</title>
+            <pubDate>Wed, 30 Sep 2026 14:18:12 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1153</sparkle:version>
-            <sparkle:shortVersionString>0.6.462</sparkle:shortVersionString>
+            <sparkle:version>1154</sparkle:version>
+            <sparkle:shortVersionString>0.6.464</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
+### Improved
+
+- Crest for Mac is one download with both engines. Copies of the separate WebKit download update to it automatically.
+- Extension popups, such as a password manager's settings popout, open as a tab in your current window instead of a new window.
+
 ### Fixed
 
-- Pressing Return in Find moves to the next match instead of skipping several ahead.
+- Clicking a field in the other half of a split view lets you type there on the first click.
+- Crest no longer quits when an extension closes its popup window, as Bitwarden does after you turn on unlock with biometrics.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/c7febf4f97d6a9128dd484ceae864f2f0bd8cf17...43078007fad8821064e69532f1f847639e371e54) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.462-2026-09-30-1153-r146.1/Installer-Crest-0.6.462-development-2026-09-30-4307800-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/43078007fad8821064e69532f1f847639e371e54...5e1f7fcd1bb3819aa1c064aee797caa319f360c4) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.464-2026-09-30-1154-r147.1/Installer-Crest-0.6.464-development-2026-09-30-5e1f7fc-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.462-2026-09-30-1153-r146.1/Installer-Crest-0.6.462-development-2026-09-30-4307800-arm64.dmg" length="214633500" type="application/octet-stream" sparkle:edSignature="/DbKi6g4vWUhn2P7+3mOpaLRv6plzaJ4cKV2kg7sgGjJcUztTol8YavYLeZGdYBm9d6gX7ROaMGKa8KGSmjzAw=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.464-2026-09-30-1154-r147.1/Installer-Crest-0.6.464-development-2026-09-30-5e1f7fc-arm64.dmg" length="214674461" type="application/octet-stream" sparkle:edSignature="soZcu16of4mahItHJR6gFJrNgEZ+YeEIIaP44AwO3l1AktZ0PEf+GOYS/2GepmXN+k5NDpHjMmcHwRUUYal4Cw=="/>
         </item>
         <item>
             <title>0.6.33</title>
@@ -58,6 +64,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: FWkikX9Lsfcb6sf+vSva9O0qYwcXqOXviHM0QaWLWBjCjXJcVLNnNvHI6pWAdsabmTb3Z6SbyqYcmmrfJd69AQ==
-length: 3637
+edSignature: 3YSl6CoNg5HUNtd0T9Bsc6W4QdlHEBTMytqyYCACQju41ZFllv3KAzjdkzVjAEJmR6yRI/iCt9hCpJspaettBQ==
+length: 4033
 -->
