@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "updates-install-after-restart",
+    "development": "floating-sidebar-stays-for-its-popups",
     "nightly": "updates-install-after-restart"
   }
 }

@@ -6,29 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.465</title>
-            <pubDate>Wed, 30 Sep 2026 17:40:41 +0000</pubDate>
+            <title>0.6.466</title>
+            <pubDate>Wed, 30 Sep 2026 18:33:20 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1157</sparkle:version>
-            <sparkle:shortVersionString>0.6.465</sparkle:shortVersionString>
+            <sparkle:version>1158</sparkle:version>
+            <sparkle:shortVersionString>0.6.466</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-### Maintenance
+### Fixed
 
-- Reliability and internal improvements.
+- A hidden sidebar you've revealed stays open while something you opened from it is still on screen, like an extension popup, a folder color picker, or a confirmation, and while you're renaming something in it.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/ccc2d1febcd4cacbc393b9ad18c91346760fda38...b7b3893b299f732231ddc9e31abc6a02a2d72a98) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.465-2026-09-30-1157-r150.1/Installer-Crest-0.6.465-development-2026-09-30-b7b3893-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/b7b3893b299f732231ddc9e31abc6a02a2d72a98...fc93f389b0fa52e8aebbb789371b4ffbcabaaa06) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.466-2026-09-30-1158-r151.1/Installer-Crest-0.6.466-development-2026-09-30-fc93f38-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.465-2026-09-30-1157-r150.1/Installer-Crest-0.6.465-development-2026-09-30-b7b3893-arm64.dmg" length="214623773" type="application/octet-stream" sparkle:edSignature="L18IivxOOk1rs3fQXur4UrJNQePpNpko43HZVAKw/+zF8kHJg7WFVKTp6jnDCLYYtKn/PjHGdH8lftX7cexNAg=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.466-2026-09-30-1158-r151.1/Installer-Crest-0.6.466-development-2026-09-30-fc93f38-arm64.dmg" length="214637595" type="application/octet-stream" sparkle:edSignature="Y2A5cvkbRvSFFulCaw/VSLhI6M/vjd5yONhk45S4jquCtgqmplQpIaSB+hOJr2gcomrlr7AKzScDEzY59h6OAg=="/>
         </item>
         <item>
             <title>0.6.462</title>
@@ -58,6 +58,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: yz8o8fKChnEt1G01+Mi3xEJjvJ8PRy0RH23G3YHT9biMu1dOusVBgYyCI4tmi65LHQjsvFaQ4S9VrXWdeHiqBg==
-length: 3641
+edSignature: JvBebwEb1sZKgRixh1Xc1CSsAFZEYEq5duw3YfyDDDvw52K6G5am+yR3YOsijHWBIKnk3Xq6BcyD9FDHpe0rDQ==
+length: 3805
 -->
