@@ -6,48 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.460</title>
-            <pubDate>Tue, 29 Sep 2026 23:55:38 +0000</pubDate>
+            <title>0.6.461</title>
+            <pubDate>Wed, 30 Sep 2026 07:07:43 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1151</sparkle:version>
-            <sparkle:shortVersionString>0.6.460</sparkle:shortVersionString>
+            <sparkle:version>1152</sparkle:version>
+            <sparkle:shortVersionString>0.6.461</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-Showing the 12 most recent highlights from 211 user-facing changes.
-
-### New
-
-- Site settings have a Screen Sharing choice, so you can block a site from asking to share your screen; macOS still asks what to share every time.
-- Choose your default browsing engine and add, edit or remove website engine rules in Settings. Chromium is recommended, while WebKit offers native handling and FairPlay video.
-
-### Improved
-
-- WebKit sessions leave Chromium unloaded until you open a Chromium website or extension. Once loaded, it stays ready until you quit Crest.
-- The default Mac download includes Chromium and WebKit, with a separate WebKit build available. Each build keeps its own update channel.
-- The final experimental update moves your update preference to Development so future Crest updates continue there.
-
 ### Fixed
 
-- In full screen, the title bar that slides down with the menu bar goes away with it instead of leaving a white or black bar across the top of the window or video.
-- With Crest already in full screen, a full-screen video covers the whole screen, and Esc brings the sidebar back while Crest stays in full screen.
-- Screen sharing on pages that run in Chromium uses the macOS sharing picker and needs no Screen Recording permission, and Crest no longer asks for that permission over and over.
-- A tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera or microphone stays open and loaded however long you are away from it.
-- Pages in a Space you leave rest like background tabs, and coming back shows them, split views included, the way switching to their tab does, without taking focus from the address field or the command palette.
-- Chromium never freezes a background tab that plays sound or video, has a video in Picture in Picture, even paused, or uses your camera, microphone or screen.
-- Extensions can move, resize and restore Crest windows using their normal window controls.
+- Chromium pages keep rendering while you swipe between Spaces instead of turning gray.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/43a75820a1534c3c69fef3d98a20baaa9d73baa1...0cca8969ab0e7989e8d6966b67d8a52fdecaf4cc) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.460-2026-09-29-1151-r144.1/Installer-Crest-0.6.460-development-2026-09-29-0cca896-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/0cca8969ab0e7989e8d6966b67d8a52fdecaf4cc...c7febf4f97d6a9128dd484ceae864f2f0bd8cf17) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.461-2026-09-30-1152-r145.1/Installer-Crest-0.6.461-development-2026-09-30-c7febf4-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.460-2026-09-29-1151-r144.1/Installer-Crest-0.6.460-development-2026-09-29-0cca896-arm64.dmg" length="214647836" type="application/octet-stream" sparkle:edSignature="R2gECqzUhEZY2v+p9UvjebRC1Gh81wDMhNEdrXeurxDFhE/RMjkcm2B9Ev78mjkMRmtEg0Dzuulj8nZ/GThaAQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.461-2026-09-30-1152-r145.1/Installer-Crest-0.6.461-development-2026-09-30-c7febf4-arm64.dmg" length="214653468" type="application/octet-stream" sparkle:edSignature="1LfJHW1NBEOGF4cHQLZVNWx0qiTZ1KisHJafy8tKZNtroj7ZujXGZURVJV0vIlAr55LSG3l2w4f3gj5r5RMDBQ=="/>
         </item>
         <item>
             <title>0.6.33</title>
@@ -77,6 +58,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: z20GEgwQ3J/6wwiuhFxFk2ywJNm7iseC+1q1iV2NxYGlSKO4gHGiMADZFeaLAPrjooF1UQj7QEQfTC+GEGRLAg==
-length: 5492
+edSignature: U/GVZanJ3JB6MZr1IPXI0Xupy82d5Q88ho+jmg8UzxT6MgHeb0xh9aNO9c10l75UDWTwyBM1Lox3PALSwOrQBQ==
+length: 3640
 -->
