@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "chromium-space-swipe-keeps-pages-rendering",
+    "development": "find-return-steps-one-match",
     "nightly": "choose-inactive-tab-scheduling"
   }
 }
