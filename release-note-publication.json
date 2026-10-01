@@ -3,6 +3,6 @@
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
     "development": "nested-folder-from-kept-path-opens-parents",
-    "nightly": "updates-install-after-restart"
+    "nightly": "nested-folder-from-kept-path-opens-parents"
   }
 }
