@@ -6,37 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.477</title>
-            <pubDate>Thu, 01 Oct 2026 18:39:09 +0000</pubDate>
+            <title>0.6.478</title>
+            <pubDate>Thu, 01 Oct 2026 20:07:29 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1165</sparkle:version>
-            <sparkle:shortVersionString>0.6.477</sparkle:shortVersionString>
+            <sparkle:version>1166</sparkle:version>
+            <sparkle:shortVersionString>0.6.478</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-### New
-
-- A new General setting keeps the developer toolbar from opening by itself on local pages. Shift-Command-I still shows it on any page.
-
-### Improved
-
-- Drag the frame around a page on any edge to move the window, as you can from the sidebar. The gap around a floating sidebar moves the window too. Borderless windows have no frame, so every click still reaches the page.
-
 ### Fixed
 
-- A hidden sidebar slides out at the window's edge only when that window is in front. Moving the pointer over a window in the background no longer opens its sidebar and leaves it stuck open.
+- Screen sharing works in Slack huddles and in Slack's call test on pages that run in Chromium. As in Chrome, a site can ask to share your screen without a click of its own, and macOS still asks what to share.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/d76833ebd3d23c837bd93f8b4837488cba744f9d...36699f34fc6bfe5c12df94244ce7edbada644273) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.477-2026-10-01-1165-r159.1/Installer-Crest-0.6.477-development-2026-10-01-36699f3-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/36699f34fc6bfe5c12df94244ce7edbada644273...1b4d9331cdf621c97ca9eed48a9e02bc3d5d027d) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.478-2026-10-01-1166-r160.1/Installer-Crest-0.6.478-development-2026-10-01-1b4d933-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.477-2026-10-01-1165-r159.1/Installer-Crest-0.6.477-development-2026-10-01-36699f3-arm64.dmg" length="214658077" type="application/octet-stream" sparkle:edSignature="mvYOd0cDl7/YxMFHVZlrfpB6pdpHWTVAz4Soy05+V68sueTkRU3zR/efPK7ZNS2vwTn0Ch7wOp+t3vjJAs9tAg=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.478-2026-10-01-1166-r160.1/Installer-Crest-0.6.478-development-2026-10-01-1b4d933-arm64.dmg" length="214632476" type="application/octet-stream" sparkle:edSignature="M9P9dHuOAKicG48cNwsCja97JHr5GsKQKVLD5VU0BZ105UiU86dcXk+huEqSKRZpA7mzmx4HJbB8jq1k0nZcAQ=="/>
         </item>
         <item>
             <title>0.6.33</title>
@@ -66,6 +58,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: xMJRO9y21XSEsSusxDXTRzUwRLT+Nuwe51Qt3R7hEazuaZ2EeoJoekQ5cefCOeeR9fHMHprqo2RN3esjHr+2CQ==
-length: 4124
+edSignature: h+unYMSON9EwRXin6v+es3/OBNp2dYvDaX4HnBLPC7cwwWQ/tb0HZgNPTTa2JBXH3/p33fqpWDKUYUDQLKlXBQ==
+length: 3762
 -->
