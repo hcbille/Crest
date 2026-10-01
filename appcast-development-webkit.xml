@@ -6,29 +6,37 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.474</title>
-            <pubDate>Thu, 01 Oct 2026 18:05:45 +0000</pubDate>
+            <title>0.6.477</title>
+            <pubDate>Thu, 01 Oct 2026 18:39:14 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1164</sparkle:version>
-            <sparkle:shortVersionString>0.6.474</sparkle:shortVersionString>
+            <sparkle:version>1165</sparkle:version>
+            <sparkle:shortVersionString>0.6.477</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
+### New
+
+- A new General setting keeps the developer toolbar from opening by itself on local pages. Shift-Command-I still shows it on any page.
+
+### Improved
+
+- Drag the frame around a page on any edge to move the window, as you can from the sidebar. The gap around a floating sidebar moves the window too. Borderless windows have no frame, so every click still reaches the page.
+
 ### Fixed
 
-- A page you send from a Quick Window to another Space responds to clicks and typing as soon as it appears, instead of only after you switch tabs.
+- A hidden sidebar slides out at the window's edge only when that window is in front. Moving the pointer over a window in the background no longer opens its sidebar and leaves it stuck open.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/ab9d4c1444dbae159d8430da3896a984ff246d7c...d76833ebd3d23c837bd93f8b4837488cba744f9d) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.474-2026-10-01-1164-r158.1/Installer-Crest-0.6.474-development-2026-10-01-d76833e-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/d76833ebd3d23c837bd93f8b4837488cba744f9d...36699f34fc6bfe5c12df94244ce7edbada644273) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.477-2026-10-01-1165-r159.1/Installer-Crest-0.6.477-development-2026-10-01-36699f3-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.474-2026-10-01-1164-r158.1/Installer-Crest-0.6.474-development-2026-10-01-d76833e-arm64.dmg" length="214661660" type="application/octet-stream" sparkle:edSignature="Ot0YZftORzRVN7SoZ+AjrRCZXknK0SLDkCpls4g77yIyd5iyxTmx5r6oAfqBpPJOAMV/0Yj2J4A/V1EqrtbNAQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.477-2026-10-01-1165-r159.1/Installer-Crest-0.6.477-development-2026-10-01-36699f3-arm64.dmg" length="214658077" type="application/octet-stream" sparkle:edSignature="mvYOd0cDl7/YxMFHVZlrfpB6pdpHWTVAz4Soy05+V68sueTkRU3zR/efPK7ZNS2vwTn0Ch7wOp+t3vjJAs9tAg=="/>
         </item>
         <item>
             <title>0.6.462</title>
@@ -58,6 +66,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: 7F4KmttwkJulJ/QdWB6sRyPUbWgqQd3r1CfxJ8xDNcNk8Rt3WIKAjMWbOs2ZsslqBuJTFrwvLzsIAfQ2HU1dDg==
-length: 3741
+edSignature: 98ixf/ZnEYbEb8ODNiyABzPOitaNnb+eXNPUHMFyPxQnoGXH2RI6NMXwFgQYyaQt3m1012dQbOuFCySAfp/PCA==
+length: 4166
 -->

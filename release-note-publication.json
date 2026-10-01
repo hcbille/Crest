@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "space-page-takes-input-after-late-switch",
+    "development": "developer-toolbar-local-pages-setting",
     "nightly": "nested-folder-from-kept-path-opens-parents"
   }
 }
