@@ -6,29 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.473</title>
-            <pubDate>Thu, 01 Oct 2026 17:38:10 +0000</pubDate>
+            <title>0.6.474</title>
+            <pubDate>Thu, 01 Oct 2026 18:05:45 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1163</sparkle:version>
-            <sparkle:shortVersionString>0.6.473</sparkle:shortVersionString>
+            <sparkle:version>1164</sparkle:version>
+            <sparkle:shortVersionString>0.6.474</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
 ### Fixed
 
-- Full-screen videos in the Chromium engine hide the pointer when you stop moving it, as they do in WebKit.
+- A page you send from a Quick Window to another Space responds to clicks and typing as soon as it appears, instead of only after you switch tabs.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/aa97846b32ee2a7a85959450f0567e9b153b47d3...ab9d4c1444dbae159d8430da3896a984ff246d7c) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.473-2026-10-01-1163-r157.1/Installer-Crest-0.6.473-development-2026-10-01-ab9d4c1-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/ab9d4c1444dbae159d8430da3896a984ff246d7c...d76833ebd3d23c837bd93f8b4837488cba744f9d) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.474-2026-10-01-1164-r158.1/Installer-Crest-0.6.474-development-2026-10-01-d76833e-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.473-2026-10-01-1163-r157.1/Installer-Crest-0.6.473-development-2026-10-01-ab9d4c1-arm64.dmg" length="214669852" type="application/octet-stream" sparkle:edSignature="+U3Ik7O8uaczpeeenINrpHqaywx6BOUx70j2ua9+w0UO3YpYtYBhZFEesWAokp2q7BAtmPY07LF2Hcy9JXIyDA=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.474-2026-10-01-1164-r158.1/Installer-Crest-0.6.474-development-2026-10-01-d76833e-arm64.dmg" length="214661660" type="application/octet-stream" sparkle:edSignature="Ot0YZftORzRVN7SoZ+AjrRCZXknK0SLDkCpls4g77yIyd5iyxTmx5r6oAfqBpPJOAMV/0Yj2J4A/V1EqrtbNAQ=="/>
         </item>
         <item>
             <title>0.6.462</title>
@@ -58,6 +58,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: MljeOwAafsDUXNAmPSdhSJlrFovenS9m8vcZYqgNs0Tzi9ikW+tb7x6RobgDH72x+3alKBwh2HP3lSHiWDWvDA==
-length: 3702
+edSignature: 7F4KmttwkJulJ/QdWB6sRyPUbWgqQd3r1CfxJ8xDNcNk8Rt3WIKAjMWbOs2ZsslqBuJTFrwvLzsIAfQ2HU1dDg==
+length: 3741
 -->
