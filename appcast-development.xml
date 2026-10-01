@@ -6,37 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.469</title>
-            <pubDate>Wed, 30 Sep 2026 21:55:31 +0000</pubDate>
+            <title>0.6.470</title>
+            <pubDate>Thu, 01 Oct 2026 14:03:35 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1159</sparkle:version>
-            <sparkle:shortVersionString>0.6.469</sparkle:shortVersionString>
+            <sparkle:version>1160</sparkle:version>
+            <sparkle:shortVersionString>0.6.470</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-### New
-
-- You can turn off the animation from the address field into the command palette in Look and Feel, so the palette opens right away.
-
-### Improved
-
-- Folder symbols take the folder color when tinted folder titles are turned on.
-
 ### Fixed
 
-- Feature Flags in Settings shows WebKit's flags when WebKit is your default engine, instead of an empty page.
+- Add to Crest works on Chrome Web Store pages in every language, including an extension's reviews and support pages, and the store's prompts to switch to Chrome stay hidden.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/fc93f389b0fa52e8aebbb789371b4ffbcabaaa06...778d140ab599f61de7cbc30e9104ab04b407605f) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.469-2026-09-30-1159-r153.1/Installer-Crest-0.6.469-development-2026-09-30-778d140-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/778d140ab599f61de7cbc30e9104ab04b407605f...9227baf77f316398a27acf236912a1486cca064d) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.470-2026-10-01-1160-r154.1/Installer-Crest-0.6.470-development-2026-10-01-9227baf-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.469-2026-09-30-1159-r153.1/Installer-Crest-0.6.469-development-2026-09-30-778d140-arm64.dmg" length="214626331" type="application/octet-stream" sparkle:edSignature="cgGdBlWl45SFeQ22PtW6Ccbdd6GFaqhxBgSFyNLoK5Jv05yD7H99gn5qHCHuv3Rp1ky6zaik6HLDT98WGsCnCw=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.470-2026-10-01-1160-r154.1/Installer-Crest-0.6.470-development-2026-10-01-9227baf-arm64.dmg" length="214667292" type="application/octet-stream" sparkle:edSignature="pDtpbwhP6tqhSOv1LC7nuMiN1uBcu+yJasfk4eLStC7ujxSS3qzCQP4htt9bEoUf8eudN8/tYb7FWAEYj550Cw=="/>
         </item>
         <item>
             <title>0.6.33</title>
@@ -66,6 +58,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: UFU3y/C//rjScSpCl1+/Mk9/EiQzciU0hIWQyOy98TLW3MlrhntNPtW8niU5+DPIQGUVhDyw0mdy6QQX1xhzDQ==
-length: 3900
+edSignature: oL0NKZgDh5HxV+fTSJwQkP4Yst/kzabSSQTXDYUBEbIY7OFEVliXclaH/0fFE3JlzZVxtCxshF+8ExfLHGBVBw==
+length: 3727
 -->

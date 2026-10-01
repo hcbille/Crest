@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "command-palette-animation-setting",
+    "development": "web-store-button-every-language",
     "nightly": "updates-install-after-restart"
   }
 }
