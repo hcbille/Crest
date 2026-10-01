@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "chromium-screen-sharing-without-click",
+    "development": "chromium-untitled-pages-keep-titles",
     "nightly": "nested-folder-from-kept-path-opens-parents"
   }
 }
