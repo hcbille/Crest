@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
-    "development": "nested-folder-from-kept-path-opens-parents",
+    "development": "chromium-fullscreen-video-hides-idle-pointer",
     "nightly": "nested-folder-from-kept-path-opens-parents"
   }
 }
