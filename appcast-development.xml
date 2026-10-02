@@ -6,30 +6,31 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.480</title>
-            <pubDate>Thu, 01 Oct 2026 21:03:45 +0000</pubDate>
+            <title>0.6.484</title>
+            <pubDate>Fri, 02 Oct 2026 19:54:13 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1167</sparkle:version>
-            <sparkle:shortVersionString>0.6.480</sparkle:shortVersionString>
+            <sparkle:version>1169</sparkle:version>
+            <sparkle:shortVersionString>0.6.484</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
 ### Fixed
 
-- Tabs take the title a page gives itself after it finishes loading. A link you open in the background with Command-click, or a page that shows “Loading…” first, no longer stays named by its address or placeholder.
-- Pages in Chromium that have no title of their own show the site’s name, as WebKit pages do, instead of their full address. A Chromium tab that reloads in the background keeps its title.
+- Downloads follow the Automatic Downloads choice of the site you’re on, including files it serves from another address, such as GitHub release files. A blocked download’s message no longer appears twice.
+- Chromium pages use your default zoom when they open and keep your chosen zoom as you navigate.
+- Chromium is updated to 154.0.8037.57 with upstream security and compatibility fixes.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/1b4d9331cdf621c97ca9eed48a9e02bc3d5d027d...c69c9a0b22b7e832b3c43ec2741ef7bcb337c3d8) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.480-2026-10-01-1167-r165.1/Installer-Crest-0.6.480-development-2026-10-01-c69c9a0-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/c69c9a0b22b7e832b3c43ec2741ef7bcb337c3d8...6bf7a19c9ba32a4bc788efd538686e30e5587f1e) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.484-2026-10-02-1169-r167.1/Installer-Crest-0.6.484-development-2026-10-02-6bf7a19-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.480-2026-10-01-1167-r165.1/Installer-Crest-0.6.480-development-2026-10-01-c69c9a0-arm64.dmg" length="214639132" type="application/octet-stream" sparkle:edSignature="HOAZ6NJR4x8jJHfTomoKxrnouFBkjqaADBmLB4Nkc6kOCR1sCoBSsIjMdKoUTyP+Y4tC1uWbfDXM7t4+nmVHDg=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.484-2026-10-02-1169-r167.1/Installer-Crest-0.6.484-development-2026-10-02-6bf7a19-arm64.dmg" length="215355525" type="application/octet-stream" sparkle:edSignature="nvMpA9ukLsinmMHpgrMaecKT19FSWOkELx/HclcRJ82pau06uNSUt1bw5s9QwyJAkk66POVCkG1R2XcpzJOnCQ=="/>
         </item>
         <item>
             <title>0.6.33</title>
@@ -59,6 +60,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: hR1GPWwt86m3NSrc6xhb8lGI1/mvNmV0dLUV/1aWMR9oWwfWNZ/bjNzgEczKMgnEHCM+mMaZPULIpyxk17MUAQ==
-length: 3963
+edSignature: cBjddiGYUPR3aL7hmQrZ/+zj4e7sjJE00dA3zVm1K14U3zK1XFkyLM//FVAtyw/+VDmNoJwTF6Fg3Q3m6uGjDA==
+length: 3945
 -->
