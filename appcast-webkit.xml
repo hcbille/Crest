@@ -6,40 +6,42 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.6.472</title>
-            <pubDate>Thu, 01 Oct 2026 15:45:36 +0000</pubDate>
+            <title>0.6.481</title>
+            <pubDate>Fri, 02 Oct 2026 14:58:54 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>nightly</sparkle:channel>
-            <sparkle:version>1162</sparkle:version>
-            <sparkle:shortVersionString>0.6.472</sparkle:shortVersionString>
+            <sparkle:version>1168</sparkle:version>
+            <sparkle:shortVersionString>0.6.481</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
 ### New
 
-- You can turn off the animation from the address field into the command palette in Look and Feel, so the palette opens right away.
+- A new General setting keeps the developer toolbar from opening by itself on local pages. Shift-Command-I still shows it on any page.
 
 ### Improved
 
-- Folder symbols take the folder color when tinted folder titles are turned on.
+- Drag the frame around a page on any edge to move the window, as you can from the sidebar. The gap around a floating sidebar moves the window too. Borderless windows have no frame, so every click still reaches the page.
 
 ### Fixed
 
-- A hidden sidebar you've revealed stays open while something you opened from it is still on screen, like an extension popup, a folder color picker, or a confirmation, and while you're renaming something in it.
-- Feature Flags in Settings shows WebKit's flags when WebKit is your default engine, instead of an empty page.
-- Add to Crest works on Chrome Web Store pages in every language, including an extension's reviews and support pages, and the store's prompts to switch to Chrome stay hidden.
-- Collapsing a folder keeps the tab you're on visible even when it sits in a folder inside it, shown under each folder that holds it.
+- Full-screen videos in the Chromium engine hide the pointer when you stop moving it, as they do in WebKit.
+- A page you send from a Quick Window to another Space responds to clicks and typing as soon as it appears, instead of only after you switch tabs.
+- A hidden sidebar slides out at the window's edge only when that window is in front. Moving the pointer over a window in the background no longer opens its sidebar and leaves it stuck open.
+- Screen sharing works in Slack huddles and in Slack's call test on pages that run in Chromium. As in Chrome, a site can ask to share your screen without a click of its own, and macOS still asks what to share.
+- Tabs take the title a page gives itself after it finishes loading. A link you open in the background with Command-click, or a page that shows “Loading…” first, no longer stays named by its address or placeholder.
+- Pages in Chromium that have no title of their own show the site’s name, as WebKit pages do, instead of their full address. A Chromium tab that reloads in the background keeps its title.
 
 ---
 
 Nightly builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/ccc2d1febcd4cacbc393b9ad18c91346760fda38...aa97846b32ee2a7a85959450f0567e9b153b47d3) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.6.472-2026-10-01-1162-r156.1/Installer-Crest-0.6.472-nightly-2026-10-01-aa97846-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/aa97846b32ee2a7a85959450f0567e9b153b47d3...1c2db5a842a1457f8c20a91f3a58dfbdb2da280e) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.6.481-2026-10-02-1168-r166.1/Installer-Crest-0.6.481-nightly-2026-10-02-1c2db5a-arm64.dmg)
 
 [Browse Nightly releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Nightly+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.6.472-2026-10-01-1162-r156.1/Installer-Crest-0.6.472-nightly-2026-10-01-aa97846-arm64.dmg" length="214626836" type="application/octet-stream" sparkle:edSignature="DLOfsw0rilv0qQQhxVOodiy+KiS8u8BMd5mwaI29DhHRNb5n3lWbvJZMfrqm2sexwvRlxkbdwunFEDpNMgn1Cw=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.6.481-2026-10-02-1168-r166.1/Installer-Crest-0.6.481-nightly-2026-10-02-1c2db5a-arm64.dmg" length="214663189" type="application/octet-stream" sparkle:edSignature="Ng3L5uvn5XJSSZ4thEJKttyfGVy/wbwSEvkmRQjGiIvuVJOJRQCcsqKSpE3RcO+UCLOpDogS5PRBxC4sGe2XCw=="/>
         </item>
         <item>
             <title>0.6.34</title>
@@ -112,6 +114,6 @@ Stable releases are signed, notarized, and ready for everyday use.
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: spHBSc28oL7hATyruvoj6w5Dngf0hRJotq58JgMdfKl5QmqQCAHm67nHb3EsZpZG7OnPH6/oH8rGXBu6uFQ9AQ==
-length: 6649
+edSignature: YhpKSRFPackmB67TtUioz2r9MpMxMG3lCoP66lJqo+CeM9H0anxgG0KFfh3csLqM+YmQSkGoA3Fp1aVxamUSCw==
+length: 7229
 -->

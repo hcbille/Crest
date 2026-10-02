@@ -3,6 +3,6 @@
   "channels": {
     "stable": "choose-sidebar-widget-visibility",
     "development": "chromium-untitled-pages-keep-titles",
-    "nightly": "nested-folder-from-kept-path-opens-parents"
+    "nightly": "chromium-host-patch-applies-to-fresh-sources"
   }
 }
