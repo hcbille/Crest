@@ -13,8 +13,7 @@ _No public sponsors yet._
 _No public sustainers yet._
 
 ## Supporter — $3/month
-
-_No public supporters yet._
+Patrick McCarron
 
 ## How recognition works
 
