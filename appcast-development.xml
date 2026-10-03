@@ -6,6 +6,43 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
+            <title>0.7.2</title>
+            <pubDate>Sat, 03 Oct 2026 14:42:04 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:channel>development</sparkle:channel>
+            <sparkle:version>1171</sparkle:version>
+            <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+### New
+
+- Crest 0.7 brings Chromium and WebKit together on Mac, with Chrome Web Store extensions and engine choices for each website. iPhone and iPad continue to use WebKit.
+
+### Improved
+
+- Pause and resume Chromium downloads, and recover interrupted transfers when the server supports it.
+- Chromium can show local service-worker and extension notifications while Crest runs, with Space access and notification permissions respected.
+
+### Fixed
+
+- Protected-video pages still switch to WebKit automatically. Engine switches respect unsaved-changes prompts and remember the website only after the move is allowed.
+- Interrupted Chromium profile upgrades resume safely without losing track of your existing browsing profiles.
+- Crest updates advertise the macOS version the whole app requires, so older Macs are not offered an incompatible update.
+- Crest windows on Mac no longer keep the system's WindowServer busy, which could use a lot of CPU on large or high-refresh external displays. The focused-window transparency setting has been removed.
+
+---
+
+Development builds contain the newest changes and may be less reliable than stable releases.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/6bf7a19c9ba32a4bc788efd538686e30e5587f1e...c1af6dc1bcc9f43eb86fa8be18e557d0e7733247) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.2-2026-10-03-1171-r171.1/Installer-Crest-0.7.2-development-2026-10-03-c1af6dc-arm64.dmg)
+
+[Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.2-2026-10-03-1171-r171.1/Installer-Crest-0.7.2-development-2026-10-03-c1af6dc-arm64.dmg" length="215346307" type="application/octet-stream" sparkle:edSignature="BsQyL5/cSxsEk9QWQ6bthUvbdW6YLJX3CzKAXbSBFQ8Cgqmxswd0evICkVH7KELcq6mhEk1JR3Pceu/whCUtBg=="/>
+        </item>
+        <item>
             <title>0.6.484</title>
             <pubDate>Fri, 02 Oct 2026 19:54:13 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
@@ -32,34 +69,9 @@ Development builds contain the newest changes and may be less reliable than stab
 ]]></description>
             <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.484-2026-10-02-1169-r167.1/Installer-Crest-0.6.484-development-2026-10-02-6bf7a19-arm64.dmg" length="215355525" type="application/octet-stream" sparkle:edSignature="nvMpA9ukLsinmMHpgrMaecKT19FSWOkELx/HclcRJ82pau06uNSUt1bw5s9QwyJAkk66POVCkG1R2XcpzJOnCQ=="/>
         </item>
-        <item>
-            <title>0.6.33</title>
-            <pubDate>Fri, 18 Sep 2026 19:55:28 +0000</pubDate>
-            <link>https://crestbrowser.com/</link>
-            <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1131</sparkle:version>
-            <sparkle:shortVersionString>0.6.33</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[## Highlights
-
-### Improved
-
-- Choose whether Now Playing appears in the sidebar.
-
----
-
-Development builds contain the newest changes and may be less reliable than stable releases.
-
-[View all changes](https://github.com/pauljoda/Crest/compare/52264922f1b6a3c65a84819ee0ecfadbc4cf0de5...43a75820a1534c3c69fef3d98a20baaa9d73baa1) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.6.33-2026-09-18-1131-r131.1/Installer-Crest-0.6.33-development-2026-09-18-43a7582-arm64.dmg)
-
-[Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
-]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.6.33-2026-09-18-1131-r131.1/Installer-Crest-0.6.33-development-2026-09-18-43a7582-arm64.dmg" length="27155764" type="application/octet-stream" sparkle:edSignature="QnpP9TsT9/r+NaaUuBXUSZjbO4ST5dTz9gpKPgXjMBxzUQ1xGdWBTsN71fFOeZ77PSP+2NwFHbKRMayN1l8DCw=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: cBjddiGYUPR3aL7hmQrZ/+zj4e7sjJE00dA3zVm1K14U3zK1XFkyLM//FVAtyw/+VDmNoJwTF6Fg3Q3m6uGjDA==
-length: 3945
+edSignature: H7c2OObj5icEBRqrMTPSQ7JLVIULy14nSQ+azwVlPuIIuq4gsHsqSlu4AJRGktacg9sb9lcfxbHqkXFp2OA7Dw==
+length: 4923
 -->
