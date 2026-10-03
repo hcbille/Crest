@@ -6,6 +6,49 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
+            <title>0.7.0</title>
+            <pubDate>Sat, 03 Oct 2026 04:52:29 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:version>1170</sparkle:version>
+            <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+Showing the 12 most recent highlights from 241 user-facing changes.
+
+### New
+
+- Crest 0.7 brings Chromium and WebKit together on Mac, with Chrome Web Store extensions and engine choices for each website. iPhone and iPad continue to use WebKit.
+
+### Improved
+
+- Pause and resume Chromium downloads, and recover interrupted transfers when the server supports it.
+- Chromium can show local service-worker and extension notifications while Crest runs, with Space access and notification permissions respected.
+
+### Fixed
+
+- Screen sharing works in Slack huddles and in Slack's call test on pages that run in Chromium. As in Chrome, a site can ask to share your screen without a click of its own, and macOS still asks what to share.
+- Tabs take the title a page gives itself after it finishes loading. A link you open in the background with Command-click, or a page that shows “Loading…” first, no longer stays named by its address or placeholder.
+- Pages in Chromium that have no title of their own show the site’s name, as WebKit pages do, instead of their full address. A Chromium tab that reloads in the background keeps its title.
+- Downloads follow the Automatic Downloads choice of the site you’re on, including files it serves from another address, such as GitHub release files. A blocked download’s message no longer appears twice.
+- Chromium pages use your default zoom when they open and keep your chosen zoom as you navigate.
+- Chromium is updated to 154.0.8037.57 with upstream security and compatibility fixes.
+- Protected-video pages still switch to WebKit automatically. Engine switches respect unsaved-changes prompts and remember the website only after the move is allowed.
+- Interrupted Chromium profile upgrades resume safely without losing track of your existing browsing profiles.
+- Crest updates advertise the macOS version the whole app requires, so older Macs are not offered an incompatible update.
+
+---
+
+Stable releases are signed, notarized, and ready for everyday use.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/e261a9d3ca7b427d346b69a0830128b9cefae94b...0fde8b599818e0cf03ca2513a40227818650bf0e) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/v0.7.0/Installer-Crest-0.7.0-arm64.dmg)
+
+[Browse Stable releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Afalse)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/v0.7.0/Installer-Crest-0.7.0-arm64.dmg" length="215412805" type="application/octet-stream" sparkle:edSignature="sfHOENEaOJb7tzcs9Vl+GuNmF077TTDMCHlHs8BA1QLGbCNvw0jnODoNhbkWlw76NpM90WYGQTsDsh85ZtcADA=="/>
+        </item>
+        <item>
             <title>0.6.481</title>
             <pubDate>Fri, 02 Oct 2026 14:58:54 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
@@ -114,6 +157,6 @@ Stable releases are signed, notarized, and ready for everyday use.
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: YhpKSRFPackmB67TtUioz2r9MpMxMG3lCoP66lJqo+CeM9H0anxgG0KFfh3csLqM+YmQSkGoA3Fp1aVxamUSCw==
-length: 7229
+edSignature: xZm3/x/7mpz0bcZ8AFQg0xZsGKzDDnv+Us3mkgRwT4HdD43ug/lj3t4x7QDuJyxEyIzwePJ2aHPuKfFcXhLxBg==
+length: 10431
 -->
