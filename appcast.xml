@@ -6,6 +6,46 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
+            <title>0.7.2</title>
+            <pubDate>Sat, 03 Oct 2026 14:13:07 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:channel>nightly</sparkle:channel>
+            <sparkle:version>1172</sparkle:version>
+            <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+### New
+
+- Crest 0.7 brings Chromium and WebKit together on Mac, with Chrome Web Store extensions and engine choices for each website. iPhone and iPad continue to use WebKit.
+
+### Improved
+
+- Pause and resume Chromium downloads, and recover interrupted transfers when the server supports it.
+- Chromium can show local service-worker and extension notifications while Crest runs, with Space access and notification permissions respected.
+
+### Fixed
+
+- Downloads follow the Automatic Downloads choice of the site you’re on, including files it serves from another address, such as GitHub release files. A blocked download’s message no longer appears twice.
+- Chromium pages use your default zoom when they open and keep your chosen zoom as you navigate.
+- Chromium is updated to 154.0.8037.57 with upstream security and compatibility fixes.
+- Protected-video pages still switch to WebKit automatically. Engine switches respect unsaved-changes prompts and remember the website only after the move is allowed.
+- Interrupted Chromium profile upgrades resume safely without losing track of your existing browsing profiles.
+- Crest updates advertise the macOS version the whole app requires, so older Macs are not offered an incompatible update.
+- Crest windows on Mac no longer keep the system's WindowServer busy, which could use a lot of CPU on large or high-refresh external displays. The focused-window transparency setting has been removed.
+
+---
+
+Nightly builds contain the newest changes and may be less reliable than stable releases.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/1c2db5a842a1457f8c20a91f3a58dfbdb2da280e...c1af6dc1bcc9f43eb86fa8be18e557d0e7733247) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.7.2-2026-10-03-1172-r172.1/Installer-Crest-0.7.2-nightly-2026-10-03-c1af6dc-arm64.dmg)
+
+[Browse Nightly releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Nightly+builds%22)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.7.2-2026-10-03-1172-r172.1/Installer-Crest-0.7.2-nightly-2026-10-03-c1af6dc-arm64.dmg" length="215360123" type="application/octet-stream" sparkle:edSignature="kvQbWN97h31BeeY4FWPyOanWmRo3meNrdBg/6CrI7+jDvmWrPI9jV86BVD1D6GnKMGecNqrTNPJ6qydKEDhCCA=="/>
+        </item>
+        <item>
             <title>0.7.0</title>
             <pubDate>Sat, 03 Oct 2026 04:52:24 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
@@ -86,77 +126,9 @@ Nightly builds contain the newest changes and may be less reliable than stable r
 ]]></description>
             <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.6.481-2026-10-02-1168-r166.1/Installer-Crest-0.6.481-nightly-2026-10-02-1c2db5a-arm64.dmg" length="214663189" type="application/octet-stream" sparkle:edSignature="Ng3L5uvn5XJSSZ4thEJKttyfGVy/wbwSEvkmRQjGiIvuVJOJRQCcsqKSpE3RcO+UCLOpDogS5PRBxC4sGe2XCw=="/>
         </item>
-        <item>
-            <title>0.6.34</title>
-            <pubDate>Wed, 23 Sep 2026 13:47:45 +0000</pubDate>
-            <link>https://crestbrowser.com/</link>
-            <sparkle:channel>nightly</sparkle:channel>
-            <sparkle:version>1137</sparkle:version>
-            <sparkle:shortVersionString>0.6.34</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[## Highlights
-
-### Maintenance
-
-- Reliability and internal improvements.
-
----
-
-Nightly builds contain the newest changes and may be less reliable than stable releases.
-
-[View all changes](https://github.com/pauljoda/Crest/compare/f6dea9d91064bdf84198de6a4764118d798203e5...fbb48de01b0a79d19164f9cab6dd0a0adfab97bf) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.6.34-2026-09-23-1137-r137.1/Installer-Crest-0.6.34-nightly-2026-09-23-fbb48de-arm64.dmg)
-
-[Browse Nightly releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Nightly+builds%22)
-]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.6.34-2026-09-23-1137-r137.1/Installer-Crest-0.6.34-nightly-2026-09-23-fbb48de-arm64.dmg" length="27166508" type="application/octet-stream" sparkle:edSignature="GaW1A1hyU6liPxofSBKpn3ddmgCBc3v0W+W8v32g4EJJcaZpa9fBvku4gnHexADbcxUM3unJq6OmlJOTW8S3Bw=="/>
-        </item>
-        <item>
-            <title>0.6.33</title>
-            <pubDate>Fri, 18 Sep 2026 21:01:06 +0000</pubDate>
-            <link>https://crestbrowser.com/</link>
-            <sparkle:version>1132</sparkle:version>
-            <sparkle:shortVersionString>0.6.33</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[## Highlights
-
-Showing the 12 most recent highlights from 39 user-facing changes.
-
-### New
-
-- Middle-click a split title to close the split and all its tabs.
-- Choose to return saved tabs to their saved URL with one favicon click on Mac.
-
-### Improved
-
-- Choose whether unloaded tabs appear dimmed in Look and Feel settings
-- Quick Window Space indicators now use balanced padding.
-- Choose whether Now Playing appears in the sidebar.
-
-### Fixed
-
-- Select webpage text and use controls near the top edge without moving the window
-- Save the displayed PDF directly from the built-in preview
-- Quick Windows follow your browser border size while keeping balanced spacing around their controls
-- Image-converter extensions can save JPEGs repeatedly and keep their image menus after restarting Crest
-- Return from Picture in Picture to the tab and browser window that started playback
-- Prevent password manager popups and login-field suggestions from repeatedly reloading webpages
-- Settings remain fully visible while switching between Spaces.
-
----
-
-Stable releases are signed, notarized, and ready for everyday use.
-
-[View all changes](https://github.com/pauljoda/Crest/compare/69ea275c3b4020c24b543d5a8b0cc53611f35869...e261a9d3ca7b427d346b69a0830128b9cefae94b) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/v0.6.33/Installer-Crest-0.6.33-arm64.dmg)
-
-[Browse Stable releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Afalse)
-]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/v0.6.33/Installer-Crest-0.6.33-arm64.dmg" length="27149556" type="application/octet-stream" sparkle:edSignature="AKgEI1YX5lURUdgLYhcKq0nnEhj55f2kEHFW953BMiBouz2BQOdGWtJPB4ysnX2RDHDeNHIdnCuyRPn9xUR1CA=="/>
-        </item>
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: o4tUYvNNKqr76WLkHZypjKBCLlvJivYcgCVuVbIRNhveKWzvamiuXLr1kL+uymwKQv+0Yp4ms99VOM7R/024CQ==
-length: 10431
+edSignature: sM1BfZmVK4vad0nFg9oAVj+boF2cyHamFSXijX4J1Q/73XKC1wYxB8i/55lAttxltCSU4Ey0KzrAczXg7UbdCg==
+length: 9509
 -->

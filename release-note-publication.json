@@ -3,6 +3,6 @@
   "channels": {
     "stable": "crest-07-chromium-and-webkit",
     "development": "chromium-upstream-154-0-8037-57-1-1-1c2db5a842a1",
-    "nightly": "chromium-host-patch-applies-to-fresh-sources"
+    "nightly": "window-focus-bridge-release-format"
   }
 }
