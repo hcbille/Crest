@@ -7,6 +7,30 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         <title>Crest</title>
         <item>
             <title>0.7.2</title>
+            <pubDate>Sat, 03 Oct 2026 15:25:03 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:version>1173</sparkle:version>
+            <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+### Fixed
+
+- Crest windows on Mac no longer keep the system's WindowServer busy, which could use a lot of CPU on large or high-refresh external displays. The focused-window transparency setting has been removed.
+
+---
+
+Stable releases are signed, notarized, and ready for everyday use.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/0fde8b599818e0cf03ca2513a40227818650bf0e...c1af6dc1bcc9f43eb86fa8be18e557d0e7733247) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/v0.7.2/Installer-Crest-0.7.2-arm64.dmg)
+
+[Browse Stable releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Afalse)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/v0.7.2/Installer-Crest-0.7.2-arm64.dmg" length="215313989" type="application/octet-stream" sparkle:edSignature="EWBi40WcFJdLLt4/JQRPUg+z5GH8e2ZdNdlYmCFWV3B7ut0XFd+w/FZ9ylckZCDyl6lSafIlyJsrQwWOl39YCA=="/>
+        </item>
+        <item>
+            <title>0.7.2</title>
             <pubDate>Sat, 03 Oct 2026 14:13:12 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>nightly</sparkle:channel>
@@ -129,6 +153,6 @@ Nightly builds contain the newest changes and may be less reliable than stable r
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: +8/qxfqAZNi3069sDz2ShAGOiEaRwxdz5A/92O/x0/0+yPeDhiylVi83BzfnRF7ee1rTVLMigu6Eqm4gwGchAw==
-length: 9509
+edSignature: dTfemBNcBz6+qhaBBgRWbnieDL7o76AzM+lOUfBKM0oEoUufFp0oqYPA+pBzxWgoKRT0EaeO2W+IfS7he1yvBA==
+length: 10991
 -->
