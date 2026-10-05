@@ -7,32 +7,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         <title>Crest</title>
         <item>
             <title>0.7.7</title>
-            <pubDate>Mon, 05 Oct 2026 16:20:35 +0000</pubDate>
+            <pubDate>Mon, 05 Oct 2026 17:19:24 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1178</sparkle:version>
+            <sparkle:version>1179</sparkle:version>
             <sparkle:shortVersionString>0.7.7</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-### New
+### Maintenance
 
-- Tab groups that extensions make, such as the tabs Claude works in, now appear on Mac as folders in the Space’s open tabs, in the group’s name and color. Renaming, recoloring, collapsing or deleting the folder, or moving tabs in or out, changes the group the extension sees, and the folder keeps following the group after Crest restarts.
-
-### Fixed
-
-- Extensions that sign you back in on their own when the browser starts, such as Claude, now stay signed in after Crest restarts on Mac, as they do in Chrome.
+- Reliability and internal improvements.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/606000ce4b006e04dee412926366ebb355bcc186...1222cfab91e205f9325b814fb7224a35f2d9872c) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.7-2026-10-05-1178-r178.1/Installer-Crest-0.7.7-development-2026-10-05-1222cfa-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/1222cfab91e205f9325b814fb7224a35f2d9872c...3a4f7d585b136bbce62a729c67e6ef7c30c843a8) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.7-2026-10-05-1179-r179.1/Installer-Crest-0.7.7-development-2026-10-05-3a4f7d5-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.7-2026-10-05-1178-r178.1/Installer-Crest-0.7.7-development-2026-10-05-1222cfa-arm64.dmg" length="215410308" type="application/octet-stream" sparkle:edSignature="BWonUtiObnU+F7pQs4RtPdMCbHYKLGQRFH3E/hxhkUtR7FPmqSlxkSIsFEfylBsFdpATgnFYlRr3Uf2Yf4KlCQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.7-2026-10-05-1179-r179.1/Installer-Crest-0.7.7-development-2026-10-05-3a4f7d5-arm64.dmg" length="215485060" type="application/octet-stream" sparkle:edSignature="wrdE8w4kuieE4rYBkpYI8EtVkkKMyTRlVnsCT8/FGFEvZsPPQk/yaX6ZuIc5M3KNGQ4symioDlfnRMOCCpWaCg=="/>
         </item>
         <item>
             <title>0.6.484</title>
@@ -64,6 +60,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: lBZ38DkwbV8pEydwCBTkuUEgHBmpMKvqYYOja5B82NOKd4QuWvghGY2wLEmw73gxbEqUPxYeP8A5QNpTioo/Dg==
-length: 4396
+edSignature: XZr8h2OHw0vLq04yyyWT0j8YycEHaeSVBfzb7ifcbcmM+0AHOrhGmZ8taLnoRrdqkoqBtV9ERks0t+0oezOCAQ==
+length: 3931
 -->
