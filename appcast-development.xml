@@ -6,33 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.7.3</title>
-            <pubDate>Mon, 05 Oct 2026 04:46:13 +0000</pubDate>
+            <title>0.7.5</title>
+            <pubDate>Mon, 05 Oct 2026 10:50:16 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1175</sparkle:version>
-            <sparkle:shortVersionString>0.7.3</sparkle:shortVersionString>
+            <sparkle:version>1176</sparkle:version>
+            <sparkle:shortVersionString>0.7.5</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-### Improved
-
-- Switching tabs on Mac uses a fraction of the CPU and energy it did. The window no longer redraws or animates everything on each switch, and tab use and page visits now sync in batches in the background.
-
 ### Fixed
 
-- Switching tabs on Mac no longer flashes a blank page in between, and a tab loading for the first time keeps a plain page background instead of flashing the Space's colors.
+- Large Chrome Web Store extensions such as Keeper now install on Mac. Extensions download through the Space's own connection, as they do in Chrome, and the install review shows download progress.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/c1af6dc1bcc9f43eb86fa8be18e557d0e7733247...3b0a9159887fea435072873b653af568e2575f5a) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.3-2026-10-05-1175-r175.1/Installer-Crest-0.7.3-development-2026-10-05-3b0a915-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/3b0a9159887fea435072873b653af568e2575f5a...8df7c9675110a2d432f499af004287869c736771) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.5-2026-10-05-1176-r176.1/Installer-Crest-0.7.5-development-2026-10-05-8df7c96-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.3-2026-10-05-1175-r175.1/Installer-Crest-0.7.3-development-2026-10-05-3b0a915-arm64.dmg" length="215378563" type="application/octet-stream" sparkle:edSignature="qv0GZCWcgb8b3uhVJ9LP1KgtoGEYt12k/DJCqLXGu+WYDmc4oESMFjeDN254t7pwUqSKwMPY7QlYxTe3NKxDCQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.5-2026-10-05-1176-r176.1/Installer-Crest-0.7.5-development-2026-10-05-8df7c96-arm64.dmg" length="215369347" type="application/octet-stream" sparkle:edSignature="eM6kI32I6uscu/wamgaGhm3J8ZsqOGZKoAsgLloh3J2nNz9BZBRFg91NB0f3yul3hn7W56VAt7tHfnueG3r1Bg=="/>
         </item>
         <item>
             <title>0.6.484</title>
@@ -64,6 +60,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: Juu3A5+8byefL/GL054xOTs8m2W2zDD0NMMBxUk/Bfwr4KbcUXYPpadQanjhpdPS2K/P/YAGZBU/MAjd4dC0Dw==
-length: 4278
+edSignature: Vt8tXTrjPcB3phqYbf5FEpbbgSYGgTJ+y8PH8N0Ja+J/PdonckrEHib+1KIyYylNlE8TvG4ycifAAA5xAuieDA==
+length: 4081
 -->

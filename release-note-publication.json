@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "window-focus-bridge-release-format",
-    "development": "tab-switch-without-blank-frames",
+    "development": "web-store-download-cancel",
     "nightly": "window-focus-bridge-release-format"
   }
 }
