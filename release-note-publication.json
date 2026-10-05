@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "window-focus-bridge-release-format",
-    "development": "login-button-federated-sign-in-crash",
+    "development": "extension-tab-groups-as-folders",
     "nightly": "window-focus-bridge-release-format"
   }
 }
