@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "window-focus-bridge-release-format",
-    "development": "extension-tab-groups-as-folders",
+    "development": "back-forward-history-menu-responsive",
     "nightly": "retina-tab-icons"
   }
 }
