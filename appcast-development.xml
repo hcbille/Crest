@@ -6,41 +6,33 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.7.2</title>
-            <pubDate>Sat, 03 Oct 2026 14:42:04 +0000</pubDate>
+            <title>0.7.3</title>
+            <pubDate>Mon, 05 Oct 2026 04:46:13 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1171</sparkle:version>
-            <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
+            <sparkle:version>1175</sparkle:version>
+            <sparkle:shortVersionString>0.7.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
-### New
-
-- Crest 0.7 brings Chromium and WebKit together on Mac, with Chrome Web Store extensions and engine choices for each website. iPhone and iPad continue to use WebKit.
-
 ### Improved
 
-- Pause and resume Chromium downloads, and recover interrupted transfers when the server supports it.
-- Chromium can show local service-worker and extension notifications while Crest runs, with Space access and notification permissions respected.
+- Switching tabs on Mac uses a fraction of the CPU and energy it did. The window no longer redraws or animates everything on each switch, and tab use and page visits now sync in batches in the background.
 
 ### Fixed
 
-- Protected-video pages still switch to WebKit automatically. Engine switches respect unsaved-changes prompts and remember the website only after the move is allowed.
-- Interrupted Chromium profile upgrades resume safely without losing track of your existing browsing profiles.
-- Crest updates advertise the macOS version the whole app requires, so older Macs are not offered an incompatible update.
-- Crest windows on Mac no longer keep the system's WindowServer busy, which could use a lot of CPU on large or high-refresh external displays. The focused-window transparency setting has been removed.
+- Switching tabs on Mac no longer flashes a blank page in between, and a tab loading for the first time keeps a plain page background instead of flashing the Space's colors.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/6bf7a19c9ba32a4bc788efd538686e30e5587f1e...c1af6dc1bcc9f43eb86fa8be18e557d0e7733247) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.2-2026-10-03-1171-r171.1/Installer-Crest-0.7.2-development-2026-10-03-c1af6dc-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/c1af6dc1bcc9f43eb86fa8be18e557d0e7733247...3b0a9159887fea435072873b653af568e2575f5a) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.3-2026-10-05-1175-r175.1/Installer-Crest-0.7.3-development-2026-10-05-3b0a915-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.2-2026-10-03-1171-r171.1/Installer-Crest-0.7.2-development-2026-10-03-c1af6dc-arm64.dmg" length="215346307" type="application/octet-stream" sparkle:edSignature="BsQyL5/cSxsEk9QWQ6bthUvbdW6YLJX3CzKAXbSBFQ8Cgqmxswd0evICkVH7KELcq6mhEk1JR3Pceu/whCUtBg=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.3-2026-10-05-1175-r175.1/Installer-Crest-0.7.3-development-2026-10-05-3b0a915-arm64.dmg" length="215378563" type="application/octet-stream" sparkle:edSignature="qv0GZCWcgb8b3uhVJ9LP1KgtoGEYt12k/DJCqLXGu+WYDmc4oESMFjeDN254t7pwUqSKwMPY7QlYxTe3NKxDCQ=="/>
         </item>
         <item>
             <title>0.6.484</title>
@@ -72,6 +64,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: H7c2OObj5icEBRqrMTPSQ7JLVIULy14nSQ+azwVlPuIIuq4gsHsqSlu4AJRGktacg9sb9lcfxbHqkXFp2OA7Dw==
-length: 4923
+edSignature: Juu3A5+8byefL/GL054xOTs8m2W2zDD0NMMBxUk/Bfwr4KbcUXYPpadQanjhpdPS2K/P/YAGZBU/MAjd4dC0Dw==
+length: 4278
 -->
