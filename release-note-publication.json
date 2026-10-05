@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "window-focus-bridge-release-format",
-    "development": "web-store-download-cancel",
+    "development": "login-button-federated-sign-in-crash",
     "nightly": "window-focus-bridge-release-format"
   }
 }
