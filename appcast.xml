@@ -6,6 +6,43 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
+            <title>0.7.8</title>
+            <pubDate>Mon, 05 Oct 2026 18:01:50 +0000</pubDate>
+            <link>https://crestbrowser.com/</link>
+            <sparkle:channel>nightly</sparkle:channel>
+            <sparkle:version>1181</sparkle:version>
+            <sparkle:shortVersionString>0.7.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[## Highlights
+
+### New
+
+- Tab groups that extensions make, such as the tabs Claude works in, now appear on Mac as folders in the Space’s open tabs, in the group’s name and color. Renaming, recoloring, collapsing or deleting the folder, or moving tabs in or out, changes the group the extension sees, and the folder keeps following the group after Crest restarts.
+
+### Improved
+
+- Switching tabs on Mac uses a fraction of the CPU and energy it did. The window no longer redraws or animates everything on each switch, and tab use and page visits now sync in batches in the background.
+
+### Fixed
+
+- Switching tabs on Mac no longer flashes a blank page in between, and a tab loading for the first time keeps a plain page background instead of flashing the Space's colors.
+- Large Chrome Web Store extensions such as Keeper now install on Mac. Extensions download through the Space's own connection, as they do in Chrome, and the install review shows download progress.
+- Crest on Mac no longer quits when you press a site’s Login or Continue with Google button. Crest doesn’t offer Chrome’s federated sign-in, so these sites use their own sign-in pop-up or page where they have one, as they do in Safari.
+- Extensions that sign you back in on their own when the browser starts, such as Claude, now stay signed in after Crest restarts on Mac, as they do in Chrome.
+- Site icons in tabs and pinned tabs on Mac are now sharp on Retina displays instead of blurry.
+
+---
+
+Nightly builds contain the newest changes and may be less reliable than stable releases.
+
+[View all changes](https://github.com/pauljoda/Crest/compare/c1af6dc1bcc9f43eb86fa8be18e557d0e7733247...eece44049ac5ad9fb5c2f60379940d9988eb117d) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.7.8-2026-10-05-1181-r181.1/Installer-Crest-0.7.8-nightly-2026-10-05-eece440-arm64.dmg)
+
+[Browse Nightly releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Nightly+builds%22)
+]]></description>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.7.8-2026-10-05-1181-r181.1/Installer-Crest-0.7.8-nightly-2026-10-05-eece440-arm64.dmg" length="215471740" type="application/octet-stream" sparkle:edSignature="C6tZQia2/YF8xGmX23b2p5eopd5sEy0Ch11OglO8dqEUb/ujEik7yPMtLwp2eQ5IGbMQFWCQ/J9HRjB5tSaRCQ=="/>
+        </item>
+        <item>
             <title>0.7.2</title>
             <pubDate>Sat, 03 Oct 2026 15:24:56 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
@@ -28,89 +65,6 @@ Stable releases are signed, notarized, and ready for everyday use.
 [Browse Stable releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Afalse)
 ]]></description>
             <enclosure url="https://github.com/pauljoda/Crest/releases/download/v0.7.2/Installer-Crest-0.7.2-arm64.dmg" length="215313989" type="application/octet-stream" sparkle:edSignature="EWBi40WcFJdLLt4/JQRPUg+z5GH8e2ZdNdlYmCFWV3B7ut0XFd+w/FZ9ylckZCDyl6lSafIlyJsrQwWOl39YCA=="/>
-        </item>
-        <item>
-            <title>0.7.2</title>
-            <pubDate>Sat, 03 Oct 2026 14:13:07 +0000</pubDate>
-            <link>https://crestbrowser.com/</link>
-            <sparkle:channel>nightly</sparkle:channel>
-            <sparkle:version>1172</sparkle:version>
-            <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[## Highlights
-
-### New
-
-- Crest 0.7 brings Chromium and WebKit together on Mac, with Chrome Web Store extensions and engine choices for each website. iPhone and iPad continue to use WebKit.
-
-### Improved
-
-- Pause and resume Chromium downloads, and recover interrupted transfers when the server supports it.
-- Chromium can show local service-worker and extension notifications while Crest runs, with Space access and notification permissions respected.
-
-### Fixed
-
-- Downloads follow the Automatic Downloads choice of the site you’re on, including files it serves from another address, such as GitHub release files. A blocked download’s message no longer appears twice.
-- Chromium pages use your default zoom when they open and keep your chosen zoom as you navigate.
-- Chromium is updated to 154.0.8037.57 with upstream security and compatibility fixes.
-- Protected-video pages still switch to WebKit automatically. Engine switches respect unsaved-changes prompts and remember the website only after the move is allowed.
-- Interrupted Chromium profile upgrades resume safely without losing track of your existing browsing profiles.
-- Crest updates advertise the macOS version the whole app requires, so older Macs are not offered an incompatible update.
-- Crest windows on Mac no longer keep the system's WindowServer busy, which could use a lot of CPU on large or high-refresh external displays. The focused-window transparency setting has been removed.
-
----
-
-Nightly builds contain the newest changes and may be less reliable than stable releases.
-
-[View all changes](https://github.com/pauljoda/Crest/compare/1c2db5a842a1457f8c20a91f3a58dfbdb2da280e...c1af6dc1bcc9f43eb86fa8be18e557d0e7733247) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/nightly-0.7.2-2026-10-03-1172-r172.1/Installer-Crest-0.7.2-nightly-2026-10-03-c1af6dc-arm64.dmg)
-
-[Browse Nightly releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Nightly+builds%22)
-]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/nightly-0.7.2-2026-10-03-1172-r172.1/Installer-Crest-0.7.2-nightly-2026-10-03-c1af6dc-arm64.dmg" length="215360123" type="application/octet-stream" sparkle:edSignature="kvQbWN97h31BeeY4FWPyOanWmRo3meNrdBg/6CrI7+jDvmWrPI9jV86BVD1D6GnKMGecNqrTNPJ6qydKEDhCCA=="/>
-        </item>
-        <item>
-            <title>0.7.0</title>
-            <pubDate>Sat, 03 Oct 2026 04:52:24 +0000</pubDate>
-            <link>https://crestbrowser.com/</link>
-            <sparkle:version>1170</sparkle:version>
-            <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[## Highlights
-
-Showing the 12 most recent highlights from 241 user-facing changes.
-
-### New
-
-- Crest 0.7 brings Chromium and WebKit together on Mac, with Chrome Web Store extensions and engine choices for each website. iPhone and iPad continue to use WebKit.
-
-### Improved
-
-- Pause and resume Chromium downloads, and recover interrupted transfers when the server supports it.
-- Chromium can show local service-worker and extension notifications while Crest runs, with Space access and notification permissions respected.
-
-### Fixed
-
-- Screen sharing works in Slack huddles and in Slack's call test on pages that run in Chromium. As in Chrome, a site can ask to share your screen without a click of its own, and macOS still asks what to share.
-- Tabs take the title a page gives itself after it finishes loading. A link you open in the background with Command-click, or a page that shows “Loading…” first, no longer stays named by its address or placeholder.
-- Pages in Chromium that have no title of their own show the site’s name, as WebKit pages do, instead of their full address. A Chromium tab that reloads in the background keeps its title.
-- Downloads follow the Automatic Downloads choice of the site you’re on, including files it serves from another address, such as GitHub release files. A blocked download’s message no longer appears twice.
-- Chromium pages use your default zoom when they open and keep your chosen zoom as you navigate.
-- Chromium is updated to 154.0.8037.57 with upstream security and compatibility fixes.
-- Protected-video pages still switch to WebKit automatically. Engine switches respect unsaved-changes prompts and remember the website only after the move is allowed.
-- Interrupted Chromium profile upgrades resume safely without losing track of your existing browsing profiles.
-- Crest updates advertise the macOS version the whole app requires, so older Macs are not offered an incompatible update.
-
----
-
-Stable releases are signed, notarized, and ready for everyday use.
-
-[View all changes](https://github.com/pauljoda/Crest/compare/e261a9d3ca7b427d346b69a0830128b9cefae94b...0fde8b599818e0cf03ca2513a40227818650bf0e) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/v0.7.0/Installer-Crest-0.7.0-arm64.dmg)
-
-[Browse Stable releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Afalse)
-]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/v0.7.0/Installer-Crest-0.7.0-arm64.dmg" length="215412805" type="application/octet-stream" sparkle:edSignature="sfHOENEaOJb7tzcs9Vl+GuNmF077TTDMCHlHs8BA1QLGbCNvw0jnODoNhbkWlw76NpM90WYGQTsDsh85ZtcADA=="/>
         </item>
         <item>
             <title>0.6.481</title>
@@ -153,6 +107,6 @@ Nightly builds contain the newest changes and may be less reliable than stable r
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: C8f73rI2JfIuu+/oyUpLs7AfeewZ0I6IX6/n09ASIC0gXUbXMdLWTvhhpqBs7zWsv7KqYXjsNQQvwWYxXhbTBA==
-length: 10991
+edSignature: yhXR5bUgSu8rHckfCyj73vPg6R1f5ya85o3W+/69viiSmhl1VUnaOzjxHApt1H8Mj4Z5WZ6DIZglQrKaj1apDg==
+length: 7798
 -->

@@ -3,6 +3,6 @@
   "channels": {
     "stable": "window-focus-bridge-release-format",
     "development": "extension-tab-groups-as-folders",
-    "nightly": "window-focus-bridge-release-format"
+    "nightly": "retina-tab-icons"
   }
 }
