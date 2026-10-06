@@ -6,29 +6,29 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>Crest</title>
         <item>
-            <title>0.7.10</title>
-            <pubDate>Mon, 05 Oct 2026 22:32:40 +0000</pubDate>
+            <title>0.7.11</title>
+            <pubDate>Tue, 06 Oct 2026 03:43:00 +0000</pubDate>
             <link>https://crestbrowser.com/</link>
             <sparkle:channel>development</sparkle:channel>
-            <sparkle:version>1183</sparkle:version>
-            <sparkle:shortVersionString>0.7.10</sparkle:shortVersionString>
+            <sparkle:version>1184</sparkle:version>
+            <sparkle:shortVersionString>0.7.11</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.1</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[## Highlights
 
 ### Fixed
 
-- Importing from Zen no longer fails with “Crest could not recognize this browser’s tab-session data” when a Space has pinned tabs in a split view. Those tabs now come over as saved tabs: in the folder that held the split, or outside any folder when the split sat among the Space’s pinned tabs. A Zen session too large to import now says so.
+- Site Controls and the extensions it lists now open on Mac when the window is in full screen, instead of closing as soon as you click the button.
 
 ---
 
 Development builds contain the newest changes and may be less reliable than stable releases.
 
-[View all changes](https://github.com/pauljoda/Crest/compare/86f5d23cd6995e2d8790311bff1d09dbafa00bc5...2d3e8adce84e314b47587e7d10968705bce4e2e9) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.10-2026-10-05-1183-r183.1/Installer-Crest-0.7.10-development-2026-10-05-2d3e8ad-arm64.dmg)
+[View all changes](https://github.com/pauljoda/Crest/compare/2d3e8adce84e314b47587e7d10968705bce4e2e9...4e59eafd9c21c765a19e28d27dd2d145b24ab260) · [Download the installer](https://github.com/pauljoda/Crest/releases/download/development-0.7.11-2026-10-06-1184-r184.1/Installer-Crest-0.7.11-development-2026-10-06-4e59eaf-arm64.dmg)
 
 [Browse Development releases](https://github.com/pauljoda/Crest/releases?q=prerelease%3Atrue+%22Development+builds%22)
 ]]></description>
-            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.10-2026-10-05-1183-r183.1/Installer-Crest-0.7.10-development-2026-10-05-2d3e8ad-arm64.dmg" length="215476868" type="application/octet-stream" sparkle:edSignature="KSQthVNtBugtD5N66R/1z+zOnekXVQa+xAvxLN+YF29K8HVtseQH/cZ/qFRiD1E28WmeyH1qtIMVjjxNcuJjCQ=="/>
+            <enclosure url="https://github.com/pauljoda/Crest/releases/download/development-0.7.11-2026-10-06-1184-r184.1/Installer-Crest-0.7.11-development-2026-10-06-4e59eaf-arm64.dmg" length="215474309" type="application/octet-stream" sparkle:edSignature="LyUC6cGQutY25eAOY8mCmKAIrLjNVubFRKb6Fr/Di8zW6CNW3b9uO5Sd6u6WP6dp+LWspNxDA3s5fMmUKnqHAQ=="/>
         </item>
         <item>
             <title>0.6.484</title>
@@ -60,6 +60,6 @@ Development builds contain the newest changes and may be less reliable than stab
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: jdXF8ffLgkUKIqETquxeAvi5LqzvCF0sewKPPki0gftB2Q50KeW/7li3XshxO3+YAcF9Z35AoIYixyZH3gyMBQ==
-length: 4240
+edSignature: AHvNjwBb9nLQJHDB8ndEvHv/zlDc38eIYnz+uq0iZU8oJC7ft3mAxPfx0qopU2NAWCB71WwCyQRTeBCb7C2QCA==
+length: 4037
 -->

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "channels": {
     "stable": "window-focus-bridge-release-format",
-    "development": "zen-import-pinned-split-views",
+    "development": "site-controls-full-screen",
     "nightly": "retina-tab-icons"
   }
 }
