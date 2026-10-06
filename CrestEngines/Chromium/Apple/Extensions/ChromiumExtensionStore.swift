@@ -429,6 +429,10 @@ final class ChromiumExtensionInstallation {
     var preparing = true
     /// The fraction of the package received, once its download knows its size.
     var downloaded: Double?
+    /// Set while the package has shown no progress and the engine is still
+    /// starting up: the second download has begun or has failed, and the first
+    /// has not yet said anything.
+    var waitingOnEngine = false
     var installing = false
     var completed = false
     var installedCount = 0
@@ -442,6 +446,27 @@ final class ChromiumExtensionInstallation {
     @ObservationIgnored private var transfer: (any CrestExtensionDownload)?
     @ObservationIgnored private var canceled = false
     @ObservationIgnored private var targetSpace: BrowserSpaceIdentity?
+    /// The race between the two package downloads while one is running.
+    @ObservationIgnored private var packageRace: ExtensionPackageRace?
+    @ObservationIgnored private var downloadStarted = ContinuousClock.now
+    /// When either download last reported progress, on the clock that stops while the Mac sleeps.
+    @ObservationIgnored private var lastProgress = SuspendingClock.now
+    /// Starts the second download after a quiet engine, and ends the race at
+    /// its ceiling.
+    @ObservationIgnored private var raceTimers: Task<Void, Never>?
+    @ObservationIgnored private var fallbackSession: URLSession?
+    @ObservationIgnored private var fallbackTask: URLSessionDownloadTask?
+    @ObservationIgnored private var fallbackProgress: NSKeyValueObservation?
+    /// Stops the Web Store download that grows past the size an extension
+    /// package can have, instead of letting it fill the disk until it ends.
+    @ObservationIgnored private var fallbackSize: NSKeyValueObservation?
+    /// What each download has reported, kept apart so a failed download's
+    /// progress does not stay on the bar. The bar shows the larger of the two.
+    @ObservationIgnored private var engineFraction: Double?
+    @ObservationIgnored private var fallbackFraction: Double?
+    /// Whether the Web Store download is running, so progress it reported just
+    /// before it failed is not shown after.
+    @ObservationIgnored private var fallbackRunning = false
 
     init(id: String, space: BrowserSpaceIdentity, window: NSWindow, store: ChromiumExtensionStore) {
         self.id = id
@@ -483,28 +508,159 @@ final class ChromiumExtensionInstallation {
     }
     /// The package as the Space's own engine profile downloads it; Chromium's
     /// installer then judges it for every Space it is installed in.
+    ///
+    /// The engine's download is the one that runs. It can stay silent for
+    /// minutes when no page has loaded since the browser started, so when it
+    /// has reported nothing after `fallbackDelay` the same package is also
+    /// fetched from the Web Store directly, and the first to deliver wins. The
+    /// package still goes through the engine's own verification and consent.
     private func download() async throws -> URL {
-        guard let host = ChromiumComposition.engineHost else { throw URLError(.cancelled) }
-        let result: (String?, String) = await withCheckedContinuation { continuation in
-            transfer = host.downloadExtension(
-                id, profile: space.profileID,
-                progress: { [weak self] fraction in self?.downloaded = fraction },
-                completion: { package, message in
-                    continuation.resume(returning: (package, message))
-                })
-            if transfer == nil { continuation.resume(returning: (nil, "")) }
+        guard let host = ChromiumComposition.engineHost, !canceled else { throw URLError(.cancelled) }
+        let race = ExtensionPackageRace()
+        packageRace = race
+        engineFraction = nil
+        fallbackFraction = nil
+        fallbackRunning = false
+        downloaded = nil
+        waitingOnEngine = false
+        downloadStarted = ContinuousClock.now
+        // The timers count time the Mac is awake: a sleep is not a slow download.
+        let started = SuspendingClock.now
+        lastProgress = started
+        // Engine callbacks are built outside the actor, so they may arrive on any thread.
+        let progress: @Sendable (Double) -> Void = { [weak self] fraction in
+            race.engineReportedProgress()
+            Task { @MainActor in self?.received(fraction, from: .engine) }
         }
+        let completion: @Sendable (String?, String) -> Void = { [weak self] package, message in
+            race.engineFinished(package: package, message: message)
+            if package == nil { Task { @MainActor in self?.engineDidFail() } }
+        }
+        transfer = host.downloadExtension(id, profile: space.profileID, progress: progress, completion: completion)
+        if transfer == nil { race.engineFinished(package: nil, message: "", unavailable: true) }
+        raceTimers = Task { @MainActor [weak self] in
+            try? await Task.sleep(until: started.advanced(by: Self.fallbackDelay), clock: .suspending)
+            guard !Task.isCancelled else { return }
+            self?.startFallback(race, host: host)
+            // A download that is still making progress is never cut off, however long it takes:
+            // only one that has been silent for the whole of `silenceLimit` is given up on.
+            while !Task.isCancelled {
+                guard let self else { return }
+                try? await Task.sleep(until: self.lastProgress.advanced(by: Self.silenceLimit), clock: .suspending)
+                guard !Task.isCancelled else { return }
+                guard self.lastProgress.advanced(by: Self.silenceLimit) <= SuspendingClock.now else { continue }
+                race.abort(
+                    NSError(
+                        domain: "CrestExtension", code: 3,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: String(
+                                localized: "This extension stopped downloading. Check your connection and try again.")
+                        ]))
+                return
+            }
+        }
+        defer { endRace() }
+        let won = try await race.wait()
+        return won.package
+    }
+    /// Quiet for this long, the engine's download is joined by a second one.
+    private static let fallbackDelay = Duration.seconds(5)
+    /// A download that reports no progress for this long is given up on. It is longer than the
+    /// browser engine's startup hold (about three minutes), which the engine's own download waits out.
+    private static let silenceLimit = Duration.seconds(240)
+
+    /// Begins the Web Store download, unless the race is already decided, the
+    /// engine has spoken, or the identifier is not one the store can name.
+    private func startFallback(_ race: ExtensionPackageRace, host: any CrestMacShell) {
+        guard packageRace === race, !canceled,
+            let url = ExtensionFallbackDownload.url(id: id, engineVersion: host.engineVersion()),
+            race.beginFallback()
+        else { return }
+        fallbackRunning = true
+        waitingOnEngine = downloaded == nil
+        let session = ExtensionFallbackDownload.makeSession()
+        let cutoff = ExtensionFallbackDownload.Cutoff()
+        let task = session.downloadTask(with: ExtensionFallbackDownload.request(for: url)) {
+            [weak self] location, response, error in
+            switch ExtensionFallbackDownload.ownedPackage(
+                location: location, response: response, error: error, oversized: cutoff.isSet)
+            {
+            case .success(let package):
+                // A late success is deleted by the race if it lost.
+                _ = race.offer(package, from: .urlSession)
+            case .failure(let failure):
+                if race.fallbackFailed(failure.reason) {
+                    Task { @MainActor in self?.fallbackDidFail(failure.reason) }
+                }
+            }
+        }
+        fallbackSession = session
+        fallbackTask = task
+        fallbackProgress = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
+            guard progress.totalUnitCount > 0 else { return }
+            let fraction = progress.fractionCompleted
+            Task { @MainActor in self?.received(fraction, from: .urlSession) }
+        }
+        fallbackSize = task.observe(\.countOfBytesReceived) { [weak task] observed, _ in
+            guard
+                observed.countOfBytesReceived > ExtensionFallbackDownload.sizeCap
+                    || observed.countOfBytesExpectedToReceive > ExtensionFallbackDownload.sizeCap
+            else { return }
+            cutoff.set()
+            task?.cancel()
+        }
+        task.resume()
+    }
+    private func fallbackDidFail(_ reason: String) {
+        guard packageRace != nil else { return }
+        fallbackProgress = nil
+        fallbackSize = nil
+        fallbackRunning = false
+        // Progress that came only from the failed download is no longer true.
+        fallbackFraction = nil
+        showProgress()
+        waitingOnEngine = downloaded == nil
+    }
+    /// The engine's own download has failed while the Web Store download is
+    /// still the one that can deliver, so the engine is no longer what is awaited.
+    private func engineDidFail() {
+        guard packageRace != nil else { return }
+        waitingOnEngine = false
+    }
+    private func received(_ fraction: Double, from source: ExtensionPackageRace.Source) {
+        guard packageRace != nil else { return }
+        switch source {
+        case .engine:
+            engineFraction = max(engineFraction ?? 0, fraction)
+        case .urlSession:
+            guard fallbackRunning else { return }
+            fallbackFraction = max(fallbackFraction ?? 0, fraction)
+        }
+        showProgress()
+        lastProgress = SuspendingClock.now
+        waitingOnEngine = false
+    }
+    private func showProgress() {
+        downloaded = [engineFraction, fallbackFraction].compactMap { $0 }.max()
+    }
+    /// Stops whatever of the race is still running. The loser of a decided
+    /// race is canceled here, and its package, if one arrives late, is deleted
+    /// by the race.
+    private func endRace() {
+        raceTimers?.cancel()
+        raceTimers = nil
+        transfer?.cancel()
         transfer = nil
-        guard let package = result.0 else {
-            throw NSError(
-                domain: "CrestExtension", code: 2,
-                userInfo: [
-                    NSLocalizedDescriptionKey: result.1.isEmpty
-                        ? String(localized: "The Space is no longer available.")
-                        : String(localized: "Couldn’t download this extension from the Chrome Web Store (\(result.1)).")
-                ])
-        }
-        return URL(fileURLWithPath: package)
+        fallbackTask?.cancel()
+        fallbackSession?.invalidateAndCancel()
+        fallbackTask = nil
+        fallbackSession = nil
+        fallbackProgress = nil
+        fallbackSize = nil
+        fallbackRunning = false
+        // The race is over, so nothing is waited on any more, whoever won.
+        waitingOnEngine = false
+        packageRace = nil
     }
     private func installPackage(in target: BrowserSpaceIdentity) async throws {
         guard !canceled, store.authorized(target), let package, let host = ChromiumComposition.engineHost,
@@ -560,9 +716,9 @@ final class ChromiumExtensionInstallation {
     }
     func cancel() {
         canceled = true
-        // The download then reports failure, which a canceled review ignores.
-        transfer?.cancel()
-        transfer = nil
+        // The download then fails, which a canceled review ignores.
+        packageRace?.abort(URLError(.cancelled))
+        endRace()
         let callback = consent
         consent = nil
         callback?(false, false)

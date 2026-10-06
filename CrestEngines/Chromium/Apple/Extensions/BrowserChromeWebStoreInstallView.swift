@@ -32,9 +32,18 @@ struct BrowserChromeWebStoreInstallView: View {
                     if let downloaded = model.downloaded, downloaded < 1 {
                         ProgressView("Downloading extension…", value: downloaded).foregroundStyle(.secondary)
                     } else {
-                        HStack(spacing: CrestSpacing.medium) {
-                            ProgressView().controlSize(.small)
-                            Text("Preparing extension…").foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: CrestSpacing.small) {
+                            HStack(spacing: CrestSpacing.medium) {
+                                ProgressView().controlSize(.small)
+                                Text("Preparing extension…").foregroundStyle(.secondary)
+                            }
+                            if model.waitingOnEngine {
+                                Text(
+                                    "Waiting for the browser to finish starting. This can take a few minutes right after Crest opens."
+                                )
+                                .font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                     }
                 } else if model.completed {
