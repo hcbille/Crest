@@ -428,72 +428,322 @@ enum CoreCodec {
 
 extension Change {
     init(from reader: inout WireReader) throws(WireError) {
+        let decode: (inout WireReader) throws(WireError) -> Change
         let tag = try reader.readTag()
         switch tag {
-        case 0: self = .appPreferencesChanged(try AppPreferencesChanged(from: &reader))
-        case 1: self = .archiveChanged(try ArchiveChanged(from: &reader))
-        case 2: self = .authenticationAsked(try AuthenticationAsked(from: &reader))
-        case 3: self = .closeReady(try CloseReady(from: &reader))
-        case 4: self = .cloudMergeBegan(try CloudMergeBegan(from: &reader))
-        case 5: self = .cloudSyncAdvanced(try CloudSyncAdvanced(from: &reader))
-        case 6: self = .cloudTransportChanged(try CloudTransportChanged(from: &reader))
-        case 7: self = .dataDeleted(try DataDeleted(from: &reader))
-        case 8: self = .downloadApprovalAsked(try DownloadApprovalAsked(from: &reader))
-        case 9: self = .downloadDestinationAsked(try DownloadDestinationAsked(from: &reader))
-        case 10: self = .downloadStarted(try DownloadStarted(from: &reader))
-        case 11: self = .downloadUpdated(try DownloadUpdated(from: &reader))
-        case 12: self = .downloadsRemoved(try DownloadsRemoved(from: &reader))
-        case 13: self = .enginePreferencesChanged(try EnginePreferencesChanged(from: &reader))
-        case 14: self = .enginesChanged(try EnginesChanged(from: &reader))
-        case 15: self = .extensionInstallAsked(try ExtensionInstallAsked(from: &reader))
-        case 16: self = .foldersChanged(try FoldersChanged(from: &reader))
-        case 17: self = .historyChanged(try HistoryChanged(from: &reader))
-        case 18: self = .linkPreferencesChanged(try LinkPreferencesChanged(from: &reader))
-        case 19: self = .navigationRecorded(try NavigationRecorded(from: &reader))
-        case 20: self = .offeredPageAdopted(try OfferedPageAdopted(from: &reader))
-        case 21: self = .offeredWindowAdopted(try OfferedWindowAdopted(from: &reader))
-        case 22: self = .pageChanged(try PageChanged(from: &reader))
-        case 23: self = .pageOpened(try PageOpened(from: &reader))
-        case 24: self = .pageRehosted(try PageRehosted(from: &reader))
-        case 25: self = .pageRemoved(try PageRemoved(from: &reader))
-        case 26: self = .pageUnloaded(try PageUnloaded(from: &reader))
-        case 27: self = .permissionAsked(try PermissionAsked(from: &reader))
-        case 28: self = .promptSettled(try PromptSettled(from: &reader))
-        case 29: self = .quitWithDownloadsAsked(try QuitWithDownloadsAsked(from: &reader))
-        case 30: self = .saved(try Saved(from: &reader))
-        case 31: self = .scriptDialogAsked(try ScriptDialogAsked(from: &reader))
-        case 32: self = .sessionAdopted(try SessionAdopted(from: &reader))
-        case 33: self = .setupCompletedChanged(try SetupCompletedChanged(from: &reader))
-        case 34: self = .setupDraftChanged(try SetupDraftChanged(from: &reader))
-        case 35: self = .setupFinished(try SetupFinished(from: &reader))
-        case 36: self = .setupFlowChanged(try SetupFlowChanged(from: &reader))
-        case 37: self = .shortcutsChanged(try ShortcutsChanged(from: &reader))
-        case 38: self = .sidebarChanged(try SidebarChanged(from: &reader))
-        case 39: self = .sitePermissionsChanged(try SitePermissionsChanged(from: &reader))
-        case 40: self = .spaceLockChanged(try SpaceLockChanged(from: &reader))
-        case 41: self = .spaceSettingsChanged(try SpaceSettingsChanged(from: &reader))
-        case 42: self = .spacesChanged(try SpacesChanged(from: &reader))
-        case 43: self = .splitGroupsChanged(try SplitGroupsChanged(from: &reader))
-        case 44: self = .storageFailed(try StorageFailed(from: &reader))
-        case 45: self = .syncJournalChanged(try SyncJournalChanged(from: &reader))
-        case 46: self = .syncRecordsSkipped(try SyncRecordsSkipped(from: &reader))
-        case 47: self = .syncStagingFailed(try SyncStagingFailed(from: &reader))
-        case 48: self = .tabCopied(try TabCopied(from: &reader))
-        case 49: self = .tabFaviconAssigned(try TabFaviconAssigned(from: &reader))
-        case 50: self = .tabPagePutAway(try TabPagePutAway(from: &reader))
-        case 51: self = .tabsChanged(try TabsChanged(from: &reader))
-        case 52: self = .tabsImported(try TabsImported(from: &reader))
-        case 53: self = .transientPageClosed(try TransientPageClosed(from: &reader))
-        case 54: self = .transientPagePromoted(try TransientPagePromoted(from: &reader))
-        case 55: self = .windowBroughtForward(try WindowBroughtForward(from: &reader))
-        case 56: self = .windowChanged(try WindowChanged(from: &reader))
-        case 57: self = .windowClosed(try WindowClosed(from: &reader))
-        case 58: self = .windowRecordsAdopted(try WindowRecordsAdopted(from: &reader))
-        case 59: self = .workspaceChanged(try WorkspaceChanged(from: &reader))
-        case 60: self = .workspaceClosed(try WorkspaceClosed(from: &reader))
-        case 61: self = .workspaceOpened(try WorkspaceOpened(from: &reader))
+        case 0: decode = Self.decodeAppPreferencesChanged
+        case 1: decode = Self.decodeArchiveChanged
+        case 2: decode = Self.decodeAuthenticationAsked
+        case 3: decode = Self.decodeCloseReady
+        case 4: decode = Self.decodeCloudMergeBegan
+        case 5: decode = Self.decodeCloudSyncAdvanced
+        case 6: decode = Self.decodeCloudTransportChanged
+        case 7: decode = Self.decodeDataDeleted
+        case 8: decode = Self.decodeDownloadApprovalAsked
+        case 9: decode = Self.decodeDownloadDestinationAsked
+        case 10: decode = Self.decodeDownloadStarted
+        case 11: decode = Self.decodeDownloadUpdated
+        case 12: decode = Self.decodeDownloadsRemoved
+        case 13: decode = Self.decodeEnginePreferencesChanged
+        case 14: decode = Self.decodeEnginesChanged
+        case 15: decode = Self.decodeExtensionInstallAsked
+        case 16: decode = Self.decodeFoldersChanged
+        case 17: decode = Self.decodeHistoryChanged
+        case 18: decode = Self.decodeLinkPreferencesChanged
+        case 19: decode = Self.decodeNavigationRecorded
+        case 20: decode = Self.decodeOfferedPageAdopted
+        case 21: decode = Self.decodeOfferedWindowAdopted
+        case 22: decode = Self.decodePageChanged
+        case 23: decode = Self.decodePageOpened
+        case 24: decode = Self.decodePageRehosted
+        case 25: decode = Self.decodePageRemoved
+        case 26: decode = Self.decodePageUnloaded
+        case 27: decode = Self.decodePermissionAsked
+        case 28: decode = Self.decodePromptSettled
+        case 29: decode = Self.decodeQuitWithDownloadsAsked
+        case 30: decode = Self.decodeSaved
+        case 31: decode = Self.decodeScriptDialogAsked
+        case 32: decode = Self.decodeSessionAdopted
+        case 33: decode = Self.decodeSetupCompletedChanged
+        case 34: decode = Self.decodeSetupDraftChanged
+        case 35: decode = Self.decodeSetupFinished
+        case 36: decode = Self.decodeSetupFlowChanged
+        case 37: decode = Self.decodeShortcutsChanged
+        case 38: decode = Self.decodeSidebarChanged
+        case 39: decode = Self.decodeSitePermissionsChanged
+        case 40: decode = Self.decodeSpaceLockChanged
+        case 41: decode = Self.decodeSpaceSettingsChanged
+        case 42: decode = Self.decodeSpacesChanged
+        case 43: decode = Self.decodeSplitGroupsChanged
+        case 44: decode = Self.decodeStorageFailed
+        case 45: decode = Self.decodeSyncJournalChanged
+        case 46: decode = Self.decodeSyncRecordsSkipped
+        case 47: decode = Self.decodeSyncStagingFailed
+        case 48: decode = Self.decodeTabCopied
+        case 49: decode = Self.decodeTabFaviconAssigned
+        case 50: decode = Self.decodeTabPagePutAway
+        case 51: decode = Self.decodeTabsChanged
+        case 52: decode = Self.decodeTabsImported
+        case 53: decode = Self.decodeTransientPageClosed
+        case 54: decode = Self.decodeTransientPagePromoted
+        case 55: decode = Self.decodeWindowBroughtForward
+        case 56: decode = Self.decodeWindowChanged
+        case 57: decode = Self.decodeWindowClosed
+        case 58: decode = Self.decodeWindowRecordsAdopted
+        case 59: decode = Self.decodeWorkspaceChanged
+        case 60: decode = Self.decodeWorkspaceClosed
+        case 61: decode = Self.decodeWorkspaceOpened
         default: throw WireError.malformed("Unknown Change tag \(tag)")
         }
+        self = try decode(&reader)
+    }
+
+    private static func decodeAppPreferencesChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .appPreferencesChanged(try AppPreferencesChanged(from: &reader))
+    }
+
+    private static func decodeArchiveChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .archiveChanged(try ArchiveChanged(from: &reader))
+    }
+
+    private static func decodeAuthenticationAsked(_ reader: inout WireReader) throws(WireError) -> Change {
+        .authenticationAsked(try AuthenticationAsked(from: &reader))
+    }
+
+    private static func decodeCloseReady(_ reader: inout WireReader) throws(WireError) -> Change {
+        .closeReady(try CloseReady(from: &reader))
+    }
+
+    private static func decodeCloudMergeBegan(_ reader: inout WireReader) throws(WireError) -> Change {
+        .cloudMergeBegan(try CloudMergeBegan(from: &reader))
+    }
+
+    private static func decodeCloudSyncAdvanced(_ reader: inout WireReader) throws(WireError) -> Change {
+        .cloudSyncAdvanced(try CloudSyncAdvanced(from: &reader))
+    }
+
+    private static func decodeCloudTransportChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .cloudTransportChanged(try CloudTransportChanged(from: &reader))
+    }
+
+    private static func decodeDataDeleted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .dataDeleted(try DataDeleted(from: &reader))
+    }
+
+    private static func decodeDownloadApprovalAsked(_ reader: inout WireReader) throws(WireError) -> Change {
+        .downloadApprovalAsked(try DownloadApprovalAsked(from: &reader))
+    }
+
+    private static func decodeDownloadDestinationAsked(_ reader: inout WireReader) throws(WireError) -> Change {
+        .downloadDestinationAsked(try DownloadDestinationAsked(from: &reader))
+    }
+
+    private static func decodeDownloadStarted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .downloadStarted(try DownloadStarted(from: &reader))
+    }
+
+    private static func decodeDownloadUpdated(_ reader: inout WireReader) throws(WireError) -> Change {
+        .downloadUpdated(try DownloadUpdated(from: &reader))
+    }
+
+    private static func decodeDownloadsRemoved(_ reader: inout WireReader) throws(WireError) -> Change {
+        .downloadsRemoved(try DownloadsRemoved(from: &reader))
+    }
+
+    private static func decodeEnginePreferencesChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .enginePreferencesChanged(try EnginePreferencesChanged(from: &reader))
+    }
+
+    private static func decodeEnginesChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .enginesChanged(try EnginesChanged(from: &reader))
+    }
+
+    private static func decodeExtensionInstallAsked(_ reader: inout WireReader) throws(WireError) -> Change {
+        .extensionInstallAsked(try ExtensionInstallAsked(from: &reader))
+    }
+
+    private static func decodeFoldersChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .foldersChanged(try FoldersChanged(from: &reader))
+    }
+
+    private static func decodeHistoryChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .historyChanged(try HistoryChanged(from: &reader))
+    }
+
+    private static func decodeLinkPreferencesChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .linkPreferencesChanged(try LinkPreferencesChanged(from: &reader))
+    }
+
+    private static func decodeNavigationRecorded(_ reader: inout WireReader) throws(WireError) -> Change {
+        .navigationRecorded(try NavigationRecorded(from: &reader))
+    }
+
+    private static func decodeOfferedPageAdopted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .offeredPageAdopted(try OfferedPageAdopted(from: &reader))
+    }
+
+    private static func decodeOfferedWindowAdopted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .offeredWindowAdopted(try OfferedWindowAdopted(from: &reader))
+    }
+
+    private static func decodePageChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .pageChanged(try PageChanged(from: &reader))
+    }
+
+    private static func decodePageOpened(_ reader: inout WireReader) throws(WireError) -> Change {
+        .pageOpened(try PageOpened(from: &reader))
+    }
+
+    private static func decodePageRehosted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .pageRehosted(try PageRehosted(from: &reader))
+    }
+
+    private static func decodePageRemoved(_ reader: inout WireReader) throws(WireError) -> Change {
+        .pageRemoved(try PageRemoved(from: &reader))
+    }
+
+    private static func decodePageUnloaded(_ reader: inout WireReader) throws(WireError) -> Change {
+        .pageUnloaded(try PageUnloaded(from: &reader))
+    }
+
+    private static func decodePermissionAsked(_ reader: inout WireReader) throws(WireError) -> Change {
+        .permissionAsked(try PermissionAsked(from: &reader))
+    }
+
+    private static func decodePromptSettled(_ reader: inout WireReader) throws(WireError) -> Change {
+        .promptSettled(try PromptSettled(from: &reader))
+    }
+
+    private static func decodeQuitWithDownloadsAsked(_ reader: inout WireReader) throws(WireError) -> Change {
+        .quitWithDownloadsAsked(try QuitWithDownloadsAsked(from: &reader))
+    }
+
+    private static func decodeSaved(_ reader: inout WireReader) throws(WireError) -> Change {
+        .saved(try Saved(from: &reader))
+    }
+
+    private static func decodeScriptDialogAsked(_ reader: inout WireReader) throws(WireError) -> Change {
+        .scriptDialogAsked(try ScriptDialogAsked(from: &reader))
+    }
+
+    private static func decodeSessionAdopted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .sessionAdopted(try SessionAdopted(from: &reader))
+    }
+
+    private static func decodeSetupCompletedChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .setupCompletedChanged(try SetupCompletedChanged(from: &reader))
+    }
+
+    private static func decodeSetupDraftChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .setupDraftChanged(try SetupDraftChanged(from: &reader))
+    }
+
+    private static func decodeSetupFinished(_ reader: inout WireReader) throws(WireError) -> Change {
+        .setupFinished(try SetupFinished(from: &reader))
+    }
+
+    private static func decodeSetupFlowChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .setupFlowChanged(try SetupFlowChanged(from: &reader))
+    }
+
+    private static func decodeShortcutsChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .shortcutsChanged(try ShortcutsChanged(from: &reader))
+    }
+
+    private static func decodeSidebarChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .sidebarChanged(try SidebarChanged(from: &reader))
+    }
+
+    private static func decodeSitePermissionsChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .sitePermissionsChanged(try SitePermissionsChanged(from: &reader))
+    }
+
+    private static func decodeSpaceLockChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .spaceLockChanged(try SpaceLockChanged(from: &reader))
+    }
+
+    private static func decodeSpaceSettingsChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .spaceSettingsChanged(try SpaceSettingsChanged(from: &reader))
+    }
+
+    private static func decodeSpacesChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .spacesChanged(try SpacesChanged(from: &reader))
+    }
+
+    private static func decodeSplitGroupsChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .splitGroupsChanged(try SplitGroupsChanged(from: &reader))
+    }
+
+    private static func decodeStorageFailed(_ reader: inout WireReader) throws(WireError) -> Change {
+        .storageFailed(try StorageFailed(from: &reader))
+    }
+
+    private static func decodeSyncJournalChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .syncJournalChanged(try SyncJournalChanged(from: &reader))
+    }
+
+    private static func decodeSyncRecordsSkipped(_ reader: inout WireReader) throws(WireError) -> Change {
+        .syncRecordsSkipped(try SyncRecordsSkipped(from: &reader))
+    }
+
+    private static func decodeSyncStagingFailed(_ reader: inout WireReader) throws(WireError) -> Change {
+        .syncStagingFailed(try SyncStagingFailed(from: &reader))
+    }
+
+    private static func decodeTabCopied(_ reader: inout WireReader) throws(WireError) -> Change {
+        .tabCopied(try TabCopied(from: &reader))
+    }
+
+    private static func decodeTabFaviconAssigned(_ reader: inout WireReader) throws(WireError) -> Change {
+        .tabFaviconAssigned(try TabFaviconAssigned(from: &reader))
+    }
+
+    private static func decodeTabPagePutAway(_ reader: inout WireReader) throws(WireError) -> Change {
+        .tabPagePutAway(try TabPagePutAway(from: &reader))
+    }
+
+    private static func decodeTabsChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .tabsChanged(try TabsChanged(from: &reader))
+    }
+
+    private static func decodeTabsImported(_ reader: inout WireReader) throws(WireError) -> Change {
+        .tabsImported(try TabsImported(from: &reader))
+    }
+
+    private static func decodeTransientPageClosed(_ reader: inout WireReader) throws(WireError) -> Change {
+        .transientPageClosed(try TransientPageClosed(from: &reader))
+    }
+
+    private static func decodeTransientPagePromoted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .transientPagePromoted(try TransientPagePromoted(from: &reader))
+    }
+
+    private static func decodeWindowBroughtForward(_ reader: inout WireReader) throws(WireError) -> Change {
+        .windowBroughtForward(try WindowBroughtForward(from: &reader))
+    }
+
+    private static func decodeWindowChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .windowChanged(try WindowChanged(from: &reader))
+    }
+
+    private static func decodeWindowClosed(_ reader: inout WireReader) throws(WireError) -> Change {
+        .windowClosed(try WindowClosed(from: &reader))
+    }
+
+    private static func decodeWindowRecordsAdopted(_ reader: inout WireReader) throws(WireError) -> Change {
+        .windowRecordsAdopted(try WindowRecordsAdopted(from: &reader))
+    }
+
+    private static func decodeWorkspaceChanged(_ reader: inout WireReader) throws(WireError) -> Change {
+        .workspaceChanged(try WorkspaceChanged(from: &reader))
+    }
+
+    private static func decodeWorkspaceClosed(_ reader: inout WireReader) throws(WireError) -> Change {
+        .workspaceClosed(try WorkspaceClosed(from: &reader))
+    }
+
+    private static func decodeWorkspaceOpened(_ reader: inout WireReader) throws(WireError) -> Change {
+        .workspaceOpened(try WorkspaceOpened(from: &reader))
     }
 
     func encode(into writer: inout WireWriter) {
@@ -690,159 +940,757 @@ extension Change {
 
 extension Rejection {
     init(from reader: inout WireReader) throws(WireError) {
+        let decode: (inout WireReader) throws(WireError) -> Rejection
         let tag = try reader.readTag()
         switch tag {
-        case 0: self = .alreadyInSpace(try AlreadyInSpace(from: &reader))
-        case 1: self = .alreadyInSplit(try AlreadyInSplit(from: &reader))
-        case 2: self = .archiveInvalid(try ArchiveInvalid(from: &reader))
-        case 3: self = .archiveTooLarge(try ArchiveTooLarge(from: &reader))
-        case 4: self = .authenticationBusy(try AuthenticationBusy(from: &reader))
-        case 5: self = .bookmarksHaveNoLinks(try BookmarksHaveNoLinks(from: &reader))
-        case 6: self = .bookmarksOverLimits(try BookmarksOverLimits(from: &reader))
-        case 7: self = .bookmarksTooLarge(try BookmarksTooLarge(from: &reader))
-        case 8: self = .bookmarksUnrecognized(try BookmarksUnrecognized(from: &reader))
-        case 9: self = .borrowedProfileRequiresOwner(try BorrowedProfileRequiresOwner(from: &reader))
-        case 10: self = .borrowedWorkspaceRequiresSpace(try BorrowedWorkspaceRequiresSpace(from: &reader))
-        case 11: self = .cannotDeleteLastSpace(try CannotDeleteLastSpace(from: &reader))
-        case 12: self = .cannotMoveSplitAcrossSpaces(try CannotMoveSplitAcrossSpaces(from: &reader))
-        case 13: self = .cannotPinSplit(try CannotPinSplit(from: &reader))
-        case 14: self = .closePreparationUnderway(try ClosePreparationUnderway(from: &reader))
-        case 15: self = .credentialRecordLimitReached(try CredentialRecordLimitReached(from: &reader))
-        case 16: self = .currentTabsOnly(try CurrentTabsOnly(from: &reader))
-        case 17: self = .defaultEngineAlreadyRegistered(try DefaultEngineAlreadyRegistered(from: &reader))
-        case 18: self = .downloadLimitReached(try DownloadLimitReached(from: &reader))
-        case 19: self = .duplicateCredential(try DuplicateCredential(from: &reader))
-        case 20: self = .duplicateDownload(try DuplicateDownload(from: &reader))
-        case 21: self = .duplicateMediaSession(try DuplicateMediaSession(from: &reader))
-        case 22: self = .duplicatePage(try DuplicatePage(from: &reader))
-        case 23: self = .duplicateSearchEngineName(try DuplicateSearchEngineName(from: &reader))
-        case 24: self = .engineAlreadyRegistered(try EngineAlreadyRegistered(from: &reader))
-        case 25: self = .engineLacksCapability(try EngineLacksCapability(from: &reader))
-        case 26: self = .engineNotRegistered(try EngineNotRegistered(from: &reader))
-        case 27: self = .fileUnreadable(try FileUnreadable(from: &reader))
-        case 28: self = .folderAlreadyExists(try FolderAlreadyExists(from: &reader))
-        case 29: self = .folderCycle(try FolderCycle(from: &reader))
-        case 30: self = .folderDepthLimitReached(try FolderDepthLimitReached(from: &reader))
-        case 31: self = .folderLimitReached(try FolderLimitReached(from: &reader))
-        case 32: self = .guideSpaceLocked(try GuideSpaceLocked(from: &reader))
-        case 33: self = .incompleteSplit(try IncompleteSplit(from: &reader))
-        case 34: self = .invalidBlockedPopup(try InvalidBlockedPopup(from: &reader))
-        case 35: self = .invalidCredentialDate(try InvalidCredentialDate(from: &reader))
-        case 36: self = .invalidCredentialFile(try InvalidCredentialFile(from: &reader))
-        case 37: self = .invalidCredentialOrigin(try InvalidCredentialOrigin(from: &reader))
-        case 38: self = .invalidCredentialRecord(try InvalidCredentialRecord(from: &reader))
-        case 39: self = .invalidCredentialUsername(try InvalidCredentialUsername(from: &reader))
-        case 40: self = .invalidDateRange(try InvalidDateRange(from: &reader))
-        case 41: self = .invalidDownloadIdentity(try InvalidDownloadIdentity(from: &reader))
-        case 42: self = .invalidDownloadProgress(try InvalidDownloadProgress(from: &reader))
-        case 43: self = .invalidDownloadSample(try InvalidDownloadSample(from: &reader))
-        case 44: self = .invalidDownloadText(try InvalidDownloadText(from: &reader))
-        case 45: self = .invalidFolderPlacement(try InvalidFolderPlacement(from: &reader))
-        case 46: self = .invalidFolderSymbol(try InvalidFolderSymbol(from: &reader))
-        case 47: self = .invalidImport(try InvalidImport(from: &reader))
-        case 48: self = .invalidLinkRouteEdit(try InvalidLinkRouteEdit(from: &reader))
-        case 49: self = .invalidMediaSessionCount(try InvalidMediaSessionCount(from: &reader))
-        case 50: self = .invalidName(try InvalidName(from: &reader))
-        case 51: self = .invalidPasswordLength(try InvalidPasswordLength(from: &reader))
-        case 52: self = .invalidRetentionLifetime(try InvalidRetentionLifetime(from: &reader))
-        case 53: self = .invalidSearchEngine(try InvalidSearchEngine(from: &reader))
-        case 54: self = .invalidSession(try InvalidSession(from: &reader))
-        case 55: self = .invalidShortcut(try InvalidShortcut(from: &reader))
-        case 56: self = .invalidSiteHost(try InvalidSiteHost(from: &reader))
-        case 57: self = .invalidSiteOrigin(try InvalidSiteOrigin(from: &reader))
-        case 58: self = .invalidSitePermissionDetail(try InvalidSitePermissionDetail(from: &reader))
-        case 59: self = .invalidSitePermissionGrant(try InvalidSitePermissionGrant(from: &reader))
-        case 60: self = .invalidSpaceOrder(try InvalidSpaceOrder(from: &reader))
-        case 61: self = .invalidSplitColumnShares(try InvalidSplitColumnShares(from: &reader))
-        case 62: self = .invalidSplitIcon(try InvalidSplitIcon(from: &reader))
-        case 63: self = .invalidSyncRecords(try InvalidSyncRecords(from: &reader))
-        case 64: self = .invalidTabIcon(try InvalidTabIcon(from: &reader))
-        case 65: self = .languageTooLong(try LanguageTooLong(from: &reader))
-        case 66: self = .lastStartPage(try LastStartPage(from: &reader))
-        case 67: self = .legacyCloudStateUnreadable(try LegacyCloudStateUnreadable(from: &reader))
-        case 68: self = .linkPatternTooLong(try LinkPatternTooLong(from: &reader))
-        case 69: self = .linkRouteExists(try LinkRouteExists(from: &reader))
-        case 70: self = .linkRoutesFull(try LinkRoutesFull(from: &reader))
-        case 71: self = .mediaSessionLimitReached(try MediaSessionLimitReached(from: &reader))
-        case 72: self = .noArchivedTabs(try NoArchivedTabs(from: &reader))
-        case 73: self = .noCurrentTabs(try NoCurrentTabs(from: &reader))
-        case 74: self = .noIncludedSpaces(try NoIncludedSpaces(from: &reader))
-        case 75: self = .noManualSetup(try NoManualSetup(from: &reader))
-        case 76: self = .noSavedAddress(try NoSavedAddress(from: &reader))
-        case 77: self = .noSetup(try NoSetup(from: &reader))
-        case 78: self = .noSplitStep(try NoSplitStep(from: &reader))
-        case 79: self = .noStoredSession(try NoStoredSession(from: &reader))
-        case 80: self = .notAnArchive(try NotAnArchive(from: &reader))
-        case 81: self = .notPrivateWorkspace(try NotPrivateWorkspace(from: &reader))
-        case 82: self = .pageNotLoadable(try PageNotLoadable(from: &reader))
-        case 83: self = .pageProfileMismatch(try PageProfileMismatch(from: &reader))
-        case 84: self = .persistentWorkspaceRequired(try PersistentWorkspaceRequired(from: &reader))
-        case 85: self = .pinnedTabsDragAlone(try PinnedTabsDragAlone(from: &reader))
-        case 86: self = .pinnedTabsFull(try PinnedTabsFull(from: &reader))
-        case 87: self = .pinnedTabsStayPut(try PinnedTabsStayPut(from: &reader))
-        case 88: self = .pinsOneTabAtATime(try PinsOneTabAtATime(from: &reader))
-        case 89: self = .privateWorkspaceBoundary(try PrivateWorkspaceBoundary(from: &reader))
-        case 90: self = .profileInUse(try ProfileInUse(from: &reader))
-        case 91: self = .promptAnswerMismatch(try PromptAnswerMismatch(from: &reader))
-        case 92: self = .recoveryCheckpointUnusable(try RecoveryCheckpointUnusable(from: &reader))
-        case 93: self = .saveFailed(try SaveFailed(from: &reader))
-        case 94: self = .searchEngineLimitReached(try SearchEngineLimitReached(from: &reader))
-        case 95: self = .selectionChanged(try SelectionChanged(from: &reader))
-        case 96: self = .selectionHoldsFolders(try SelectionHoldsFolders(from: &reader))
-        case 97: self = .sessionEncrypted(try SessionEncrypted(from: &reader))
-        case 98: self = .sessionHasNoTabs(try SessionHasNoTabs(from: &reader))
-        case 99: self = .sessionOverLimits(try SessionOverLimits(from: &reader))
-        case 100: self = .sessionTooLarge(try SessionTooLarge(from: &reader))
-        case 101: self = .sessionUnrecognized(try SessionUnrecognized(from: &reader))
-        case 102: self = .setupBusy(try SetupBusy(from: &reader))
-        case 103: self = .shortcutInUse(try ShortcutInUse(from: &reader))
-        case 104: self = .sitePermissionLimitReached(try SitePermissionLimitReached(from: &reader))
-        case 105: self = .spaceAlreadyExists(try SpaceAlreadyExists(from: &reader))
-        case 106: self = .spaceBeingDeleted(try SpaceBeingDeleted(from: &reader))
-        case 107: self = .spaceDataNotErased(try SpaceDataNotErased(from: &reader))
-        case 108: self = .spaceDeletionUnderway(try SpaceDeletionUnderway(from: &reader))
-        case 109: self = .spaceLimitReached(try SpaceLimitReached(from: &reader))
-        case 110: self = .spaceLocked(try SpaceLocked(from: &reader))
-        case 111: self = .spaceProfileChanged(try SpaceProfileChanged(from: &reader))
-        case 112: self = .splitBoundary(try SplitBoundary(from: &reader))
-        case 113: self = .splitLimitReached(try SplitLimitReached(from: &reader))
-        case 114: self = .splitNeedsTwoTabs(try SplitNeedsTwoTabs(from: &reader))
-        case 115: self = .stagedLinkElsewhere(try StagedLinkElsewhere(from: &reader))
-        case 116: self = .staleCredentialComparison(try StaleCredentialComparison(from: &reader))
-        case 117: self = .staleUnlockRequest(try StaleUnlockRequest(from: &reader))
-        case 118: self = .startPageNotCopied(try StartPageNotCopied(from: &reader))
-        case 119: self = .storageFromNewerApp(try StorageFromNewerApp(from: &reader))
-        case 120: self = .storageRestoreInterrupted(try StorageRestoreInterrupted(from: &reader))
-        case 121: self = .storageUnreadable(try StorageUnreadable(from: &reader))
-        case 122: self = .storedSessionClosed(try StoredSessionClosed(from: &reader))
-        case 123: self = .syncStagingRefused(try SyncStagingRefused(from: &reader))
-        case 124: self = .tabAlreadyExists(try TabAlreadyExists(from: &reader))
-        case 125: self = .tabAlreadyHasPage(try TabAlreadyHasPage(from: &reader))
-        case 126: self = .tabLimitReached(try TabLimitReached(from: &reader))
-        case 127: self = .transientAlreadyCompleted(try TransientAlreadyCompleted(from: &reader))
-        case 128: self = .translationRuleLimitReached(try TranslationRuleLimitReached(from: &reader))
-        case 129: self = .unknownArchivedTab(try UnknownArchivedTab(from: &reader))
-        case 130: self = .unknownCloudMerge(try UnknownCloudMerge(from: &reader))
-        case 131: self = .unknownFolder(try UnknownFolder(from: &reader))
-        case 132: self = .unknownLinkRoute(try UnknownLinkRoute(from: &reader))
-        case 133: self = .unknownPage(try UnknownPage(from: &reader))
-        case 134: self = .unknownPrompt(try UnknownPrompt(from: &reader))
-        case 135: self = .unknownSearchEngine(try UnknownSearchEngine(from: &reader))
-        case 136: self = .unknownSpace(try UnknownSpace(from: &reader))
-        case 137: self = .unknownSplitGroup(try UnknownSplitGroup(from: &reader))
-        case 138: self = .unknownTab(try UnknownTab(from: &reader))
-        case 139: self = .unknownWorkspace(try UnknownWorkspace(from: &reader))
-        case 140: self = .unregisteredEngine(try UnregisteredEngine(from: &reader))
-        case 141: self = .unrelatedWorkspaces(try UnrelatedWorkspaces(from: &reader))
-        case 142: self = .unsavedWorkspace(try UnsavedWorkspace(from: &reader))
-        case 143: self = .unsupportedAddress(try UnsupportedAddress(from: &reader))
-        case 144: self = .unsupportedArchiveVersion(try UnsupportedArchiveVersion(from: &reader))
-        case 145: self = .webPagesOnly(try WebPagesOnly(from: &reader))
-        case 146: self = .windowNotOpen(try WindowNotOpen(from: &reader))
-        case 147: self = .workspaceBusy(try WorkspaceBusy(from: &reader))
-        case 148: self = .wrongDeletionOperation(try WrongDeletionOperation(from: &reader))
+        case 0: decode = Self.decodeAlreadyInSpace
+        case 1: decode = Self.decodeAlreadyInSplit
+        case 2: decode = Self.decodeArchiveInvalid
+        case 3: decode = Self.decodeArchiveTooLarge
+        case 4: decode = Self.decodeAuthenticationBusy
+        case 5: decode = Self.decodeBookmarksHaveNoLinks
+        case 6: decode = Self.decodeBookmarksOverLimits
+        case 7: decode = Self.decodeBookmarksTooLarge
+        case 8: decode = Self.decodeBookmarksUnrecognized
+        case 9: decode = Self.decodeBorrowedProfileRequiresOwner
+        case 10: decode = Self.decodeBorrowedWorkspaceRequiresSpace
+        case 11: decode = Self.decodeCannotDeleteLastSpace
+        case 12: decode = Self.decodeCannotMoveSplitAcrossSpaces
+        case 13: decode = Self.decodeCannotPinSplit
+        case 14: decode = Self.decodeClosePreparationUnderway
+        case 15: decode = Self.decodeCredentialRecordLimitReached
+        case 16: decode = Self.decodeCurrentTabsOnly
+        case 17: decode = Self.decodeDefaultEngineAlreadyRegistered
+        case 18: decode = Self.decodeDownloadLimitReached
+        case 19: decode = Self.decodeDuplicateCredential
+        case 20: decode = Self.decodeDuplicateDownload
+        case 21: decode = Self.decodeDuplicateMediaSession
+        case 22: decode = Self.decodeDuplicatePage
+        case 23: decode = Self.decodeDuplicateSearchEngineName
+        case 24: decode = Self.decodeEngineAlreadyRegistered
+        case 25: decode = Self.decodeEngineLacksCapability
+        case 26: decode = Self.decodeEngineNotRegistered
+        case 27: decode = Self.decodeFileUnreadable
+        case 28: decode = Self.decodeFolderAlreadyExists
+        case 29: decode = Self.decodeFolderCycle
+        case 30: decode = Self.decodeFolderDepthLimitReached
+        case 31: decode = Self.decodeFolderLimitReached
+        case 32: decode = Self.decodeGuideSpaceLocked
+        case 33: decode = Self.decodeIncompleteSplit
+        case 34: decode = Self.decodeInvalidBlockedPopup
+        case 35: decode = Self.decodeInvalidCredentialDate
+        case 36: decode = Self.decodeInvalidCredentialFile
+        case 37: decode = Self.decodeInvalidCredentialOrigin
+        case 38: decode = Self.decodeInvalidCredentialRecord
+        case 39: decode = Self.decodeInvalidCredentialUsername
+        case 40: decode = Self.decodeInvalidDateRange
+        case 41: decode = Self.decodeInvalidDownloadIdentity
+        case 42: decode = Self.decodeInvalidDownloadProgress
+        case 43: decode = Self.decodeInvalidDownloadSample
+        case 44: decode = Self.decodeInvalidDownloadText
+        case 45: decode = Self.decodeInvalidFolderPlacement
+        case 46: decode = Self.decodeInvalidFolderSymbol
+        case 47: decode = Self.decodeInvalidImport
+        case 48: decode = Self.decodeInvalidLinkRouteEdit
+        case 49: decode = Self.decodeInvalidMediaSessionCount
+        case 50: decode = Self.decodeInvalidName
+        case 51: decode = Self.decodeInvalidPasswordLength
+        case 52: decode = Self.decodeInvalidRetentionLifetime
+        case 53: decode = Self.decodeInvalidSearchEngine
+        case 54: decode = Self.decodeInvalidSession
+        case 55: decode = Self.decodeInvalidShortcut
+        case 56: decode = Self.decodeInvalidSiteHost
+        case 57: decode = Self.decodeInvalidSiteOrigin
+        case 58: decode = Self.decodeInvalidSitePermissionDetail
+        case 59: decode = Self.decodeInvalidSitePermissionGrant
+        case 60: decode = Self.decodeInvalidSpaceOrder
+        case 61: decode = Self.decodeInvalidSplitColumnShares
+        case 62: decode = Self.decodeInvalidSplitIcon
+        case 63: decode = Self.decodeInvalidSyncRecords
+        case 64: decode = Self.decodeInvalidTabIcon
+        case 65: decode = Self.decodeLanguageTooLong
+        case 66: decode = Self.decodeLastStartPage
+        case 67: decode = Self.decodeLegacyCloudStateUnreadable
+        case 68: decode = Self.decodeLinkPatternTooLong
+        case 69: decode = Self.decodeLinkRouteExists
+        case 70: decode = Self.decodeLinkRoutesFull
+        case 71: decode = Self.decodeMediaSessionLimitReached
+        case 72: decode = Self.decodeNoArchivedTabs
+        case 73: decode = Self.decodeNoCurrentTabs
+        case 74: decode = Self.decodeNoIncludedSpaces
+        case 75: decode = Self.decodeNoManualSetup
+        case 76: decode = Self.decodeNoSavedAddress
+        case 77: decode = Self.decodeNoSetup
+        case 78: decode = Self.decodeNoSplitStep
+        case 79: decode = Self.decodeNoStoredSession
+        case 80: decode = Self.decodeNotAnArchive
+        case 81: decode = Self.decodeNotPrivateWorkspace
+        case 82: decode = Self.decodePageNotLoadable
+        case 83: decode = Self.decodePageProfileMismatch
+        case 84: decode = Self.decodePersistentWorkspaceRequired
+        case 85: decode = Self.decodePinnedTabsDragAlone
+        case 86: decode = Self.decodePinnedTabsFull
+        case 87: decode = Self.decodePinnedTabsStayPut
+        case 88: decode = Self.decodePinsOneTabAtATime
+        case 89: decode = Self.decodePrivateWorkspaceBoundary
+        case 90: decode = Self.decodeProfileInUse
+        case 91: decode = Self.decodePromptAnswerMismatch
+        case 92: decode = Self.decodeRecoveryCheckpointUnusable
+        case 93: decode = Self.decodeSaveFailed
+        case 94: decode = Self.decodeSearchEngineLimitReached
+        case 95: decode = Self.decodeSelectionChanged
+        case 96: decode = Self.decodeSelectionHoldsFolders
+        case 97: decode = Self.decodeSessionEncrypted
+        case 98: decode = Self.decodeSessionHasNoTabs
+        case 99: decode = Self.decodeSessionOverLimits
+        case 100: decode = Self.decodeSessionTooLarge
+        case 101: decode = Self.decodeSessionUnrecognized
+        case 102: decode = Self.decodeSetupBusy
+        case 103: decode = Self.decodeShortcutInUse
+        case 104: decode = Self.decodeSitePermissionLimitReached
+        case 105: decode = Self.decodeSpaceAlreadyExists
+        case 106: decode = Self.decodeSpaceBeingDeleted
+        case 107: decode = Self.decodeSpaceDataNotErased
+        case 108: decode = Self.decodeSpaceDeletionUnderway
+        case 109: decode = Self.decodeSpaceLimitReached
+        case 110: decode = Self.decodeSpaceLocked
+        case 111: decode = Self.decodeSpaceProfileChanged
+        case 112: decode = Self.decodeSplitBoundary
+        case 113: decode = Self.decodeSplitLimitReached
+        case 114: decode = Self.decodeSplitNeedsTwoTabs
+        case 115: decode = Self.decodeStagedLinkElsewhere
+        case 116: decode = Self.decodeStaleCredentialComparison
+        case 117: decode = Self.decodeStaleUnlockRequest
+        case 118: decode = Self.decodeStartPageNotCopied
+        case 119: decode = Self.decodeStorageFromNewerApp
+        case 120: decode = Self.decodeStorageRestoreInterrupted
+        case 121: decode = Self.decodeStorageUnreadable
+        case 122: decode = Self.decodeStoredSessionClosed
+        case 123: decode = Self.decodeSyncStagingRefused
+        case 124: decode = Self.decodeTabAlreadyExists
+        case 125: decode = Self.decodeTabAlreadyHasPage
+        case 126: decode = Self.decodeTabLimitReached
+        case 127: decode = Self.decodeTransientAlreadyCompleted
+        case 128: decode = Self.decodeTranslationRuleLimitReached
+        case 129: decode = Self.decodeUnknownArchivedTab
+        case 130: decode = Self.decodeUnknownCloudMerge
+        case 131: decode = Self.decodeUnknownFolder
+        case 132: decode = Self.decodeUnknownLinkRoute
+        case 133: decode = Self.decodeUnknownPage
+        case 134: decode = Self.decodeUnknownPrompt
+        case 135: decode = Self.decodeUnknownSearchEngine
+        case 136: decode = Self.decodeUnknownSpace
+        case 137: decode = Self.decodeUnknownSplitGroup
+        case 138: decode = Self.decodeUnknownTab
+        case 139: decode = Self.decodeUnknownWorkspace
+        case 140: decode = Self.decodeUnregisteredEngine
+        case 141: decode = Self.decodeUnrelatedWorkspaces
+        case 142: decode = Self.decodeUnsavedWorkspace
+        case 143: decode = Self.decodeUnsupportedAddress
+        case 144: decode = Self.decodeUnsupportedArchiveVersion
+        case 145: decode = Self.decodeWebPagesOnly
+        case 146: decode = Self.decodeWindowNotOpen
+        case 147: decode = Self.decodeWorkspaceBusy
+        case 148: decode = Self.decodeWrongDeletionOperation
         default: throw WireError.malformed("Unknown Rejection tag \(tag)")
         }
+        self = try decode(&reader)
+    }
+
+    private static func decodeAlreadyInSpace(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .alreadyInSpace(try AlreadyInSpace(from: &reader))
+    }
+
+    private static func decodeAlreadyInSplit(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .alreadyInSplit(try AlreadyInSplit(from: &reader))
+    }
+
+    private static func decodeArchiveInvalid(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .archiveInvalid(try ArchiveInvalid(from: &reader))
+    }
+
+    private static func decodeArchiveTooLarge(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .archiveTooLarge(try ArchiveTooLarge(from: &reader))
+    }
+
+    private static func decodeAuthenticationBusy(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .authenticationBusy(try AuthenticationBusy(from: &reader))
+    }
+
+    private static func decodeBookmarksHaveNoLinks(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .bookmarksHaveNoLinks(try BookmarksHaveNoLinks(from: &reader))
+    }
+
+    private static func decodeBookmarksOverLimits(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .bookmarksOverLimits(try BookmarksOverLimits(from: &reader))
+    }
+
+    private static func decodeBookmarksTooLarge(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .bookmarksTooLarge(try BookmarksTooLarge(from: &reader))
+    }
+
+    private static func decodeBookmarksUnrecognized(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .bookmarksUnrecognized(try BookmarksUnrecognized(from: &reader))
+    }
+
+    private static func decodeBorrowedProfileRequiresOwner(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .borrowedProfileRequiresOwner(try BorrowedProfileRequiresOwner(from: &reader))
+    }
+
+    private static func decodeBorrowedWorkspaceRequiresSpace(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .borrowedWorkspaceRequiresSpace(try BorrowedWorkspaceRequiresSpace(from: &reader))
+    }
+
+    private static func decodeCannotDeleteLastSpace(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .cannotDeleteLastSpace(try CannotDeleteLastSpace(from: &reader))
+    }
+
+    private static func decodeCannotMoveSplitAcrossSpaces(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .cannotMoveSplitAcrossSpaces(try CannotMoveSplitAcrossSpaces(from: &reader))
+    }
+
+    private static func decodeCannotPinSplit(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .cannotPinSplit(try CannotPinSplit(from: &reader))
+    }
+
+    private static func decodeClosePreparationUnderway(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .closePreparationUnderway(try ClosePreparationUnderway(from: &reader))
+    }
+
+    private static func decodeCredentialRecordLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .credentialRecordLimitReached(try CredentialRecordLimitReached(from: &reader))
+    }
+
+    private static func decodeCurrentTabsOnly(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .currentTabsOnly(try CurrentTabsOnly(from: &reader))
+    }
+
+    private static func decodeDefaultEngineAlreadyRegistered(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .defaultEngineAlreadyRegistered(try DefaultEngineAlreadyRegistered(from: &reader))
+    }
+
+    private static func decodeDownloadLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .downloadLimitReached(try DownloadLimitReached(from: &reader))
+    }
+
+    private static func decodeDuplicateCredential(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .duplicateCredential(try DuplicateCredential(from: &reader))
+    }
+
+    private static func decodeDuplicateDownload(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .duplicateDownload(try DuplicateDownload(from: &reader))
+    }
+
+    private static func decodeDuplicateMediaSession(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .duplicateMediaSession(try DuplicateMediaSession(from: &reader))
+    }
+
+    private static func decodeDuplicatePage(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .duplicatePage(try DuplicatePage(from: &reader))
+    }
+
+    private static func decodeDuplicateSearchEngineName(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .duplicateSearchEngineName(try DuplicateSearchEngineName(from: &reader))
+    }
+
+    private static func decodeEngineAlreadyRegistered(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .engineAlreadyRegistered(try EngineAlreadyRegistered(from: &reader))
+    }
+
+    private static func decodeEngineLacksCapability(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .engineLacksCapability(try EngineLacksCapability(from: &reader))
+    }
+
+    private static func decodeEngineNotRegistered(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .engineNotRegistered(try EngineNotRegistered(from: &reader))
+    }
+
+    private static func decodeFileUnreadable(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .fileUnreadable(try FileUnreadable(from: &reader))
+    }
+
+    private static func decodeFolderAlreadyExists(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .folderAlreadyExists(try FolderAlreadyExists(from: &reader))
+    }
+
+    private static func decodeFolderCycle(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .folderCycle(try FolderCycle(from: &reader))
+    }
+
+    private static func decodeFolderDepthLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .folderDepthLimitReached(try FolderDepthLimitReached(from: &reader))
+    }
+
+    private static func decodeFolderLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .folderLimitReached(try FolderLimitReached(from: &reader))
+    }
+
+    private static func decodeGuideSpaceLocked(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .guideSpaceLocked(try GuideSpaceLocked(from: &reader))
+    }
+
+    private static func decodeIncompleteSplit(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .incompleteSplit(try IncompleteSplit(from: &reader))
+    }
+
+    private static func decodeInvalidBlockedPopup(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidBlockedPopup(try InvalidBlockedPopup(from: &reader))
+    }
+
+    private static func decodeInvalidCredentialDate(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidCredentialDate(try InvalidCredentialDate(from: &reader))
+    }
+
+    private static func decodeInvalidCredentialFile(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidCredentialFile(try InvalidCredentialFile(from: &reader))
+    }
+
+    private static func decodeInvalidCredentialOrigin(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidCredentialOrigin(try InvalidCredentialOrigin(from: &reader))
+    }
+
+    private static func decodeInvalidCredentialRecord(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidCredentialRecord(try InvalidCredentialRecord(from: &reader))
+    }
+
+    private static func decodeInvalidCredentialUsername(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidCredentialUsername(try InvalidCredentialUsername(from: &reader))
+    }
+
+    private static func decodeInvalidDateRange(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidDateRange(try InvalidDateRange(from: &reader))
+    }
+
+    private static func decodeInvalidDownloadIdentity(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidDownloadIdentity(try InvalidDownloadIdentity(from: &reader))
+    }
+
+    private static func decodeInvalidDownloadProgress(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidDownloadProgress(try InvalidDownloadProgress(from: &reader))
+    }
+
+    private static func decodeInvalidDownloadSample(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidDownloadSample(try InvalidDownloadSample(from: &reader))
+    }
+
+    private static func decodeInvalidDownloadText(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidDownloadText(try InvalidDownloadText(from: &reader))
+    }
+
+    private static func decodeInvalidFolderPlacement(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidFolderPlacement(try InvalidFolderPlacement(from: &reader))
+    }
+
+    private static func decodeInvalidFolderSymbol(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidFolderSymbol(try InvalidFolderSymbol(from: &reader))
+    }
+
+    private static func decodeInvalidImport(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidImport(try InvalidImport(from: &reader))
+    }
+
+    private static func decodeInvalidLinkRouteEdit(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidLinkRouteEdit(try InvalidLinkRouteEdit(from: &reader))
+    }
+
+    private static func decodeInvalidMediaSessionCount(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidMediaSessionCount(try InvalidMediaSessionCount(from: &reader))
+    }
+
+    private static func decodeInvalidName(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidName(try InvalidName(from: &reader))
+    }
+
+    private static func decodeInvalidPasswordLength(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidPasswordLength(try InvalidPasswordLength(from: &reader))
+    }
+
+    private static func decodeInvalidRetentionLifetime(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidRetentionLifetime(try InvalidRetentionLifetime(from: &reader))
+    }
+
+    private static func decodeInvalidSearchEngine(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSearchEngine(try InvalidSearchEngine(from: &reader))
+    }
+
+    private static func decodeInvalidSession(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSession(try InvalidSession(from: &reader))
+    }
+
+    private static func decodeInvalidShortcut(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidShortcut(try InvalidShortcut(from: &reader))
+    }
+
+    private static func decodeInvalidSiteHost(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSiteHost(try InvalidSiteHost(from: &reader))
+    }
+
+    private static func decodeInvalidSiteOrigin(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSiteOrigin(try InvalidSiteOrigin(from: &reader))
+    }
+
+    private static func decodeInvalidSitePermissionDetail(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSitePermissionDetail(try InvalidSitePermissionDetail(from: &reader))
+    }
+
+    private static func decodeInvalidSitePermissionGrant(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSitePermissionGrant(try InvalidSitePermissionGrant(from: &reader))
+    }
+
+    private static func decodeInvalidSpaceOrder(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSpaceOrder(try InvalidSpaceOrder(from: &reader))
+    }
+
+    private static func decodeInvalidSplitColumnShares(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSplitColumnShares(try InvalidSplitColumnShares(from: &reader))
+    }
+
+    private static func decodeInvalidSplitIcon(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSplitIcon(try InvalidSplitIcon(from: &reader))
+    }
+
+    private static func decodeInvalidSyncRecords(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidSyncRecords(try InvalidSyncRecords(from: &reader))
+    }
+
+    private static func decodeInvalidTabIcon(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .invalidTabIcon(try InvalidTabIcon(from: &reader))
+    }
+
+    private static func decodeLanguageTooLong(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .languageTooLong(try LanguageTooLong(from: &reader))
+    }
+
+    private static func decodeLastStartPage(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .lastStartPage(try LastStartPage(from: &reader))
+    }
+
+    private static func decodeLegacyCloudStateUnreadable(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .legacyCloudStateUnreadable(try LegacyCloudStateUnreadable(from: &reader))
+    }
+
+    private static func decodeLinkPatternTooLong(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .linkPatternTooLong(try LinkPatternTooLong(from: &reader))
+    }
+
+    private static func decodeLinkRouteExists(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .linkRouteExists(try LinkRouteExists(from: &reader))
+    }
+
+    private static func decodeLinkRoutesFull(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .linkRoutesFull(try LinkRoutesFull(from: &reader))
+    }
+
+    private static func decodeMediaSessionLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .mediaSessionLimitReached(try MediaSessionLimitReached(from: &reader))
+    }
+
+    private static func decodeNoArchivedTabs(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noArchivedTabs(try NoArchivedTabs(from: &reader))
+    }
+
+    private static func decodeNoCurrentTabs(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noCurrentTabs(try NoCurrentTabs(from: &reader))
+    }
+
+    private static func decodeNoIncludedSpaces(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noIncludedSpaces(try NoIncludedSpaces(from: &reader))
+    }
+
+    private static func decodeNoManualSetup(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noManualSetup(try NoManualSetup(from: &reader))
+    }
+
+    private static func decodeNoSavedAddress(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noSavedAddress(try NoSavedAddress(from: &reader))
+    }
+
+    private static func decodeNoSetup(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noSetup(try NoSetup(from: &reader))
+    }
+
+    private static func decodeNoSplitStep(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noSplitStep(try NoSplitStep(from: &reader))
+    }
+
+    private static func decodeNoStoredSession(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .noStoredSession(try NoStoredSession(from: &reader))
+    }
+
+    private static func decodeNotAnArchive(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .notAnArchive(try NotAnArchive(from: &reader))
+    }
+
+    private static func decodeNotPrivateWorkspace(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .notPrivateWorkspace(try NotPrivateWorkspace(from: &reader))
+    }
+
+    private static func decodePageNotLoadable(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .pageNotLoadable(try PageNotLoadable(from: &reader))
+    }
+
+    private static func decodePageProfileMismatch(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .pageProfileMismatch(try PageProfileMismatch(from: &reader))
+    }
+
+    private static func decodePersistentWorkspaceRequired(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .persistentWorkspaceRequired(try PersistentWorkspaceRequired(from: &reader))
+    }
+
+    private static func decodePinnedTabsDragAlone(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .pinnedTabsDragAlone(try PinnedTabsDragAlone(from: &reader))
+    }
+
+    private static func decodePinnedTabsFull(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .pinnedTabsFull(try PinnedTabsFull(from: &reader))
+    }
+
+    private static func decodePinnedTabsStayPut(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .pinnedTabsStayPut(try PinnedTabsStayPut(from: &reader))
+    }
+
+    private static func decodePinsOneTabAtATime(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .pinsOneTabAtATime(try PinsOneTabAtATime(from: &reader))
+    }
+
+    private static func decodePrivateWorkspaceBoundary(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .privateWorkspaceBoundary(try PrivateWorkspaceBoundary(from: &reader))
+    }
+
+    private static func decodeProfileInUse(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .profileInUse(try ProfileInUse(from: &reader))
+    }
+
+    private static func decodePromptAnswerMismatch(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .promptAnswerMismatch(try PromptAnswerMismatch(from: &reader))
+    }
+
+    private static func decodeRecoveryCheckpointUnusable(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .recoveryCheckpointUnusable(try RecoveryCheckpointUnusable(from: &reader))
+    }
+
+    private static func decodeSaveFailed(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .saveFailed(try SaveFailed(from: &reader))
+    }
+
+    private static func decodeSearchEngineLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .searchEngineLimitReached(try SearchEngineLimitReached(from: &reader))
+    }
+
+    private static func decodeSelectionChanged(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .selectionChanged(try SelectionChanged(from: &reader))
+    }
+
+    private static func decodeSelectionHoldsFolders(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .selectionHoldsFolders(try SelectionHoldsFolders(from: &reader))
+    }
+
+    private static func decodeSessionEncrypted(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .sessionEncrypted(try SessionEncrypted(from: &reader))
+    }
+
+    private static func decodeSessionHasNoTabs(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .sessionHasNoTabs(try SessionHasNoTabs(from: &reader))
+    }
+
+    private static func decodeSessionOverLimits(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .sessionOverLimits(try SessionOverLimits(from: &reader))
+    }
+
+    private static func decodeSessionTooLarge(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .sessionTooLarge(try SessionTooLarge(from: &reader))
+    }
+
+    private static func decodeSessionUnrecognized(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .sessionUnrecognized(try SessionUnrecognized(from: &reader))
+    }
+
+    private static func decodeSetupBusy(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .setupBusy(try SetupBusy(from: &reader))
+    }
+
+    private static func decodeShortcutInUse(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .shortcutInUse(try ShortcutInUse(from: &reader))
+    }
+
+    private static func decodeSitePermissionLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .sitePermissionLimitReached(try SitePermissionLimitReached(from: &reader))
+    }
+
+    private static func decodeSpaceAlreadyExists(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .spaceAlreadyExists(try SpaceAlreadyExists(from: &reader))
+    }
+
+    private static func decodeSpaceBeingDeleted(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .spaceBeingDeleted(try SpaceBeingDeleted(from: &reader))
+    }
+
+    private static func decodeSpaceDataNotErased(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .spaceDataNotErased(try SpaceDataNotErased(from: &reader))
+    }
+
+    private static func decodeSpaceDeletionUnderway(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .spaceDeletionUnderway(try SpaceDeletionUnderway(from: &reader))
+    }
+
+    private static func decodeSpaceLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .spaceLimitReached(try SpaceLimitReached(from: &reader))
+    }
+
+    private static func decodeSpaceLocked(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .spaceLocked(try SpaceLocked(from: &reader))
+    }
+
+    private static func decodeSpaceProfileChanged(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .spaceProfileChanged(try SpaceProfileChanged(from: &reader))
+    }
+
+    private static func decodeSplitBoundary(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .splitBoundary(try SplitBoundary(from: &reader))
+    }
+
+    private static func decodeSplitLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .splitLimitReached(try SplitLimitReached(from: &reader))
+    }
+
+    private static func decodeSplitNeedsTwoTabs(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .splitNeedsTwoTabs(try SplitNeedsTwoTabs(from: &reader))
+    }
+
+    private static func decodeStagedLinkElsewhere(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .stagedLinkElsewhere(try StagedLinkElsewhere(from: &reader))
+    }
+
+    private static func decodeStaleCredentialComparison(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .staleCredentialComparison(try StaleCredentialComparison(from: &reader))
+    }
+
+    private static func decodeStaleUnlockRequest(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .staleUnlockRequest(try StaleUnlockRequest(from: &reader))
+    }
+
+    private static func decodeStartPageNotCopied(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .startPageNotCopied(try StartPageNotCopied(from: &reader))
+    }
+
+    private static func decodeStorageFromNewerApp(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .storageFromNewerApp(try StorageFromNewerApp(from: &reader))
+    }
+
+    private static func decodeStorageRestoreInterrupted(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .storageRestoreInterrupted(try StorageRestoreInterrupted(from: &reader))
+    }
+
+    private static func decodeStorageUnreadable(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .storageUnreadable(try StorageUnreadable(from: &reader))
+    }
+
+    private static func decodeStoredSessionClosed(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .storedSessionClosed(try StoredSessionClosed(from: &reader))
+    }
+
+    private static func decodeSyncStagingRefused(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .syncStagingRefused(try SyncStagingRefused(from: &reader))
+    }
+
+    private static func decodeTabAlreadyExists(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .tabAlreadyExists(try TabAlreadyExists(from: &reader))
+    }
+
+    private static func decodeTabAlreadyHasPage(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .tabAlreadyHasPage(try TabAlreadyHasPage(from: &reader))
+    }
+
+    private static func decodeTabLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .tabLimitReached(try TabLimitReached(from: &reader))
+    }
+
+    private static func decodeTransientAlreadyCompleted(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .transientAlreadyCompleted(try TransientAlreadyCompleted(from: &reader))
+    }
+
+    private static func decodeTranslationRuleLimitReached(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .translationRuleLimitReached(try TranslationRuleLimitReached(from: &reader))
+    }
+
+    private static func decodeUnknownArchivedTab(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownArchivedTab(try UnknownArchivedTab(from: &reader))
+    }
+
+    private static func decodeUnknownCloudMerge(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownCloudMerge(try UnknownCloudMerge(from: &reader))
+    }
+
+    private static func decodeUnknownFolder(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownFolder(try UnknownFolder(from: &reader))
+    }
+
+    private static func decodeUnknownLinkRoute(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownLinkRoute(try UnknownLinkRoute(from: &reader))
+    }
+
+    private static func decodeUnknownPage(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownPage(try UnknownPage(from: &reader))
+    }
+
+    private static func decodeUnknownPrompt(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownPrompt(try UnknownPrompt(from: &reader))
+    }
+
+    private static func decodeUnknownSearchEngine(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownSearchEngine(try UnknownSearchEngine(from: &reader))
+    }
+
+    private static func decodeUnknownSpace(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownSpace(try UnknownSpace(from: &reader))
+    }
+
+    private static func decodeUnknownSplitGroup(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownSplitGroup(try UnknownSplitGroup(from: &reader))
+    }
+
+    private static func decodeUnknownTab(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownTab(try UnknownTab(from: &reader))
+    }
+
+    private static func decodeUnknownWorkspace(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unknownWorkspace(try UnknownWorkspace(from: &reader))
+    }
+
+    private static func decodeUnregisteredEngine(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unregisteredEngine(try UnregisteredEngine(from: &reader))
+    }
+
+    private static func decodeUnrelatedWorkspaces(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unrelatedWorkspaces(try UnrelatedWorkspaces(from: &reader))
+    }
+
+    private static func decodeUnsavedWorkspace(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unsavedWorkspace(try UnsavedWorkspace(from: &reader))
+    }
+
+    private static func decodeUnsupportedAddress(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unsupportedAddress(try UnsupportedAddress(from: &reader))
+    }
+
+    private static func decodeUnsupportedArchiveVersion(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .unsupportedArchiveVersion(try UnsupportedArchiveVersion(from: &reader))
+    }
+
+    private static func decodeWebPagesOnly(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .webPagesOnly(try WebPagesOnly(from: &reader))
+    }
+
+    private static func decodeWindowNotOpen(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .windowNotOpen(try WindowNotOpen(from: &reader))
+    }
+
+    private static func decodeWorkspaceBusy(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .workspaceBusy(try WorkspaceBusy(from: &reader))
+    }
+
+    private static func decodeWrongDeletionOperation(_ reader: inout WireReader) throws(WireError) -> Rejection {
+        .wrongDeletionOperation(try WrongDeletionOperation(from: &reader))
     }
 
     func encode(into writer: inout WireWriter) {
@@ -1300,33 +2148,127 @@ extension Rejection {
 
 extension EngineCommand {
     init(from reader: inout WireReader) throws(WireError) {
+        let decode: (inout WireReader) throws(WireError) -> EngineCommand
         let tag = try reader.readTag()
         switch tag {
-        case 0: self = .adoptOfferedPage(try AdoptOfferedPage(from: &reader))
-        case 1: self = .approveEngineDownload(try ApproveEngineDownload(from: &reader))
-        case 2: self = .cancelEngineDownload(try CancelEngineDownload(from: &reader))
-        case 3: self = .checkBeforeUnload(try CheckBeforeUnload(from: &reader))
-        case 4: self = .closePage(try ClosePage(from: &reader))
-        case 5: self = .createPage(try CreatePage(from: &reader))
-        case 6: self = .dropStagedLink(try DropStagedLink(from: &reader))
-        case 7: self = .eraseProfileData(try EraseProfileData(from: &reader))
-        case 8: self = .eraseSiteData(try EraseSiteData(from: &reader))
-        case 9: self = .exitPictureInPicture(try ExitPictureInPicture(from: &reader))
-        case 10: self = .groupPages(try GroupPages(from: &reader))
-        case 11: self = .loadPage(try LoadPage(from: &reader))
-        case 12: self = .pauseEngineDownload(try PauseEngineDownload(from: &reader))
-        case 13: self = .recoverPage(try RecoverPage(from: &reader))
-        case 14: self = .rejectOfferedPage(try RejectOfferedPage(from: &reader))
-        case 15: self = .removeEngineDownload(try RemoveEngineDownload(from: &reader))
-        case 16: self = .resumeEngineDownload(try ResumeEngineDownload(from: &reader))
-        case 17: self = .settleAuthentication(try SettleAuthentication(from: &reader))
-        case 18: self = .settleDownloadDestination(try SettleDownloadDestination(from: &reader))
-        case 19: self = .settleExtensionInstall(try SettleExtensionInstall(from: &reader))
-        case 20: self = .settlePermission(try SettlePermission(from: &reader))
-        case 21: self = .settleScriptDialog(try SettleScriptDialog(from: &reader))
-        case 22: self = .stageNavigation(try StageNavigation(from: &reader))
+        case 0: decode = Self.decodeAdoptOfferedPage
+        case 1: decode = Self.decodeApproveEngineDownload
+        case 2: decode = Self.decodeCancelEngineDownload
+        case 3: decode = Self.decodeCheckBeforeUnload
+        case 4: decode = Self.decodeClosePage
+        case 5: decode = Self.decodeCreatePage
+        case 6: decode = Self.decodeDropStagedLink
+        case 7: decode = Self.decodeEraseProfileData
+        case 8: decode = Self.decodeEraseSiteData
+        case 9: decode = Self.decodeExitPictureInPicture
+        case 10: decode = Self.decodeGroupPages
+        case 11: decode = Self.decodeLoadPage
+        case 12: decode = Self.decodePauseEngineDownload
+        case 13: decode = Self.decodeRecoverPage
+        case 14: decode = Self.decodeRejectOfferedPage
+        case 15: decode = Self.decodeRemoveEngineDownload
+        case 16: decode = Self.decodeResumeEngineDownload
+        case 17: decode = Self.decodeSettleAuthentication
+        case 18: decode = Self.decodeSettleDownloadDestination
+        case 19: decode = Self.decodeSettleExtensionInstall
+        case 20: decode = Self.decodeSettlePermission
+        case 21: decode = Self.decodeSettleScriptDialog
+        case 22: decode = Self.decodeStageNavigation
         default: throw WireError.malformed("Unknown EngineCommand tag \(tag)")
         }
+        self = try decode(&reader)
+    }
+
+    private static func decodeAdoptOfferedPage(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .adoptOfferedPage(try AdoptOfferedPage(from: &reader))
+    }
+
+    private static func decodeApproveEngineDownload(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .approveEngineDownload(try ApproveEngineDownload(from: &reader))
+    }
+
+    private static func decodeCancelEngineDownload(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .cancelEngineDownload(try CancelEngineDownload(from: &reader))
+    }
+
+    private static func decodeCheckBeforeUnload(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .checkBeforeUnload(try CheckBeforeUnload(from: &reader))
+    }
+
+    private static func decodeClosePage(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .closePage(try ClosePage(from: &reader))
+    }
+
+    private static func decodeCreatePage(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .createPage(try CreatePage(from: &reader))
+    }
+
+    private static func decodeDropStagedLink(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .dropStagedLink(try DropStagedLink(from: &reader))
+    }
+
+    private static func decodeEraseProfileData(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .eraseProfileData(try EraseProfileData(from: &reader))
+    }
+
+    private static func decodeEraseSiteData(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .eraseSiteData(try EraseSiteData(from: &reader))
+    }
+
+    private static func decodeExitPictureInPicture(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .exitPictureInPicture(try ExitPictureInPicture(from: &reader))
+    }
+
+    private static func decodeGroupPages(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .groupPages(try GroupPages(from: &reader))
+    }
+
+    private static func decodeLoadPage(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .loadPage(try LoadPage(from: &reader))
+    }
+
+    private static func decodePauseEngineDownload(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .pauseEngineDownload(try PauseEngineDownload(from: &reader))
+    }
+
+    private static func decodeRecoverPage(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .recoverPage(try RecoverPage(from: &reader))
+    }
+
+    private static func decodeRejectOfferedPage(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .rejectOfferedPage(try RejectOfferedPage(from: &reader))
+    }
+
+    private static func decodeRemoveEngineDownload(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .removeEngineDownload(try RemoveEngineDownload(from: &reader))
+    }
+
+    private static func decodeResumeEngineDownload(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .resumeEngineDownload(try ResumeEngineDownload(from: &reader))
+    }
+
+    private static func decodeSettleAuthentication(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .settleAuthentication(try SettleAuthentication(from: &reader))
+    }
+
+    private static func decodeSettleDownloadDestination(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .settleDownloadDestination(try SettleDownloadDestination(from: &reader))
+    }
+
+    private static func decodeSettleExtensionInstall(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .settleExtensionInstall(try SettleExtensionInstall(from: &reader))
+    }
+
+    private static func decodeSettlePermission(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .settlePermission(try SettlePermission(from: &reader))
+    }
+
+    private static func decodeSettleScriptDialog(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .settleScriptDialog(try SettleScriptDialog(from: &reader))
+    }
+
+    private static func decodeStageNavigation(_ reader: inout WireReader) throws(WireError) -> EngineCommand {
+        .stageNavigation(try StageNavigation(from: &reader))
     }
 
     func encode(into writer: inout WireWriter) {
@@ -1406,46 +2348,192 @@ extension EngineCommand {
 
 extension EnginePresentation {
     init(from reader: inout WireReader) throws(WireError) {
+        let decode: (inout WireReader) throws(WireError) -> EnginePresentation
         let tag = try reader.readTag()
         switch tag {
-        case 0: self = .contentFullscreenChanged(try ContentFullscreenChanged(from: &reader))
-        case 1: self = .contentMessagePosted(try ContentMessagePosted(from: &reader))
-        case 2: self = .contentScriptEvaluated(try ContentScriptEvaluated(from: &reader))
-        case 3: self = .extensionsChanged(try ExtensionsChanged(from: &reader))
-        case 4: self = .findFinished(try FindFinished(from: &reader))
-        case 5: self = .infoBarRemoved(try InfoBarRemoved(from: &reader))
-        case 6: self = .infoBarShown(try InfoBarShown(from: &reader))
-        case 7: self = .inspectorClosed(try InspectorClosed(from: &reader))
-        case 8: self = .inspectorLayoutChanged(try InspectorLayoutChanged(from: &reader))
-        case 9: self = .linkHovered(try LinkHovered(from: &reader))
-        case 10: self = .mediaSessionChanged(try MediaSessionChanged(from: &reader))
-        case 11: self = .pageCaptured(try PageCaptured(from: &reader))
-        case 12: self = .pageExported(try PageExported(from: &reader))
-        case 13: self = .pageHistoryChanged(try PageHistoryChanged(from: &reader))
-        case 14: self = .pageInteracted(try PageInteracted(from: &reader))
-        case 15: self = .pageLoadingChanged(try PageLoadingChanged(from: &reader))
-        case 16: self = .pageNavigationCommitted(try PageNavigationCommitted(from: &reader))
-        case 17: self = .pageNavigationFailed(try PageNavigationFailed(from: &reader))
-        case 18: self = .pageNavigationStarted(try PageNavigationStarted(from: &reader))
-        case 19: self = .pageRendererGone(try PageRendererGone(from: &reader))
-        case 20: self = .pageThemeChanged(try PageThemeChanged(from: &reader))
-        case 21: self = .pageViewClosed(try PageViewClosed(from: &reader))
-        case 22: self = .pageViewReady(try PageViewReady(from: &reader))
-        case 23: self = .pageViewUnavailable(try PageViewUnavailable(from: &reader))
-        case 24: self = .peekRequested(try PeekRequested(from: &reader))
-        case 25: self = .popupBlocked(try PopupBlocked(from: &reader))
-        case 26: self = .profileNotificationClosed(try ProfileNotificationClosed(from: &reader))
-        case 27: self = .profileNotificationPosted(try ProfileNotificationPosted(from: &reader))
-        case 28: self = .profilePrepared(try ProfilePrepared(from: &reader))
-        case 29: self = .profileReleased(try ProfileReleased(from: &reader))
-        case 30: self = .screenCaptureAccessMissing(try ScreenCaptureAccessMissing(from: &reader))
-        case 31: self = .sidePanelRequested(try SidePanelRequested(from: &reader))
-        case 32: self = .storeInstallRequested(try StoreInstallRequested(from: &reader))
-        case 33: self = .storeRemovalRequested(try StoreRemovalRequested(from: &reader))
-        case 34: self = .webNotificationClosed(try WebNotificationClosed(from: &reader))
-        case 35: self = .webNotificationPosted(try WebNotificationPosted(from: &reader))
+        case 0: decode = Self.decodeContentFullscreenChanged
+        case 1: decode = Self.decodeContentMessagePosted
+        case 2: decode = Self.decodeContentScriptEvaluated
+        case 3: decode = Self.decodeExtensionsChanged
+        case 4: decode = Self.decodeFindFinished
+        case 5: decode = Self.decodeInfoBarRemoved
+        case 6: decode = Self.decodeInfoBarShown
+        case 7: decode = Self.decodeInspectorClosed
+        case 8: decode = Self.decodeInspectorLayoutChanged
+        case 9: decode = Self.decodeLinkHovered
+        case 10: decode = Self.decodeMediaSessionChanged
+        case 11: decode = Self.decodePageCaptured
+        case 12: decode = Self.decodePageExported
+        case 13: decode = Self.decodePageHistoryChanged
+        case 14: decode = Self.decodePageInteracted
+        case 15: decode = Self.decodePageLoadingChanged
+        case 16: decode = Self.decodePageNavigationCommitted
+        case 17: decode = Self.decodePageNavigationFailed
+        case 18: decode = Self.decodePageNavigationStarted
+        case 19: decode = Self.decodePageRendererGone
+        case 20: decode = Self.decodePageThemeChanged
+        case 21: decode = Self.decodePageViewClosed
+        case 22: decode = Self.decodePageViewReady
+        case 23: decode = Self.decodePageViewUnavailable
+        case 24: decode = Self.decodePeekRequested
+        case 25: decode = Self.decodePopupBlocked
+        case 26: decode = Self.decodeProfileNotificationClosed
+        case 27: decode = Self.decodeProfileNotificationPosted
+        case 28: decode = Self.decodeProfilePrepared
+        case 29: decode = Self.decodeProfileReleased
+        case 30: decode = Self.decodeScreenCaptureAccessMissing
+        case 31: decode = Self.decodeSidePanelRequested
+        case 32: decode = Self.decodeStoreInstallRequested
+        case 33: decode = Self.decodeStoreRemovalRequested
+        case 34: decode = Self.decodeWebNotificationClosed
+        case 35: decode = Self.decodeWebNotificationPosted
         default: throw WireError.malformed("Unknown EnginePresentation tag \(tag)")
         }
+        self = try decode(&reader)
+    }
+
+    private static func decodeContentFullscreenChanged(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .contentFullscreenChanged(try ContentFullscreenChanged(from: &reader))
+    }
+
+    private static func decodeContentMessagePosted(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .contentMessagePosted(try ContentMessagePosted(from: &reader))
+    }
+
+    private static func decodeContentScriptEvaluated(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .contentScriptEvaluated(try ContentScriptEvaluated(from: &reader))
+    }
+
+    private static func decodeExtensionsChanged(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .extensionsChanged(try ExtensionsChanged(from: &reader))
+    }
+
+    private static func decodeFindFinished(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .findFinished(try FindFinished(from: &reader))
+    }
+
+    private static func decodeInfoBarRemoved(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .infoBarRemoved(try InfoBarRemoved(from: &reader))
+    }
+
+    private static func decodeInfoBarShown(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .infoBarShown(try InfoBarShown(from: &reader))
+    }
+
+    private static func decodeInspectorClosed(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .inspectorClosed(try InspectorClosed(from: &reader))
+    }
+
+    private static func decodeInspectorLayoutChanged(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .inspectorLayoutChanged(try InspectorLayoutChanged(from: &reader))
+    }
+
+    private static func decodeLinkHovered(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .linkHovered(try LinkHovered(from: &reader))
+    }
+
+    private static func decodeMediaSessionChanged(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .mediaSessionChanged(try MediaSessionChanged(from: &reader))
+    }
+
+    private static func decodePageCaptured(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageCaptured(try PageCaptured(from: &reader))
+    }
+
+    private static func decodePageExported(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageExported(try PageExported(from: &reader))
+    }
+
+    private static func decodePageHistoryChanged(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageHistoryChanged(try PageHistoryChanged(from: &reader))
+    }
+
+    private static func decodePageInteracted(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageInteracted(try PageInteracted(from: &reader))
+    }
+
+    private static func decodePageLoadingChanged(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageLoadingChanged(try PageLoadingChanged(from: &reader))
+    }
+
+    private static func decodePageNavigationCommitted(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageNavigationCommitted(try PageNavigationCommitted(from: &reader))
+    }
+
+    private static func decodePageNavigationFailed(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageNavigationFailed(try PageNavigationFailed(from: &reader))
+    }
+
+    private static func decodePageNavigationStarted(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageNavigationStarted(try PageNavigationStarted(from: &reader))
+    }
+
+    private static func decodePageRendererGone(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageRendererGone(try PageRendererGone(from: &reader))
+    }
+
+    private static func decodePageThemeChanged(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageThemeChanged(try PageThemeChanged(from: &reader))
+    }
+
+    private static func decodePageViewClosed(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageViewClosed(try PageViewClosed(from: &reader))
+    }
+
+    private static func decodePageViewReady(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageViewReady(try PageViewReady(from: &reader))
+    }
+
+    private static func decodePageViewUnavailable(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .pageViewUnavailable(try PageViewUnavailable(from: &reader))
+    }
+
+    private static func decodePeekRequested(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .peekRequested(try PeekRequested(from: &reader))
+    }
+
+    private static func decodePopupBlocked(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .popupBlocked(try PopupBlocked(from: &reader))
+    }
+
+    private static func decodeProfileNotificationClosed(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .profileNotificationClosed(try ProfileNotificationClosed(from: &reader))
+    }
+
+    private static func decodeProfileNotificationPosted(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .profileNotificationPosted(try ProfileNotificationPosted(from: &reader))
+    }
+
+    private static func decodeProfilePrepared(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .profilePrepared(try ProfilePrepared(from: &reader))
+    }
+
+    private static func decodeProfileReleased(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .profileReleased(try ProfileReleased(from: &reader))
+    }
+
+    private static func decodeScreenCaptureAccessMissing(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .screenCaptureAccessMissing(try ScreenCaptureAccessMissing(from: &reader))
+    }
+
+    private static func decodeSidePanelRequested(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .sidePanelRequested(try SidePanelRequested(from: &reader))
+    }
+
+    private static func decodeStoreInstallRequested(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .storeInstallRequested(try StoreInstallRequested(from: &reader))
+    }
+
+    private static func decodeStoreRemovalRequested(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .storeRemovalRequested(try StoreRemovalRequested(from: &reader))
+    }
+
+    private static func decodeWebNotificationClosed(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .webNotificationClosed(try WebNotificationClosed(from: &reader))
+    }
+
+    private static func decodeWebNotificationPosted(_ reader: inout WireReader) throws(WireError) -> EnginePresentation {
+        .webNotificationPosted(try WebNotificationPosted(from: &reader))
     }
 
     func encode(into writer: inout WireWriter) {

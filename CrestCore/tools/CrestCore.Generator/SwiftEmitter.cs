@@ -456,11 +456,20 @@ internal static class SwiftEmitter {
         foreach (var root in ContractRoot.All.Where(root => !root.PlatformSends)) {
             var members = schema.Members(root);
             code.Append('\n').Append($"extension {root} {{\n");
+            // One call site keeps a debug build's frame to one value: building
+            // the case in each branch gave every member its own runtime-sized
+            // slot, which overflowed a task's stack.
             code.Append("    init(from reader: inout WireReader) throws(WireError) {\n");
+            code.Append($"        let decode: (inout WireReader) throws(WireError) -> {root}\n");
             code.Append("        let tag = try reader.readTag()\n        switch tag {\n");
             foreach (var member in members)
-                code.Append($"        case {member.Tag}: self = .{Naming.SwiftMember(member.Name)}(try {member.Name}(from: &reader))\n");
-            code.Append($"        default: throw WireError.malformed(\"Unknown {root} tag \\(tag)\")\n        }}\n    }}\n\n");
+                code.Append($"        case {member.Tag}: decode = Self.decode{member.Name}\n");
+            code.Append($"        default: throw WireError.malformed(\"Unknown {root} tag \\(tag)\")\n        }}\n");
+            code.Append("        self = try decode(&reader)\n    }\n\n");
+            foreach (var member in members) {
+                code.Append($"    private static func decode{member.Name}(_ reader: inout WireReader) throws(WireError) -> {root} {{\n");
+                code.Append($"        .{Naming.SwiftMember(member.Name)}(try {member.Name}(from: &reader))\n    }}\n\n");
+            }
             code.Append("    func encode(into writer: inout WireWriter) {\n        switch self {\n");
             foreach (var member in members) {
                 code.Append($"        case .{Naming.SwiftMember(member.Name)}(let value):\n");

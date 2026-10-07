@@ -3717,6 +3717,10 @@
     "camera-microphone-allow-crash": {
       "category": "fixed",
       "message": "Allowing a site to use your camera or microphone no longer quits Crest."
+    },
+    "2026-10-07-debug-change-decoder-stack": {
+      "category": "internal",
+      "message": "Keep debug builds from overflowing a task's stack while decoding the core's changes"
     }
   }
 }
