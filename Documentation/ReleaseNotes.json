@@ -3709,6 +3709,10 @@
     "full-screen-sidebar-flicker": {
       "category": "fixed",
       "message": "The strip along the top of a full-screen window no longer flickers when the sidebar opens."
+    },
+    "mobile-launch-crash": {
+      "category": "fixed",
+      "message": "Crest on iPhone and iPad opens again instead of closing as soon as it starts."
     }
   }
 }
