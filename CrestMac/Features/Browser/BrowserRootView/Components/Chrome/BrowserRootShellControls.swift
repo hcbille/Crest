@@ -5,19 +5,25 @@ struct BrowserRootShellControls: View {
     @Binding var storedSidebarWidth: Double
     var sidebarEdge: HorizontalEdge = .leading
 
+    @AppStorage(SidebarRevealWidthPreference.key, store: BrowserChromeAppearancePreference.defaults)
+    private var storedRevealWidth = SidebarRevealWidthPreference.defaultValue
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutDirection) private var layoutDirection
 
     @ViewBuilder
     var body: some View {
-        switch model.sidebarPresentation {
+        switch model.sidebarPresentation.kind {
         case .collapsed:
             BrowserCollapsedSidebarRevealControl(
                 capabilities: interactionCapabilities,
                 showSidebar: presentFloatingSidebar,
                 edge: sidebarEdge,
-                isWindowFocused: model.isWindowFocused
+                isWindowFocused: model.isWindowFocused,
+                pointerWidth: SidebarRevealWidthPreference.width(storedRevealWidth)
             )
+            // Shows the strip while its width changes in Settings.
+            .background { BrowserSidebarRevealZonePreview() }
             // The shared control keeps its capability-driven hover behavior for
             // every pointer shell. The Mac shell also listens through AppKit so
             // live WKWebView content cannot swallow the edge transition before

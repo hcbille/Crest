@@ -7,15 +7,20 @@ struct BrowserPlatformAppearanceSettingsSection: View {
 
     @AppStorage(SpacePageMotionPreference.key)
     private var animatesSpacePages = SpacePageMotionPreference.defaultValue
+    @AppStorage(SidebarRevealWidthPreference.key, store: BrowserChromeAppearancePreference.defaults)
+    private var sidebarRevealWidth = SidebarRevealWidthPreference.defaultValue
 
     var body: some View {
         let motion = CrestSettingValue($animatesSpacePages, default: SpacePageMotionPreference.defaultValue)
+
+        let revealWidth = CrestSettingValue($sidebarRevealWidth, default: SidebarRevealWidthPreference.defaultValue)
 
         return BrowserWindowAppearanceGroup(
             space: space,
             showsPreview: showsPreview,
             extraSettings: [
-                motion.resettable("Animate pages when switching Spaces")
+                motion.resettable("Animate pages when switching Spaces"),
+                revealWidth.resettable("Sidebar hover area"),
             ]
         ) {
             CrestSettingRow(
@@ -26,6 +31,16 @@ struct BrowserPlatformAppearanceSettingsSection: View {
                     .labelsHidden()
                     .accessibilityIdentifier("animate-space-pages")
             }
+
+            CrestSettingSlider(
+                "Sidebar hover area",
+                value: revealWidth,
+                range: SidebarRevealWidthPreference.range,
+                readout: .points,
+                identifier: "sidebar-reveal-width",
+                onEditingChanged: { _ in SidebarRevealWidthPreview.shared.adjusted() }
+            )
+            .onChange(of: sidebarRevealWidth) { SidebarRevealWidthPreview.shared.adjusted() }
         }
     }
 }
