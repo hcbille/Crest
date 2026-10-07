@@ -5,7 +5,7 @@ struct BrowserRootShellControls: View {
     @Binding var storedSidebarWidth: Double
     var sidebarEdge: HorizontalEdge = .leading
 
-    @AppStorage(SidebarRevealWidthPreference.key)
+    @AppStorage(SidebarRevealWidthPreference.key, store: BrowserChromeAppearancePreference.defaults)
     private var storedRevealWidth = SidebarRevealWidthPreference.defaultValue
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

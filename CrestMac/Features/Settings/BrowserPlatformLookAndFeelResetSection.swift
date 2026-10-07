@@ -5,7 +5,7 @@ import SwiftUI
 struct BrowserPlatformLookAndFeelResetSection: View {
     @AppStorage(SpacePageMotionPreference.key)
     private var animatesSpacePages = SpacePageMotionPreference.defaultValue
-    @AppStorage(SidebarRevealWidthPreference.key)
+    @AppStorage(SidebarRevealWidthPreference.key, store: BrowserChromeAppearancePreference.defaults)
     private var sidebarRevealWidth = SidebarRevealWidthPreference.defaultValue
 
     var body: some View {

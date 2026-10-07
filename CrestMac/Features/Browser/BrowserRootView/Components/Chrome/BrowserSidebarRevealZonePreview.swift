@@ -8,7 +8,7 @@ import SwiftUI
 struct BrowserSidebarRevealZonePreview: View {
     var edge: HorizontalEdge = .leading
 
-    @AppStorage(SidebarRevealWidthPreference.key)
+    @AppStorage(SidebarRevealWidthPreference.key, store: BrowserChromeAppearancePreference.defaults)
     private var storedWidth = SidebarRevealWidthPreference.defaultValue
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var opacity = 0.0
