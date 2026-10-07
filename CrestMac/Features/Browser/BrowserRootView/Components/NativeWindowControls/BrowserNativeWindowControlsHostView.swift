@@ -188,9 +188,10 @@ final class BrowserNativeWindowControlsHostView: NSView {
     }
 
     private func applySystemToolbarMetrics(to window: NSWindow) {
-        // This runs on every update of the sidebar's animation. Writing the
-        // frame view's property again, even unchanged, has it redraw, which
-        // flickers a fullscreen window until the menu bar's reveal redraws it.
+        // This runs on every update of the sidebar's animation. On macOS 26,
+        // writing the frame view's property again, even unchanged, has it
+        // redraw, which flickers a fullscreen window until the menu bar's
+        // reveal redraws it.
         if let frameView = window.contentView?.superview, !frameView.clipsToBounds {
             frameView.clipsToBounds = true
         }
