@@ -3673,6 +3673,10 @@
     "import-review-design": {
       "category": "improved",
       "message": "The import review has matching From and Into menus and one card for each Space\u2019s choices, and says when there\u2019s no room for another Space. The list of browsers scrolls when it doesn\u2019t fit the window."
+    },
+    "full-screen-sidebar-flicker": {
+      "category": "fixed",
+      "message": "The strip along the top of a full-screen window no longer flickers when the sidebar opens."
     }
   }
 }
