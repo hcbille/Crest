@@ -3701,6 +3701,10 @@
     "ipad-single-tap-controls": {
       "category": "fixed",
       "message": "On iPad, buttons and menus such as Manage Search Engines respond to a single tap or click instead of needing a long press."
+    },
+    "sidebar-hover-area-width": {
+      "category": "new",
+      "message": "Choose how wide the edge of the window is that shows a hidden sidebar, in Appearance settings. The edge lights up while you adjust it."
     }
   }
 }
