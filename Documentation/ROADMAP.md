@@ -58,7 +58,6 @@ the live status for each issue.
 - [ ] [Reveal the collapsed iPad sidebar on pointer hover](https://github.com/pauljoda/Crest/issues/176)
 - [ ] [Add privacy-preserving analytics and opt-in diagnostics](https://github.com/pauljoda/Crest/issues/179)
 - [ ] [bug: bad colors on new tab](https://github.com/pauljoda/Crest/issues/185)
-- [ ] [bug: The Manage Search Engines button doesn't work](https://github.com/pauljoda/Crest/issues/194)
 - [ ] [feature: Add Edit Pinned URL menu option and dialogue](https://github.com/pauljoda/Crest/issues/218)
 - [ ] [feature: Install Crest with Homebrew (tap first, then homebrew-cask)](https://github.com/pauljoda/Crest/issues/222)
 - [ ] [bug: Quitting Crest creates an empty ~/Library/Application Support/Chromium](https://github.com/pauljoda/Crest/issues/223)
@@ -94,10 +93,12 @@ the live status for each issue.
 - [ ] [Evaluate a setting for where new tabs open in the sidebar](https://github.com/pauljoda/Crest/issues/276)
 - [ ] [Keep find in page in step with what you type](https://github.com/pauljoda/Crest/issues/278)
 - [ ] [Show a designed window when opening the Mac installer](https://github.com/pauljoda/Crest/issues/280)
-- [ ] [Redesign Settings and Crest Studio](https://github.com/pauljoda/Crest/issues/282)
+- [ ] [bug: Extension keyboard shortcuts act on a different tab than the one being viewed](https://github.com/pauljoda/Crest/issues/290)
+- [ ] [Evaluate tab and folder previews when hovering the sidebar](https://github.com/pauljoda/Crest/issues/294)
 
 #### Completed
 
+- [x] [bug: The Manage Search Engines button doesn't work](https://github.com/pauljoda/Crest/issues/194)
 - [x] [bug: Default Page Zoom deosn't work](https://github.com/pauljoda/Crest/issues/212)
 - [x] [bug: Quick Window does not prompt macOS for camera/microphone access](https://github.com/pauljoda/Crest/issues/214)
 - [x] [bug: Pin icon looks blurry or poor quality](https://github.com/pauljoda/Crest/issues/217)
@@ -112,6 +113,7 @@ the live status for each issue.
 - [x] [Link the Crest Discord from the website](https://github.com/pauljoda/Crest/issues/256)
 - [x] [bug: extension install waits 180 s for the engine's download unless a page has loaded](https://github.com/pauljoda/Crest/issues/268)
 - [x] [Import every Chrome profile during setup](https://github.com/pauljoda/Crest/issues/275) — [`d1cd39dd`](https://github.com/pauljoda/Crest/commit/d1cd39dd4deecd7f400ed3c639bd1786c4adff8e)
+- [x] [Redesign Settings and Crest Studio](https://github.com/pauljoda/Crest/issues/282)
 
 <!-- crest-roadmap-sync:end -->
 
