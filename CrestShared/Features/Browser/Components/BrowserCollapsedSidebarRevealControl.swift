@@ -18,6 +18,9 @@ struct BrowserCollapsedSidebarRevealControl: View {
     let showSidebar: () -> Void
     var edge: HorizontalEdge = .leading
     var isWindowFocused = true
+    /// Replaces the strip's width where a pointer shell lets people choose it.
+    /// Touch shells ignore it: a finger needs the width the profile gives it.
+    var pointerWidth: CGFloat?
 
     @Environment(\.layoutDirection) private var layoutDirection
 
@@ -38,7 +41,7 @@ struct BrowserCollapsedSidebarRevealControl: View {
             guard metrics.revealsOnHover, isWindowFocused, isHovering else { return }
             showSidebar()
         }
-        .frame(width: metrics.width)
+        .frame(width: width)
         .frame(maxHeight: .infinity)
         // Simultaneous rather than exclusive: the button already claims the
         // press, and a swipe that has to wait for it to fail would have to
@@ -48,6 +51,10 @@ struct BrowserCollapsedSidebarRevealControl: View {
                 .onEnded(revealIfSwipedInward),
             isEnabled: metrics.swipeDistance != nil
         )
+    }
+
+    private var width: CGFloat {
+        metrics.revealsOnHover ? pointerWidth ?? metrics.width : metrics.width
     }
 
     /// What the strip tells someone who stops on it: whichever input this shell

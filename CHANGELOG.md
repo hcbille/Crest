@@ -7,6 +7,10 @@ and Crest uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Choose how wide the hover area is that previews a hidden sidebar, from 1 to 24 points, in Settings > Window. The area is outlined briefly as you adjust it.
+
 ## [0.7.0] - 2026-10-02
 
 Crest 0.7 brings Chromium and WebKit together in one Mac app, with Chromium as

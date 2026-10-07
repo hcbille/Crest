@@ -5,6 +5,9 @@ struct BrowserRootShellControls: View {
     @Binding var storedSidebarWidth: Double
     var sidebarEdge: HorizontalEdge = .leading
 
+    @AppStorage(SidebarRevealWidthPreference.key)
+    private var storedRevealWidth = SidebarRevealWidthPreference.defaultValue
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.layoutDirection) private var layoutDirection
 
@@ -16,7 +19,8 @@ struct BrowserRootShellControls: View {
                 capabilities: interactionCapabilities,
                 showSidebar: presentFloatingSidebar,
                 edge: sidebarEdge,
-                isWindowFocused: model.isWindowFocused
+                isWindowFocused: model.isWindowFocused,
+                pointerWidth: SidebarRevealWidthPreference.width(storedRevealWidth)
             )
             // The shared control keeps its capability-driven hover behavior for
             // every pointer shell. The Mac shell also listens through AppKit so
