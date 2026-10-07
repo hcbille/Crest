@@ -24,8 +24,6 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                 standardContent
             }
 
-            BrowserSidebarRevealZonePreview(edge: sidebarEdge)
-
             // The window's chrome belongs to the window, not to the chrome a
             // fullscreen page hides: taking it down would restore the window's
             // style while AppKit is carrying it into fullscreen.

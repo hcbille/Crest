@@ -1,15 +1,12 @@
 import SwiftUI
 
-/// The sidebar's hover area, drawn in the accent Settings tints its controls
-/// with while someone adjusts its width and fading out about three seconds after the last change.
+/// The sidebar's hover area, filled with the system accent while someone
+/// adjusts its width and fading out about three seconds after the last change.
 ///
-/// It never takes input: the strip it outlines is the real one, and the page
-/// underneath keeps answering the pointer.
+/// It is drawn behind the strip itself, so it only shows where the strip is and
+/// never takes input: the strip and the page underneath keep answering the
+/// pointer.
 struct BrowserSidebarRevealZonePreview: View {
-    var edge: HorizontalEdge = .leading
-
-    @AppStorage(SidebarRevealWidthPreference.key, store: BrowserChromeAppearancePreference.defaults)
-    private var storedWidth = SidebarRevealWidthPreference.defaultValue
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var opacity = 0.0
     @State private var fade: Task<Void, Never>?
@@ -17,10 +14,7 @@ struct BrowserSidebarRevealZonePreview: View {
     private let preview = SidebarRevealWidthPreview.shared
 
     var body: some View {
-        CrestBrandTheme.accent
-            .frame(width: SidebarRevealWidthPreference.width(storedWidth))
-            .frame(maxHeight: .infinity)
-            .frame(maxWidth: .infinity, alignment: edge == .leading ? .leading : .trailing)
+        Color.accentColor
             .opacity(opacity)
             .allowsHitTesting(false)
             .accessibilityHidden(true)

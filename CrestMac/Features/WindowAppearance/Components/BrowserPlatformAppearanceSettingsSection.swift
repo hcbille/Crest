@@ -36,8 +36,7 @@ struct BrowserPlatformAppearanceSettingsSection: View {
                 "Sidebar hover area",
                 value: revealWidth,
                 range: SidebarRevealWidthPreference.range,
-                step: 1,
-                readout: .points(zero: "Off"),
+                readout: .points,
                 identifier: "sidebar-reveal-width",
                 onEditingChanged: { _ in SidebarRevealWidthPreview.shared.adjusted() }
             )

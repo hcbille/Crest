@@ -22,6 +22,8 @@ struct BrowserRootShellControls: View {
                 isWindowFocused: model.isWindowFocused,
                 pointerWidth: SidebarRevealWidthPreference.width(storedRevealWidth)
             )
+            // Shows the strip while its width changes in Settings.
+            .background { BrowserSidebarRevealZonePreview() }
             // The shared control keeps its capability-driven hover behavior for
             // every pointer shell. The Mac shell also listens through AppKit so
             // live WKWebView content cannot swallow the edge transition before

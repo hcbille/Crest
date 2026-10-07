@@ -23,6 +23,9 @@ struct CrestSettingSliderReadout: Sendable {
         }
     }
 
+    /// A point measurement.
+    static let points = CrestSettingSliderReadout { String(localized: "\(Int($0.rounded())) pt") }
+
     /// A point measurement, such as the window border, whose zero is a word.
     static func points(zero: LocalizedStringResource) -> Self {
         CrestSettingSliderReadout { value in

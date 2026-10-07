@@ -1,10 +1,10 @@
 import Observation
 
 /// Tells every browser window that the sidebar hover area is being adjusted,
-/// so each can outline it for a moment.
+/// so each window with a hidden sidebar can show its strip for a moment.
 ///
-/// Settings lives in its own window, away from the edge it is resizing; this is
-/// the only way the person dragging the slider can see what the number means.
+/// The strip is invisible on its own; showing it is how the person moving the
+/// slider sees what the number means.
 @MainActor
 @Observable
 final class SidebarRevealWidthPreview {
