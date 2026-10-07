@@ -3717,6 +3717,10 @@
     "camera-microphone-allow-crash": {
       "category": "fixed",
       "message": "Allowing a site to use your camera or microphone no longer quits Crest."
+    },
+    "pinned-tab-unpin-menu": {
+      "category": "improved",
+      "message": "A pinned tab's menu now offers Unpin Tab, and a selection of pinned tabs offers Unpin Tabs."
     }
   }
 }

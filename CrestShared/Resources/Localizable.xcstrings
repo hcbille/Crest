@@ -13845,10 +13845,16 @@
     "Unmuted" : {
 
     },
+    "Unpin %lld Tabs" : {
+
+    },
     "Unpin Extension" : {
 
     },
     "Unpin from Toolbar" : {
+
+    },
+    "Unpin Tab" : {
 
     },
     "Untitled Space" : {
