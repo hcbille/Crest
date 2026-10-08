@@ -52,6 +52,22 @@ struct BrowserSidebarListContext {
         pageAccess.containsResidentPage(tabID)
     }
 
+    /// Whether another page shares the tab's page as a tab. Reading it
+    /// observes the page's sharing.
+    @MainActor func isSharedAsTab(_ tabID: UUID) -> Bool {
+        pageAccess.isSharedAsTab(
+            BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID))
+    }
+
+    /// The tab's page's part in tab sharing, if it takes part: shared by
+    /// another page, or receiving a tab another page shares to it.
+    @MainActor func tabSharingRole(_ tabID: UUID) -> BrowserTabSharingRole? {
+        let assignment = BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID)
+        if pageAccess.isSharedAsTab(assignment) { return .shared }
+        if pageAccess.isSharingTab(assignment) { return .receiving }
+        return nil
+    }
+
     /// Whether the window shows this Space, unlocked, so its rows may act.
     @MainActor var isCurrentAndUnlocked: Bool {
         isCurrent(assignment)
@@ -77,6 +93,19 @@ struct BrowserSidebarListContext {
     }
 
     // MARK: - Actions - Tabs
+
+    /// The tab whose page shares the tab's page, when Crest knows it and the
+    /// Space holds it.
+    @MainActor func sharingTab(of tabID: UUID) -> TabStateModel? {
+        let assignment = BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID)
+        return pageAccess.sharingTabID(assignment).flatMap { space.tabs.model($0) }
+    }
+
+    /// Stops every tab sharing the tab's page takes part in.
+    @MainActor func stopTabSharing(_ tabID: UUID) {
+        pageAccess.stopTabSharing(
+            BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID))
+    }
 
     @MainActor func unload(_ tabID: UUID) {
         pageAccess.unloadPage(tabID, assignment)

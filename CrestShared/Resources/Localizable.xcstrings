@@ -37,6 +37,9 @@
     "%@ — Not Downloaded" : {
 
     },
+    "%@, Shared" : {
+      "comment" : "Accessibility value of a pinned tab another page shares; the value is its loaded state."
+    },
     "%@ · %@" : {
       "localizations" : {
         "ar" : {
@@ -1971,6 +1974,9 @@
     "Already saved" : {
 
     },
+    "Also share tab audio" : {
+      "comment" : "Screen sharing picker option to include the shared tab's sound."
+    },
     "Always show folder highlights" : {
 
     },
@@ -3137,6 +3143,9 @@
     },
     "Choose what to bring over" : {
 
+    },
+    "Choose what to share" : {
+      "comment" : "Accessibility label for the screen sharing picker."
     },
     "Choose which accounts to import." : {
 
@@ -4948,6 +4957,9 @@
     "Dock Sidebar" : {
 
     },
+    "Don't Share" : {
+      "comment" : "Screen sharing picker control that shares nothing."
+    },
     "Don’t put sign-in tokens in a search URL. It syncs with this Space." : {
 
     },
@@ -6154,6 +6166,12 @@
         }
       }
     },
+    "Go to Tab" : {
+      "comment" : "Shared tab popover button that shows the tab it is shared to."
+    },
+    "Go to the other tab" : {
+      "comment" : "Tooltip on a sharing bar's message that shows the tab at the other end."
+    },
     "Gold" : {
 
     },
@@ -6327,6 +6345,9 @@
     },
     "Hide until you check for updates" : {
 
+    },
+    "Hide until you come back to this tab" : {
+      "comment" : "Tooltip on a sharing bar's minimize button."
     },
     "Hide Update" : {
 
@@ -11406,8 +11427,17 @@
     "Share Report" : {
 
     },
+    "Share Tab" : {
+      "comment" : "Screen sharing picker button that shares the selected tab."
+    },
     "Share your location with websites you allow." : {
 
+    },
+    "Shared" : {
+      "comment" : "Accessibility label for a sidebar tab another page shares."
+    },
+    "Shared to %@" : {
+      "comment" : "Shared tab popover; the value is the tab it is shared to."
     },
     "Share…" : {
       "localizations" : {
@@ -12270,6 +12300,12 @@
           }
         }
       }
+    },
+    "Stop Sharing" : {
+      "comment" : "Stops sharing a tab another page shares."
+    },
+    "Stop Sharing to This Tab" : {
+      "comment" : "Tab menu item that stops the tab sharing shown in this page."
     },
     "Stop Speaking" : {
 
@@ -13289,6 +13325,9 @@
     "This Quick Window cannot reconnect to its original browsing profile." : {
 
     },
+    "This Tab" : {
+      "comment" : "Screen sharing picker note on the tab of the page that asks."
+    },
     "This removes %@ from this Space." : {
 
     },
@@ -13346,6 +13385,9 @@
     },
     "This site’s certificate is not trusted. Information you send could be read by others." : {
 
+    },
+    "This tab is being shared" : {
+      "comment" : "Tooltip on a sidebar tab another page shares."
     },
     "This tab needs a newer Crest" : {
 
@@ -14479,6 +14521,9 @@
     },
     "Window border" : {
 
+    },
+    "Window or Screen…" : {
+      "comment" : "Screen sharing picker button that opens the system picker."
     },
     "Window, tab, address field, folder, and app icon choices return to their defaults." : {
 

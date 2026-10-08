@@ -23,6 +23,20 @@ struct BrowserTabOrganizationMenuContent: View {
     private var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
 
     var body: some View {
+        if let role = context.tabSharingRole(tab.id) {
+            Button {
+                performIfCurrent { context.stopTabSharing(tab.id) }
+            } label: {
+                Label {
+                    Text(role.stopTitle)
+                } icon: {
+                    Image(systemName: "rectangle.slash")
+                }
+            }
+
+            Divider()
+        }
+
         if tab.isWebPage {
             Button("Copy Link URL", systemImage: "link") {
                 organizationAction.copyLinkURL(for: assignment)

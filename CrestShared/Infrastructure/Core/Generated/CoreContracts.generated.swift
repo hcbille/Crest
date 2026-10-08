@@ -439,9 +439,12 @@ enum EnginePresentation: Equatable, Sendable {
     case profilePrepared(ProfilePrepared)
     case profileReleased(ProfileReleased)
     case screenCaptureAccessMissing(ScreenCaptureAccessMissing)
+    case shareSourcesOffered(ShareSourcesOffered)
+    case shareSourcesWithdrawn(ShareSourcesWithdrawn)
     case sidePanelRequested(SidePanelRequested)
     case storeInstallRequested(StoreInstallRequested)
     case storeRemovalRequested(StoreRemovalRequested)
+    case tabSharingChanged(TabSharingChanged)
     case webNotificationClosed(WebNotificationClosed)
     case webNotificationPosted(WebNotificationPosted)
 
@@ -475,9 +478,12 @@ enum EnginePresentation: Equatable, Sendable {
         case .peekRequested(let value): value.pageID
         case .popupBlocked(let value): value.pageID
         case .screenCaptureAccessMissing(let value): value.pageID
+        case .shareSourcesOffered(let value): value.pageID
+        case .shareSourcesWithdrawn(let value): value.pageID
         case .sidePanelRequested(let value): value.pageID
         case .storeInstallRequested(let value): value.pageID
         case .storeRemovalRequested(let value): value.pageID
+        case .tabSharingChanged(let value): value.pageID
         case .webNotificationClosed(let value): value.pageID
         case .webNotificationPosted(let value): value.pageID
         }
@@ -1137,6 +1143,16 @@ struct ChoosePeekModifier: Intent, LinkIntent, Equatable, Sendable {
 
 struct ChooseQuickWindowArchivePolicy: Intent, LinkIntent, Equatable, Sendable {
     let policy: QuickWindowArchivePolicy
+}
+
+struct ChooseShareSource: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let shareID: UUID
+    let choice: ShareSourceChoice
+    let tabPageID: UUID?
+    let audio: Bool
 }
 
 struct ChooseSiteEngine: Intent, Equatable, Sendable {
@@ -2725,6 +2741,7 @@ struct InfoBarShown: Equatable, Sendable {
     let acceptLabel: String?
     let cancelLabel: String?
     let closeable: Bool
+    let minimizable: Bool
 }
 
 struct InspectorClosed: Equatable, Sendable {
@@ -4929,6 +4946,26 @@ struct SetupSummary: Equatable, Sendable {
     let spaceCount: Int
 }
 
+struct ShareSourcesOffered: Equatable, Sendable {
+    let pageID: UUID
+    let shareID: UUID
+    let site: String
+    let tabs: [ShareableTab]
+    let audio: Bool
+}
+
+struct ShareSourcesWithdrawn: Equatable, Sendable {
+    let pageID: UUID
+    let shareID: UUID
+}
+
+struct ShareableTab: Equatable, Sendable {
+    let pageID: UUID
+    let title: String
+    let url: String?
+    let icon: Data?
+}
+
 struct ShortcutBinding: Equatable, Sendable {
     let command: ShortcutCommand
     let keys: KeyCombination?
@@ -5541,6 +5578,12 @@ struct StopMediaCapture: PageRequest, Equatable, Sendable {
     let permission: SitePermission
 }
 
+struct StopTabSharing: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+}
+
 struct StorageFailed: Equatable, Sendable {
     let reason: StorageFailure
 }
@@ -5708,6 +5751,12 @@ struct TabSelection: Equatable, Sendable {
     var tabIDs: [UUID]
     var folderIDs: [UUID]
     var memberTabIDs: [UUID]
+}
+
+struct TabSharingChanged: Equatable, Sendable {
+    let pageID: UUID
+    let shared: Bool
+    let sharing: Bool
 }
 
 struct TabState: Equatable, Sendable, Identifiable {
@@ -6342,6 +6391,12 @@ enum SessionFlaw: Int, CaseIterable, Sendable {
     case sharedProfile = 3
     case duplicateTab = 4
     case unknownDeletion = 5
+}
+
+enum ShareSourceChoice: Int, CaseIterable, Sendable {
+    case cancel = 0
+    case tab = 1
+    case windowOrScreen = 2
 }
 
 struct ShortcutModifiers: OptionSet, Sendable {
