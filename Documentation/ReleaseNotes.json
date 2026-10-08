@@ -3718,13 +3718,13 @@
       "category": "fixed",
       "message": "Allowing a site to use your camera or microphone no longer quits Crest."
     },
-    "pinned-tab-unpin-menu": {
-      "category": "improved",
-      "message": "A pinned tab's menu now offers Unpin Tab, and a selection of pinned tabs offers Unpin Tabs."
-    },
     "onboarding-scan-for-more": {
       "category": "improved",
       "message": "Setup no longer looks through other browsers’ data when Crest first opens. It reads a browser only when you choose it to import, or everything when you press Scan for more."
+    },
+    "pinned-tab-unpin-menu": {
+      "category": "improved",
+      "message": "A pinned tab's menu now offers Unpin Tab, and a selection of pinned tabs offers Unpin Tabs."
     }
   }
 }
