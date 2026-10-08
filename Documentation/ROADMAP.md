@@ -99,8 +99,8 @@ the live status for each issue.
 - [ ] [feature: "New Empty Split View" From Zen](https://github.com/pauljoda/Crest/issues/297)
 - [ ] [Move whole folders between Spaces](https://github.com/pauljoda/Crest/issues/298)
 - [ ] [Pointer reappears during playback and the sidebar opens on its own](https://github.com/pauljoda/Crest/issues/304)
-- [ ] [feature: Make the page frame's corners concentric with the macOS 26 window corners](https://github.com/pauljoda/Crest/issues/305)
 - [ ] [Optional horizontal tab layout](https://github.com/pauljoda/Crest/issues/307)
+- [ ] [Dark band covers the top of pages after entering full screen](https://github.com/pauljoda/Crest/issues/309)
 
 #### Completed
 
@@ -122,6 +122,7 @@ the live status for each issue.
 - [x] [bug: extension install waits 180 s for the engine's download unless a page has loaded](https://github.com/pauljoda/Crest/issues/268)
 - [x] [Import every Chrome profile during setup](https://github.com/pauljoda/Crest/issues/275) — [`d1cd39dd`](https://github.com/pauljoda/Crest/commit/d1cd39dd4deecd7f400ed3c639bd1786c4adff8e)
 - [x] [Redesign Settings and Crest Studio](https://github.com/pauljoda/Crest/issues/282)
+- [x] [feature: Make the page frame's corners concentric with the macOS 26 window corners](https://github.com/pauljoda/Crest/issues/305)
 
 <!-- crest-roadmap-sync:end -->
 
