@@ -60,7 +60,6 @@ the live status for each issue.
 - [ ] [bug: bad colors on new tab](https://github.com/pauljoda/Crest/issues/185)
 - [ ] [feature: Add Edit Pinned URL menu option and dialogue](https://github.com/pauljoda/Crest/issues/218)
 - [ ] [feature: Install Crest with Homebrew (tap first, then homebrew-cask)](https://github.com/pauljoda/Crest/issues/222)
-- [ ] [bug: Quitting Crest creates an empty ~/Library/Application Support/Chromium](https://github.com/pauljoda/Crest/issues/223)
 - [ ] [Investigate reported passkey failures in both engines](https://github.com/pauljoda/Crest/issues/226)
 - [ ] [Investigate mouse side buttons ignoring the sidebar's Space switching](https://github.com/pauljoda/Crest/issues/227)
 - [ ] [Make Quick Windows practical for short browsing sessions](https://github.com/pauljoda/Crest/issues/228)
@@ -77,7 +76,6 @@ the live status for each issue.
 - [ ] [bug: white flash between loading screen in dark mode](https://github.com/pauljoda/Crest/issues/246)
 - [ ] [bug: Crest crash eah time using 1password autofill extension](https://github.com/pauljoda/Crest/issues/248)
 - [ ] [feature: have a top url bar when in fullscreen mode](https://github.com/pauljoda/Crest/issues/249)
-- [ ] [Keep a tab's back and forward history after relaunching](https://github.com/pauljoda/Crest/issues/253)
 - [ ] [Evaluate a visual recent-tab switcher on Mac](https://github.com/pauljoda/Crest/issues/254)
 - [ ] [Evaluate site-specific search from the command palette](https://github.com/pauljoda/Crest/issues/255)
 - [ ] [bug: CPU usage very high compared to Arc](https://github.com/pauljoda/Crest/issues/259)
@@ -100,7 +98,6 @@ the live status for each issue.
 - [ ] [Move whole folders between Spaces](https://github.com/pauljoda/Crest/issues/298)
 - [ ] [Pointer reappears during playback and the sidebar opens on its own](https://github.com/pauljoda/Crest/issues/304)
 - [ ] [Optional horizontal tab layout](https://github.com/pauljoda/Crest/issues/307)
-- [ ] [Show History doesn't open a hidden sidebar, and sidebar buttons don't follow a right-side sidebar](https://github.com/pauljoda/Crest/issues/311)
 
 #### Completed
 
@@ -110,12 +107,14 @@ the live status for each issue.
 - [x] [bug: Pin icon looks blurry or poor quality](https://github.com/pauljoda/Crest/issues/217)
 - [x] [bug: Cant install Keeper as Extension in Chromium](https://github.com/pauljoda/Crest/issues/219)
 - [x] [feature: Make Tab Groups visible](https://github.com/pauljoda/Crest/issues/220)
+- [x] [bug: Quitting Crest creates an empty ~/Library/Application Support/Chromium](https://github.com/pauljoda/Crest/issues/223)
 - [x] [bug: Crest 0.7.2 crashes when clicking a website's Login button on macOS](https://github.com/pauljoda/Crest/issues/224)
 - [x] [Investigate a reported crash when signing in to Pinterest on Mac](https://github.com/pauljoda/Crest/issues/225) — [`606000ce`](https://github.com/pauljoda/Crest/commit/606000ce4b006e04dee412926366ebb355bcc186)
 - [x] [Keep the Claude extension signed in after relaunching Crest](https://github.com/pauljoda/Crest/issues/238) — [`1222cfab`](https://github.com/pauljoda/Crest/commit/1222cfab91e205f9325b814fb7224a35f2d9872c)
 - [x] [bug: Site Settings/Extension Menu unreliable in opening](https://github.com/pauljoda/Crest/issues/239)
 - [x] [Keep the back and forward history menu fast on long-lived tabs](https://github.com/pauljoda/Crest/issues/244) — [`86f5d23c`](https://github.com/pauljoda/Crest/commit/86f5d23cd6995e2d8790311bff1d09dbafa00bc5)
 - [x] [bug: Unable to import spaces from Zen](https://github.com/pauljoda/Crest/issues/252)
+- [x] [Keep a tab's back and forward history after relaunching](https://github.com/pauljoda/Crest/issues/253)
 - [x] [Link the Crest Discord from the website](https://github.com/pauljoda/Crest/issues/256)
 - [x] [bug: Crest crashes when allowing a site's microphone or camera access](https://github.com/pauljoda/Crest/issues/260)
 - [x] [feature: Show "Unpin Tab" in a pinned tab's context menu](https://github.com/pauljoda/Crest/issues/261)
@@ -125,6 +124,7 @@ the live status for each issue.
 - [x] [feature: Make the page frame's corners concentric with the macOS 26 window corners](https://github.com/pauljoda/Crest/issues/305)
 - [x] [Dark band covers the top of pages after entering full screen](https://github.com/pauljoda/Crest/issues/309)
 - [x] [Update relaunch can get stuck, and a cancelled relaunch can't be retried](https://github.com/pauljoda/Crest/issues/310)
+- [x] [Show History doesn't open a hidden sidebar, and sidebar buttons don't follow a right-side sidebar](https://github.com/pauljoda/Crest/issues/311)
 
 <!-- crest-roadmap-sync:end -->
 
