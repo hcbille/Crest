@@ -3765,6 +3765,10 @@
     "chromium-upstream-154-0-8037-97-1-1-6c05ab379fd7": {
       "category": "fixed",
       "message": "Chromium is updated to 154.0.8037.97 with upstream security and compatibility fixes."
+    },
+    "screen-sharing-tab-picker": {
+      "category": "new",
+      "message": "Sharing your screen on a page that runs in Chromium now lets you share a single tab, with its sound, as well as a window or your whole screen."
     }
   }
 }

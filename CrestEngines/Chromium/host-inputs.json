@@ -313,7 +313,11 @@
   },
   "chrome/browser/media/webrtc/display_media_access_handler.cc": {
     "before": "06d96012fdfe68905b1542b2a414a883f1dfaf3a40ffe151a109fce85d874b2f",
-    "after": "fbddfb1a8b8616a1b6c997bda5f869898296596e56d67125ed5e223f23512f51"
+    "after": "aaf104449078f32c2bde4e702fb7655a38ffde136c05a4246cf5708fda2d2828"
+  },
+  "chrome/browser/media/webrtc/desktop_capture_devices_util.cc": {
+    "before": "21b35b00c7e5a0a631675efa8e74750cb33fa482021ee1404eed0365b74f8928",
+    "after": "38c68c38419679b7611c0fd50364848b28b8ff029c09c7a7f049aee1240e2586"
   },
   "chrome/browser/media/webrtc/desktop_capture_access_handler.cc": {
     "before": "d6a30fb36caf2a9d7d35c185c9d022446ca8cc1a5880a16d9ee79fcd3a395cfb",

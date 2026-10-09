@@ -246,6 +246,27 @@ final class EnginePage: BrowserFindExecuting {
         pages.request(RefreshPageIcon(pageID: id))
     }
 
+    // MARK: - Actions - Screen sharing
+
+    /// The person's answer to the engine's offer of tabs to share, `shareID`:
+    /// the tab whose page is `tabPageID` for `.tab`, with its sound when
+    /// `audio`. False when the request already ended, or the tab can no
+    /// longer be shared.
+    @discardableResult
+    func chooseShareSource(
+        _ shareID: UUID, choice: ShareSourceChoice, tabPageID: UUID? = nil, audio: Bool = false
+    ) -> Bool {
+        pages.request(
+            ChooseShareSource(pageID: id, shareID: shareID, choice: choice, tabPageID: tabPageID, audio: audio))
+    }
+
+    /// Stops every tab sharing the page takes part in. False when it takes
+    /// part in none.
+    @discardableResult
+    func stopTabSharing() -> Bool {
+        pages.request(StopTabSharing(pageID: id))
+    }
+
     // MARK: - Actions - Notifications
 
     /// Tells the document that posted the notification `notificationID` what

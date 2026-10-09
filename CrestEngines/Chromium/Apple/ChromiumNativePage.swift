@@ -300,6 +300,7 @@
             isShown = false
             DiagnosticLog.pages.notice("Chromium page \(pageID) hides")
             pages?.request(HidePage(pageID: pageID))
+            observer(.leftScreen)
         }
 
         /// The page's owner let it go. The core's ClosePage has the binding
