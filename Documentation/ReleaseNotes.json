@@ -3761,6 +3761,10 @@
     "chromium-tab-history-across-updates": {
       "category": "improved",
       "message": "On Mac, tabs that use Chromium keep their back and forward history when Crest or macOS updates."
+    },
+    "chromium-upstream-154-0-8037-97-1-1-6c05ab379fd7": {
+      "category": "fixed",
+      "message": "Chromium is updated to 154.0.8037.97 with upstream security and compatibility fixes."
     }
   }
 }
