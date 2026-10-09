@@ -23,12 +23,12 @@ struct BrowserTabOrganizationMenuContent: View {
     private var spaceAccess: BrowserSpaceAccessController { context.spaceAccess }
 
     var body: some View {
-        if let role = context.tabSharingRole(tab.id) {
+        if context.takesPartInTabSharing(tab.id) {
             Button {
                 performIfCurrent { context.stopTabSharing(tab.id) }
             } label: {
                 Label {
-                    Text(role.stopTitle)
+                    Text("Stop Sharing", comment: "Stops the tab sharing a tab takes part in.")
                 } icon: {
                     Image(systemName: "rectangle.slash")
                 }

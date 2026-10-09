@@ -74,7 +74,7 @@ struct BrowserSidebarTabSharedMark: View {
                     isPresentingActions = false
                     stopSharing()
                 } label: {
-                    Text("Stop Sharing", comment: "Stops sharing a tab another page shares.")
+                    Text("Stop Sharing", comment: "Stops the tab sharing a tab takes part in.")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)

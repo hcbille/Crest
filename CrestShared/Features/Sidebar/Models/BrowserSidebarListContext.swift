@@ -59,13 +59,11 @@ struct BrowserSidebarListContext {
             BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID))
     }
 
-    /// The tab's page's part in tab sharing, if it takes part: shared by
-    /// another page, or receiving a tab another page shares to it.
-    @MainActor func tabSharingRole(_ tabID: UUID) -> BrowserTabSharingRole? {
+    /// Whether the tab's page takes part in tab sharing: shared by another
+    /// page, or sharing another tab with the site it shows.
+    @MainActor func takesPartInTabSharing(_ tabID: UUID) -> Bool {
         let assignment = BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID)
-        if pageAccess.isSharedAsTab(assignment) { return .shared }
-        if pageAccess.isSharingTab(assignment) { return .receiving }
-        return nil
+        return pageAccess.isSharedAsTab(assignment) || pageAccess.isSharingTab(assignment)
     }
 
     /// Whether the window shows this Space, unlocked, so its rows may act.

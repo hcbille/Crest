@@ -21,7 +21,7 @@ struct PinnedTabTile: View {
         let runtimeAssignment = self.runtimeAssignment
         let isSelected = grid.window?.shownTabIDs.contains(tab.id) ?? (tab.id == grid.selectedTabID)
         let loaded = context?.isLoaded(tab.id) ?? true
-        let isShared = context?.tabSharingRole(tab.id) == .shared
+        let isShared = context?.isSharedAsTab(tab.id) ?? false
         let multiSelection = context?.browser.tabMultiSelection
         PinnedTabSelectionButton(
             tab: tab,

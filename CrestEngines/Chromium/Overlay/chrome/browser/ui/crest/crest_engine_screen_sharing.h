@@ -15,6 +15,8 @@
 #include "content/public/browser/desktop_media_id.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/media_stream_request.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capturer.h"
 #include "url/gurl.h"
 
@@ -37,7 +39,9 @@ namespace crest {
 // lists or captures the screen before the person picks, and nothing asks the
 // system for access. A window or display reaches the page as the picker's
 // session, which the engine captures with the filter the system handed it.
-class ScreenSharingPicker final : public DesktopMediaPicker {
+// The question lasts only while the document that asked stays in its page,
+// as Chrome's picker closes with the page.
+class ScreenSharingPicker final : public DesktopMediaPicker, public content::WebContentsObserver {
  public:
   explicit ScreenSharingPicker(const content::MediaStreamRequest& request);
   ScreenSharingPicker(const ScreenSharingPicker&) = delete;
@@ -57,6 +61,11 @@ class ScreenSharingPicker final : public DesktopMediaPicker {
   bool Choose(const engine::ChooseShareSource& choice);
 
  private:
+  // content::WebContentsObserver:
+  void RenderFrameHostStateChanged(content::RenderFrameHost* render_frame_host,
+                                   content::RenderFrameHost::LifecycleState old_state,
+                                   content::RenderFrameHost::LifecycleState new_state) override;
+
   void Answered(bool proceeds);
   // Offers the tabs the page may share, or goes on to the system's picker
   // when there are none.
@@ -65,6 +74,8 @@ class ScreenSharingPicker final : public DesktopMediaPicker {
   void Opened(content::DesktopMediaID::Id session);
   void Chosen(webrtc::DesktopCapturer::Source source);
   void Finish(DoneCallbackArgumentType result);
+  // Takes the platform's offer of tabs down, so no answer reaches it.
+  void WithdrawOffer();
   // The pages the request may share as a tab.
   std::vector<content::WebContents*> ShareableTabs() const;
 

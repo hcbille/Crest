@@ -93,12 +93,7 @@ ScreenSharingPicker::~ScreenSharingPicker() {
   if (question_ && !EngineBinding::Get().disposing()) {
     EngineBinding::Get().Prompts().WithdrawShare(*question_);
   }
-  if (offer_) {
-    Offers().erase(*offer_);
-    if (page_) {
-      EngineBinding::Get().Present(engine::ShareSourcesWithdrawn{.page_id = *page_, .share_id = *offer_});
-    }
-  }
+  WithdrawOffer();
   if (session_ && !chosen_) {
     CloseSession(*session_);
   }
@@ -119,9 +114,35 @@ void ScreenSharingPicker::Show(const Params& params,
     return;
   }
   page_ = page->id();
+  Observe(params.web_contents);
   question_ = EngineBinding::Get().Prompts().AskToShareScreen(
       page->id(), origin_, params.web_contents->GetLastCommittedURL(),
       base::BindOnce(&ScreenSharingPicker::Answered, weak_factory_.GetWeakPtr()));
+}
+
+// The document that asked left its page before the person chose, as a
+// navigation that keeps it in the back/forward cache does without ending the
+// request. The question goes with the page, as Chrome's picker closes with
+// it, so no answer reaches a document the person no longer sees: the core's
+// question and the offer of tabs are taken back at once, and the refusal is
+// posted, since a navigation is running.
+void ScreenSharingPicker::RenderFrameHostStateChanged(content::RenderFrameHost* render_frame_host,
+                                                      content::RenderFrameHost::LifecycleState old_state,
+                                                      content::RenderFrameHost::LifecycleState new_state) {
+  if (chosen_ || render_frame_host->GetGlobalId() != requester_ ||
+      old_state != content::RenderFrameHost::LifecycleState::kActive ||
+      new_state == content::RenderFrameHost::LifecycleState::kActive) {
+    return;
+  }
+  Observe(nullptr);
+  if (question_ && !EngineBinding::Get().disposing()) {
+    EngineBinding::Get().Prompts().WithdrawShare(*question_);
+  }
+  question_.reset();
+  WithdrawOffer();
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&ScreenSharingPicker::Finish, weak_factory_.GetWeakPtr(),
+                                Refusal(MediaStreamRequestResult::PERMISSION_DENIED)));
 }
 
 // The core answered: a Space that blocks the site refuses it, and otherwise
@@ -242,6 +263,17 @@ void ScreenSharingPicker::Finish(DoneCallbackArgumentType result) {
   }
 }
 
+void ScreenSharingPicker::WithdrawOffer() {
+  if (!offer_) {
+    return;
+  }
+  Offers().erase(*offer_);
+  if (page_) {
+    EngineBinding::Get().Present(engine::ShareSourcesWithdrawn{.page_id = *page_, .share_id = *offer_});
+  }
+  offer_.reset();
+}
+
 // The live pages of the requesting tab's profile, as Chrome offers the tabs
 // of the capturer's profile. The requesting tab is one of them unless the
 // document asked to leave it out.
@@ -345,16 +377,20 @@ gfx::NativeViewId TabSharingIndicator::OnStarted(base::OnceClosure stop_callback
   started_ = true;
   Started().push_back(weak_factory_.GetWeakPtr());
   MarkShared(true);
-  // The bars name the tabs as the sidebar does, by title, falling back to
-  // the name the capture was asked for under.
-  std::u16string capturer_name = capturer_ ? TabName(capturer_.get()) : std::u16string();
-  if (capturer_name.empty()) {
-    capturer_name = application_title_;
+  // The bars say where the tab goes, as Chrome's do: to the site the page
+  // that captures it shows, which sends it on to the people it shares with.
+  // The shared tab is named by its title, or its site when it has none.
+  std::u16string site = application_title_;
+  if (site.empty() && capturer_) {
+    site = TabName(capturer_.get());
   }
-  Add(shared_.get(), l10n_util::GetStringFUTF16(IDS_TAB_SHARING_INFOBAR_SHARING_CURRENT_TAB_LABEL, capturer_name));
+  Add(shared_.get(), l10n_util::GetStringFUTF16(IDS_TAB_SHARING_INFOBAR_SHARING_CURRENT_TAB_LABEL, site));
   if (capturer_ && capturer_.get() != shared_.get()) {
-    Add(capturer_.get(), l10n_util::GetStringFUTF16(IDS_TAB_SHARING_INFOBAR_SHARING_ANOTHER_TAB_TO_THIS_TAB_LABEL,
-                                                    TabName(shared_.get())));
+    const std::u16string shared_name = TabName(shared_.get());
+    Add(capturer_.get(),
+        shared_name.empty()
+            ? l10n_util::GetStringFUTF16(IDS_TAB_SHARING_INFOBAR_SHARING_ANOTHER_UNTITLED_TAB_LABEL, site)
+            : l10n_util::GetStringFUTF16(IDS_TAB_SHARING_INFOBAR_SHARING_ANOTHER_TAB_LABEL, shared_name, site));
   }
   return 0;
 }

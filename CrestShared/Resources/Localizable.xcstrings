@@ -12302,10 +12302,7 @@
       }
     },
     "Stop Sharing" : {
-      "comment" : "Stops sharing a tab another page shares."
-    },
-    "Stop Sharing to This Tab" : {
-      "comment" : "Tab menu item that stops the tab sharing shown in this page."
+      "comment" : "Stops the tab sharing a tab takes part in."
     },
     "Stop Speaking" : {
 
