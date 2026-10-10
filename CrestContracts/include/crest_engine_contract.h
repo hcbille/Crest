@@ -29,7 +29,7 @@ namespace crest::engine {
 // SHA-256 of the engine contract alone. A binding registers with it, so the
 // core refuses an engine built against any other contract.
 inline constexpr std::array<uint8_t, 32> kFingerprint = {
-    0x76, 0xc6, 0x9a, 0x07, 0x17, 0x7b, 0xe1, 0xd7, 0x46, 0x0f, 0x2e, 0x20, 0x2d, 0xf7, 0x95, 0x51, 0x09, 0x46, 0xbe, 0xd9, 0x19, 0xf4, 0xd2, 0x02, 0xda, 0x53, 0xf3, 0x89, 0x3f, 0x87, 0x7c, 0xd1};
+    0xfc, 0x70, 0x89, 0x1a, 0x18, 0xc0, 0xf8, 0x26, 0x1b, 0xfd, 0x0f, 0x46, 0x1b, 0x1a, 0xf5, 0xda, 0x03, 0xc0, 0xaa, 0x98, 0xb8, 0xd0, 0x4d, 0x63, 0x8a, 0xba, 0x1a, 0xd4, 0xe8, 0x81, 0xb4, 0xaa};
 
 // A GUID in RFC 4122 byte order, as the wire carries it.
 using Guid = std::array<uint8_t, 16>;
@@ -3667,6 +3667,21 @@ inline bool Read(WireReader& reader, ShowPage& value) {
   return Read(reader, value.page_id);
 }
 
+struct ShowPictureInPictureCaption {
+  Guid page_id = {};
+  std::string caption;
+
+  friend bool operator==(const ShowPictureInPictureCaption&, const ShowPictureInPictureCaption&) = default;
+};
+inline void Write(WireWriter& writer, const ShowPictureInPictureCaption& value) {
+  Write(writer, value.page_id);
+  Write(writer, value.caption);
+}
+inline bool Read(WireReader& reader, ShowPictureInPictureCaption& value) {
+  return Read(reader, value.page_id)
+      && Read(reader, value.caption);
+}
+
 struct SidePanelRequested {
   Guid page_id = {};
   std::string extension_id;
@@ -4203,7 +4218,7 @@ inline bool Read(WireReader& reader, EngineEvent& value) {
   }
 }
 
-using PageRequest = std::variant<ActivateMediaSession, AddContentScript, AnswerInfoBar, AnswerProfileNotification, AnswerWebNotification, CapturePage, ChangeExtension, ChooseShareSource, ClickPage, CloseInspector, EnterPictureInPicture, EvaluateContentScript, EvaluatePageScript, ExportPage, FindInPage, GoToHistoryOffset, HasSidePanel, HidePage, HoldPageRendering, HoverPage, InstalledExtensions, LayoutInspector, MovePageToWindow, MuteMediaSession, ObserveAudioSpectrum, ObservePageActivity, OpenInspector, PageCertificates, PageExtensions, PageIcon, PageInspected, PageMedia, PerformMediaAction, PinnedExtensions, PrepareProfile, PressKeyInPage, ReadPageConsole, ReadPageNetwork, RefreshPageIcon, RefreshStoreListing, ReloadPage, RestoreInteractionState, SaveInteractionState, ScrollPage, SetSitePermission, ShowBlockedPopups, ShowPage, StopLoading, StopMediaCapture, StopTabSharing, TypeInPage, WatchPage, ZoomPage>;
+using PageRequest = std::variant<ActivateMediaSession, AddContentScript, AnswerInfoBar, AnswerProfileNotification, AnswerWebNotification, CapturePage, ChangeExtension, ChooseShareSource, ClickPage, CloseInspector, EnterPictureInPicture, EvaluateContentScript, EvaluatePageScript, ExportPage, FindInPage, GoToHistoryOffset, HasSidePanel, HidePage, HoldPageRendering, HoverPage, InstalledExtensions, LayoutInspector, MovePageToWindow, MuteMediaSession, ObserveAudioSpectrum, ObservePageActivity, OpenInspector, PageCertificates, PageExtensions, PageIcon, PageInspected, PageMedia, PerformMediaAction, PinnedExtensions, PrepareProfile, PressKeyInPage, ReadPageConsole, ReadPageNetwork, RefreshPageIcon, RefreshStoreListing, ReloadPage, RestoreInteractionState, SaveInteractionState, ScrollPage, SetSitePermission, ShowBlockedPopups, ShowPage, ShowPictureInPictureCaption, StopLoading, StopMediaCapture, StopTabSharing, TypeInPage, WatchPage, ZoomPage>;
 template <typename T>
 struct PageRequestAnswer;
 template <>
@@ -4392,6 +4407,10 @@ struct PageRequestAnswer<ShowBlockedPopups> {
 };
 template <>
 struct PageRequestAnswer<ShowPage> {
+  using Type = bool;
+};
+template <>
+struct PageRequestAnswer<ShowPictureInPictureCaption> {
   using Type = bool;
 };
 template <>
@@ -4707,36 +4726,42 @@ inline bool Read(WireReader& reader, PageRequest& value) {
       return true;
     }
     case 47: {
-      StopLoading member;
+      ShowPictureInPictureCaption member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 48: {
-      StopMediaCapture member;
+      StopLoading member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 49: {
-      StopTabSharing member;
+      StopMediaCapture member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 50: {
-      TypeInPage member;
+      StopTabSharing member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 51: {
-      WatchPage member;
+      TypeInPage member;
       if (!Read(reader, member)) return false;
       value = std::move(member);
       return true;
     }
     case 52: {
+      WatchPage member;
+      if (!Read(reader, member)) return false;
+      value = std::move(member);
+      return true;
+    }
+    case 53: {
       ZoomPage member;
       if (!Read(reader, member)) return false;
       value = std::move(member);

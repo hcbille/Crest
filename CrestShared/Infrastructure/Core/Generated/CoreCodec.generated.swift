@@ -7,11 +7,11 @@ import Foundation
 enum CoreCodec {
     /// SHA-256 of the canonical contract schema. The core refuses any other.
     static let fingerprint: [UInt8] = [
-        0x17, 0xc9, 0x4d, 0x67, 0xb2, 0xc6, 0x22, 0xeb, 0xff, 0xe4, 0xd7, 0xba, 0x8f, 0xcf, 0xf6, 0xb5, 0x3e, 0x1a, 0x94, 0x9c, 0x1c, 0x68, 0xcc, 0xa0, 0x5e, 0xa2, 0xbd, 0x49, 0xa0, 0xbc, 0x15, 0xd7
+        0xcf, 0x2b, 0x44, 0x56, 0x26, 0x35, 0x25, 0xfa, 0xb6, 0xd1, 0x8d, 0xc7, 0xa1, 0xd5, 0x5c, 0x45, 0x73, 0x81, 0xcb, 0xca, 0xd9, 0xb8, 0x3f, 0x63, 0x45, 0x8b, 0x3d, 0x2c, 0x12, 0x5c, 0x2e, 0x41
     ]
     /// SHA-256 of the engine contract alone, which an engine binding registers with.
     static let engineFingerprint: [UInt8] = [
-        0x76, 0xc6, 0x9a, 0x07, 0x17, 0x7b, 0xe1, 0xd7, 0x46, 0x0f, 0x2e, 0x20, 0x2d, 0xf7, 0x95, 0x51, 0x09, 0x46, 0xbe, 0xd9, 0x19, 0xf4, 0xd2, 0x02, 0xda, 0x53, 0xf3, 0x89, 0x3f, 0x87, 0x7c, 0xd1
+        0xfc, 0x70, 0x89, 0x1a, 0x18, 0xc0, 0xf8, 0x26, 0x1b, 0xfd, 0x0f, 0x46, 0x1b, 0x1a, 0xf5, 0xda, 0x03, 0xc0, 0xaa, 0x98, 0xb8, 0xd0, 0x4d, 0x63, 0x8a, 0xba, 0x1a, 0xd4, 0xe8, 0x81, 0xb4, 0xaa
     ]
 
     static func decodeIntent(from reader: inout WireReader) throws(WireError) -> any Intent {
@@ -432,12 +432,13 @@ enum CoreCodec {
         case 44: return try SetSitePermission(from: &reader)
         case 45: return try ShowBlockedPopups(from: &reader)
         case 46: return try ShowPage(from: &reader)
-        case 47: return try StopLoading(from: &reader)
-        case 48: return try StopMediaCapture(from: &reader)
-        case 49: return try StopTabSharing(from: &reader)
-        case 50: return try TypeInPage(from: &reader)
-        case 51: return try WatchPage(from: &reader)
-        case 52: return try ZoomPage(from: &reader)
+        case 47: return try ShowPictureInPictureCaption(from: &reader)
+        case 48: return try StopLoading(from: &reader)
+        case 49: return try StopMediaCapture(from: &reader)
+        case 50: return try StopTabSharing(from: &reader)
+        case 51: return try TypeInPage(from: &reader)
+        case 52: return try WatchPage(from: &reader)
+        case 53: return try ZoomPage(from: &reader)
         default: throw WireError.malformed("Unknown PageRequest tag \(tag)")
         }
     }
@@ -20486,6 +20487,29 @@ extension ShowPage {
     }
 }
 
+extension ShowPictureInPictureCaption {
+    init(from reader: inout WireReader) throws(WireError) {
+        let pageID = try reader.readUUID()
+        let caption = try reader.readString()
+        self.init(pageID: pageID, caption: caption)
+    }
+
+    func encode(into writer: inout WireWriter) {
+        writer.writeUUID(pageID)
+        writer.writeString(caption)
+    }
+
+    func encodePageRequest(into writer: inout WireWriter) {
+        writer.writeTag(47)
+        encode(into: &writer)
+    }
+
+    static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Bool {
+        let answer = try reader.readBool()
+        return answer
+    }
+}
+
 extension ShowSetupStep {
     init(from reader: inout WireReader) throws(WireError) {
         let step = try SetupStep(from: &reader)
@@ -22167,7 +22191,7 @@ extension StopLoading {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(47)
+        writer.writeTag(48)
         encode(into: &writer)
     }
 
@@ -22190,7 +22214,7 @@ extension StopMediaCapture {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(48)
+        writer.writeTag(49)
         encode(into: &writer)
     }
 
@@ -22211,7 +22235,7 @@ extension StopTabSharing {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(49)
+        writer.writeTag(50)
         encode(into: &writer)
     }
 
@@ -23456,7 +23480,7 @@ extension TypeInPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(50)
+        writer.writeTag(51)
         encode(into: &writer)
     }
 
@@ -23755,7 +23779,7 @@ extension WatchPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(51)
+        writer.writeTag(52)
         encode(into: &writer)
     }
 
@@ -24098,7 +24122,7 @@ extension ZoomPage {
     }
 
     func encodePageRequest(into writer: inout WireWriter) {
-        writer.writeTag(52)
+        writer.writeTag(53)
         encode(into: &writer)
     }
 
