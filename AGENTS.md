@@ -100,3 +100,17 @@ contract for setup, validation and change discipline.
 - During cleanup, consolidate overlapping fixtures and cases rather than
   adding a new test framework. Run the affected retained tests and report what
   was removed, what protection remains, and any remaining validation gaps.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), recorded as a `Status:` line. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` plus `docs/adr/`, alongside `Documentation/Architecture/`. See `docs/agents/domain.md`.
