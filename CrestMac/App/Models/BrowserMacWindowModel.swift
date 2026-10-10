@@ -30,6 +30,11 @@ final class BrowserMacWindowModel {
         self.pages = pages
         self.transientBrowsing = transientBrowsing
         self.windowState = windowState
+        // Page commands act on a Peek only once it opens, not while its link
+        // is still being dragged.
+        pages.isPeekOpen = { [weak transientBrowsing] request in
+            transientBrowsing?.presentationPhase(for: request) == .committed
+        }
         closeGate = BrowserWindowCloseGate(core: browser.core) { [windowID = browser.windowID] in
             PrepareToCloseWindows(requestID: UUID(), windowIDs: [windowID])
         }
