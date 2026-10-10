@@ -103,6 +103,10 @@ contract for setup, validation and change discipline.
 
 ## Agent skills
 
+> Fork-only: this section, `docs/agents/`, and the `.scratch/` ignore rule
+> belong to `hcbille/Crest` and must never be pushed to `pauljoda/Crest`.
+> Base upstream feature branches on `origin/main`, not on the fork's `main`.
+
 ### Issue tracker
 
 Issues and specs live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
