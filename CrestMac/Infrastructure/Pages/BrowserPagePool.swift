@@ -107,6 +107,8 @@ final class BrowserPagePool:
     /// Whether a Peek is open for the person rather than staged while they
     /// still drag its link; the window's transient browsing answers.
     @ObservationIgnored var isPeekOpen: (BrowserPeekRequest) -> Bool = { _ in false }
+    /// Closes a Peek the window shows; the window's transient browsing does.
+    @ObservationIgnored var dismissPeek: (BrowserPeekRequest) -> Void = { _ in }
     @ObservationIgnored private let openNewTab: (URL) -> Void
     @ObservationIgnored private let openModifiedLink: ModifiedLinkOpener
     @ObservationIgnored private let openPeek: (BrowserPeekRequest) -> Void
@@ -697,6 +699,17 @@ final class BrowserPagePool:
         host.unloadPage(for: tabID, preservingTabState: false)
     }
 
+    // MARK: - Actions - Peek
+
+    /// Closes the Peek open over the active tab, which Close Tab closes
+    /// before the tab under it; false when no Peek is open.
+    func closePeek() -> Bool {
+        guard let request = activeTabID.flatMap({ host.peekRequest(over: $0, where: isPeekOpen) })
+        else { return false }
+        dismissPeek(request)
+        return true
+    }
+
     // MARK: - Actions - Media sessions
 
     /// The media session the tab's page publishes. A private window reports
@@ -866,14 +879,6 @@ final class BrowserPagePool:
 
     func showWebInspector() {
         activePage?.showWebInspector()
-    }
-
-    func exportPDF() {
-        activePage?.exportPDF()
-    }
-
-    func exportWebArchive() {
-        activePage?.exportWebArchive()
     }
 
     /// Releases what memory pressure takes back that the core does not

@@ -163,6 +163,8 @@ struct BrowserCommandActions {
     /// Closes the selected tab the way the core closes it, or the window when
     /// the core says only the window is left to close.
     func closeTabOrWindow() {
+        // A Peek open over the tab closes first, as it is what shows.
+        if pages.closePeek() { return }
         guard let selectedTab = browser.shownTab, let space = browser.shownSpace,
             !browser.closingLeavesOnlyTheWindow(selectedTab.id, in: space.id)
         else {

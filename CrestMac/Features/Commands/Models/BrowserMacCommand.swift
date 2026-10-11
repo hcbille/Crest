@@ -85,11 +85,11 @@ struct BrowserMacCommand {
         .sharePage, isAvailable: { $0.hasCommandPage },
         run: { $0.pages.commandPage?.sharePage() })
     static let exportPDF = BrowserMacCommand(
-        .exportPDF, isAvailable: { $0.supportsPageCapability(.pdf) },
-        run: { $0.pages.exportPDF() })
+        .exportPDF, isAvailable: { $0.commandPageSupports(.pdf) },
+        run: { $0.pages.commandPage?.exportPDF() })
     static let saveWebArchive = BrowserMacCommand(
-        .saveWebArchive, isAvailable: { $0.supportsPageCapability(.webArchive) },
-        run: { $0.pages.exportWebArchive() })
+        .saveWebArchive, isAvailable: { $0.commandPageSupports(.webArchive) },
+        run: { $0.pages.commandPage?.exportWebArchive() })
     static let printPage = BrowserMacCommand(
         .printPage, isAvailable: { $0.commandPageSupports(.print) },
         run: { $0.pages.commandPage?.printPage() })
