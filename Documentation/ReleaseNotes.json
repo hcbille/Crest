@@ -3790,9 +3790,57 @@
       "category": "new",
       "message": "The command palette puts the best match first, ranks the pages and tabs you use most and most recently, and learns which result you choose for what you type. It fills in sites you visit, including those that start with www, and Return opens what it filled in. Before you type it lists your recent tabs, so Return takes you back to the one you were on. Start typing a provider’s name or shortcut, such as yt for YouTube or claude, to see it under the field, and press Tab to search that site or ask that assistant directly. Hold Command, Shift or Option with Return to open a result in the background, in Split View or in a Quick Window. The new Search section in Settings sets one default search for every Space and one for private windows, turns search engines, AI assistants and websites on or off with options of their own, such as hiding Google’s AI Overviews, adds your own, and chooses what the palette shows, how many of each, and in what order."
     },
-    "tab-audio-indicator": {
+    "search-logos-keep-proportions": {
+      "category": "fixed",
+      "message": "Search engine and assistant logos in Settings keep their proportions instead of looking stretched."
+    },
+    "space-switching-keeps-crest-open": {
+      "category": "fixed",
+      "message": "Switching Spaces no longer makes Crest quit unexpectedly on macOS 26."
+    },
+    "settings-opens-in-browser-window": {
+      "category": "fixed",
+      "message": "Settings opens in your browser window instead of a new window while a Quick Window is in front."
+    },
+    "start-on-new-tab": {
       "category": "new",
-      "message": "Tabs playing audio now show a speaker that mutes or unmutes them."
+      "message": "On iPhone and iPad, Start on new tab in General settings opens Crest on a new tab in your default Space, ready to search."
+    },
+    "floating-sidebar-optional": {
+      "category": "improved",
+      "message": "On iPhone the sidebar stays full screen. Turn on Allow floating sidebar in General settings to float it over the page instead."
+    },
+    "floating-sidebar-buttons-respond": {
+      "category": "fixed",
+      "message": "Buttons in the floating sidebar respond to taps, and its Settings button opens Settings."
+    },
+    "settings-shows-real-app-icon": {
+      "category": "fixed",
+      "message": "Settings on iPhone and iPad shows Crest’s real app icon, including the one you chose, in light and dark."
+    },
+    "default-browser-status-remembered": {
+      "category": "fixed",
+      "message": "On iPhone and iPad, General settings shows whether Crest is your default browser instead of Unavailable when iOS limits how often Crest can check."
+    },
+    "search-provider-editor-opens": {
+      "category": "fixed",
+      "message": "Edit Shortcuts and Add Provider in Search settings open right away on iPhone and iPad."
+    },
+    "space-search-picker-icons": {
+      "category": "improved",
+      "message": "A Space’s Search with menu shows each provider’s icon, like the default search menu."
+    },
+    "settings-section-colors": {
+      "category": "improved",
+      "message": "Each section in Settings has its own color, drawn from the Space templates."
+    },
+    "history-opens-over-page": {
+      "category": "fixed",
+      "message": "On iPhone, Show Full History in a page’s Back and Forward menus opens History."
+    },
+    "download-prompt-over-page": {
+      "category": "fixed",
+      "message": "On iPhone, Crest asks before downloading a risky file from the page you’re viewing, instead of leaving the download waiting for approval."
     }
   }
 }
