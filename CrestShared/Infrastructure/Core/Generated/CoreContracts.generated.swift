@@ -422,6 +422,7 @@ enum EngineCommand: Equatable, Sendable {
 
 /// What an engine binding tells the platform directly about one of its pages.
 enum EnginePresentation: Equatable, Sendable {
+    case audioSpectrumChanged(AudioSpectrumChanged)
     case contentFullscreenChanged(ContentFullscreenChanged)
     case contentMessagePosted(ContentMessagePosted)
     case contentScriptEvaluated(ContentScriptEvaluated)
@@ -466,6 +467,7 @@ enum EnginePresentation: Equatable, Sendable {
     var pageID: UUID? {
         switch self {
         case .extensionsChanged, .profileNotificationClosed, .profileNotificationPosted, .profilePrepared, .profileReleased: nil
+        case .audioSpectrumChanged(let value): value.pageID
         case .contentFullscreenChanged(let value): value.pageID
         case .contentMessagePosted(let value): value.pageID
         case .contentScriptEvaluated(let value): value.pageID
@@ -852,6 +854,11 @@ struct AssessDownloadRisk: Intent, DownloadIntent, Equatable, Sendable {
 struct AssignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
     let command: ShortcutCommand
     let keys: KeyCombination
+}
+
+struct AudioSpectrumChanged: Equatable, Sendable {
+    let pageID: UUID
+    let bands: Data
 }
 
 struct AuthenticationAsked: Equatable, Sendable {
@@ -2162,7 +2169,8 @@ struct EngineRoster: Equatable, Sendable {
             EngineCapability.featureFlags,
             EngineCapability.beforeUnload,
             EngineCapability.internalPages,
-            EngineCapability.protectedMedia
+            EngineCapability.protectedMedia,
+            EngineCapability.audioSpectrum
         ],
         badged: []
     )
@@ -3576,6 +3584,13 @@ struct NumberedSelections: Query, Equatable, Sendable {
     typealias Answer = NumberedSelectionList
 
     let windowID: UUID
+}
+
+struct ObserveAudioSpectrum: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let observed: Bool
 }
 
 struct ObserveCloudAccountAvailability: Intent, CloudSyncControlIntent, Equatable, Sendable {
@@ -11824,6 +11839,12 @@ struct EngineCapability: Hashable, Sendable {
         isRequired: false,
         startsEngineOnDemand: false
     )
+    static let audioSpectrum = EngineCapability(
+        tag: 28,
+        name: "audio-spectrum",
+        isRequired: false,
+        startsEngineOnDemand: false
+    )
 
     static let all: [EngineCapability] = [
         pages,
@@ -11853,7 +11874,8 @@ struct EngineCapability: Hashable, Sendable {
         featureFlags,
         beforeUnload,
         internalPages,
-        protectedMedia
+        protectedMedia,
+        audioSpectrum
     ]
 
     static func named(_ name: String?) -> EngineCapability? {
@@ -20708,27 +20730,37 @@ struct StartupBehavior: Hashable, Sendable {
     var name: String { facts.name }
     var title: LocalizedStringResource { facts.title }
     var activatesRestoredTab: Bool { facts.activatesRestoredTab }
+    var opensNewTab: Bool { facts.opensNewTab }
     private let facts: Facts
 
-    private init(tag: Int, name: String, title: LocalizedStringResource, activatesRestoredTab: Bool) {
+    private init(tag: Int, name: String, title: LocalizedStringResource, activatesRestoredTab: Bool, opensNewTab: Bool) {
         self.tag = tag
-        facts = Facts(name: name, title: title, activatesRestoredTab: activatesRestoredTab)
+        facts = Facts(name: name, title: title, activatesRestoredTab: activatesRestoredTab, opensNewTab: opensNewTab)
     }
 
     static let showStartPage = StartupBehavior(
         tag: 0,
         name: "showStartPage",
         title: LocalizedStringResource("Show Start Page"),
-        activatesRestoredTab: false
+        activatesRestoredTab: false,
+        opensNewTab: false
     )
     static let lastActiveTab = StartupBehavior(
         tag: 1,
         name: "lastActiveTab",
         title: LocalizedStringResource("Open Last Active Tab"),
-        activatesRestoredTab: true
+        activatesRestoredTab: true,
+        opensNewTab: false
+    )
+    static let newTab = StartupBehavior(
+        tag: 2,
+        name: "newTab",
+        title: LocalizedStringResource("Open a New Tab"),
+        activatesRestoredTab: false,
+        opensNewTab: true
     )
 
-    static let all: [StartupBehavior] = [showStartPage, lastActiveTab]
+    static let all: [StartupBehavior] = [showStartPage, lastActiveTab, newTab]
 
     static func named(_ name: String?) -> StartupBehavior? {
         all.first { $0.name == name }
@@ -20746,11 +20778,13 @@ struct StartupBehavior: Hashable, Sendable {
         let name: String
         let title: LocalizedStringResource
         let activatesRestoredTab: Bool
+        let opensNewTab: Bool
 
-        init(name: String, title: LocalizedStringResource, activatesRestoredTab: Bool) {
+        init(name: String, title: LocalizedStringResource, activatesRestoredTab: Bool, opensNewTab: Bool) {
             self.name = name
             self.title = title
             self.activatesRestoredTab = activatesRestoredTab
+            self.opensNewTab = opensNewTab
         }
     }
 }

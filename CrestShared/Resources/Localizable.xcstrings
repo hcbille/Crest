@@ -1980,6 +1980,9 @@
         }
       }
     },
+    "Allow floating sidebar" : {
+
+    },
     "Allow…" : {
 
     },
@@ -2205,6 +2208,9 @@
 
     },
     "Ask where to save each download" : {
+
+    },
+    "Audio visualizer" : {
 
     },
     "Authenticate to commit the password import into %@." : {
@@ -2818,7 +2824,7 @@
     "Browser data found · Review it" : {
 
     },
-    "browser startup default Space typing spelling spell check text editing Picture in Picture video developer toolbar localhost local pages translation system permissions access camera microphone location notifications passkeys files folders downloads allow blocked repair" : {
+    "browser startup default Space typing spelling spell check text editing Picture in Picture video developer toolbar localhost local pages translation system permissions access camera microphone location notifications passkeys files folders downloads allow blocked repair new tab floating sidebar" : {
 
     },
     "Browser window preview" : {
@@ -6280,8 +6286,11 @@
         }
       }
     },
-    "Go to Tab" : {
-      "comment" : "Shared tab popover button that shows the tab it is shared to."
+    "Go to Shared Tab" : {
+      "comment" : "Shows the tab this tab's page shares."
+    },
+    "Go to Sharing Tab" : {
+      "comment" : "Shows the tab whose page shares this tab."
     },
     "Go to the other tab" : {
       "comment" : "Tooltip on a sharing bar's message that shows the tab at the other end."
@@ -8030,8 +8039,11 @@
     "Mute" : {
 
     },
+    "Mute Tab" : {
+      "comment" : "Mutes the sound a tab's page plays."
+    },
     "Muted" : {
-
+      "comment" : "A tab's mark while its page plays with its sound muted."
     },
     "Name" : {
       "localizations" : {
@@ -8686,6 +8698,9 @@
           }
         }
       }
+    },
+    "Open a New Tab" : {
+
     },
     "Open a regular window to do this." : {
 
@@ -9586,6 +9601,9 @@
     "Play" : {
 
     },
+    "Playing Audio" : {
+      "comment" : "A tab's mark while its page plays sound."
+    },
     "Playlists" : {
 
     },
@@ -10474,6 +10492,9 @@
           }
         }
       }
+    },
+    "Replace Icon" : {
+
     },
     "Replace the iCloud Copy?" : {
       "localizations" : {
@@ -11749,10 +11770,10 @@
       }
     },
     "Shared" : {
-      "comment" : "Accessibility label for a sidebar tab another page shares."
+      "comment" : "A tab's mark while another page shares it."
     },
-    "Shared to %@" : {
-      "comment" : "Shared tab popover; the value is the tab it is shared to."
+    "Sharing a Tab" : {
+      "comment" : "A tab's mark while its page shares another tab."
     },
     "Sheen" : {
       "extractionState" : "manual"
@@ -12548,6 +12569,9 @@
     "Start from" : {
 
     },
+    "Start on new tab" : {
+
+    },
     "Start Page" : {
       "localizations" : {
         "ar" : {
@@ -13034,6 +13058,9 @@
       }
     },
     "Tab scale" : {
+
+    },
+    "Tab status" : {
 
     },
     "Tab to search providers" : {
@@ -13742,9 +13769,6 @@
     "This Tab" : {
       "comment" : "Screen sharing picker note on the tab of the page that asks."
     },
-    "This tab is being shared" : {
-      "comment" : "Tooltip on a sidebar tab another page shares."
-    },
     "This tab needs a newer Crest" : {
 
     },
@@ -14269,6 +14293,9 @@
     },
     "Unmute" : {
 
+    },
+    "Unmute Tab" : {
+      "comment" : "Unmutes the sound a tab's page plays."
     },
     "Unmuted" : {
 
