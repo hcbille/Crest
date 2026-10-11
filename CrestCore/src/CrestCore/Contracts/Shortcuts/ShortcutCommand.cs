@@ -263,14 +263,15 @@ public sealed class ShortcutCommand {
     public static readonly ShortcutCommand OpenFile = new(Kinds.OpenFile, name: "openFile", ShortcutSection.Everyday,
         title: "Open File", symbol: "folder", searchTerms: "open local file document html pdf archive webarchive mhtml",
         menuTitle: "Open File…", availableWhen: ShowingSpace);
-    // Only the Mac steps through matches from its menus, so only the Mac has these chords.
+    // Only the Mac steps through matches from its menus, so only the Mac has these chords. They came after
+    // people could customize, so they yield to keys someone already chose.
     public static readonly ShortcutCommand FindNext = new(Kinds.FindNext, name: "findNext", ShortcutSection.Page,
         title: "Find Next", symbol: "chevron.down", searchTerms: "next match search again",
-        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command), YieldsToOverrides: false)],
+        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command), YieldsToOverrides: true)],
         availableWhen: ShowingWebPage);
     public static readonly ShortcutCommand FindPrevious = new(Kinds.FindPrevious, name: "findPrevious", ShortcutSection.Page,
         title: "Find Previous", symbol: "chevron.up", searchTerms: "previous match search again back",
-        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command | Shift), YieldsToOverrides: false)],
+        shortcuts: [new(DevicePlatform.Desktop, Character("g", Command | Shift), YieldsToOverrides: true)],
         availableWhen: ShowingWebPage);
 
     public static IReadOnlyList<ShortcutCommand> All { get; } = [

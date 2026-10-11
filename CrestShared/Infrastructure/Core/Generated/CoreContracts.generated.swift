@@ -18285,7 +18285,7 @@ struct ShortcutCommand: Hashable, Sendable {
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
                 keys: KeyCombination(key: "g", isSpecialKey: false, modifiers: [.command]),
-                yieldsToOverrides: false
+                yieldsToOverrides: true
             )
         ],
         paletteRest: nil,
@@ -18308,7 +18308,7 @@ struct ShortcutCommand: Hashable, Sendable {
             ShortcutDefault(
                 platform: DevicePlatform.desktop,
                 keys: KeyCombination(key: "g", isSpecialKey: false, modifiers: [.command, .shift]),
-                yieldsToOverrides: false
+                yieldsToOverrides: true
             )
         ],
         paletteRest: nil,
