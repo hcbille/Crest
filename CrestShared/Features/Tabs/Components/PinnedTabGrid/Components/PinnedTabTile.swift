@@ -41,7 +41,7 @@ struct PinnedTabTile: View {
             },
             isMultiSelected: context.map { BrowserSidebarSelection.showsSelected(.tab(tab.id), in: $0) } ?? false,
             branding: context.map(\.space.settings.look),
-            isSharedAsTab: isShared,
+            statusSource: statusSource,
             iconCustomization: iconCustomization
         )
         .browserPinnedTabPromotionDestination(
@@ -117,15 +117,7 @@ struct PinnedTabTile: View {
                 )
             }
         }
-        // The mark sits above the tile's gestures, menu and accessibility, so
-        // pressing it only mutes: a quick second press never restores the
-        // saved page, and a middle click never unloads the tab.
-        .overlay(alignment: .topTrailing) {
-            if let context {
-                BrowserSidebarTabAudioMark(
-                    tabID: tab.id, context: context, canAct: { isCurrentAndUnlocked })
-            }
-        }
+        .modifier(BrowserTabStatusBadgeHost(tab: statusSource))
         .animation(
             BrowserVisualAccessibilityPolicy.animation(
                 CrestMotion.contentState,
@@ -142,6 +134,12 @@ struct PinnedTabTile: View {
 
     private var isCurrentAndUnlocked: Bool {
         context?.isTabCurrent(runtimeAssignment) ?? false
+    }
+
+    /// The tab's page as its status badge reads it and acts on it.
+    private var statusSource: BrowserTabStatusSource? {
+        guard let context else { return nil }
+        return BrowserTabStatusSource(tabID: tab.id, context: context, canAct: { isCurrentAndUnlocked })
     }
 
     private var iconActions: BrowserTabOrganizationAction? {

@@ -39,6 +39,14 @@
         private(set) var disposed = false
         /// What waits for the engine: each script evaluation by its identity.
         var evaluations: [UUID: CheckedContinuation<String?, Never>] = [:]
+        /// The engine's measure of the sound the page plays, which it takes
+        /// only while the page's tab shows it.
+        @ObservationIgnored
+        private(set) lazy var audioSpectrum: BrowserAudioSpectrumFeed? = BrowserAudioSpectrumFeed(observe: {
+            [weak self] observed in
+            guard let self, created else { return }
+            pages?.request(ObserveAudioSpectrum(pageID: pageID, observed: observed))
+        })
 
         /// A page the core opened, which Chromium's binding creates.
         init(id: UUID, engine: ChromiumEngine) {

@@ -46,15 +46,17 @@ extension BrowserSidebarPageAccess {
             stopTabSharing: { assignment in
                 pages.residentPage(matching: assignment)?.stopTabSharing()
             },
-            sharingTabID: { assignment in
-                guard let shared = pages.residentPage(matching: assignment), shared.isSharedAsTab else { return nil }
-                return pages.tabSharingCounterpart(of: shared)
+            tabSharingCounterpartID: { assignment in
+                pages.residentPage(matching: assignment).flatMap(pages.tabSharingCounterpart(of:))
             },
-            tabAudio: { assignment in
-                pages.tabAudio(matching: assignment)
+            mediaSession: { assignment in
+                pages.mediaSession(matching: assignment)
             },
-            toggleTabMute: { assignment in
-                pages.toggleTabMute(matching: assignment)
+            setMuted: { muted, assignment in
+                pages.setMuted(muted, matching: assignment)
+            },
+            audioSpectrum: { assignment in
+                pages.audioSpectrum(matching: assignment)
             }
         )
     }

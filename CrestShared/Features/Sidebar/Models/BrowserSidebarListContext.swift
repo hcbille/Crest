@@ -58,6 +58,12 @@ struct BrowserSidebarListContext {
         pageAccess.isSharedAsTab(runtimeAssignment(of: tabID))
     }
 
+    /// Whether the tab's page shares another tab. Reading it observes the
+    /// page's sharing.
+    @MainActor func isSharingTab(_ tabID: UUID) -> Bool {
+        pageAccess.isSharingTab(runtimeAssignment(of: tabID))
+    }
+
     /// Whether the tab's page takes part in tab sharing: shared by another
     /// page, or sharing another tab with the site it shows.
     @MainActor func takesPartInTabSharing(_ tabID: UUID) -> Bool {
@@ -91,10 +97,10 @@ struct BrowserSidebarListContext {
 
     // MARK: - Actions - Tabs
 
-    /// The tab whose page shares the tab's page, when Crest knows it and the
-    /// Space holds it.
-    @MainActor func sharingTab(of tabID: UUID) -> TabStateModel? {
-        pageAccess.sharingTabID(runtimeAssignment(of: tabID)).flatMap { space.tabs.model($0) }
+    /// The tab at the other end of the tab sharing the tab's page takes part
+    /// in, when Crest knows it and the Space holds it.
+    @MainActor func tabSharingCounterpart(of tabID: UUID) -> TabStateModel? {
+        pageAccess.tabSharingCounterpartID(runtimeAssignment(of: tabID)).flatMap { space.tabs.model($0) }
     }
 
     /// Stops every tab sharing the tab's page takes part in.
@@ -102,15 +108,27 @@ struct BrowserSidebarListContext {
         pageAccess.stopTabSharing(runtimeAssignment(of: tabID))
     }
 
-    /// What the tab's page is doing with sound, or `nil` while it makes none
-    /// worth marking. Reading it observes the tab's media session.
-    @MainActor func audio(of tabID: UUID) -> BrowserTabAudio? {
-        pageAccess.tabAudio(runtimeAssignment(of: tabID))
+    /// The media session the tab's page publishes. Reading it observes the
+    /// published sessions.
+    @MainActor func mediaSession(of tabID: UUID) -> BrowserMediaSessionSnapshot? {
+        pageAccess.mediaSession(runtimeAssignment(of: tabID))
     }
 
-    /// Mutes the tab's playback, or unmutes it while it plays muted.
-    @MainActor func toggleMute(of tabID: UUID) {
-        pageAccess.toggleTabMute(runtimeAssignment(of: tabID))
+    /// Mutes or unmutes the sound the tab's page plays.
+    @MainActor func setMuted(_ muted: Bool, of tabID: UUID) {
+        pageAccess.setMuted(muted, runtimeAssignment(of: tabID))
+    }
+
+    /// The color the tab's page declares for itself, when it declares one.
+    /// Reading it observes the page's theme.
+    @MainActor func siteThemeAccent(of tabID: UUID) -> BrowserTabIconAccent? {
+        pageAccess.siteThemeIconAccent(runtimeAssignment(of: tabID))
+    }
+
+    /// The engine's measure of the sound the tab's page plays, where its
+    /// engine measures it.
+    @MainActor func audioSpectrum(of tabID: UUID) -> BrowserAudioSpectrumFeed? {
+        pageAccess.audioSpectrum(runtimeAssignment(of: tabID))
     }
 
     @MainActor func unload(_ tabID: UUID) {

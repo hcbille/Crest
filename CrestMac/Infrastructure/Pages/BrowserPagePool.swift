@@ -688,15 +688,21 @@ final class BrowserPagePool:
 
     // MARK: - Actions - Media sessions
 
-    /// What the tab's page is doing with sound, or `nil` while it makes none
-    /// worth marking. A private window reports no media sessions.
-    func tabAudio(matching assignment: BrowserTabRuntimeAssignment) -> BrowserTabAudio? {
-        mediaSessionStore?.audio(of: assignment)
+    /// The media session the tab's page publishes. A private window reports
+    /// no media sessions.
+    func mediaSession(matching assignment: BrowserTabRuntimeAssignment) -> BrowserMediaSessionSnapshot? {
+        mediaSessionStore?.session(of: assignment)
     }
 
-    /// Mutes the tab's playback, or unmutes it while it plays muted.
-    func toggleTabMute(matching assignment: BrowserTabRuntimeAssignment) {
-        mediaSessionStore?.toggleMute(of: assignment)
+    /// Mutes or unmutes the sound the tab's page plays.
+    func setMuted(_ muted: Bool, matching assignment: BrowserTabRuntimeAssignment) {
+        mediaSessionStore?.setMuted(muted, of: assignment)
+    }
+
+    /// The engine's measure of the sound the tab's page plays, when its engine
+    /// measures it.
+    func audioSpectrum(matching assignment: BrowserTabRuntimeAssignment) -> BrowserAudioSpectrumFeed? {
+        residentPage(matching: assignment)?.pageEngine.audioSpectrum
     }
 
     // MARK: - Actions - Popup windows
