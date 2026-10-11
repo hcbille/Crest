@@ -25,6 +25,9 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
     @State var availableRootSize = CGSize.zero
     @State var keyboardEndFrame = CGRect.null
     @Environment(\.browserChromeAppearance) var chromeAppearance
+    @AppStorage(
+        MobileBrowserRootPreferences.allowsFloatingSidebarKey, store: BrowserChromeAppearancePreference.defaults)
+    private var allowsFloatingSidebar = false
     @Namespace var compactChromeNamespace
     @Namespace var tabPromotionNamespace
 
@@ -116,7 +119,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     togglePrivateBrowsing: togglePrivateBrowsing,
                     closePrivateBrowsing: closePrivateBrowsing,
                     toggleSidebar: toggleCompactSidebar,
-                    showsSidebarToggle: true,
+                    showsSidebarToggle: allowsFloatingSidebar,
                     sidebarIsPresented: true,
                     sidebarIsDocked: true,
                     utilityPresentation: navigation.utilityPresentation
@@ -155,7 +158,11 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     sidebarIsDocked: false,
                     utilityPresentation: navigation.utilityPresentation
                 )
-                .modifier(BrowserPlatformObservedTapModifier { navigation.handleRegularSidebarInteraction() })
+                .modifier(
+                    BrowserPlatformObservedTapModifier(claimsTaps: true) {
+                        navigation.handleRegularSidebarInteraction()
+                    }
+                )
                 // Never zero: this rides over the rows, and a drag that begins
                 // on touch-down takes the press the reorder lift needs.
                 .simultaneousGesture(
@@ -219,6 +226,12 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                         showHistory: presentHistoryFromCommand
                     )
                 )
+                // The page covers the window while it shows, so Settings,
+                // History and download prompts present from it; the floating
+                // sidebar lives on it too.
+                .sheet(isPresented: settingsSheet(overPage: true)) { settingsSheetContent }
+                .sheet(item: historySheet(overPage: true)) { historySheetContent($0) }
+                .modifier(downloadRiskConfirmation(overPage: true))
             ),
             regular: { layout in
                 MobileRegularBrowserLayout(
@@ -272,7 +285,11 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                         \.browserSettingsUsesLiveSidebar,
                         navigation.regularSidebarIsDocked && layout.reservesSidebarWidth
                     )
-                    .modifier(BrowserPlatformObservedTapModifier { navigation.handleRegularSidebarInteraction() })
+                    .modifier(
+                        BrowserPlatformObservedTapModifier(claimsTaps: true) {
+                            navigation.handleRegularSidebarInteraction()
+                        }
+                    )
                     // Never zero: this rides over the rows, and a drag that
                     // begins on touch-down takes the press the reorder lift
                     // needs.
@@ -332,8 +349,8 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
                     commands: mobileBrowserCommandContext.paletteRegistry,
                     isSourceAvailable: model.isPaletteSourceAvailable,
                     selectTab: model.selectPaletteTab,
-                    openURL: { source, url, mode in
-                        model.openPaletteURL(url, mode: mode, from: source)
+                    openURL: { source, url, mode, opening in
+                        model.openPaletteURL(url, mode: mode, from: source, opening: opening)
                     },
                     dismiss: dismissCommandPalette,
                     morphNamespace: compactChromeNamespace,
@@ -346,11 +363,7 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
             \.mobileBrowserCommandContext,
             commandContext
         )
-        .sheet(isPresented: Binding(get: { model.showsSettings }, set: { model.showsSettings = $0 })) {
-            MobileBrowserSettingsView(
-                browser: browser, pages: pages, spaceAccess: spaceAccess, dataDeleter: dataDeleter,
-                state: model.settings.state)
-        }
+        .sheet(isPresented: settingsSheet(overPage: false)) { settingsSheetContent }
         .onChange(of: model.selectionSnapshot, initial: true) { _, _ in
             model.settings.reconcile()
             model.routeSelectedSettingsAction()
@@ -361,20 +374,8 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
         .onChange(of: model.lockedSpaceIDs) {
             model.settings.reconcile()
         }
-        .sheet(item: $historyAssignment) { assignment in
-            MobileHistoryView(
-                browser: browser,
-                assignment: assignment,
-                spaceAccess: spaceAccess,
-                openURL: openURL
-            )
-        }
-        .modifier(
-            MobileDownloadRiskConfirmationModifier(
-                confirmation: pages.downloadRiskConfirmation,
-                profileIDs: Set(browser.spaceModels.map(\.profileID))
-            )
-        )
+        .sheet(item: historySheet(overPage: false)) { historySheetContent($0) }
+        .modifier(downloadRiskConfirmation(overPage: false))
         .onChange(of: pages.urlCopyFeedbackRevision) { _, revision in
             presentURLCopyFeedback(revision: revision)
         }
@@ -385,10 +386,14 @@ struct MobileBrowserRootContent: View, BrowserChromeAnimating {
             MobileBrowserRootLifecycleModifier(
                 model: model,
                 presentation: presentation,
+                openNewTab: beginNewTab,
                 isAddressEditing: $isAddressEditing,
                 storedSidebarWidth: $storedRegularSidebarWidth
             )
         )
+        .onChange(of: allowsFloatingSidebar, initial: true) { _, allows in
+            navigation.allowsCompactFloatingSidebar = allows
+        }
         .onChange(
             of: isAddressEditing || sidebarInteraction.sidebarReorderState.isDragging,
             initial: true

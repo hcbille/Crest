@@ -68,11 +68,10 @@ extension BrowserMacShell {
     /// opened, such as a Quick Window or setup, can close itself.
     func canPerform(_ command: ShortcutCommand) -> Bool {
         guard !isQuitting, NSApp.modalWindow == nil, NSApp.keyWindow?.attachedSheet == nil else { return false }
-        switch command.kind {
-        case .newWindow, .newPrivateWindow: return true
-        case .closeWindow, .closeTabOrWindow: return activeActions != nil || windows?.isShellWindowKey == true
-        default: return activeActions?.canPerform(command) == true
+        if let windowless = BrowserMacCommand.of(command)?.withoutWindow, let windows {
+            return activeActions != nil || windowless.isAvailable(windows)
         }
+        return activeActions?.canPerform(command) == true
     }
 
     /// Runs `command` in the key browser window, or with none, the commands
@@ -83,12 +82,7 @@ extension BrowserMacShell {
             actions.perform(command)
             return
         }
-        switch command.kind {
-        case .newWindow: windows?.open(.normal(sourceWindowID: nil), activation: .key)
-        case .newPrivateWindow: windows?.openPrivateWindow()
-        case .closeWindow, .closeTabOrWindow: NSApp.keyWindow?.performClose(nil)
-        default: break
-        }
+        if let windows { BrowserMacCommand.of(command)?.withoutWindow?.run(windows) }
     }
 
     // MARK: - Actions - Engine window requests
@@ -126,23 +120,17 @@ extension BrowserMacShell {
         application?.softwareUpdates.checkForUpdates()
     }
 
-    /// Opens Settings in the key browser window, opening one when none is key.
+    /// Opens Settings in the browser window the person is using, opening one
+    /// only when none is open.
     func openSettings() {
-        guard let context = activeContextOpeningWindow() else { return }
+        guard let context = windows?.contextBringingBrowserWindowForward() else { return }
         application?.openSettings(in: context.windowID)
     }
 
-    /// Opens Getting Started in the key browser window, opening one when none
-    /// is key.
+    /// Opens Getting Started in the browser window the person is using,
+    /// opening one only when none is open.
     func openGettingStarted() {
-        guard let context = activeContextOpeningWindow() else { return }
+        guard let context = windows?.contextBringingBrowserWindowForward() else { return }
         application?.openGettingStarted(in: context.windowID)
-    }
-
-    /// The key browser window's stores, after opening a window when none is key.
-    private func activeContextOpeningWindow() -> BrowserMacWindowContext? {
-        guard let windows else { return nil }
-        if windows.activeContext == nil { windows.open(.normal(sourceWindowID: nil), activation: .key) }
-        return windows.activeContext
     }
 }

@@ -5,17 +5,19 @@ struct BrowserGeneralSettingsPane: View {
     let browser: BrowserStore
     let spaceAccess: BrowserSpaceAccessController
 
-    @Environment(\.browserSidebarWidgetRuntime) private var sidebarWidgets
     @State private var defaultBrowser = BrowserDefaultBrowserController()
     @State private var isCheckingDefaultBrowser = true
     @Bindable private var appPreferences = BrowserAppPreferenceStore.shared
+    #if os(iOS)
+        @AppStorage(
+            MobileBrowserRootPreferences.allowsFloatingSidebarKey, store: BrowserChromeAppearancePreference.defaults)
+        private var allowsFloatingSidebar = false
+    #endif
 
     init(browser: BrowserStore, spaceAccess: BrowserSpaceAccessController) {
         self.browser = browser
         self.spaceAccess = spaceAccess
     }
-
-    private var linkPreferences: BrowserLinkPreferenceStore { browser.linkPreferences }
 
     var body: some View {
         BrowserSettingsPane(.general) {
@@ -54,6 +56,9 @@ struct BrowserGeneralSettingsPane: View {
                             Text(behavior.title).tag(behavior)
                         }
                     }
+                #else
+                    Toggle("Start on new tab", isOn: startsOnNewTab)
+                        .accessibilityIdentifier("start-on-new-tab")
                 #endif
 
                 CrestSpaceMenuPicker(
@@ -63,6 +68,13 @@ struct BrowserGeneralSettingsPane: View {
                     accessibilityIdentifier: "default-space-picker"
                 )
             }
+
+            #if os(iOS)
+                Section("Sidebar") {
+                    Toggle("Allow floating sidebar", isOn: $allowsFloatingSidebar)
+                        .accessibilityIdentifier("allow-floating-sidebar")
+                }
+            #endif
 
             // Whole-page translation preferences, which reach only the pages of
             // an engine with page translation.
@@ -90,6 +102,20 @@ struct BrowserGeneralSettingsPane: View {
             await refreshDefaultBrowserStatus()
         }
     }
+
+    #if os(iOS)
+        // MARK: - Startup
+
+        /// A phone opens on a new tab in the default Space, or on its tab
+        /// viewer, which is its Start Page.
+        private var startsOnNewTab: Binding<Bool> {
+            Binding {
+                appPreferences.startupBehavior.opensNewTab
+            } set: { startsOnNewTab in
+                appPreferences.startupBehavior = startsOnNewTab ? .newTab : .showStartPage
+            }
+        }
+    #endif
 
     // MARK: - Default browser
 

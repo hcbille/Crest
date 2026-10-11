@@ -66,14 +66,33 @@ extension MobileBrowserRootModel {
         )
     }
 
-    func prepareBrowser() async {
-        guard !hasPreparedBrowser else { return }
+    /// Prepares the window's pages once, then applies the launch's startup
+    /// choice. True when the launch starts on a new tab in the default Space,
+    /// which this shows first; the view opens the tab, since it owns the
+    /// address field the tab focuses.
+    @discardableResult
+    func prepareBrowser() async -> Bool {
+        guard !hasPreparedBrowser else { return false }
         await pages.prepareContentBlocking()
         hasPreparedBrowser = true
+        if startupBehavior.opensNewTab {
+            return showDefaultSpaceForNewTab()
+        }
         guard startupBehavior.activatesRestoredTab,
             !navigation.defersPageActivation
-        else { return }
+        else { return false }
         synchronizeSelection()
+        return false
+    }
+
+    /// Shows the default Space for the launch's new tab, unless the window
+    /// already shows a tab, such as one a link opened, or the Space is locked.
+    private func showDefaultSpaceForNewTab() -> Bool {
+        guard browser.shownTab == nil else { return false }
+        if let defaultSpaceID = browser.workspaceModel?.defaultSpaceID {
+            browser.selectSpace(defaultSpaceID)
+        }
+        return browser.shownSpace != nil && !selectedSpaceIsLocked
     }
 
     /// Releases moved pages and discards archived state for removed tabs.
@@ -519,11 +538,14 @@ extension MobileBrowserRootModel {
         return true
     }
 
+    /// Opens `url` from the palette where `opening` says, from `source`, once
+    /// the source's Space may still act.
     @discardableResult
     func openPaletteURL(
         _ url: URL,
         mode: BrowserCommandPaletteMode,
-        from source: BrowserTabRuntimeAssignment
+        from source: BrowserTabRuntimeAssignment,
+        opening: BrowserCommandPaletteOpening = .here
     ) -> Bool {
         guard
             BrowserCommandPaletteActionPolicy.isSourceAvailable(
@@ -532,16 +554,42 @@ extension MobileBrowserRootModel {
                 accessController: spaceAccess
             )
         else { return false }
-        switch mode {
-        case .editLocation:
-            browser.navigateSelectedTab(to: url.absoluteString)
-        case .newTab:
-            guard browser.openAddress(url, in: source.spaceID) else { return false }
-        }
+        return opening.open(url, from: source, with: MobilePaletteOpener(model: self, mode: mode))
+    }
+
+    /// Loads `url` in the page the window shows and shows it in the address field.
+    fileprivate func showLoading(_ url: URL) {
         pages.selectAndNavigate(to: url.absoluteString)
         address = url.absoluteString
+    }
+}
+
+/// How an iPhone or iPad window opens an address from its palette: in place
+/// of the source tab, or in a new tab when the palette opened for one, or in
+/// a new tab behind or in front. Neither Split View nor a Quick Window opens
+/// from the palette here.
+@MainActor
+private struct MobilePaletteOpener: BrowserCommandPaletteOpener {
+    let model: MobileBrowserRootModel
+    let mode: BrowserCommandPaletteMode
+
+    func openHere(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool {
+        if mode == .newTab { return openTab(url, from: source, selecting: true) }
+        model.browser.navigateSelectedTab(to: url.absoluteString)
+        model.showLoading(url)
         return true
     }
+
+    func openTab(_ url: URL, from source: BrowserTabRuntimeAssignment, selecting: Bool) -> Bool {
+        guard selecting else { return model.browser.openNewTab(url: url, in: source.spaceID, selecting: false) != nil }
+        guard model.browser.openAddress(url, in: source.spaceID) else { return false }
+        model.showLoading(url)
+        return true
+    }
+
+    func openInSplit(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool { false }
+
+    func openInQuickWindow(_ url: URL, from source: BrowserTabRuntimeAssignment) -> Bool { false }
 }
 
 // MARK: - Animation
