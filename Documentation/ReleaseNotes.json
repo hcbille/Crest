@@ -3845,6 +3845,10 @@
     "tab-audio-indicator": {
       "category": "new",
       "message": "A tab playing sound shows a speaker badge on its icon, which mutes or unmutes it, and bars behind its title that follow its sound on Chromium pages. Tabs taking part in tab sharing show a badge that goes to the other tab or stops sharing. Look and Feel can show the status in place of the tab’s icon, or turn the bars off."
+    },
+    "page-commands-follow-peek": {
+      "category": "fixed",
+      "message": "While a Peek is open, Copy Link, Share, Find, Zoom, Reload, Back, Forward, Print, Export as PDF and Save Web Archive act on the page in the Peek instead of the tab behind it, and Close Tab closes the Peek."
     }
   }
 }
