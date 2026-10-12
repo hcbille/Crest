@@ -3860,7 +3860,7 @@
     },
     "developer-mode-per-site": {
       "category": "new",
-      "message": "Turn Developer Mode on or off for a site from Site Controls, and Crest remembers it for that site across reloads, new tabs and relaunches. Show or Hide Developer Toolbar still works for the page you’re on."
+      "message": "Turn Developer Mode on or off for a site from Site Controls, and Crest remembers it for that site across reloads, new tabs and relaunches, keeping private browsing’s choices in memory only. Show or Hide Developer Toolbar still works for the page you’re on."
     }
   }
 }
