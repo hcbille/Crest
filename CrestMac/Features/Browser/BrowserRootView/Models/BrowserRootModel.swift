@@ -333,7 +333,8 @@ extension BrowserRootModel {
     var sidebarPresentation: BrowserSidebarPresentation {
         BrowserSidebarPresentationPolicy.presentation(
             columnVisibility: chrome.columnVisibility,
-            isFloatingSidebarPresented: isFloatingSidebarPresented
+            isFloatingSidebarPresented: isFloatingSidebarPresented,
+            isPageFullscreen: chrome.revealsSidebarOverFullscreenPage
         )
     }
 
@@ -447,7 +448,7 @@ extension BrowserRootModel {
     }
 
     func presentFloatingSidebar(reduceMotion: Bool) {
-        guard chrome.columnVisibility == .detailOnly else { return }
+        guard sidebarPresentation != .docked else { return }
         cancelSidebarMorph()
         withAnimation(
             accessibleAnimation(CrestMotion.floatingPane, reduceMotion)
@@ -484,6 +485,20 @@ extension BrowserRootModel {
     ) {
         guard !isActive else { return }
         dismissFloatingSidebarIfInteractionAllows(reduceMotion: reduceMotion)
+    }
+
+    /// Follows whether the active page shows alone with the sidebar hover area
+    /// live. A sidebar floating over the page goes with it, so the shell comes
+    /// back as the person left it.
+    func fullscreenSidebarRevealChanged(_ reveals: Bool) {
+        guard chrome.revealsSidebarOverFullscreenPage != reveals else { return }
+        cancelSidebarMorph()
+        chrome.utilityPresentation.dismiss()
+        withTransaction(Transaction(animation: nil)) {
+            isFloatingSidebarPresented = false
+            chrome.revealsSidebarOverFullscreenPage = reveals
+        }
+        isSidebarSurfaceHovered = false
     }
 
     func columnVisibilityChanged(reduceMotion: Bool) {

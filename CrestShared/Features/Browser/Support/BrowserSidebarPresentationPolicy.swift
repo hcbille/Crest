@@ -10,9 +10,12 @@ enum BrowserSidebarPresentationPolicy {
 
     static func presentation(
         columnVisibility: NavigationSplitViewVisibility,
-        isFloatingSidebarPresented: Bool
+        isFloatingSidebarPresented: Bool,
+        isPageFullscreen: Bool = false
     ) -> BrowserSidebarPresentation {
-        guard columnVisibility == .detailOnly else { return .docked }
+        // A page alone in full screen has no room beside it, so a docked
+        // sidebar can only float over it, and docks again once it ends.
+        guard columnVisibility == .detailOnly || isPageFullscreen else { return .docked }
         return isFloatingSidebarPresented ? .floating : .collapsed
     }
 }

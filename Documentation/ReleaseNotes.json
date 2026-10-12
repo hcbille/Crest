@@ -3853,6 +3853,10 @@
     "find-next-shortcut": {
       "category": "fixed",
       "message": "Command-G and Command-Shift-G move to the next and previous find-in-page match, and reopen the find bar with your last search."
+    },
+    "sidebar-hover-in-full-screen": {
+      "category": "new",
+      "message": "Settings > Window can keep the sidebar hover area working while a video plays full screen, so the sidebar floats over the video when the pointer reaches the window’s edge."
     }
   }
 }
