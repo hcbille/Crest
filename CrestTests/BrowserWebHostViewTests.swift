@@ -650,6 +650,21 @@ final class BrowserWebHostViewTests: XCTestCase {
             )
         )
         XCTAssertFalse(setup.window.firstResponder === setup.webView)
+
+        // The refused request is gone, so the page does not take focus once
+        // the address field lets go.
+        addressField.removeFromSuperview()
+        XCTAssertFalse(
+            setup.controller.restoreIfNeeded(
+                in: setup.host,
+                gate: allowed,
+                applicationIsActive: true,
+                accessibilityOwnsFocus: false,
+                menuIsTracking: false,
+                windowIsKey: true
+            )
+        )
+        XCTAssertFalse(setup.window.firstResponder === setup.webView)
     }
 
     func testNativeRefusalInvalidatesInsteadOfStealingFocusLater() {
