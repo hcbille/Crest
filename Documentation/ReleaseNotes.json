@@ -3861,6 +3861,10 @@
     "share-sheet-open-links": {
       "category": "new",
       "message": "On iPhone and iPad, Crest appears in the share sheet, so a link shared from another app opens in Crest. Settings can have the share sheet ask which Space the link opens in."
+    },
+    "share-sheet-keep-unopened-links": {
+      "category": "internal",
+      "message": "A link saved from the share sheet stays saved when it cannot open yet, such as when its Space stays locked."
     }
   }
 }

@@ -221,12 +221,18 @@ final class MobileBrowserWindowSceneModel {
     }
 
     /// Opens the links the share extension saved because it could not open
-    /// Crest, oldest first, and answers whether any opened.
+    /// Crest, oldest first, and answers whether any opened. A link that does
+    /// not open, such as one whose Space stays locked, goes back to the inbox
+    /// for the next time, as the share sheet promised.
     func openSavedSharedLinks() async -> Bool {
         guard let container = BrowserLinkSharingContainer.app else { return false }
         var openedAny = false
-        for link in container.inbox.takeAll() where await openSharedLink(link) {
-            openedAny = true
+        for link in container.inbox.takeAll() {
+            if await openSharedLink(link) {
+                openedAny = true
+            } else {
+                container.inbox.save(link)
+            }
         }
         return openedAny
     }
