@@ -2,7 +2,6 @@ import Foundation
 import NaturalLanguage
 import Observation
 @preconcurrency import Translation
-import WebKit
 
 /// One live document owns its offer, model work, and restoration token. Nothing
 /// here is persisted or shared between pages, Spaces, profiles, or private sessions.
@@ -30,7 +29,7 @@ final class BrowserPageTranslation {
     private(set) var status = ""
     var showsInformation = false
 
-    @ObservationIgnored private weak var webView: WKWebView?
+    @ObservationIgnored private var document: BrowserTranslationDocument?
     @ObservationIgnored private var isActive = false
     @ObservationIgnored private var activeHostID: UUID?
     @ObservationIgnored private var token: String?
@@ -81,37 +80,28 @@ final class BrowserPageTranslation {
         return Locale.current.localizedString(forIdentifier: identifier) ?? identifier
     }
 
-    /// Whole-page translation rewrites a live DOM through Apple's Translation
-    /// session, which only the WebKit port exposes; another engine's page
-    /// leaves the translation inert.
-    func setActive(_ active: Bool, in engine: any BrowserPageEngine, hostID: UUID? = nil) {
-        guard let webView = (engine as? BrowserWebKitPageEngine)?.webView else { return }
-        setActive(active, in: webView, hostID: hostID)
-    }
-
-    func detect(in engine: any BrowserPageEngine) async {
-        guard let webView = (engine as? BrowserWebKitPageEngine)?.webView else { return }
-        await detect(in: webView)
-    }
-
-    func setActive(_ active: Bool, in webView: WKWebView, hostID: UUID? = nil) {
+    /// Whole-page translation rewrites the live DOM of `document`, the page's
+    /// main document on whichever engine shows it.
+    func setActive(_ active: Bool, in document: BrowserTranslationDocument, hostID: UUID? = nil) {
         // Reparenting a live page can mount its next host before the previous
         // host disappears. Only the current host may end that presentation.
         if !active, let hostID, activeHostID != hostID { return }
         activeHostID = active ? hostID : nil
-        self.webView = webView
+        self.document = document
         isActive = active
         if !active { cancel() }
     }
 
-    func detect(in webView: WKWebView) async {
-        guard isActive, !hasDetected, !isWorking else { return }
+    /// Detects the page's language once it settles. The page's host cancels
+    /// detection when the page starts loading again and runs it anew.
+    func detect() async {
+        guard isActive, !hasDetected, !isWorking, let document else { return }
         let revision = documentRevision
         do {
             for attempt in 0..<3 {
                 try await Task.sleep(for: .milliseconds(attempt == 0 ? 1500 : 1000))
-                guard isActive, revision == documentRevision, !isWorking, !webView.isLoading else { return }
-                let sample = try await BrowserTranslationDocument.sample(in: webView)
+                guard isActive, revision == documentRevision, !isWorking else { return }
+                let sample = try await document.sample()
                 let detected = await Task.detached(priority: .utility) { Self.detectedLanguage(in: sample) }.value
                 try Task.checkCancellation()
                 guard isActive, revision == documentRevision, !isWorking else { return }
@@ -318,7 +308,7 @@ final class BrowserPageTranslation {
 
     func run(using session: TranslationSession, configuration expected: TranslationSession.Configuration?) async {
         guard expected != nil || isAutomaticOperation,
-            expected == configuration, isActive, isWorking, let webView
+            expected == configuration, isActive, isWorking, let document
         else { return }
         let automatic = isAutomaticOperation
         self.session = session
@@ -343,7 +333,7 @@ final class BrowserPageTranslation {
                     return
                 }
             }
-            let capture = try await BrowserTranslationDocument.capture(in: webView, token: operation)
+            let capture = try await document.capture(token: operation)
             try validate(operation, revision: revision)
             isTranslated = false
             guard !capture.texts.isEmpty else {
@@ -360,7 +350,7 @@ final class BrowserPageTranslation {
             var completed = 0
             try await Self.translate(capture.texts, using: session) { updates in
                 try self.validate(operation, revision: revision)
-                applied += try await BrowserTranslationDocument.apply(updates, token: operation, in: webView)
+                applied += try await document.apply(updates, token: operation)
                 try self.validate(operation, revision: revision)
                 completed += updates.count
                 self.isTranslated = applied > 0
@@ -389,7 +379,7 @@ final class BrowserPageTranslation {
             }
         } catch {
             guard token == operation, revision == documentRevision else { return }
-            try? await BrowserTranslationDocument.restore(token: operation, in: webView)
+            try? await document.restore(token: operation)
             guard token == operation, revision == documentRevision else { return }
             isTranslated = false
             status =
@@ -455,9 +445,9 @@ final class BrowserPageTranslation {
         token = nil
         isTranslated = false
         status = String(localized: "Original page")
-        if let previous, let webView {
+        if let previous, let document {
             let revision = documentRevision
-            let restoration = Task { try await BrowserTranslationDocument.restore(token: previous, in: webView) }
+            let restoration = Task { try await document.restore(token: previous) }
             restorationTask = restoration
             Task {
                 do { try await restoration.value } catch {
