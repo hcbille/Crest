@@ -4061,6 +4061,10 @@
     "pinned-tab-status-badge-corner": {
       "category": "fixed",
       "message": "On pinned tabs, the sound and sharing badge sits in the tile\u2019s bottom corner instead of over the site icon, so the icon is easy to click."
+    },
+    "translation-unsupported-page-language": {
+      "category": "fixed",
+      "message": "A page in a language Apple Translation doesn’t support, such as Swedish, says so instead of offering a translation that fails."
     }
   }
 }

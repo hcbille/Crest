@@ -28,6 +28,9 @@ final class BrowserPageTranslation {
     private(set) var isWorking = false
     private(set) var isTranslated = false
     private(set) var status = ""
+    /// The page's language when Apple cannot translate it, which no menu
+    /// offers as a source.
+    private(set) var unsupportedSourceID: String?
     var showsInformation = false
 
     @ObservationIgnored private weak var webView: WKWebView?
@@ -50,6 +53,13 @@ final class BrowserPageTranslation {
 
     var hasSelectedTranslation: Bool {
         isTranslated && sourceID == translatedSourceID && targetID == translatedTargetID
+    }
+
+    /// Whether Translate can run: a target is chosen, and the source is one
+    /// Apple translates. A page in a language Apple does not translate waits
+    /// for the person to choose a source language themselves.
+    var canTranslate: Bool {
+        !targetID.isEmpty && (unsupportedSourceID == nil || !sourceID.isEmpty)
     }
 
     var showsToolbar: Bool {
@@ -126,12 +136,20 @@ final class BrowserPageTranslation {
                 await loadLanguages()
                 guard isActive, revision == documentRevision, !isWorking, !Task.isCancelled else { return }
                 let detectedLanguage = Locale.Language(identifier: detected)
-                sourceID =
-                    languages.first { $0.minimalIdentifier == detectedLanguage.minimalIdentifier }?.minimalIdentifier
+                let supported =
+                    languages.first { $0.minimalIdentifier == detectedLanguage.minimalIdentifier }
                     ?? languages.first {
                         $0.languageCode == detectedLanguage.languageCode && $0.script == detectedLanguage.script
-                    }?.minimalIdentifier
-                    ?? detected
+                    }
+                // Apple lists every language it translates, so one missing from
+                // a loaded list is not offered and cannot be chosen.
+                if supported == nil, !languages.isEmpty {
+                    sourceID = ""
+                    unsupportedSourceID = detected
+                    status = String(localized: "Apple Translation doesn’t support \(languageName(detected)).")
+                    return
+                }
+                sourceID = supported?.minimalIdentifier ?? detected
                 guard isActive, revision == documentRevision, !isWorking, !Task.isCancelled else { return }
                 if let target = languageRules.decision(for: sourceID)?.target, automaticallyTranslates {
                     targetID = target
@@ -293,7 +311,7 @@ final class BrowserPageTranslation {
     }
 
     func start() {
-        guard isActive, !isWorking, !targetID.isEmpty else { return }
+        guard isActive, !isWorking, canTranslate else { return }
         isManuallyPresented = true
         automaticAttempted = true
         isAutomaticOperation = false
@@ -489,6 +507,7 @@ final class BrowserPageTranslation {
         automaticAttempted = false
         detectedInstalledPair = nil
         sourceID = ""
+        unsupportedSourceID = nil
         isOffered = false
         isManuallyPresented = false
         isDismissed = false
