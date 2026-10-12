@@ -681,8 +681,12 @@ final class BrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         enginePage
     }
 
+    /// Closes find as the reader does, handing the keyboard back to the page
+    /// they searched. The page's host takes focus as the bar leaves, unless
+    /// something of Crest's, such as the address field, holds it by then.
     func dismissFind() {
         findSession.dismiss(using: findExecutor)
+        focusRestoration.requestPageFocus()
     }
 
     func find(_ query: String, direction: BrowserFindDirection = .forward) {
