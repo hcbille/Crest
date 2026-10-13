@@ -4062,6 +4062,10 @@
       "category": "fixed",
       "message": "On pinned tabs, the sound and sharing badge sits in the tile\u2019s bottom corner instead of over the site icon, so the icon is easy to click."
     },
+    "site-controls-extension-menu-stays-open": {
+      "category": "fixed",
+      "message": "Right-clicking an extension in Site Controls shows its menu without closing Site Controls."
+    },
     "chromium-whole-page-translation": {
       "category": "new",
       "message": "Translate whole pages on device in Chromium too, with the same translation toolbar, automatic translation and Show Original as WebKit pages."
