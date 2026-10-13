@@ -4065,6 +4065,10 @@
     "find-close-returns-page-focus": {
       "category": "fixed",
       "message": "Closing find in page now returns the keyboard to the page, so arrow keys and Space scroll right away."
+    },
+    "peek-find-close-returns-page-focus": {
+      "category": "fixed",
+      "message": "Closing find in a Peek returns the keyboard to the page in the Peek, not the tab behind it."
     }
   }
 }
