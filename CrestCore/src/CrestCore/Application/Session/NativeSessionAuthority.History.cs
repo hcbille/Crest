@@ -60,13 +60,18 @@ public sealed partial class NativeSessionAuthority {
     #region Actions - Retention
 
     /// The tabs cleanup keeps open in this workspace however long they went
-    /// unused: those its windows show or its saved windows will show, and
-    /// those whose pages run media, such as a video playing in Picture in
-    /// Picture or a screen being shared.
+    /// unused: those its windows show or its saved windows will show, those
+    /// whose pages run media, such as a video playing in Picture in Picture or
+    /// a screen being shared, and those an agent uses.
     internal IReadOnlySet<Guid>? TabsCleanupKeeps(SessionTurn turn) {
         var shown = Device?.ShownTabs(WorkspaceId);
-        if (turn.Pages?.TabsRunningMedia(WorkspaceId) is not { Count: > 0 } media) return shown;
-        return shown is null ? media : shown.Union(media).ToHashSet();
+        var media = turn.Pages?.TabsRunningMedia(WorkspaceId);
+        var agents = Device?.AgentTabs;
+        IEnumerable<Guid>? kept = null;
+        foreach (var set in new[] { shown, media, agents }) {
+            if (set is { Count: > 0 }) kept = kept is null ? set : kept.Union(set);
+        }
+        return kept?.ToHashSet() ?? shown;
     }
 
     /// `space` with its open tabs unused for longer than its cleanup lifetime
@@ -83,12 +88,12 @@ public sealed partial class NativeSessionAuthority {
         var retention = space.Settings.BrowsingPreferences.DataRetention;
         var seconds = StoredSessionCodec.Seconds(now);
         if (retention.History.Lifetime is { } history) {
-            var expired = RecordRemovalPolicy.Expired(Seconds(space.History.Select(entry => entry.LastVisitedAt)), seconds,
+            var expired = DataRetention.Expired(Seconds(space.History.Select(entry => entry.LastVisitedAt)), seconds,
                 history.TotalSeconds).ToHashSet();
             space = WithoutHistory(space, (_, index) => expired.Contains(index));
         }
         if (retention.Archive.Lifetime is { } archive) {
-            var expired = RecordRemovalPolicy.Expired(Seconds(space.ArchivedTabs.Select(archived => archived.ArchivedAt)), seconds,
+            var expired = DataRetention.Expired(Seconds(space.ArchivedTabs.Select(archived => archived.ArchivedAt)), seconds,
                 archive.TotalSeconds).ToHashSet();
             if (expired.Count > 0) space = space with { ArchivedTabs = [.. space.ArchivedTabs.Where((_, index) => !expired.Contains(index))] };
         }

@@ -10,6 +10,7 @@ struct SpacePageObjects {
     let downloadFeedback: BrowserMacDownloadFeedbackState?
     let passkeyAccess: BrowserPasskeyAccessController?
     let softwareUpdates: BrowserSoftwareUpdateService?
+    let agentEndpoint: BrowserAgentEndpointStatus?
     let core: CrestCore?
 }
 
@@ -29,6 +30,7 @@ struct SpacePageEnvironment: DynamicProperty {
     @Environment(BrowserMacDownloadFeedbackState.self) private var downloadFeedback: BrowserMacDownloadFeedbackState?
     @Environment(BrowserPasskeyAccessController.self) private var passkeyAccess: BrowserPasskeyAccessController?
     @Environment(BrowserSoftwareUpdateService.self) private var softwareUpdates: BrowserSoftwareUpdateService?
+    @Environment(BrowserAgentEndpointStatus.self) private var agentEndpoint: BrowserAgentEndpointStatus?
     @Environment(CrestCore.self) private var core: CrestCore?
 
     /// The objects as they are now. Read it while the pager updates; pages it
@@ -37,6 +39,6 @@ struct SpacePageEnvironment: DynamicProperty {
         SpacePageObjects(
             sidebarInteraction: sidebarInteraction, extensionSidePanel: extensionSidePanel,
             downloadFeedback: downloadFeedback, passkeyAccess: passkeyAccess, softwareUpdates: softwareUpdates,
-            core: core)
+            agentEndpoint: agentEndpoint, core: core)
     }
 }

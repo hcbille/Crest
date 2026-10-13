@@ -35,7 +35,7 @@ Most browsers put every login, tab, and distraction into one long-lived containe
 
 Switching Spaces changes more than the color of the window. It changes the browsing context.
 
-## Crest 0.7: two engines on Mac
+## Two engines on Mac
 
 Crest for Mac opens pages in **Chromium** by default. Its engine is built on
 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium),
@@ -103,7 +103,7 @@ The same Spaces, shaped for each screen. iPad keeps the sidebar beside your page
 
 | Platform | Install |
 | --- | --- |
-| Mac · Apple silicon · macOS 26.1+ | [Signed, notarized download](https://github.com/pauljoda/Crest/releases/latest) with built-in Sparkle updates. |
+| Mac · Apple silicon · macOS 26.1+ | [Signed, notarized download](https://github.com/pauljoda/Crest/releases/latest) with built-in Sparkle updates.<br><br>Or install via Homebrew:<br>`brew install --cask crest-browser` |
 | iPhone · iOS 26.1+ | [App Store](https://apps.apple.com/us/app/crest-browser/id6797335023) |
 | iPad · iPadOS 26.1+ | [App Store](https://apps.apple.com/us/app/crest-browser/id6797335023) |
 | iPhone & iPad beta | [TestFlight](https://testflight.apple.com/join/vV1CM49Q) |
@@ -145,9 +145,10 @@ Xcode builds and embeds the self-contained .NET core for Mac, iOS, and Simulator
 
 ## Releases and updates
 
-The [Crest 0.7 release notes](CHANGELOG.md#070---2026-10-02) describe the new
-Mac browsing engines and shared browser core. Crest 0.7 requires Apple silicon
-and macOS 26.1 or later on Mac; iPhone and iPad continue to use WebKit.
+The [Crest 0.8 release notes](CHANGELOG.md#080---2026-10-12) describe coding
+agents on Mac, the new command palette and Settings, and more browsers to import
+from. Crest requires Apple silicon and macOS 26.1 or later on Mac; iPhone and
+iPad use WebKit.
 
 When updating from a WebKit-only release, your Spaces, tabs, history, and Crest
 Passwords carry over. Chromium has separate website storage, so sites may ask
