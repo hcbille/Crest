@@ -118,9 +118,9 @@ final class MobileBrowserWindowSceneModel {
     @discardableResult
     func presentGettingStartedAfterSetup(matching assignment: BrowserTabRuntimeAssignment) -> Bool {
         guard
-            let space = BrowserSidebarAccessPolicy.selectedUnlockedSpace(
+            let space = browser.selectedUnlockedSpace(
                 matching: BrowserSpaceRuntimeAssignment(spaceID: assignment.spaceID, profileID: assignment.profileID),
-                in: browser, accessController: spaceAccess),
+                accessController: spaceAccess),
             browser.spaceModels.first?.id == space.id,
             browser.selectedTabID(in: space.id) == assignment.tabID,
             space.tabs.model(assignment.tabID)?.nativeTabContent == .gettingStarted
@@ -199,7 +199,7 @@ final class MobileBrowserWindowSceneModel {
     /// once the Space it lands in is unlocked.
     @discardableResult
     func routeExternalURL(_ url: URL) async -> Bool {
-        guard BrowserCorePolicy.acceptsExternalURL(url),
+        guard ExternalWebLink.accepts(url),
             let placement = try? browser.core.query(
                 RouteExternalLink(windowIDs: [browser.windowID], url: url.absoluteString)),
             let spaceID = placement.spaceID
@@ -215,7 +215,7 @@ final class MobileBrowserWindowSceneModel {
     @discardableResult
     func openSharedLink(_ link: BrowserSharedLink) async -> Bool {
         guard let spaceID = link.spaceID, !browser.isDeleting(spaceID), browser.spaceModel(spaceID) != nil,
-            BrowserCorePolicy.acceptsExternalURL(link.url)
+            ExternalWebLink.accepts(link.url)
         else { return await routeExternalURL(link.url) }
         return await open(link.url, in: spaceID, asQuickWindow: false)
     }
