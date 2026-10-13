@@ -4062,6 +4062,10 @@
       "category": "fixed",
       "message": "On pinned tabs, the sound and sharing badge sits in the tile\u2019s bottom corner instead of over the site icon, so the icon is easy to click."
     },
+    "site-controls-extension-menu-stays-open": {
+      "category": "fixed",
+      "message": "Right-clicking an extension in Site Controls shows its menu without closing Site Controls."
+    },
     "chromium-pip-shows-page-captions": {
       "category": "new",
       "message": "Picture in Picture on Chromium pages shows the captions you turned on for the video, such as YouTube’s, and no longer offers a Live Caption control that couldn’t work."
