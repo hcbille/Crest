@@ -17,7 +17,7 @@ public sealed record FinishDeletingSpace(Guid WorkspaceId, Guid WindowId, Guid S
         workspace.RequireOwnedSpaces();
         var (space, pending) = workspace.Deleting(turn.Basis, SpaceId);
         if (pending is null || pending.Id != OperationId) throw new Rejected(new WrongDeletionOperation(space.Id));
-        SpaceOrganizationPolicy.RequireRemovable(turn.Basis.Spaces.Count);
+        SessionState.RequireRemovable(turn.Basis.Spaces.Count);
         var index = turn.Basis.Spaces.ToList().IndexOf(space);
         IReadOnlyList<SpaceState> spaces = [.. turn.Basis.Spaces.Where(candidate => candidate.Id != space.Id)];
         var neighbor = spaces[Math.Min(index, spaces.Count - 1)].Id;
@@ -37,13 +37,14 @@ public sealed record FinishDeletingSpace(Guid WorkspaceId, Guid WindowId, Guid S
     /// A Space's deletion finishes only once this run erased its profile's
     /// data on every registered engine; a Space the session no longer holds is
     /// the session's to refuse. A deleted Space leaves nothing in this device's
-    /// link preferences.
+    /// link or agent preferences.
     internal override void Commit(CrestApp app, ChangeFeed changes) {
         if (app.Device.Workspace(WorkspaceId).Current.Spaces.FirstOrDefault(space => space.Id == SpaceId) is { } space
             && !app.DataDeletions.Erased(space.ProfileId))
             throw new Rejected(new SpaceDataNotErased(space.Id));
         base.Commit(app, changes);
         app.Device.ForgetLinks(SpaceId, changes);
+        app.Device.ForgetAgents(SpaceId, changes);
     }
 
     #endregion

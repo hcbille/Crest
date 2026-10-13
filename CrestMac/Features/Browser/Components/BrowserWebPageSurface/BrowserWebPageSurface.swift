@@ -16,6 +16,12 @@ struct BrowserWebPageSurface: View {
     /// knows it; the sharing bars lead there.
     var goToSharingCounterpart: (() -> Void)? = nil
 
+    /// The agent using the page's tab now, when one does.
+    private var agent: AgentSessionState? {
+        guard let tabID = browser.core.state.pages[page.corePage.id]?.tabID else { return nil }
+        return browser.core.state.agentSessions.first { $0.tabIDs.contains(tabID) }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             BrowserPlatformWebView(
@@ -30,7 +36,7 @@ struct BrowserWebPageSurface: View {
             }
             .accessibilityLabel(page.live.title.isEmpty ? "Web page" : page.live.title)
             .opacity(
-                BrowserPageSurfacePolicy.revealsWebContent(
+                BrowserPageSurfacePresentation.revealsWebContent(
                     committedNavigationCount: page.committedNavigationCount
                 ) ? 1 : 0
             )
@@ -55,6 +61,17 @@ struct BrowserWebPageSurface: View {
 
             if !page.visibleEngineInfoBars.isEmpty {
                 BrowserEngineInfoBarStack(page: page, goToSharingCounterpart: goToSharingCounterpart)
+            }
+
+            if let agent {
+                BrowserAgentPageBar(session: agent) {
+                    if let tabID = browser.core.state.pages[page.corePage.id]?.tabID {
+                        _ = try? browser.core.send(StopAgentTab(tabID: tabID))
+                    }
+                }
+                .padding(BrowserWebPageSurfaceMetrics.overlayPadding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .transition(.opacity)
             }
 
             BrowserWebPageFailureOverlay(
@@ -154,6 +171,11 @@ struct BrowserWebPageSurface: View {
 }
 
 private struct BrowserPageLoadingPresentation: View {
+    /// How long a page's first load runs before the surface says it is
+    /// opening. A load that finishes sooner goes straight from the page
+    /// before to the page, as a browser's does, with nothing in between.
+    private static let initialLoadingStatusDelay: Duration = .milliseconds(400)
+
     let page: BrowserPage
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -171,7 +193,7 @@ private struct BrowserPageLoadingPresentation: View {
             .task(id: showsInitialStatus) {
                 initialStatusIsDue = false
                 guard showsInitialStatus else { return }
-                try? await Task.sleep(for: BrowserPageSurfacePolicy.initialLoadingStatusDelay)
+                try? await Task.sleep(for: Self.initialLoadingStatusDelay)
                 guard !Task.isCancelled else { return }
                 initialStatusIsDue = true
             }
@@ -201,10 +223,7 @@ private struct BrowserPageLoadingPresentation: View {
             .scaleEffect(x: progress, anchor: .leading)
             .opacity(isNavigating ? 1 : 0)
             .animation(
-                BrowserVisualAccessibilityPolicy.animation(
-                    CrestMotion.loadingProgress,
-                    reduceMotion: reduceMotion
-                ),
+                CrestMotion.loadingProgress.unlessReducingMotion(reduceMotion),
                 value: progress
             )
             .accessibilityHidden(true)
@@ -224,11 +243,9 @@ private struct BrowserPageLoadingPresentation: View {
     }
 
     private var isNavigating: Bool {
-        BrowserPageSurfacePolicy.isNavigating(
-            isLoading: page.live.isLoading,
-            hasPendingNavigation: page.live.pendingNavigationURL != nil,
-            committedNavigationCount: page.committedNavigationCount
-        )
+        // Same-document destinations can remain pending without a WebKit load.
+        // Only use the destination to bridge a fresh page's initial loading gap.
+        page.live.isLoading || (page.live.pendingNavigationURL != nil && page.committedNavigationCount == 0)
     }
 
     private var hasFailure: Bool {
@@ -236,15 +253,11 @@ private struct BrowserPageLoadingPresentation: View {
     }
 
     private var showsInitialStatus: Bool {
-        BrowserPageSurfacePolicy.showsInitialLoadingStatus(
-            isNavigating: isNavigating,
-            committedNavigationCount: page.committedNavigationCount,
-            hasFailure: hasFailure
-        )
+        isNavigating && page.committedNavigationCount == 0 && !hasFailure
     }
 
     private var progress: CGFloat {
-        BrowserPageSurfacePolicy.loadingProgress(
+        BrowserPageSurfacePresentation.loadingProgress(
             estimatedProgress: page.estimatedProgress,
             isNavigating: isNavigating
         )

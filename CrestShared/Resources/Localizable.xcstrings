@@ -268,6 +268,12 @@
         }
       }
     },
+    "%@ is using Crest" : {
+
+    },
+    "%@ is using this tab" : {
+      "comment" : "The bar on a page an agent uses."
+    },
     "%@ of %@ · %@" : {
       "localizations" : {
         "en" : {
@@ -314,6 +320,9 @@
         }
       }
     },
+    "%@ runs other programs. Allowing it lets any program it runs that calls itself “%@” use Crest." : {
+
+    },
     "%@ saved tabs" : {
       "localizations" : {
         "ar" : {
@@ -353,6 +362,9 @@
           }
         }
       }
+    },
+    "%@ stopped using Crest" : {
+
     },
     "%@, %@" : {
       "localizations" : {
@@ -1897,6 +1909,24 @@
         }
       }
     },
+    "Agents" : {
+
+    },
+    "agents AI MCP model context protocol coding agents scripts automation Claude Codex Cursor command line terminal" : {
+
+    },
+    "Agents are turned off in Crest’s settings." : {
+
+    },
+    "Agents can’t reach this copy of Crest." : {
+
+    },
+    "Agents can’t use Crest on this device." : {
+
+    },
+    "Agents never reach a private window, and see only the name of a locked Space." : {
+
+    },
     "AI Assistant" : {
 
     },
@@ -1935,10 +1965,16 @@
         }
       }
     },
+    "Allow “%@” to use Crest?" : {
+
+    },
     "Allow 120 FPS" : {
 
     },
     "Allow Access to a Download Folder" : {
+
+    },
+    "Allow agents to use Crest" : {
 
     },
     "Allow Automatic Pop-ups" : {
@@ -1989,6 +2025,9 @@
     "Allowed" : {
 
     },
+    "Allowed agents" : {
+
+    },
     "Allowed for Session" : {
 
     },
@@ -2037,6 +2076,9 @@
 
     },
     "Another browser" : {
+
+    },
+    "Another copy of Crest is already open to agents. Quit it, then turn agents off and on again." : {
 
     },
     "Another search provider already uses this name." : {
@@ -3231,6 +3273,9 @@
     "Chromium WebKit hybrid default browser engine websites rules protected video DRM compatibility" : {
 
     },
+    "Claude Code" : {
+
+    },
     "clean tidy archive unpinned tabs" : {
       "localizations" : {
         "ar" : {
@@ -3565,6 +3610,15 @@
     "Code" : {
 
     },
+    "Codex" : {
+
+    },
+    "Coding agents and scripts" : {
+
+    },
+    "Coding agents on this Mac can read and act on tabs in the Spaces you choose. Crest asks before each new agent connects." : {
+
+    },
     "Collapsed" : {
       "localizations" : {
         "ar" : {
@@ -3728,6 +3782,12 @@
     "Confirm what Crest will change before anything is saved." : {
 
     },
+    "Connect an Agent" : {
+
+    },
+    "Connected" : {
+
+    },
     "Connection Details Unavailable" : {
 
     },
@@ -3856,6 +3916,9 @@
           }
         }
       }
+    },
+    "Copy Setup" : {
+
     },
     "copy url address clipboard" : {
       "localizations" : {
@@ -4284,6 +4347,9 @@
         }
       }
     },
+    "Crest couldn’t open itself to agents. Turn agents off and on again to try again." : {
+
+    },
     "Crest couldn't open your session" : {
 
     },
@@ -4328,6 +4394,9 @@
           }
         }
       }
+    },
+    "Crest couldn’t tell which program this agent is." : {
+
     },
     "Crest couldn’t verify a private, secure connection to %@." : {
       "localizations" : {
@@ -5025,6 +5094,12 @@
     "Disabled and selected" : {
 
     },
+    "Disconnect" : {
+
+    },
+    "Disconnect Agent" : {
+      "comment" : "Disconnects the agent using a tab from Crest."
+    },
     "Discussions" : {
 
     },
@@ -5057,6 +5132,9 @@
 
     },
     "Dock Sidebar" : {
+
+    },
+    "Don’t Allow" : {
 
     },
     "Don't Share" : {
@@ -6145,6 +6223,12 @@
 
     },
     "Forever" : {
+
+    },
+    "Forget" : {
+
+    },
+    "Forgetting an agent disconnects it. Crest asks again the next time it connects." : {
 
     },
     "Forward" : {
@@ -7368,6 +7452,9 @@
     "Issues" : {
 
     },
+    "It can read and act on tabs in the Spaces you choose in Settings › Agents, and every tab it uses shows its badge." : {
+
+    },
     "Its content is still saved. Update Crest to open it." : {
 
     },
@@ -7578,6 +7665,9 @@
           }
         }
       }
+    },
+    "Let agents run scripts in pages" : {
+
     },
     "Letter style" : {
 
@@ -7859,6 +7949,9 @@
     "Matches the title" : {
 
     },
+    "Material" : {
+
+    },
     "Meadow" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -7939,6 +8032,9 @@
       }
     },
     "Move Back" : {
+
+    },
+    "Move Crest to your Applications folder to connect agents." : {
 
     },
     "Move Down" : {
@@ -8310,6 +8406,9 @@
 
     },
     "Nightly" : {
+
+    },
+    "No agents yet" : {
 
     },
     "No Archived Tabs" : {
@@ -9071,6 +9170,9 @@
     "Original page" : {
 
     },
+    "Other agents" : {
+
+    },
     "Outline" : {
 
     },
@@ -9314,6 +9416,9 @@
 
     },
     "Paste and Match Style" : {
+
+    },
+    "Paste the setup in your agent’s terminal or settings. Crest must be open while the agent works." : {
 
     },
     "Patina" : {
@@ -11264,6 +11369,9 @@
     "Screen Sharing" : {
 
     },
+    "Scripts run with the page’s own access to the site." : {
+
+    },
     "Seahorse" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12057,6 +12165,9 @@
     "Sign in to websites using passkeys saved with your system providers." : {
 
     },
+    "Signed by %@." : {
+
+    },
     "Silver" : {
 
     },
@@ -12637,6 +12748,9 @@
         }
       }
     },
+    "Stop Agent in This Tab" : {
+      "comment" : "Stops the agent using a tab from using it."
+    },
     "Stop Keeping Loaded" : {
       "localizations" : {
         "ar" : {
@@ -13188,6 +13302,12 @@
     "That Space is no longer available." : {
 
     },
+    "That Space isn’t one agents may use." : {
+
+    },
+    "That tab isn’t one agents may use." : {
+
+    },
     "The address uses a format or protocol Crest doesn’t support." : {
       "localizations" : {
         "ar" : {
@@ -13336,6 +13456,12 @@
     "The pattern’s last band and the gradient’s end" : {
 
     },
+    "The person hasn’t allowed this agent to use Crest." : {
+
+    },
+    "The person stopped agents from using this tab." : {
+
+    },
     "The report has counts only: no URLs, titles or passwords." : {
 
     },
@@ -13411,7 +13537,16 @@
     "These rows are excluded from the import. Correct the source file to import them later." : {
 
     },
+    "Thick" : {
+
+    },
+    "Thin" : {
+
+    },
     "This action requires webpage tabs. Deselect built-in pages first." : {
+
+    },
+    "This agent is no longer connected to Crest." : {
 
     },
     "This bookmark file exceeds Crest’s folder, depth, tab, or Space limits." : {
@@ -13708,6 +13843,9 @@
         }
       }
     },
+    "This program isn’t signed by a developer." : {
+
+    },
     "This Quick Window cannot reconnect to its original browsing profile." : {
 
     },
@@ -13852,6 +13990,12 @@
           }
         }
       }
+    },
+    "Too many agents are allowed. Forget one in Settings first." : {
+
+    },
+    "Too many agents are using Crest right now." : {
+
     },
     "Top Hit" : {
 
@@ -14167,6 +14311,12 @@
 
     },
     "Typing" : {
+
+    },
+    "Ultra Thick" : {
+
+    },
+    "Ultra Thin" : {
 
     },
     "Ultrawide" : {
@@ -14644,6 +14794,9 @@
     },
     "Use your microphone on websites for calls and recording." : {
 
+    },
+    "Used by %@" : {
+      "comment" : "A tab's mark while an agent uses it."
     },
     "Username" : {
       "localizations" : {

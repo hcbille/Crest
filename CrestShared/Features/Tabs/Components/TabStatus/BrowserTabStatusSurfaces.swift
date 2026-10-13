@@ -35,7 +35,7 @@ struct BrowserTabStatusSurfaces: View {
                     .clipShape(shape)
                 }
                 if let outline, let width = outline.surface?.outlineWidth {
-                    shape.strokeBorder(outline.tint.color, lineWidth: width)
+                    shape.strokeBorder(outline.tint, lineWidth: width)
                 }
             }
             .allowsHitTesting(false)
@@ -52,7 +52,7 @@ struct BrowserTabStatusSurfaces: View {
     // MARK: - Actions - Color
 
     private func barColor(of tab: BrowserTabStatusSource) -> Color {
-        BrowserTabIconAccentResolver.resolve(siteTheme: tab.siteTheme, extracted: iconPalette?.primary.iconAccent)?
+        (tab.siteTheme?.preferring(extracted: iconPalette?.primary.iconAccent) ?? iconPalette?.primary.iconAccent)?
             .color ?? style.accent
     }
 }
