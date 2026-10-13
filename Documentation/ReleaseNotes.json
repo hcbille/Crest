@@ -4062,6 +4062,10 @@
       "category": "fixed",
       "message": "On pinned tabs, the sound and sharing badge sits in the tile\u2019s bottom corner instead of over the site icon, so the icon is easy to click."
     },
+    "site-controls-extension-menu-stays-open": {
+      "category": "fixed",
+      "message": "Right-clicking an extension in Site Controls shows its menu without closing Site Controls."
+    },
     "share-sheet-open-links": {
       "category": "new",
       "message": "On iPhone and iPad, Crest appears in the share sheet, so a link shared from another app opens in Crest. Settings can have the share sheet ask which Space the link opens in."
