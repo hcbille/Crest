@@ -4062,6 +4062,22 @@
       "category": "fixed",
       "message": "On pinned tabs, the sound and sharing badge sits in the tile\u2019s bottom corner instead of over the site icon, so the icon is easy to click."
     },
+    "site-controls-extension-menu-stays-open": {
+      "category": "fixed",
+      "message": "Right-clicking an extension in Site Controls shows its menu without closing Site Controls."
+    },
+    "pin-layout-honors-chosen-columns": {
+      "category": "fixed",
+      "message": "Pins fill each row to the number chosen in Settings, as far as the sidebar width allows, instead of evening out the rows."
+    },
+    "web-inspector-shortcut-toggles": {
+      "category": "fixed",
+      "message": "Pressing Option-Command-I again closes the Web Inspector or Chromium DevTools instead of leaving it open."
+    },
+    "find-close-returns-page-focus": {
+      "category": "fixed",
+      "message": "Closing find in page returns the keyboard to the page, including a page in Peek, so arrow keys and Space scroll right away."
+    },
     "sidebar-hides-when-pointer-leaves-window": {
       "category": "fixed",
       "message": "A hidden sidebar that slides out at the window edge now hides again when the pointer moves on to another app."
