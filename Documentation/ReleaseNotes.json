@@ -4073,6 +4073,10 @@
     "web-inspector-shortcut-toggles": {
       "category": "fixed",
       "message": "Pressing Option-Command-I again closes the Web Inspector or Chromium DevTools instead of leaving it open."
+    },
+    "find-close-returns-page-focus": {
+      "category": "fixed",
+      "message": "Closing find in page returns the keyboard to the page, including a page in Peek, so arrow keys and Space scroll right away."
     }
   }
 }
