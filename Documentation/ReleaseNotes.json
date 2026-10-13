@@ -4062,6 +4062,10 @@
       "category": "fixed",
       "message": "On pinned tabs, the sound and sharing badge sits in the tile\u2019s bottom corner instead of over the site icon, so the icon is easy to click."
     },
+    "site-controls-extension-menu-stays-open": {
+      "category": "fixed",
+      "message": "Right-clicking an extension in Site Controls shows its menu without closing Site Controls."
+    },
     "sidebar-hover-in-full-screen": {
       "category": "new",
       "message": "Settings > Window can keep the sidebar hover area working while a video plays full screen, so the sidebar floats over the video when the pointer reaches the window’s edge."
