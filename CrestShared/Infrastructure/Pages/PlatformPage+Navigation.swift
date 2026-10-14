@@ -70,8 +70,6 @@ extension BrowserPlatformPage {
         retryAfterNavigationFailure()
     }
 
-    /// Leaves the failure notice for the page behind it. A failure that
-    /// replaced that page, as a committed error page does, goes back to it.
     /// Leaves the failure notice for the document behind it, or goes back
     /// past a failure that replaced the document.
     func returnFromNavigationFailure() {

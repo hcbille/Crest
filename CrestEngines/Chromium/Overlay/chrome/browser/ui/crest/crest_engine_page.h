@@ -365,8 +365,10 @@ class EnginePage final : public content::WebContentsObserver,
   // The core's identity of each entry the page keeps, by the entry's unique
   // id, which lasts as long as the entry does.
   std::map<int, engine::Guid> entry_ids_;
-  // The identity the next new entry the page commits takes.
+  // The identity the entry the core's load commits takes, and that load once
+  // it starts. The load gives the identity up however it ends.
   std::optional<engine::Guid> expected_entry_id_;
+  std::optional<int64_t> expected_entry_navigation_;
 
   // The zoom the platform asked for, which a page still being created takes
   // once it exists.
