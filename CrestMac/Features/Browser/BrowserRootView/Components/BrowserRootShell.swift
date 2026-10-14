@@ -122,7 +122,7 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
         ZStack(alignment: .leading) {
             BrowserRootBackdrop(
                 space: model.browser.shownSpace,
-                spaces: BrowserSidebarAccessPolicy.availableSpaces(in: model.browser)
+                spaces: model.browser.availableSpaces
             )
 
             BrowserSidebarPageLayout(
@@ -143,7 +143,8 @@ struct BrowserRootShell: View, BrowserChromeAnimating {
                     edge: sidebarEdge,
                     space: model.browser.shownSpace,
                     reduceTransparency: reduceTransparency,
-                    spaces: BrowserSidebarAccessPolicy.availableSpaces(in: model.browser),
+                    spaces: model.browser.availableSpaces,
+                    isRevealedByPointer: model.isFloatingSidebarRevealedByPointer,
                     hoverChanged: {
                         model.sidebarSurfaceHoverChanged(
                             $0,

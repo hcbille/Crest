@@ -39,6 +39,9 @@ protocol EngineQuestion: Sendable {
     static func decodeAnswer(from reader: inout WireReader) throws(WireError) -> Answer
 }
 
+/// The members of `Intent` that derive from the core's `AgentIntent`.
+protocol AgentIntent: Intent {}
+
 /// The members of `Intent` that derive from the core's `CloseIntent`.
 protocol CloseIntent: Intent {}
 
@@ -113,6 +116,8 @@ protocol WorkspaceIntent: Intent {}
 
 /// Everything an intent can change. `CoreState.apply` keeps the read model current.
 enum Change: Equatable, Sendable {
+    case agentPreferencesChanged(AgentPreferencesChanged)
+    case agentSessionsChanged(AgentSessionsChanged)
     case appPreferencesChanged(AppPreferencesChanged)
     case archiveChanged(ArchiveChanged)
     case authenticationAsked(AuthenticationAsked)
@@ -180,6 +185,14 @@ enum Change: Equatable, Sendable {
 
 /// The rule that refused an intent or a query.
 enum Rejection: Equatable, Error, Sendable {
+    case agentNotApproved(AgentNotApproved)
+    case agentSessionsFull(AgentSessionsFull)
+    case agentSpaceUnavailable(AgentSpaceUnavailable)
+    case agentTabStopped(AgentTabStopped)
+    case agentTabUnavailable(AgentTabUnavailable)
+    case agentsFull(AgentsFull)
+    case agentsOff(AgentsOff)
+    case agentsUnavailable(AgentsUnavailable)
     case alreadyInSpace(AlreadyInSpace)
     case alreadyInSplit(AlreadyInSplit)
     case archiveInvalid(ArchiveInvalid)
@@ -215,6 +228,7 @@ enum Rejection: Equatable, Error, Sendable {
     case folderLimitReached(FolderLimitReached)
     case guideSpaceLocked(GuideSpaceLocked)
     case incompleteSplit(IncompleteSplit)
+    case invalidAgent(InvalidAgent)
     case invalidBlockedPopup(InvalidBlockedPopup)
     case invalidCredentialDate(InvalidCredentialDate)
     case invalidCredentialFile(InvalidCredentialFile)
@@ -246,6 +260,7 @@ enum Rejection: Equatable, Error, Sendable {
     case invalidSplitColumnShares(InvalidSplitColumnShares)
     case invalidSplitIcon(InvalidSplitIcon)
     case invalidSyncRecords(InvalidSyncRecords)
+    case invalidTabContent(InvalidTabContent)
     case invalidTabIcon(InvalidTabIcon)
     case languageTooLong(LanguageTooLong)
     case lastStartPage(LastStartPage)
@@ -311,6 +326,7 @@ enum Rejection: Equatable, Error, Sendable {
     case tabLimitReached(TabLimitReached)
     case transientAlreadyCompleted(TransientAlreadyCompleted)
     case translationRuleLimitReached(TranslationRuleLimitReached)
+    case unknownAgentSession(UnknownAgentSession)
     case unknownArchivedTab(UnknownArchivedTab)
     case unknownCloudMerge(UnknownCloudMerge)
     case unknownFolder(UnknownFolder)
@@ -336,6 +352,14 @@ enum Rejection: Equatable, Error, Sendable {
 
     var message: LocalizedStringResource? {
         switch self {
+        case .agentNotApproved(let value): value.message
+        case .agentSessionsFull(let value): value.message
+        case .agentSpaceUnavailable(let value): value.message
+        case .agentTabStopped(let value): value.message
+        case .agentTabUnavailable(let value): value.message
+        case .agentsFull(let value): value.message
+        case .agentsOff(let value): value.message
+        case .agentsUnavailable(let value): value.message
         case .archiveInvalid(let value): value.message
         case .archiveTooLarge(let value): value.message
         case .bookmarksHaveNoLinks(let value): value.message
@@ -351,6 +375,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .fileUnreadable(let value): value.message
         case .guideSpaceLocked(let value): value.message
         case .incompleteSplit(let value): value.message
+        case .invalidAgent(let value): value.message
         case .invalidImport(let value): value.message
         case .invalidSearchShortcut(let value): value.message
         case .invalidSyncRecords(let value): value.message
@@ -384,6 +409,7 @@ enum Rejection: Equatable, Error, Sendable {
         case .spaceProfileChanged(let value): value.message
         case .splitLimitReached(let value): value.message
         case .splitNeedsTwoTabs(let value): value.message
+        case .unknownAgentSession(let value): value.message
         case .unknownCloudMerge(let value): value.message
         case .unsuitableDefaultSearch(let value): value.message
         case .unsupportedArchiveVersion(let value): value.message
@@ -437,12 +463,14 @@ enum EnginePresentation: Equatable, Sendable {
     case pageCaptured(PageCaptured)
     case pageExported(PageExported)
     case pageHistoryChanged(PageHistoryChanged)
+    case pageInputDelivered(PageInputDelivered)
     case pageInteracted(PageInteracted)
     case pageLoadingChanged(PageLoadingChanged)
     case pageNavigationCommitted(PageNavigationCommitted)
     case pageNavigationFailed(PageNavigationFailed)
     case pageNavigationStarted(PageNavigationStarted)
     case pageRendererGone(PageRendererGone)
+    case pageScriptEvaluated(PageScriptEvaluated)
     case pageThemeChanged(PageThemeChanged)
     case pageViewClosed(PageViewClosed)
     case pageViewReady(PageViewReady)
@@ -481,12 +509,14 @@ enum EnginePresentation: Equatable, Sendable {
         case .pageCaptured(let value): value.pageID
         case .pageExported(let value): value.pageID
         case .pageHistoryChanged(let value): value.pageID
+        case .pageInputDelivered(let value): value.pageID
         case .pageInteracted(let value): value.pageID
         case .pageLoadingChanged(let value): value.pageID
         case .pageNavigationCommitted(let value): value.pageID
         case .pageNavigationFailed(let value): value.pageID
         case .pageNavigationStarted(let value): value.pageID
         case .pageRendererGone(let value): value.pageID
+        case .pageScriptEvaluated(let value): value.pageID
         case .pageThemeChanged(let value): value.pageID
         case .pageViewClosed(let value): value.pageID
         case .pageViewReady(let value): value.pageID
@@ -510,6 +540,8 @@ extension Change {
     /// Applies the change to the read model, as its own `apply(to:)` does.
     @MainActor func apply(to state: CoreState) {
         switch self {
+        case .agentPreferencesChanged(let change): change.apply(to: state)
+        case .agentSessionsChanged(let change): change.apply(to: state)
         case .appPreferencesChanged(let change): change.apply(to: state)
         case .archiveChanged(let change): change.apply(to: state)
         case .authenticationAsked(let change): change.apply(to: state)
@@ -573,6 +605,150 @@ extension Change {
         case .workspaceChanged(let change): change.apply(to: state)
         case .workspaceClosed(let change): change.apply(to: state)
         case .workspaceOpened(let change): change.apply(to: state)
+        }
+    }
+
+    /// Applies the change to the core's read model and notes in `batch` what it
+    /// tells those who follow the batch, as its own `apply(to:in:)` does.
+    @MainActor func apply(to core: CrestCore, in batch: inout CoreChangeBatch) {
+        switch self {
+        case .agentPreferencesChanged(let change): change.apply(to: core, in: &batch)
+        case .agentSessionsChanged(let change): change.apply(to: core, in: &batch)
+        case .appPreferencesChanged(let change): change.apply(to: core, in: &batch)
+        case .archiveChanged(let change): change.apply(to: core, in: &batch)
+        case .authenticationAsked(let change): change.apply(to: core, in: &batch)
+        case .closeReady(let change): change.apply(to: core, in: &batch)
+        case .cloudMergeBegan(let change): change.apply(to: core, in: &batch)
+        case .cloudSyncAdvanced(let change): change.apply(to: core, in: &batch)
+        case .cloudTransportChanged(let change): change.apply(to: core, in: &batch)
+        case .dataDeleted(let change): change.apply(to: core, in: &batch)
+        case .downloadApprovalAsked(let change): change.apply(to: core, in: &batch)
+        case .downloadDestinationAsked(let change): change.apply(to: core, in: &batch)
+        case .downloadStarted(let change): change.apply(to: core, in: &batch)
+        case .downloadUpdated(let change): change.apply(to: core, in: &batch)
+        case .downloadsRemoved(let change): change.apply(to: core, in: &batch)
+        case .enginePreferencesChanged(let change): change.apply(to: core, in: &batch)
+        case .enginesChanged(let change): change.apply(to: core, in: &batch)
+        case .extensionInstallAsked(let change): change.apply(to: core, in: &batch)
+        case .foldersChanged(let change): change.apply(to: core, in: &batch)
+        case .historyChanged(let change): change.apply(to: core, in: &batch)
+        case .linkPreferencesChanged(let change): change.apply(to: core, in: &batch)
+        case .navigationRecorded(let change): change.apply(to: core, in: &batch)
+        case .offeredPageAdopted(let change): change.apply(to: core, in: &batch)
+        case .offeredWindowAdopted(let change): change.apply(to: core, in: &batch)
+        case .pageChanged(let change): change.apply(to: core, in: &batch)
+        case .pageOpened(let change): change.apply(to: core, in: &batch)
+        case .pageRehosted(let change): change.apply(to: core, in: &batch)
+        case .pageRemoved(let change): change.apply(to: core, in: &batch)
+        case .pageUnloaded(let change): change.apply(to: core, in: &batch)
+        case .permissionAsked(let change): change.apply(to: core, in: &batch)
+        case .promptSettled(let change): change.apply(to: core, in: &batch)
+        case .quitWithDownloadsAsked(let change): change.apply(to: core, in: &batch)
+        case .saved(let change): change.apply(to: core, in: &batch)
+        case .scriptDialogAsked(let change): change.apply(to: core, in: &batch)
+        case .searchCatalogChanged(let change): change.apply(to: core, in: &batch)
+        case .sessionAdopted(let change): change.apply(to: core, in: &batch)
+        case .setupCompletedChanged(let change): change.apply(to: core, in: &batch)
+        case .setupDraftChanged(let change): change.apply(to: core, in: &batch)
+        case .setupFinished(let change): change.apply(to: core, in: &batch)
+        case .setupFlowChanged(let change): change.apply(to: core, in: &batch)
+        case .shortcutsChanged(let change): change.apply(to: core, in: &batch)
+        case .sidebarChanged(let change): change.apply(to: core, in: &batch)
+        case .sitePermissionsChanged(let change): change.apply(to: core, in: &batch)
+        case .spaceLockChanged(let change): change.apply(to: core, in: &batch)
+        case .spaceSettingsChanged(let change): change.apply(to: core, in: &batch)
+        case .spacesChanged(let change): change.apply(to: core, in: &batch)
+        case .splitGroupsChanged(let change): change.apply(to: core, in: &batch)
+        case .storageFailed(let change): change.apply(to: core, in: &batch)
+        case .syncJournalChanged(let change): change.apply(to: core, in: &batch)
+        case .syncRecordsSkipped(let change): change.apply(to: core, in: &batch)
+        case .syncStagingFailed(let change): change.apply(to: core, in: &batch)
+        case .tabCopied(let change): change.apply(to: core, in: &batch)
+        case .tabFaviconAssigned(let change): change.apply(to: core, in: &batch)
+        case .tabPagePutAway(let change): change.apply(to: core, in: &batch)
+        case .tabsChanged(let change): change.apply(to: core, in: &batch)
+        case .tabsImported(let change): change.apply(to: core, in: &batch)
+        case .transientPageClosed(let change): change.apply(to: core, in: &batch)
+        case .transientPagePromoted(let change): change.apply(to: core, in: &batch)
+        case .windowBroughtForward(let change): change.apply(to: core, in: &batch)
+        case .windowChanged(let change): change.apply(to: core, in: &batch)
+        case .windowClosed(let change): change.apply(to: core, in: &batch)
+        case .windowRecordsAdopted(let change): change.apply(to: core, in: &batch)
+        case .workspaceChanged(let change): change.apply(to: core, in: &batch)
+        case .workspaceClosed(let change): change.apply(to: core, in: &batch)
+        case .workspaceOpened(let change): change.apply(to: core, in: &batch)
+        }
+    }
+
+    /// Notes in `receipts` what the change tells the cloud transport whose intent
+    /// it answers, as its own `note(in:)` does.
+    func note(in receipts: inout CloudTransportReceipts) {
+        switch self {
+        case .agentPreferencesChanged(let change): change.note(in: &receipts)
+        case .agentSessionsChanged(let change): change.note(in: &receipts)
+        case .appPreferencesChanged(let change): change.note(in: &receipts)
+        case .archiveChanged(let change): change.note(in: &receipts)
+        case .authenticationAsked(let change): change.note(in: &receipts)
+        case .closeReady(let change): change.note(in: &receipts)
+        case .cloudMergeBegan(let change): change.note(in: &receipts)
+        case .cloudSyncAdvanced(let change): change.note(in: &receipts)
+        case .cloudTransportChanged(let change): change.note(in: &receipts)
+        case .dataDeleted(let change): change.note(in: &receipts)
+        case .downloadApprovalAsked(let change): change.note(in: &receipts)
+        case .downloadDestinationAsked(let change): change.note(in: &receipts)
+        case .downloadStarted(let change): change.note(in: &receipts)
+        case .downloadUpdated(let change): change.note(in: &receipts)
+        case .downloadsRemoved(let change): change.note(in: &receipts)
+        case .enginePreferencesChanged(let change): change.note(in: &receipts)
+        case .enginesChanged(let change): change.note(in: &receipts)
+        case .extensionInstallAsked(let change): change.note(in: &receipts)
+        case .foldersChanged(let change): change.note(in: &receipts)
+        case .historyChanged(let change): change.note(in: &receipts)
+        case .linkPreferencesChanged(let change): change.note(in: &receipts)
+        case .navigationRecorded(let change): change.note(in: &receipts)
+        case .offeredPageAdopted(let change): change.note(in: &receipts)
+        case .offeredWindowAdopted(let change): change.note(in: &receipts)
+        case .pageChanged(let change): change.note(in: &receipts)
+        case .pageOpened(let change): change.note(in: &receipts)
+        case .pageRehosted(let change): change.note(in: &receipts)
+        case .pageRemoved(let change): change.note(in: &receipts)
+        case .pageUnloaded(let change): change.note(in: &receipts)
+        case .permissionAsked(let change): change.note(in: &receipts)
+        case .promptSettled(let change): change.note(in: &receipts)
+        case .quitWithDownloadsAsked(let change): change.note(in: &receipts)
+        case .saved(let change): change.note(in: &receipts)
+        case .scriptDialogAsked(let change): change.note(in: &receipts)
+        case .searchCatalogChanged(let change): change.note(in: &receipts)
+        case .sessionAdopted(let change): change.note(in: &receipts)
+        case .setupCompletedChanged(let change): change.note(in: &receipts)
+        case .setupDraftChanged(let change): change.note(in: &receipts)
+        case .setupFinished(let change): change.note(in: &receipts)
+        case .setupFlowChanged(let change): change.note(in: &receipts)
+        case .shortcutsChanged(let change): change.note(in: &receipts)
+        case .sidebarChanged(let change): change.note(in: &receipts)
+        case .sitePermissionsChanged(let change): change.note(in: &receipts)
+        case .spaceLockChanged(let change): change.note(in: &receipts)
+        case .spaceSettingsChanged(let change): change.note(in: &receipts)
+        case .spacesChanged(let change): change.note(in: &receipts)
+        case .splitGroupsChanged(let change): change.note(in: &receipts)
+        case .storageFailed(let change): change.note(in: &receipts)
+        case .syncJournalChanged(let change): change.note(in: &receipts)
+        case .syncRecordsSkipped(let change): change.note(in: &receipts)
+        case .syncStagingFailed(let change): change.note(in: &receipts)
+        case .tabCopied(let change): change.note(in: &receipts)
+        case .tabFaviconAssigned(let change): change.note(in: &receipts)
+        case .tabPagePutAway(let change): change.note(in: &receipts)
+        case .tabsChanged(let change): change.note(in: &receipts)
+        case .tabsImported(let change): change.note(in: &receipts)
+        case .transientPageClosed(let change): change.note(in: &receipts)
+        case .transientPagePromoted(let change): change.note(in: &receipts)
+        case .windowBroughtForward(let change): change.note(in: &receipts)
+        case .windowChanged(let change): change.note(in: &receipts)
+        case .windowClosed(let change): change.note(in: &receipts)
+        case .windowRecordsAdopted(let change): change.note(in: &receipts)
+        case .workspaceChanged(let change): change.note(in: &receipts)
+        case .workspaceClosed(let change): change.note(in: &receipts)
+        case .workspaceOpened(let change): change.note(in: &receipts)
         }
     }
 }
@@ -657,6 +833,131 @@ struct AdoptSitePermissions: Intent, SitePermissionIntent, Equatable, Sendable {
 
 struct AdoptWindowRecords: Intent, WindowIntent, Equatable, Sendable {
     let records: Data?
+}
+
+struct AgentIdentity: Equatable, Sendable {
+    static let maximumField: Int = 255
+    static let maximumPath: Int = 1024
+
+    var teamID: String?
+    var signingID: String?
+    var path: String?
+    var client: String?
+}
+
+struct AgentNotApproved: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("The person hasn’t allowed this agent to use Crest.")
+    }
+}
+
+struct AgentPreferences: Equatable, Sendable {
+    static let maximumAgents: Int = 32
+    static let maximumName: Int = 64
+
+    let isOn: Bool
+    let runsScripts: Bool
+    let spaceIDs: [UUID]
+    let agents: [ApprovedAgent]
+}
+
+struct AgentPreferencesChanged: CoreChange, Equatable, Sendable {
+    let preferences: AgentPreferences
+}
+
+struct AgentReach: Query, Equatable, Sendable {
+    typealias Answer = AgentReachList
+
+    let sessionID: UUID
+}
+
+struct AgentReachList: Equatable, Sendable {
+    let workspaceID: UUID?
+    let spaces: [AgentSpace]
+}
+
+struct AgentSessionState: Equatable, Sendable {
+    let sessionID: UUID
+    let identity: AgentIdentity
+    let name: String
+    let color: BrandColor?
+    let tabIDs: [UUID]
+}
+
+struct AgentSessionsChanged: CoreChange, Equatable, Sendable {
+    let sessions: [AgentSessionState]
+}
+
+struct AgentSessionsFull: Equatable, Sendable {
+    let maximum: Int
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Too many agents are using Crest right now.")
+    }
+}
+
+struct AgentSpace: Equatable, Sendable {
+    let spaceID: UUID
+    let name: String
+    let isLocked: Bool
+    let tabs: [AgentTab]
+}
+
+struct AgentSpaceUnavailable: Equatable, Sendable {
+    let spaceID: UUID
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("That Space isn’t one agents may use.")
+    }
+}
+
+struct AgentTab: Equatable, Sendable {
+    let tabID: UUID
+    let title: String
+    let url: String?
+    let placement: TabPlacement
+    let claimed: Bool
+}
+
+struct AgentTabStopped: Equatable, Sendable {
+    let tabID: UUID
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("The person stopped agents from using this tab.")
+    }
+}
+
+struct AgentTabUnavailable: Equatable, Sendable {
+    let tabID: UUID
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("That tab isn’t one agents may use.")
+    }
+}
+
+struct AgentsFull: Equatable, Sendable {
+    let maximum: Int
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Too many agents are allowed. Forget one in Settings first.")
+    }
+}
+
+struct AgentsOff: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Agents are turned off in Crest’s settings.")
+    }
+}
+
+struct AgentsUnavailable: Equatable, Sendable {
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Agents can’t use Crest on this device.")
+    }
+}
+
+struct AllowAgentSpace: Intent, AgentIntent, Equatable, Sendable {
+    let spaceID: UUID
+    let allowed: Bool
 }
 
 struct AlreadyInSpace: Equatable, Sendable {
@@ -785,7 +1086,7 @@ struct AppPreferences: Equatable, Sendable {
     var palette: PalettePreferences
 }
 
-struct AppPreferencesChanged: Equatable, Sendable {
+struct AppPreferencesChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let preferences: AppPreferences?
 }
@@ -795,13 +1096,22 @@ struct ApplyManualSetup: Intent, ImportWorkspace, SessionIntent, Equatable, Send
     let windowID: UUID
 }
 
+struct ApproveAgent: Intent, AgentIntent, Equatable, Sendable {
+    let agent: ApprovedAgent
+}
+
 struct ApproveEngineDownload: Equatable, Sendable {
     let profileID: UUID
     let downloadID: String
     let approvalToken: String
 }
 
-struct ArchiveChanged: Equatable, Sendable {
+struct ApprovedAgent: Equatable, Sendable {
+    var identity: AgentIdentity
+    var name: String
+}
+
+struct ArchiveChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let archived: [ArchivedTabState]
@@ -861,7 +1171,7 @@ struct AudioSpectrumChanged: Equatable, Sendable {
     let bands: Data
 }
 
-struct AuthenticationAsked: Equatable, Sendable {
+struct AuthenticationAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
     let question: AuthenticationQuestion
@@ -929,6 +1239,12 @@ struct BalancedProtectionRules: Query, Equatable, Sendable {
 struct BeforeUnloadAnswered: EngineEvent, Equatable, Sendable {
     let pageID: UUID
     let proceeds: Bool
+}
+
+struct BeginAgentSession: Intent, AgentIntent, Equatable, Sendable {
+    let sessionID: UUID
+    let identity: AgentIdentity
+    let name: String
 }
 
 struct BeginCloudMerge: Intent, CloudTransportIntent, Equatable, Sendable {
@@ -1211,6 +1527,11 @@ struct ChooseTabIcon: Intent, SessionIntent, Equatable, Sendable {
     let accent: TabIconAccent?
 }
 
+struct ClaimAgentTab: Intent, AgentIntent, Equatable, Sendable {
+    let sessionID: UUID
+    let tabID: UUID
+}
+
 struct CleanUpCurrentTabs: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID?
@@ -1230,6 +1551,17 @@ struct ClearHistory: Intent, SessionIntent, Equatable, Sendable {
 struct ClearPaletteChoices: Intent, PaletteIntent, Equatable, Sendable {
 }
 
+struct ClickPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let inputID: UUID
+    let point: PagePoint
+    let button: PointerButton
+    let count: Int
+    let modifiers: KeyModifiers
+}
+
 struct CloseInspector: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -1245,7 +1577,7 @@ struct ClosePreparationUnderway: Equatable, Sendable {
     let requestID: UUID
 }
 
-struct CloseReady: Equatable, Sendable {
+struct CloseReady: CoreChange, Equatable, Sendable {
     let requestID: UUID
     let allowed: Bool
 }
@@ -1318,7 +1650,7 @@ struct CloudFieldsOf: Query, Equatable, Sendable {
     let recordNames: [String]
 }
 
-struct CloudMergeBegan: Equatable, Sendable {
+struct CloudMergeBegan: CoreChange, Equatable, Sendable {
     let mergeID: Int64
 }
 
@@ -1349,7 +1681,7 @@ struct CloudSync: Query, Equatable, Sendable {
 
 }
 
-struct CloudSyncAdvanced: Equatable, Sendable {
+struct CloudSyncAdvanced: CoreChange, Equatable, Sendable {
     let status: CloudSyncStatus
     let steps: [CloudSyncStep]
 }
@@ -1382,7 +1714,7 @@ struct CloudTransport: Query, Equatable, Sendable {
 
 }
 
-struct CloudTransportChanged: Equatable, Sendable {
+struct CloudTransportChanged: CoreChange, Equatable, Sendable {
     let state: CloudTransportState
 }
 
@@ -1708,7 +2040,7 @@ struct CustomizeSetupSpace: Intent, SetupDraftIntent, Equatable, Sendable {
     let customization: SpaceCustomization
 }
 
-struct DataDeleted: Equatable, Sendable {
+struct DataDeleted: CoreChange, Equatable, Sendable {
     let requestID: UUID
     let deleted: Bool
 }
@@ -1815,7 +2147,7 @@ struct DockMenuSpace: Equatable, Sendable {
     let isLocked: Bool
 }
 
-struct DownloadApprovalAsked: Equatable, Sendable {
+struct DownloadApprovalAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let downloadID: UUID
     let spaceID: UUID?
@@ -1825,7 +2157,7 @@ struct DownloadApprovalAsked: Equatable, Sendable {
     let sourceHost: String?
 }
 
-struct DownloadDestinationAsked: Equatable, Sendable {
+struct DownloadDestinationAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let downloadID: UUID
     let spaceID: UUID
@@ -1887,7 +2219,7 @@ struct DownloadRiskVerdict: Equatable, Sendable {
     let requiresConfirmation: Bool
 }
 
-struct DownloadStarted: Equatable, Sendable {
+struct DownloadStarted: CoreChange, Equatable, Sendable {
     let downloadID: UUID
     let pageID: UUID
 }
@@ -1947,12 +2279,12 @@ struct DownloadTransferEstimator: Equatable, Sendable {
     var smoothedBytesPerSecond: Double?
 }
 
-struct DownloadUpdated: Equatable, Sendable {
+struct DownloadUpdated: CoreChange, Equatable, Sendable {
     let download: DownloadState
     let position: Int
 }
 
-struct DownloadsRemoved: Equatable, Sendable {
+struct DownloadsRemoved: CoreChange, Equatable, Sendable {
     let downloadIDs: [UUID]
 }
 
@@ -2072,6 +2404,10 @@ struct EditLinkRoute: Intent, LinkIntent, Equatable, Sendable {
     let destinationSpaceID: UUID?
 }
 
+struct EndAgentSession: Intent, AgentIntent, Equatable, Sendable {
+    let sessionID: UUID
+}
+
 struct EnforcedLimits: Query, Equatable, Sendable {
     typealias Answer = CapacityLimits
 
@@ -2128,7 +2464,7 @@ struct EnginePreferences: Equatable, Sendable {
     let rules: [SiteEngineRule]
 }
 
-struct EnginePreferencesChanged: Equatable, Sendable {
+struct EnginePreferencesChanged: CoreChange, Equatable, Sendable {
     let preferences: EnginePreferences
 }
 
@@ -2200,7 +2536,7 @@ struct EngineWindowPlacement: Query, Equatable, Sendable {
     let windowIDs: [UUID]
 }
 
-struct EnginesChanged: Equatable, Sendable {
+struct EnginesChanged: CoreChange, Equatable, Sendable {
     let roster: EngineRoster
 }
 
@@ -2230,6 +2566,15 @@ struct EvaluateContentScript: PageRequest, Equatable, Sendable {
     let evaluationID: UUID
     let source: String
     let frameID: String
+}
+
+struct EvaluatePageScript: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let evaluationID: UUID
+    let source: String
+    let world: PageScriptWorld
 }
 
 struct ExistingCredential: Equatable, Sendable, Identifiable {
@@ -2300,7 +2645,7 @@ struct ExtensionActionList: Equatable, Sendable {
     let actions: [ExtensionAction]
 }
 
-struct ExtensionInstallAsked: Equatable, Sendable {
+struct ExtensionInstallAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let windowID: UUID
     let question: ExtensionInstallQuestion
@@ -2537,12 +2882,16 @@ struct FolderTabsAround: Intent, SessionIntent, Equatable, Sendable {
     let tabID: UUID
 }
 
-struct FoldersChanged: Equatable, Sendable {
+struct FoldersChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let updated: [FolderState]
     let removed: [UUID]
     let order: [UUID]?
+}
+
+struct ForgetAgent: Intent, AgentIntent, Equatable, Sendable {
+    let identity: AgentIdentity
 }
 
 struct ForgetCloudZone: Intent, CloudTransportIntent, Equatable, Sendable {
@@ -2556,6 +2905,11 @@ struct ForgetEngineRule: Intent, Equatable, Sendable {
 struct ForgetPaletteChoices: Intent, PaletteIntent, Equatable, Sendable {
     let windowID: UUID
     let row: PaletteRow.Seed
+}
+
+struct GetAgentPreferences: Query, Equatable, Sendable {
+    typealias Answer = AgentPreferences
+
 }
 
 struct GetEnginePreferences: Query, Equatable, Sendable {
@@ -2609,7 +2963,7 @@ struct HistoryAddresses: Query, Equatable, Sendable {
     let addresses: [String]
 }
 
-struct HistoryChanged: Equatable, Sendable {
+struct HistoryChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let recorded: [HistoryEntryState]
@@ -2624,6 +2978,29 @@ struct HistoryEntryState: Equatable, Sendable, Identifiable {
     var firstVisitedAt: Date
     var lastVisitedAt: Date
     var visitCount: Int
+}
+
+struct HoldPageRendering: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let held: Bool
+    let width: Double
+    let height: Double
+}
+
+struct HoverPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let inputID: UUID
+    let point: PagePoint
+}
+
+struct IdentifyAgent: Intent, AgentIntent, Equatable, Sendable {
+    let sessionID: UUID
+    let name: String?
+    let color: BrandColor?
 }
 
 struct ImportAppPreferences: Intent, SessionIntent, Equatable, Sendable {
@@ -2838,6 +3215,14 @@ struct InteractionState: Equatable, Sendable {
     let state: Data?
 }
 
+struct InvalidAgent: Equatable, Sendable {
+    let maximumName: Int
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("Crest couldn’t tell which program this agent is.")
+    }
+}
+
 struct InvalidBlockedPopup: Equatable, Sendable {
 }
 
@@ -2958,6 +3343,10 @@ struct InvalidSyncRecords: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Crest couldn’t apply the latest changes from iCloud.")
     }
+}
+
+struct InvalidTabContent: Equatable, Sendable {
+    let tabID: UUID
 }
 
 struct InvalidTabIcon: Equatable, Sendable {
@@ -3187,7 +3576,7 @@ struct LinkPreferences: Equatable, Sendable {
     let rememberedSites: [RememberedSite]
 }
 
-struct LinkPreferencesChanged: Equatable, Sendable {
+struct LinkPreferencesChanged: CoreChange, Equatable, Sendable {
     let preferences: LinkPreferences
 }
 
@@ -3472,7 +3861,7 @@ struct NavigationFinished: EngineEvent, PageEvent, Equatable, Sendable {
     let title: String
 }
 
-struct NavigationRecorded: Equatable, Sendable {
+struct NavigationRecorded: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let workspaceID: UUID
     let spaceID: UUID
@@ -3600,11 +3989,18 @@ struct ObserveCloudAccountChange: Intent, CloudTransportIntent, Equatable, Senda
     let transition: CloudAccountTransition
 }
 
+struct ObservePageActivity: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let observing: Bool
+}
+
 struct OfferImportSources: Intent, SetupFlowIntent, Equatable, Sendable {
     let installed: [ImportSource]
 }
 
-struct OfferedPageAdopted: Equatable, Sendable {
+struct OfferedPageAdopted: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let workspaceID: UUID
     let windowID: UUID
@@ -3613,7 +4009,7 @@ struct OfferedPageAdopted: Equatable, Sendable {
     let shows: Bool
 }
 
-struct OfferedWindowAdopted: Equatable, Sendable {
+struct OfferedWindowAdopted: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let sourcePageID: UUID
     let workspaceID: UUID
@@ -3721,7 +4117,7 @@ struct PageCertificates: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
-struct PageChanged: Equatable, Sendable {
+struct PageChanged: CoreChange, Equatable, Sendable {
     let page: PageState
 }
 
@@ -3732,6 +4128,20 @@ struct PageCloseRequested: EngineEvent, PageEvent, Equatable, Sendable {
 struct PageClosed: EngineEvent, PageEvent, Equatable, Sendable {
     let pageID: UUID
     let restoreState: PageRestoreState?
+}
+
+struct PageConsoleLog: Equatable, Sendable {
+    let messages: [PageConsoleMessage]
+    let dropped: Int64
+}
+
+struct PageConsoleMessage: Equatable, Sendable {
+    let sequence: Int64
+    let level: PageConsoleLevel
+    let text: String
+    let source: String?
+    let line: Int
+    let at: Date
 }
 
 struct PageCrashed: EngineEvent, PageEvent, Equatable, Sendable {
@@ -3778,6 +4188,11 @@ struct PageGroupChanged: EngineEvent, Equatable, Sendable {
     let pageIDs: [UUID]
 }
 
+struct PageHeader: Equatable, Sendable {
+    let name: String
+    let value: String
+}
+
 struct PageHistoryChanged: Equatable, Sendable {
     let pageID: UUID
     let back: [PageHistoryEntry]
@@ -3805,6 +4220,13 @@ struct PageIconImage: Equatable, Sendable {
     let image: Data?
 }
 
+struct PageInputDelivered: Equatable, Sendable {
+    let pageID: UUID
+    let inputID: UUID
+    let delivered: Bool
+    let trusted: Bool
+}
+
 struct PageInspected: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -3813,6 +4235,13 @@ struct PageInspected: PageRequest, Equatable, Sendable {
 
 struct PageInteracted: Equatable, Sendable {
     let pageID: UUID
+}
+
+struct PageKey: Equatable, Sendable {
+    var key: String
+    var code: String
+    var keyCode: Int
+    var text: String?
 }
 
 struct PageLiveState: Equatable, Sendable {
@@ -3874,6 +4303,26 @@ struct PageNavigationStarted: Equatable, Sendable {
     let pageID: UUID
 }
 
+struct PageNetworkLog: Equatable, Sendable {
+    let requests: [PageNetworkRequest]
+    let dropped: Int64
+}
+
+struct PageNetworkRequest: Equatable, Sendable {
+    let sequence: Int64
+    let url: String
+    let method: String
+    let resourceType: String
+    let status: Int
+    let mimeType: String?
+    let requestHeaders: [PageHeader]
+    let responseHeaders: [PageHeader]
+    let started: Date
+    let duration: Double
+    let bytes: Int64
+    let failure: String?
+}
+
 struct PageNotLoadable: Equatable, Sendable {
     let pageID: UUID
 }
@@ -3888,8 +4337,13 @@ struct PageOffered: EngineEvent, Equatable, Sendable {
     let foreground: Bool
 }
 
-struct PageOpened: Equatable, Sendable {
+struct PageOpened: CoreChange, Equatable, Sendable {
     let page: PageState
+}
+
+struct PagePoint: Equatable, Sendable {
+    var x: Double
+    var y: Double
 }
 
 struct PagePresented: Equatable, Sendable {
@@ -3901,7 +4355,7 @@ struct PageProfileMismatch: Equatable, Sendable {
     let spaceID: UUID
 }
 
-struct PageRehosted: Equatable, Sendable {
+struct PageRehosted: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let spaceID: UUID
     let origin: SiteOrigin?
@@ -3910,7 +4364,7 @@ struct PageRehosted: Equatable, Sendable {
     let reason: RehostReason
 }
 
-struct PageRemoved: Equatable, Sendable {
+struct PageRemoved: CoreChange, Equatable, Sendable {
     let pageID: UUID
 }
 
@@ -3921,6 +4375,13 @@ struct PageRendererGone: Equatable, Sendable {
 struct PageRestoreState: Equatable, Sendable {
     var url: String
     var state: Data
+}
+
+struct PageScriptEvaluated: Equatable, Sendable {
+    let pageID: UUID
+    let evaluationID: UUID
+    let json: String?
+    let error: String?
 }
 
 struct PageSnapshot: Equatable, Sendable {
@@ -3965,7 +4426,7 @@ struct PageThemeChanged: Equatable, Sendable {
     let color: BrandColor?
 }
 
-struct PageUnloaded: Equatable, Sendable {
+struct PageUnloaded: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let workspaceID: UUID
     let tabID: UUID
@@ -4183,7 +4644,7 @@ struct PerformMediaAction: PageRequest, Equatable, Sendable {
     let action: MediaSessionAction
 }
 
-struct PermissionAsked: Equatable, Sendable {
+struct PermissionAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
     let question: PermissionQuestion
@@ -4287,6 +4748,15 @@ struct PresentPage: Query, Equatable, Sendable {
     let restoresUnloaded: Bool
 }
 
+struct PressKeyInPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let inputID: UUID
+    let key: PageKey
+    let modifiers: KeyModifiers
+}
+
 struct PrivateWorkspaceBoundary: Equatable, Sendable {
     let destinationWorkspaceID: UUID
 }
@@ -4343,7 +4813,7 @@ struct PromptAnswerMismatch: Equatable, Sendable {
     let promptID: UUID
 }
 
-struct PromptSettled: Equatable, Sendable {
+struct PromptSettled: CoreChange, Equatable, Sendable {
     let promptID: UUID
 }
 
@@ -4356,7 +4826,7 @@ struct ProtectedMediaUnavailable: EngineEvent, PageEvent, Equatable, Sendable {
     let keySystem: KeySystem
 }
 
-struct QuitWithDownloadsAsked: Equatable, Sendable {
+struct QuitWithDownloadsAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let requestID: UUID
     let liveDownloads: Int
@@ -4373,6 +4843,20 @@ struct ReadImport: Query, Equatable, Sendable {
 
     let source: ImportSource
     let profiles: [ImportProfile]
+}
+
+struct ReadPageConsole: PageRequest, Equatable, Sendable {
+    typealias Answer = PageConsoleLog
+
+    let pageID: UUID
+    let after: Int64
+}
+
+struct ReadPageNetwork: PageRequest, Equatable, Sendable {
+    typealias Answer = PageNetworkLog
+
+    let pageID: UUID
+    let after: Int64
 }
 
 struct ReassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
@@ -4693,7 +5177,7 @@ struct SaveSearchProvider: Intent, SearchCatalogIntent, Equatable, Sendable {
     let provider: CustomSearchProvider
 }
 
-struct Saved: Equatable, Sendable {
+struct Saved: CoreChange, Equatable, Sendable {
     let revision: Int64
 }
 
@@ -4716,7 +5200,7 @@ struct ScreenCaptureAccessMissing: Equatable, Sendable {
     let pageID: UUID
 }
 
-struct ScriptDialogAsked: Equatable, Sendable {
+struct ScriptDialogAsked: CoreChange, Equatable, Sendable {
     let promptID: UUID
     let pageID: UUID
     let question: ScriptDialogQuestion
@@ -4735,6 +5219,16 @@ struct ScriptDialogQuestion: Equatable, Sendable {
     var sourceURL: String
 }
 
+struct ScrollPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let inputID: UUID
+    let point: PagePoint
+    let deltaX: Double
+    let deltaY: Double
+}
+
 struct SearchCatalog: Equatable, Sendable {
     static let maximumCustomCount: Int = 32
 
@@ -4749,7 +5243,7 @@ struct SearchCatalog: Equatable, Sendable {
     let region: String?
 }
 
-struct SearchCatalogChanged: Equatable, Sendable {
+struct SearchCatalogChanged: CoreChange, Equatable, Sendable {
     let catalog: SearchCatalog
     let providers: [SearchProvider]
     let `default`: SearchProvider
@@ -4912,7 +5406,7 @@ struct SeparateSplits: Intent, SessionIntent, Equatable, Sendable {
     let selection: TabSelection
 }
 
-struct SessionAdopted: Equatable, Sendable {
+struct SessionAdopted: CoreChange, Equatable, Sendable {
     let favicons: [TabFavicon]
 }
 
@@ -4973,6 +5467,14 @@ struct SessionUnrecognized: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("Crest could not recognize this browser’s tab-session data.")
     }
+}
+
+struct SetAgentScripts: Intent, AgentIntent, Equatable, Sendable {
+    let runsScripts: Bool
+}
+
+struct SetAgents: Intent, AgentIntent, Equatable, Sendable {
+    let isOn: Bool
 }
 
 struct SetAppPreferences: Intent, SessionIntent, Equatable, Sendable {
@@ -5142,7 +5644,7 @@ struct SetupBusy: Equatable, Sendable {
     }
 }
 
-struct SetupCompletedChanged: Equatable, Sendable {
+struct SetupCompletedChanged: CoreChange, Equatable, Sendable {
     let completed: Bool
 }
 
@@ -5152,7 +5654,7 @@ struct SetupDraft: Equatable, Sendable {
     let orderWasEdited: Bool
 }
 
-struct SetupDraftChanged: Equatable, Sendable {
+struct SetupDraftChanged: CoreChange, Equatable, Sendable {
     let draft: SetupDraft?
 }
 
@@ -5170,12 +5672,12 @@ struct SetupFailure: Equatable, Sendable {
     let detail: String?
 }
 
-struct SetupFinished: Equatable, Sendable {
+struct SetupFinished: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let guideSpaceID: UUID?
 }
 
-struct SetupFlowChanged: Equatable, Sendable {
+struct SetupFlowChanged: CoreChange, Equatable, Sendable {
     let flow: SetupFlowState?
 }
 
@@ -5284,7 +5786,7 @@ struct ShortcutInUse: Equatable, Sendable {
     let commands: [ShortcutCommand]
 }
 
-struct ShortcutsChanged: Equatable, Sendable {
+struct ShortcutsChanged: CoreChange, Equatable, Sendable {
     let bindings: [ShortcutBinding]
     let isCustomized: Bool
 }
@@ -5359,7 +5861,7 @@ struct SidePanelRequested: Equatable, Sendable {
     let request: SidePanelRequest
 }
 
-struct SidebarChanged: Equatable, Sendable {
+struct SidebarChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let lists: [SidebarList]
@@ -5444,7 +5946,7 @@ struct SitePermissionScope: Equatable, Sendable {
     let revokesAuthorization: Bool
 }
 
-struct SitePermissionsChanged: Equatable, Sendable {
+struct SitePermissionsChanged: CoreChange, Equatable, Sendable {
     let spaceID: UUID
     let records: [SitePermissionRecordState]
     let touched: [SitePermissionScope]
@@ -5604,7 +6106,7 @@ struct SpaceLimitReached: Equatable, Sendable {
     }
 }
 
-struct SpaceLockChanged: Equatable, Sendable {
+struct SpaceLockChanged: CoreChange, Equatable, Sendable {
     let spaceID: UUID
     let profileID: UUID
     let isUnlocked: Bool
@@ -5670,7 +6172,7 @@ struct SpaceSettings: Equatable, Sendable {
     }
 }
 
-struct SpaceSettingsChanged: Equatable, Sendable {
+struct SpaceSettingsChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let settings: SpaceSettings
@@ -5715,7 +6217,7 @@ struct SpaceState: Equatable, Sendable, Identifiable {
     }
 }
 
-struct SpacesChanged: Equatable, Sendable {
+struct SpacesChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let added: [SpaceState]
     let removed: [UUID]
@@ -5778,7 +6280,7 @@ struct SplitGroupState: Equatable, Sendable, Identifiable {
     }
 }
 
-struct SplitGroupsChanged: Equatable, Sendable {
+struct SplitGroupsChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let groups: [SplitGroupState]
@@ -5867,6 +6369,10 @@ struct StepSplitMember: Intent, SessionIntent, Equatable, Sendable {
     let offset: Int
 }
 
+struct StopAgentTab: Intent, AgentIntent, Equatable, Sendable {
+    let tabID: UUID
+}
+
 struct StopLoading: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -5886,7 +6392,7 @@ struct StopTabSharing: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
-struct StorageFailed: Equatable, Sendable {
+struct StorageFailed: CoreChange, Equatable, Sendable {
     let reason: StorageFailure
 }
 
@@ -5928,7 +6434,7 @@ struct SweepExpiredRecords: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
 }
 
-struct SyncJournalChanged: Equatable, Sendable {
+struct SyncJournalChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let pendingRecords: Int
     let records: Int
@@ -5949,12 +6455,12 @@ struct SyncRecordReference: Equatable, Sendable, Identifiable {
     var id: UUID
 }
 
-struct SyncRecordsSkipped: Equatable, Sendable {
+struct SyncRecordsSkipped: CoreChange, Equatable, Sendable {
     let unreadable: Int
     let fromNewerBuild: Int
 }
 
-struct SyncStagingFailed: Equatable, Sendable {
+struct SyncStagingFailed: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let reason: SyncStagingFailure
 }
@@ -6008,7 +6514,7 @@ struct TabContent: Equatable, Sendable {
     var title: String?
 }
 
-struct TabCopied: Equatable, Sendable {
+struct TabCopied: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let sourceTabID: UUID
     let copyTabID: UUID
@@ -6019,7 +6525,7 @@ struct TabFavicon: Equatable, Sendable {
     let image: Data
 }
 
-struct TabFaviconAssigned: Equatable, Sendable {
+struct TabFaviconAssigned: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let tabID: UUID
     let adopts: Bool
@@ -6036,7 +6542,7 @@ struct TabLimitReached: Equatable, Sendable {
     let limit: Int
 }
 
-struct TabPagePutAway: Equatable, Sendable {
+struct TabPagePutAway: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let windowID: UUID
     let spaceID: UUID
@@ -6132,7 +6638,7 @@ struct TabState: Equatable, Sendable, Identifiable {
     }
 }
 
-struct TabsChanged: Equatable, Sendable {
+struct TabsChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
     let updated: [TabState]
@@ -6140,7 +6646,7 @@ struct TabsChanged: Equatable, Sendable {
     let order: [UUID]?
 }
 
-struct TabsImported: Equatable, Sendable {
+struct TabsImported: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let tabs: [ImportedTab]
 }
@@ -6171,12 +6677,12 @@ struct TransientAlreadyCompleted: Equatable, Sendable {
     let pageID: UUID
 }
 
-struct TransientPageClosed: Equatable, Sendable {
+struct TransientPageClosed: CoreChange, Equatable, Sendable {
     let pageID: UUID
     let workspaceID: UUID
 }
 
-struct TransientPagePromoted: Equatable, Sendable {
+struct TransientPagePromoted: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let pageID: UUID
     let tabID: UUID
@@ -6205,8 +6711,24 @@ struct TranslationRuleLimitReached: Equatable, Sendable {
     let limit: Int
 }
 
+struct TypeInPage: PageRequest, Equatable, Sendable {
+    typealias Answer = Bool
+
+    let pageID: UUID
+    let inputID: UUID
+    let text: String
+}
+
 struct UnassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
     let command: ShortcutCommand
+}
+
+struct UnknownAgentSession: Equatable, Sendable {
+    let sessionID: UUID
+
+    var message: LocalizedStringResource {
+        LocalizedStringResource("This agent is no longer connected to Crest.")
+    }
 }
 
 struct UnknownArchivedTab: Equatable, Sendable {
@@ -6329,15 +6851,15 @@ struct WebPagesOnly: Equatable, Sendable {
     }
 }
 
-struct WindowBroughtForward: Equatable, Sendable {
+struct WindowBroughtForward: CoreChange, Equatable, Sendable {
     let windowID: UUID
 }
 
-struct WindowChanged: Equatable, Sendable {
+struct WindowChanged: CoreChange, Equatable, Sendable {
     let window: WindowState
 }
 
-struct WindowClosed: Equatable, Sendable {
+struct WindowClosed: CoreChange, Equatable, Sendable {
     let windowID: UUID
 }
 
@@ -6351,7 +6873,7 @@ struct WindowNotOpen: Equatable, Sendable {
     let windowID: UUID
 }
 
-struct WindowRecordsAdopted: Equatable, Sendable {
+struct WindowRecordsAdopted: CoreChange, Equatable, Sendable {
     let layouts: [WindowLayout]
 }
 
@@ -6375,18 +6897,18 @@ struct WorkspaceBusy: Equatable, Sendable {
     let workspaceID: UUID
 }
 
-struct WorkspaceChanged: Equatable, Sendable {
+struct WorkspaceChanged: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let defaultSpaceID: UUID?
     let isDisposableSeed: Bool
     let spaceDeletions: [SpaceDeletionState]
 }
 
-struct WorkspaceClosed: Equatable, Sendable {
+struct WorkspaceClosed: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
 }
 
-struct WorkspaceOpened: Equatable, Sendable {
+struct WorkspaceOpened: CoreChange, Equatable, Sendable {
     let workspaceID: UUID
     let kind: WorkspaceKind
     let session: SessionState
@@ -6539,14 +7061,6 @@ enum CredentialCaptureAction: Int, CaseIterable, Sendable {
     case discardPending = 7
 }
 
-enum CredentialCaptureEvent: Int, CaseIterable, Sendable {
-    case username = 0
-    case focus = 1
-    case submit = 2
-    case documentState = 3
-    case filled = 4
-}
-
 enum CredentialPasswordKind: Int, CaseIterable, Sendable {
     case current = 0
     case new = 1
@@ -6640,6 +7154,14 @@ enum JavaScriptDialogKind: Int, CaseIterable, Sendable {
     case beforeUnload = 3
 }
 
+struct KeyModifiers: OptionSet, Sendable {
+    let rawValue: Int
+    static let shift = KeyModifiers(rawValue: 1)
+    static let control = KeyModifiers(rawValue: 2)
+    static let option = KeyModifiers(rawValue: 4)
+    static let command = KeyModifiers(rawValue: 8)
+}
+
 enum MediaPlayback: Int, CaseIterable, Sendable {
     case none = 0
     case playing = 1
@@ -6665,6 +7187,14 @@ enum MediaSessionDisposition: Int, CaseIterable, Sendable {
     case publish = 2
 }
 
+enum PageConsoleLevel: Int, CaseIterable, Sendable {
+    case debug = 0
+    case log = 1
+    case info = 2
+    case warning = 3
+    case error = 4
+}
+
 enum PageExportFormat: Int, CaseIterable, Sendable {
     case pdf = 0
     case png = 1
@@ -6679,10 +7209,15 @@ struct PageMediaActivity: OptionSet, Sendable {
     static let pictureInPicture = PageMediaActivity(rawValue: 4)
 }
 
-enum PasskeyDeviceConfiguration: Int, CaseIterable, Sendable {
-    case configured = 0
-    case notConfigured = 1
-    case unknown = 2
+enum PageScriptWorld: Int, CaseIterable, Sendable {
+    case agent = 0
+    case page = 1
+}
+
+enum PointerButton: Int, CaseIterable, Sendable {
+    case primary = 0
+    case secondary = 1
+    case middle = 2
 }
 
 enum ProfileNotificationSource: Int, CaseIterable, Sendable {
@@ -8200,30 +8735,57 @@ struct CloudSyncProblem: Hashable, Sendable {
 
 /// The members of the core's `CloudSyncStepKind`. A member's wire tag is its index in `all`.
 struct CloudSyncStepKind: Hashable, Sendable {
+    enum Kinds: Sendable {
+        case checkEntitlement
+        case checkAccount
+        case replaceSeed
+        case compareContent
+        case takeCloudContent
+        case applyChosenCopy
+        case startTransport
+        case discardStartedTransport
+        case stopTransport
+        case syncTransport
+        case pullTransport
+        case notifyTransport
+        case scheduleRetry
+        case cancelRetry
+        case restartAfterAccountChange
+    }
+
     let tag: Int
+    var kind: Kinds { facts.kind }
     var name: String { facts.name }
     private let facts: Facts
 
-    private init(tag: Int, name: String) {
+    private init(tag: Int, kind: Kinds, name: String) {
         self.tag = tag
-        facts = Facts(name: name)
+        facts = Facts(kind: kind, name: name)
     }
 
-    static let checkEntitlement = CloudSyncStepKind(tag: 0, name: "checkEntitlement")
-    static let checkAccount = CloudSyncStepKind(tag: 1, name: "checkAccount")
-    static let replaceSeed = CloudSyncStepKind(tag: 2, name: "replaceSeed")
-    static let compareContent = CloudSyncStepKind(tag: 3, name: "compareContent")
-    static let takeCloudContent = CloudSyncStepKind(tag: 4, name: "takeCloudContent")
-    static let applyChosenCopy = CloudSyncStepKind(tag: 5, name: "applyChosenCopy")
-    static let startTransport = CloudSyncStepKind(tag: 6, name: "startTransport")
-    static let discardStartedTransport = CloudSyncStepKind(tag: 7, name: "discardStartedTransport")
-    static let stopTransport = CloudSyncStepKind(tag: 8, name: "stopTransport")
-    static let syncTransport = CloudSyncStepKind(tag: 9, name: "syncTransport")
-    static let pullTransport = CloudSyncStepKind(tag: 10, name: "pullTransport")
-    static let notifyTransport = CloudSyncStepKind(tag: 11, name: "notifyTransport")
-    static let scheduleRetry = CloudSyncStepKind(tag: 12, name: "scheduleRetry")
-    static let cancelRetry = CloudSyncStepKind(tag: 13, name: "cancelRetry")
-    static let restartAfterAccountChange = CloudSyncStepKind(tag: 14, name: "restartAfterAccountChange")
+    static let checkEntitlement = CloudSyncStepKind(tag: 0, kind: .checkEntitlement, name: "checkEntitlement")
+    static let checkAccount = CloudSyncStepKind(tag: 1, kind: .checkAccount, name: "checkAccount")
+    static let replaceSeed = CloudSyncStepKind(tag: 2, kind: .replaceSeed, name: "replaceSeed")
+    static let compareContent = CloudSyncStepKind(tag: 3, kind: .compareContent, name: "compareContent")
+    static let takeCloudContent = CloudSyncStepKind(tag: 4, kind: .takeCloudContent, name: "takeCloudContent")
+    static let applyChosenCopy = CloudSyncStepKind(tag: 5, kind: .applyChosenCopy, name: "applyChosenCopy")
+    static let startTransport = CloudSyncStepKind(tag: 6, kind: .startTransport, name: "startTransport")
+    static let discardStartedTransport = CloudSyncStepKind(
+        tag: 7,
+        kind: .discardStartedTransport,
+        name: "discardStartedTransport"
+    )
+    static let stopTransport = CloudSyncStepKind(tag: 8, kind: .stopTransport, name: "stopTransport")
+    static let syncTransport = CloudSyncStepKind(tag: 9, kind: .syncTransport, name: "syncTransport")
+    static let pullTransport = CloudSyncStepKind(tag: 10, kind: .pullTransport, name: "pullTransport")
+    static let notifyTransport = CloudSyncStepKind(tag: 11, kind: .notifyTransport, name: "notifyTransport")
+    static let scheduleRetry = CloudSyncStepKind(tag: 12, kind: .scheduleRetry, name: "scheduleRetry")
+    static let cancelRetry = CloudSyncStepKind(tag: 13, kind: .cancelRetry, name: "cancelRetry")
+    static let restartAfterAccountChange = CloudSyncStepKind(
+        tag: 14,
+        kind: .restartAfterAccountChange,
+        name: "restartAfterAccountChange"
+    )
 
     static let all: [CloudSyncStepKind] = [
         checkEntitlement,
@@ -8256,15 +8818,18 @@ struct CloudSyncStepKind: Hashable, Sendable {
     }
 
     private final class Facts: Sendable {
+        let kind: Kinds
         let name: String
 
-        init(name: String) {
+        init(kind: Kinds, name: String) {
+            self.kind = kind
             self.name = name
         }
     }
 }
 
 /// The members of the core's `CloudTransportReport`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `settle`.
 struct CloudTransportReport: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
@@ -8467,6 +9032,47 @@ struct ContentBlockingPolicy: Hashable, Sendable {
             self.identifier = identifier
             self.blockedHostSuffixes = blockedHostSuffixes
             self.blocksContent = blocksContent
+        }
+    }
+}
+
+/// The members of the core's `CredentialCaptureEvent`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `decide`.
+struct CredentialCaptureEvent: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    private let facts: Facts
+
+    private init(tag: Int, name: String) {
+        self.tag = tag
+        facts = Facts(name: name)
+    }
+
+    static let username = CredentialCaptureEvent(tag: 0, name: "username")
+    static let focus = CredentialCaptureEvent(tag: 1, name: "focus")
+    static let submit = CredentialCaptureEvent(tag: 2, name: "submit")
+    static let documentState = CredentialCaptureEvent(tag: 3, name: "documentState")
+    static let filled = CredentialCaptureEvent(tag: 4, name: "filled")
+
+    static let all: [CredentialCaptureEvent] = [username, focus, submit, documentState, filled]
+
+    static func named(_ name: String?) -> CredentialCaptureEvent? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: CredentialCaptureEvent, rhs: CredentialCaptureEvent) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+
+        init(name: String) {
+            self.name = name
         }
     }
 }
@@ -8996,6 +9602,7 @@ struct CrestBackplate: Hashable, Sendable {
 }
 
 /// The members of the core's `CrestChargeKind`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `normalize`.
 struct CrestChargeKind: Hashable, Sendable {
     enum Kinds: Sendable {
         case heraldic
@@ -14889,6 +15496,47 @@ struct PasskeyAuthorizationState: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `PasskeyDeviceConfiguration`. A member's wire tag is its index in `all`.
+struct PasskeyDeviceConfiguration: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var rulesOutPasskeys: Bool { facts.rulesOutPasskeys }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, rulesOutPasskeys: Bool) {
+        self.tag = tag
+        facts = Facts(name: name, rulesOutPasskeys: rulesOutPasskeys)
+    }
+
+    static let configured = PasskeyDeviceConfiguration(tag: 0, name: "configured", rulesOutPasskeys: false)
+    static let notConfigured = PasskeyDeviceConfiguration(tag: 1, name: "notConfigured", rulesOutPasskeys: true)
+    static let unknown = PasskeyDeviceConfiguration(tag: 2, name: "unknown", rulesOutPasskeys: false)
+
+    static let all: [PasskeyDeviceConfiguration] = [configured, notConfigured, unknown]
+
+    static func named(_ name: String?) -> PasskeyDeviceConfiguration? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: PasskeyDeviceConfiguration, rhs: PasskeyDeviceConfiguration) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let rulesOutPasskeys: Bool
+
+        init(name: String, rulesOutPasskeys: Bool) {
+            self.name = name
+            self.rulesOutPasskeys = rulesOutPasskeys
+        }
+    }
+}
+
 /// The members of the core's `PracticeTab`. A member's wire tag is its index in `all`.
 struct PracticeTab: Hashable, Sendable {
     let tag: Int
@@ -16315,24 +16963,36 @@ struct SetupPhase: Hashable, Sendable {
 /// The members of the core's `SetupStep`. A member's wire tag is its index in `all`.
 /// Core-only behavior, not emitted: `next`, `back`.
 struct SetupStep: Hashable, Sendable {
+    enum Kinds: Sendable {
+        case welcome
+        case featureSpaces
+        case featureTabs
+        case featureSync
+        case importBrowser
+        case review
+        case manualSetup
+        case complete
+    }
+
     let tag: Int
+    var kind: Kinds { facts.kind }
     var name: String { facts.name }
     var progressPosition: Int { facts.progressPosition }
     private let facts: Facts
 
-    private init(tag: Int, name: String, progressPosition: Int) {
+    private init(tag: Int, kind: Kinds, name: String, progressPosition: Int) {
         self.tag = tag
-        facts = Facts(name: name, progressPosition: progressPosition)
+        facts = Facts(kind: kind, name: name, progressPosition: progressPosition)
     }
 
-    static let welcome = SetupStep(tag: 0, name: "welcome", progressPosition: 0)
-    static let featureSpaces = SetupStep(tag: 1, name: "featureSpaces", progressPosition: 0)
-    static let featureTabs = SetupStep(tag: 2, name: "featureTabs", progressPosition: 0)
-    static let featureSync = SetupStep(tag: 3, name: "featureSync", progressPosition: 0)
-    static let importBrowser = SetupStep(tag: 4, name: "importBrowser", progressPosition: 1)
-    static let review = SetupStep(tag: 5, name: "review", progressPosition: 2)
-    static let manualSetup = SetupStep(tag: 6, name: "manualSetup", progressPosition: 2)
-    static let complete = SetupStep(tag: 7, name: "complete", progressPosition: 2)
+    static let welcome = SetupStep(tag: 0, kind: .welcome, name: "welcome", progressPosition: 0)
+    static let featureSpaces = SetupStep(tag: 1, kind: .featureSpaces, name: "featureSpaces", progressPosition: 0)
+    static let featureTabs = SetupStep(tag: 2, kind: .featureTabs, name: "featureTabs", progressPosition: 0)
+    static let featureSync = SetupStep(tag: 3, kind: .featureSync, name: "featureSync", progressPosition: 0)
+    static let importBrowser = SetupStep(tag: 4, kind: .importBrowser, name: "importBrowser", progressPosition: 1)
+    static let review = SetupStep(tag: 5, kind: .review, name: "review", progressPosition: 2)
+    static let manualSetup = SetupStep(tag: 6, kind: .manualSetup, name: "manualSetup", progressPosition: 2)
+    static let complete = SetupStep(tag: 7, kind: .complete, name: "complete", progressPosition: 2)
 
     static let all: [SetupStep] = [
         welcome,
@@ -16358,10 +17018,12 @@ struct SetupStep: Hashable, Sendable {
     }
 
     private final class Facts: Sendable {
+        let kind: Kinds
         let name: String
         let progressPosition: Int
 
-        init(name: String, progressPosition: Int) {
+        init(kind: Kinds, name: String, progressPosition: Int) {
+            self.kind = kind
             self.name = name
             self.progressPosition = progressPosition
         }
@@ -19294,12 +19956,14 @@ struct SitePermission: Hashable, Sendable {
 }
 
 /// The members of the core's `SitePermissionDecision`. A member's wire tag is its index in `all`.
+/// Core-only behavior, not emitted: `record`.
 struct SitePermissionDecision: Hashable, Sendable {
     let tag: Int
     var name: String { facts.name }
     var verdict: SitePermissionVerdict { facts.verdict }
     var grants: Bool { facts.grants }
     var denies: Bool { facts.denies }
+    var asks: Bool { facts.asks }
     var isPersistent: Bool { facts.isPersistent }
     var precedence: Int { facts.precedence }
     var title: LocalizedStringResource { facts.title }
@@ -19311,6 +19975,7 @@ struct SitePermissionDecision: Hashable, Sendable {
         verdict: SitePermissionVerdict,
         grants: Bool,
         denies: Bool,
+        asks: Bool,
         isPersistent: Bool,
         precedence: Int,
         title: LocalizedStringResource
@@ -19321,6 +19986,7 @@ struct SitePermissionDecision: Hashable, Sendable {
             verdict: verdict,
             grants: grants,
             denies: denies,
+            asks: asks,
             isPersistent: isPersistent,
             precedence: precedence,
             title: title
@@ -19333,6 +19999,7 @@ struct SitePermissionDecision: Hashable, Sendable {
         verdict: .ask,
         grants: false,
         denies: false,
+        asks: true,
         isPersistent: false,
         precedence: 2,
         title: LocalizedStringResource("Ask")
@@ -19343,6 +20010,7 @@ struct SitePermissionDecision: Hashable, Sendable {
         verdict: .grant,
         grants: true,
         denies: false,
+        asks: false,
         isPersistent: false,
         precedence: 1,
         title: LocalizedStringResource("Allowed for Session")
@@ -19353,6 +20021,7 @@ struct SitePermissionDecision: Hashable, Sendable {
         verdict: .deny,
         grants: false,
         denies: true,
+        asks: false,
         isPersistent: false,
         precedence: 3,
         title: LocalizedStringResource("Blocked for Session")
@@ -19363,6 +20032,7 @@ struct SitePermissionDecision: Hashable, Sendable {
         verdict: .grant,
         grants: true,
         denies: false,
+        asks: false,
         isPersistent: true,
         precedence: 0,
         title: LocalizedStringResource("Allow")
@@ -19373,6 +20043,7 @@ struct SitePermissionDecision: Hashable, Sendable {
         verdict: .deny,
         grants: false,
         denies: true,
+        asks: false,
         isPersistent: true,
         precedence: 4,
         title: LocalizedStringResource("Block")
@@ -19403,6 +20074,7 @@ struct SitePermissionDecision: Hashable, Sendable {
         let verdict: SitePermissionVerdict
         let grants: Bool
         let denies: Bool
+        let asks: Bool
         let isPersistent: Bool
         let precedence: Int
         let title: LocalizedStringResource
@@ -19412,6 +20084,7 @@ struct SitePermissionDecision: Hashable, Sendable {
             verdict: SitePermissionVerdict,
             grants: Bool,
             denies: Bool,
+            asks: Bool,
             isPersistent: Bool,
             precedence: Int,
             title: LocalizedStringResource
@@ -19420,6 +20093,7 @@ struct SitePermissionDecision: Hashable, Sendable {
             self.verdict = verdict
             self.grants = grants
             self.denies = denies
+            self.asks = asks
             self.isPersistent = isPersistent
             self.precedence = precedence
             self.title = title
