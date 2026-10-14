@@ -8,7 +8,19 @@ import WebKit
 /// here is persisted or shared between pages, Spaces, profiles, or private sessions.
 @Observable @MainActor
 final class BrowserPageTranslation {
-    var sourceID = ""
+    /// The unsupported-language notice speaks for Detect Language only; a
+    /// source the person picks from the menu is one Apple translates.
+    var sourceID = "" {
+        didSet {
+            guard let unsupportedSourceID, sourceID != oldValue else { return }
+            let notice = unsupportedNotice(for: unsupportedSourceID)
+            if sourceID.isEmpty {
+                status = notice
+            } else if status == notice {
+                status = ""
+            }
+        }
+    }
     var targetID = ""
     private(set) var languages: [Locale.Language] = []
     private(set) var installedLanguageIDs: Set<String> = []
@@ -91,6 +103,10 @@ final class BrowserPageTranslation {
         return Locale.current.localizedString(forIdentifier: identifier) ?? identifier
     }
 
+    private func unsupportedNotice(for identifier: String) -> String {
+        String(localized: "Apple Translation doesn’t support \(languageName(identifier)).")
+    }
+
     /// Whole-page translation rewrites a live DOM through Apple's Translation
     /// session, which only the WebKit port exposes; another engine's page
     /// leaves the translation inert.
@@ -128,11 +144,6 @@ final class BrowserPageTranslation {
                 guard let detected else { continue }
                 hasDetected = true
                 sourceID = detected
-                let preferred = Locale.Language(identifier: Locale.preferredLanguages.first ?? "en")
-                guard
-                    languageRules.decision(for: detected)?.target != nil
-                        || preferred.languageCode != Locale.Language(identifier: detected).languageCode
-                else { return }
                 await loadLanguages()
                 guard isActive, revision == documentRevision, !isWorking, !Task.isCancelled else { return }
                 let detectedLanguage = Locale.Language(identifier: detected)
@@ -142,15 +153,21 @@ final class BrowserPageTranslation {
                         $0.languageCode == detectedLanguage.languageCode && $0.script == detectedLanguage.script
                     }
                 // Apple lists every language it translates, so one missing from
-                // a loaded list is not offered and cannot be chosen.
+                // a loaded list is not offered and cannot be chosen. A page in
+                // the person's own language says so too, for when they open
+                // translation themselves.
                 if supported == nil, !languages.isEmpty {
                     sourceID = ""
                     unsupportedSourceID = detected
-                    status = String(localized: "Apple Translation doesn’t support \(languageName(detected)).")
+                    status = unsupportedNotice(for: detected)
                     return
                 }
                 sourceID = supported?.minimalIdentifier ?? detected
-                guard isActive, revision == documentRevision, !isWorking, !Task.isCancelled else { return }
+                let preferred = Locale.Language(identifier: Locale.preferredLanguages.first ?? "en")
+                guard
+                    languageRules.decision(for: detected)?.target != nil
+                        || preferred.languageCode != detectedLanguage.languageCode
+                else { return }
                 if let target = languageRules.decision(for: sourceID)?.target, automaticallyTranslates {
                     targetID = target
                 }
