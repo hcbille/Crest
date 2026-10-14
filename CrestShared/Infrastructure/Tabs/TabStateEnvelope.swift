@@ -47,11 +47,18 @@ struct BrowserTabStateEnvelope: Equatable, Sendable {
         self.osBuild = osBuild
     }
 
+    /// True when this build of Crest can read the frame, and with it the
+    /// core's history it carries.
+    var isReadable: Bool {
+        Self.readableFormatVersions.contains(formatVersion)
+    }
+
     /// True when this build of Crest may hand the payload to its engine: its
     /// engine's tag decides, or an untagged payload is from this OS build.
-    /// Everything else is treated as absent state.
+    /// Everything else, and a frame that carries only history, is treated as
+    /// absent state.
     var isRestorable: Bool {
-        Self.readableFormatVersions.contains(formatVersion)
+        isReadable && !interactionState.isEmpty
             && (BrowserEngineInteractionState.isTagged(interactionState) || osBuild == Self.currentOSBuild)
     }
 

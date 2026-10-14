@@ -121,6 +121,14 @@ final class BrowserTabStateArchiveTests: XCTestCase {
         XCTAssertNil(earlier.history, "A version 1 frame, as earlier builds wrote it, carries no history.")
         XCTAssertEqual(earlier.interactionState, state)
         XCTAssertTrue(earlier.isRestorable)
+
+        // A page with no engine state yet still keeps the core's history.
+        let historyOnly = try XCTUnwrap(
+            BrowserTabStateEnvelope.decode(
+                BrowserTabStateEnvelope(interactionState: Data(), url: url, history: history).encoded()))
+        XCTAssertEqual(historyOnly.history, history)
+        XCTAssertTrue(historyOnly.isReadable)
+        XCTAssertFalse(historyOnly.isRestorable, "An empty engine state is never handed to the engine.")
     }
 
     func testUnframedOrTruncatedDataDecodesToNothing() throws {

@@ -89,11 +89,11 @@ final class BrowserTabStateArchive: BrowserTabStateArchiving, @unchecked Sendabl
     }
 
     func archive(interactionState: Data, url: URL?, history: Data?, profileID: UUID, tabID: UUID) {
-        guard !interactionState.isEmpty else { return }
+        guard !interactionState.isEmpty || history != nil else { return }
         var encoded = BrowserTabStateEnvelope(interactionState: interactionState, url: url, history: history).encoded()
         // The engine history matters most: past the limit the core's history
         // goes first, and the tab relaunches with what its engine kept.
-        if encoded.count > maximumStateByteCount, history != nil {
+        if encoded.count > maximumStateByteCount, history != nil, !interactionState.isEmpty {
             encoded = BrowserTabStateEnvelope(interactionState: interactionState, url: url).encoded()
         }
         guard encoded.count <= maximumStateByteCount else {

@@ -267,7 +267,6 @@ final class BrowserPageHost {
             state = nil
             history = nil
         }
-        guard let state else { return }
         tabState.prepareCopy(
             state, url: url, history: history, for: BrowserTabRuntimeAssignment(tabID: copyID, in: space))
     }

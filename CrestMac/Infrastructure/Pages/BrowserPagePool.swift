@@ -272,9 +272,8 @@ final class BrowserPagePool:
         guard let runtime = source.tabRuntimes[tab.id] else {
             if let url = tab.url {
                 let history = source.host.tabState.history(for: assignment, expecting: url)
-                if let state = source.host.archivedInteractionState(for: assignment, expecting: url) {
-                    host.tabState.prepareCopy(state, url: url, history: history, for: assignment)
-                }
+                let state = source.host.archivedInteractionState(for: assignment, expecting: url)
+                host.tabState.prepareCopy(state, url: url, history: history, for: assignment)
             }
             source.host.discardArchivedTabState(matching: assignment)
             source.runtimeStore.removePresentation(of: tab.id)

@@ -22,8 +22,13 @@ final class BrowserTabStateCoordinator {
         pendingCopies = pendingCopies.filter { assignments.contains($0.key) }
     }
 
-    func prepareCopy(_ state: Data, url: URL?, history: Data?, for assignment: BrowserTabRuntimeAssignment) {
-        pendingCopies[assignment] = BrowserTabStateEnvelope(interactionState: state, url: url, history: history)
+    /// Keeps what the copy `assignment` opens with: its engine state, the
+    /// core's history, or both. A page with no engine state yet still has the
+    /// history the core keeps for it.
+    func prepareCopy(_ state: Data?, url: URL?, history: Data?, for assignment: BrowserTabRuntimeAssignment) {
+        guard state != nil || history != nil else { return }
+        pendingCopies[assignment] = BrowserTabStateEnvelope(
+            interactionState: state ?? Data(), url: url, history: history)
     }
 
     func archivePage(_ page: BrowserPlatformPage, for tabID: UUID) {
@@ -34,11 +39,16 @@ final class BrowserTabStateCoordinator {
     /// the core no longer holds.
     func archivePage(_ page: BrowserPlatformPage, showing url: URL?, for tabID: UUID) {
         // WebKit drives adopted popups; they are never persisted as user tabs.
-        guard let archive, !page.wasOpenedAsPopup, let state = page.interactionState else { return }
+        guard let archive, !page.wasOpenedAsPopup else { return }
+        // The core keeps the page's history whether or not its engine has
+        // state to keep yet, as before its first document commits.
+        let state = page.interactionState
+        let history = page.corePage.archivedHistory
+        guard state != nil || history != nil else { return }
         archive.archive(
-            interactionState: state,
+            interactionState: state ?? Data(),
             url: url,
-            history: page.corePage.archivedHistory,
+            history: history,
             profileID: page.profileID,
             tabID: tabID
         )
@@ -56,7 +66,10 @@ final class BrowserTabStateCoordinator {
         expecting url: URL,
         consumePendingCopy: Bool = true
     ) -> Data? {
-        envelope(for: assignment, expecting: url, consumePendingCopy: consumePendingCopy)?.interactionState
+        guard let envelope = envelope(for: assignment, expecting: url, consumePendingCopy: consumePendingCopy),
+            envelope.isRestorable
+        else { return nil }
+        return envelope.interactionState
     }
 
     /// What the tab's pending copy keeps, or else its archive, when it still
@@ -76,7 +89,7 @@ final class BrowserTabStateCoordinator {
         guard let archive,
             let archived = archive.archivedState(profileID: assignment.profileID, tabID: assignment.tabID),
             let envelope = BrowserTabStateEnvelope.decode(archived),
-            envelope.isRestorable,
+            envelope.isReadable,
             SamePage.restoresArchivedState(archivedURL: envelope.url, tabURL: url)
         else { return nil }
         return envelope

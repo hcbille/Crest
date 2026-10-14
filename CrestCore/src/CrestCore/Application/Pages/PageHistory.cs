@@ -262,7 +262,9 @@ internal sealed partial class PageHistory {
             var oldest = runs[0];
             if (live == 0 && oldest.Current <= 0) return;
             oldest.Entries.RemoveAt(0);
-            oldest.Current--;
+            // A run the page left on the entry it drops returns to the first
+            // entry it keeps.
+            oldest.Current = oldest.Entries.Count == 0 ? -1 : Math.Max(oldest.Current - 1, 0);
             if (oldest.Entries.Count > 0) {
                 oldest.Start = oldest.Entries[0].Id;
             } else if (live > 0) {
