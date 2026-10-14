@@ -115,12 +115,15 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         }
     )
     /// Tells the core what the page shows and what its navigations and icon do.
-    @ObservationIgnored lazy var reporter = EnginePageReporter(page: corePage) { [weak self] pendingURL in
-        self?.snapshot(pendingURL: pendingURL)
-            ?? PageSnapshot(
-                url: nil, pendingURL: pendingURL, title: "", isLoading: false, canGoBack: false,
-                canGoForward: false, security: PageSecurity.none, media: [])
-    }
+    @ObservationIgnored lazy var reporter = EnginePageReporter(
+        page: corePage,
+        snapshot: { [weak self] pendingURL in
+            self?.snapshot(pendingURL: pendingURL)
+                ?? PageSnapshot(
+                    url: nil, pendingURL: pendingURL, title: "", isLoading: false, security: PageSecurity.none,
+                    media: [])
+        },
+        history: { [weak self] in self?.pageEngine.reportedHistory })
     /// The reporter that tells the core what the page's engine shows.
     var navigationReporter: EnginePageReporter? { reporter }
     @ObservationIgnored private let credentialSession: BrowserCredentialSession
@@ -398,6 +401,10 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
 
     func mediaActivityMayHaveChanged() {
         refreshMediaActivity()
+    }
+
+    func historyMayHaveChanged() {
+        reporter.reportHistoryAgain()
     }
 
     func routeModifiedLink(_ url: URL, selecting: Bool) {
@@ -1005,7 +1012,7 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     }
 
     /// What WebKit shows for the page now: the document and its title,
-    /// whether it loads, its history with Crest's supplement, the page's
+    /// whether it loads, the page's
     /// security from its secure-content flag and the trust it kept, and the
     /// media WebKit last said it runs.
     private func snapshot(pendingURL: String?) -> PageSnapshot {
@@ -1016,8 +1023,6 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
             pendingURL: pendingURL,
             title: webView.title ?? "",
             isLoading: webView.isLoading,
-            canGoBack: !navigationHistory.backItems.isEmpty || webView.canGoBack,
-            canGoForward: !navigationHistory.forwardItems.isEmpty || webView.canGoForward,
             security: PageSecurity(
                 webKitURL: webView.url,
                 hasOnlySecureContent: webView.hasOnlySecureContent,

@@ -4077,6 +4077,10 @@
     "find-close-returns-page-focus": {
       "category": "fixed",
       "message": "Closing find in page returns the keyboard to the page, including a page in Peek, so arrow keys and Space scroll right away."
+    },
+    "core-owned-tab-history": {
+      "category": "internal",
+      "message": "The core keeps each page's back and forward history, with an identity per entry that engines report and traverse by."
     }
   }
 }

@@ -180,4 +180,8 @@ extension BrowserPage: WebKitPageHosting {
     func mediaActivityMayHaveChanged() {
         refreshMediaActivity()
     }
+
+    func historyMayHaveChanged() {
+        navigationReporter?.reportHistoryAgain()
+    }
 }
