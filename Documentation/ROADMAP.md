@@ -124,7 +124,6 @@ the live status for each issue.
 - [ ] [bug: white flash between loading screen in dark mode](https://github.com/pauljoda/Crest/issues/246)
 - [ ] [feature: have a top url bar when in fullscreen mode](https://github.com/pauljoda/Crest/issues/249)
 - [ ] [bug: CPU usage very high compared to Arc](https://github.com/pauljoda/Crest/issues/259)
-- [ ] [bug: Right-clicking an extension in Site Controls closes Site Controls](https://github.com/pauljoda/Crest/issues/262)
 - [ ] [bug: Can't install a private Chrome Web Store extension](https://github.com/pauljoda/Crest/issues/263)
 - [ ] [feature: Double-click a tab to rename](https://github.com/pauljoda/Crest/issues/264)
 - [ ] [feature: Redesign bottom space picker in the sidebar. ](https://github.com/pauljoda/Crest/issues/265)
@@ -153,7 +152,6 @@ the live status for each issue.
 - [ ] [Crest's iOS icon doesn't tint with tinted Home Screen icons](https://github.com/pauljoda/Crest/issues/373)
 - [ ] [Switch what a tab is sharing from its sharing menu](https://github.com/pauljoda/Crest/issues/375)
 - [ ] [Page menu commands are disabled in Quick Windows on Mac](https://github.com/pauljoda/Crest/issues/377)
-- [ ] [Closing find with Escape doesn't return focus to the page on Mac](https://github.com/pauljoda/Crest/issues/378)
 - [ ] [feature: Expose native scripting & automation interface for Spaces, Tabs, and Window management](https://github.com/pauljoda/Crest/issues/380)
 - [ ] [bug: On fullscreen the Site Controls -menu doesn't open](https://github.com/pauljoda/Crest/issues/385)
 - [ ] [feature: Choose search engine on new tab prompt (based on shortcut)](https://github.com/pauljoda/Crest/issues/386)
@@ -165,7 +163,7 @@ the live status for each issue.
 - [ ] [bug: Command palette treats custom URL schemes as web search queries instead of opening them](https://github.com/pauljoda/Crest/issues/408)
 - [ ] [Back and Forward stop working after a page falls back from Chromium to WebKit](https://github.com/pauljoda/Crest/issues/412)
 - [ ] [Translation language download never progresses on Mac WebKit pages](https://github.com/pauljoda/Crest/issues/413)
-- [ ] [bug: Pin layout capped at 4 pins per row since 0.8 — selecting 5 or 6 has no effect](https://github.com/pauljoda/Crest/issues/415)
+- [ ] [bug: Cannot rearrange bookmarks](https://github.com/pauljoda/Crest/issues/419)
 - [ ] [Crest can quit while playing Reddit videos on iPhone](https://github.com/pauljoda/Crest/issues/420)
 - [ ] [Select the address when tapping the iPhone address bar](https://github.com/pauljoda/Crest/issues/421)
 - [ ] [Show that a link opened in a background tab](https://github.com/pauljoda/Crest/issues/422)
@@ -175,6 +173,17 @@ the live status for each issue.
 - [ ] [Swipe from the edge to go back on iPhone and iPad](https://github.com/pauljoda/Crest/issues/426)
 - [ ] [Air Traffic Control rules for links opened inside Crest](https://github.com/pauljoda/Crest/issues/427)
 - [ ] [Return to the previous app when a Quick Window from another app closes](https://github.com/pauljoda/Crest/issues/428)
+- [ ] [bug: cannot input url for new route under links](https://github.com/pauljoda/Crest/issues/437)
+- [ ] [Let agents attach local files to a page's file input over MCP](https://github.com/pauljoda/Crest/issues/442)
+- [ ] [Web Inspector shortcut follow-ups](https://github.com/pauljoda/Crest/issues/443)
+- [ ] [After a Peek closes on Chromium, the tab doesn't get the keyboard back](https://github.com/pauljoda/Crest/issues/444)
+
+#### Completed
+
+- [x] [bug: Right-clicking an extension in Site Controls closes Site Controls](https://github.com/pauljoda/Crest/issues/262)
+- [x] [Closing find with Escape doesn't return focus to the page on Mac](https://github.com/pauljoda/Crest/issues/378) — [`fdee1e3d`](https://github.com/pauljoda/Crest/commit/fdee1e3d41566ba4cf245d528d325b438b8be48b)
+- [x] [bug: Pin layout capped at 4 pins per row since 0.8 — selecting 5 or 6 has no effect](https://github.com/pauljoda/Crest/issues/415)
+- [x] [bug: Revealed sidebar stays open after the pointer leaves the window for another app](https://github.com/pauljoda/Crest/issues/440)
 
 <!-- crest-roadmap-sync:end -->
 
