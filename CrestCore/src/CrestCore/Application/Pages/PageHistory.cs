@@ -130,7 +130,11 @@ internal sealed partial class PageHistory {
         var reported = entries.ToList();
         Guid? shown = current >= 0 ? reported[current].Id : null;
         Guid? target = null;
-        if (going is { } asked && (shown == asked || shown is { } reached && !runs.Any(run => run.Holds(reached)))) going = null;
+        // The engine reached the entry, went somewhere new, or no longer holds
+        // the entry it was asked to go to, as when it refused to.
+        if (going is { } asked && (shown == asked || shown is { } reached && !runs.Any(run => run.Holds(reached))
+                || native.Contains(asked) && !reported.Any(entry => entry.Id == asked)))
+            going = null;
         // A restored engine first shows the entry it showed when the page
         // left it. Until it moves off that entry the page is still arriving,
         // and shows the entry it returned for.

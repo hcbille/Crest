@@ -995,6 +995,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     ) {
         guard isCurrentNavigation(navigation) else { return }
         activeNavigation = nil
+        // A load that ends here commits no entry to take the core's identity.
+        navigationHistory.expectEntry(nil)
         if let failure = PageFailure(
             error: error, replacedDocument: replacedDocument, fallbackURL: reporter.pendingURL ?? webView.url)
         {

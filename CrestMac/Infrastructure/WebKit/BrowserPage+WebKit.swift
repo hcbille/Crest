@@ -119,6 +119,8 @@ extension BrowserPage {
     ) {
         guard isCurrentNavigation(navigation), let reporter = webKitAdapter?.reporter else { return }
         activeNavigation = nil
+        // A load that ends here commits no entry to take the core's identity.
+        navigationHistory.expectEntry(nil)
         if let failure = PageFailure(
             error: error, replacedDocument: replacedDocument, fallbackURL: reporter.pendingURL ?? webKitView?.url)
         {
