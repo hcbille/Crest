@@ -13,7 +13,7 @@ namespace CrestCore.Application;
 /// The core reads the whole line for whether the page can go back or
 /// forward, for the history menus, and for the entry a step through history
 /// reaches.
-internal sealed class PageHistory {
+internal sealed partial class PageHistory {
     #region Types
 
     /// What an engine handed back when the page left it, which brings its
@@ -139,11 +139,17 @@ internal sealed class PageHistory {
         if (restoring) {
             var arrival = arriving!;
             var entry = arrival.Entry;
-            if (arrival.Restored is null) {
-                entry = Rename(engine, arrival.Native, reported, entry);
+            bool restored = true;
+            if (arrival.Restored is null && reported.Count > 0) {
+                restored = Rename(engine, arrival.Native, reported, ref entry);
                 target = entry;
             }
             arriving = shown == entry ? null : arrival with { Entry = entry, Restored = shown };
+            if (!restored) {
+                Recover(engine, entry);
+                restoring = false;
+                target = null;
+            }
         } else {
             arriving = null;
             // An entry another run of this engine holds, reached natively,
@@ -198,21 +204,44 @@ internal sealed class PageHistory {
     /// Whether a run other than `run` holds the entry `entryId` names.
     private bool Foreign(Run run, Guid entryId) => runs.Any(other => !ReferenceEquals(other, run) && other.Holds(entryId));
 
-    /// A restored engine may give the entries it kept new identities, as
-    /// WebKit does, in the order it kept them. Every run of that engine takes
-    /// the engine's identities by position, so the engine finds every entry
-    /// the core asks for. Answers what `target` is called now.
-    private Guid Rename(EngineKind engine, IReadOnlyList<Guid> kept, List<PageHistoryEntry> reported, Guid target) {
-        if (kept.Count == 0 || kept.All(id => reported.Any(entry => entry.Id == id))) return target;
+    /// Whether the engine brought back the history it kept, whose
+    /// identities were `kept`, in order. A restored engine may give the
+    /// entries new identities, as WebKit does: every run of that engine then
+    /// takes the engine's identities by position, so the engine finds every
+    /// entry the core asks for, and `target` is what the entry is called now.
+    /// A history of another length, or whose addresses differ, is not the one
+    /// the engine kept.
+    private bool Rename(EngineKind engine, IReadOnlyList<Guid> kept, List<PageHistoryEntry> reported, ref Guid target) {
+        var goal = target;
+        if (kept.All(id => reported.Any(entry => entry.Id == id))) return reported.Any(entry => entry.Id == goal);
+        if (kept.Count != reported.Count) return false;
+        for (int index = 0; index < kept.Count; index++)
+            if (Entry(kept[index]) is { } known && !new WebAddress(known.Url).IsSamePage(new WebAddress(reported[index].Url)))
+                return false;
         var renamed = new Dictionary<Guid, Guid>();
-        for (int index = 0; index < Math.Min(kept.Count, reported.Count); index++) renamed[kept[index]] = reported[index].Id;
+        for (int index = 0; index < kept.Count; index++) renamed[kept[index]] = reported[index].Id;
         Guid Of(Guid id) => renamed.GetValueOrDefault(id, id);
         foreach (var run in runs.Where(run => run.Engine == engine)) {
             run.Entries = [.. run.Entries.Select(entry => entry with { Id = Of(entry.Id) })];
             run.Start = run.Start is { } start ? Of(start) : null;
             run.Boundary = run.Boundary is { } boundary ? Of(boundary) : null;
         }
-        return Of(target);
+        target = Of(target);
+        return reported.Any(entry => entry.Id == goal) || renamed.ContainsKey(goal);
+    }
+
+    /// The engine the page returned to did not bring back the history it
+    /// kept, and loaded afresh instead. The run the page returned to keeps
+    /// its entries, which load afresh when reached; the entry it returned
+    /// for goes with what the engine shows now, which begins a run of its
+    /// own.
+    private void Recover(EngineKind engine, Guid entryId) {
+        var run = runs[live];
+        run.Current = run.Entries.FindIndex(entry => entry.Id == entryId) is var at and >= 0 ? at : run.Current;
+        run.Saved = null;
+        arriving = null;
+        Leave(engine, Entry(entryId)?.Url);
+        leaving.Remove(engine);
     }
 
     /// Drops every run after `index`: a new navigation leaves no forward

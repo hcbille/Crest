@@ -28,6 +28,14 @@ public sealed partial class BrowserContractsTests {
             public bool KeepsNothing { get; set; }
 
             public void Run(EngineCommand command) => Commands.Add(command);
+
+            /// What the platform archives of `page`: its history as the engine
+            /// saves it, which `Kept` brings back.
+            public PageRestoreState Save(Guid page) {
+                var (entries, current) = Pages[page];
+                Kept.Add(([.. entries], current));
+                return new PageRestoreState(entries[current].Url, BitConverter.GetBytes(Kept.Count - 1));
+            }
         }
 
         /// The app with both engines and one tab's page, which the engines
@@ -71,15 +79,9 @@ public sealed partial class BrowserContractsTests {
                 Log.Add($"{engine.Kind.Name} <- {command.GetType().Name}");
                 switch (command) {
                     case CreatePage create:
-                        var restored = create.RestoreState is { } restore
-                            ? engine.Kept[BitConverter.ToInt32(restore.State)]
-                            : (Entries: [], Current: -1);
-                        List<PageHistoryEntry> entries = engine.KeepsIdentities
-                            ? [.. restored.Entries]
-                            : [.. restored.Entries.Select(entry => entry with { Id = Guid.NewGuid() })];
-                        engine.Pages[create.PageId] = (entries, restored.Current);
+                        engine.Pages[create.PageId] = ([], -1);
                         App.Report(engine.Engine, new PageCreated(create.PageId));
-                        if (entries.Count > 0) Go(engine, create.PageId, restored.Current);
+                        if (create.RestoreState is { } restore) Restore(engine, create.PageId, restore);
                         break;
                     case LoadPage load:
                         Navigate(engine, load.PageId, load.Url, load.EntryId);
@@ -102,6 +104,16 @@ public sealed partial class BrowserContractsTests {
                         App.Report(engine.Engine, new BeforeUnloadAnswered(check.PageId, engine.Proceeds));
                         break;
                 }
+            }
+
+            /// The engine brings back the history `restore` saved for `page`,
+            /// as it does for a page the core restores or the platform restores
+            /// from its archive.
+            public void Restore(NativeEngine engine, Guid page, PageRestoreState restore) {
+                var (entries, current) = engine.Kept[BitConverter.ToInt32(restore.State)];
+                engine.Pages[page] = (engine.KeepsIdentities ? [.. entries] : [.. entries.Select(entry => entry with { Id = Guid.NewGuid() })],
+                    current);
+                Go(engine, page, current);
             }
 
             /// Whether `engine` still hosts `page` after a report that may have
@@ -196,6 +208,31 @@ public sealed partial class BrowserContractsTests {
             var tab = browser.App.Workspace(browser.Workspace).Current.Spaces.Single(held => held.Id == browser.Space)
                 .Tabs.Single(held => held.Id == browser.Tab);
             browser.Navigate(browser.Hosting, browser.Page, tab.Url!);
+            browser.Settle();
+        }
+
+        /// The app quits and launches again. The platform archives the tab:
+        /// its page's engine history, unless that engine keeps none, and the
+        /// history the core answers for it. Nothing else survives. The tab
+        /// hands that history back before its page opens, then restores the
+        /// engine history when the page opens on that engine, or loads the
+        /// tab's address.
+        private static void Relaunch(Browser browser) {
+            browser.Log.Add("# relaunch");
+            var archive = browser.App.Query(new ArchivedPageHistory(browser.Page)).Archive;
+            var engine = browser.Hosting;
+            var saved = engine.KeepsNothing ? null : engine.Save(browser.Page);
+            Send(browser, new ReleasePage(browser.Page, KeepsState: false));
+            if (archive is not null) Send(browser, new RestoreTabHistory(browser.Workspace, browser.Space, browser.Tab, archive));
+            browser.Page = Guid.NewGuid();
+            Send(browser, new OpenPage(browser.Page, browser.Workspace, browser.Space, browser.Tab, browser.Window));
+            if (ReferenceEquals(browser.Hosting, engine) && saved is not null) {
+                browser.Restore(engine, browser.Page, saved);
+            } else {
+                var tab = browser.App.Workspace(browser.Workspace).Current.Spaces.Single(held => held.Id == browser.Space)
+                    .Tabs.Single(held => held.Id == browser.Tab);
+                browser.Navigate(browser.Hosting, browser.Page, tab.Url!);
+            }
             browser.Settle();
         }
 
@@ -317,8 +354,51 @@ public sealed partial class BrowserContractsTests {
             Expect(browser, EngineKind.WebKit, "b", ["a", "start"], ["c"]);
         }
 
+        [Fact]
+        public void AHistoryComesBackAfterARelaunchOnEveryEngine() {
+            using var browser = Open();
+            Follow(browser, "a");
+            Follow(browser, "b");
+            Move(browser, EngineKind.WebKit);
+            Follow(browser, "c");
+            Relaunch(browser);
+            Expect(browser, EngineKind.WebKit, "c", ["b", "a", "start"], []);
+            Send(browser, new StepHistory(browser.Page, -1));
+            Expect(browser, EngineKind.WebKit, "b", ["a", "start"], ["c"]);
+            Send(browser, new StepHistory(browser.Page, -1));
+            Expect(browser, EngineKind.Chromium, "a", ["start"], ["b", "c"]);
+
+            // A tab relaunched on Chromium after going back still goes forward to WebKit.
+            Relaunch(browser);
+            Expect(browser, EngineKind.Chromium, "a", ["start"], ["b", "c"]);
+            Send(browser, new StepHistory(browser.Page, 1));
+            Expect(browser, EngineKind.WebKit, "b", ["a", "start"], ["c"]);
+
+            // An engine history the platform could not restore loads the entry afresh, keeping the rest.
+            browser.WebKit.KeepsNothing = true;
+            Relaunch(browser);
+            Expect(browser, EngineKind.WebKit, "b", ["a", "start"], ["c"]);
+            Send(browser, new StepHistory(browser.Page, -1));
+            Expect(browser, EngineKind.Chromium, "a", ["start"], ["b", "c"]);
+        }
+
+        [Fact]
+        public void AnArchiveThisBuildCannotReadBringsNothingBack() {
+            using var browser = Open();
+            Follow(browser, "a");
+            Move(browser, EngineKind.WebKit);
+            var archive = browser.App.Query(new ArchivedPageHistory(browser.Page)).Archive!;
+            Send(browser, new ReleasePage(browser.Page, KeepsState: false));
+            Send(browser, new RestoreTabHistory(browser.Workspace, browser.Space, browser.Tab, archive[..^4]));
+            browser.Page = Guid.NewGuid();
+            Send(browser, new OpenPage(browser.Page, browser.Workspace, browser.Space, browser.Tab, browser.Window));
+            browser.Navigate(browser.Hosting, browser.Page, Address("a"));
+            browser.Settle();
+            Expect(browser, EngineKind.Chromium, "a", [], []);
+        }
+
         /// Random walks of links, steps, menu jumps, moves with and without
-        /// their site, unloads, canceled leaves and native swipes, checked
+        /// their site, unloads, relaunches, canceled leaves and native swipes, checked
         /// after every step.
         [Fact]
         public void RandomWalksKeepTheCoresHistoryInStepWithTheEngines() {
@@ -343,6 +423,11 @@ public sealed partial class BrowserContractsTests {
                     } else if (roll < 84) {
                         Move(browser, page.Engine.Kind == EngineKind.Chromium ? EngineKind.WebKit : EngineKind.Chromium,
                             remembersSite: random.Next(2) == 0);
+                    } else if (roll < 88) {
+                        browser.Chromium.KeepsNothing = random.Next(4) == 0;
+                        browser.WebKit.KeepsNothing = random.Next(4) == 0;
+                        Relaunch(browser);
+                        browser.Chromium.KeepsNothing = browser.WebKit.KeepsNothing = false;
                     } else if (roll < 91) {
                         browser.Chromium.KeepsNothing = random.Next(4) == 0;
                         browser.WebKit.KeepsNothing = random.Next(4) == 0;

@@ -22,8 +22,8 @@ final class BrowserTabStateCoordinator {
         pendingCopies = pendingCopies.filter { assignments.contains($0.key) }
     }
 
-    func prepareCopy(_ state: Data, url: URL?, for assignment: BrowserTabRuntimeAssignment) {
-        pendingCopies[assignment] = BrowserTabStateEnvelope(interactionState: state, url: url)
+    func prepareCopy(_ state: Data, url: URL?, history: Data?, for assignment: BrowserTabRuntimeAssignment) {
+        pendingCopies[assignment] = BrowserTabStateEnvelope(interactionState: state, url: url, history: history)
     }
 
     func archivePage(_ page: BrowserPlatformPage, for tabID: UUID) {
@@ -38,9 +38,17 @@ final class BrowserTabStateCoordinator {
         archive.archive(
             interactionState: state,
             url: url,
+            history: page.corePage.archivedHistory,
             profileID: page.profileID,
             tabID: tabID
         )
+    }
+
+    /// The back and forward history the tab's pending copy or archive keeps,
+    /// when it still shows `url`, which the core takes back before the tab's
+    /// page opens. Leaves the engine history for the page to restore.
+    func history(for assignment: BrowserTabRuntimeAssignment, expecting url: URL) -> Data? {
+        envelope(for: assignment, expecting: url, consumePendingCopy: false)?.history
     }
 
     func interactionState(
@@ -48,12 +56,22 @@ final class BrowserTabStateCoordinator {
         expecting url: URL,
         consumePendingCopy: Bool = true
     ) -> Data? {
+        envelope(for: assignment, expecting: url, consumePendingCopy: consumePendingCopy)?.interactionState
+    }
+
+    /// What the tab's pending copy keeps, or else its archive, when it still
+    /// shows `url`.
+    private func envelope(
+        for assignment: BrowserTabRuntimeAssignment,
+        expecting url: URL,
+        consumePendingCopy: Bool
+    ) -> BrowserTabStateEnvelope? {
         let pending = pendingCopies[assignment]
         if consumePendingCopy { pendingCopies.removeValue(forKey: assignment) }
         if let pending,
             SamePage.restoresArchivedState(archivedURL: pending.url, tabURL: url)
         {
-            return pending.interactionState
+            return pending
         }
         guard let archive,
             let archived = archive.archivedState(profileID: assignment.profileID, tabID: assignment.tabID),
@@ -61,7 +79,7 @@ final class BrowserTabStateCoordinator {
             envelope.isRestorable,
             SamePage.restoresArchivedState(archivedURL: envelope.url, tabURL: url)
         else { return nil }
-        return envelope.interactionState
+        return envelope
     }
 
     /// Only membership changes warrant another directory sweep. Closed tabs

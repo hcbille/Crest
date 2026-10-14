@@ -4085,6 +4085,10 @@
     "history-across-engine-moves": {
       "category": "fixed",
       "message": "Back and Forward keep working after a page opens in another engine, and take each page back to the engine it was shown in."
+    },
+    "history-across-engines-after-relaunch": {
+      "category": "improved",
+      "message": "Tabs keep their back and forward history across engines after Crest relaunches, and a duplicated tab keeps it too."
     }
   }
 }

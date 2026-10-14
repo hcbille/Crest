@@ -66,8 +66,9 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     private readonly List<(Guid WorkspaceId, Guid TabId)> restoreOrder = [];
     /// The history each tab's last page held when it closed keeping its
     /// state, which the tab's next page takes on, with the page that held it,
-    /// whose engines may still hand back what they kept. Memory only, and
-    /// gone with the tab, its Space or its workspace, as what the tab kept is.
+    /// whose engines may still hand back what they kept, or an empty identity
+    /// for one the tab's archive brought back across a relaunch. Gone with
+    /// the tab, its Space or its workspace, as what the tab kept is.
     private readonly Dictionary<(Guid WorkspaceId, Guid TabId), (Guid SpaceId, Guid PageId, PageHistory History)> histories = [];
     private readonly List<(Guid WorkspaceId, Guid TabId)> historyOrder = [];
     /// The tab groups extensions made of the pages, by identity, each shown as
@@ -400,19 +401,40 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     /// The history the tab's last page held, taken once, when the tab still
     /// lives in the Space that page did and shows the entry the history
     /// shows. A history for another Space or address is dropped.
-    internal PageHistory? KeptHistory(Guid workspaceId, SpaceState space, Guid tabId) {
+    /// Answers whether it came from the tab's archive, whose engine history
+    /// the platform restores itself.
+    internal (PageHistory History, bool Archived)? KeptHistory(Guid workspaceId, SpaceState space, Guid tabId) {
         var key = (workspaceId, tabId);
         if (!histories.TryGetValue(key, out var kept)) return null;
         ForgetHistory(key);
         var tab = space.Tabs.FirstOrDefault(tab => tab.Id == tabId);
         return kept.SpaceId == space.Id && kept.History.Shown is { } shown && tab?.Url is { } url
-            && new WebAddress(url).IsSamePage(new WebAddress(shown.Url)) ? kept.History : null;
+            && new WebAddress(url).IsSamePage(new WebAddress(shown.Url))
+                ? (kept.History, kept.PageId == Guid.Empty)
+                : null;
     }
+
+    /// The tab `tabId` of `space` takes on `history`, which its archive kept
+    /// across a relaunch, for its next page. A tab that has a page, or holds
+    /// a history it kept since, keeps that instead.
+    internal void KeepArchivedHistory(Guid workspaceId, SpaceState space, Guid tabId, PageHistory history) {
+        var key = (workspaceId, tabId);
+        if (histories.ContainsKey(key) || open.Values.Any(page => page.WorkspaceId == workspaceId && page.TabId == tabId)) return;
+        Remember(key, (space.Id, Guid.Empty, history));
+    }
+
+    /// The history of the page `pageId` names, or of the tab's page it was
+    /// until it closed keeping its state, as its tab's archive keeps it.
+    internal byte[]? ArchivedHistory(Guid pageId) =>
+        (Hosted(pageId)?.History ?? histories.Values.FirstOrDefault(kept => kept.PageId == pageId).History)?.Archive();
 
     private void KeepHistory((Guid WorkspaceId, Guid TabId) key, Page page) {
         ForgetHistory(key);
-        if (page.History.Shown is null) return;
-        histories[key] = (page.SpaceId, page.Id, page.History);
+        if (page.History.Shown is not null) Remember(key, (page.SpaceId, page.Id, page.History));
+    }
+
+    private void Remember((Guid WorkspaceId, Guid TabId) key, (Guid SpaceId, Guid PageId, PageHistory History) kept) {
+        histories[key] = kept;
         historyOrder.Add(key);
         while (historyOrder.Count > MaximumRestoreStates) ForgetHistory(historyOrder[0]);
     }

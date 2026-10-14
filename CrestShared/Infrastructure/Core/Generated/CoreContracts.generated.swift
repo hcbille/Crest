@@ -1136,6 +1136,12 @@ struct ArchiveTransientPage: Intent, SessionIntent, Equatable, Sendable {
     let spaceID: UUID
 }
 
+struct ArchivedPageHistory: Query, Equatable, Sendable {
+    typealias Answer = PageHistoryArchive
+
+    let pageID: UUID
+}
+
 struct ArchivedTabState: Equatable, Sendable {
     let tab: TabState
     let archivedAt: Date
@@ -4191,6 +4197,10 @@ struct PageHeader: Equatable, Sendable {
     let value: String
 }
 
+struct PageHistoryArchive: Equatable, Sendable {
+    let archive: Data?
+}
+
 struct PageHistoryEntries: Query, Equatable, Sendable {
     typealias Answer = PageHistoryList
 
@@ -5105,6 +5115,13 @@ struct RestoreInteractionState: PageRequest, Equatable, Sendable {
 struct RestoreSearchCatalog: Intent, SearchCatalogIntent, Equatable, Sendable {
     let language: String?
     let region: String?
+}
+
+struct RestoreTabHistory: Intent, PageIntent, Equatable, Sendable {
+    let workspaceID: UUID
+    let spaceID: UUID
+    let tabID: UUID
+    let archive: Data
 }
 
 struct ResumeDownload: Intent, DownloadIntent, Equatable, Sendable {
