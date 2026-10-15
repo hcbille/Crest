@@ -4112,11 +4112,7 @@
     },
     "translation-unsupported-page-language": {
       "category": "fixed",
-      "message": "A page in a language Apple Translation doesn’t support, such as Swedish, says so instead of offering a translation that fails."
-    },
-    "translation-unsupported-language-own-language": {
-      "category": "internal",
-      "message": "A page in your own language that Apple Translation doesn’t support says so when you open translation, and choosing a supported source language clears the notice."
+      "message": "Pages in more languages, such as Swedish, now translate, and a page in a language Apple Translation doesn’t support says so instead of offering a translation that fails."
     }
   }
 }

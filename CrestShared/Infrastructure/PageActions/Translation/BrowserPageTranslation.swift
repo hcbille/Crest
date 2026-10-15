@@ -22,10 +22,11 @@ final class BrowserPageTranslation {
     }
     var targetID = ""
     private(set) var languages: [Locale.Language] = []
+    @ObservationIgnored private var supportedLanguages = BrowserTranslationPreference.Languages.unloaded
     private(set) var installedLanguageIDs: Set<String> = []
     private(set) var downloadRevision = 0
     @ObservationIgnored private var languageCheckID: String?
-    @ObservationIgnored private var languageLoadTask: Task<[Locale.Language], Never>?
+    @ObservationIgnored private var languageLoadTask: Task<BrowserTranslationPreference.Languages, Never>?
 
     var downloadedLanguages: [Locale.Language] {
         languages.filter { installedLanguageIDs.contains($0.minimalIdentifier) }
@@ -102,6 +103,16 @@ final class BrowserPageTranslation {
         return Locale.current.localizedString(forIdentifier: identifier) ?? identifier
     }
 
+    /// Apple's low-latency models where they cover the pair, and Apple's
+    /// default model for a language they leave out, such as Swedish.
+    private func usesLowLatency(from source: String, to target: String) -> Bool {
+        supportedLanguages.usesLowLatency(from: source, to: target)
+    }
+
+    private func availability(from source: String, to target: String) -> LanguageAvailability {
+        BrowserTranslationPreference.languageAvailability(lowLatency: usesLowLatency(from: source, to: target))
+    }
+
     private func unsupportedNotice(for identifier: String) -> String {
         String(localized: "Apple Translation doesn’t support \(languageName(identifier)).")
     }
@@ -161,7 +172,7 @@ final class BrowserPageTranslation {
                 if let target = languageRules.decision(for: sourceID)?.target, automaticallyTranslates {
                     targetID = target
                 }
-                let availability = await BrowserTranslationPreference.languageAvailability().status(
+                let availability = await availability(from: sourceID, to: targetID).status(
                     from: .init(identifier: sourceID), to: .init(identifier: targetID))
                 guard isActive, revision == documentRevision, !isWorking, !Task.isCancelled else { return }
                 isOffered = availability != .unsupported
@@ -194,14 +205,11 @@ final class BrowserPageTranslation {
         guard languages.isEmpty else { return }
         let load =
             languageLoadTask
-            ?? Task {
-                let supported = await BrowserTranslationPreference.languageAvailability().supportedLanguages
-                // The strategy-specific catalog can be empty even when status(from:to:)
-                // confirms installed pairs. Keep the general catalog available for menus.
-                return supported.isEmpty ? await LanguageAvailability().supportedLanguages : supported
-            }
+            ?? Task { await BrowserTranslationPreference.languages() }
         languageLoadTask = load
-        languages = await load.value.sorted {
+        let loaded = await load.value
+        supportedLanguages = loaded
+        languages = loaded.all.sorted {
             languageName($0.minimalIdentifier).localizedStandardCompare(languageName($1.minimalIdentifier))
                 == .orderedAscending
         }
@@ -221,7 +229,7 @@ final class BrowserPageTranslation {
         // languages; unsupported/supported pairs do not prove either is absent.
         var pairs = identifiers.map { [$0, targetID] }
         if !sourceID.isEmpty { pairs += identifiers.map { [sourceID, $0] } }
-        let installed = await Self.installedLanguages(in: pairs)
+        let installed = await Self.installedLanguages(in: pairs, supported: supportedLanguages)
         guard !Task.isCancelled, check == languageStatusID else {
             if languageCheckID == check { languageCheckID = nil }
             return
@@ -229,13 +237,16 @@ final class BrowserPageTranslation {
         installedLanguageIDs = installed
     }
 
-    private nonisolated static func installedLanguages(in pairs: [[String]]) async -> Set<String> {
+    private nonisolated static func installedLanguages(
+        in pairs: [[String]], supported: BrowserTranslationPreference.Languages
+    ) async -> Set<String> {
         await withTaskGroup(of: [String].self, returning: Set<String>.self) { group in
             var iterator = pairs.makeIterator()
             func enqueue(_ pair: [String]) {
                 group.addTask {
                     guard !Task.isCancelled, !pair[0].isEmpty, !pair[1].isEmpty else { return [] }
-                    let status = await BrowserTranslationPreference.languageAvailability().status(
+                    let lowLatency = supported.usesLowLatency(from: pair[0], to: pair[1])
+                    let status = await BrowserTranslationPreference.languageAvailability(lowLatency: lowLatency).status(
                         from: .init(identifier: pair[0]), to: .init(identifier: pair[1]))
                     return status == .installed ? pair : []
                 }
@@ -271,7 +282,8 @@ final class BrowserPageTranslation {
         if confirmedPair {
             availability = .installed
         } else {
-            availability = await BrowserTranslationPreference.languageAvailability().status(from: source, to: target)
+            availability = await self.availability(from: sourceID, to: target.minimalIdentifier).status(
+                from: source, to: target)
         }
         guard !Task.isCancelled, isActive, revision == documentRevision,
             source == Locale.Language(identifier: sourceID),
@@ -292,7 +304,7 @@ final class BrowserPageTranslation {
             status = String(localized: "Automatically translating to \(targetName)…")
             // This session cannot request downloads or present consent UI.
             let installedSession: TranslationSession
-            if #available(iOS 26.4, macOS 26.4, *) {
+            if #available(iOS 26.4, macOS 26.4, *), usesLowLatency(from: sourceID, to: target.minimalIdentifier) {
                 installedSession = TranslationSession(
                     installedSource: source, target: target, preferredStrategy: .lowLatency)
             } else {
@@ -334,7 +346,9 @@ final class BrowserPageTranslation {
             var next = lastConfiguration ?? .init()
             next.source = sourceID.isEmpty ? nil : .init(identifier: sourceID)
             next.target = .init(identifier: targetID)
-            if #available(iOS 26.4, macOS 26.4, *) { next.preferredStrategy = .lowLatency }
+            if #available(iOS 26.4, macOS 26.4, *) {
+                next.preferredStrategy = usesLowLatency(from: sourceID, to: targetID) ? .lowLatency : .highFidelity
+            }
             next.invalidate()
             lastConfiguration = next
             configuration = next
