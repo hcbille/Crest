@@ -4102,6 +4102,10 @@
       "category": "improved",
       "message": "The History, Archive and Downloads shortcuts open and close their list, showing the sidebar for the moment when it is hidden, and Command-F searches the list that is open."
     },
+    "translation-download-languages-no-crash": {
+      "category": "fixed",
+      "message": "Download Languages in Page Translation settings opens language downloads without Crest quitting."
+    },
     "chromium-whole-page-translation": {
       "category": "new",
       "message": "Translate whole pages on device in Chromium too, with the same translation toolbar, automatic translation and Show Original as WebKit pages."
