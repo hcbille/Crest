@@ -155,7 +155,7 @@
         /// Whether this store is one of the persistent Spaces' own stores.
         ///
         /// Engine extension profiles belong to the application's persistent
-        /// store family â every normal window's store shares it. A private
+        /// store family — every normal window's store shares it. A private
         /// window and a borrowed settings workspace each have a family of their
         /// own and no persistent engine profile, so neither may prepare or read
         /// one.
@@ -217,8 +217,8 @@
 
         // MARK: - Actions - Notices
 
-        /// Engine messages that ask nothing of the person â a toast, an action
-        /// that could not run â are browser notices, never alerts.
+        /// Engine messages that ask nothing of the person — a toast, an action
+        /// that could not run — are browser notices, never alerts.
         static func showNativeNotice(_ message: String, icon: String) {
             BrowserNoticeCenter.shared.post(
                 BrowserNotice(
