@@ -157,7 +157,6 @@ the live status for each issue.
 - [ ] [feature: Choose search engine on new tab prompt (based on shortcut)](https://github.com/pauljoda/Crest/issues/386)
 - [ ] [feature: Show a peek indicator on the originating tab when a Peek is open](https://github.com/pauljoda/Crest/issues/389)
 - [ ] [feature: Toggle History, Archive, and Downloads sidebars and focus search](https://github.com/pauljoda/Crest/issues/397)
-- [ ] [bug: Sidebar expand and collapse animation drops frames](https://github.com/pauljoda/Crest/issues/398)
 - [ ] [feature: Let agents run several page steps in one call](https://github.com/pauljoda/Crest/issues/403)
 - [ ] [feature: Connect an agent from Settings without a terminal](https://github.com/pauljoda/Crest/issues/404)
 - [ ] [bug: Command palette treats custom URL schemes as web search queries instead of opening them](https://github.com/pauljoda/Crest/issues/408)
@@ -182,6 +181,7 @@ the live status for each issue.
 
 - [x] [bug: Right-clicking an extension in Site Controls closes Site Controls](https://github.com/pauljoda/Crest/issues/262)
 - [x] [Closing find with Escape doesn't return focus to the page on Mac](https://github.com/pauljoda/Crest/issues/378) — [`fdee1e3d`](https://github.com/pauljoda/Crest/commit/fdee1e3d41566ba4cf245d528d325b438b8be48b)
+- [x] [bug: Sidebar expand and collapse animation drops frames](https://github.com/pauljoda/Crest/issues/398)
 - [x] [bug: Pin layout capped at 4 pins per row since 0.8 — selecting 5 or 6 has no effect](https://github.com/pauljoda/Crest/issues/415)
 - [x] [bug: Revealed sidebar stays open after the pointer leaves the window for another app](https://github.com/pauljoda/Crest/issues/440)
 
