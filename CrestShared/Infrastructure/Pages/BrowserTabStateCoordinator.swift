@@ -41,13 +41,24 @@ final class BrowserTabStateCoordinator {
         // WebKit drives adopted popups; they are never persisted as user tabs.
         guard let archive, !page.wasOpenedAsPopup else { return }
         // The core keeps the page's history whether or not its engine has
-        // state to keep yet, as before its first document commits.
-        let state = page.interactionState
+        // state to keep yet, as before its first document commits. Such a
+        // page keeps the engine state its archive already holds, so an empty
+        // renderer never replaces a useful one.
         let history = page.corePage.archivedHistory
+        var state = page.interactionState
+        var shown = url
+        if state == nil, history != nil,
+            let kept = archive.archivedState(profileID: page.profileID, tabID: tabID)
+                .flatMap(BrowserTabStateEnvelope.decode),
+            kept.isRestorable
+        {
+            state = kept.interactionState
+            shown = kept.url
+        }
         guard state != nil || history != nil else { return }
         archive.archive(
             interactionState: state ?? Data(),
-            url: url,
+            url: shown,
             history: history,
             profileID: page.profileID,
             tabID: tabID
