@@ -104,8 +104,9 @@ internal sealed partial class PageHistory {
     /// The entries the page can go back to, nearest first.
     public IReadOnlyList<PageHistoryEntry> Back => [.. Entries.Take(Math.Max(Current, 0)).Reverse()];
 
-    /// The entries the page can go forward to, nearest first.
-    public IReadOnlyList<PageHistoryEntry> Forward => [.. Entries.Skip(Current + 1)];
+    /// The entries the page can go forward to, nearest first. A page that
+    /// shows no entry yet, as one that just moved engine, has none.
+    public IReadOnlyList<PageHistoryEntry> Forward => Current < 0 ? [] : [.. Entries.Skip(Current + 1)];
 
     #endregion
 
@@ -123,6 +124,12 @@ internal sealed partial class PageHistory {
     /// shown. Answers the entry the engine should go to now: the one a page
     /// returning to a restored run asked for, once that history arrived.
     public Guid? Report(EngineKind engine, IReadOnlyList<PageHistoryEntry> entries, int current) {
+        // A page that committed nothing yet holds no history: the runs stay
+        // as they are until its engine reports one.
+        if (entries.Count == 0) {
+            native = [];
+            return null;
+        }
         if (live < 0 || runs[live].Engine != engine) {
             runs.Add(new Run(engine));
             live = runs.Count - 1;
@@ -261,6 +268,11 @@ internal sealed partial class PageHistory {
         while (runs.Sum(run => run.Entries.Count) > Capacity) {
             var oldest = runs[0];
             if (live == 0 && oldest.Current <= 0) return;
+            if (oldest.Entries.Count == 0) {
+                runs.RemoveAt(0);
+                live--;
+                continue;
+            }
             oldest.Entries.RemoveAt(0);
             // A run the page left on the entry it drops returns to the first
             // entry it keeps.
@@ -443,7 +455,7 @@ internal sealed partial class PageHistory {
     /// current one.
     public bool Reaches(Guid entryId) {
         int current = Current;
-        return Entries.Where((entry, index) => index != current).Any(entry => entry.Id == entryId);
+        return current >= 0 && Entries.Where((entry, index) => index != current).Any(entry => entry.Id == entryId);
     }
 
     /// Whether the page's engine holds the entry `entryId` names now, so it
