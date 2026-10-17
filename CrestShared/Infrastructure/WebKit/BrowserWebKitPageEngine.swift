@@ -97,8 +97,8 @@ final class BrowserWebKitPageEngine: BrowserPageEngine {
     func goToHistoryEntry(_ entryID: UUID) -> Bool {
         history.synchronize(with: webView.backForwardList)
         guard let item = history.item(entryID) else { return false }
-        webView.go(to: item)
-        return true
+        // WebKit starts nothing for an item it no longer keeps.
+        return webView.go(to: item) != nil
     }
     func reload(bypassingCache: Bool) {
         if bypassingCache { webView.reloadFromOrigin() } else { webView.reload() }
