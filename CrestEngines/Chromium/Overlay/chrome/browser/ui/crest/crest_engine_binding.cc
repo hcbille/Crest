@@ -26,7 +26,6 @@
 #include "chrome/browser/ui/crest/crest_engine_prompts.h"
 #include "chrome/browser/ui/crest/crest_engine_screen_sharing.h"
 #include "chrome/browser/ui/crest/crest_engine_tab_groups.h"
-#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "net/base/auth.h"
@@ -99,30 +98,6 @@ void DisableEnginePasswordManager(content::WebContents* contents) {
     PrefService* prefs = target ? target->GetPrefs() : nullptr;
     if (prefs && prefs->GetBoolean(password_manager::prefs::kCredentialsEnableService)) {
       prefs->SetBoolean(password_manager::prefs::kCredentialsEnableService, false);
-    }
-  }
-}
-
-// Crest shows none of the engine's autofill bubbles, and the engine's bubble
-// controllers assume a window that always shows one, so a submitted form's
-// addresses, payment cards and IBANs are never imported and nothing offers to
-// save, update or enroll them: every such offer starts from these two
-// settings. A private profile keeps its preferences in memory, so both
-// profiles are turned off.
-void DisableEngineAutofill(content::WebContents* contents) {
-  auto* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
-  if (!profile) {
-    return;
-  }
-  for (Profile* target : {profile, profile->GetOriginalProfile()}) {
-    PrefService* prefs = target ? target->GetPrefs() : nullptr;
-    if (!prefs) {
-      continue;
-    }
-    for (const char* name : {autofill::prefs::kAutofillCreditCardEnabled, autofill::prefs::kAutofillProfileEnabled}) {
-      if (prefs->GetBoolean(name)) {
-        prefs->SetBoolean(name, false);
-      }
     }
   }
 }
@@ -542,7 +517,6 @@ void EngineBinding::Stage(const engine::StageNavigation& staging) {
 // core hears the page is live, and then it loads what it was asked to.
 void EngineBinding::Live(EnginePage& page, content::WebContents* contents) {
   DisableEnginePasswordManager(contents);
-  DisableEngineAutofill(contents);
   page.Start(contents);
   Report(engine::PageCreated{.page_id = page.id()});
   page.LoadPending();
