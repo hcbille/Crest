@@ -61,6 +61,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     var findFocusRequest: Int { findSession.focusRequest }
     private(set) var pageZoom: CGFloat = BrowserDefaultPageZoomStore.defaultLevel
     let translation = BrowserPageTranslation()
+    /// The document whole-page translation rewrites.
+    var translationDocument: BrowserTranslationDocument? { BrowserTranslationDocument(webView: webView) }
     var readerModeState: BrowserReaderModeState { readerModeSession.state }
     var isContentBlockingActive: Bool { contentRuleSession.isActive }
     private(set) var isRequestingDesktopSite = false
@@ -995,6 +997,8 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     ) {
         guard isCurrentNavigation(navigation) else { return }
         activeNavigation = nil
+        // A load that ends here commits no entry to take the core's identity.
+        navigationHistory.expectEntry(nil)
         if let failure = PageFailure(
             error: error, replacedDocument: replacedDocument, fallbackURL: reporter.pendingURL ?? webView.url)
         {

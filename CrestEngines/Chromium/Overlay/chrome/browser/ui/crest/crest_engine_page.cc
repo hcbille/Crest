@@ -295,6 +295,7 @@ void EnginePage::LoadPending() {
     // A stale link is never retried as a bare address, which would lose the
     // initiating frame's security and referrer.
     if (!binding_->LoadStagedLink(key_, staged.token, EngineURL(url))) {
+      expected_entry_id_.reset();
       Interrupted();
       Report(engine::StagedLinkUnavailable{.page_id = id_});
     }
@@ -322,6 +323,8 @@ std::optional<std::string> EnginePage::TakeStagedToken() {
 void EnginePage::Navigate(const std::string& url) {
   const GURL target = EngineURL(url);
   if (!web_contents() || !target.is_valid()) {
+    // No navigation starts to take the identity the load expected.
+    expected_entry_id_.reset();
     return;
   }
   web_contents()->GetController().LoadURL(target, content::Referrer(), ui::PAGE_TRANSITION_TYPED,
@@ -452,6 +455,17 @@ void EnginePage::DidStartNavigation(content::NavigationHandle* navigation) {
   }
   ++navigation_generation_;
   loading_navigation_ = navigation->GetNavigationId();
+  // Only the app's own load of a new entry carries the core's identity. A
+  // page's own navigation, a step through history or a reload that starts
+  // first means that load never came, so the identity is dropped.
+  if (expected_entry_id_ && !expected_entry_navigation_) {
+    if (!navigation->IsRendererInitiated() && navigation->GetReloadType() == content::ReloadType::NONE &&
+        !(navigation->GetPageTransition() & ui::PAGE_TRANSITION_FORWARD_BACK)) {
+      expected_entry_navigation_ = navigation->GetNavigationId();
+    } else {
+      expected_entry_id_.reset();
+    }
+  }
   Present(engine::PageNavigationStarted{.page_id = id_});
   Started(PresentedURL(navigation->GetURL()));
 }
@@ -471,6 +485,13 @@ void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
   }
   if (navigation->HasCommitted()) {
     ++navigation_revision_;
+  }
+  // The core's load takes its identity with it, whether it commits, fails or
+  // never loads, so no later entry inherits it.
+  std::optional<engine::Guid> expected_entry_id;
+  if (expected_entry_navigation_ == navigation->GetNavigationId()) {
+    expected_entry_id = std::exchange(expected_entry_id_, std::nullopt);
+    expected_entry_navigation_.reset();
   }
   // A store listing's own fragment carries the request its script made. It is
   // Crest's message, not a page anyone records.
@@ -512,13 +533,11 @@ void EnginePage::DidFinishNavigation(content::NavigationHandle* navigation) {
   }
   // A load the core asked for in place of an entry it keeps takes that
   // entry's identity; a step through history keeps the entry's own.
-  if (expected_entry_id_ && !navigation->IsSameDocument() &&
-      !(navigation->GetPageTransition() & ui::PAGE_TRANSITION_FORWARD_BACK)) {
+  if (expected_entry_id && !(navigation->GetPageTransition() & ui::PAGE_TRANSITION_FORWARD_BACK)) {
     if (content::NavigationEntry* entry = web_contents()->GetController().GetLastCommittedEntry()) {
-      std::erase_if(entry_ids_, [&](const auto& kept) { return kept.second == *expected_entry_id_; });
-      entry_ids_[entry->GetUniqueID()] = *expected_entry_id_;
+      std::erase_if(entry_ids_, [&](const auto& kept) { return kept.second == *expected_entry_id; });
+      entry_ids_[entry->GetUniqueID()] = *expected_entry_id;
     }
-    expected_entry_id_.reset();
   }
   UpdateTheme();
   if (navigation->IsSameDocument()) {
@@ -973,8 +992,9 @@ engine::Guid EnginePage::EntryId(content::NavigationEntry* entry) {
   return found->second;
 }
 
-void EnginePage::ExpectEntry(const engine::Guid& entry_id) {
+void EnginePage::ExpectEntry(const std::optional<engine::Guid>& entry_id) {
   expected_entry_id_ = entry_id;
+  expected_entry_navigation_.reset();
 }
 
 void EnginePage::GoToEntry(const engine::Guid& entry_id) {
