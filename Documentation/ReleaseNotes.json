@@ -4194,6 +4194,22 @@
       "category": "internal",
       "message": "A page the core asks to load in place of a history entry gives up that entry's identity when the load fails or is cancelled, so a later page never takes it."
     },
+    "history-across-engine-moves": {
+      "category": "fixed",
+      "message": "Back and Forward keep working after a page opens in another engine, and take each page back to the engine it was shown in."
+    },
+    "history-refused-step-keeps-site-engine": {
+      "category": "internal",
+      "message": "A step through history the engine refuses no longer keeps a later visit to that address on the same engine instead of the one chosen for the site."
+    },
+    "history-across-engines-after-relaunch": {
+      "category": "improved",
+      "message": "Tabs keep their back and forward history across engines after Crest relaunches, and a duplicated tab keeps it too."
+    },
+    "history-kept-before-engine-state": {
+      "category": "internal",
+      "message": "A tab keeps its history across engines after a relaunch or when duplicated even before its page has any engine state to keep, and a long history no longer loses a run the page left on its oldest entry."
+    },
     "chromium-form-submit-autofill-save-crash": {
       "category": "fixed",
       "message": "Crest no longer quits when you submit a form containing a payment card or address."
