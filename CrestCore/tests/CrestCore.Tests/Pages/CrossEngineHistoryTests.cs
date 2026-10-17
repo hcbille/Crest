@@ -132,4 +132,27 @@ public sealed partial class BrowserContractsTests {
         app.Report(chromium, new BeforeUnloadAnswered(page, Proceeds: false));
         Assert.Equal(EngineKind.Chromium, app.Pages.Hosted(page)!.Engine.Kind);
     }
+
+    [Fact]
+    public void AnOverflowingHistoryPointsARunThatLostItsShownEntryAtTheFirstEntryItKeeps() {
+        var history = new PageHistory();
+        PageHistoryEntry[] chromium = [.. Enumerable.Range(0, 4).Select(index => Entry($"https://chromium.example/{index}"))];
+        // The page goes back to the oldest entry, then forward by loading the newest afresh, which leaves the
+        // older run holding three entries and last showing the first.
+        history.Report(EngineKind.Chromium, chromium, current: 0);
+        history.Return(chromium[3].Id);
+        history.Report(EngineKind.Chromium, chromium, current: 3);
+        history.Leave(EngineKind.WebKit, "https://webkit.example/");
+        history.Keep(EngineKind.Chromium, Kept("https://chromium.example/3"));
+
+        // One entry too many drops that first entry.
+        PageHistoryEntry[] webKit = [.. Enumerable.Range(0, PageHistory.Capacity - 4 + 1).Select(index => Entry($"https://webkit.example/{index}"))];
+        history.Report(EngineKind.WebKit, webKit, current: webKit.Length - 1);
+        Assert.Equal(PageHistory.Capacity, history.Entries.Count);
+        Assert.DoesNotContain(chromium[0], history.Entries);
+
+        // Returning to the run brings back the first entry that remains.
+        history.Return(chromium[1].Id);
+        Assert.Equal(chromium[1], history.Shown);
+    }
 }
