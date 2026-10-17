@@ -4182,6 +4182,10 @@
       "category": "fixed",
       "message": "Typing a local address such as 192.168.0.1 or printer.local opens it over http, as other browsers do, and an address typed with http:// always opens over http."
     },
+    "tab-title-after-failed-load": {
+      "category": "fixed",
+      "message": "When a page can’t be opened, its tab in the sidebar shows the site it tried to open instead of the previous page’s title."
+    },
     "core-owned-tab-history": {
       "category": "internal",
       "message": "The core keeps each page's back and forward history, with an identity per entry that engines report and traverse by."
