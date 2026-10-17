@@ -179,7 +179,6 @@ the live status for each issue.
 - [ ] [bug: Cannot visit Kagi homepage (CREST_NAVIGATION_FAILED)](https://github.com/pauljoda/Crest/issues/487)
 - [ ] [bug: Space settings stop responding to clicks after the first one](https://github.com/pauljoda/Crest/issues/491)
 - [ ] [Keep a Space slide moving forward when Next is pressed again mid-slide](https://github.com/pauljoda/Crest/issues/495)
-- [ ] [Show the right tab title in the sidebar after a page fails to load](https://github.com/pauljoda/Crest/issues/506)
 
 #### Completed
 
@@ -199,6 +198,7 @@ the live status for each issue.
 - [x] [Make Translate, Reader, content blocking, the inspector and engine moves act on a Quick Window](https://github.com/pauljoda/Crest/issues/484) — [`a0edbcc9`](https://github.com/pauljoda/Crest/commit/a0edbcc96c055f448c8b64de99dbb906ad8f632e)
 - [x] [bug: Crash when DNS returns NXDOMAIN](https://github.com/pauljoda/Crest/issues/485)
 - [x] [Restart to Update waits for Command-Q instead of quitting on its own](https://github.com/pauljoda/Crest/issues/496) — [`3a81c9f6`](https://github.com/pauljoda/Crest/commit/3a81c9f658a42153c4d3407f78d37ea58d221551), [`9623204f`](https://github.com/pauljoda/Crest/commit/9623204f56fbf86655cc05e567a1c492b3171e8a)
+- [x] [Show the right tab title in the sidebar after a page fails to load](https://github.com/pauljoda/Crest/issues/506) — [`fbddee58`](https://github.com/pauljoda/Crest/commit/fbddee58da9df69d09256a5a1b59897018e1ac55)
 
 <!-- crest-roadmap-sync:end -->
 
