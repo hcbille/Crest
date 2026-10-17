@@ -24,6 +24,9 @@ public sealed partial class BrowserContractsTests {
         app.Report(chromium, new BeforeUnloadAnswered(page, Proceeds: true));
         app.Report(chromium, new PageClosed(page, kept));
         app.Report(webKit, new PageCreated(page));
+        // Until the new engine reports its history, the page offers no entry to go to.
+        var moving = app.Query(new PageHistoryEntries(page));
+        Assert.Equal((0, 0), (moving.Back.Count, moving.Forward.Count));
         var shown = Entry(url);
         app.Report(webKit, new PageHistoryReported(page, [shown], Current: 0));
         app.Drain();
@@ -54,6 +57,8 @@ public sealed partial class BrowserContractsTests {
         app.Report(webKit, new PageClosed(page, webKitKept));
         app.Report(chromium, new PageCreated(page));
         Assert.IsType<CreatePage>(chromiumBinding.Commands[^1]);
+        // A new Chromium page first reports that it holds no history, which changes nothing.
+        app.Report(chromium, new PageHistoryReported(page, [], Current: -1));
         app.Report(chromium, new PageHistoryReported(page, [earlier, moved], Current: 1));
         Assert.Equal(new GoToHistoryEntry(page, earlier.Id), chromiumBinding.Commands[^1]);
         app.Report(chromium, new PageHistoryReported(page, [earlier, moved], Current: 0));
