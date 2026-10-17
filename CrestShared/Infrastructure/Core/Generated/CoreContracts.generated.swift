@@ -431,6 +431,7 @@ enum EngineCommand: Equatable, Sendable {
     case eraseProfileData(EraseProfileData)
     case eraseSiteData(EraseSiteData)
     case exitPictureInPicture(ExitPictureInPicture)
+    case goToHistoryEntry(GoToHistoryEntry)
     case groupPages(GroupPages)
     case loadPage(LoadPage)
     case pauseEngineDownload(PauseEngineDownload)
@@ -462,7 +463,6 @@ enum EnginePresentation: Equatable, Sendable {
     case mediaSessionChanged(MediaSessionChanged)
     case pageCaptured(PageCaptured)
     case pageExported(PageExported)
-    case pageHistoryChanged(PageHistoryChanged)
     case pageInputDelivered(PageInputDelivered)
     case pageInteracted(PageInteracted)
     case pageLoadingChanged(PageLoadingChanged)
@@ -508,7 +508,6 @@ enum EnginePresentation: Equatable, Sendable {
         case .mediaSessionChanged(let value): value.pageID
         case .pageCaptured(let value): value.pageID
         case .pageExported(let value): value.pageID
-        case .pageHistoryChanged(let value): value.pageID
         case .pageInputDelivered(let value): value.pageID
         case .pageInteracted(let value): value.pageID
         case .pageLoadingChanged(let value): value.pageID
@@ -2917,11 +2916,9 @@ struct GetEnginePreferences: Query, Equatable, Sendable {
 
 }
 
-struct GoToHistoryOffset: PageRequest, Equatable, Sendable {
-    typealias Answer = Bool
-
+struct GoToHistoryEntry: Equatable, Sendable {
     let pageID: UUID
-    let offset: Int
+    let entryID: UUID
 }
 
 struct GroupPages: Equatable, Sendable {
@@ -3609,6 +3606,7 @@ struct LoadAddress: Intent, PageIntent, Equatable, Sendable {
 struct LoadPage: Equatable, Sendable {
     let pageID: UUID
     let url: String
+    let entryID: UUID?
 }
 
 struct LocalDocumentFacts: Equatable, Sendable {
@@ -4193,15 +4191,27 @@ struct PageHeader: Equatable, Sendable {
     let value: String
 }
 
-struct PageHistoryChanged: Equatable, Sendable {
+struct PageHistoryEntries: Query, Equatable, Sendable {
+    typealias Answer = PageHistoryList
+
     let pageID: UUID
+}
+
+struct PageHistoryEntry: Equatable, Sendable, Identifiable {
+    var id: UUID
+    var url: String
+    var title: String
+}
+
+struct PageHistoryList: Equatable, Sendable {
     let back: [PageHistoryEntry]
     let forward: [PageHistoryEntry]
 }
 
-struct PageHistoryEntry: Equatable, Sendable {
-    let url: String
-    let title: String
+struct PageHistoryReported: EngineEvent, PageEvent, Equatable, Sendable {
+    let pageID: UUID
+    let entries: [PageHistoryEntry]
+    let current: Int
 }
 
 struct PageIcon: PageRequest, Equatable, Sendable {
@@ -4385,23 +4395,12 @@ struct PageScriptEvaluated: Equatable, Sendable {
 }
 
 struct PageSnapshot: Equatable, Sendable {
-    static let blank = PageSnapshot(
-        url: nil,
-        pendingURL: nil,
-        title: "",
-        isLoading: false,
-        canGoBack: false,
-        canGoForward: false,
-        security: PageSecurity.none,
-        media: []
-    )
+    static let blank = PageSnapshot(url: nil, pendingURL: nil, title: "", isLoading: false, security: PageSecurity.none, media: [])
 
     var url: String?
     var pendingURL: String?
     var title: String
     var isLoading: Bool
-    var canGoBack: Bool
-    var canGoForward: Bool
     var security: PageSecurity
     var media: PageMediaActivity
 }
@@ -5807,6 +5806,11 @@ struct ShowBlockedPopups: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct ShowHistoryEntry: Intent, PageIntent, Equatable, Sendable {
+    let pageID: UUID
+    let entryID: UUID
+}
+
 struct ShowImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
 }
@@ -6360,6 +6364,11 @@ struct StartPageNotCopied: Equatable, Sendable {
 struct StartSetup: Intent, SetupFlowIntent, Equatable, Sendable {
     let workspaceID: UUID
     let entry: SetupEntry
+}
+
+struct StepHistory: Intent, PageIntent, Equatable, Sendable {
+    let pageID: UUID
+    let offset: Int
 }
 
 struct StepSplitMember: Intent, SessionIntent, Equatable, Sendable {
