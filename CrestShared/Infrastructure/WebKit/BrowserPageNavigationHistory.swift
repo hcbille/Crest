@@ -64,6 +64,13 @@ struct BrowserPageNavigationHistory {
         nextEntryID = entryID
     }
 
+    /// A new entry takes the identity the core's load expected, if any.
+    private mutating func takeExpectedEntry(_ item: WKBackForwardListItem) {
+        guard let expected = nextEntryID else { return }
+        entryIDs[ObjectIdentifier(item)] = expected
+        nextEntryID = nil
+    }
+
     private func entry(_ item: WKBackForwardListItem) -> PageHistoryEntry? {
         guard let id = entryIDs[ObjectIdentifier(item)] else { return nil }
         return PageHistoryEntry(id: id, url: item.url.absoluteString, title: item.title ?? "")
@@ -101,15 +108,15 @@ struct BrowserPageNavigationHistory {
         if entries.isEmpty {
             entries = nativeBack + [current] + nativeForward
             arrivals.insert(ObjectIdentifier(current))
+            // A new page's only entry is the load the core asked for, never a
+            // list WebKit restored.
+            if nativeBack.isEmpty, nativeForward.isEmpty { takeExpectedEntry(current) }
         } else if !entries.contains(where: { $0 === current }) {
             // A new entry discards the old forward branch. A restored list may
             // contain entries we have not observed yet; seed those below too.
             entries = Array(entries.prefix(currentIndex + 1)) + [current]
             arrivals.insert(ObjectIdentifier(current))
-            if let expected = nextEntryID {
-                entryIDs[ObjectIdentifier(current)] = expected
-                nextEntryID = nil
-            }
+            takeExpectedEntry(current)
         }
         // Merge native entries in their own order. This also seeds history
         // restored by WebKit without manufacturing entries from URL strings.
