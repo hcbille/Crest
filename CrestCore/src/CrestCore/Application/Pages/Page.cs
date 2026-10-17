@@ -65,12 +65,16 @@ internal sealed class Page {
     private readonly Func<Guid, SiteOrigin, bool?> siteDeveloperMode;
 
     /// What rules and views read of the page now: what its engine last showed,
-    /// and why its latest navigation failed. A failure over the document the
-    /// page still shows can be left for that document, so the page can go back
-    /// even when its engine's history cannot.
+    /// whether its history reaches back or forward, and why its latest
+    /// navigation failed. A failure over the document the page still shows can
+    /// be left for that document, so the page can go back even when its
+    /// history cannot.
     public PageLiveState Live => new(shown.Url, shown.PendingUrl, shown.Title, shown.IsLoading,
-        shown.CanGoBack || failure is { ReplacedDocument: false } && shown.Url is not null, shown.CanGoForward, shown.Security,
-        failure, shown.Media);
+        History.CanGoBack || failure is { ReplacedDocument: false } && shown.Url is not null, History.CanGoForward,
+        shown.Security, failure, shown.Media);
+
+    /// The page's back and forward history as its engine last reported it.
+    public PageHistory History { get; private set; } = PageHistory.Empty;
 
     /// The icon the engine last reported for the document the page shows.
     public PageIcon? Icon { get; private set; }
@@ -195,6 +199,7 @@ internal sealed class Page {
         Phase = PagePhase.Opening;
         rehostedAddress = address;
         shown = PageSnapshot.Blank with { PendingUrl = address };
+        History = PageHistory.Empty;
         failure = null;
         documentUrl = null;
         isRecorded = false;
@@ -314,6 +319,9 @@ internal sealed class Page {
 
     /// The engine reported what the page shows now.
     public void Show(PageSnapshot snapshot) => shown = snapshot;
+
+    /// The engine reported the page's back and forward history.
+    public void Record(PageHistory history) => History = history;
 
     /// The engine reported an icon for the document. Answers whether its tab
     /// may wear it now: the page has a tab and the document is recorded, so

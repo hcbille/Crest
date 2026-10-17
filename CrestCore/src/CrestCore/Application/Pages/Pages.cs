@@ -116,6 +116,12 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
 
     #region Actions - Engines
 
+    /// Asks the page's engine to show the entry `entryId` names in its history.
+    /// A page its engine does not hold yet goes nowhere.
+    internal void Traverse(Page page, Guid entryId, Action<Engine, EngineCommand> issue) {
+        if (page.Phase == PagePhase.Live) issue(page.Engine, new GoToHistoryEntry(page.Id, entryId));
+    }
+
     /// Closes the page on its engine, keeping nothing, and creates it on
     /// `engine`, which loads `address` once it has created it, then publishes
     /// the move and why it happened.
