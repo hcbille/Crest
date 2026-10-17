@@ -1,3 +1,6 @@
+using System.Text;
+using System.Text.Json.Nodes;
+
 using CrestCore.Application;
 using CrestCore.Contracts;
 
@@ -382,19 +385,38 @@ public sealed partial class BrowserContractsTests {
             Expect(browser, EngineKind.Chromium, "a", ["start"], ["b", "c"]);
         }
 
+        /// A truncated archive, and ones no engine could have written: an
+        /// entry without a title, and a run that ends before it starts.
         [Fact]
         public void AnArchiveThisBuildCannotReadBringsNothingBack() {
-            using var browser = Open();
-            Follow(browser, "a");
-            Move(browser, EngineKind.WebKit);
-            var archive = browser.App.Query(new ArchivedPageHistory(browser.Page)).Archive!;
-            Send(browser, new ReleasePage(browser.Page, KeepsState: false));
-            Send(browser, new RestoreTabHistory(browser.Workspace, browser.Space, browser.Tab, archive[..^4]));
-            browser.Page = Guid.NewGuid();
-            Send(browser, new OpenPage(browser.Page, browser.Workspace, browser.Space, browser.Tab, browser.Window));
-            browser.Navigate(browser.Hosting, browser.Page, Address("a"));
-            browser.Settle();
-            Expect(browser, EngineKind.Chromium, "a", [], []);
+            static byte[] Edited(byte[] archive, Action<JsonNode> edit) {
+                var root = JsonNode.Parse(archive)!;
+                edit(root);
+                return Encoding.UTF8.GetBytes(root.ToJsonString());
+            }
+            Func<byte[], byte[]>[] unreadable = [
+                archive => archive[..^4],
+                archive => Edited(archive, root => root["runs"]![0]!["entries"]![0]!["title"] = null),
+                archive => Edited(archive, root => {
+                    var run = root["runs"]![0]!;
+                    run["start"] = run["entries"]![1]!["id"]!.DeepClone();
+                    run["boundary"] = run["entries"]![0]!["id"]!.DeepClone();
+                }),
+            ];
+            foreach (var spoil in unreadable) {
+                using var browser = Open();
+                Follow(browser, "a");
+                Follow(browser, "b");
+                Move(browser, EngineKind.WebKit);
+                var archive = browser.App.Query(new ArchivedPageHistory(browser.Page)).Archive!;
+                Send(browser, new ReleasePage(browser.Page, KeepsState: false));
+                Send(browser, new RestoreTabHistory(browser.Workspace, browser.Space, browser.Tab, spoil(archive)));
+                browser.Page = Guid.NewGuid();
+                Send(browser, new OpenPage(browser.Page, browser.Workspace, browser.Space, browser.Tab, browser.Window));
+                browser.Navigate(browser.Hosting, browser.Page, Address("b"));
+                browser.Settle();
+                Expect(browser, EngineKind.Chromium, "b", [], []);
+            }
         }
 
         /// Random walks of links, steps, menu jumps, moves with and without

@@ -424,9 +424,15 @@ internal sealed class Pages(Device device, Engines engines, IClock clock, IIdSou
     }
 
     /// The history of the page `pageId` names, or of the tab's page it was
-    /// until it closed keeping its state, as its tab's archive keeps it.
-    internal byte[]? ArchivedHistory(Guid pageId) =>
-        (Hosted(pageId)?.History ?? histories.Values.FirstOrDefault(kept => kept.PageId == pageId).History)?.Archive();
+    /// until it closed keeping its state, as its tab's archive keeps it. None
+    /// for a page of a private workspace, open or closed.
+    internal byte[]? ArchivedHistory(Guid pageId) {
+        var (workspaceId, history) = Hosted(pageId) is { } page ? (page.WorkspaceId, page.History)
+            : histories.FirstOrDefault(kept => kept.Value.PageId == pageId) is { Value.History: { } closed } kept
+                ? (kept.Key.WorkspaceId, closed)
+                : (Guid.Empty, null);
+        return history is not null && device.Attached(workspaceId) is { IsPrivateBrowsing: false } ? history.Archive() : null;
+    }
 
     private void KeepHistory((Guid WorkspaceId, Guid TabId) key, Page page) {
         ForgetHistory(key);

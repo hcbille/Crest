@@ -10,10 +10,7 @@ namespace CrestCore.Contracts;
 public sealed record ArchivedPageHistory(Guid PageId) : Query<PageHistoryArchive> {
     #region Actions - Answering
 
-    internal override PageHistoryArchive Answer(CrestApp app) =>
-        new(app.Pages.Hosted(PageId) is { } page && app.Pages.Device.Workspace(page.WorkspaceId).IsPrivateBrowsing
-            ? null
-            : app.Pages.ArchivedHistory(PageId));
+    internal override PageHistoryArchive Answer(CrestApp app) => new(app.Pages.ArchivedHistory(PageId));
 
     #endregion
 }

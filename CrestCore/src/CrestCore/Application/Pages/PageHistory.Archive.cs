@@ -7,16 +7,17 @@ namespace CrestCore.Application;
 /// A page's history as its tab's archive keeps it across a relaunch: a JSON
 /// object of its runs, the run the page shows, the identities its engine held
 /// then, and what each engine handed back for the runs it held, within
-/// `ArchivedStateBudget`. Past the budget the oldest runs' engine history is
-/// left out first, and their entries load afresh. An archive this build
-/// cannot read brings back nothing.
+/// `ArchivedStateBudget` as stored. Past the budget the oldest runs' engine
+/// history is left out first, and their entries load afresh. The run the page
+/// shows needs none: the tab's archive keeps its engine's own. An archive this
+/// build cannot read brings back nothing.
 internal sealed partial class PageHistory {
     #region Static Variables
 
     /// The format this build writes and reads.
     private const int ArchiveVersion = 1;
 
-    /// The most bytes of engine history an archive keeps.
+    /// The most bytes of engine history an archive keeps, as it stores them.
     public const int ArchivedStateBudget = 2 * 1024 * 1024;
 
     private const string VersionName = "version";
@@ -45,9 +46,12 @@ internal sealed partial class PageHistory {
         var kept = new List<Kept>();
         long bytes = 0;
         for (int index = runs.Count - 1; index >= 0; index--) {
-            if (runs[index].Saved is not { } saved || kept.Contains(saved, ReferenceEqualityComparer.Instance)) continue;
-            if (bytes + saved.State.State.Length > ArchivedStateBudget) continue;
-            bytes += saved.State.State.Length;
+            if (index == live || runs[index].Saved is not { } saved || kept.Contains(saved, ReferenceEqualityComparer.Instance))
+                continue;
+            // Engine history is stored as base64.
+            long stored = (saved.State.State.Length + 2L) / 3 * 4;
+            if (bytes + stored > ArchivedStateBudget) continue;
+            bytes += stored;
             kept.Add(saved);
         }
         using var stream = new MemoryStream();
@@ -55,7 +59,8 @@ internal sealed partial class PageHistory {
             writer.WriteStartObject();
             writer.WriteNumber(VersionName, ArchiveVersion);
             writer.WriteNumber(LiveName, live);
-            WriteIdentities(writer, NativeName, native);
+            // A page still restoring holds what its engine is bringing back.
+            WriteIdentities(writer, NativeName, arriving?.Native ?? native);
             writer.WriteStartArray(KeptName);
             foreach (var saved in kept) {
                 writer.WriteStartObject();
@@ -93,7 +98,9 @@ internal sealed partial class PageHistory {
 
     /// The history `archive` keeps, or null when this build cannot read it,
     /// or it holds a history no engine could have reported: more than
-    /// `Capacity` entries, an entry twice, or no entry to show.
+    /// `Capacity` entries, an entry twice, no entry to show, a missing
+    /// address or title, a run that ends before it starts, or more engine
+    /// history than `ArchivedStateBudget`.
     public static PageHistory? Unarchive(byte[]? archive) {
         if (archive is null || archive.Length == 0) return null;
         try {
@@ -101,21 +108,27 @@ internal sealed partial class PageHistory {
             var root = document.RootElement;
             if (root.GetProperty(VersionName).GetInt32() != ArchiveVersion) return null;
             var kept = root.GetProperty(KeptName).EnumerateArray()
-                .Select(saved => new Kept(new PageRestoreState(saved.GetProperty(UrlName).GetString()!, saved.GetProperty(StateName).GetBytesFromBase64()),
+                .Select(saved => new Kept(new PageRestoreState(Text(saved, UrlName), saved.GetProperty(StateName).GetBytesFromBase64()),
                     Identities(saved.GetProperty(NativeName))))
                 .ToList();
+            if (kept.Sum(saved => (long)saved.State.State.Length) > ArchivedStateBudget
+                || kept.Any(saved => saved.Native.Distinct().Count() != saved.Native.Count))
+                return null;
             var history = new PageHistory { live = root.GetProperty(LiveName).GetInt32(), native = Identities(root.GetProperty(NativeName)) };
             foreach (var stored in root.GetProperty(RunsName).EnumerateArray()) {
-                if (EngineKind.Named(stored.GetProperty(EngineName).GetString()) is not { } engine) return null;
+                if (EngineKind.Named(Text(stored, EngineName)) is not { } engine) return null;
                 var run = new Run(engine) {
                     Current = stored.GetProperty(CurrentName).GetInt32(),
                     Start = stored.TryGetProperty(StartName, out var start) ? start.GetGuid() : null,
                     Boundary = stored.TryGetProperty(BoundaryName, out var boundary) ? boundary.GetGuid() : null,
                     Saved = stored.TryGetProperty(KeptName, out var at) ? kept[at.GetInt32()] : null,
                     Entries = [.. stored.GetProperty(EntriesName).EnumerateArray().Select(entry => new PageHistoryEntry(
-                        entry.GetProperty(IdName).GetGuid(), entry.GetProperty(UrlName).GetString()!, entry.GetProperty(TitleName).GetString()!))],
+                        entry.GetProperty(IdName).GetGuid(), Text(entry, UrlName), Text(entry, TitleName)))],
                 };
                 if (run.Entries.Count == 0 || run.Current < 0 || run.Current >= run.Entries.Count) return null;
+                int first = run.Start is { } begins ? run.Entries.FindIndex(entry => entry.Id == begins) : 0;
+                int last = run.Boundary is { } ends ? run.Entries.FindIndex(entry => entry.Id == ends) : run.Entries.Count - 1;
+                if (first >= 0 && last >= 0 && last < first) return null;
                 history.runs.Add(run);
             }
             var entries = history.Entries;
@@ -134,6 +147,10 @@ internal sealed partial class PageHistory {
         foreach (var identity in identities) writer.WriteStringValue(identity);
         writer.WriteEndArray();
     }
+
+    /// The string `name` names in `element`, which must not be null.
+    private static string Text(JsonElement element, string name) =>
+        element.GetProperty(name).GetString() ?? throw new FormatException($"{name} is null");
 
     private static List<Guid> Identities(JsonElement array) => [.. array.EnumerateArray().Select(identity => identity.GetGuid())];
 
