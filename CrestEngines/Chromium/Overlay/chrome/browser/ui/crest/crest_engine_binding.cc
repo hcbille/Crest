@@ -296,10 +296,10 @@ void EngineBinding::Handle(const engine::CreatePage& command) {
 }
 
 void EngineBinding::Handle(const engine::LoadPage& command) {
-  if (command.entry_id) {
-    if (EnginePage* page = Find(GuidText(command.page_id))) {
-      page->ExpectEntry(*command.entry_id);
-    }
+  // Every load replaces the identity an earlier one expected, so a load that
+  // names no entry never commits one the core asked for before.
+  if (EnginePage* page = Find(GuidText(command.page_id))) {
+    page->ExpectEntry(command.entry_id);
   }
   Load(GuidText(command.page_id), command.url);
 }

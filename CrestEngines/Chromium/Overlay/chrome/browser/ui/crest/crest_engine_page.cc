@@ -295,6 +295,7 @@ void EnginePage::LoadPending() {
     // A stale link is never retried as a bare address, which would lose the
     // initiating frame's security and referrer.
     if (!binding_->LoadStagedLink(key_, staged.token, EngineURL(url))) {
+      expected_entry_id_.reset();
       Interrupted();
       Report(engine::StagedLinkUnavailable{.page_id = id_});
     }
@@ -322,6 +323,8 @@ std::optional<std::string> EnginePage::TakeStagedToken() {
 void EnginePage::Navigate(const std::string& url) {
   const GURL target = EngineURL(url);
   if (!web_contents() || !target.is_valid()) {
+    // No navigation starts to take the identity the load expected.
+    expected_entry_id_.reset();
     return;
   }
   web_contents()->GetController().LoadURL(target, content::Referrer(), ui::PAGE_TRANSITION_TYPED,
@@ -452,8 +455,16 @@ void EnginePage::DidStartNavigation(content::NavigationHandle* navigation) {
   }
   ++navigation_generation_;
   loading_navigation_ = navigation->GetNavigationId();
+  // Only the app's own load of a new entry carries the core's identity. A
+  // page's own navigation, a step through history or a reload that starts
+  // first means that load never came, so the identity is dropped.
   if (expected_entry_id_ && !expected_entry_navigation_) {
-    expected_entry_navigation_ = navigation->GetNavigationId();
+    if (!navigation->IsRendererInitiated() && navigation->GetReloadType() == content::ReloadType::NONE &&
+        !(navigation->GetPageTransition() & ui::PAGE_TRANSITION_FORWARD_BACK)) {
+      expected_entry_navigation_ = navigation->GetNavigationId();
+    } else {
+      expected_entry_id_.reset();
+    }
   }
   Present(engine::PageNavigationStarted{.page_id = id_});
   Started(PresentedURL(navigation->GetURL()));
@@ -981,7 +992,7 @@ engine::Guid EnginePage::EntryId(content::NavigationEntry* entry) {
   return found->second;
 }
 
-void EnginePage::ExpectEntry(const engine::Guid& entry_id) {
+void EnginePage::ExpectEntry(const std::optional<engine::Guid>& entry_id) {
   expected_entry_id_ = entry_id;
   expected_entry_navigation_.reset();
 }
