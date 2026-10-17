@@ -116,10 +116,10 @@ class EnginePage final : public content::WebContentsObserver,
   // Keeps the link the core staged for the page's first load, which a load of
   // the same address then runs. False once the page loads.
   bool Stage(const std::string& token, const std::string& url);
-  // The next entry the page commits that is not a step through its history
-  // takes `entry_id`, the core's identity for an entry it asked the page to
-  // load again.
-  void ExpectEntry(const engine::Guid& entry_id);
+  // The entry the next load the app asks for commits takes `entry_id`, the
+  // core's identity for an entry it asked the page to load again; none
+  // forgets the identity an earlier load expected.
+  void ExpectEntry(const std::optional<engine::Guid>& entry_id);
   // Restores navigation history saved by `SaveInteractionState` in place of a
   // load of `expected_url`; a page still being created restores once it
   // exists. False when the state does not restore this page.
@@ -366,7 +366,8 @@ class EnginePage final : public content::WebContentsObserver,
   // id, which lasts as long as the entry does.
   std::map<int, engine::Guid> entry_ids_;
   // The identity the entry the core's load commits takes, and that load once
-  // it starts. The load gives the identity up however it ends.
+  // it starts. The load gives the identity up however it ends, and any other
+  // navigation that starts first, or a load that never starts, drops it.
   std::optional<engine::Guid> expected_entry_id_;
   std::optional<int64_t> expected_entry_navigation_;
 
