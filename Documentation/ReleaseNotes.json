@@ -4217,6 +4217,10 @@
     "setup-full-screen-look-choice": {
       "category": "new",
       "message": "Setup on the Mac fills the screen and asks whether your Spaces wear Crest's heraldic banners and crests or a modern gradient and icon, then carries that look through importing, reviewing and making your Spaces yours."
+    },
+    "sidebar-shift-click-selects-range": {
+      "category": "fixed",
+      "message": "Shift-clicking a tab in the sidebar selects every tab between the active tab and the one you clicked, instead of only adding that tab like Command-click."
     }
   }
 }

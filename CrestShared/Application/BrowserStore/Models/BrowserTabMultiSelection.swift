@@ -80,12 +80,18 @@ final class BrowserTabMultiSelection {
 
     // MARK: - Actions - Selecting
 
+    /// A shift click ranges from the anchor, or from `activeItem` when no
+    /// anchor is set, such as right after a tab was opened or activated.
     func click(
-        _ id: BrowserSelectionItemID, units: [[BrowserSelectionItemID]], command: Bool = false, shift: Bool = false
+        _ id: BrowserSelectionItemID, units: [[BrowserSelectionItemID]], command: Bool = false, shift: Bool = false,
+        activeItem: BrowserSelectionItemID? = nil
     ) {
         guard let target = units.firstIndex(where: { $0.contains(id) }) else { return }
         focusedItem = units[target].first
         ownsKeyboardFocus = true
+        if shift, anchorItem == nil, let activeItem, let active = units.first(where: { $0.contains(activeItem) }) {
+            anchorItem = active.first
+        }
         if shift, let anchorItem, let anchor = units.firstIndex(where: { $0.contains(anchorItem) }) {
             if rangeBase == nil { rangeBase = command ? members.members : [] }
             let range = Set(units[min(anchor, target)...max(anchor, target)].flatMap { $0 })
