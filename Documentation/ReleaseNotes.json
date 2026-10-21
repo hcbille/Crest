@@ -4194,6 +4194,38 @@
       "category": "internal",
       "message": "A page the core asks to load in place of a history entry gives up that entry's identity when the load fails or is cancelled, so a later page never takes it."
     },
+    "history-across-engine-moves": {
+      "category": "fixed",
+      "message": "Back and Forward keep working after a page opens in another engine, and take each page back to the engine it was shown in."
+    },
+    "history-refused-step-keeps-site-engine": {
+      "category": "internal",
+      "message": "A step through history the engine refuses no longer keeps a later visit to that address on the same engine instead of the one chosen for the site."
+    },
+    "history-across-engines-after-relaunch": {
+      "category": "improved",
+      "message": "Tabs keep their back and forward history across engines after Crest relaunches, and a duplicated tab keeps it too."
+    },
+    "history-kept-before-engine-state": {
+      "category": "internal",
+      "message": "A tab keeps its history across engines after a relaunch or when duplicated even before its page has any engine state to keep, and a long history no longer loses a run the page left on its oldest entry."
+    },
+    "chromium-form-submit-autofill-save-crash": {
+      "category": "fixed",
+      "message": "Crest no longer quits when you submit a form containing a payment card or address."
+    },
+    "setup-full-screen-look-choice": {
+      "category": "new",
+      "message": "Setup on the Mac fills the screen and asks whether your Spaces wear Crest's heraldic banners and crests or a modern gradient and icon, then carries that look through importing, reviewing and making your Spaces yours."
+    },
+    "setup-import-read-cancel": {
+      "category": "fixed",
+      "message": "While setup reads a browser you chose to import, the page says so where Continue was and offers Cancel, so a slow or stuck read no longer leaves setup looking stuck with every button disabled."
+    },
+    "address-bar-selects-url-on-tap": {
+      "category": "fixed",
+      "message": "Tapping the address bar on iPhone selects the whole address, so typing replaces it or you can copy it right away."
+    },
     "share-sheet-open-links": {
       "category": "new",
       "message": "On iPhone and iPad, Crest appears in the share sheet, so a link shared from another app opens in Crest. Settings can have the share sheet ask which Space the link opens in."

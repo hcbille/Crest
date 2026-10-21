@@ -13,7 +13,7 @@ public sealed record ShowHistoryEntry(Guid PageId, Guid EntryId) : PageIntent {
         var page = pages.Known(PageId);
         if (!page.History.Reaches(EntryId)) return;
         pages.Update(page, turn.Changes, page.LeaveFailure);
-        pages.Traverse(page, EntryId, turn.Issue);
+        pages.Traverse(page, EntryId, turn);
     }
 
     #endregion
