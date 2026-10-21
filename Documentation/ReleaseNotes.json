@@ -4226,6 +4226,10 @@
       "category": "fixed",
       "message": "Tapping the address bar on iPhone selects the whole address, so typing replaces it or you can copy it right away."
     },
+    "mobile-cross-site-download-test-wait": {
+      "category": "internal",
+      "message": "The iPhone and iPad test of a download from another site waits as long as WebKit takes in the Simulator to start it, so it no longer fails after other tests have run."
+    },
     "share-sheet-open-links": {
       "category": "new",
       "message": "On iPhone and iPad, Crest appears in the share sheet, so a link shared from another app, or the first link in shared text, opens in Crest."
