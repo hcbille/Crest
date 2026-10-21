@@ -119,13 +119,8 @@ struct MobileBrowserWindowScene: View {
                 switch phase {
                 case .active:
                     activateWindow()
-                    model.publishSharedSpaces()
-                    openSavedSharedLinks()
                 case .inactive:
                     sidebarWidgets.suspendHost(id: model.windowState.id)
-                    // Leaving Crest to share from another app passes through
-                    // here, so the share sheet offers the Spaces as they are now.
-                    model.publishSharedSpaces()
                     model.prepareForInactiveScene()
                 case .background:
                     sidebarWidgets.suspendHost(id: model.windowState.id)
@@ -281,25 +276,15 @@ struct MobileBrowserWindowScene: View {
     }
 
     private func openExternalURL(_ url: URL) {
-        if let sharedLink = BrowserSharedLink(handOffURL: url) {
-            Task { await showStandardBrowsing(after: model.openSharedLink(sharedLink)) }
-            return
-        }
         BrowserPlatformDefaultBrowserSystem.noteOpenedLink(url)
-        Task { await showStandardBrowsing(after: model.routeExternalURL(url)) }
-    }
-
-    /// Opens the links the share extension saved while it could not open Crest.
-    private func openSavedSharedLinks() {
-        Task { await showStandardBrowsing(after: model.openSavedSharedLinks()) }
-    }
-
-    /// Links from other apps open in standard browsing, never in this
-    /// window's private session.
-    private func showStandardBrowsing(after openedLink: Bool) {
-        guard openedLink else { return }
-        withAnimation(modeAnimation) {
-            browsingMode = .standard
+        // The share sheet hands a link over as `crest://open`, which routes
+        // as the web link it carries.
+        let link = BrowserSharedLink(handOffURL: url)?.url ?? url
+        Task {
+            guard await model.routeExternalURL(link) else { return }
+            withAnimation(modeAnimation) {
+                browsingMode = .standard
+            }
         }
     }
 

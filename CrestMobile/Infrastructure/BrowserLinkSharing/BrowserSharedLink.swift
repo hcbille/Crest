@@ -1,43 +1,39 @@
 import Foundation
 
-/// A web link shared to Crest from another app, with the Space the person
-/// chose for it, if any. It reaches the app as a `crest://open` URL, or as a
-/// saved entry when the extension could not open Crest.
+/// A web link shared to Crest from another app. The share extension hands it
+/// to the app as a `crest://open` URL.
 ///
-/// The hand-off URL carries no more trust than an `https` link another app
-/// opens: any app can build one, so it names only a web link and a Space,
-/// and the app still routes the link and unlocks the Space as it would any
-/// other.
-struct BrowserSharedLink: Codable, Equatable, Sendable {
+/// Any app can open that URL, so it carries the web link and nothing else,
+/// and the app routes the link as it would any link another app opens: link
+/// routes, Quick Windows and locked Spaces behave the same.
+struct BrowserSharedLink: Equatable, Sendable {
     // MARK: - Static Variables
 
     private static let handOffScheme = "crest"
     private static let handOffHost = "open"
     private static let urlParameter = "url"
-    private static let spaceParameter = "space"
     private static let webSchemes: Set<String> = ["http", "https"]
     /// Characters a query value keeps unescaped, so `&`, `=` and `+` inside
-    /// the shared link never split the hand-off's own parameters.
+    /// the shared link never split the hand-off's own parameter.
     private static let queryValueCharacters = CharacterSet(
         charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")
 
     // MARK: - Variables
 
     let url: URL
-    let spaceID: UUID?
 
     /// The `crest://open` URL that hands this link to the app.
     var handOffURL: URL {
         var components = URLComponents()
         components.scheme = Self.handOffScheme
         components.host = Self.handOffHost
-        var parameters = [Self.queryItem(Self.urlParameter, url.absoluteString)]
-        if let spaceID {
-            parameters.append(Self.queryItem(Self.spaceParameter, spaceID.uuidString))
-        }
-        components.percentEncodedQueryItems = parameters
+        components.percentEncodedQueryItems = [
+            URLQueryItem(
+                name: Self.urlParameter,
+                value: url.absoluteString.addingPercentEncoding(withAllowedCharacters: Self.queryValueCharacters))
+        ]
         guard let handOffURL = components.url else {
-            preconditionFailure("A crest://open URL with escaped parameters always forms.")
+            preconditionFailure("A crest://open URL with an escaped link always forms.")
         }
         return handOffURL
     }
@@ -46,31 +42,25 @@ struct BrowserSharedLink: Codable, Equatable, Sendable {
 
     /// A shared web link, or nil for anything but an `http` or `https` URL
     /// with a host.
-    init?(url: URL, spaceID: UUID? = nil) {
+    init?(url: URL) {
         guard let scheme = url.scheme?.lowercased(), Self.webSchemes.contains(scheme),
             url.host(percentEncoded: false)?.isEmpty == false
         else { return nil }
         self.url = url
-        self.spaceID = spaceID
     }
 
     /// The link a `crest://open` URL hands over, or nil for any other URL,
-    /// for a link that is not a web link, and for a Space that is not an
-    /// identifier.
+    /// for a link given more than once, and for a link that is not a web
+    /// link.
     init?(handOffURL: URL) {
         guard handOffURL.scheme?.lowercased() == Self.handOffScheme,
             handOffURL.host(percentEncoded: false)?.lowercased() == Self.handOffHost,
             handOffURL.path().isEmpty || handOffURL.path() == "/",
-            let parameters = URLComponents(url: handOffURL, resolvingAgainstBaseURL: false)?.queryItems,
-            let linkValue = Self.value(of: Self.urlParameter, in: parameters),
-            let url = URL(string: linkValue)
+            let parameters = URLComponents(url: handOffURL, resolvingAgainstBaseURL: false)?.queryItems
         else { return nil }
-        var spaceID: UUID?
-        if let spaceValue = Self.value(of: Self.spaceParameter, in: parameters) {
-            guard let parsedSpaceID = UUID(uuidString: spaceValue) else { return nil }
-            spaceID = parsedSpaceID
-        }
-        self.init(url: url, spaceID: spaceID)
+        let links = parameters.filter { $0.name == Self.urlParameter }
+        guard links.count == 1, let value = links[0].value, let url = URL(string: value) else { return nil }
+        self.init(url: url)
     }
 
     // MARK: - Actions - Reading shared text
@@ -85,29 +75,5 @@ struct BrowserSharedLink: Codable, Equatable, Sendable {
             .compactMap(\.url)
             .compactMap { BrowserSharedLink(url: $0) }
             .first
-    }
-
-    /// The same link opening in `spaceID`.
-    func opening(in spaceID: UUID?) -> BrowserSharedLink {
-        BrowserSharedLink(verifiedURL: url, spaceID: spaceID)
-    }
-
-    // MARK: - Actions - Hand-off parameters
-
-    private init(verifiedURL url: URL, spaceID: UUID?) {
-        self.url = url
-        self.spaceID = spaceID
-    }
-
-    private static func queryItem(_ name: String, _ value: String) -> URLQueryItem {
-        URLQueryItem(
-            name: name, value: value.addingPercentEncoding(withAllowedCharacters: queryValueCharacters))
-    }
-
-    /// The parameter's value, or nil when it is missing or given twice.
-    private static func value(of name: String, in parameters: [URLQueryItem]) -> String? {
-        let matches = parameters.filter { $0.name == name }
-        guard matches.count == 1 else { return nil }
-        return matches[0].value
     }
 }

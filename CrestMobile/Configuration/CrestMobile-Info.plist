@@ -44,8 +44,6 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>CrestAppGroupIdentifier</key>
-	<string>$(CREST_APP_GROUP_IDENTIFIER)</string>
 	<key>CrestBrowserPasskeyManagedCapability</key>
 	<true/>
 	<key>CrestSystemPasswordWriteThroughManagedCapability</key>

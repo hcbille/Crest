@@ -3200,9 +3200,6 @@
     "Choose a shape to color its field" : {
 
     },
-    "Choose a Space" : {
-
-    },
     "Choose a starting point, then make it yours. Reset controls return to this preset." : {
 
     },
@@ -7464,9 +7461,6 @@
     "It can read and act on tabs in the Spaces you choose in Settings › Agents, and every tab it uses shows its badge." : {
 
     },
-    "It opens the next time you open Crest." : {
-
-    },
     "Its content is still saved. Update Crest to open it." : {
 
     },
@@ -7726,9 +7720,6 @@
           }
         }
       }
-    },
-    "Links shared to Crest" : {
-
     },
     "Lion" : {
       "extractionState" : "stale",
@@ -8926,9 +8917,6 @@
     "Open in Background" : {
 
     },
-    "Open in Crest" : {
-
-    },
     "Open in Current Space" : {
 
     },
@@ -9011,9 +8999,6 @@
           }
         }
       }
-    },
-    "Open Right Away" : {
-
     },
     "Open Settings" : {
 
@@ -11738,9 +11723,6 @@
         }
       }
     },
-    "Sent to Crest" : {
-
-    },
     "Separate All Tabs" : {
       "localizations" : {
         "ar" : {
@@ -11906,9 +11888,6 @@
     },
     "Shared" : {
       "comment" : "A tab's mark while another page shares it."
-    },
-    "Sharing" : {
-
     },
     "Sharing a Tab" : {
       "comment" : "A tab's mark while its page shares another tab."

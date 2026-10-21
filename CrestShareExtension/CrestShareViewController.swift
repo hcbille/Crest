@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// The share sheet's Crest entry. It hosts the share view and hands links to
-/// Crest by opening a `crest://open` URL.
+/// The share sheet's Crest entry. It hosts the share view and hands the shared
+/// link to Crest by opening a `crest://open` URL.
 final class CrestShareViewController: UIViewController {
     // MARK: - Variables
 
@@ -15,8 +15,7 @@ final class CrestShareViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .clear
         let model = CrestShareModel(
-            container: .bundled,
-            openInCrest: { [weak self] url in await self?.openInCrest(url) ?? false },
+            open: { [weak self] url in await self?.open(url) ?? false },
             finish: { [weak self] in self?.extensionContext?.completeRequest(returningItems: nil) }
         )
         self.model = model
@@ -45,14 +44,14 @@ final class CrestShareViewController: UIViewController {
         Task { await model.receive(providers) }
     }
 
-    // MARK: - Actions - Opening Crest
+    // MARK: - Actions - Opening links
 
     /// Opens `url` through the application that presents the share sheet.
     /// The system gives share extensions no API to open their app, so this
     /// walks the responder chain to the application and calls its
     /// `open(_:options:completionHandler:)` by selector. When a release
-    /// closes that path it answers false and the link waits in the inbox.
-    private func openInCrest(_ url: URL) async -> Bool {
+    /// closes that path it answers false and the sheet says so.
+    private func open(_ url: URL) async -> Bool {
         typealias OpenURL =
             @convention(c) (
                 AnyObject, Selector, NSURL, NSDictionary, (@convention(block) (Bool) -> Void)?
