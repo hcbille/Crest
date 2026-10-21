@@ -4225,6 +4225,10 @@
     "address-bar-selects-url-on-tap": {
       "category": "fixed",
       "message": "Tapping the address bar on iPhone selects the whole address, so typing replaces it or you can copy it right away."
+    },
+    "paste-and-match-style-web-pages": {
+      "category": "fixed",
+      "message": "Paste and Match Style now works in editable web content, from the Edit menu, its shortcut and the page's right-click menu."
     }
   }
 }
