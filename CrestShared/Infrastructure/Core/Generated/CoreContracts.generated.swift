@@ -834,6 +834,12 @@ struct AdoptWindowRecords: Intent, WindowIntent, Equatable, Sendable {
     let records: Data?
 }
 
+struct AgentActivity: Equatable, Sendable {
+    let kind: AgentActivityKind
+    let subject: String
+    let at: Date
+}
+
 struct AgentIdentity: Equatable, Sendable {
     static let maximumField: Int = 255
     static let maximumPath: Int = 1024
@@ -881,6 +887,8 @@ struct AgentSessionState: Equatable, Sendable {
     let name: String
     let color: BrandColor?
     let tabIDs: [UUID]
+    let opensWindows: Bool
+    let activity: [AgentActivity]
 }
 
 struct AgentSessionsChanged: CoreChange, Equatable, Sendable {
@@ -957,6 +965,10 @@ struct AgentsUnavailable: Equatable, Sendable {
 struct AllowAgentSpace: Intent, AgentIntent, Equatable, Sendable {
     let spaceID: UUID
     let allowed: Bool
+}
+
+struct AllowAgentWindows: Intent, AgentIntent, Equatable, Sendable {
+    let sessionID: UUID
 }
 
 struct AlreadyInSpace: Equatable, Sendable {
@@ -3941,6 +3953,12 @@ struct NotPrivateWorkspace: Equatable, Sendable {
     let workspaceID: UUID
 }
 
+struct NoteAgentActivity: Intent, AgentIntent, Equatable, Sendable {
+    let sessionID: UUID
+    let kind: AgentActivityKind
+    let subject: String
+}
+
 struct NotificationDisplayCheck: Query, Equatable, Sendable {
     typealias Answer = NotificationDisplayVerdict
 
@@ -6184,6 +6202,8 @@ struct SpaceSettings: Equatable, Sendable {
     let accessPolicy: SpaceAccessPolicy
     let isSavedTabsExpanded: Bool
     let savedTabsExpansionModifiedAt: Date?
+    let credentialsEnabledModifiedAt: Date?
+    let accessPolicyModifiedAt: Date?
     let look: SpaceBranding
     let requiresAuthentication: Bool
 
@@ -6199,6 +6219,8 @@ struct SpaceSettings: Equatable, Sendable {
         var accessPolicy: SpaceAccessPolicy
         var isSavedTabsExpanded: Bool
         var savedTabsExpansionModifiedAt: Date?
+        var credentialsEnabledModifiedAt: Date?
+        var accessPolicyModifiedAt: Date?
     }
 
     /// The record's fields alone, as a platform sends it back.
@@ -6212,7 +6234,9 @@ struct SpaceSettings: Equatable, Sendable {
             credentialPreferences: credentialPreferences,
             accessPolicy: accessPolicy,
             isSavedTabsExpanded: isSavedTabsExpanded,
-            savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt
+            savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt,
+            credentialsEnabledModifiedAt: credentialsEnabledModifiedAt,
+            accessPolicyModifiedAt: accessPolicyModifiedAt
         )
     }
 }
@@ -6423,6 +6447,9 @@ struct StopAgentTab: Intent, AgentIntent, Equatable, Sendable {
     let tabID: UUID
 }
 
+struct StopAllAgents: Intent, AgentIntent, Equatable, Sendable {
+}
+
 struct StopLoading: PageRequest, Equatable, Sendable {
     typealias Answer = Bool
 
@@ -6482,6 +6509,17 @@ struct StrongPasswordRecipe: Equatable, Sendable {
 
 struct SweepExpiredRecords: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
+}
+
+struct SwipeNeighborTabs: Equatable, Sendable {
+    let previousTabID: UUID?
+    let nextTabID: UUID?
+}
+
+struct SwipeNeighbors: Query, Equatable, Sendable {
+    typealias Answer = SwipeNeighborTabs
+
+    let windowID: UUID
 }
 
 struct SyncJournalChanged: CoreChange, Equatable, Sendable {
@@ -7398,6 +7436,97 @@ struct AdjacentDirection: Hashable, Sendable {
         init(name: String, step: Int) {
             self.name = name
             self.step = step
+        }
+    }
+}
+
+/// The members of the core's `AgentActivityKind`. A member's wire tag is its index in `all`.
+struct AgentActivityKind: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    var symbol: String { facts.symbol }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, title: LocalizedStringResource, symbol: String) {
+        self.tag = tag
+        facts = Facts(name: name, title: title, symbol: symbol)
+    }
+
+    static let openedTab = AgentActivityKind(
+        tag: 0,
+        name: "openedTab",
+        title: LocalizedStringResource("Opened a tab"),
+        symbol: "plus.square"
+    )
+    static let loadedPage = AgentActivityKind(
+        tag: 1,
+        name: "loadedPage",
+        title: LocalizedStringResource("Loaded a page"),
+        symbol: "arrow.right.circle"
+    )
+    static let closedTab = AgentActivityKind(
+        tag: 2,
+        name: "closedTab",
+        title: LocalizedStringResource("Closed a tab"),
+        symbol: "xmark.square"
+    )
+    static let openedWindow = AgentActivityKind(
+        tag: 3,
+        name: "openedWindow",
+        title: LocalizedStringResource("Opened a window"),
+        symbol: "macwindow.badge.plus"
+    )
+    static let openedPrivateWindow = AgentActivityKind(
+        tag: 4,
+        name: "openedPrivateWindow",
+        title: LocalizedStringResource("Opened a private window"),
+        symbol: "eyeglasses"
+    )
+    static let deletedHistory = AgentActivityKind(
+        tag: 5,
+        name: "deletedHistory",
+        title: LocalizedStringResource("Deleted history"),
+        symbol: "clock.arrow.trianglehead.counterclockwise.rotate.90"
+    )
+    static let ranScript = AgentActivityKind(
+        tag: 6,
+        name: "ranScript",
+        title: LocalizedStringResource("Ran a script"),
+        symbol: "curlybraces"
+    )
+
+    static let all: [AgentActivityKind] = [
+        openedTab,
+        loadedPage,
+        closedTab,
+        openedWindow,
+        openedPrivateWindow,
+        deletedHistory,
+        ranScript
+    ]
+
+    static func named(_ name: String?) -> AgentActivityKind? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: AgentActivityKind, rhs: AgentActivityKind) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+        let symbol: String
+
+        init(name: String, title: LocalizedStringResource, symbol: String) {
+            self.name = name
+            self.title = title
+            self.symbol = symbol
         }
     }
 }
@@ -21434,12 +21563,106 @@ struct SpaceIconStyle: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `SpaceScheme`. A member's wire tag is its index in `all`.
+struct SpaceScheme: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    var look: SpaceBranding { facts.look }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, title: LocalizedStringResource, look: SpaceBranding) {
+        self.tag = tag
+        facts = Facts(name: name, title: title, look: look)
+    }
+
+    static let neutral = SpaceScheme(
+        tag: 0,
+        name: "neutral",
+        title: LocalizedStringResource("Neutral"),
+        look: SpaceBranding(
+            colors: ColorPalette(colors: [BrandColor(red: 0.337, green: 0.337, blue: 0.337, alpha: 1)]),
+            bannerPattern: SpaceBannerPattern.diagonal,
+            bannerStrength: 0.15,
+            readabilityFade: 0,
+            keepsControlsReadable: false,
+            themeMode: SpaceThemeMode.gradient,
+            gradientAngle: 0,
+            showsTexture: true,
+            iconStyle: SpaceIconStyle.simpleSymbol,
+            symbolColor: BrandColor(red: 0.588, green: 0.588, blue: 0.588, alpha: 1),
+            crest: SpaceCrest(
+                backplate: CrestBackplate.shield,
+                fieldDivision: CrestFieldDivision.plain,
+                ordinary: CrestOrdinary.none,
+                trim: CrestTrim.none,
+                symbol: CrestSymbol.mountain,
+                chargeLayout: CrestChargeLayout.single,
+                backplateColorIndex: 1,
+                secondaryFieldColorIndex: 1,
+                ordinaryColorIndex: 2,
+                trimColorIndex: 1,
+                symbolColorIndex: 2,
+                startingPresetID: nil,
+                edgeColorIndex: 1,
+                palette: nil,
+                charge: nil,
+                plateScale: 1,
+                edgeWidth: 0,
+                divisionCount: 4,
+                finish: CrestFinish.flat,
+                ordinaryWidth: 1,
+                trimWeight: 1,
+                trimDetail: 12,
+                chargeScale: 1,
+                chargeOffset: 0,
+                chargeWeight: CrestChargeWeight.bold,
+                sheenAngle: 45,
+                sealTeeth: 12,
+                showsOutline: false,
+                depth: CrestDepth.none
+            ),
+            renderingVersion: 2,
+            folderColorIntensity: 0,
+            textColorMode: SpaceTextColorMode.system,
+            hasCustomAppearance: false
+        )
+    )
+
+    static let all: [SpaceScheme] = [neutral]
+
+    static func named(_ name: String?) -> SpaceScheme? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SpaceScheme, rhs: SpaceScheme) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+        let look: SpaceBranding
+
+        init(name: String, title: LocalizedStringResource, look: SpaceBranding) {
+            self.name = name
+            self.title = title
+            self.look = look
+        }
+    }
+}
+
 /// The members of the core's `SpaceTextColorMode`. A member's wire tag is its index in `all`.
 struct SpaceTextColorMode: Hashable, Sendable {
     enum Kinds: Sendable {
         case automatic
         case light
         case dark
+        case system
     }
 
     let tag: Int
@@ -21461,8 +21684,14 @@ struct SpaceTextColorMode: Hashable, Sendable {
     )
     static let light = SpaceTextColorMode(tag: 1, kind: .light, name: "light", title: LocalizedStringResource("Light"))
     static let dark = SpaceTextColorMode(tag: 2, kind: .dark, name: "dark", title: LocalizedStringResource("Dark"))
+    static let system = SpaceTextColorMode(
+        tag: 3,
+        kind: .system,
+        name: "system",
+        title: LocalizedStringResource("System")
+    )
 
-    static let all: [SpaceTextColorMode] = [automatic, light, dark]
+    static let all: [SpaceTextColorMode] = [automatic, light, dark, system]
 
     static func named(_ name: String?) -> SpaceTextColorMode? {
         all.first { $0.name == name }
@@ -22604,6 +22833,18 @@ struct Tincture: Hashable, Sendable {
         title: LocalizedStringResource("Bone"),
         color: BrandColor(red: 0.812, green: 0.82, blue: 0.831, alpha: 1)
     )
+    static let neutralSmoke = Tincture(
+        tag: 55,
+        name: "neutralSmoke",
+        title: LocalizedStringResource("Smoke"),
+        color: BrandColor(red: 0.337, green: 0.337, blue: 0.337, alpha: 1)
+    )
+    static let neutralGray = Tincture(
+        tag: 56,
+        name: "neutralGray",
+        title: LocalizedStringResource("Gray"),
+        color: BrandColor(red: 0.588, green: 0.588, blue: 0.588, alpha: 1)
+    )
 
     static let all: [Tincture] = [
         ink,
@@ -22660,7 +22901,9 @@ struct Tincture: Hashable, Sendable {
         sunTenne,
         sunGules,
         sunOr,
-        vigilBone
+        vigilBone,
+        neutralSmoke,
+        neutralGray
     ]
 
     static func named(_ name: String?) -> Tincture? {
@@ -23158,6 +23401,14 @@ final class SpaceSettingsModel: ObservedModel {
         access(keyPath: \.savedTabsExpansionModifiedAt)
         return savedTabsExpansionModifiedAtStorage
     }
+    var credentialsEnabledModifiedAt: Date? {
+        access(keyPath: \.credentialsEnabledModifiedAt)
+        return credentialsEnabledModifiedAtStorage
+    }
+    var accessPolicyModifiedAt: Date? {
+        access(keyPath: \.accessPolicyModifiedAt)
+        return accessPolicyModifiedAtStorage
+    }
     var look: SpaceBranding {
         access(keyPath: \.look)
         return lookStorage
@@ -23176,6 +23427,8 @@ final class SpaceSettingsModel: ObservedModel {
     @ObservationIgnored private var accessPolicyStorage: SpaceAccessPolicy
     @ObservationIgnored private var isSavedTabsExpandedStorage: Bool
     @ObservationIgnored private var savedTabsExpansionModifiedAtStorage: Date?
+    @ObservationIgnored private var credentialsEnabledModifiedAtStorage: Date?
+    @ObservationIgnored private var accessPolicyModifiedAtStorage: Date?
     @ObservationIgnored private var lookStorage: SpaceBranding
     @ObservationIgnored private var requiresAuthenticationStorage: Bool
 
@@ -23190,6 +23443,8 @@ final class SpaceSettingsModel: ObservedModel {
             accessPolicy: accessPolicy,
             isSavedTabsExpanded: isSavedTabsExpanded,
             savedTabsExpansionModifiedAt: savedTabsExpansionModifiedAt,
+            credentialsEnabledModifiedAt: credentialsEnabledModifiedAt,
+            accessPolicyModifiedAt: accessPolicyModifiedAt,
             look: look,
             requiresAuthentication: requiresAuthentication
         )
@@ -23205,6 +23460,8 @@ final class SpaceSettingsModel: ObservedModel {
         accessPolicyStorage = value.accessPolicy
         isSavedTabsExpandedStorage = value.isSavedTabsExpanded
         savedTabsExpansionModifiedAtStorage = value.savedTabsExpansionModifiedAt
+        credentialsEnabledModifiedAtStorage = value.credentialsEnabledModifiedAt
+        accessPolicyModifiedAtStorage = value.accessPolicyModifiedAt
         lookStorage = value.look
         requiresAuthenticationStorage = value.requiresAuthentication
     }
@@ -23245,6 +23502,14 @@ final class SpaceSettingsModel: ObservedModel {
         if savedTabsExpansionModifiedAtStorage != value.savedTabsExpansionModifiedAt {
             savedTabsExpansionModifiedAtStorage = value.savedTabsExpansionModifiedAt
             withMutation(keyPath: \.savedTabsExpansionModifiedAt) {}
+        }
+        if credentialsEnabledModifiedAtStorage != value.credentialsEnabledModifiedAt {
+            credentialsEnabledModifiedAtStorage = value.credentialsEnabledModifiedAt
+            withMutation(keyPath: \.credentialsEnabledModifiedAt) {}
+        }
+        if accessPolicyModifiedAtStorage != value.accessPolicyModifiedAt {
+            accessPolicyModifiedAtStorage = value.accessPolicyModifiedAt
+            withMutation(keyPath: \.accessPolicyModifiedAt) {}
         }
         if lookStorage != value.look {
             lookStorage = value.look

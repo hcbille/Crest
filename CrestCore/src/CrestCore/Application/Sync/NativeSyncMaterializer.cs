@@ -5,8 +5,9 @@ using CrestCore.Domain;
 
 namespace CrestCore.Application;
 
-/// Shared records become a typed session. Credentials, native pages and image
-/// choices come only from this device; encoding stays at the journal boundary.
+/// Shared records become a typed session. Where a Space keeps its passwords,
+/// native pages and image choices come only from this device; encoding stays
+/// at the journal boundary.
 public static class NativeSyncMaterializer {
     #region Actions - Materialization
 
@@ -40,9 +41,11 @@ public static class NativeSyncMaterializer {
             groups.AddRange((local?.SplitGroups ?? []).Where(group => localSplitIds.Contains(group.Id) && !groupIds.Contains(group.Id)));
             if (tabs.Count == 0) tabs.Add(new(Guid.NewGuid(), TabKind.StartPage.Name, null, null, null, TabKind.StartPage.Symbol,
                 null, null, null, TabPlacement.Current, null, null, now, null, null, null, false));
+            var (credentials, credentialsModifiedAt) = CredentialPreferences(local, remote);
+            var (accessPolicy, accessModifiedAt) = AccessPolicy(local, remote, access);
             var settings = new SpaceSettings(remote.Name, remote.Symbol, remote.Accent, brandingIds.Contains(remote.Id) ? remote.Branding : null, remote.BrowsingPreferences,
-                local?.Settings.CredentialPreferences ?? StoredSessionCodec.DefaultCredentialPreferences, AccessPolicy(local, remote, access),
-                remote.IsSavedTabsExpanded, remote.SavedTabsExpansionModifiedAt?.Moment);
+                credentials, accessPolicy, remote.IsSavedTabsExpanded, remote.SavedTabsExpansionModifiedAt?.Moment,
+                credentialsModifiedAt, accessModifiedAt);
             spaces.Add(new(remote.Id, remote.ProfileId, settings, folders, tabs, groups, archive, history));
         }
         foreach (var id in pending.Where(id => spaces.All(space => space.Id != id))) {
@@ -66,17 +69,36 @@ public static class NativeSyncMaterializer {
 
     private static SyncRecordsFlawedException Error(SyncRecordFlaw flaw, Guid subject) => new(flaw, subject);
 
-    /// Raising protection always applies. Removing it requires this device's
-    /// grant; the next upload restores the guarded policy when it was refused.
-    private static SpaceAccessPolicy AccessPolicy(SpaceState? local, SpacePayload remote, SpaceAccessAuthority? access) {
-        if (local is null || local.Settings.AccessPolicy == SpaceAccessPolicy.Open || remote.AccessPolicy != SpaceAccessPolicy.Open)
-            return remote.AccessPolicy;
+    /// Whether the Space uses Crest Passwords, and when someone chose, come from
+    /// the record once someone chose; where it keeps them only from this device.
+    private static (CredentialPreferences Preferences, DateTimeOffset? ModifiedAt) CredentialPreferences(SpaceState? local, SpacePayload remote) {
+        var kept = local?.Settings.CredentialPreferences ?? StoredSessionCodec.DefaultCredentialPreferences;
+        return remote is { CredentialsEnabled: { } enabled, CredentialsEnabledModifiedAt: { } modifiedAt }
+            ? (kept with { IsEnabled = enabled }, modifiedAt.Moment)
+            : (kept, local?.Settings.CredentialsEnabledModifiedAt);
+    }
+
+    /// Who may open the Space, and when someone chose. The later choice wins on
+    /// every device, since the device that made it authenticated for it, and
+    /// its time keeps a stale copy from undoing a newer one. Where neither is
+    /// later, as for a record from before locks carried their time, raising
+    /// protection always applies and removing it requires this device's grant;
+    /// the next upload restores the guarded policy when it was refused.
+    private static (SpaceAccessPolicy Policy, DateTimeOffset? ModifiedAt) AccessPolicy(SpaceState? local, SpacePayload remote,
+        SpaceAccessAuthority? access) {
+        var chosen = remote.AccessPolicyModifiedAt?.Moment;
+        if (local is null) return (remote.AccessPolicy, chosen);
+        var kept = local.Settings.AccessPolicyModifiedAt;
+        if (chosen is { } remoteChoice && (kept is null || remoteChoice > kept)) return (remote.AccessPolicy, chosen);
+        if (chosen is not null && kept > chosen) return (local.Settings.AccessPolicy, kept);
+        if (local.Settings.AccessPolicy == SpaceAccessPolicy.Open || remote.AccessPolicy != SpaceAccessPolicy.Open)
+            return (remote.AccessPolicy, kept);
         if (access is not null) {
             lock (access) {
-                if (!access.IsLocked(new(remote.Id, remote.ProfileId), true)) return remote.AccessPolicy;
+                if (!access.IsLocked(new(remote.Id, remote.ProfileId), true)) return (remote.AccessPolicy, kept);
             }
         }
-        return local.Settings.AccessPolicy;
+        return (local.Settings.AccessPolicy, kept);
     }
 
     private static SplitGroupState Group(SplitGroupPayload group) => new(group.Id, group.CustomTitle, group.TitleModifiedAt?.Moment,

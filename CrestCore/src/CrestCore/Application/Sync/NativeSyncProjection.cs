@@ -74,8 +74,13 @@ public static class NativeSyncProjection {
             var portable = Items(space, StoredSessionCodec.Key.Tabs).Where(t => PortableTab(t!)).Select(t => t!).ToArray();
             var splitIds = portable.Where(t => t["splitGroupID"] is not null).Select(t => Id(t["splitGroupID"])).ToHashSet();
             var spaceValue = Fields(space, "id", "name", "symbol", "accent", "branding", "browsingPreferences",
-                "accessPolicy", "isSavedTabsExpanded", "savedTabsExpansionModifiedAt");
+                "accessPolicy", "accessPolicyModifiedAt", "isSavedTabsExpanded", "savedTabsExpansionModifiedAt");
             spaceValue["profileID"] = space["profile"]!["id"]!.DeepClone();
+            if (space[StoredSessionCodec.Key.CredentialsEnabledModifiedAt] is { } credentialsModifiedAt) {
+                spaceValue["credentialsEnabled"] = StoredSessionCodec.DecodeCredentialPreferences(
+                    space[StoredSessionCodec.Key.CredentialPreferences] ?? new JsonObject()).IsEnabled;
+                spaceValue["credentialsEnabledModifiedAt"] = credentialsModifiedAt.DeepClone();
+            }
             SyncedText.SpaceName.Fit(spaceValue);
             SyncedText.SpaceSymbol.Fit(spaceValue);
             spaceValue["splitGroups"] = new JsonArray(Items(space, "splitGroups")
