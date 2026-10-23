@@ -1059,6 +1059,7 @@ struct AppPreferences: Equatable, Sendable {
         savedTabFaviconReturnsToSavedURL: false,
         splitFocusFollowsMouse: false,
         automaticallyShowsDeveloperToolbar: true,
+        showsRecentTabs: true,
         palette: PalettePreferences(
             layout: PaletteLayout.sections,
             sources: [
@@ -1094,6 +1095,7 @@ struct AppPreferences: Equatable, Sendable {
     var savedTabFaviconReturnsToSavedURL: Bool
     var splitFocusFollowsMouse: Bool
     var automaticallyShowsDeveloperToolbar: Bool
+    var showsRecentTabs: Bool
     var palette: PalettePreferences
 }
 

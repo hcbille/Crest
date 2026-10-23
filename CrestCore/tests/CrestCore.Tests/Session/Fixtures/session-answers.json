@@ -2708,6 +2708,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -3088,6 +3089,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -3468,6 +3470,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -3848,6 +3851,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -4231,6 +4235,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -4614,6 +4619,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -4997,6 +5003,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -5821,6 +5828,7 @@
       "automaticallyTranslates": true,
       "splitFocusFollowsMouse": true,
       "automaticallyShowsDeveloperToolbar": false,
+      "showsRecentTabs": true,
       "savedTabClosePolicy": "returnToSavedURL",
       "translationRules": {
         "sources": {
@@ -5851,6 +5859,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -6240,6 +6249,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -6635,6 +6645,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "returnToSavedURL",
         "translationRules": {
           "sources": {
@@ -7020,6 +7031,7 @@
       "automaticallyTranslates": true,
       "splitFocusFollowsMouse": true,
       "automaticallyShowsDeveloperToolbar": false,
+      "showsRecentTabs": true,
       "savedTabClosePolicy": "returnToSavedURL",
       "translationRules": {
         "sources": {
@@ -7049,6 +7061,7 @@
       "automaticallyTranslates": true,
       "splitFocusFollowsMouse": true,
       "automaticallyShowsDeveloperToolbar": false,
+      "showsRecentTabs": true,
       "savedTabClosePolicy": "returnToSavedURL",
       "translationRules": {
         "sources": {
@@ -7078,6 +7091,7 @@
       "automaticallyTranslates": true,
       "splitFocusFollowsMouse": true,
       "automaticallyShowsDeveloperToolbar": false,
+      "showsRecentTabs": true,
       "savedTabClosePolicy": "resumeLastLocation",
       "translationRules": {
         "sources": {
@@ -7107,6 +7121,7 @@
       "automaticallyTranslates": true,
       "splitFocusFollowsMouse": true,
       "automaticallyShowsDeveloperToolbar": false,
+      "showsRecentTabs": true,
       "savedTabClosePolicy": "resumeLastLocation",
       "translationRules": {
         "sources": {
@@ -7147,6 +7162,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "resumeLastLocation",
         "translationRules": {
           "sources": {
@@ -7541,6 +7557,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "resumeLastLocation",
         "translationRules": {
           "sources": {
@@ -8035,6 +8052,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "resumeLastLocation",
         "translationRules": {
           "sources": {
@@ -8525,6 +8543,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "resumeLastLocation",
         "translationRules": {
           "sources": {
@@ -8909,6 +8928,7 @@
         "automaticallyTranslates": true,
         "splitFocusFollowsMouse": true,
         "automaticallyShowsDeveloperToolbar": false,
+        "showsRecentTabs": true,
         "savedTabClosePolicy": "resumeLastLocation",
         "translationRules": {
           "sources": {
@@ -9796,6 +9816,7 @@
       "automaticallyTranslates": true,
       "splitFocusFollowsMouse": true,
       "automaticallyShowsDeveloperToolbar": false,
+      "showsRecentTabs": false,
       "savedTabClosePolicy": "resumeLastLocation",
       "translationRules": {
         "sources": {
@@ -11332,6 +11353,7 @@
           "automaticallyTranslates": true,
           "splitFocusFollowsMouse": true,
           "automaticallyShowsDeveloperToolbar": false,
+          "showsRecentTabs": false,
           "savedTabClosePolicy": "returnToSavedURL",
           "translationRules": {
             "sources": {
