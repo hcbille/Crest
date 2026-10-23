@@ -20,9 +20,6 @@ struct BrowserShortcutList: View {
                                 reportInvalidShortcut:
                                     model.reportInvalidShortcut
                             )
-                            if command == .mostRecentTabBackward {
-                                RecentTabSwitcherSettingRow(shortcut: model.shortcut(for: .mostRecentTab))
-                            }
                         }
                     } header: {
                         Text(group.section.title)

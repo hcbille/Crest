@@ -13120,6 +13120,9 @@
     "Switch to tabs opened from links" : {
 
     },
+    "Switching" : {
+
+    },
     "Sword" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15201,12 +15204,6 @@
           }
         }
       }
-    },
-    "When off, %@ jumps to your last tab without showing previews." : {
-
-    },
-    "When off, switching jumps to your last tab without showing previews." : {
-
     },
     "When URL" : {
 

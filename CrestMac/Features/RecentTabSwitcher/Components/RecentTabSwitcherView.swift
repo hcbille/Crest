@@ -25,6 +25,14 @@ struct RecentTabSwitcherView: View {
         .clipShape(shape)
         .animation(CrestMotion.surface.unlessReducingMotion(reduceMotion), value: model.session.highlightedIndex)
         .coordinateSpace(.named(RecentTabSwitcherMetrics.coordinateSpace))
+        .onContinuousHover(coordinateSpace: .named(RecentTabSwitcherMetrics.coordinateSpace)) { phase in
+            if case .active(let point) = phase { model.pointerMoved(to: point) }
+        }
+        .onGeometryChange(for: CGRect.self) {
+            $0.frame(in: .global)
+        } action: {
+            model.panelFrame = $0
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Recent tabs"))
     }
@@ -128,6 +136,8 @@ enum RecentTabSwitcherMetrics {
     static let smallFaviconSize: CGFloat = 16
     static let coordinateSpace = "recent-tab-switcher-panel"
     static let highlightRingWidth: CGFloat = 2
+    /// The room the panel keeps from the window's edges before it shrinks.
+    static let windowMargin: CGFloat = CrestSpacing.large
     private static let titleRowHeight: CGFloat = 24
 
     static func pageWidth(pageCount: Int) -> CGFloat {

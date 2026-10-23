@@ -13,8 +13,10 @@ final class BrowserRecentTabSnapshots {
 
     /// The width each picture is taken at, in points.
     static let width: CGFloat = 320
-    /// Pictures of one tab are never taken closer together than this.
-    private static let minimumInterval: TimeInterval = 0.5
+    /// Pictures of one tab are never taken closer together than this, so
+    /// going back and forth between tabs costs one picture each, not one per
+    /// switch; the tab the panel opens over is pictured again as it opens.
+    private static let minimumInterval: TimeInterval = 30
 
     // MARK: - Variables
 
@@ -55,14 +57,18 @@ final class BrowserRecentTabSnapshots {
 
     // MARK: - Actions - Capturing
 
-    /// Pictures `tabIDs` of the Space the window shows, when they are resident.
-    func capture(_ tabIDs: [UUID]) {
-        guard RecentTabSwitcherPreference.isOn, let space = context.browser.shownSpace, !isLocked(space) else {
+    /// Pictures `tabIDs` of the Space the window shows, when they are resident,
+    /// skipping a tab pictured moments ago unless `refreshing`.
+    func capture(_ tabIDs: [UUID], refreshing: Bool = false) {
+        guard BrowserAppPreferenceStore.shared.showsRecentTabs, let space = context.browser.shownSpace, !isLocked(space)
+        else {
             return
         }
         let now = Date()
         for tabID in tabIDs {
-            if let last = lastCaptures[tabID], now.timeIntervalSince(last) < Self.minimumInterval { continue }
+            if !refreshing, let last = lastCaptures[tabID], now.timeIntervalSince(last) < Self.minimumInterval {
+                continue
+            }
             let assignment = BrowserTabRuntimeAssignment(tabID: tabID, spaceID: space.id, profileID: space.profileID)
             guard let page = context.pages.residentPage(matching: assignment) else { continue }
             lastCaptures[tabID] = now

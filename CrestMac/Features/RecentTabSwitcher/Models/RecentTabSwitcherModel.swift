@@ -23,6 +23,14 @@ final class RecentTabSwitcherModel {
 
     /// Where each card sits in the panel's own coordinates, top left origin.
     @ObservationIgnored var cardFrames: [Int: CGRect] = [:]
+    /// Where the panel sits in the window's content, top left origin, which
+    /// tells a click on it from a click elsewhere in the window.
+    @ObservationIgnored var panelFrame: CGRect = .null
+    /// Where the pointer was when the panel first saw it. The panel follows
+    /// the pointer only once it moves from there, so a pointer resting where
+    /// the panel appears leaves the keyboard's highlight alone.
+    @ObservationIgnored private var restingPointer: CGPoint?
+    @ObservationIgnored private var hasPointerMoved = false
 
     // MARK: - Initializers
 
@@ -34,11 +42,15 @@ final class RecentTabSwitcherModel {
 
     // MARK: - Actions - Pointer
 
-    /// Highlights the card under `point`, in the panel's coordinates. The panel
-    /// is never key, so its views get no hover of their own; its hosting view
-    /// reports the pointer here.
+    /// Highlights the card under `point`, in the panel's coordinates, once the
+    /// pointer has moved since the panel appeared.
     func pointerMoved(to point: CGPoint) {
-        guard let index = cardFrames.first(where: { $0.value.contains(point) })?.key else { return }
+        guard let resting = restingPointer else {
+            restingPointer = point
+            return
+        }
+        if !hasPointerMoved { hasPointerMoved = hypot(point.x - resting.x, point.y - resting.y) > 1 }
+        guard hasPointerMoved, let index = cardFrames.first(where: { $0.value.contains(point) })?.key else { return }
         session.highlight(index: index)
     }
 
