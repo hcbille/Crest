@@ -4320,7 +4320,7 @@
     },
     "sidebar-hover-in-full-screen": {
       "category": "new",
-      "message": "Settings > Window can keep the sidebar hover area working while a video plays full screen, so the sidebar floats over the video when the pointer reaches the window’s edge."
+      "message": "Settings > Appearance can keep the sidebar hover area working while a video plays full screen, so the sidebar floats over the video when the pointer reaches the edge of the screen."
     },
     "window-chrome-restore-not-reapplied": {
       "category": "internal",
