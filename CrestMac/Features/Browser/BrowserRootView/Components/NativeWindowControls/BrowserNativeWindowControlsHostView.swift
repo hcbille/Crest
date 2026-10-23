@@ -54,10 +54,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
     /// lays its title bar out again on every window update, and putting them
     /// straight at their destination then would cut the move short.
     private var isMovingControls = false
-    /// Whether the window is taking back its own chrome. Restoring its style
-    /// lays the window out again, and the chrome applied from that layout would
-    /// undo the restore, even on a window that is closing.
-    private var isRestoringChrome = false
     var sidebarWidth: CGFloat = BrowserChromeLayout.sidebarIdealWidth
     var isVisible = true {
         didSet {
@@ -106,7 +102,7 @@ final class BrowserNativeWindowControlsHostView: NSView {
     // MARK: - Actions - Chrome
 
     func applyBrowserChrome() {
-        guard let window, !isRestoringChrome else { return }
+        guard let window else { return }
         // The window stays movable, so its title bar and the system's window
         // commands move it as they move any window. A page under the title bar
         // keeps its presses through `BrowserWindowTitleBarGuard`.
@@ -183,8 +179,6 @@ final class BrowserNativeWindowControlsHostView: NSView {
     func restoreWindowChrome() {
         stopObservingWindow()
         guard let window, let originalChrome else { return }
-        isRestoringChrome = true
-        defer { isRestoringChrome = false }
         isMovingControls = false
         positionWindowControls(onRight: false)
         nativeButtonOrigins.removeAll()
