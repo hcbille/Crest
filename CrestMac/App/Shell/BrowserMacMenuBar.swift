@@ -142,7 +142,7 @@ final class BrowserMacMenuBar: NSObject, NSMenuDelegate, NSMenuItemValidation {
             return action.isEnabled(in: shell)
         }
         if item.action == #selector(pasteAsPlainText(_:)) {
-            return BrowserPlainTextPaste(for: focusedResponder) != nil
+            return BrowserPlainTextPaste(for: focusedResponder, validating: item) != nil
         }
         return true
     }

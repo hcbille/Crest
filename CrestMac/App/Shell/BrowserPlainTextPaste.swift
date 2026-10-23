@@ -24,13 +24,18 @@ struct BrowserPlainTextPaste {
 
     /// The paste `responder` takes, or nil when it takes neither selector or
     /// has nowhere to paste now, such as a page with no editable focus.
-    init?(for responder: NSResponder?) {
+    /// `item` is the menu item that shows the command: a responder that
+    /// validates the same selector checks that item, so WebKit, which answers
+    /// later, updates the item people see.
+    init?(for responder: NSResponder?, validating item: NSMenuItem? = nil) {
         guard let responder,
             let selector = Self.selectors.first(where: { responder.responds(to: $0) })
         else { return nil }
         if let validating = responder as? NSUserInterfaceValidations {
-            let probe = NSMenuItem(title: "", action: selector, keyEquivalent: "")
-            guard validating.validateUserInterfaceItem(probe) else { return nil }
+            let checked =
+                item.flatMap { $0.action == selector ? $0 : nil }
+                ?? NSMenuItem(title: "", action: selector, keyEquivalent: "")
+            guard validating.validateUserInterfaceItem(checked) else { return nil }
         }
         self.responder = responder
         self.selector = selector

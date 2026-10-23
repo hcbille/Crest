@@ -63,6 +63,7 @@ final class BrowserDesktopWebView: WKWebView {
                 title: String(localized: "Paste and Match Style"), action: #selector(pasteAsPlainTextFromMenu(_:)),
                 keyEquivalent: "")
             item.target = self
+            item.isEnabled = paste.isEnabled
             menu.insertItem(item, at: menu.index(of: paste) + 1)
         }
         if let imageDownloadURL = context.imageDownloadURL,
