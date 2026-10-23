@@ -44,6 +44,12 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
     private(set) var estimatedProgress = 0.0
     private(set) var faviconData: Data?
     private(set) var themeColor: UIColor?
+    /// The color WebKit draws behind the page, kept as it changes so the
+    /// chrome around the page can take it up.
+    private(set) var underPageColor: UIColor?
+    /// The history swipe of the view showing this page, for a swipe that
+    /// starts on the frame beside it.
+    @ObservationIgnored weak var historySwipe: MobileHistorySwipe?
     /// Documents the page committed and finished, which reveal its surface.
     var committedNavigationCount = 0
     private(set) var completedNavigationCount = 0
@@ -286,7 +292,9 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
         #endif
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        webView.allowsBackForwardNavigationGestures = true
+        // Crest's own edge swipe steps the core's history
+        // (`MobileHistorySwipe`); WebKit's would walk its own list.
+        webView.allowsBackForwardNavigationGestures = false
         webView.allowsLinkPreview = true
         if let mediaSessionStore {
             let coordinator = BrowserMediaSessionPageCoordinator(
@@ -862,6 +870,9 @@ final class MobileBrowserPage: NSObject, BrowserMediaSessionCommandEndpoint {
                     // html/body background instead of inventing a Crest color.
                     self?.updateUnderPageBackground()
                 }
+            },
+            webView.observe(\.underPageBackgroundColor, options: [.initial, .new]) { [weak self] webView, _ in
+                Task { @MainActor in self?.underPageColor = webView.underPageBackgroundColor }
             },
             webView.observe(\.canGoBack, options: [.initial, .new]) { [weak self] webView, _ in
                 Task { @MainActor in self?.refreshNavigationState() }
