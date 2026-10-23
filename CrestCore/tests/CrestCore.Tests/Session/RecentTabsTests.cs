@@ -38,18 +38,19 @@ public sealed partial class BrowserContractsTests {
         Assert.Equal([f.N, f.C2, f.P1, f.P2, f.C5], RecentFocus(device, window));
     }
 
-    /// A window that has shown nothing else lists only its tab, and the
-    /// commands then publish nothing.
+    /// A window that has shown nothing else offers the Space's tab used last,
+    /// passing over one another window shows, and the command goes there.
     [Fact]
-    public void AWindowThatShowedNothingElseHasNowhereToJump() {
+    public void AWindowThatShowedNothingElseOffersTheSpacesTabUsedLast() {
         var f = new OrderSpace();
         using var device = new TestDevice(f.Session);
+        var other = device.Open(f.Space, (f.Space, f.C5));
+        ShowAll(device, other, f.Space, f.C3, f.C5);
         var window = device.Open(f.Space, (f.Space, f.C1));
 
-        Assert.Equal([f.C1], RecentFocus(device, window));
-        Assert.Empty(Own(device.Send(new ShowMostRecentTab(window))));
-        Assert.Empty(Own(device.Send(new ShowLeastRecentTab(window))));
-        Assert.Equal(f.C1, device.Tab(window, f.Space));
+        Assert.Equal([f.C1, f.C3], RecentFocus(device, window));
+        device.Send(new ShowMostRecentTab(window));
+        Assert.Equal(f.C3, device.Tab(window, f.Space));
     }
 
     /// Each window keeps its own list, whatever the other showed more recently.
@@ -147,7 +148,10 @@ public sealed partial class BrowserContractsTests {
         device.Send(new MoveTabToWindow(device.Workspace, first, f.Space, f.C3, second));
         Assert.Equal([f.C3, f.C1], RecentFocus(device, first));
         device.Send(new ShowTab(first, f.Space, f.C1));
-        Assert.Equal([f.C1], RecentFocus(device, first));
+        var afterwards = RecentFocus(device, first);
+        Assert.Equal(f.C1, afterwards[0]);
+        Assert.DoesNotContain(f.C2, afterwards);
+        Assert.DoesNotContain(f.C3, afterwards);
         device.Send(new ShowTab(first, f.Space, f.C3));
         Assert.Equal([f.C3, f.C1], RecentFocus(device, first));
     }

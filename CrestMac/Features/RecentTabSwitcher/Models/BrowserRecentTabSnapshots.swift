@@ -2,10 +2,10 @@ import AppKit
 import Observation
 
 /// Small pictures of one window's recent tabs, kept in memory only and never
-/// written anywhere. A tab is pictured as the window leaves it and the panel
-/// pictures the tab it opens over; only tabs on the window's recent list keep
-/// theirs. Nothing is pictured while the preference is off or the Space is
-/// locked.
+/// written anywhere. A tab is pictured once it has shown for a moment, while
+/// its page still draws, and the panel pictures the tab it opens over; only
+/// tabs on the window's recent list keep theirs. Nothing is pictured while the
+/// preference is off or the Space is locked.
 @MainActor
 @Observable
 final class BrowserRecentTabSnapshots {
@@ -17,6 +17,9 @@ final class BrowserRecentTabSnapshots {
     /// going back and forth between tabs costs one picture each, not one per
     /// switch; the tab the panel opens over is pictured again as it opens.
     private static let minimumInterval: TimeInterval = 30
+    /// How long a tab shows before it is pictured, so a switch never waits on
+    /// a picture and a tab passed through on the way to another is skipped.
+    private static let settleDelay: Duration = .milliseconds(1500)
 
     // MARK: - Variables
 
@@ -25,6 +28,7 @@ final class BrowserRecentTabSnapshots {
     @ObservationIgnored private let isLocked: @MainActor (SpaceModel) -> Bool
     @ObservationIgnored private var lastCaptures: [UUID: Date] = [:]
     @ObservationIgnored private var isFollowing = false
+    @ObservationIgnored private var settling: Task<Void, Never>?
 
     // MARK: - Initializers
 
@@ -35,11 +39,12 @@ final class BrowserRecentTabSnapshots {
 
     // MARK: - Actions - Following
 
-    /// Pictures the tabs the window shows each time it is about to show others.
-    /// The change is seen before it lands, while the pages still draw.
+    /// Pictures the tabs the window shows once they have shown for a moment,
+    /// each time it shows others.
     func followShownTabs() {
         guard !isFollowing else { return }
         isFollowing = true
+        settle()
         track()
     }
 
@@ -47,11 +52,21 @@ final class BrowserRecentTabSnapshots {
         withObservationTracking {
             _ = context.browser.shownCards.map(\.id)
         } onChange: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.capture(self.context.browser.shownCards.map(\.id))
-                Task { @MainActor [weak self] in self?.track() }
+            Task { @MainActor [weak self] in
+                self?.settle()
+                self?.track()
             }
+        }
+    }
+
+    /// Pictures what the window shows after `settleDelay`, unless it shows
+    /// something else by then.
+    private func settle() {
+        settling?.cancel()
+        settling = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.settleDelay)
+            guard !Task.isCancelled, let self else { return }
+            capture(context.browser.shownCards.map(\.id))
         }
     }
 
