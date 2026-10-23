@@ -175,6 +175,12 @@ final class CorePage {
         (try? core?.query(PageHistoryEntries(pageID: id))) ?? PageHistoryList(back: [], forward: [])
     }
 
+    /// The page's back and forward history as its tab's archive keeps it
+    /// across a relaunch, opaque here; nil for none.
+    var archivedHistory: Data? {
+        (try? core?.query(ArchivedPageHistory(pageID: id)))?.archive
+    }
+
     /// Moves the page `offset` entries through its history: back when
     /// negative. Going back from a failed navigation leaves the failure first.
     func stepHistory(by offset: Int) {
