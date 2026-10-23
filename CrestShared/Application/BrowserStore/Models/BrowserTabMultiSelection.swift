@@ -90,7 +90,9 @@ final class BrowserTabMultiSelection {
         focusedItem = units[target].first
         ownsKeyboardFocus = true
         if shift, anchorItem == nil, let activeItem, let active = units.first(where: { $0.contains(activeItem) }) {
+            // A new anchor starts a new range, never one over a base an earlier anchor left.
             anchorItem = active.first
+            rangeBase = nil
         }
         if shift, let anchorItem, let anchor = units.firstIndex(where: { $0.contains(anchorItem) }) {
             if rangeBase == nil { rangeBase = command ? members.members : [] }
