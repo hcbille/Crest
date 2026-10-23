@@ -4326,6 +4326,10 @@
       "category": "new",
       "message": "Spaces can start from a Neutral look: a plain gray sidebar with a fine grain that goes light or dark with the system. A Space's text color can follow the system's appearance too."
     },
+    "mcp-native-browser-tools": {
+      "category": "improved",
+      "message": "Connected tools can search history, use search providers, and open windows in allowed Spaces, and delete an address from a Space’s history once you agree, while private tabs remain inaccessible."
+    },
     "sidebar-edge-reveals-for-moving-pointer": {
       "category": "fixed",
       "message": "The sidebar no longer slides back out under a pointer that is just resting at the screen edge, such as one left there by Universal Control. It reveals when you move the pointer to the edge."
