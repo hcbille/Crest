@@ -4350,6 +4350,10 @@
       "category": "fixed",
       "message": "The sidebar hides and shows more smoothly, the History, Archive and Downloads selector closes back to its button, and History, Archive or Downloads opened over a hidden sidebar stays open while you use the page."
     },
+    "space-icon-size-setting": {
+      "category": "new",
+      "message": "The Space icons at the bottom of the sidebar shrink so more Spaces fit without scrolling. To keep one size instead, turn off Fit Space icons to sidebar in Appearance settings and choose it with the slider."
+    },
     "sidebar-shift-click-selects-range": {
       "category": "fixed",
       "message": "Shift-clicking a tab in the sidebar selects every tab between the active tab and the one you clicked, instead of only adding that tab like Command-click."

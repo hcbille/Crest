@@ -6080,6 +6080,9 @@
         }
       }
     },
+    "Fit Space icons to sidebar" : {
+
+    },
     "Flags" : {
 
     },
@@ -12486,6 +12489,9 @@
           }
         }
       }
+    },
+    "Space icon size" : {
+
     },
     "Space in review" : {
 
