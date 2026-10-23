@@ -34,11 +34,15 @@ struct RecentTabSwitcherSession: Equatable {
     /// How many items the switcher lists, and the most 1-5 can reach.
     static let maximumItems = 5
 
-    private static let specialKeys: [ShortcutSpecialKey: Key] = [
-        .leftArrow: .move(.backward), .upArrow: .move(.backward),
-        .rightArrow: .move(.forward), .downArrow: .move(.forward),
-        .returnKey: .commit, .escape: .cancel,
-    ]
+    /// The keys that move, choose or cancel. Left and Right follow the cards,
+    /// which run the other way in a right-to-left layout.
+    private static func specialKeys(rightToLeft: Bool) -> [ShortcutSpecialKey: Key] {
+        [
+            .leftArrow: .move(rightToLeft ? .forward : .backward), .upArrow: .move(.backward),
+            .rightArrow: .move(rightToLeft ? .backward : .forward), .downArrow: .move(.forward),
+            .returnKey: .commit, .escape: .cancel,
+        ]
+    }
 
     // MARK: - Variables
 
@@ -48,6 +52,7 @@ struct RecentTabSwitcherSession: Equatable {
     /// The modifiers whose release ends the hold: the binding's, but Shift.
     let heldModifiers: ShortcutModifiers
     private let bindings: [BrowserShortcutKey: RecentTabSwitchDirection]
+    private let specialKeys: [ShortcutSpecialKey: Key]
 
     /// The item a release commits now.
     var highlightedItem: RecentTabItem? {
@@ -57,11 +62,12 @@ struct RecentTabSwitcherSession: Equatable {
     // MARK: - Initializers
 
     /// A hold begun by `direction`'s command bound to `binding`, over `items`,
-    /// with `otherBinding` for the command that goes the other way. Nil when
-    /// the binding has no modifier to hold.
+    /// with `otherBinding` for the command that goes the other way, in a
+    /// layout that runs right to left when `rightToLeft`. Nil when the binding
+    /// has no modifier to hold.
     init?(
         direction: RecentTabSwitchDirection, binding: BrowserShortcut, otherBinding: BrowserShortcut?,
-        items: [RecentTabItem]
+        items: [RecentTabItem], rightToLeft: Bool = false
     ) {
         let held = binding.modifiers.subtracting(.shift)
         guard !held.isEmpty else { return nil }
@@ -76,6 +82,7 @@ struct RecentTabSwitcherSession: Equatable {
         }
         bindings[binding.key] = binding.modifiers.contains(.shift) ? direction.reversed : direction
         self.bindings = bindings
+        specialKeys = Self.specialKeys(rightToLeft: rightToLeft)
     }
 
     // MARK: - Actions - Input
@@ -157,7 +164,7 @@ struct RecentTabSwitcherSession: Equatable {
             return .move(shortcut.modifiers.contains(.shift) ? direction.reversed : direction)
         }
         switch shortcut.key {
-        case .special(let special): return Self.specialKeys[special] ?? .other
+        case .special(let special): return specialKeys[special] ?? .other
         case .character(let character):
             guard let number = character.wholeNumberValue, (1...Self.maximumItems).contains(number) else {
                 return .other

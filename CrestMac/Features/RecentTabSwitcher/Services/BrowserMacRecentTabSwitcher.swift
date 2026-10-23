@@ -118,7 +118,8 @@ final class BrowserMacRecentTabSwitcher {
         let items = context.browser.recentTabItems()
         guard !items.isEmpty,
             let session = RecentTabSwitcherSession(
-                direction: direction, binding: binding, otherBinding: other, items: items)
+                direction: direction, binding: binding, otherBinding: other, items: items,
+                rightToLeft: window.contentView?.userInterfaceLayoutDirection == .rightToLeft)
         else { return false }
         let model = RecentTabSwitcherModel(
             session: session, browser: context.browser, snapshots: snapshots(for: context))
