@@ -121,6 +121,7 @@ the live status for each issue.
 - [ ] [Return a pinned tab to its saved address from the mobile menu](https://github.com/pauljoda/Crest/issues/236)
 - [ ] [bug: white flash between loading screen in dark mode](https://github.com/pauljoda/Crest/issues/246)
 - [ ] [feature: have a top url bar when in fullscreen mode](https://github.com/pauljoda/Crest/issues/249)
+- [ ] [Evaluate a visual recent-tab switcher on Mac](https://github.com/pauljoda/Crest/issues/254)
 - [ ] [bug: CPU usage very high compared to Arc](https://github.com/pauljoda/Crest/issues/259)
 - [ ] [bug: Can't install a private Chrome Web Store extension](https://github.com/pauljoda/Crest/issues/263)
 - [ ] [feature: Double-click a tab to rename](https://github.com/pauljoda/Crest/issues/264)
@@ -167,7 +168,6 @@ the live status for each issue.
 - [ ] [Keep a Quick Window from another app clear of a new tab's keyboard on iPhone](https://github.com/pauljoda/Crest/issues/563)
 - [ ] [Say so when a link from another app needs a locked Space](https://github.com/pauljoda/Crest/issues/564)
 - [ ] [feature: Capture part of a page from the keyboard](https://github.com/pauljoda/Crest/issues/579)
-- [ ] [Keep a Space's lock off after switching it off in Settings](https://github.com/pauljoda/Crest/issues/618)
 - [ ] [Keep Look and Feel changes smooth while they preview live](https://github.com/pauljoda/Crest/issues/619)
 
 #### Completed
@@ -214,6 +214,7 @@ the live status for each issue.
 - [x] [Update the Chromium engine to 155.0.8059.84 and distrust the compromised eMudhra CAs](https://github.com/pauljoda/Crest/issues/572) — [`d8b18cd1`](https://github.com/pauljoda/Crest/commit/d8b18cd190ea196db650fdb01888f11c0fe55cab)
 - [x] [feature: Space switcher shows all Spaces at normal sidebar width](https://github.com/pauljoda/Crest/issues/588)
 - [x] [Show what coding agents do in Crest and stop them all at once](https://github.com/pauljoda/Crest/issues/609) — [`db8c4e0e`](https://github.com/pauljoda/Crest/commit/db8c4e0ede11456a8b010dc536f318f7f6399b73)
+- [x] [Keep a Space's lock off after switching it off in Settings](https://github.com/pauljoda/Crest/issues/618) — [`0757dd90`](https://github.com/pauljoda/Crest/commit/0757dd903c6ab9a17d072699d922689857ed86e2)
 
 <!-- crest-roadmap-sync:end -->
 
