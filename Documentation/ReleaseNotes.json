@@ -4318,6 +4318,14 @@
       "category": "new",
       "message": "Keep Crest light or dark, or let it follow macOS, in Settings › Appearance. Spaces can also dim their colors in dark."
     },
+    "background-launch-for-connected-tools": {
+      "category": "fixed",
+      "message": "Connected tools can start Crest in the background without taking focus."
+    },
+    "space-neutral-look": {
+      "category": "new",
+      "message": "Spaces can start from a Neutral look: a plain gray sidebar with a fine grain that goes light or dark with the system. A Space's text color can follow the system's appearance too."
+    },
     "sidebar-edge-reveals-for-moving-pointer": {
       "category": "fixed",
       "message": "The sidebar no longer slides back out under a pointer that is just resting at the screen edge, such as one left there by Universal Control. It reveals when you move the pointer to the edge."
