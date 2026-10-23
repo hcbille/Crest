@@ -17,7 +17,7 @@ public sealed record StepHistory(Guid PageId, int Offset) : PageIntent {
             pages.Update(page, turn.Changes, page.LeaveFailure);
             if (!failure.ReplacedDocument) return;
         }
-        if (page.History.Step(Offset) is { } entry) pages.Traverse(page, entry.Id, turn.Issue);
+        if (page.History.Step(Offset) is { } entry) pages.Traverse(page, entry.Id, turn);
     }
 
     #endregion
