@@ -85,6 +85,12 @@ final class BrowserCredentialTests: XCTestCase {
         XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "ftp://example.com/file"))))
     }
 
+    func testCredentialOriginRejectsPercentEscapedHostsInsteadOfDecodingThemTwice() throws {
+        XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "https://a%40b.com/login"))))
+        XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "https://a%2Fb.com/login"))))
+        XCTAssertNil(CredentialOrigin(url: try XCTUnwrap(URL(string: "https://[fe80::1%25en0]/login"))))
+    }
+
     func testCredentialOriginDecodingRejectsNoncanonicalOrNonHTTPData() throws {
         let decoder = JSONDecoder()
         let invalidScheme = Data(#"{"scheme":"ftp","host":"example.com","port":21}"#.utf8)
