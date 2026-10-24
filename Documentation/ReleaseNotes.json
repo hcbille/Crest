@@ -4358,6 +4358,14 @@
       "category": "fixed",
       "message": "Turning off a Space’s lock in Settings now sticks after one Touch ID or password check, instead of the lock coming back. With iCloud sync, turning a lock on or off reaches your other devices too, even where the Space is locked, without unlocking it there first. If a lock can’t change, Crest says so at the top of the window."
     },
+    "sidebar-shift-click-selects-range": {
+      "category": "fixed",
+      "message": "Shift-clicking a tab in the sidebar selects every tab between the active tab and the one you clicked, instead of only adding that tab like Command-click."
+    },
+    "palette-search-typed-address": {
+      "category": "improved",
+      "message": "The command palette offers to search for a typed or pasted address as well as open it."
+    },
     "recent-tab-switcher-previews": {
       "category": "new",
       "message": "Holding Control-Tab on the Mac shows previews of your five most recent tabs in the window, so you can pick one and let go to switch. Control-Shift-Tab goes the other way, and you can turn the previews off in Settings."
