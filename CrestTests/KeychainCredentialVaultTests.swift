@@ -201,19 +201,51 @@ final class KeychainCredentialVaultTests: XCTestCase {
         XCTAssertEqual(read, [written])
     }
 
+    /// A saved IPv6 origin reads back, so the Space's passwords stay readable.
+    func testDescriptorsReadAnIPv6Origin() async throws {
+        let spaceID = UUID()
+        let origin = try XCTUnwrap(CredentialOrigin(url: URL(string: "http://[2001:DB8::1]:8001/login")!))
+        let written = descriptor(id: UUID(), spaceID: spaceID, username: "person", origin: origin)
+        let item = try CredentialKeychainCodec().item(
+            for: BrowserCredential(descriptor: written, password: "secret"), expectedSpaceID: spaceID)
+        let vault = KeychainCredentialVault(
+            store: FailingMigrationCredentialKeychainStore(items: [item]), servicePrefix: "test.crest")
+
+        let read = try await vault.descriptors(in: spaceID)
+        XCTAssertEqual(read, [written])
+        XCTAssertEqual(read.first?.origin.host, "2001:db8::1")
+    }
+
+    /// An origin that would not read back is refused when it is written, so it
+    /// never reaches the Keychain and blocks reading the Space.
+    func testItemsRefuseAnOriginThatWouldNotReadBack() {
+        let spaceID = UUID()
+        let written = descriptor(
+            id: UUID(), spaceID: spaceID, username: "person",
+            origin: CredentialOrigin(scheme: "https", host: "a b", port: 443))
+
+        XCTAssertThrowsError(
+            try CredentialKeychainCodec().item(
+                for: BrowserCredential(descriptor: written, password: "secret"), expectedSpaceID: spaceID)
+        ) { error in
+            XCTAssertEqual(error as? CredentialVaultError, .malformedStoredCredential)
+        }
+    }
+
     private func descriptor(
         id: UUID,
         spaceID: UUID,
-        username: String
+        username: String,
+        origin: CredentialOrigin = CredentialOrigin(
+            securityProtocol: "https",
+            host: "example.com",
+            port: 443
+        )!
     ) -> CredentialDescriptor {
         CredentialDescriptor(
             id: id,
             spaceID: spaceID,
-            origin: CredentialOrigin(
-                securityProtocol: "https",
-                host: "example.com",
-                port: 443
-            )!,
+            origin: origin,
             username: username,
             createdAt: Date(timeIntervalSince1970: 1_000),
             isSynchronizable: false
