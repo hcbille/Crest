@@ -17327,6 +17327,7 @@ struct ShortcutCommand: Hashable, Sendable {
         case openFile
         case findNext
         case findPrevious
+        case capturePage
         case mostRecentTabBackward
     }
 
@@ -19218,8 +19219,31 @@ struct ShortcutCommand: Hashable, Sendable {
         offersInPalette: true,
         isReservedFromPages: false
     )
-    static let mostRecentTabBackward = ShortcutCommand(
+    static let capturePage = ShortcutCommand(
         tag: 70,
+        kind: .capturePage,
+        name: "capturePage",
+        section: ShortcutSection.page,
+        title: LocalizedStringResource("Capture Page"),
+        searchTerms: LocalizedStringResource("screenshot snapshot region selection image clipboard"),
+        menuTitle: nil,
+        symbol: "camera",
+        requiredCapability: EngineCapability.viewportCapture,
+        selects: nil,
+        number: nil,
+        defaultShortcuts: [
+            ShortcutDefault(
+                platform: DevicePlatform.desktop,
+                keys: KeyCombination(key: "2", isSpecialKey: false, modifiers: [.command, .shift]),
+                yieldsToOverrides: true
+            )
+        ],
+        paletteRest: nil,
+        offersInPalette: true,
+        isReservedFromPages: false
+    )
+    static let mostRecentTabBackward = ShortcutCommand(
+        tag: 71,
         kind: .mostRecentTabBackward,
         name: "mostRecentTabBackward",
         section: ShortcutSection.tabs,
@@ -19318,6 +19342,7 @@ struct ShortcutCommand: Hashable, Sendable {
         openFile,
         findNext,
         findPrevious,
+        capturePage,
         mostRecentTabBackward
     ]
 
@@ -19509,7 +19534,8 @@ struct ShortcutMenu: Hashable, Sendable {
                 ShortcutCommand.copyPageLinkAsMarkdown,
                 ShortcutCommand.sharePage,
                 ShortcutCommand.exportPDF,
-                ShortcutCommand.saveWebArchive
+                ShortcutCommand.saveWebArchive,
+                ShortcutCommand.capturePage
             ]
         ]
     )
