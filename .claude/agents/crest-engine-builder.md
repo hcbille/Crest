@@ -48,8 +48,11 @@ and building (`build-chromium-baseline.py`).
 2. Validate, then install the host overlay:
    `apply-chromium-host.py --source <tree>`, then again with `--apply`.
 3. Build the engine (`build-chromium-baseline.py`), detached.
-4. Once the build has finished, package Crest per the README
-   (`package-chromium-host.py`, product identity, resolved entitlements).
+4. Once the build has finished, package the review copy with its own bundle
+   ID, as `AGENTS.md` and `docs/agents/preferences.md` in `/Users/a1/Crest`
+   (or the fork's `main`) describe: `CrestChromiumUI` scheme,
+   `package-chromium-host.py` without `--product`, output outside
+   `/Applications` and the repository.
 
 Each run of yours does as many steps as can finish now. When a detached build
 is running, return immediately.

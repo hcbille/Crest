@@ -51,20 +51,25 @@ the rest of `AGENTS.md` and the `crest-contribution` skill.
   every behavior the change touches (normal and private windows, each
   affected engine). Wait for HC's results before committing or opening a
   pull request, and put those results in the pull request.
-- To test beside HC's own Crest (`com.pauldavis.crest`, usually running),
-  package a review copy with its own bundle ID: build the `CrestChromiumUI`
-  scheme (not `CrestChromiumUIProduct`) and package it with
+- Test builds use their own bundle ID (the rule is in `AGENTS.md`). Package
+  the review copy: build the `CrestChromiumUI` scheme (not
+  `CrestChromiumUIProduct`) and package it with
   `Scripts/control-plane/package-chromium-host.py` without `--product`. It
   becomes `com.pauldavis.crest.control-plane.chromium` ("Crest Chromium
-  Experiment"), runs isolated with its own store, and signs with the Apple
-  Development identity. When engine inputs are unchanged, download the
+  Experiment"), runs isolated with its own store and `--user-data-dir`, and
+  signs with HC's Apple Development identity (team `ZTS43AYHUD`). When engine inputs are unchanged, download the
   published engine with
   `gh release download $(python3 Scripts/control-plane/chromium_engine.py tag) -R pauljoda/Crest`.
   Launch it detached with
   `CREST_ISOLATED_SESSION=1 "<app>/Contents/MacOS/Chromium" --crest-control-plane --user-data-dir=<own dir>`.
-  It lacks the production entitlements (passkeys, the Apple Passwords
-  helper), so checks of those need the product identity. Afterwards quit it,
-  unregister it with `lsregister -u`, and delete it.
+  It lacks the production entitlements. The passkey entitlement
+  (`com.apple.developer.web-browser.public-key-credential`) is managed by
+  Apple and only Crest's production App ID under the maintainer's team
+  `3U2R97HLXF` holds it, so system passkeys and the Apple Passwords helper
+  can't be checked in any local build. Say so in the checklist, and list
+  those checks for the maintainer's signed build or the next published
+  release. Afterwards quit the copy, unregister it with `lsregister -u`, and
+  delete it.
 
 ## Writing
 

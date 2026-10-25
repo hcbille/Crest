@@ -113,6 +113,11 @@ contract for setup, validation and change discipline.
 Branching, builds, hand verification and wording rules for this fork, which
 apply to every task. Read `docs/agents/preferences.md` before starting work.
 
+Every local test build of Crest gets a bundle ID of its own, so it runs next
+to the installed Crest (`com.pauldavis.crest`) and next to other test builds.
+Package the review copy described in `docs/agents/preferences.md`, never the
+product identity.
+
 ### Issue tracker
 
 Issues and specs live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
