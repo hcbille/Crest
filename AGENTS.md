@@ -103,8 +103,9 @@ contract for setup, validation and change discipline.
 
 ## Agent skills
 
-> Fork-only: this section, `docs/agents/`, and the `.scratch/` ignore rule
-> belong to `hcbille/Crest` and must never be pushed to `pauljoda/Crest`.
+> Fork-only: this section, `docs/agents/`, `.claude/agents/`, and the
+> `.scratch/` and `.claude/agents/` ignore rules belong to `hcbille/Crest` and
+> must never be pushed to `pauljoda/Crest`.
 > Base upstream feature branches on `origin/main`, not on the fork's `main`.
 
 ### Issue tracker

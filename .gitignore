@@ -66,3 +66,6 @@ __pycache__/
 
 # Local agent-skills issue tracker (fork-only)
 .scratch/
+
+# Claude Code subagents for this fork's workflow (fork-only)
+!.claude/agents/
