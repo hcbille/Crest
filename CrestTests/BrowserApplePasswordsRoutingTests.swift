@@ -70,6 +70,134 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         XCTAssertEqual(source.loginReads, 0)
     }
 
+    func testASaveGoesToAppleByDefaultAndToCrestOnlyWhenChosen() async throws {
+        var seed = SessionState.Seed.preview
+        seed.spaces[0].settings.credentialPreferences = Self.preferences(usesApplePasswords: true)
+        let space = seed.spaces[0]
+        let crestVault = InMemoryCredentialVault()
+        let store = BrowserStore(seed: seed, credentialVault: crestVault)
+        let access = FakeAppleAccess(core: store.core, source: FakeAppleSource(logins: [], password: ""))
+        store.applePasswords = access
+        let candidate = BrowserCredentialSaveCandidate(
+            id: UUID(), origin: origin, topLevelOrigin: origin, username: "ada", password: "secret",
+            passwordKind: .new, isCrossOriginFrame: false, submittedAt: .now)
+
+        // Apple Passwords is the default: it gets the offer, and Crest's vault is not written.
+        let toApple = BrowserCredentialSavePromptModel()
+        await toApple.prepare(candidate: candidate, in: space.id, browser: store)
+        XCTAssertEqual(toApple.destination, .applePasswords)
+        XCTAssertEqual(toApple.alternateDestination, .crestPasswords)
+        await toApple.commit(candidate: candidate, in: space.id, browser: store)
+        XCTAssertEqual(toApple.phase, .sent)
+        XCTAssertEqual(access.saved.map(\.origin), [origin])
+        XCTAssertEqual(access.saved.map(\.username), ["ada"])
+        let afterApple = try await crestVault.descriptors(in: space.id)
+        XCTAssertTrue(afterApple.isEmpty)
+
+        // Choosing Crest for this save writes the vault and sends Apple nothing more.
+        let toCrest = BrowserCredentialSavePromptModel()
+        await toCrest.prepare(candidate: candidate, in: space.id, browser: store)
+        toCrest.choose(.crestPasswords)
+        XCTAssertEqual(toCrest.destination, .crestPasswords)
+        await toCrest.commit(candidate: candidate, in: space.id, browser: store)
+        XCTAssertEqual(toCrest.phase, .saved(.created))
+        XCTAssertEqual(access.saved.count, 1)
+        let afterCrest = try await crestVault.descriptors(in: space.id)
+        XCTAssertEqual(afterCrest.map(\.username), ["ada"])
+    }
+
+    func testAGeneratedPasswordGoesToAppleFirstAndOnlyFallsBackToCrestWhenItCannot() async throws {
+        var seed = SessionState.Seed.preview
+        seed.spaces[0].settings.credentialPreferences = Self.preferences(usesApplePasswords: true)
+        let space = seed.spaces[0]
+        func candidate(username: String) -> BrowserCredentialSaveCandidate {
+            BrowserCredentialSaveCandidate(
+                id: UUID(), origin: origin, topLevelOrigin: origin, username: username, password: "generated",
+                passwordKind: .new, isCrossOriginFrame: false, submittedAt: .now)
+        }
+        let source = FakeAppleSource(logins: [], password: "")
+
+        // Apple takes it: one send, nothing in Crest's vault.
+        let sentVault = InMemoryCredentialVault()
+        let sent = BrowserStore(seed: seed, credentialVault: sentVault)
+        let accepting = FakeAppleAccess(core: sent.core, source: source)
+        sent.applePasswords = accepting
+        let wasSent = try await sent.keepGeneratedPassword(candidate(username: "ada"), in: space.id)
+        XCTAssertTrue(wasSent)
+        XCTAssertEqual(accepting.saved.count, 1)
+        let sentDescriptors = try await sentVault.descriptors(in: space.id)
+        XCTAssertTrue(sentDescriptors.isEmpty)
+
+        // The send fails: Crest keeps the password.
+        let failedVault = InMemoryCredentialVault()
+        let failing = BrowserStore(seed: seed, credentialVault: failedVault)
+        let refusing = FakeAppleAccess(core: failing.core, source: source, sendFails: true)
+        failing.applePasswords = refusing
+        let wasSentAfterFailure = try await failing.keepGeneratedPassword(candidate(username: "ada"), in: space.id)
+        XCTAssertFalse(wasSentAfterFailure)
+        let failedDescriptors = try await failedVault.descriptors(in: space.id)
+        XCTAssertEqual(failedDescriptors.map(\.username), ["ada"])
+
+        // No username, and the helper cannot save one without: Apple gets nothing. Crest's own
+        // vault does not keep a password without a username either (the core refuses it), so
+        // the save fails and the flow stops before filling. The password is never used, so
+        // none is lost.
+        let anonymousVault = InMemoryCredentialVault()
+        let anonymous = BrowserStore(seed: seed, credentialVault: anonymousVault)
+        let incapable = FakeAppleAccess(core: anonymous.core, source: source, savesAccountsWithoutUsername: false)
+        anonymous.applePasswords = incapable
+        do {
+            _ = try await anonymous.keepGeneratedPassword(candidate(username: ""), in: space.id)
+            XCTFail("Without a username neither Apple nor Crest can keep the password.")
+        } catch {
+            XCTAssertEqual(error as? CredentialVaultError, .saveDecisionUnavailable)
+        }
+        XCTAssertTrue(incapable.saved.isEmpty)
+        let anonymousDescriptors = try await anonymousVault.descriptors(in: space.id)
+        XCTAssertTrue(anonymousDescriptors.isEmpty)
+    }
+
+    func testAPageDoesNotOfferAgainAGeneratedPasswordAppleAlreadyHolds() {
+        let presaved = BrowserCredentialPresavedPassword(
+            origin: origin, topLevelOrigin: origin, password: "generated", username: "ada")
+        func submitted(username: String, password: String) -> BrowserCredentialSaveCandidate {
+            BrowserCredentialSaveCandidate(
+                id: UUID(), origin: origin, topLevelOrigin: origin, username: username, password: password,
+                passwordKind: .new, isCrossOriginFrame: false, submittedAt: .now)
+        }
+        XCTAssertTrue(presaved.covers(submitted(username: "ada", password: "generated")))
+        XCTAssertFalse(presaved.covers(submitted(username: "ada", password: "changed")))
+        // A different account than the one Apple was sent is still offered.
+        XCTAssertFalse(presaved.covers(submitted(username: "bob", password: "generated")))
+        XCTAssertTrue(presaved.covers(submitted(username: "", password: "generated")))
+        // Apple was sent no username, so a submission that adds one is still offered.
+        let withoutUsername = BrowserCredentialPresavedPassword(
+            origin: origin, topLevelOrigin: origin, password: "generated", username: "")
+        XCTAssertFalse(withoutUsername.covers(submitted(username: "ada", password: "generated")))
+        XCTAssertTrue(withoutUsername.covers(submitted(username: "", password: "generated")))
+    }
+
+    func testAnUnpairedSpaceSavesToCrestExactlyAsBefore() async throws {
+        var seed = SessionState.Seed.preview
+        seed.spaces[0].settings.credentialPreferences = Self.preferences(usesApplePasswords: true)
+        let space = seed.spaces[0]
+        let store = BrowserStore(seed: seed, credentialVault: InMemoryCredentialVault())
+        let access = FakeAppleAccess(
+            core: store.core, source: FakeAppleSource(logins: [], password: ""), helper: .unpaired)
+        store.applePasswords = access
+        let candidate = BrowserCredentialSaveCandidate(
+            id: UUID(), origin: origin, topLevelOrigin: origin, username: "ada", password: "secret",
+            passwordKind: .new, isCrossOriginFrame: false, submittedAt: .now)
+
+        let model = BrowserCredentialSavePromptModel()
+        await model.prepare(candidate: candidate, in: space.id, browser: store)
+
+        XCTAssertEqual(model.destination, .crestPasswords)
+        XCTAssertNil(model.alternateDestination)
+        XCTAssertEqual(model.phase, .create)
+        XCTAssertTrue(access.saved.isEmpty)
+    }
+
     private static func preferences(usesApplePasswords: Bool) -> CredentialPreferences {
         CredentialPreferences(
             isEnabled: true, syncsCrestPasswordsWithICloud: false, alsoOffersSaveToSystemPasswords: false,
@@ -110,10 +238,20 @@ private final class FakeAppleSource: ApplePasswordsCredentialSource {
 @MainActor
 private final class FakeAppleAccess: BrowserApplePasswordsAccess {
     let vault: any CredentialVault
+    private(set) var saved: [BrowserCredentialSaveCandidate] = []
+    let savesAccountsWithoutUsername: Bool
+    private let sendFails: Bool
     private let core: CrestCore
+    private let helper: ApplePasswordsHelperFact
 
-    init(core: CrestCore, source: FakeAppleSource) {
+    init(
+        core: CrestCore, source: FakeAppleSource, helper: ApplePasswordsHelperFact = .paired,
+        savesAccountsWithoutUsername: Bool = true, sendFails: Bool = false
+    ) {
+        self.savesAccountsWithoutUsername = savesAccountsWithoutUsername
+        self.sendFails = sendFails
         self.core = core
+        self.helper = helper
         vault = ApplePasswordsCredentialVault(source: source) { _ in
             ApplePasswordsSupport(status: .available, offersToTurnOffExtension: false)
         }
@@ -127,7 +265,7 @@ private final class FakeAppleAccess: BrowserApplePasswordsAccess {
                 isMacPlatform: true, hasManagedBrowserCapability: true, isLaunchIsolated: false,
                 isPrivateBrowsing: isPrivateBrowsing, spaceCredentialsEnabled: preferences.isEnabled,
                 spaceUsesApplePasswords: preferences.usesApplePasswords, applePasswordsExtensionEnabled: false,
-                helper: .paired))
+                helper: helper))
     }
 
     func couldStartHelper(
@@ -135,6 +273,11 @@ private final class FakeAppleAccess: BrowserApplePasswordsAccess {
     ) -> Bool { false }
 
     func start(support: ApplePasswordsSupport) async {}
+
+    func save(_ candidate: BrowserCredentialSaveCandidate, support: ApplePasswordsSupport) async throws {
+        if sendFails { throw ApplePasswordsError.notPaired }
+        saved.append(candidate)
+    }
 
     func requestPairingCode(support: ApplePasswordsSupport) async -> BrowserApplePasswordsPairingOutcome { .failed }
 

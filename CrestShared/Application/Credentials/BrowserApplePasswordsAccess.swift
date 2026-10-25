@@ -11,7 +11,7 @@ import Foundation
 @MainActor
 protocol BrowserApplePasswordsAccess: AnyObject {
     /// The vault that issued the identifiers of Apple Passwords' rows. It
-    /// serves suggestions and reads only; nothing is ever saved to it.
+    /// serves suggestions and reads only; saving goes through `save`.
     var vault: any CredentialVault { get }
 
     /// The core's answer for a Space now; nil when the core cannot answer.
@@ -37,6 +37,15 @@ protocol BrowserApplePasswordsAccess: AnyObject {
 
     /// The person gave up on the code the helper shows. Does nothing when no code is waiting.
     func cancelPairing() async
+
+    /// Whether the helper can save an account that has no username.
+    var savesAccountsWithoutUsername: Bool { get }
+
+    /// Offers the candidate to Apple Passwords, for the origin it was captured
+    /// for. The result is "sent": Apple's own alert asks the person to confirm,
+    /// and Crest cannot tell whether they did.
+    /// - Throws: When the helper cannot take the offer; nothing was sent.
+    func save(_ candidate: BrowserCredentialSaveCandidate, support: ApplePasswordsSupport) async throws
 
     /// Apple Passwords' rows were just shown in the Space, so the Space may
     /// also be told about Apple's own extension.

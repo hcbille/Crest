@@ -154,6 +154,7 @@ struct BrowserWebPageSurface: View {
             fillGeneratedPassword: { password, requestID in
                 try await page.fillGeneratedPassword(password, for: requestID)
             },
+            rememberPresavedPassword: { page.credentialState.rememberPresavedPassword($0) },
             dismiss: page.dismissCredentialFillRequest
         )
     }

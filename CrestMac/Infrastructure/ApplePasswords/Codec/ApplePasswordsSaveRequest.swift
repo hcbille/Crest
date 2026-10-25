@@ -1,10 +1,10 @@
 import Foundation
 
 /// Offers a login to Apple Passwords, which asks the person to confirm in its
-/// own alert. The helper may acknowledge with an empty result; Apple's own
-/// extension ignores the reply.
-///
-/// Nothing sends this yet: saving to Apple Passwords arrives with its own step.
+/// own alert. The helper may acknowledge with an empty result, but only after
+/// the person answers that alert, and may never acknowledge at all. Like
+/// Apple's own extension, which ignores the reply, the request waits a few
+/// seconds and then counts as sent; whether the person saved is not known.
 struct ApplePasswordsSaveRequest: ApplePasswordsEncryptedRequest {
     // MARK: - Types
 
@@ -42,6 +42,8 @@ struct ApplePasswordsSaveRequest: ApplePasswordsEncryptedRequest {
     typealias Reply = Void
 
     var command: ApplePasswordsCommand { .setPassword }
+    var timeout: Duration { .seconds(3) }
+    var silentReply: Void? { () }
     var queryID: ApplePasswordsQueryID { form.queryID }
     /// A save names no URL in its envelope; the site travels as `NURL` in the sealed body.
     var envelopeURL: String? { nil }

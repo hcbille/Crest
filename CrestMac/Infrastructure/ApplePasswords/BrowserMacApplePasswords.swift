@@ -113,6 +113,16 @@ final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
         helper.cancelPairing()
     }
 
+    // MARK: - Actions - Saving
+
+    var savesAccountsWithoutUsername: Bool { helper.savesAccountsWithoutUsername }
+
+    func save(_ candidate: BrowserCredentialSaveCandidate, support: ApplePasswordsSupport) async throws {
+        try await helper.save(
+            candidate.username, candidate.password, for: candidate.origin,
+            form: .capturing(candidate.passwordKind), support: support)
+    }
+
     // MARK: - Actions - Notices
 
     func rowsWereShown(support: ApplePasswordsSupport, in space: BrowserSpaceIdentity) {

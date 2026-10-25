@@ -9,6 +9,12 @@ protocol ApplePasswordsRequest: Sendable {
     /// How long the helper may take before the request counts as unanswered.
     var timeout: Duration { get }
 
+    /// What the request means when the helper never acknowledges it within
+    /// `timeout`, or nil when silence is a failure that ends the session.
+    /// A request that tolerates silence must have an acknowledgement that
+    /// carries no data, because a late one is swallowed.
+    var silentReply: Reply? { get }
+
     /// The JSON the frame carries.
     func encoded() throws -> Data
     /// Whether a reply with this request's command may answer it. A reply that
@@ -21,4 +27,5 @@ protocol ApplePasswordsRequest: Sendable {
 extension ApplePasswordsRequest {
     var timeout: Duration { .seconds(5) }
     func accepts(_ envelope: ApplePasswordsInboundEnvelope) -> Bool { true }
+    var silentReply: Reply? { nil }
 }

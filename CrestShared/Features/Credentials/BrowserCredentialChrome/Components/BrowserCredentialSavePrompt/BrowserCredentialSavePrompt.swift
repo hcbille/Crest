@@ -30,6 +30,7 @@ struct BrowserCredentialSavePrompt: View {
                 namesSystemPasswordsDestination: namesSystemPasswordsDestination,
                 metrics: metrics,
                 dismiss: port.dismiss,
+                switchDestination: switchDestination,
                 perform: perform
             )
         }
@@ -52,14 +53,17 @@ struct BrowserCredentialSavePrompt: View {
     /// A shell that cannot make the offer never asks the policy: leaving the
     /// closure out of the port is the whole of that shell's answer.
     private var shouldOfferSystemPasswords: Bool {
-        port.offerToSystemPasswords != nil && browser.offersSystemPasswordWriteThrough(for: preferences)
+        port.offerToSystemPasswords != nil && model.destination.keepsSpaceVault
+            && browser.offersSystemPasswordWriteThrough(for: preferences)
     }
 
     private var route: BrowserCredentialPromptRoute {
         BrowserCredentialPromptRoute(
             phase: model.phase,
             systemPasswordOfferPhase: model.systemPasswordOfferPhase,
-            offersSystemPasswords: shouldOfferSystemPasswords
+            offersSystemPasswords: shouldOfferSystemPasswords,
+            destination: model.destination,
+            offersDestinationChoice: model.offersDestinationChoice
         )
     }
 
@@ -74,8 +78,18 @@ struct BrowserCredentialSavePrompt: View {
     /// Whether the destination line already says iCloud in words, which is what
     /// lets it carry the cloud glyph instead of the Space's crest.
     private var namesSystemPasswordsDestination: Bool {
-        metrics.destinationPresentation == .combinedStatus
-            && preferences.syncsCrestPasswordsWithICloud
+        !model.destination.keepsSpaceVault
+            || (metrics.destinationPresentation == .combinedStatus
+                && preferences.syncsCrestPasswordsWithICloud)
+    }
+
+    /// Sends this one save to the other place, when the core offers both.
+    private var switchDestination: (() -> Void)? {
+        guard let alternate = model.alternateDestination else { return nil }
+        return {
+            model.choose(alternate)
+            if model.phase == .alreadyStored { port.dismiss() }
+        }
     }
 
     private func perform(_ action: BrowserCredentialPromptPrimaryAction) {
@@ -116,9 +130,12 @@ extension BrowserCredentialSavePrompt: BrowserCredentialPromptPerformer {
                 in: port.spaceID,
                 browser: browser
             )
-            guard port.presentedCandidateID() == candidate.id,
-                case .saved = model.phase
-            else { return }
+            guard port.presentedCandidateID() == candidate.id else { return }
+            if case .sent = model.phase {
+                port.dismiss()
+                return
+            }
+            guard case .saved = model.phase else { return }
             guard shouldOfferSystemPasswords else {
                 port.dismiss()
                 return

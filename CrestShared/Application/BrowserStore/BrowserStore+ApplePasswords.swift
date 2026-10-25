@@ -88,3 +88,59 @@ extension BrowserStore {
             isPrivateBrowsing: isPrivateBrowsing) ?? false
     }
 }
+
+// MARK: - Saving
+
+extension BrowserStore {
+    /// The core's answer for the Space when a captured password can be offered
+    /// to Apple Passwords: the Space uses it, the core offers it (paired and
+    /// available, never in a private window or an isolated launch), and the
+    /// candidate's origin is https, and the helper can save the account (one
+    /// without a username needs a helper that says it can). Nil means the save
+    /// goes to Crest as usual.
+    func applePasswordsSaveSupport(
+        for candidate: BrowserCredentialSaveCandidate, in spaceID: UUID
+    ) -> ApplePasswordsSupport? {
+        guard candidate.origin.isSecure, !isPrivateBrowsing, let access = applePasswords,
+            !candidate.username.isEmpty || access.savesAccountsWithoutUsername,
+            spaceModel(spaceID)?.settings.credentialPreferences.usesApplePasswords == true,
+            let support = applePasswordsSupport(in: spaceID), support.status.offersApplePasswords
+        else { return nil }
+        return support
+    }
+
+    /// Keeps a generated password before it is filled, so it is never lost.
+    /// Where the Space's destination is Apple Passwords it is sent there; any
+    /// failure, or an account without a username that the helper cannot save,
+    /// keeps it in Crest's vault instead.
+    /// - Returns: Whether it was sent to Apple Passwords rather than kept in Crest.
+    func keepGeneratedPassword(_ candidate: BrowserCredentialSaveCandidate, in spaceID: UUID) async throws -> Bool {
+        if applePasswordsSaveSupport(for: candidate, in: spaceID) != nil {
+            do {
+                try await commitApplePasswordsSave(candidate, in: spaceID)
+                return true
+            } catch {
+                DiagnosticLog.applePasswords.error(
+                    "Sending a generated password failed: \(DiagnosticLog.describe(error))")
+            }
+        }
+        _ = try await commitCredentialSave(candidate, in: spaceID)
+        return false
+    }
+
+    /// Sends the candidate to Apple Passwords for the frame origin it was
+    /// captured for, and writes nothing to Crest's vault. Apple decides whether
+    /// the account is new or changed, so Crest's own match is not consulted.
+    func commitApplePasswordsSave(
+        _ candidate: BrowserCredentialSaveCandidate,
+        in spaceID: UUID,
+        now: Date = .now
+    ) async throws {
+        try validateCredentialSaveCandidate(candidate, in: spaceID, now: now)
+        guard let access = applePasswords, let support = applePasswordsSaveSupport(for: candidate, in: spaceID)
+        else {
+            throw CredentialVaultError.credentialManagerDisabled
+        }
+        try await access.save(candidate, support: support)
+    }
+}

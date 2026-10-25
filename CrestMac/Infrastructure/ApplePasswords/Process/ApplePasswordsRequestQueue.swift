@@ -8,6 +8,10 @@ import Foundation
 /// so the queue stops accepting requests and reports `invalidated`; the owner
 /// ends the session rather than risk handing one caller another's answer.
 ///
+/// A request that tolerates silence (`ApplePasswordsRequest.silentReply`) is the
+/// exception: when its wait ends it resolves as sent, the session stays, and
+/// its command is remembered so a late acknowledgement is swallowed.
+///
 /// A caller that is cancelled while its request is in flight gets `cancelled`
 /// at once, but the request stays in flight: the next request waits for its
 /// reply, which is then discarded. That keeps replies matched, and a cancelled
@@ -30,7 +34,9 @@ actor ApplePasswordsRequestQueue {
         /// Whether a reply with the command may answer the request.
         let accepts: @Sendable (ApplePasswordsInboundEnvelope) -> Bool
         /// Nil once the caller has been cancelled; the reply is then discarded.
-        var continuation: CheckedContinuation<ApplePasswordsInboundEnvelope, any Error>?
+        var continuation: CheckedContinuation<ApplePasswordsInboundEnvelope?, any Error>?
+        /// Whether the end of the wait resolves the request as sent instead of giving up on it.
+        let toleratesSilence: Bool
         var timeout: Task<Void, Never>?
     }
 
@@ -48,6 +54,9 @@ actor ApplePasswordsRequestQueue {
     private var inFlight: InFlight?
     private var isBusy = false
     private var turnWaiters: [TurnWaiter] = []
+    /// Commands whose request ended in silence. A reply that arrives later for
+    /// one of them is an acknowledgement that carries no data, and is swallowed.
+    private var silentCommands: Set<ApplePasswordsCommand> = []
     /// Once set, every request fails with it.
     private var failure: ApplePasswordsError?
 
@@ -75,7 +84,13 @@ actor ApplePasswordsRequestQueue {
             throw error
         }
         let envelope = try await exchange(
-            payload, command: request.command, timeout: request.timeout, accepts: { request.accepts($0) })
+            payload, command: request.command, timeout: request.timeout,
+            toleratesSilence: request.silentReply != nil, accepts: { request.accepts($0) })
+        guard let envelope else {
+            // Only a request that tolerates silence resolves without a reply.
+            guard let silent = request.silentReply else { throw ApplePasswordsError.unavailable(.timedOut) }
+            return silent
+        }
         return try request.reply(from: envelope)
     }
 
@@ -134,12 +149,15 @@ actor ApplePasswordsRequestQueue {
         _ payload: Data,
         command: ApplePasswordsCommand,
         timeout: Duration,
+        toleratesSilence: Bool,
         accepts: @escaping @Sendable (ApplePasswordsInboundEnvelope) -> Bool
-    ) async throws -> ApplePasswordsInboundEnvelope {
+    ) async throws -> ApplePasswordsInboundEnvelope? {
         let id = UUID()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                inFlight = InFlight(id: id, command: command, accepts: accepts, continuation: continuation)
+                inFlight = InFlight(
+                    id: id, command: command, accepts: accepts, continuation: continuation,
+                    toleratesSilence: toleratesSilence)
                 do {
                     try channel.send(payload)
                 } catch {
@@ -158,7 +176,7 @@ actor ApplePasswordsRequestQueue {
     }
 
     /// Ends the request in flight, returns the turn and hands a waiting caller the result.
-    private func resolve(_ id: UUID, with result: Result<ApplePasswordsInboundEnvelope, any Error>) {
+    private func resolve(_ id: UUID, with result: Result<ApplePasswordsInboundEnvelope?, any Error>) {
         guard let pending = inFlight, pending.id == id else { return }
         inFlight = nil
         pending.timeout?.cancel()
@@ -174,9 +192,16 @@ actor ApplePasswordsRequestQueue {
         continuation.resume(throwing: ApplePasswordsError.cancelled)
     }
 
-    /// A request timed out while the helper may still answer it.
+    /// A request's wait ended while the helper may still answer it. A request
+    /// that tolerates silence is simply sent: the session stays, and the
+    /// command is remembered so its late acknowledgement is swallowed.
     private func abandon(_ id: UUID, because error: ApplePasswordsError) {
-        guard inFlight?.id == id else { return }
+        guard let pending = inFlight, pending.id == id else { return }
+        if pending.toleratesSilence {
+            silentCommands.insert(pending.command)
+            resolve(id, with: .success(nil))
+            return
+        }
         resolve(id, with: .failure(error))
         invalidate()
     }
@@ -222,7 +247,17 @@ actor ApplePasswordsRequestQueue {
             return
         }
         guard let pending = inFlight, pending.command == command else {
-            DiagnosticLog.applePasswords.notice("Dropped an unexpected helper reply numbered \(command.number).")
+            if silentCommands.contains(command) {
+                // The late acknowledgement of a request that ended in silence. It has a
+                // different command from any other kind of request, so it can never
+                // answer one. If a later request has the same command (a second save), the
+                // acknowledgement may end that request early: it carries no data, so
+                // the early end cannot hand that caller a wrong answer, and the
+                // request's own acknowledgement is swallowed here when it arrives.
+                DiagnosticLog.applePasswords.notice("Swallowed a late acknowledgement numbered \(command.number).")
+            } else {
+                DiagnosticLog.applePasswords.notice("Dropped an unexpected helper reply numbered \(command.number).")
+            }
             return
         }
         guard pending.accepts(envelope) else {

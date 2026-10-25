@@ -42,6 +42,11 @@ struct BrowserCredentialFillPort {
     /// field.
     let fillGeneratedPassword: (String, UUID) async throws -> Void
 
+    /// Remembers, for the page, a generated password that was sent to Apple
+    /// Passwords before it was filled, so the form's submission does not offer
+    /// to save it again.
+    let rememberPresavedPassword: (BrowserCredentialPresavedPassword) -> Void
+
     /// Closes the prompt without filling anything.
     let dismiss: () -> Void
 }

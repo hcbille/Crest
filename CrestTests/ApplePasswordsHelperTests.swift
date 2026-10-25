@@ -151,6 +151,106 @@ final class ApplePasswordsHelperTests: XCTestCase {
         await queue.shutdown()
     }
 
+    func testASaveIsRefusedBeforeAnythingIsSent() async {
+        let helper = ApplePasswordsHelper(launcher: RefusingLauncher())
+        let secure = CredentialOrigin(scheme: "https", host: "example.com", port: 443)
+        let insecure = CredentialOrigin(scheme: "http", host: "example.com", port: 80)
+
+        // The core does not offer Apple Passwords, even to a Space that is still pairing.
+        for support in [ApplePasswordsTestSupport.refused, ApplePasswordsTestSupport.pairing] {
+            await assertNotPermitted {
+                try await helper.save("ada", "secret", for: secure, form: .signIn, support: support)
+            }
+        }
+        do {
+            try await helper.save(
+                "ada", "secret", for: insecure, form: .signIn, support: ApplePasswordsTestSupport.available)
+            XCTFail("Only an https origin is saved.")
+        } catch {
+            XCTAssertEqual(error as? ApplePasswordsError, .insecureOrigin)
+        }
+        XCTAssertEqual(helper.state, .stopped, "Nothing started the helper, so nothing was sent.")
+    }
+
+    func testASaveNamesTheCapturedOriginsHostAndNothingElse() async throws {
+        let session = ApplePasswordsSecretSession(
+            identity: "0x00112233445566778899aabbccddeeff", sharedKey: Data(repeating: 0x42, count: 32),
+            byteEncoding: .hexadecimal)
+        let origin = CredentialOrigin(scheme: "https", host: "accounts.crest.test", port: 8443)
+        XCTAssertThrowsError(
+            try ApplePasswordsHelper.saveRequest(
+                username: "ada", password: "secret",
+                origin: CredentialOrigin(scheme: "http", host: "accounts.crest.test", port: 80), form: .signUp,
+                tabID: { _ in 1 }, session: session)
+        ) { XCTAssertEqual($0 as? ApplePasswordsError, .insecureOrigin) }
+
+        let request = try ApplePasswordsHelper.saveRequest(
+            username: "ada", password: "secret", origin: origin, form: .signUp, tabID: { _ in 1 }, session: session)
+        let channel = FakeApplePasswordsChannel()
+        let queue = ApplePasswordsRequestQueue(channel: channel)
+        let sending = Task { try? await queue.submit(request) }
+        await waitUntil { channel.sentCount == 1 }
+
+        let envelope = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: try XCTUnwrap(channel.lastSent)) as? [String: Any])
+        XCTAssertEqual(envelope["cmd"] as? Int, 6)
+        XCTAssertNil(envelope["url"], "A save names its site only inside the sealed body.")
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(try XCTUnwrap(envelope["payload"] as? String).utf8))
+                as? [String: Any])
+        let sealed = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(try XCTUnwrap(payload["SMSG"] as? String).utf8))
+                as? [String: Any])
+        let outbound = try ApplePasswordsByteEncoding.hexadecimal.bytes(from: try XCTUnwrap(sealed["SDATA"] as? String))
+        let nonce = outbound.suffix(ApplePasswordsSecretSession.nonceLength)
+        let opened = try session.open(nonce + outbound.dropLast(ApplePasswordsSecretSession.nonceLength))
+        let fields = try XCTUnwrap(JSONSerialization.jsonObject(with: opened) as? [String: Any])
+        XCTAssertEqual(fields["NURL"] as? String, "accounts.crest.test")
+        XCTAssertEqual(fields["NUSR"] as? String, "ada")
+        channel.terminate()
+        await queue.shutdown()
+        _ = await sending.value
+    }
+
+    func testARequestThatToleratesSilenceResolvesAsSentAndItsLateAcknowledgementIsSwallowed() async throws {
+        let channel = FakeApplePasswordsChannel()
+        let queue = ApplePasswordsRequestQueue(channel: channel)
+        let invalidated = InvalidationFlag()
+        let watching = Task {
+            for await event in queue.events {
+                if case .invalidated = event { invalidated.raise() }
+            }
+        }
+
+        // Nobody acknowledges the save, yet the caller carries on and the session survives.
+        try await queue.submit(SilentSaveRequest())
+        XCTAssertEqual(channel.sentCount, 1)
+
+        // Another kind of request is in flight when the save's late acknowledgement arrives.
+        let capabilities = Task { try await queue.submit(ApplePasswordsCapabilitiesRequest()) }
+        await waitUntil { channel.sentCount == 2 }
+        channel.deliver(#"{"cmd":6}"#)
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(channel.sentCount, 2)
+
+        // The capabilities request was not resolved by it: its own reply still arrives.
+        channel.deliver(#"{"cmd":14,"capabilities":{"shouldUseBase64":true}}"#)
+        let reported = try await capabilities.value
+        XCTAssertEqual(reported.shouldUseBase64, true)
+        XCTAssertFalse(invalidated.isRaised)
+
+        // A request that does not tolerate silence still gives the session up.
+        do {
+            try await queue.submit(UnansweredRequest())
+            XCTFail("Silence is a failure for a request that does not tolerate it.")
+        } catch {
+            XCTAssertEqual(error as? ApplePasswordsError, .unavailable(.timedOut))
+        }
+        channel.terminate()
+        await queue.shutdown()
+        watching.cancel()
+    }
+
     // MARK: - Fixtures
 
     private func assertNotPermitted(
@@ -224,6 +324,11 @@ final class FakeApplePasswordsChannel: ApplePasswordsChannel, @unchecked Sendabl
         lock.withLock { sent }
     }
 
+    /// The latest payload Crest sent.
+    var lastSent: Data? {
+        lock.withLock { sent.last }
+    }
+
     func send(_ payload: Data) throws {
         lock.withLock { sent.append(payload) }
         script?(payload)
@@ -271,4 +376,36 @@ enum ApplePasswordsPairingScript {
             }
         }
     }
+}
+
+/// A save with a short wait, so the test need not sit through the real three seconds.
+private struct SilentSaveRequest: ApplePasswordsRequest {
+    typealias Reply = Void
+
+    var command: ApplePasswordsCommand { .setPassword }
+    var timeout: Duration { .milliseconds(100) }
+    var silentReply: Void? { () }
+
+    func encoded() throws -> Data { Data(#"{"cmd":6}"#.utf8) }
+    func reply(from envelope: ApplePasswordsInboundEnvelope) throws {}
+}
+
+/// A request that expects an answer and gets none within a short wait.
+private struct UnansweredRequest: ApplePasswordsRequest {
+    typealias Reply = Void
+
+    var command: ApplePasswordsCommand { .getPassword }
+    var timeout: Duration { .milliseconds(100) }
+
+    func encoded() throws -> Data { Data(#"{"cmd":5}"#.utf8) }
+    func reply(from envelope: ApplePasswordsInboundEnvelope) throws {}
+}
+
+private final class InvalidationFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var raised = false
+
+    var isRaised: Bool { lock.withLock { raised } }
+
+    func raise() { lock.withLock { raised = true } }
 }

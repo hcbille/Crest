@@ -35,6 +35,9 @@ final class BrowserCredentialPageState<FillTarget> {
     private(set) var fillRequest: BrowserCredentialFillRequest?
     private(set) var saveCandidate: BrowserCredentialSaveCandidate?
 
+    /// The generated password already sent to Apple Passwords for this page,
+    /// held as a digest until the form submits or the page leaves the origin.
+    @ObservationIgnored private var presavedPassword: BrowserCredentialPresavedPassword?
     @ObservationIgnored private var fillTargets: [UUID: FillTarget] = [:]
 
     /// The form the live request's field belongs to, kept here rather than on
@@ -167,6 +170,12 @@ final class BrowserCredentialPageState<FillTarget> {
         fillRequest = nil
     }
 
+    /// Remembers that the generated password was sent to Apple Passwords, so
+    /// the submission that follows does not offer to save it again.
+    func rememberPresavedPassword(_ presaved: BrowserCredentialPresavedPassword) {
+        presavedPassword = presaved
+    }
+
     func dismissSaveCandidate() {
         pendingSaveCandidate = nil
         candidateExpirationTask?.cancel()
@@ -179,8 +188,18 @@ final class BrowserCredentialPageState<FillTarget> {
             let url,
             let currentOrigin = CredentialOrigin(url: url),
             currentOrigin != hint.topLevelOrigin
-        else { return }
+        else {
+            clearPresavedPassword(leaving: url)
+            return
+        }
         clearUsernameHint()
+        clearPresavedPassword(leaving: url)
+    }
+
+    private func clearPresavedPassword(leaving url: URL?) {
+        guard let presaved = presavedPassword else { return }
+        if let url, let origin = CredentialOrigin(url: url), origin == presaved.topLevelOrigin { return }
+        presavedPassword = nil
     }
 
     func didStartNavigation() {
@@ -195,6 +214,7 @@ final class BrowserCredentialPageState<FillTarget> {
         dismissFillRequest()
         dismissSaveCandidate()
         clearUsernameHint()
+        presavedPassword = nil
     }
 
     private func rememberUsername(
@@ -332,6 +352,11 @@ extension BrowserCredentialPageState: CredentialCapturePerformer {
         )
         dismissFillRequest()
         clearUsernameHint()
+        // A password Apple Passwords already holds is not offered again; one that
+        // adds a username is. Either way the submission settles the marker.
+        let presaved = presavedPassword
+        presavedPassword = nil
+        if presaved?.covers(candidate) == true { return }
         pendingSaveCandidate = candidate
         let lifetime = decision.candidateLifetime
         candidateExpirationTask = Task { @MainActor [weak self] in

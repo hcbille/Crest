@@ -68,6 +68,4 @@ enum ApplePasswordsError: Error, Equatable, Sendable {
     case cancelled
     /// The system could not supply random bytes, so no key or nonce can be made.
     case randomnessUnavailable
-    /// Saving to Apple Passwords is not offered yet.
-    case saveNotAvailable
 }

@@ -4601,6 +4601,10 @@
     "apple-passwords-fill": {
       "category": "new",
       "message": "On the Mac, Crest can fill passwords saved in Apple Passwords after you pair it with a code from your Mac."
+    },
+    "apple-passwords-save": {
+      "category": "new",
+      "message": "On the Mac, Crest can save new and changed passwords, including strong passwords it suggests, to Apple Passwords."
     }
   }
 }

@@ -5,17 +5,33 @@ struct BrowserCredentialSaveDestination: View {
     let destination: BrowserCredentialPromptDestinationMetadata
     let space: BrowserSpaceIdentity?
     let namesSystemPasswordsDestination: Bool
+    let isBusy: Bool
+    /// Sends this one save to the other place; nil when there is no other.
+    let switchDestination: (() -> Void)?
 
     var body: some View {
         HStack(spacing: BrowserCredentialPromptMetrics.destinationSpacing) {
-            detail
-            if let syncStatus = destination.syncStatus {
-                Text("·")
-                Label(syncStatus, systemImage: "icloud")
+            HStack(spacing: BrowserCredentialPromptMetrics.destinationSpacing) {
+                detail
+                if let syncStatus = destination.syncStatus {
+                    Text("·")
+                    Label(syncStatus, systemImage: "icloud")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            if let switchDestination, let switchTitle = destination.switchTitle {
+                Spacer(minLength: 0)
+                Button(action: switchDestination) {
+                    Text(switchTitle)
+                        .font(.caption)
+                        .padding(.horizontal, CrestSpacing.small)
+                        .padding(.vertical, CrestSpacing.extraSmall)
+                }
+                .buttonStyle(CrestChromeButtonStyle(controlSize: nil, cornerRadius: CrestRadius.compact))
+                .disabled(isBusy)
             }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
 
     /// The Space's own crest, unless the sentence beside it is already about

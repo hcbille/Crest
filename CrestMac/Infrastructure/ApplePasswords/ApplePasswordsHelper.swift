@@ -239,10 +239,42 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         return password
     }
 
-    /// Saving to Apple Passwords arrives with its own step; the request exists but is not sent.
-    func save(_ username: String, _ password: String, for origin: CredentialOrigin) async throws {
+    /// Whether the helper said it can save an account with no username.
+    var savesAccountsWithoutUsername: Bool {
+        capabilities?.canSaveAccountWithEmptyUserName == true
+    }
+
+    /// Offers the account to Apple Passwords, which asks the person to confirm
+    /// in its own alert. Create or update is the helper's decision. The result
+    /// is "sent", not "saved": the helper may never acknowledge, so the request
+    /// waits a few seconds and carries on with the session intact.
+    ///
+    /// The account is saved for the origin it was captured for, by its host,
+    /// and only if the origin is https and the core's answer offers Apple
+    /// Passwords. Both are checked before anything is sent. The password
+    /// lives only as long as the request does.
+    func save(
+        _ username: String, _ password: String, for origin: CredentialOrigin, form: ApplePasswordsFormKind,
+        support: ApplePasswordsSupport
+    ) async throws {
+        try requireOffer(support)
         _ = try Self.host(of: origin)
-        throw ApplePasswordsError.saveNotAvailable
+        let connection = try pairedConnection()
+        let request = try Self.saveRequest(
+            username: username, password: password, origin: origin, form: form, tabID: { self.tabID(for: $0) },
+            session: connection.session)
+        try await submit(request, over: connection)
+    }
+
+    /// The request that offers `username` and `password` for the origin's host.
+    /// Throws for an origin that is not https.
+    static func saveRequest(
+        username: String, password: String, origin: CredentialOrigin, form: ApplePasswordsFormKind,
+        tabID: (String) -> Int, session: ApplePasswordsSecretSession
+    ) throws -> ApplePasswordsSaveRequest {
+        let host = try host(of: origin)
+        return ApplePasswordsSaveRequest(
+            session: session, tabID: tabID(host), host: host, username: username, password: password, form: form)
     }
 
     private func submit<Request: ApplePasswordsRequest>(
@@ -352,7 +384,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
             // The helper lost the session, or a reply no longer opens with our key: it is out of step.
             dropSession()
             state = .unpaired
-        case .queryFailed, .loginNotFound, .cancelled, .insecureOrigin, .saveNotAvailable, .randomnessUnavailable,
+        case .queryFailed, .loginNotFound, .cancelled, .insecureOrigin, .randomnessUnavailable,
             .notPermitted:
             break
         }

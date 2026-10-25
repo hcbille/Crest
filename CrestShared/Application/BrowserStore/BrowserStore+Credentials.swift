@@ -485,7 +485,7 @@ extension BrowserStore {
         )
     }
 
-    private func validateCredentialSaveCandidate(
+    func validateCredentialSaveCandidate(
         _ candidate: BrowserCredentialSaveCandidate,
         in spaceID: UUID,
         now: Date
