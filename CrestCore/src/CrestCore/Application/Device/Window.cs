@@ -155,13 +155,14 @@ internal sealed class Window {
 
     /// The Space's tab used last other than the shown one, as an item that
     /// focuses the page of its split used last; never a Start Page, a tab
-    /// another window took over or one of `elsewhere`. Null when there is none.
+    /// another window took over or one whose split holds one of `elsewhere`.
+    /// Null when there is none.
     public RecentTabItem? LastUsed(SpaceState space, IReadOnlySet<Guid> elsewhere) {
         ArgumentNullException.ThrowIfNull(space);
         if (Tab(space.Id) is not { } shown) return null;
         var shownItem = Cards(space, shown).TabIds;
-        return space.Tabs.Where(tab => !tab.IsStartPage && !shownItem.Contains(tab.Id) && !elsewhere.Contains(tab.Id)
-                && !departed.Contains((space.Id, tab.Id)))
+        return space.Tabs.Where(tab => !tab.IsStartPage && !shownItem.Contains(tab.Id) && !departed.Contains((space.Id, tab.Id))
+                && !Cards(space, tab.Id).TabIds.Any(elsewhere.Contains))
             .MaxBy(tab => tab.LastActivatedAt) is { } last ? new(Cards(space, last.Id).TabIds, last.Id) : null;
     }
 

@@ -39,7 +39,8 @@ public sealed partial class BrowserContractsTests {
     }
 
     /// A window that has shown nothing else offers the Space's tab used last,
-    /// passing over one another window shows, and the command goes there.
+    /// passing over one another window shows, a split as a whole, and the
+    /// command goes there.
     [Fact]
     public void AWindowThatShowedNothingElseOffersTheSpacesTabUsedLast() {
         var f = new OrderSpace();
@@ -47,10 +48,12 @@ public sealed partial class BrowserContractsTests {
         var other = device.Open(f.Space, (f.Space, f.C5));
         ShowAll(device, other, f.Space, f.C3, f.C5);
         var window = device.Open(f.Space, (f.Space, f.C1));
-
         Assert.Equal([f.C1, f.C3], RecentFocus(device, window));
+
+        ShowAll(device, other, f.Space, f.B, f.A);
+        Assert.Equal([f.C1, f.C5], RecentFocus(device, window));
         device.Send(new ShowMostRecentTab(window));
-        Assert.Equal(f.C3, device.Tab(window, f.Space));
+        Assert.Equal(f.C5, device.Tab(window, f.Space));
     }
 
     /// A locked Space lists none of its tabs to switch between, so neither
