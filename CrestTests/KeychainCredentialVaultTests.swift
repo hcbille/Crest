@@ -117,6 +117,37 @@ final class KeychainCredentialVaultTests: XCTestCase {
         }
     }
 
+    /// An item that no longer reads back is left out of the Space's listings
+    /// instead of failing them, keeps its place through a replacement and an
+    /// iCloud change, and goes only when asked.
+    func testAnUnreadableItemIsLeftOutKeptAndRemovedOnRequest() async throws {
+        let spaceID = UUID()
+        let readable = descriptor(id: UUID(), spaceID: spaceID, username: "person")
+        let readableItem = try keychainItem(descriptor: readable, password: "secret")
+        let unreadable = descriptor(
+            id: UUID(), spaceID: spaceID, username: "zone",
+            origin: CredentialOrigin(scheme: "https", host: "fe80::1%en0", port: 443))
+        let unreadableItem = try keychainItem(descriptor: unreadable, password: "zone-secret")
+        let store = FailingMigrationCredentialKeychainStore(items: [readableItem, unreadableItem])
+        let vault = KeychainCredentialVault(store: store, servicePrefix: "test.crest")
+
+        let listed = try await vault.descriptors(in: spaceID)
+        XCTAssertEqual(listed, [readable])
+        let unreadableCount = try await vault.unreadableCredentialCount(in: spaceID)
+        XCTAssertEqual(unreadableCount, 1)
+
+        try await vault.replaceAll([BrowserCredential(descriptor: readable, password: "changed")], in: spaceID)
+        try await vault.setSynchronizable(true, in: spaceID)
+        let keptItems = await store.storedItems
+        XCTAssertEqual(keptItems.map(\.account), [readableItem.account, unreadableItem.account])
+        XCTAssertEqual(keptItems.map(\.isSynchronizable), [true, false])
+
+        try await vault.deleteUnreadableCredentials(in: spaceID)
+        let remainingItems = await store.storedItems
+        XCTAssertEqual(remainingItems.map(\.account), [readableItem.account])
+        XCTAssertEqual(String(data: remainingItems[0].secret, encoding: .utf8), "changed")
+    }
+
     private func descriptor(
         id: UUID,
         spaceID: UUID,

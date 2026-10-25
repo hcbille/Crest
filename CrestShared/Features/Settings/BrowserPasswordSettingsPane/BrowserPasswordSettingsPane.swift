@@ -36,6 +36,7 @@ struct BrowserPasswordSettingsPane: View {
     @State private var isSelectingCredentials = false
     @State private var selectedCredentialIDs: Set<UUID> = []
     @State private var confirmsSelectionDeletion = false
+    @State private var confirmsUnreadableRemoval = false
 
     init(
         browser: BrowserStore,
@@ -113,6 +114,18 @@ struct BrowserPasswordSettingsPane: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(selectionDeletionMessage)
+        }
+        .alert(
+            "Remove Passwords Crest Can’t Read?",
+            isPresented: $confirmsUnreadableRemoval
+        ) {
+            Button("Remove", role: .destructive) {
+                guard let selectedSpaceID else { return }
+                credentials.deleteUnreadable(in: selectedSpaceID, accessController: spaceAccess)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Crest can’t show or fill them. This cannot be undone.")
         }
         .sheet(item: $credentialDetailRequest) { request in
             BrowserCredentialDetailView(
@@ -239,6 +252,9 @@ struct BrowserPasswordSettingsPane: View {
                         }
                         passwordManagerActions
                         savedPasswords
+                        if credentials.unreadableCount > 0 {
+                            unreadablePasswords
+                        }
                     } header: {
                         Text("Saved passwords")
                     } footer: {
@@ -383,6 +399,18 @@ struct BrowserPasswordSettingsPane: View {
         }
     }
 
+    private var unreadablePasswords: some View {
+        HStack {
+            Label(unreadablePasswordsLabel, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Remove…", role: .destructive) {
+                confirmsUnreadableRemoval = true
+            }
+            .accessibilityIdentifier("remove-unreadable-passwords")
+        }
+    }
+
     // MARK: - Derived state
 
     private var space: SpaceModel? {
@@ -437,6 +465,13 @@ struct BrowserPasswordSettingsPane: View {
             "Delete \(count) selected \(passwordLabel) from \(spaceName)? Crest will authenticate you and apply the deletion as one Keychain change. This cannot be undone."
     }
 
+    private var unreadablePasswordsLabel: String {
+        let count = credentials.unreadableCount
+        return count == 1
+            ? String(localized: "1 saved password can’t be read")
+            : String(localized: "\(count) saved passwords can’t be read")
+    }
+
     private var selectionDeletionButtonLabel: String {
         let count = selectedCredentialIDs.count
         return count == 1
@@ -466,6 +501,7 @@ struct BrowserPasswordSettingsPane: View {
         isSelectingCredentials = false
         selectedCredentialIDs.removeAll()
         confirmsSelectionDeletion = false
+        confirmsUnreadableRemoval = false
         credentials.clearSensitiveData()
     }
 
