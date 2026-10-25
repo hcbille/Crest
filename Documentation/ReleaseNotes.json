@@ -4510,6 +4510,10 @@
       "category": "internal",
       "message": "Read and write a sync record's envelope in one place."
     },
+    "independent-search-provider-triggers": {
+      "category": "improved",
+      "message": "Choose in Search settings whether a space after a search shortcut chooses its provider, with or without a $ first, separately from Tab."
+    },
     "recent-tab-switcher-previews": {
       "category": "new",
       "message": "Holding Control-Tab on the Mac shows previews of your five most recent tabs in the window, so you can pick one and let go to switch. Control-Shift-Tab goes the other way, and you can turn the previews off in Settings."
