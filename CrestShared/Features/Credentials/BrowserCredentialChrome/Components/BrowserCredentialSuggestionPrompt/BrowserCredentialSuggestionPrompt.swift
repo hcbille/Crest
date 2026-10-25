@@ -31,7 +31,9 @@ struct BrowserCredentialSuggestionPrompt: View {
                 fillErrorMessage: fillErrorMessage,
                 metrics: metrics,
                 dismiss: port.dismiss,
-                fill: fill
+                fill: fill,
+                beginPairing: beginPairing,
+                submitPairingCode: submitPairingCode
             )
         }
         .task(id: request.id) {
@@ -45,12 +47,20 @@ struct BrowserCredentialSuggestionPrompt: View {
         browser.spaceModel(port.spaceID)?.identity
     }
 
-    private func fill(_ descriptor: CredentialDescriptor) {
+    private func beginPairing() {
+        Task { await model.beginPairing(in: port.spaceID, using: browser) }
+    }
+
+    private func submitPairingCode(_ code: String) {
+        Task { await model.submitPairingCode(code, for: request, in: port.spaceID, using: browser) }
+    }
+
+    private func fill(_ suggestion: BrowserCredentialSuggestion) {
         Task { @MainActor in
             do {
                 guard
                     let credential = try await browser.credential(
-                        id: descriptor.id,
+                        for: suggestion,
                         in: port.spaceID
                     )
                 else {

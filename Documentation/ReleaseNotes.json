@@ -4597,6 +4597,10 @@
     "apple-passwords-helper-client": {
       "category": "internal",
       "message": "Crest can now talk to Apple's Passwords helper to pair with it and read logins, though nothing offers it yet."
+    },
+    "apple-passwords-fill": {
+      "category": "new",
+      "message": "On the Mac, Crest can fill passwords saved in Apple Passwords after you pair it with a code from your Mac."
     }
   }
 }

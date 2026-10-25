@@ -6,13 +6,26 @@ import Observation
 final class BrowserCredentialSuggestionModel {
 
     private(set) var phase = BrowserCredentialSuggestionPhase.idle
+    /// Where pairing with Apple Passwords stands, or nil while the prompt only
+    /// offers it.
+    private(set) var pairingStep: BrowserApplePasswordsPairingStep?
+    /// What the last pairing step told the person, if anything.
+    private(set) var pairingFeedback: BrowserApplePasswordsPairingOutcome?
 
     @ObservationIgnored private var activeOperationID: UUID?
-    @ObservationIgnored private var activeTask: Task<[CredentialDescriptor], any Error>?
+    @ObservationIgnored private var activeTask: Task<BrowserCredentialOffer, any Error>?
+    @ObservationIgnored private var pairingOperationID: UUID?
+    /// Who to tell if the person gives up on the code.
+    @ObservationIgnored private weak var pairingLoader: (any BrowserCredentialSuggestionLoading)?
 
-    var suggestions: [CredentialDescriptor] {
-        guard case .suggestions(let suggestions) = phase else { return [] }
-        return suggestions
+    var suggestions: [BrowserCredentialSuggestion] {
+        guard case .suggestions(let offer) = phase else { return [] }
+        return offer.suggestions
+    }
+
+    var offersPairing: Bool {
+        guard case .suggestions(let offer) = phase else { return false }
+        return offer.offersApplePasswordsPairing
     }
 
     var isLoading: Bool {
@@ -35,15 +48,15 @@ final class BrowserCredentialSuggestionModel {
         phase = .loading
 
         let task = Task { @MainActor in
-            try await loader.credentialSuggestions(for: request.origin, in: spaceID)
+            try await loader.credentialOffer(for: request.origin, in: spaceID)
         }
         activeTask = task
 
         await withTaskCancellationHandler {
             do {
-                let loadedSuggestions = try await task.value
+                let loadedOffer = try await task.value
                 publish(
-                    loadedSuggestions,
+                    loadedOffer,
                     usernameHint: request.usernameHint,
                     for: operationID
                 )
@@ -57,7 +70,78 @@ final class BrowserCredentialSuggestionModel {
 
     func cancel() {
         cancelActiveOperation()
+        abandonPairing()
         phase = .idle
+    }
+
+    // MARK: - Pairing
+
+    /// Has Apple Passwords show a code, then waits for the person to type it.
+    func beginPairing(in spaceID: UUID, using loader: any BrowserCredentialSuggestionLoading) async {
+        let operationID = UUID()
+        pairingOperationID = operationID
+        pairingLoader = loader
+        pairingFeedback = nil
+        pairingStep = .requestingCode
+        await requestCode(operationID, in: spaceID, using: loader)
+    }
+
+    /// Pairs with `code`, then offers the Space's passwords again. A spent
+    /// challenge asks the helper for a fresh code.
+    func submitPairingCode(
+        _ code: String,
+        for request: BrowserCredentialFillRequest,
+        in spaceID: UUID,
+        using loader: any BrowserCredentialSuggestionLoading
+    ) async {
+        let operationID = UUID()
+        pairingOperationID = operationID
+        pairingStep = .verifying
+        let outcome = await loader.completeApplePasswordsPairing(code: code, in: spaceID)
+        guard pairingOperationID == operationID else { return }
+        pairingFeedback = outcome
+        if outcome.isPaired {
+            pairingOperationID = nil
+            pairingStep = nil
+            pairingFeedback = nil
+            await load(request, in: spaceID, using: loader)
+        } else if outcome.asksForNewCode {
+            pairingStep = .requestingCode
+            await requestCode(operationID, in: spaceID, using: loader)
+        } else {
+            pairingStep = outcome.endsPairing ? nil : .enteringCode
+        }
+    }
+
+    /// The person dismissed the code entry.
+    func cancelPairing() {
+        abandonPairing()
+        pairingFeedback = nil
+    }
+
+    /// Stops pairing. If the helper was still waiting for a typed code, tells
+    /// it so, as Apple's extension does when its pairing popup closes.
+    private func abandonPairing() {
+        let helperWaitsForCode = pairingStep == .enteringCode
+        let loader = pairingLoader
+        pairingOperationID = nil
+        pairingStep = nil
+        pairingLoader = nil
+        guard helperWaitsForCode, let loader else { return }
+        Task { @MainActor in await loader.cancelApplePasswordsPairing() }
+    }
+
+    private func requestCode(
+        _ operationID: UUID, in spaceID: UUID, using loader: any BrowserCredentialSuggestionLoading
+    ) async {
+        let outcome = await loader.requestApplePasswordsPairingCode(in: spaceID)
+        guard pairingOperationID == operationID else { return }
+        if outcome.endsPairing || outcome.isPaired {
+            pairingStep = nil
+            pairingFeedback = outcome
+        } else {
+            pairingStep = .enteringCode
+        }
     }
 
     private func cancelActiveOperation() {
@@ -67,7 +151,7 @@ final class BrowserCredentialSuggestionModel {
     }
 
     private func publish(
-        _ suggestions: [CredentialDescriptor],
+        _ offer: BrowserCredentialOffer,
         usernameHint: String?,
         for operationID: UUID
     ) {
@@ -78,13 +162,13 @@ final class BrowserCredentialSuggestionModel {
         }
 
         finishOperation(operationID)
-        guard !suggestions.isEmpty else {
+        guard !offer.isEmpty else {
             phase = .empty
             return
         }
-        phase = .suggestions(
-            Self.prioritizingUsernameHint(usernameHint, in: suggestions)
-        )
+        var ordered = offer
+        ordered.suggestions = Self.prioritizingUsernameHint(usernameHint, in: offer.suggestions)
+        phase = .suggestions(ordered)
     }
 
     private func publish(error: any Error, for operationID: UUID) {
@@ -111,11 +195,11 @@ final class BrowserCredentialSuggestionModel {
 
     private static func prioritizingUsernameHint(
         _ usernameHint: String?,
-        in suggestions: [CredentialDescriptor]
-    ) -> [CredentialDescriptor] {
+        in suggestions: [BrowserCredentialSuggestion]
+    ) -> [BrowserCredentialSuggestion] {
         guard let usernameHint,
             let matchingIndex = suggestions.firstIndex(where: {
-                $0.username.caseInsensitiveCompare(usernameHint) == .orderedSame
+                $0.descriptor.username.caseInsensitiveCompare(usernameHint) == .orderedSame
             }),
             matchingIndex != suggestions.startIndex
         else {
@@ -132,6 +216,15 @@ enum BrowserCredentialSuggestionPhase: Equatable, Sendable {
     case idle
     case loading
     case empty
-    case suggestions([CredentialDescriptor])
+    case suggestions(BrowserCredentialOffer)
     case failed
+}
+
+/// Where pairing with Apple Passwords stands once the person chose to start it.
+enum BrowserApplePasswordsPairingStep: Equatable, Sendable {
+    /// Waiting for the helper to show a code.
+    case requestingCode
+    /// The helper shows a code, and the person types it.
+    case enteringCode
+    case verifying
 }

@@ -39,6 +39,16 @@ enum ApplePasswordsPairingError: Error, Equatable, Sendable {
     case invalidChallenge
     /// The code is not six digits. The challenge is kept, so the person can retype it.
     case malformedCode
+
+    /// How the prompt carries on: the only place these errors meet its outcomes.
+    var outcome: BrowserApplePasswordsPairingOutcome {
+        switch self {
+        case .wrongCode: return .wrongCode
+        case .malformedCode: return .malformedCode
+        case .challengeExpired: return .challengeExpired
+        case .rejected, .serverProofMismatch, .invalidChallenge: return .failed
+        }
+    }
 }
 
 // MARK: - Requests

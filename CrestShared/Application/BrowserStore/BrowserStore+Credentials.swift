@@ -1,19 +1,5 @@
 import Foundation
 
-// MARK: - Suggestion Loading
-
-extension BrowserStore: BrowserCredentialSuggestionLoading {
-    func credentialSuggestions(
-        for origin: CredentialOrigin,
-        in spaceID: UUID
-    ) async throws -> [CredentialDescriptor] {
-        guard let url = URL(string: origin.description) else {
-            throw CredentialVaultError.invalidOrigin
-        }
-        return try await credentialSuggestions(for: url, in: spaceID)
-    }
-}
-
 // MARK: - Lookup
 
 extension BrowserStore {

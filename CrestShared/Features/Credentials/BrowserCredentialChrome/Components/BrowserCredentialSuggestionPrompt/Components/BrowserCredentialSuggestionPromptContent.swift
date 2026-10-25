@@ -8,7 +8,9 @@ struct BrowserCredentialSuggestionPromptContent: View {
     let fillErrorMessage: String?
     let metrics: BrowserCredentialPromptMetrics
     let dismiss: () -> Void
-    let fill: (CredentialDescriptor) -> Void
+    let fill: (BrowserCredentialSuggestion) -> Void
+    let beginPairing: () -> Void
+    let submitPairingCode: (String) -> Void
 
     var body: some View {
         VStack(
@@ -28,12 +30,26 @@ struct BrowserCredentialSuggestionPromptContent: View {
                     message: "Embedded sign-in from \(request.topLevelOrigin.description)"
                 )
             }
-            BrowserCredentialSuggestionState(
-                isLoading: model.isLoading,
-                suggestions: model.suggestions,
-                metrics: metrics,
-                fill: fill
-            )
+            if let pairingStep = model.pairingStep {
+                BrowserCredentialPairingCodeEntry(
+                    step: pairingStep,
+                    feedback: model.pairingFeedback,
+                    submit: submitPairingCode,
+                    cancel: model.cancelPairing
+                )
+            } else {
+                BrowserCredentialSuggestionState(
+                    isLoading: model.isLoading,
+                    suggestions: model.suggestions,
+                    offersPairing: model.offersPairing,
+                    metrics: metrics,
+                    fill: fill,
+                    beginPairing: beginPairing
+                )
+                if let message = model.pairingFeedback?.message {
+                    BrowserCredentialPromptError(verbatim: String(localized: message))
+                }
+            }
             if model.hasFailed {
                 BrowserCredentialPromptError(
                     "Crest couldn’t read this Space’s passwords."

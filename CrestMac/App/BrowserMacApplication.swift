@@ -313,6 +313,11 @@ final class BrowserMacApplication {
             ? nil : BrowserMemoryPressureMonitor(core: core) { [pagePoolRegistry] in pagePoolRegistry.livePools }
         browser.family.configureSpaceDataCleanup(pagePoolRegistry, from: browser)
         memoryPressure?.start()
+        // An isolated launch gets no access at all, so nothing can reach the
+        // helper from it. The private window keeps none either.
+        if !usesIsolatedLaunch {
+            browser.applePasswords = BrowserMacApplePasswords(core: core, browser: browser, helper: applePasswords)
+        }
     }
 
     func settingsTabContent(

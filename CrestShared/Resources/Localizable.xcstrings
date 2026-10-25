@@ -1559,6 +1559,9 @@
     "30 Days" : {
 
     },
+    "6-digit code" : {
+
+    },
     "90 Days" : {
 
     },
@@ -2139,6 +2142,12 @@
         }
       }
     },
+    "Apple Passwords" : {
+
+    },
+    "Apple Passwords isn’t available" : {
+
+    },
     "Apple translates page text on this device. Languages may need to download first; Apple asks before downloading. Downloaded languages are shared with other apps and remain available after Private Browsing ends." : {
 
     },
@@ -2146,6 +2155,9 @@
 
     },
     "Apple Translation requires a physical device. It is not available in Simulator." : {
+
+    },
+    "Apple’s iCloud Passwords extension is also on" : {
 
     },
     "Apple’s native web engine, with system integration and protected media playback." : {
@@ -4469,6 +4481,9 @@
     "Crest couldn't open your session" : {
 
     },
+    "Crest couldn’t pair with Apple Passwords." : {
+
+    },
     "Crest couldn’t read the iCloud sync state an earlier version saved." : {
 
     },
@@ -5723,6 +5738,9 @@
 
     },
     "Enter Full Screen" : {
+
+    },
+    "Enter the 6-digit code." : {
 
     },
     "Error code" : {
@@ -9481,6 +9499,12 @@
       }
     },
     "Page zoom %@" : {
+
+    },
+    "Pair" : {
+
+    },
+    "Pair with Apple Passwords" : {
 
     },
     "Pale" : {
@@ -13591,6 +13615,9 @@
         }
       }
     },
+    "That code doesn’t match. Enter the new one." : {
+
+    },
     "That Space already exists." : {
 
     },
@@ -14533,6 +14560,9 @@
         }
       }
     },
+    "Turn Off" : {
+
+    },
     "Turn Off Content Blocking in This Space" : {
       "localizations" : {
         "ar" : {
@@ -15003,6 +15033,9 @@
 
     },
     "Use a supported key with Command, Option, Control, or Shift." : {
+
+    },
+    "Use Apple Passwords" : {
 
     },
     "Use Built-In Shortcuts" : {

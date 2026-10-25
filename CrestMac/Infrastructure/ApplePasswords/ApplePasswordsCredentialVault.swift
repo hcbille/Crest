@@ -17,18 +17,20 @@ actor ApplePasswordsCredentialVault: CredentialVault {
     // MARK: - Variables
 
     private let source: any ApplePasswordsCredentialSource
-    /// The core's answer for a Space, asked afresh for every read.
-    private let supportForSpace: @Sendable (UUID) async -> ApplePasswordsSupport
+    /// The core's answer for a Space, asked afresh for every read. Nil means
+    /// the core could not answer, which refuses the read.
+    private let supportForSpace: @Sendable (UUID) async -> ApplePasswordsSupport?
     private var issued: [UUID: CredentialDescriptor] = [:]
     private var issuedOrder: [UUID] = []
 
     // MARK: - Initializers
 
     /// - Parameter support: Asks the core whether Apple Passwords may be used
-    ///   in a Space now (`ApplePasswordsAvailability`). The vault never decides.
+    ///   in a Space now (`ApplePasswordsAvailability`). The vault never decides;
+    ///   nil lists and reads nothing.
     init(
         source: any ApplePasswordsCredentialSource,
-        support: @escaping @Sendable (UUID) async -> ApplePasswordsSupport
+        support: @escaping @Sendable (UUID) async -> ApplePasswordsSupport?
     ) {
         self.source = source
         supportForSpace = support
@@ -38,8 +40,9 @@ actor ApplePasswordsCredentialVault: CredentialVault {
 
     func descriptors(matching origin: CredentialOrigin, in spaceID: UUID) async throws -> [CredentialDescriptor] {
         guard origin.isSecure else { throw CredentialVaultError.insecureOrigin }
+        guard let support = await supportForSpace(spaceID) else { throw ApplePasswordsError.notPermitted }
         // The never-save fact is not an account, so it never becomes a descriptor.
-        let logins = try await source.logins(for: origin, support: await supportForSpace(spaceID))
+        let logins = try await source.logins(for: origin, support: support)
         return logins.usernames.map { username in
             let descriptor = CredentialDescriptor(spaceID: spaceID, origin: origin, username: username)
             remember(descriptor)
@@ -64,10 +67,11 @@ actor ApplePasswordsCredentialVault: CredentialVault {
 
     func credential(id: UUID, in spaceID: UUID) async throws -> BrowserCredential? {
         guard let descriptor = issued[id], descriptor.spaceID == spaceID else { return nil }
+        guard let support = await supportForSpace(spaceID) else { throw ApplePasswordsError.notPermitted }
         let password = try await source.password(
             for: descriptor.origin,
             username: descriptor.username,
-            support: await supportForSpace(spaceID)
+            support: support
         )
         return BrowserCredential(descriptor: descriptor, password: password)
     }
