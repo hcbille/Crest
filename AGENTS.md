@@ -108,6 +108,11 @@ contract for setup, validation and change discipline.
 > must never be pushed to `pauljoda/Crest`.
 > Base upstream feature branches on `origin/main`, not on the fork's `main`.
 
+### Working preferences
+
+Branching, builds, hand verification and wording rules for this fork, which
+apply to every task. Read `docs/agents/preferences.md` before starting work.
+
 ### Issue tracker
 
 Issues and specs live as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
