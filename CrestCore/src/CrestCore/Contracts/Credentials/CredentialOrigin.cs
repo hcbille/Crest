@@ -58,8 +58,10 @@ public sealed record CredentialOrigin(string Scheme, string Host, int Port) {
     internal static string? CanonicalHost(string host) {
         ArgumentNullException.ThrowIfNull(host);
         if (host.Contains(':', StringComparison.Ordinal)) {
-            // `IPAddress.TryParse` alone also takes brackets and a zone ID.
-            bool spellsAddress = host.All(character => char.IsAsciiHexDigit(character) || character is ':' or '.');
+            // `IPAddress.TryParse` alone also takes brackets, a zone ID and an
+            // embedded IPv4 address with leading zeros.
+            bool spellsAddress = host.All(character => char.IsAsciiHexDigit(character) || character is ':' or '.')
+                && HasDecimalIPv4Tail(host);
             return spellsAddress && IPAddress.TryParse(host, out var address) && address.AddressFamily == AddressFamily.InterNetworkV6
                 ? IPv6Spelling(address.GetAddressBytes())
                 : null;
@@ -70,6 +72,17 @@ public sealed record CredentialOrigin(string Scheme, string Host, int Port) {
         bool endsInNumber = last.Length > 0 && last.All(char.IsAsciiDigit)
             || last.StartsWith("0x", StringComparison.OrdinalIgnoreCase) && last[2..].All(char.IsAsciiHexDigit);
         return endsInNumber ? IPv4Spelling(labels) : host;
+    }
+
+    /// Whether the IPv4 address an IPv6 address may end in is spelled as the
+    /// URL standard requires: four decimal numbers up to 255, none with a
+    /// leading zero.
+    private static bool HasDecimalIPv4Tail(string host) {
+        string tail = host[(host.LastIndexOf(':') + 1)..];
+        if (!tail.Contains('.', StringComparison.Ordinal)) return true;
+        string[] parts = tail.Split('.');
+        return parts.Length == 4 && parts.All(part => part.Length is >= 1 and <= 3 && part.All(char.IsAsciiDigit)
+            && (part.Length == 1 || part[0] != '0') && int.Parse(part, CultureInfo.InvariantCulture) <= 255);
     }
 
     /// The URL standard's IPv6 serialization: lowercase hexadecimal pieces,

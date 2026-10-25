@@ -104,12 +104,15 @@ public sealed class CredentialImportTests {
             https://999.1.1.1/,ada,secret
             https://1.2.3.4.5/,ada,secret
             https://08.1.1.1/,ada,secret
+            https://[::ffff:1.2.3.04]/,ada,secret
             """, saved);
         Assert.Equal([("127.0.0.1", "ada"), ("127.0.0.1", "bob"), ("2001:db8::1", "ada"), ("::ffff:102:304", "ada")],
             plan.Groups.Select(group => (group.Origin.Host, group.Username)));
         Assert.Equal(saved.Id, plan.Groups[0].ExistingId);
-        // A host ending in a number must be an IPv4 address, or no page can have it.
-        Assert.Equal(Enumerable.Range(6, 3).Select(row => new CredentialRowRejection(row, CredentialRowFlaw.InvalidOrigin)), plan.Rejections);
+        // A host ending in a number must be an IPv4 address, and an IPv6 address
+        // must spell any IPv4 address it ends in without leading zeros, or no
+        // page can have it.
+        Assert.Equal(Enumerable.Range(6, 4).Select(row => new CredentialRowRejection(row, CredentialRowFlaw.InvalidOrigin)), plan.Rejections);
         Assert.False(new CredentialOrigin("https", "2001:db8:0:0:0:0:0:1", 443).IsValid);
         Assert.False(new CredentialOrigin("https", "127.1", 443).IsValid);
     }
