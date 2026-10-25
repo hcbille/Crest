@@ -180,7 +180,8 @@ extension BrowserStore {
         }
         let preferences = CredentialPreferences(
             isEnabled: current.isEnabled, syncsCrestPasswordsWithICloud: isSynchronizable,
-            alsoOffersSaveToSystemPasswords: current.alsoOffersSaveToSystemPasswords)
+            alsoOffersSaveToSystemPasswords: current.alsoOffersSaveToSystemPasswords,
+            usesApplePasswords: current.usesApplePasswords)
         // The native credential operation completed for this profile. Persist
         // its corresponding policy through the same session authority.
         let sent = SetCredentialPreferences(workspaceID: family.workspaceID, spaceID: spaceID, preferences: preferences)
