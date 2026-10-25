@@ -61,8 +61,10 @@ internal sealed partial class Device {
     /// What `window` switches between in `space` (see `Window.RecentItems`).
     /// While it has listed no other tab there, as after a launch or in a new
     /// window, the Space's tab used last stands second, a split as one item,
-    /// unless another open window shows it.
+    /// unless another open window shows it. A locked Space lists nothing, as
+    /// its palette offers none of its tabs.
     internal IReadOnlyList<RecentTabItem> RecentItems(Window window, SpaceState space) {
+        if (Workspace(window.WorkspaceId).IsLocked(space)) return [];
         lock (gate) {
             var items = window.RecentItems(space);
             if (items.Count != 1) return items;
