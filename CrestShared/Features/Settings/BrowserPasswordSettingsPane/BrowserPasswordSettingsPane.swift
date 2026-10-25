@@ -369,8 +369,12 @@ struct BrowserPasswordSettingsPane: View {
             ProgressView("Reading this Space’s Keychain…")
                 .frame(maxWidth: .infinity)
         } else if descriptors.isEmpty {
-            Text(searchText.isEmpty ? "No saved passwords" : "No matches")
-                .foregroundStyle(.secondary)
+            // Passwords that can't be read have their own row, so the Space
+            // isn't called empty above it.
+            if !searchText.isEmpty || credentials.unreadableCount == 0 {
+                Text(searchText.isEmpty ? "No saved passwords" : "No matches")
+                    .foregroundStyle(.secondary)
+            }
         } else {
             ForEach(descriptors) { descriptor in
                 BrowserPasswordDescriptorRow(
