@@ -108,6 +108,24 @@ contract for setup, validation and change discipline.
 > must never be pushed to `pauljoda/Crest`.
 > Base upstream feature branches on `origin/main`, not on the fork's `main`.
 
+### Orchestration
+
+The session HC talks to is always the orchestrator. It plans, decides,
+integrates and reports, and it spins up subagents for the coding, testing,
+building and code review instead of doing that work itself.
+
+- Use the Crest agents defined in `.claude/agents/` (`crest-implementer`,
+  `crest-reviewer`, `crest-engine-builder`, `crest-shipper`). Do not fall back
+  to a general-purpose agent for work one of them covers.
+- When no defined agent fits the work, or one is not available, stop and
+  report back to HC with a proposal for a new agent type (name, purpose,
+  tools). Do not improvise a replacement.
+- When HC starts by describing a new feature or bug, run
+  `/mattpocock-skills:grill-me` before planning, so that both sides agree on
+  what everything means. Ask every round's questions and wait for the answers.
+- Never edit code before every answer is in. Always plan first, present the
+  plan, and start development only after HC confirms it.
+
 ### Working preferences
 
 Branching, builds, hand verification and wording rules for this fork, which
