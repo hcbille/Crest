@@ -113,6 +113,10 @@ contract for setup, validation and change discipline.
 Branching, builds, hand verification and wording rules for this fork, which
 apply to every task. Read `docs/agents/preferences.md` before starting work.
 
+.NET is installed at `~/.dotnet` and is not on `PATH`; run it as
+`~/.dotnet/dotnet` (or `DOTNET_ROOT=~/.dotnet`) for CrestCore, the contract
+generator and the core tests. Never install another SDK.
+
 Every local test build of Crest gets a bundle ID of its own, so it runs next
 to the installed Crest (`com.pauldavis.crest`) and next to other test builds.
 Package the review copy described in `docs/agents/preferences.md`, never the

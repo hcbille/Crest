@@ -24,6 +24,11 @@ the rest of `AGENTS.md` and the `crest-contribution` skill.
 
 ## Builds
 
+- .NET lives in `~/.dotnet` and is not on `PATH`. Use `~/.dotnet/dotnet` for
+  CrestCore builds and tests, `Scripts/control-plane/lint-dotnet.sh`, and the
+  contract generator
+  (`~/.dotnet/dotnet run --project CrestCore/tools/CrestCore.Generator`). Do
+  not install another SDK.
 - Prepare or build Chromium (`prepare-chromium.py`,
   `build-chromium-baseline.py`) only when HC expressly allows it in the
   current session. Otherwise do the read-only checks, say what a build would
