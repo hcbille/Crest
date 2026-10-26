@@ -6,6 +6,8 @@ struct ApplePasswordsQueryID: Hashable, Sendable {
 
     static let loginNames = ApplePasswordsQueryID(name: "CmdGetLoginNames4URL")
     static let password = ApplePasswordsQueryID(name: "CmdGetPassword4LoginName")
+    static let oneTimeCodes = ApplePasswordsQueryID(name: "CmdGetOneTimeCodes")
+    static let didFillOneTimeCode = ApplePasswordsQueryID(name: "CmdDidFillOneTimeCode")
     /// The save of a login from a sign-in form.
     static let setPassword = ApplePasswordsQueryID(name: "CmdSetPassword4LoginName_URL")
     /// The save of a login from a sign-up form.

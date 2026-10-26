@@ -13,17 +13,19 @@ struct ApplePasswordsCommand: Hashable, Sendable {
     static let passwordsDisabled = ApplePasswordsCommand(number: 9, push: .passwordsDisabled)
     static let reloginNeeded = ApplePasswordsCommand(number: 10, push: .reloginNeeded)
     static let getCapabilities = ApplePasswordsCommand(number: 14)
-    /// Pushed when a one-time code arrives. Crest does not use one-time codes.
-    static let oneTimeCodeAvailable = ApplePasswordsCommand(number: 15, isUnsolicited: true)
+    /// Pushed when a one-time code arrives. It only asks an open code list to refresh.
+    static let oneTimeCodeAvailable = ApplePasswordsCommand(number: 15, push: .oneTimeCodeAvailable)
+    static let getOneTimeCodes = ApplePasswordsCommand(number: 16)
+    static let didFillOneTimeCode = ApplePasswordsCommand(number: 17)
     /// Tells the helper the person gave up on the code. It has no reply.
     static let cancelPairing = ApplePasswordsCommand(number: 19)
 
     /// Every command the codec knows. The rest of the protocol (icons, tab
-    /// events, one-time codes, launching the Passwords app) is never sent, and a
+    /// events, launching the Passwords app) is never sent, and a
     /// message with another number is ignored.
     static let all: [ApplePasswordsCommand] = [
         end, handshake, getLoginNames, getPassword, setPassword, passwordsDisabled, reloginNeeded,
-        getCapabilities, oneTimeCodeAvailable, cancelPairing,
+        getCapabilities, oneTimeCodeAvailable, getOneTimeCodes, didFillOneTimeCode, cancelPairing,
     ]
 
     // MARK: - Variables

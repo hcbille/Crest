@@ -39,10 +39,17 @@ actor ApplePasswordsCredentialVault: CredentialVault {
     // MARK: - Actions - Listing
 
     func descriptors(matching origin: CredentialOrigin, in spaceID: UUID) async throws -> [CredentialDescriptor] {
+        try await descriptors(matching: origin, in: spaceID, tab: nil)
+    }
+
+    /// The suggestions for a page of the tab that asked, nil where nothing names one.
+    func descriptors(
+        matching origin: CredentialOrigin, in spaceID: UUID, tab: UUID?
+    ) async throws -> [CredentialDescriptor] {
         guard origin.isSecure else { throw CredentialVaultError.insecureOrigin }
         guard let support = await supportForSpace(spaceID) else { throw ApplePasswordsError.notPermitted }
         // The never-save fact is not an account, so it never becomes a descriptor.
-        let logins = try await source.logins(for: origin, support: support)
+        let logins = try await source.logins(for: origin, tab: tab, support: support)
         return logins.usernames.map { username in
             let descriptor = CredentialDescriptor(spaceID: spaceID, origin: origin, username: username)
             remember(descriptor)
@@ -66,11 +73,17 @@ actor ApplePasswordsCredentialVault: CredentialVault {
     // MARK: - Actions - Reading
 
     func credential(id: UUID, in spaceID: UUID) async throws -> BrowserCredential? {
+        try await credential(id: id, in: spaceID, tab: nil)
+    }
+
+    /// Reads the row's password for the tab that picked it, nil where nothing names one.
+    func credential(id: UUID, in spaceID: UUID, tab: UUID?) async throws -> BrowserCredential? {
         guard let descriptor = issued[id], descriptor.spaceID == spaceID else { return nil }
         guard let support = await supportForSpace(spaceID) else { throw ApplePasswordsError.notPermitted }
         let password = try await source.password(
             for: descriptor.origin,
             username: descriptor.username,
+            tab: tab,
             support: support
         )
         return BrowserCredential(descriptor: descriptor, password: password)

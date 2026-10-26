@@ -8,7 +8,8 @@ extension BrowserStore: BrowserCredentialSuggestionLoading {
     /// a lookup that fails leaves Crest's rows and is logged.
     func credentialOffer(
         for origin: CredentialOrigin,
-        in spaceID: UUID
+        in spaceID: UUID,
+        tab: UUID?
     ) async throws -> BrowserCredentialOffer {
         guard let url = URL(string: origin.description) else {
             throw CredentialVaultError.invalidOrigin
@@ -17,25 +18,87 @@ extension BrowserStore: BrowserCredentialSuggestionLoading {
         var offer = BrowserCredentialOffer(
             suggestions: crest.map { BrowserCredentialSuggestion(descriptor: $0, provider: .crestPasswords) },
             offersApplePasswordsPairing: false)
-        guard origin.isSecure, let access = applePasswords, var support = applePasswordsSupport(in: spaceID) else {
+        guard origin.isSecure, let access = applePasswords,
+            let support = await startedApplePasswordsSupport(in: spaceID)
+        else {
             return offer
-        }
-        if support.status.startsHelper {
-            await access.start(support: support)
-            // The helper's state is part of the core's question.
-            guard let started = applePasswordsSupport(in: spaceID) else { return offer }
-            support = started
         }
         offer.offersApplePasswordsPairing = support.status.needsPairing
         guard support.status.offersApplePasswords, let space = spaceModel(spaceID) else { return offer }
         do {
-            let apple = try await access.vault.descriptors(matching: origin, in: spaceID)
+            let apple = try await access.descriptors(matching: origin, in: spaceID, tab: tab)
             offer.suggestions += apple.map { BrowserCredentialSuggestion(descriptor: $0, provider: .applePasswords) }
             if !apple.isEmpty { access.rowsWereShown(support: support, in: space.identity) }
         } catch {
             DiagnosticLog.applePasswords.error("Apple Passwords suggestions failed: \(DiagnosticLog.describe(error))")
         }
         return offer
+    }
+
+    /// The one-time codes Apple Passwords holds for the frame that asked, and
+    /// nothing else: a code field is offered no password rows. Where Apple
+    /// Passwords cannot be used, or the helper does not fill codes, or the
+    /// lookup fails, the offer is empty and the failure is logged.
+    func oneTimeCodeOffer(
+        for request: BrowserCredentialFillRequest,
+        in spaceID: UUID,
+        tab: UUID?
+    ) async throws -> BrowserCredentialOffer {
+        let none = BrowserCredentialOffer(suggestions: [], offersApplePasswordsPairing: false)
+        guard request.origin.isSecure, let access = applePasswords,
+            spaceModel(spaceID)?.settings.credentialPreferences.isEnabled == true,
+            let support = await startedApplePasswordsSupport(in: spaceID),
+            support.status.offersApplePasswords, access.canFillOneTimeCodes
+        else {
+            return none
+        }
+        do {
+            let codes = try await access.oneTimeCodes(
+                for: request.origin, topLevelOrigin: request.topLevelOrigin, in: spaceID,
+                username: request.usernameHint, tab: tab, support: support)
+            return BrowserCredentialOffer(suggestions: [], offersApplePasswordsPairing: false, codes: codes)
+        } catch {
+            DiagnosticLog.applePasswords.error("Apple Passwords codes failed: \(DiagnosticLog.describe(error))")
+            return none
+        }
+    }
+
+    /// The code a row stands for, to put into the field of `request` only. The
+    /// core's answer for the Space is asked again; a row never fills a frame
+    /// other than the one it was issued for.
+    func oneTimeCode(
+        for suggestion: BrowserOneTimeCodeSuggestion,
+        request: BrowserCredentialFillRequest,
+        in spaceID: UUID,
+        tab: UUID?
+    ) async throws -> String {
+        guard request.origin.isSecure, let access = applePasswords,
+            spaceModel(spaceID)?.settings.credentialPreferences.isEnabled == true,
+            let support = applePasswordsSupport(in: spaceID), support.status.offersApplePasswords,
+            access.canFillOneTimeCodes
+        else {
+            throw CredentialVaultError.credentialManagerDisabled
+        }
+        return try await access.oneTimeCode(
+            for: suggestion.id, origin: request.origin, topLevelOrigin: request.topLevelOrigin, in: spaceID,
+            tab: tab, support: support)
+    }
+
+    /// The prompt of a code field went away.
+    func forgetOneTimeCodes(tab: UUID?) {
+        applePasswords?.forgetOneTimeCodes(tab: tab)
+    }
+
+    /// How often the helper announced a code, for a prompt that looks again.
+    var oneTimeCodeArrivals: Int { applePasswords?.oneTimeCodeArrivals ?? 0 }
+
+    /// The core's answer for the Space, after starting the helper where the
+    /// answer says to; the helper's state is part of the core's question.
+    private func startedApplePasswordsSupport(in spaceID: UUID) async -> ApplePasswordsSupport? {
+        guard let access = applePasswords, let support = applePasswordsSupport(in: spaceID) else { return nil }
+        guard support.status.startsHelper else { return support }
+        await access.start(support: support)
+        return applePasswordsSupport(in: spaceID)
     }
 
     func requestApplePasswordsPairingCode(in spaceID: UUID) async -> BrowserApplePasswordsPairingOutcome {
@@ -63,12 +126,16 @@ extension BrowserStore {
     /// The saved account a suggestion stands for, read from the vault that
     /// issued it. An identifier one vault issued is unknown to the other, so a
     /// row never fills through a vault that did not list it.
-    func credential(for suggestion: BrowserCredentialSuggestion, in spaceID: UUID) async throws -> BrowserCredential? {
+    func credential(
+        for suggestion: BrowserCredentialSuggestion, in spaceID: UUID, tab: UUID?
+    ) async throws -> BrowserCredential? {
         guard spaceModel(spaceID) != nil else {
             throw CredentialVaultError.missingSpace
         }
-        let vault = suggestion.provider.keepsSpaceVault ? credentialVault : applePasswords?.vault
-        return try await vault?.credential(id: suggestion.id, in: spaceID)
+        if suggestion.provider.keepsSpaceVault {
+            return try await credentialVault.credential(id: suggestion.id, in: spaceID)
+        }
+        return try await applePasswords?.credential(id: suggestion.id, in: spaceID, tab: tab)
     }
 
     /// The core's answer for the Space, or nil on a store without Apple
@@ -114,10 +181,12 @@ extension BrowserStore {
     /// failure, or an account without a username that the helper cannot save,
     /// keeps it in Crest's vault instead.
     /// - Returns: Whether it was sent to Apple Passwords rather than kept in Crest.
-    func keepGeneratedPassword(_ candidate: BrowserCredentialSaveCandidate, in spaceID: UUID) async throws -> Bool {
+    func keepGeneratedPassword(
+        _ candidate: BrowserCredentialSaveCandidate, in spaceID: UUID, tab: UUID?
+    ) async throws -> Bool {
         if applePasswordsSaveSupport(for: candidate, in: spaceID) != nil {
             do {
-                try await commitApplePasswordsSave(candidate, in: spaceID)
+                try await commitApplePasswordsSave(candidate, in: spaceID, tab: tab)
                 return true
             } catch {
                 DiagnosticLog.applePasswords.error(
@@ -134,6 +203,7 @@ extension BrowserStore {
     func commitApplePasswordsSave(
         _ candidate: BrowserCredentialSaveCandidate,
         in spaceID: UUID,
+        tab: UUID?,
         now: Date = .now
     ) async throws {
         try validateCredentialSaveCandidate(candidate, in: spaceID, now: now)
@@ -141,6 +211,6 @@ extension BrowserStore {
         else {
             throw CredentialVaultError.credentialManagerDisabled
         }
-        try await access.save(candidate, support: support)
+        try await access.save(candidate, tab: tab, support: support)
     }
 }

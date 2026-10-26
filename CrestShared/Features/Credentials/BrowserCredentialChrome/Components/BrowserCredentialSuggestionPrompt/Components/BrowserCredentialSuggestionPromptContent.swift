@@ -9,6 +9,7 @@ struct BrowserCredentialSuggestionPromptContent: View {
     let metrics: BrowserCredentialPromptMetrics
     let dismiss: () -> Void
     let fill: (BrowserCredentialSuggestion) -> Void
+    let fillCode: (BrowserOneTimeCodeSuggestion) -> Void
     let beginPairing: () -> Void
     let submitPairingCode: (String) -> Void
 
@@ -18,7 +19,7 @@ struct BrowserCredentialSuggestionPromptContent: View {
             spacing: BrowserCredentialPromptMetrics.contentSpacing
         ) {
             BrowserCredentialPromptHeader(
-                kind: .suggestions,
+                kind: request.isOneTimeCodeField ? .oneTimeCodes : .suggestions,
                 request: request,
                 space: space,
                 siteIconData: siteIconData,
@@ -41,9 +42,11 @@ struct BrowserCredentialSuggestionPromptContent: View {
                 BrowserCredentialSuggestionState(
                     isLoading: model.isLoading,
                     suggestions: model.suggestions,
+                    codes: model.codes,
                     offersPairing: model.offersPairing,
                     metrics: metrics,
                     fill: fill,
+                    fillCode: fillCode,
                     beginPairing: beginPairing
                 )
                 if let message = model.pairingFeedback?.message {

@@ -7,8 +7,10 @@ import Foundation
 struct BrowserCredentialOffer: Equatable, Sendable {
     var suggestions: [BrowserCredentialSuggestion]
     var offersApplePasswordsPairing: Bool
+    /// The one-time codes offered to a code field, which shows nothing else.
+    var codes: [BrowserOneTimeCodeSuggestion] = []
 
-    var isEmpty: Bool { suggestions.isEmpty && !offersApplePasswordsPairing }
+    var isEmpty: Bool { suggestions.isEmpty && codes.isEmpty && !offersApplePasswordsPairing }
 }
 
 /// A saved account a prompt offers, with the provider that issued it. The

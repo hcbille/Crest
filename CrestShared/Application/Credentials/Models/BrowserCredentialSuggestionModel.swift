@@ -23,6 +23,11 @@ final class BrowserCredentialSuggestionModel {
         return offer.suggestions
     }
 
+    var codes: [BrowserOneTimeCodeSuggestion] {
+        guard case .suggestions(let offer) = phase else { return [] }
+        return offer.codes
+    }
+
     var offersPairing: Bool {
         guard case .suggestions(let offer) = phase else { return false }
         return offer.offersApplePasswordsPairing
@@ -36,19 +41,29 @@ final class BrowserCredentialSuggestionModel {
         phase == .failed
     }
 
+    /// - Parameters:
+    ///   - tab: The tab of the page that asked, where there is one.
+    ///   - keepsRows: Whether the rows on show stay until the new ones arrive,
+    ///     as a list that looks again does.
     func load(
         _ request: BrowserCredentialFillRequest,
         in spaceID: UUID,
+        tab: UUID?,
+        keepsRows: Bool = false,
         using loader: any BrowserCredentialSuggestionLoading
     ) async {
         cancelActiveOperation()
 
         let operationID = UUID()
         activeOperationID = operationID
-        phase = .loading
+        if !keepsRows { phase = .loading }
 
         let task = Task { @MainActor in
-            try await loader.credentialOffer(for: request.origin, in: spaceID)
+            if request.isOneTimeCodeField {
+                try await loader.oneTimeCodeOffer(for: request, in: spaceID, tab: tab)
+            } else {
+                try await loader.credentialOffer(for: request.origin, in: spaceID, tab: tab)
+            }
         }
         activeTask = task
 
@@ -92,6 +107,7 @@ final class BrowserCredentialSuggestionModel {
         _ code: String,
         for request: BrowserCredentialFillRequest,
         in spaceID: UUID,
+        tab: UUID?,
         using loader: any BrowserCredentialSuggestionLoading
     ) async {
         let operationID = UUID()
@@ -104,7 +120,7 @@ final class BrowserCredentialSuggestionModel {
             pairingOperationID = nil
             pairingStep = nil
             pairingFeedback = nil
-            await load(request, in: spaceID, using: loader)
+            await load(request, in: spaceID, tab: tab, using: loader)
         } else if outcome.asksForNewCode {
             pairingStep = .requestingCode
             await requestCode(operationID, in: spaceID, using: loader)

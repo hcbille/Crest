@@ -128,6 +128,7 @@ extension BrowserCredentialSavePrompt: BrowserCredentialPromptPerformer {
             await model.commit(
                 candidate: candidate,
                 in: port.spaceID,
+                tab: port.tabID,
                 browser: browser
             )
             guard port.presentedCandidateID() == candidate.id else { return }

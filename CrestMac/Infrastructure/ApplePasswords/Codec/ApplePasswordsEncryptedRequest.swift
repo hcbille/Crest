@@ -41,12 +41,33 @@ struct ApplePasswordsQueryResult: Decodable, Sendable {
         }
     }
 
-    /// An element of `Entries` that is skipped when it is not an entry at all.
-    private struct LenientEntry: Decodable {
-        let entry: Entry?
+    /// One code a one-time-code reply lists, in the helper's own keys.
+    private struct CodeEntry: Decodable {
+        let code: ApplePasswordsOneTimeCode
+
+        private enum CodingKeys: String, CodingKey {
+            case source
+            case code
+            case username
+            case domain
+        }
 
         init(from decoder: any Decoder) throws {
-            entry = try? Entry(from: decoder)
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            code = ApplePasswordsOneTimeCode(
+                source: .named(try? container.decodeIfPresent(String.self, forKey: .source)),
+                code: try? container.decodeIfPresent(String.self, forKey: .code),
+                username: try? container.decodeIfPresent(String.self, forKey: .username),
+                domain: try? container.decodeIfPresent(String.self, forKey: .domain))
+        }
+    }
+
+    /// An element of `Entries` that is skipped when it is not an entry at all.
+    private struct Lenient<Element: Decodable>: Decodable {
+        let element: Element?
+
+        init(from decoder: any Decoder) throws {
+            element = try? Element(from: decoder)
         }
     }
 
@@ -55,6 +76,8 @@ struct ApplePasswordsQueryResult: Decodable, Sendable {
     let status: ApplePasswordsQueryStatus
     /// Every entry the reply carried, the never-save marker included.
     let entries: [Entry]
+    /// Every one-time code the reply listed.
+    let codes: [ApplePasswordsOneTimeCode]
 
     /// The accounts in the reply, without the never-save marker.
     var logins: [Entry] { entries.filter { !$0.isNeverSaveMarker } }
@@ -67,14 +90,23 @@ struct ApplePasswordsQueryResult: Decodable, Sendable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         status = ApplePasswordsQueryStatus.numbered(try container.decode(Int.self, forKey: .status))
-        var entries = ((try? container.decodeIfPresent([LenientEntry].self, forKey: .entries)) ?? []).compactMap(
-            \.entry)
+        entries = Self.elements(Entry.self, in: container)
+        codes = Self.elements(CodeEntry.self, in: container).map(\.code)
+    }
+
+    private static func elements<Element: Decodable>(
+        _ type: Element.Type, in container: KeyedDecodingContainer<CodingKeys>
+    ) -> [Element] {
+        var elements = ((try? container.decodeIfPresent([Lenient<Element>].self, forKey: .entries)) ?? []).compactMap(
+            \.element)
         let numbered = container.allKeys.filter { $0.stringValue.hasPrefix(CodingKeys.numberedEntryPrefix) }
         for key in numbered.sorted(by: { $0.stringValue.localizedStandardCompare($1.stringValue) == .orderedAscending })
         {
-            if let entry = try? container.decode(LenientEntry.self, forKey: key).entry { entries.append(entry) }
+            if let element = try? container.decode(Lenient<Element>.self, forKey: key).element {
+                elements.append(element)
+            }
         }
-        self.entries = entries
+        return elements
     }
 
     private struct CodingKeys: CodingKey {

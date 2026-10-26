@@ -6,9 +6,11 @@ import SwiftUI
 /// band it scrolls, because the prompt is pushing the page down while it is up.
 struct BrowserCredentialSuggestionList: View {
     let suggestions: [BrowserCredentialSuggestion]
+    var codes: [BrowserOneTimeCodeSuggestion] = []
     let offersPairing: Bool
     let metrics: BrowserCredentialPromptMetrics
     let fill: (BrowserCredentialSuggestion) -> Void
+    var fillCode: (BrowserOneTimeCodeSuggestion) -> Void = { _ in }
     let beginPairing: () -> Void
 
     @ViewBuilder
@@ -44,6 +46,9 @@ struct BrowserCredentialSuggestionList: View {
                 metrics: metrics,
                 fill: { fill(suggestion) }
             )
+        }
+        ForEach(codes) { code in
+            BrowserOneTimeCodeRow(code: code, metrics: metrics, fill: { fillCode(code) })
         }
         if offersPairing {
             BrowserCredentialPairingRow(metrics: metrics, begin: beginPairing)

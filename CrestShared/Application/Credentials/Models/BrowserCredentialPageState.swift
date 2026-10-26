@@ -31,6 +31,8 @@ struct BrowserCredentialObservation<FillTarget> {
 final class BrowserCredentialPageState<FillTarget> {
     let spaceID: UUID
     @ObservationIgnored private let core: CrestCore
+    /// Whether this page may raise a prompt for a one-time-code field.
+    @ObservationIgnored private let offersOneTimeCodes: Bool
 
     private(set) var fillRequest: BrowserCredentialFillRequest?
     private(set) var saveCandidate: BrowserCredentialSaveCandidate?
@@ -50,9 +52,10 @@ final class BrowserCredentialPageState<FillTarget> {
     @ObservationIgnored private var pendingSaveCandidate: BrowserCredentialSaveCandidate?
     @ObservationIgnored private var candidateExpirationTask: Task<Void, Never>?
 
-    init(spaceID: UUID, core: CrestCore) {
+    init(spaceID: UUID, core: CrestCore, offersOneTimeCodes: Bool = false) {
         self.spaceID = spaceID
         self.core = core
+        self.offersOneTimeCodes = offersOneTimeCodes
     }
 
     /// Applies one validated form message. The portable core decides what
@@ -65,6 +68,8 @@ final class BrowserCredentialPageState<FillTarget> {
         isMainFrame: Bool,
         fillTarget: FillTarget?
     ) {
+        // A page that cannot offer codes never hears of a code field.
+        if message.isOneTimeCodeField && !offersOneTimeCodes { return }
         guard let event = message.event.captureEvent else {
             followField(message, frameOrigin: frameOrigin, isMainFrame: isMainFrame)
             return
@@ -127,6 +132,29 @@ final class BrowserCredentialPageState<FillTarget> {
             throw BrowserCredentialFillError.staleOrMismatchedRequest
         }
         return (request, target)
+    }
+
+    /// The target of a one-time code the person picked for the request's own
+    /// field, under the core's answer for a saved credential going into a
+    /// current-password field.
+    func oneTimeCodeFillContext(
+        for requestID: UUID
+    ) throws -> (request: BrowserCredentialFillRequest, target: FillTarget) {
+        guard let request = fillRequest,
+            request.id == requestID,
+            request.isOneTimeCodeField,
+            fillAllowed(from: .saved, into: request.passwordKind),
+            let target = fillTargets[requestID]
+        else {
+            throw BrowserCredentialFillError.staleOrMismatchedRequest
+        }
+        return (request, target)
+    }
+
+    /// A code never submits anything and tells the page nothing to remember.
+    func completeOneTimeCodeFill(requestID: UUID) {
+        guard fillRequest?.id == requestID else { return }
+        dismissFillRequest()
     }
 
     func generatedPasswordFillContext(
@@ -321,7 +349,8 @@ extension BrowserCredentialPageState: CredentialCapturePerformer {
             passwordKind: passwordKind,
             isCrossOriginFrame: decision.isCrossOriginFrame,
             requestedAt: observation.now,
-            fieldRect: decision.anchorsToField ? message.fieldRect : nil
+            fieldRect: decision.anchorsToField ? message.fieldRect : nil,
+            isOneTimeCodeField: message.isOneTimeCodeField
         )
         if let previousRequest = fillRequest {
             fillTargets[previousRequest.id] = nil

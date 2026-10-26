@@ -74,7 +74,8 @@ struct BrowserStrongPasswordPrompt: View {
                     let candidate = candidate(for: password)
                     // Apple Passwords gets the password first and confirms in its own
                     // alert. If it cannot take it, the Space keeps it, so it is never lost.
-                    sentToApplePasswords = try await browser.keepGeneratedPassword(candidate, in: port.spaceID)
+                    sentToApplePasswords = try await browser.keepGeneratedPassword(
+                        candidate, in: port.spaceID, tab: port.tabID)
                     if sentToApplePasswords {
                         port.rememberPresavedPassword(
                             BrowserCredentialPresavedPassword(

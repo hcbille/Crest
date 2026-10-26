@@ -43,6 +43,8 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     }
     /// Called after every change of `state`.
     var onStateChange: (@MainActor (State) -> Void)?
+    /// Called when the helper announces that a one-time code arrived.
+    var onOneTimeCodeAvailable: (@MainActor () -> Void)?
 
     private let launcher: any ApplePasswordsChannelLauncher
     private let clock = ContinuousClock()
@@ -210,6 +212,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
 
     func logins(
         for origin: CredentialOrigin,
+        tab: UUID?,
         support: ApplePasswordsSupport
     ) async throws -> ApplePasswordsLoginNamesRequest.Logins {
         let host = try Self.host(of: origin)
@@ -222,6 +225,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     func password(
         for origin: CredentialOrigin,
         username: String,
+        tab: UUID?,
         support: ApplePasswordsSupport
     ) async throws -> String {
         let host = try Self.host(of: origin)
@@ -237,6 +241,49 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
             throw ApplePasswordsError.loginNotFound
         }
         return password
+    }
+
+    // MARK: - Actions - One-time codes
+
+    /// Whether the helper said it can fill one-time codes.
+    var canFillOneTimeCodes: Bool {
+        capabilities?.canFillOneTimeCodes == true
+    }
+
+    /// The codes saved for the frame, listed without reading any value that
+    /// changes. Throws unless the frame's origin is https, the core's answer
+    /// allows the helper and the helper said it fills codes.
+    func oneTimeCodes(
+        for origin: CredentialOrigin, topLevel: CredentialOrigin, username: String?, tab: UUID?,
+        support: ApplePasswordsSupport
+    ) async throws -> [ApplePasswordsOneTimeCode] {
+        let host = try Self.host(of: origin)
+        let frameURLs = try ApplePasswordsFrameURLs(frame: origin, topLevel: topLevel)
+        try requireOneTimeCodes(support)
+        let connection = try pairedConnection()
+        let request = ApplePasswordsOneTimeCodesRequest(
+            session: connection.session, tabID: tabID(for: host), host: host, frameURLs: frameURLs,
+            username: username)
+        return try await submit(request, over: connection)
+    }
+
+    /// Tells the helper the person picked a generated code, and returns the
+    /// code that is current now, under the same rules as `oneTimeCodes`.
+    func currentOneTimeCode(
+        for origin: CredentialOrigin, topLevel: CredentialOrigin, username: String?, domain: String?, tab: UUID?,
+        support: ApplePasswordsSupport
+    ) async throws -> String {
+        let host = try Self.host(of: origin)
+        let frameURLs = try ApplePasswordsFrameURLs(frame: origin, topLevel: topLevel)
+        try requireOneTimeCodes(support)
+        let connection = try pairedConnection()
+        let request = ApplePasswordsFillOneTimeCodeRequest(
+            session: connection.session, tabID: tabID(for: host), host: host, frameURLs: frameURLs,
+            username: username, domain: domain)
+        guard let code = try await submit(request, over: connection) else {
+            throw ApplePasswordsError.loginNotFound
+        }
+        return code
     }
 
     /// Whether the helper said it can save an account with no username.
@@ -255,7 +302,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     /// lives only as long as the request does.
     func save(
         _ username: String, _ password: String, for origin: CredentialOrigin, form: ApplePasswordsFormKind,
-        support: ApplePasswordsSupport
+        tab: UUID?, support: ApplePasswordsSupport
     ) async throws {
         try requireOffer(support)
         _ = try Self.host(of: origin)
@@ -306,6 +353,12 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     /// Reading logins is gated by the stronger answer: Apple Passwords is on offer in the Space.
     private func requireOffer(_ support: ApplePasswordsSupport) throws {
         guard support.status.offersApplePasswords else { throw ApplePasswordsError.notPermitted }
+    }
+
+    /// Codes need the stronger answer, and a helper that said it fills them.
+    private func requireOneTimeCodes(_ support: ApplePasswordsSupport) throws {
+        try requireOffer(support)
+        guard canFillOneTimeCodes else { throw ApplePasswordsError.notPermitted }
     }
 
     /// Starting and pairing are gated by the core's answer for the Space.
@@ -403,6 +456,8 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
 
     private func handle(_ event: ApplePasswordsRequestQueue.Event) {
         switch event {
+        case .push(let push) where !push.endsSession:
+            onOneTimeCodeAvailable?()
         case .push:
             dropSession()
             state = .unpaired

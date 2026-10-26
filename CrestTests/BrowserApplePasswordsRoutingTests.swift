@@ -24,14 +24,14 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
             password: "crest-secret")
         try await crestVault.save(crest, in: space.id)
 
-        let offer = try await store.credentialOffer(for: origin, in: space.id)
+        let offer = try await store.credentialOffer(for: origin, in: space.id, tab: nil)
         let apple = try XCTUnwrap(offer.suggestions.first { $0.provider == .applePasswords })
         let ownRow = try XCTUnwrap(offer.suggestions.first { $0.provider == .crestPasswords })
         XCTAssertEqual(apple.descriptor.username, "apple-user")
         XCTAssertEqual(ownRow.descriptor.id, crest.descriptor.id)
 
-        let appleFill = try await store.credential(for: apple, in: space.id)
-        let crestFill = try await store.credential(for: ownRow, in: space.id)
+        let appleFill = try await store.credential(for: apple, in: space.id, tab: nil)
+        let crestFill = try await store.credential(for: ownRow, in: space.id, tab: nil)
         XCTAssertEqual(appleFill?.password, "apple-secret")
         XCTAssertEqual(crestFill?.password, "crest-secret")
 
@@ -39,8 +39,8 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         let readsBefore = source.passwordReads
         let crestIDAsApple = BrowserCredentialSuggestion(descriptor: crest.descriptor, provider: .applePasswords)
         let appleIDAsCrest = BrowserCredentialSuggestion(descriptor: apple.descriptor, provider: .crestPasswords)
-        let crestAsApple = try await store.credential(for: crestIDAsApple, in: space.id)
-        let appleAsCrest = try await store.credential(for: appleIDAsCrest, in: space.id)
+        let crestAsApple = try await store.credential(for: crestIDAsApple, in: space.id, tab: nil)
+        let appleAsCrest = try await store.credential(for: appleIDAsCrest, in: space.id, tab: nil)
         XCTAssertNil(crestAsApple)
         XCTAssertNil(appleAsCrest)
         XCTAssertEqual(source.passwordReads, readsBefore)
@@ -63,7 +63,7 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         store.updateCredentialPreferences(Self.preferences(usesApplePasswords: true), in: spaceID)
         XCTAssertEqual(store.shownSpace?.settings.credentialPreferences.usesApplePasswords, true)
 
-        let offer = try await store.credentialOffer(for: origin, in: spaceID)
+        let offer = try await store.credentialOffer(for: origin, in: spaceID, tab: nil)
 
         XCTAssertTrue(offer.suggestions.isEmpty)
         XCTAssertFalse(offer.offersApplePasswordsPairing)
@@ -87,7 +87,7 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         await toApple.prepare(candidate: candidate, in: space.id, browser: store)
         XCTAssertEqual(toApple.destination, .applePasswords)
         XCTAssertEqual(toApple.alternateDestination, .crestPasswords)
-        await toApple.commit(candidate: candidate, in: space.id, browser: store)
+        await toApple.commit(candidate: candidate, in: space.id, tab: nil, browser: store)
         XCTAssertEqual(toApple.phase, .sent)
         XCTAssertEqual(access.saved.map(\.origin), [origin])
         XCTAssertEqual(access.saved.map(\.username), ["ada"])
@@ -99,7 +99,7 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         await toCrest.prepare(candidate: candidate, in: space.id, browser: store)
         toCrest.choose(.crestPasswords)
         XCTAssertEqual(toCrest.destination, .crestPasswords)
-        await toCrest.commit(candidate: candidate, in: space.id, browser: store)
+        await toCrest.commit(candidate: candidate, in: space.id, tab: nil, browser: store)
         XCTAssertEqual(toCrest.phase, .saved(.created))
         XCTAssertEqual(access.saved.count, 1)
         let afterCrest = try await crestVault.descriptors(in: space.id)
@@ -122,7 +122,7 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         let sent = BrowserStore(seed: seed, credentialVault: sentVault)
         let accepting = FakeAppleAccess(core: sent.core, source: source)
         sent.applePasswords = accepting
-        let wasSent = try await sent.keepGeneratedPassword(candidate(username: "ada"), in: space.id)
+        let wasSent = try await sent.keepGeneratedPassword(candidate(username: "ada"), in: space.id, tab: nil)
         XCTAssertTrue(wasSent)
         XCTAssertEqual(accepting.saved.count, 1)
         let sentDescriptors = try await sentVault.descriptors(in: space.id)
@@ -133,7 +133,8 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         let failing = BrowserStore(seed: seed, credentialVault: failedVault)
         let refusing = FakeAppleAccess(core: failing.core, source: source, sendFails: true)
         failing.applePasswords = refusing
-        let wasSentAfterFailure = try await failing.keepGeneratedPassword(candidate(username: "ada"), in: space.id)
+        let wasSentAfterFailure = try await failing.keepGeneratedPassword(
+            candidate(username: "ada"), in: space.id, tab: nil)
         XCTAssertFalse(wasSentAfterFailure)
         let failedDescriptors = try await failedVault.descriptors(in: space.id)
         XCTAssertEqual(failedDescriptors.map(\.username), ["ada"])
@@ -147,7 +148,7 @@ final class BrowserApplePasswordsRoutingTests: XCTestCase {
         let incapable = FakeAppleAccess(core: anonymous.core, source: source, savesAccountsWithoutUsername: false)
         anonymous.applePasswords = incapable
         do {
-            _ = try await anonymous.keepGeneratedPassword(candidate(username: ""), in: space.id)
+            _ = try await anonymous.keepGeneratedPassword(candidate(username: ""), in: space.id, tab: nil)
             XCTFail("Without a username neither Apple nor Crest can keep the password.")
         } catch {
             XCTAssertEqual(error as? CredentialVaultError, .saveDecisionUnavailable)
@@ -219,25 +220,38 @@ private final class FakeAppleSource: ApplePasswordsCredentialSource {
         self.password = password
     }
 
-    func logins(for origin: CredentialOrigin, support: ApplePasswordsSupport) async throws
+    func logins(for origin: CredentialOrigin, tab: UUID?, support: ApplePasswordsSupport) async throws
         -> ApplePasswordsLoginNamesRequest.Logins
     {
         loginReads += 1
         return ApplePasswordsLoginNamesRequest.Logins(usernames: logins, neverSaves: false)
     }
 
-    func password(for origin: CredentialOrigin, username: String, support: ApplePasswordsSupport) async throws -> String
+    func password(for origin: CredentialOrigin, username: String, tab: UUID?, support: ApplePasswordsSupport)
+        async throws -> String
     {
         passwordReads += 1
         return password
     }
+
+    var canFillOneTimeCodes: Bool { false }
+
+    func oneTimeCodes(
+        for origin: CredentialOrigin, topLevel: CredentialOrigin, username: String?, tab: UUID?,
+        support: ApplePasswordsSupport
+    ) async throws -> [ApplePasswordsOneTimeCode] { [] }
+
+    func currentOneTimeCode(
+        for origin: CredentialOrigin, topLevel: CredentialOrigin, username: String?, domain: String?, tab: UUID?,
+        support: ApplePasswordsSupport
+    ) async throws -> String { throw ApplePasswordsError.loginNotFound }
 }
 
 /// A paired helper in a Mac launch, whose availability the real core decides
 /// from what the store passes in.
 @MainActor
 private final class FakeAppleAccess: BrowserApplePasswordsAccess {
-    let vault: any CredentialVault
+    private let vault: ApplePasswordsCredentialVault
     private(set) var saved: [BrowserCredentialSaveCandidate] = []
     let savesAccountsWithoutUsername: Bool
     private let sendFails: Bool
@@ -274,7 +288,32 @@ private final class FakeAppleAccess: BrowserApplePasswordsAccess {
 
     func start(support: ApplePasswordsSupport) async {}
 
-    func save(_ candidate: BrowserCredentialSaveCandidate, support: ApplePasswordsSupport) async throws {
+    func descriptors(
+        matching origin: CredentialOrigin, in spaceID: UUID, tab: UUID?
+    ) async throws -> [CredentialDescriptor] {
+        try await vault.descriptors(matching: origin, in: spaceID, tab: tab)
+    }
+
+    func credential(id: UUID, in spaceID: UUID, tab: UUID?) async throws -> BrowserCredential? {
+        try await vault.credential(id: id, in: spaceID, tab: tab)
+    }
+
+    var canFillOneTimeCodes: Bool { false }
+    var oneTimeCodeArrivals: Int { 0 }
+
+    func oneTimeCodes(
+        for origin: CredentialOrigin, topLevelOrigin: CredentialOrigin, in spaceID: UUID, username: String?,
+        tab: UUID?, support: ApplePasswordsSupport
+    ) async throws -> [BrowserOneTimeCodeSuggestion] { [] }
+
+    func oneTimeCode(
+        for suggestionID: UUID, origin: CredentialOrigin, topLevelOrigin: CredentialOrigin, in spaceID: UUID,
+        tab: UUID?, support: ApplePasswordsSupport
+    ) async throws -> String { throw ApplePasswordsError.notPermitted }
+
+    func forgetOneTimeCodes(tab: UUID?) {}
+
+    func save(_ candidate: BrowserCredentialSaveCandidate, tab: UUID?, support: ApplePasswordsSupport) async throws {
         if sendFails { throw ApplePasswordsError.notPaired }
         saved.append(candidate)
     }

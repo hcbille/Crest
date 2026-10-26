@@ -5,9 +5,11 @@ import SwiftUI
 struct BrowserCredentialSuggestionState: View {
     let isLoading: Bool
     let suggestions: [BrowserCredentialSuggestion]
+    var codes: [BrowserOneTimeCodeSuggestion] = []
     var offersPairing = false
     let metrics: BrowserCredentialPromptMetrics
     let fill: (BrowserCredentialSuggestion) -> Void
+    var fillCode: (BrowserOneTimeCodeSuggestion) -> Void = { _ in }
     var beginPairing: () -> Void = {}
 
     @ViewBuilder
@@ -16,14 +18,16 @@ struct BrowserCredentialSuggestionState: View {
             ProgressView("Checking this Space…")
                 .controlSize(.small)
                 .frame(minHeight: metrics.suggestionStateMinimumHeight)
-        } else if suggestions.isEmpty && !offersPairing {
+        } else if suggestions.isEmpty && codes.isEmpty && !offersPairing {
             empty
         } else {
             BrowserCredentialSuggestionList(
                 suggestions: suggestions,
+                codes: codes,
                 offersPairing: offersPairing,
                 metrics: metrics,
                 fill: fill,
+                fillCode: fillCode,
                 beginPairing: beginPairing
             )
         }

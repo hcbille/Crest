@@ -25,15 +25,19 @@ final class ApplePasswordsHelperTests: XCTestCase {
 
         await assertNotPermitted { try await helper.requestPairingCode(support: refused) }
         await assertNotPermitted { try await helper.completePairing(code: "123456", support: refused) }
-        await assertNotPermitted { _ = try await helper.logins(for: origin, support: refused) }
-        await assertNotPermitted { _ = try await helper.password(for: origin, username: "ada", support: refused) }
+        await assertNotPermitted { _ = try await helper.logins(for: origin, tab: nil, support: refused) }
+        await assertNotPermitted {
+            _ = try await helper.password(for: origin, username: "ada", tab: nil, support: refused)
+        }
         XCTAssertEqual(helper.state, .stopped)
 
         // Pairing may go on while the answer is "pairing required", but reading logins needs "available".
         let pairing = ApplePasswordsTestSupport.pairing
         XCTAssertFalse(pairing.status.offersApplePasswords)
-        await assertNotPermitted { _ = try await helper.logins(for: origin, support: pairing) }
-        await assertNotPermitted { _ = try await helper.password(for: origin, username: "ada", support: pairing) }
+        await assertNotPermitted { _ = try await helper.logins(for: origin, tab: nil, support: pairing) }
+        await assertNotPermitted {
+            _ = try await helper.password(for: origin, username: "ada", tab: nil, support: pairing)
+        }
     }
 
     func testAMalformedCodeDoesNotSpendTheChallenge() async throws {
@@ -159,12 +163,12 @@ final class ApplePasswordsHelperTests: XCTestCase {
         // The core does not offer Apple Passwords, even to a Space that is still pairing.
         for support in [ApplePasswordsTestSupport.refused, ApplePasswordsTestSupport.pairing] {
             await assertNotPermitted {
-                try await helper.save("ada", "secret", for: secure, form: .signIn, support: support)
+                try await helper.save("ada", "secret", for: secure, form: .signIn, tab: nil, support: support)
             }
         }
         do {
             try await helper.save(
-                "ada", "secret", for: insecure, form: .signIn, support: ApplePasswordsTestSupport.available)
+                "ada", "secret", for: insecure, form: .signIn, tab: nil, support: ApplePasswordsTestSupport.available)
             XCTFail("Only an https origin is saved.")
         } catch {
             XCTAssertEqual(error as? ApplePasswordsError, .insecureOrigin)

@@ -76,13 +76,14 @@ final class ApplePasswordsCredentialVaultTests: XCTestCase {
         let insecure = CredentialOrigin(scheme: "http", host: "example.com", port: 80)
 
         do {
-            _ = try await helper.logins(for: insecure, support: ApplePasswordsTestSupport.available)
+            _ = try await helper.logins(for: insecure, tab: nil, support: ApplePasswordsTestSupport.available)
             XCTFail("An insecure origin must not be queried.")
         } catch {
             XCTAssertEqual(error as? ApplePasswordsError, .insecureOrigin)
         }
         do {
-            _ = try await helper.password(for: insecure, username: "ada", support: ApplePasswordsTestSupport.available)
+            _ = try await helper.password(
+                for: insecure, username: "ada", tab: nil, support: ApplePasswordsTestSupport.available)
             XCTFail("An insecure origin must not be queried.")
         } catch {
             XCTAssertEqual(error as? ApplePasswordsError, .insecureOrigin)
@@ -108,17 +109,32 @@ private final class FakeApplePasswordsSource: ApplePasswordsCredentialSource {
         self.passwords = passwords
     }
 
-    func logins(for origin: CredentialOrigin, support: ApplePasswordsSupport) async throws
+    func logins(for origin: CredentialOrigin, tab: UUID?, support: ApplePasswordsSupport) async throws
         -> ApplePasswordsLoginNamesRequest.Logins
     {
         loginReads += 1
         return ApplePasswordsLoginNamesRequest.Logins(usernames: logins[origin] ?? [], neverSaves: false)
     }
 
-    func password(for origin: CredentialOrigin, username: String, support: ApplePasswordsSupport) async throws -> String
+    func password(for origin: CredentialOrigin, username: String, tab: UUID?, support: ApplePasswordsSupport)
+        async throws -> String
     {
         passwordReads.append(Read(origin: origin, username: username))
         guard let password = passwords[origin]?[username] else { throw ApplePasswordsError.loginNotFound }
         return password
     }
+}
+
+extension FakeApplePasswordsSource {
+    func oneTimeCodes(
+        for origin: CredentialOrigin, topLevel: CredentialOrigin, username: String?, tab: UUID?,
+        support: ApplePasswordsSupport
+    ) async throws -> [ApplePasswordsOneTimeCode] { [] }
+
+    func currentOneTimeCode(
+        for origin: CredentialOrigin, topLevel: CredentialOrigin, username: String?, domain: String?, tab: UUID?,
+        support: ApplePasswordsSupport
+    ) async throws -> String { throw ApplePasswordsError.loginNotFound }
+
+    var canFillOneTimeCodes: Bool { false }
 }

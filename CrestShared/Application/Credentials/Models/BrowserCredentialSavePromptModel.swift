@@ -100,6 +100,7 @@ final class BrowserCredentialSavePromptModel {
     func commit(
         candidate: BrowserCredentialSaveCandidate,
         in spaceID: UUID,
+        tab: UUID?,
         browser: BrowserStore,
         now: Date = .now
     ) async {
@@ -124,7 +125,7 @@ final class BrowserCredentialSavePromptModel {
                 guard !Task.isCancelled, candidateID == candidate.id else { return }
                 phase = .saved(result.disposition)
             } else {
-                try await browser.commitApplePasswordsSave(candidate, in: spaceID, now: now)
+                try await browser.commitApplePasswordsSave(candidate, in: spaceID, tab: tab, now: now)
                 guard !Task.isCancelled, candidateID == candidate.id else { return }
                 phase = .sent
             }

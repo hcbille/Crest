@@ -1,22 +1,27 @@
 import Foundation
+import Observation
 
 /// The Mac's Apple Passwords, as shared code reaches it. Every answer about
 /// whether Apple Passwords may be used comes from the core's
 /// `ApplePasswordsAvailability` query; this class supplies the launch's facts
 /// and carries out what the core allows.
+@Observable
 @MainActor
 final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
     // MARK: - Variables
 
-    let vault: any CredentialVault
+    /// How often the helper announced that a one-time code arrived.
+    private(set) var oneTimeCodeArrivals = 0
 
-    private let core: CrestCore
-    private let helper: ApplePasswordsHelper
-    private let launchEnvironment: BrowserLaunchEnvironment
+    @ObservationIgnored private let vault: ApplePasswordsCredentialVault
+    @ObservationIgnored private let oneTimeCodeRows: ApplePasswordsOneTimeCodes
+    @ObservationIgnored private let core: CrestCore
+    @ObservationIgnored private let helper: ApplePasswordsHelper
+    @ObservationIgnored private let launchEnvironment: BrowserLaunchEnvironment
     /// The standard windows' store, whose Spaces the vault answers for.
-    private weak var browser: BrowserStore?
-    private var spacesToldAboutExtension: Set<UUID> = []
-    private var toldHelperIsUnavailable = false
+    @ObservationIgnored private weak var browser: BrowserStore?
+    @ObservationIgnored private var spacesToldAboutExtension: Set<UUID> = []
+    @ObservationIgnored private var toldHelperIsUnavailable = false
 
     // MARK: - Initializers
 
@@ -31,7 +36,9 @@ final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
         vault = ApplePasswordsCredentialVault(source: helper) { [weak browser, weak helper, weak core] spaceID in
             await Self.support(for: spaceID, browser: browser, helper: helper, core: core)
         }
+        oneTimeCodeRows = ApplePasswordsOneTimeCodes(source: helper)
         helper.onStateChange = { [weak self] state in self?.helperStateChanged(state) }
+        helper.onOneTimeCodeAvailable = { [weak self] in self?.oneTimeCodeArrivals += 1 }
     }
 
     // MARK: - Actions - Availability
@@ -117,10 +124,47 @@ final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
 
     var savesAccountsWithoutUsername: Bool { helper.savesAccountsWithoutUsername }
 
-    func save(_ candidate: BrowserCredentialSaveCandidate, support: ApplePasswordsSupport) async throws {
+    func save(_ candidate: BrowserCredentialSaveCandidate, tab: UUID?, support: ApplePasswordsSupport) async throws {
         try await helper.save(
             candidate.username, candidate.password, for: candidate.origin,
-            form: .capturing(candidate.passwordKind), support: support)
+            form: .capturing(candidate.passwordKind), tab: tab, support: support)
+    }
+
+    // MARK: - Actions - Reading
+
+    func descriptors(
+        matching origin: CredentialOrigin, in spaceID: UUID, tab: UUID?
+    ) async throws -> [CredentialDescriptor] {
+        try await vault.descriptors(matching: origin, in: spaceID, tab: tab)
+    }
+
+    func credential(id: UUID, in spaceID: UUID, tab: UUID?) async throws -> BrowserCredential? {
+        try await vault.credential(id: id, in: spaceID, tab: tab)
+    }
+
+    // MARK: - Actions - One-time codes
+
+    var canFillOneTimeCodes: Bool { helper.canFillOneTimeCodes }
+
+    func oneTimeCodes(
+        for origin: CredentialOrigin, topLevelOrigin: CredentialOrigin, in spaceID: UUID, username: String?,
+        tab: UUID?, support: ApplePasswordsSupport
+    ) async throws -> [BrowserOneTimeCodeSuggestion] {
+        try await oneTimeCodeRows.rows(
+            for: origin, topLevelOrigin: topLevelOrigin, in: spaceID, username: username, tab: tab,
+            support: support)
+    }
+
+    func oneTimeCode(
+        for suggestionID: UUID, origin: CredentialOrigin, topLevelOrigin: CredentialOrigin, in spaceID: UUID,
+        tab: UUID?, support: ApplePasswordsSupport
+    ) async throws -> String {
+        try await oneTimeCodeRows.code(
+            for: suggestionID, origin: origin, topLevelOrigin: topLevelOrigin, in: spaceID, tab: tab, support: support)
+    }
+
+    func forgetOneTimeCodes(tab: UUID?) {
+        oneTimeCodeRows.forget(tab: tab)
     }
 
     // MARK: - Actions - Notices
@@ -145,6 +189,7 @@ final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
 
     /// Tells the person once per launch that the helper stopped being usable.
     private func helperStateChanged(_ state: ApplePasswordsHelper.State) {
+        if state != .paired { oneTimeCodeRows.forgetAll() }
         guard case .unavailable = state, !toldHelperIsUnavailable else { return }
         toldHelperIsUnavailable = true
         BrowserNoticeCenter.shared.post(

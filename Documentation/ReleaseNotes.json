@@ -4605,6 +4605,10 @@
     "apple-passwords-save": {
       "category": "new",
       "message": "On the Mac, Crest can save new and changed passwords, including strong passwords it suggests, to Apple Passwords."
+    },
+    "apple-passwords-one-time-codes": {
+      "category": "new",
+      "message": "On the Mac, Crest can fill verification codes saved in Apple Passwords into a site's code field."
     }
   }
 }

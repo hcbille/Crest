@@ -290,6 +290,111 @@ final class ApplePasswordsCodecTests: XCTestCase {
         XCTAssertEqual(fields["NPWD"] as? String, "secret")
     }
 
+    func testOneTimeCodeQueriesNameOnlyOriginsAndSealTheirBodyLikeTheExtension() throws {
+        let frame = CredentialOrigin(scheme: "https", host: "login.example.com", port: 8443)
+        let top = CredentialOrigin(scheme: "https", host: "example.com", port: 443)
+        let frameURLs = try ApplePasswordsFrameURLs(frame: frame, topLevel: top)
+
+        let listing = ApplePasswordsOneTimeCodesRequest(
+            session: session, tabID: 3, host: "login.example.com", frameURLs: frameURLs, username: nil)
+        let envelope = try jsonObject(listing.encoded())
+        XCTAssertEqual(envelope["cmd"] as? Int, 16)
+        XCTAssertEqual(envelope["tabId"] as? Int, 3)
+        XCTAssertEqual(envelope["frameId"] as? Int, 0)
+        XCTAssertNil(envelope["url"])
+        let payload = try jsonObject(Data(try XCTUnwrap(envelope["payload"] as? String).utf8))
+        XCTAssertEqual(payload["QID"] as? String, "CmdGetOneTimeCodes")
+        let listed = try openedBody(of: listing.encoded())
+        XCTAssertEqual(listed["ACT"] as? Int, 5)
+        XCTAssertEqual(listed["TYPE"] as? String, "oneTimeCodes")
+        XCTAssertEqual(
+            listed["frameURLs"] as? [String], ["https://login.example.com:8443", "https://example.com"])
+        XCTAssertNil(listed["username"])
+
+        let filling = ApplePasswordsFillOneTimeCodeRequest(
+            session: session, tabID: 3, host: "login.example.com", frameURLs: frameURLs, username: "ada",
+            domain: "login.example.com")
+        let fillEnvelope = try jsonObject(filling.encoded())
+        XCTAssertEqual(fillEnvelope["cmd"] as? Int, 17)
+        XCTAssertNil(fillEnvelope["url"])
+        let fillPayload = try jsonObject(Data(try XCTUnwrap(fillEnvelope["payload"] as? String).utf8))
+        XCTAssertEqual(fillPayload["QID"] as? String, "CmdDidFillOneTimeCode")
+        let filled = try openedBody(of: filling.encoded())
+        XCTAssertEqual(filled["ACT"] as? Int, 2)
+        XCTAssertEqual(filled["TYPE"] as? String, "oneTimeCodes")
+        XCTAssertEqual(filled["username"] as? String, "ada")
+
+        // Origins only, https only, and the top-level origin only when it differs.
+        XCTAssertEqual(try ApplePasswordsFrameURLs(frame: top, topLevel: top).origins, ["https://example.com"])
+        let plain = CredentialOrigin(scheme: "http", host: "example.com", port: 80)
+        XCTAssertEqual(try ApplePasswordsFrameURLs(frame: top, topLevel: plain).origins, ["https://example.com"])
+        XCTAssertThrowsError(try ApplePasswordsFrameURLs(frame: plain, topLevel: top)) {
+            XCTAssertEqual($0 as? ApplePasswordsError, .insecureOrigin)
+        }
+    }
+
+    func testOneTimeCodeRepliesKeepTheirSourceAndFillsNeverTakeAnotherAccountsCode() throws {
+        let example = CredentialOrigin(scheme: "https", host: "example.com", port: 443)
+        let result = try queryResult(
+            """
+            {"STATUS":0,"RequiresUserAuthenticationToFill":true,"Entries":[
+              {"source":"totp","code":"","username":"ada","domain":"example.com"},
+              {"source":"sms","code":"123456","username":"","domain":"example.com"},
+              {"source":"totp","code":"654321","username":"grace","domain":"example.com"}]}
+            """
+        )
+        let listing = ApplePasswordsOneTimeCodesRequest(
+            session: session, tabID: 1, host: "example.com",
+            frameURLs: try ApplePasswordsFrameURLs(frame: example, topLevel: example), username: nil)
+        let codes = try listing.reply(from: result)
+        XCTAssertEqual(codes.map(\.source), [.generated, .delivered, .generated])
+        XCTAssertEqual(codes.map(\.username), ["ada", "", "grace"])
+
+        func current(
+            username: String?, domain: String? = "example.com", in result: ApplePasswordsQueryResult,
+            frame: CredentialOrigin? = nil
+        ) throws -> String? {
+            try ApplePasswordsFillOneTimeCodeRequest(
+                session: session, tabID: 1, host: (frame ?? example).host,
+                frameURLs: try ApplePasswordsFrameURLs(frame: frame ?? example, topLevel: example),
+                username: username, domain: domain
+            ).reply(from: result)
+        }
+        XCTAssertEqual(try current(username: "grace", in: result), "654321")
+        XCTAssertNil(try current(username: "nobody", in: result))
+        // The extension matches the source, the username and the domain, all three.
+        XCTAssertNil(try current(username: "grace", domain: "other.example", in: result))
+        XCTAssertNil(try current(username: "", in: result), "A delivered entry is never a generated code.")
+        // Several entries that still match fill nothing.
+        let twice = try queryResult(
+            """
+            {"STATUS":0,"Entries":[
+              {"source":"totp","code":"111111","username":"ada","domain":"example.com"},
+              {"source":"totp","code":"222222","username":"ada","domain":"example.com"}]}
+            """)
+        XCTAssertNil(try current(username: "ada", in: twice))
+        let single = try queryResult(
+            #"{"STATUS":0,"Entries":[{"source":"totp","code":"111222","username":"ada","domain":"example.com"}]}"#)
+        XCTAssertEqual(try current(username: "ada", in: single), "111222")
+
+        // A frame other than the top-level page gets only entries for its own host.
+        let embedded = CredentialOrigin(scheme: "https", host: "login.example.net", port: 443)
+        let mixed = try queryResult(
+            """
+            {"STATUS":0,"Entries":[
+              {"source":"totp","code":"111111","username":"ada","domain":"example.com"},
+              {"source":"sms","code":"222222","username":"ada","domain":"https://LOGIN.example.net/path"},
+              {"source":"sms","code":"333333","username":"ada"},
+              {"source":"sms","code":"444444","username":"ada","domain":"::bad::"}]}
+            """)
+        let embeddedListing = ApplePasswordsOneTimeCodesRequest(
+            session: session, tabID: 1, host: embedded.host,
+            frameURLs: try ApplePasswordsFrameURLs(frame: embedded, topLevel: example), username: nil)
+        XCTAssertEqual(try embeddedListing.reply(from: mixed).map(\.code), ["222222"])
+        XCTAssertNil(
+            try current(username: "ada", in: mixed, frame: embedded), "The top-level site's code is not the frame's.")
+    }
+
     // MARK: - Handshake
 
     func testTheFirstHandshakeMessageCarriesTheSessionAndTheMinimalPublicValue() throws {
@@ -370,8 +475,11 @@ final class ApplePasswordsCodecTests: XCTestCase {
     func testPushesBecomeTypedEventsAndOtherCommandsAreIgnoredOrUnknown() {
         XCTAssertEqual(ApplePasswordsCommand.numbered(9)?.push, .passwordsDisabled)
         XCTAssertEqual(ApplePasswordsCommand.numbered(10)?.push, .reloginNeeded)
-        XCTAssertTrue(ApplePasswordsCommand.numbered(15)?.isUnsolicited == true)
-        XCTAssertNil(ApplePasswordsCommand.numbered(15)?.push)
+        XCTAssertEqual(ApplePasswordsCommand.numbered(15)?.push, .oneTimeCodeAvailable)
+        XCTAssertEqual(ApplePasswordsCommand.numbered(15)?.push?.endsSession, false)
+        XCTAssertEqual(ApplePasswordsCommand.numbered(9)?.push?.endsSession, true)
+        XCTAssertEqual(ApplePasswordsCommand.numbered(16), .getOneTimeCodes)
+        XCTAssertEqual(ApplePasswordsCommand.numbered(17), .didFillOneTimeCode)
         XCTAssertEqual(ApplePasswordsCommand.numbered(19), .cancelPairing)
         let cancel = try? jsonObject(ApplePasswordsCancelPairingMessage.encoded())
         XCTAssertEqual(cancel?["cmd"] as? Int, 19)

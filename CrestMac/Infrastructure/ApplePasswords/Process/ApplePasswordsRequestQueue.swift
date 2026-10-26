@@ -274,7 +274,7 @@ actor ApplePasswordsRequestQueue {
 
     private func receive(push: ApplePasswordsPush) {
         DiagnosticLog.applePasswords.notice("The helper announced \(push.name).")
-        if let pending = inFlight {
+        if push.endsSession, let pending = inFlight {
             // Its reply, if one comes, cannot be told from the next request's.
             resolve(pending.id, with: .failure(ApplePasswordsError.notPaired))
             invalidate()
