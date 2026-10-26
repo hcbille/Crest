@@ -130,6 +130,11 @@ building and code review instead of doing that work itself.
   re-asking. When handing work to a new session, point it at that file.
 - Never edit code before every answer is in. Always plan first, present the
   plan, and start development only after HC confirms it.
+- When a feature is finished, clean up the session scratchpad (the
+  `/private/tmp/claude-*/…/scratchpad` directory) before reporting back. Delete
+  the build output in it (the `dd*` DerivedData folders run to several GB each)
+  and the logs, scripts and probes. Keep anything HC still needs to review,
+  and name it in the report.
 
 ### Working preferences
 
