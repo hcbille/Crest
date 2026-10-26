@@ -123,6 +123,11 @@ building and code review instead of doing that work itself.
 - When HC starts by describing a new feature or bug, run
   `/mattpocock-skills:grill-me` before planning, so that both sides agree on
   what everything means. Ask every round's questions and wait for the answers.
+- Save every decision to `.scratch/<feature-slug>/spec.md` (the behavior, the
+  verified facts, the plan, the tooling and the process) as the grilling
+  settles it, and keep it current as the plan changes. A new session must be
+  able to read that file alone, get the full picture, and start without
+  re-asking. When handing work to a new session, point it at that file.
 - Never edit code before every answer is in. Always plan first, present the
   plan, and start development only after HC confirms it.
 
