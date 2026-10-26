@@ -174,6 +174,7 @@ enum Change: Equatable, Sendable {
     case tabsImported(TabsImported)
     case transientPageClosed(TransientPageClosed)
     case transientPagePromoted(TransientPagePromoted)
+    case websiteDataRead(WebsiteDataRead)
     case windowBroughtForward(WindowBroughtForward)
     case windowChanged(WindowChanged)
     case windowClosed(WindowClosed)
@@ -269,6 +270,7 @@ enum Rejection: Equatable, Error, Sendable {
     case linkRoutesFull(LinkRoutesFull)
     case mediaSessionLimitReached(MediaSessionLimitReached)
     case noArchivedTabs(NoArchivedTabs)
+    case noBrowsingDataCategory(NoBrowsingDataCategory)
     case noCurrentTabs(NoCurrentTabs)
     case noIncludedSpaces(NoIncludedSpaces)
     case noManualSetup(NoManualSetup)
@@ -427,6 +429,7 @@ enum EngineCommand: Equatable, Sendable {
     case closePage(ClosePage)
     case createPage(CreatePage)
     case dropStagedLink(DropStagedLink)
+    case eraseBrowsingData(EraseBrowsingData)
     case eraseProfileData(EraseProfileData)
     case eraseSiteData(EraseSiteData)
     case exitPictureInPicture(ExitPictureInPicture)
@@ -434,6 +437,7 @@ enum EngineCommand: Equatable, Sendable {
     case groupPages(GroupPages)
     case loadPage(LoadPage)
     case pauseEngineDownload(PauseEngineDownload)
+    case readSiteData(ReadSiteData)
     case recoverPage(RecoverPage)
     case rejectOfferedPage(RejectOfferedPage)
     case removeEngineDownload(RemoveEngineDownload)
@@ -596,6 +600,7 @@ extension Change {
         case .tabsImported(let change): change.apply(to: state)
         case .transientPageClosed(let change): change.apply(to: state)
         case .transientPagePromoted(let change): change.apply(to: state)
+        case .websiteDataRead(let change): change.apply(to: state)
         case .windowBroughtForward(let change): change.apply(to: state)
         case .windowChanged(let change): change.apply(to: state)
         case .windowClosed(let change): change.apply(to: state)
@@ -668,6 +673,7 @@ extension Change {
         case .tabsImported(let change): change.apply(to: core, in: &batch)
         case .transientPageClosed(let change): change.apply(to: core, in: &batch)
         case .transientPagePromoted(let change): change.apply(to: core, in: &batch)
+        case .websiteDataRead(let change): change.apply(to: core, in: &batch)
         case .windowBroughtForward(let change): change.apply(to: core, in: &batch)
         case .windowChanged(let change): change.apply(to: core, in: &batch)
         case .windowClosed(let change): change.apply(to: core, in: &batch)
@@ -740,6 +746,7 @@ extension Change {
         case .tabsImported(let change): change.note(in: &receipts)
         case .transientPageClosed(let change): change.note(in: &receipts)
         case .transientPagePromoted(let change): change.note(in: &receipts)
+        case .websiteDataRead(let change): change.note(in: &receipts)
         case .windowBroughtForward(let change): change.note(in: &receipts)
         case .windowChanged(let change): change.note(in: &receipts)
         case .windowClosed(let change): change.note(in: &receipts)
@@ -1058,6 +1065,7 @@ struct AppPreferences: Equatable, Sendable {
         savedTabFaviconReturnsToSavedURL: false,
         splitFocusFollowsMouse: false,
         automaticallyShowsDeveloperToolbar: true,
+        showsRecentTabs: true,
         palette: PalettePreferences(
             layout: PaletteLayout.sections,
             sources: [
@@ -1079,7 +1087,8 @@ struct AppPreferences: Equatable, Sendable {
             completesInline: true,
             learnsChoices: true,
             searchesSitesWithTab: true,
-            showsReasons: false
+            showsReasons: false,
+            providerSpaceTrigger: SearchProviderSpaceTrigger.prefixedShortcut
         )
     )
 
@@ -1093,6 +1102,7 @@ struct AppPreferences: Equatable, Sendable {
     var savedTabFaviconReturnsToSavedURL: Bool
     var splitFocusFollowsMouse: Bool
     var automaticallyShowsDeveloperToolbar: Bool
+    var showsRecentTabs: Bool
     var palette: PalettePreferences
 }
 
@@ -1562,6 +1572,7 @@ struct ClearCurrentTabs: Intent, SessionIntent, Equatable, Sendable {
 struct ClearHistory: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID?
+    let range: BrowsingDataRange
 }
 
 struct ClearPaletteChoices: Intent, PaletteIntent, Equatable, Sendable {
@@ -2084,6 +2095,14 @@ struct DefaultEngineAlreadyRegistered: Equatable, Sendable {
     let current: EngineKind
 }
 
+struct DeleteBrowsingData: Intent, DataDeletionIntent, Equatable, Sendable {
+    let requestID: UUID
+    let profileID: UUID
+    let ephemeral: Bool
+    let range: BrowsingDataRange
+    let categories: [BrowsingDataCategory]
+}
+
 struct DeleteFolder: Intent, SessionIntent, Equatable, Sendable {
     let workspaceID: UUID
     let spaceID: UUID
@@ -2100,7 +2119,8 @@ struct DeleteSiteData: Intent, DataDeletionIntent, Equatable, Sendable {
     let requestID: UUID
     let profileID: UUID
     let ephemeral: Bool
-    let host: String
+    let hosts: [String]
+    let categories: [BrowsingDataCategory]
 }
 
 struct DeleteTab: Intent, SessionIntent, Equatable, Sendable {
@@ -2563,6 +2583,14 @@ struct EnterPictureInPicture: PageRequest, Equatable, Sendable {
     let pageID: UUID
 }
 
+struct EraseBrowsingData: Equatable, Sendable {
+    let profileID: UUID
+    let ephemeral: Bool
+    let since: Date?
+    let categories: [BrowsingDataCategory]
+    let erasureID: UUID
+}
+
 struct EraseProfileData: Equatable, Sendable {
     let profileID: UUID
     let ephemeral: Bool
@@ -2572,7 +2600,8 @@ struct EraseProfileData: Equatable, Sendable {
 struct EraseSiteData: Equatable, Sendable {
     let profileID: UUID
     let ephemeral: Bool
-    let host: String
+    let hosts: [String]
+    let categories: [BrowsingDataCategory]
     let erasureID: UUID
 }
 
@@ -3883,6 +3912,9 @@ struct NoArchivedTabs: Equatable, Sendable {
     let spaceID: UUID
 }
 
+struct NoBrowsingDataCategory: Equatable, Sendable {
+}
+
 struct NoCurrentTabs: Equatable, Sendable {
     let spaceID: UUID
 }
@@ -4509,7 +4541,8 @@ struct PalettePreferences: Equatable, Sendable {
         completesInline: true,
         learnsChoices: true,
         searchesSitesWithTab: true,
-        showsReasons: false
+        showsReasons: false,
+        providerSpaceTrigger: SearchProviderSpaceTrigger.prefixedShortcut
     )
 
     var layout: PaletteLayout
@@ -4520,6 +4553,7 @@ struct PalettePreferences: Equatable, Sendable {
     var learnsChoices: Bool
     var searchesSitesWithTab: Bool
     var showsReasons: Bool
+    var providerSpaceTrigger: SearchProviderSpaceTrigger
 }
 
 struct PaletteRow: Equatable, Sendable {
@@ -4874,9 +4908,37 @@ struct ReadPageNetwork: PageRequest, Equatable, Sendable {
     let after: Int64
 }
 
+struct ReadSiteData: Equatable, Sendable {
+    let profileID: UUID
+    let ephemeral: Bool
+    let readingID: UUID
+}
+
+struct ReadWebsiteData: Intent, Equatable, Sendable {
+    let requestID: UUID
+    let profileID: UUID
+    let ephemeral: Bool
+    let host: String?
+}
+
 struct ReassignShortcut: Intent, ShortcutIntent, Equatable, Sendable {
     let command: ShortcutCommand
     let keys: KeyCombination
+}
+
+struct RecentTabItem: Equatable, Sendable {
+    let tabIDs: [UUID]
+    let focusedTabID: UUID
+}
+
+struct RecentTabList: Equatable, Sendable {
+    let items: [RecentTabItem]
+}
+
+struct RecentTabs: Query, Equatable, Sendable {
+    typealias Answer = RecentTabList
+
+    let windowID: UUID
 }
 
 struct RecordCloudFields: Intent, CloudTransportIntent, Equatable, Sendable {
@@ -5831,6 +5893,10 @@ struct ShowImportSpace: Intent, SetupFlowIntent, Equatable, Sendable {
     let sourceSpaceID: UUID
 }
 
+struct ShowLeastRecentTab: Intent, WindowIntent, Equatable, Sendable {
+    let windowID: UUID
+}
+
 struct ShowMostRecentTab: Intent, WindowIntent, Equatable, Sendable {
     let windowID: UUID
 }
@@ -5904,6 +5970,12 @@ struct SidebarRow: Equatable, Sendable, Identifiable {
     let parentFolderID: UUID?
     let depth: Int
     let members: [UUID]
+}
+
+struct SiteDataRead: EngineEvent, Equatable, Sendable {
+    let readingID: UUID
+    let sites: [StoredSite]
+    let read: Bool
 }
 
 struct SiteDecision: Query, Equatable, Sendable {
@@ -6453,6 +6525,11 @@ struct StoreRemovalRequested: Equatable, Sendable {
 struct StoredSessionClosed: Equatable, Sendable {
 }
 
+struct StoredSite: Equatable, Sendable {
+    var site: String
+    var kinds: [WebsiteDataKind]
+}
+
 struct StrongPassword: Query, Equatable, Sendable {
     typealias Answer = StrongPasswordRecipe
 
@@ -6894,6 +6971,12 @@ struct WebPagesOnly: Equatable, Sendable {
     var message: LocalizedStringResource {
         LocalizedStringResource("This action requires webpage tabs. Deselect built-in pages first.")
     }
+}
+
+struct WebsiteDataRead: CoreChange, Equatable, Sendable {
+    let requestID: UUID
+    let sites: [StoredSite]
+    let complete: Bool
 }
 
 struct WindowBroughtForward: CoreChange, Equatable, Sendable {
@@ -7970,6 +8053,179 @@ struct BlockedPopupStatus: Hashable, Sendable {
             self.symbol = symbol
             self.guidance = guidance
             self.offersAllow = offersAllow
+        }
+    }
+}
+
+/// The members of the core's `BrowsingDataCategory`. A member's wire tag is its index in `all`.
+struct BrowsingDataCategory: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    var detail: LocalizedStringResource? { facts.detail }
+    var clearSiteTitle: LocalizedStringResource? { facts.clearSiteTitle }
+    var clearedTitle: LocalizedStringResource? { facts.clearedTitle }
+    var failedTitle: LocalizedStringResource? { facts.failedTitle }
+    var symbol: String? { facts.symbol }
+    var clearsHistory: Bool { facts.clearsHistory }
+    var clearsBySite: Bool { facts.clearsBySite }
+    private let facts: Facts
+
+    private init(
+        tag: Int,
+        name: String,
+        title: LocalizedStringResource,
+        detail: LocalizedStringResource?,
+        clearSiteTitle: LocalizedStringResource?,
+        clearedTitle: LocalizedStringResource?,
+        failedTitle: LocalizedStringResource?,
+        symbol: String?,
+        clearsHistory: Bool,
+        clearsBySite: Bool
+    ) {
+        self.tag = tag
+        facts = Facts(
+            name: name,
+            title: title,
+            detail: detail,
+            clearSiteTitle: clearSiteTitle,
+            clearedTitle: clearedTitle,
+            failedTitle: failedTitle,
+            symbol: symbol,
+            clearsHistory: clearsHistory,
+            clearsBySite: clearsBySite
+        )
+    }
+
+    static let history = BrowsingDataCategory(
+        tag: 0,
+        name: "history",
+        title: LocalizedStringResource("History"),
+        detail: nil,
+        clearSiteTitle: nil,
+        clearedTitle: nil,
+        failedTitle: nil,
+        symbol: nil,
+        clearsHistory: true,
+        clearsBySite: false
+    )
+    static let siteData = BrowsingDataCategory(
+        tag: 1,
+        name: "siteData",
+        title: LocalizedStringResource("Cookies and Site Data"),
+        detail: LocalizedStringResource("Signs you out of most sites."),
+        clearSiteTitle: LocalizedStringResource("Clear Cookies"),
+        clearedTitle: LocalizedStringResource("Cookies Cleared"),
+        failedTitle: LocalizedStringResource("Couldn’t Clear Cookies"),
+        symbol: "person.crop.circle.badge.xmark",
+        clearsHistory: false,
+        clearsBySite: true
+    )
+    static let cache = BrowsingDataCategory(
+        tag: 2,
+        name: "cache",
+        title: LocalizedStringResource("Cached Images and Files"),
+        detail: nil,
+        clearSiteTitle: LocalizedStringResource("Clear Cache"),
+        clearedTitle: LocalizedStringResource("Cache Cleared"),
+        failedTitle: LocalizedStringResource("Couldn’t Clear Cache"),
+        symbol: "trash",
+        clearsHistory: false,
+        clearsBySite: true
+    )
+
+    static let all: [BrowsingDataCategory] = [history, siteData, cache]
+
+    static func named(_ name: String?) -> BrowsingDataCategory? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: BrowsingDataCategory, rhs: BrowsingDataCategory) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+        let detail: LocalizedStringResource?
+        let clearSiteTitle: LocalizedStringResource?
+        let clearedTitle: LocalizedStringResource?
+        let failedTitle: LocalizedStringResource?
+        let symbol: String?
+        let clearsHistory: Bool
+        let clearsBySite: Bool
+
+        init(
+            name: String,
+            title: LocalizedStringResource,
+            detail: LocalizedStringResource?,
+            clearSiteTitle: LocalizedStringResource?,
+            clearedTitle: LocalizedStringResource?,
+            failedTitle: LocalizedStringResource?,
+            symbol: String?,
+            clearsHistory: Bool,
+            clearsBySite: Bool
+        ) {
+            self.name = name
+            self.title = title
+            self.detail = detail
+            self.clearSiteTitle = clearSiteTitle
+            self.clearedTitle = clearedTitle
+            self.failedTitle = failedTitle
+            self.symbol = symbol
+            self.clearsHistory = clearsHistory
+            self.clearsBySite = clearsBySite
+        }
+    }
+}
+
+/// The members of the core's `BrowsingDataRange`. A member's wire tag is its index in `all`.
+struct BrowsingDataRange: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, title: LocalizedStringResource) {
+        self.tag = tag
+        facts = Facts(name: name, title: title)
+    }
+
+    static let lastHour = BrowsingDataRange(tag: 0, name: "lastHour", title: LocalizedStringResource("Last Hour"))
+    static let lastDay = BrowsingDataRange(tag: 1, name: "lastDay", title: LocalizedStringResource("Last 24 Hours"))
+    static let lastWeek = BrowsingDataRange(tag: 2, name: "lastWeek", title: LocalizedStringResource("Last 7 Days"))
+    static let lastFourWeeks = BrowsingDataRange(
+        tag: 3,
+        name: "lastFourWeeks",
+        title: LocalizedStringResource("Last 4 Weeks")
+    )
+    static let allTime = BrowsingDataRange(tag: 4, name: "allTime", title: LocalizedStringResource("All Time"))
+
+    static let all: [BrowsingDataRange] = [lastHour, lastDay, lastWeek, lastFourWeeks, allTime]
+
+    static func named(_ name: String?) -> BrowsingDataRange? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: BrowsingDataRange, rhs: BrowsingDataRange) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+
+        init(name: String, title: LocalizedStringResource) {
+            self.name = name
+            self.title = title
         }
     }
 }
@@ -16934,6 +17190,90 @@ struct SearchProviderOption: Hashable, Sendable {
     }
 }
 
+/// The members of the core's `SearchProviderSpaceTrigger`. A member's wire tag is its index in `all`.
+struct SearchProviderSpaceTrigger: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    var example: LocalizedStringResource { facts.example }
+    var isEnabled: Bool { facts.isEnabled }
+    var requiresPrefix: Bool { facts.requiresPrefix }
+    private let facts: Facts
+
+    private init(
+        tag: Int,
+        name: String,
+        title: LocalizedStringResource,
+        example: LocalizedStringResource,
+        isEnabled: Bool,
+        requiresPrefix: Bool
+    ) {
+        self.tag = tag
+        facts = Facts(name: name, title: title, example: example, isEnabled: isEnabled, requiresPrefix: requiresPrefix)
+    }
+
+    static let off = SearchProviderSpaceTrigger(
+        tag: 0,
+        name: "off",
+        title: LocalizedStringResource("Off"),
+        example: LocalizedStringResource("A space after a provider’s shortcut stays a space."),
+        isEnabled: false,
+        requiresPrefix: false
+    )
+    static let prefixedShortcut = SearchProviderSpaceTrigger(
+        tag: 1,
+        name: "prefixedShortcut",
+        title: LocalizedStringResource("After $ and a shortcut"),
+        example: LocalizedStringResource("Type $yt and a space to search YouTube."),
+        isEnabled: true,
+        requiresPrefix: true
+    )
+    static let shortcut = SearchProviderSpaceTrigger(
+        tag: 2,
+        name: "shortcut",
+        title: LocalizedStringResource("After a shortcut"),
+        example: LocalizedStringResource("Type yt or $yt and a space to search YouTube."),
+        isEnabled: true,
+        requiresPrefix: false
+    )
+
+    static let all: [SearchProviderSpaceTrigger] = [off, prefixedShortcut, shortcut]
+
+    static func named(_ name: String?) -> SearchProviderSpaceTrigger? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: SearchProviderSpaceTrigger, rhs: SearchProviderSpaceTrigger) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+        let example: LocalizedStringResource
+        let isEnabled: Bool
+        let requiresPrefix: Bool
+
+        init(
+            name: String,
+            title: LocalizedStringResource,
+            example: LocalizedStringResource,
+            isEnabled: Bool,
+            requiresPrefix: Bool
+        ) {
+            self.name = name
+            self.title = title
+            self.example = example
+            self.isEnabled = isEnabled
+            self.requiresPrefix = requiresPrefix
+        }
+    }
+}
+
 /// The members of the core's `SetupEntry`. A member's wire tag is its index in `all`.
 /// Core-only behavior, not emitted: `opensGuide`.
 struct SetupEntry: Hashable, Sendable {
@@ -17283,6 +17623,9 @@ struct ShortcutCommand: Hashable, Sendable {
         case findNext
         case findPrevious
         case capturePage
+        case mostRecentTabBackward
+        case clearSiteCookies
+        case clearSiteCache
     }
 
     let tag: Int
@@ -19196,6 +19539,68 @@ struct ShortcutCommand: Hashable, Sendable {
         offersInPalette: true,
         isReservedFromPages: false
     )
+    static let mostRecentTabBackward = ShortcutCommand(
+        tag: 71,
+        kind: .mostRecentTabBackward,
+        name: "mostRecentTabBackward",
+        section: ShortcutSection.tabs,
+        title: LocalizedStringResource("Most Recent Tab Backward"),
+        searchTerms: LocalizedStringResource("toggle recent switch tabs oldest back"),
+        menuTitle: nil,
+        symbol: "arrow.left.arrow.right",
+        requiredCapability: nil,
+        selects: nil,
+        number: nil,
+        defaultShortcuts: [
+            ShortcutDefault(
+                platform: DevicePlatform.desktop,
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift]),
+                yieldsToOverrides: true
+            ),
+            ShortcutDefault(
+                platform: DevicePlatform.mobile,
+                keys: KeyCombination(key: "tab", isSpecialKey: true, modifiers: [.control, .shift]),
+                yieldsToOverrides: true
+            )
+        ],
+        paletteRest: nil,
+        offersInPalette: true,
+        isReservedFromPages: true
+    )
+    static let clearSiteCookies = ShortcutCommand(
+        tag: 72,
+        kind: .clearSiteCookies,
+        name: "clearSiteCookies",
+        section: ShortcutSection.page,
+        title: LocalizedStringResource("Clear Cookies for This Site"),
+        searchTerms: LocalizedStringResource("site data storage local session indexeddb service workers sign out delete remove"),
+        menuTitle: nil,
+        symbol: "person.crop.circle.badge.xmark",
+        requiredCapability: nil,
+        selects: nil,
+        number: nil,
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true,
+        isReservedFromPages: false
+    )
+    static let clearSiteCache = ShortcutCommand(
+        tag: 73,
+        kind: .clearSiteCache,
+        name: "clearSiteCache",
+        section: ShortcutSection.page,
+        title: LocalizedStringResource("Clear Cache for This Site"),
+        searchTerms: LocalizedStringResource("cached images files empty delete remove"),
+        menuTitle: nil,
+        symbol: "trash",
+        requiredCapability: nil,
+        selects: nil,
+        number: nil,
+        defaultShortcuts: [],
+        paletteRest: nil,
+        offersInPalette: true,
+        isReservedFromPages: false
+    )
 
     static let all: [ShortcutCommand] = [
         newWindow,
@@ -19268,7 +19673,10 @@ struct ShortcutCommand: Hashable, Sendable {
         openFile,
         findNext,
         findPrevious,
-        capturePage
+        capturePage,
+        mostRecentTabBackward,
+        clearSiteCookies,
+        clearSiteCache
     ]
 
     static func named(_ name: String?) -> ShortcutCommand? {
@@ -19399,7 +19807,12 @@ struct ShortcutMenu: Hashable, Sendable {
                 ShortcutCommand.clearUnpinnedTabs,
                 ShortcutCommand.archiveTab
             ],
-            [ShortcutCommand.previousTab, ShortcutCommand.nextTab, ShortcutCommand.mostRecentTab],
+            [
+                ShortcutCommand.previousTab,
+                ShortcutCommand.nextTab,
+                ShortcutCommand.mostRecentTab,
+                ShortcutCommand.mostRecentTabBackward
+            ],
             [
                 ShortcutCommand.splitWithNextTab,
                 ShortcutCommand.focusNextSplitCard,
@@ -19456,7 +19869,8 @@ struct ShortcutMenu: Hashable, Sendable {
                 ShortcutCommand.exportPDF,
                 ShortcutCommand.saveWebArchive,
                 ShortcutCommand.capturePage
-            ]
+            ],
+            [ShortcutCommand.clearSiteCookies, ShortcutCommand.clearSiteCache]
         ]
     )
     static let develop = ShortcutMenu(
@@ -22959,6 +23373,47 @@ struct WebScheme: Hashable, Sendable {
             self.name = name
             self.defaultPort = defaultPort
             self.isSecure = isSecure
+        }
+    }
+}
+
+/// The members of the core's `WebsiteDataKind`. A member's wire tag is its index in `all`.
+struct WebsiteDataKind: Hashable, Sendable {
+    let tag: Int
+    var name: String { facts.name }
+    var title: LocalizedStringResource { facts.title }
+    private let facts: Facts
+
+    private init(tag: Int, name: String, title: LocalizedStringResource) {
+        self.tag = tag
+        facts = Facts(name: name, title: title)
+    }
+
+    static let cookies = WebsiteDataKind(tag: 0, name: "cookies", title: LocalizedStringResource("Cookies"))
+    static let storage = WebsiteDataKind(tag: 1, name: "storage", title: LocalizedStringResource("Storage"))
+    static let cache = WebsiteDataKind(tag: 2, name: "cache", title: LocalizedStringResource("Cache"))
+
+    static let all: [WebsiteDataKind] = [cookies, storage, cache]
+
+    static func named(_ name: String?) -> WebsiteDataKind? {
+        all.first { $0.name == name }
+    }
+
+    static func == (lhs: WebsiteDataKind, rhs: WebsiteDataKind) -> Bool {
+        lhs.tag == rhs.tag
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+    }
+
+    private final class Facts: Sendable {
+        let name: String
+        let title: LocalizedStringResource
+
+        init(name: String, title: LocalizedStringResource) {
+            self.name = name
+            self.title = title
         }
     }
 }
