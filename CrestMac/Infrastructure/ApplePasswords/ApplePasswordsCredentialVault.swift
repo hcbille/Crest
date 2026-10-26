@@ -118,6 +118,12 @@ actor ApplePasswordsCredentialVault: CredentialVault {
 
     // MARK: - Mutators
 
+    /// The helper restarted, so no identifier issued over the old process stands.
+    func forgetIssued() {
+        issued = [:]
+        issuedOrder = []
+    }
+
     private func remember(_ descriptor: CredentialDescriptor) {
         issued[descriptor.id] = descriptor
         issuedOrder.append(descriptor.id)

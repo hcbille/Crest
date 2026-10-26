@@ -12,7 +12,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     enum State: Equatable, Sendable {
         /// No helper process has been asked for.
         case stopped
-        /// The helper cannot be used. This holds until `stop()`.
+        /// The helper cannot be used. This holds until `stop()` or the person asks to pair again.
         case unavailable(ApplePasswordsUnavailability)
         /// The helper is understood but holds no session with Crest.
         case unpaired
@@ -32,6 +32,8 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     // MARK: - Static Variables
 
     private static let codeLength = 6
+    /// The number a query carries for a page with no tab. Real tabs count up from 1.
+    static let unknownTabNumber = 0
 
     // MARK: - Variables
 
@@ -45,6 +47,9 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     var onStateChange: (@MainActor (State) -> Void)?
     /// Called when the helper announces that a one-time code arrived.
     var onOneTimeCodeAvailable: (@MainActor () -> Void)?
+    /// Called whenever the process and everything learned from it are dropped,
+    /// so what was issued over it can be forgotten too.
+    var onProcessEnd: (@MainActor () -> Void)?
 
     private let launcher: any ApplePasswordsChannelLauncher
     private let clock = ContinuousClock()
@@ -55,7 +60,17 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     private var startup: Task<Void, Never>?
     private var attempt: ApplePasswordsPairingAttempt?
     private var session: ApplePasswordsSecretSession?
-    private var tabIDs: [String: Int] = [:]
+    /// The number the running helper knows each Crest tab by. Numbers count up
+    /// from 1 and are never reused in a launch. The map is cleared when the
+    /// helper process ends, and a tab's entry when the tab closes.
+    private var tabNumbers: [UUID: Int] = [:]
+    private var lastTabNumber = 0
+    /// When the running process was started.
+    private var startedAt: ContinuousClock.Instant?
+    /// Whether the helper was already let start again after it ended on its own.
+    private var hasReconnected = false
+    /// How long a process must have run before its ending is met with one restart.
+    private let reconnectAfter: Duration
     /// Changes whenever the process or its session is replaced, so an answer
     /// that arrives for an earlier one is not applied to the new one.
     private var generation = 0
@@ -65,8 +80,11 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
 
     // MARK: - Initializers
 
-    init(launcher: any ApplePasswordsChannelLauncher) {
+    /// - Parameter reconnectAfter: Apple's extension reconnects a helper that
+    ///   ends more than five seconds after it started; so does Crest, once.
+    init(launcher: any ApplePasswordsChannelLauncher, reconnectAfter: Duration = .seconds(5)) {
         self.launcher = launcher
+        self.reconnectAfter = reconnectAfter
     }
 
     // MARK: - Actions - Lifecycle
@@ -103,6 +121,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
             return
         }
         let queue = ApplePasswordsRequestQueue(channel: launched)
+        startedAt = clock.now
         channel = launched
         self.queue = queue
         let current = generation
@@ -123,9 +142,12 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
 
     // MARK: - Actions - Pairing
 
-    /// Asks the helper to show a new six-digit code. Any earlier code stops working.
+    /// Asks the helper to show a new six-digit code. Any earlier code stops
+    /// working. This is the person's explicit pair action, so a helper that
+    /// became unavailable is started afresh first; nothing else retries it.
     func requestPairingCode(support: ApplePasswordsSupport) async throws {
         try require(support)
+        leaveUnavailable()
         await start(support: support)
         guard let queue, let capabilities else { throw unavailableError() }
         dropSession()
@@ -218,7 +240,8 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         let host = try Self.host(of: origin)
         try requireOffer(support)
         let connection = try pairedConnection()
-        let request = ApplePasswordsLoginNamesRequest(session: connection.session, tabID: tabID(for: host), host: host)
+        let request = ApplePasswordsLoginNamesRequest(
+            session: connection.session, tabID: tabNumber(for: tab), host: host)
         return try await submit(request, over: connection)
     }
 
@@ -233,7 +256,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         let connection = try pairedConnection()
         let request = ApplePasswordsPasswordRequest(
             session: connection.session,
-            tabID: tabID(for: host),
+            tabID: tabNumber(for: tab),
             host: host,
             username: username
         )
@@ -262,7 +285,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         try requireOneTimeCodes(support)
         let connection = try pairedConnection()
         let request = ApplePasswordsOneTimeCodesRequest(
-            session: connection.session, tabID: tabID(for: host), host: host, frameURLs: frameURLs,
+            session: connection.session, tabID: tabNumber(for: tab), host: host, frameURLs: frameURLs,
             username: username)
         return try await submit(request, over: connection)
     }
@@ -278,7 +301,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         try requireOneTimeCodes(support)
         let connection = try pairedConnection()
         let request = ApplePasswordsFillOneTimeCodeRequest(
-            session: connection.session, tabID: tabID(for: host), host: host, frameURLs: frameURLs,
+            session: connection.session, tabID: tabNumber(for: tab), host: host, frameURLs: frameURLs,
             username: username, domain: domain)
         guard let code = try await submit(request, over: connection) else {
             throw ApplePasswordsError.loginNotFound
@@ -308,7 +331,7 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         _ = try Self.host(of: origin)
         let connection = try pairedConnection()
         let request = try Self.saveRequest(
-            username: username, password: password, origin: origin, form: form, tabID: { self.tabID(for: $0) },
+            username: username, password: password, origin: origin, form: form, tabID: tabNumber(for: tab),
             session: connection.session)
         try await submit(request, over: connection)
     }
@@ -317,11 +340,11 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     /// Throws for an origin that is not https.
     static func saveRequest(
         username: String, password: String, origin: CredentialOrigin, form: ApplePasswordsFormKind,
-        tabID: (String) -> Int, session: ApplePasswordsSecretSession
+        tabID: Int, session: ApplePasswordsSecretSession
     ) throws -> ApplePasswordsSaveRequest {
         let host = try host(of: origin)
         return ApplePasswordsSaveRequest(
-            session: session, tabID: tabID(host), host: host, username: username, password: password, form: form)
+            session: session, tabID: tabID, host: host, username: username, password: password, form: form)
     }
 
     private func submit<Request: ApplePasswordsRequest>(
@@ -366,11 +389,59 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         guard support.status.startsHelper else { throw ApplePasswordsError.notPermitted }
     }
 
-    private func tabID(for host: String) -> Int {
-        if let existing = tabIDs[host] { return existing }
-        let next = tabIDs.count + 1
-        tabIDs[host] = next
-        return next
+    // MARK: - Actions - Tabs
+
+    /// The number the helper knows `tab` by, given out the first time it is
+    /// needed. A page with no tab gets `unknownTabNumber`, which no tab has.
+    func tabNumber(for tab: UUID?) -> Int {
+        guard let tab else { return Self.unknownTabNumber }
+        if let existing = tabNumbers[tab] { return existing }
+        lastTabNumber += 1
+        tabNumbers[tab] = lastTabNumber
+        return lastTabNumber
+    }
+
+    /// Whether a helper process is running, paired or not. Tab events and the
+    /// launch of the Passwords app go only to a process that is.
+    var isRunning: Bool {
+        switch state {
+        case .unpaired, .awaitingCode, .paired: return channel != nil
+        case .stopped, .unavailable: return false
+        }
+    }
+
+    /// Tells the helper `tab` is in front, as Apple's extension does when a tab
+    /// is activated or a window is focused. Does nothing unless the helper is
+    /// running; it is never started for this.
+    func tabActivated(_ tab: UUID) {
+        guard isRunning else { return }
+        sendTabEvent(.activated, number: tabNumber(for: tab))
+    }
+
+    /// Forgets `tab`'s number and, if the helper had been told about the tab,
+    /// tells it the tab closed. The number is not given to another tab.
+    func tabClosed(_ tab: UUID) {
+        guard let number = tabNumbers.removeValue(forKey: tab), isRunning else { return }
+        sendTabEvent(.closed, number: number)
+    }
+
+    private func sendTabEvent(_ event: ApplePasswordsTabEvent, number: Int) {
+        guard let message = try? ApplePasswordsTabEventMessage.encoded(tabID: number, event: event) else { return }
+        // A helper that cannot be written to is reported by its channel, so a failure needs no handling here.
+        try? channel?.send(message)
+    }
+
+    // MARK: - Actions - Passwords app
+
+    /// Has the helper open the Passwords app on the origin's site. It needs the
+    /// helper running but no pairing, and is gated by the core's answer like
+    /// starting is. Only an https origin is named, and only by its origin.
+    func openPasswordsApp(for origin: CredentialOrigin, support: ApplePasswordsSupport) async throws {
+        try require(support)
+        let message = try ApplePasswordsLaunchPasswordsAppMessage.encoded(origin: origin)
+        await start(support: support)
+        guard isRunning, let channel else { throw unavailableError() }
+        try channel.send(message)
     }
 
     // MARK: - Mutators
@@ -378,6 +449,15 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
     private var isUnavailable: Bool {
         if case .unavailable = state { return true }
         return false
+    }
+
+    /// Lets an unavailable helper be started again, as if for the first time.
+    /// Nothing from the failed run is kept, and the once-per-launch reconnect
+    /// allowance is untouched. A start already under way is not affected.
+    private func leaveUnavailable() {
+        guard isUnavailable else { return }
+        tearDown()
+        state = .stopped
     }
 
     private func unavailableError() -> ApplePasswordsError {
@@ -402,13 +482,32 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
         generation += 1
         dropSession()
         capabilities = nil
-        tabIDs = [:]
+        tabNumbers = [:]
+        startedAt = nil
+        onProcessEnd?()
         events?.cancel()
         events = nil
         channel?.terminate()
         channel = nil
         if let queue { Task { await queue.shutdown() } }
         queue = nil
+    }
+
+    /// The helper process ended on its own. Apple's extension reconnects when
+    /// that is more than five seconds after the process started; Crest does
+    /// the same once per launch. A reconnect forgets the session and every
+    /// number and leaves the helper stopped, so the next use starts it
+    /// through the core's answer for the Space, and the person pairs again.
+    /// An earlier ending, or a second one, makes the helper unavailable.
+    private func processEnded(because reason: ApplePasswordsUnavailability) {
+        guard !hasReconnected, capabilities != nil, let startedAt, clock.now - startedAt > reconnectAfter else {
+            fail(because: reason)
+            return
+        }
+        hasReconnected = true
+        DiagnosticLog.applePasswords.notice("The helper ended; it can start again once.")
+        tearDown()
+        state = .stopped
     }
 
     private func fail(because reason: ApplePasswordsUnavailability) {
@@ -432,7 +531,11 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
             tearDown()
             state = .unpaired
         case .unavailable(let reason):
-            fail(because: reason)
+            if case .terminated = reason {
+                processEnded(because: reason)
+            } else {
+                fail(because: reason)
+            }
         case .notPaired, .malformedReply:
             // The helper lost the session, or a reply no longer opens with our key: it is out of step.
             dropSession()
@@ -465,7 +568,11 @@ final class ApplePasswordsHelper: ApplePasswordsCredentialSource {
             tearDown()
             state = .unpaired
         case .closed(let reason):
-            fail(because: reason)
+            guard case .terminated = reason else {
+                fail(because: reason)
+                return
+            }
+            processEnded(because: reason)
         }
     }
 }

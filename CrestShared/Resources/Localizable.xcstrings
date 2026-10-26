@@ -2145,6 +2145,9 @@
     "Apple Passwords" : {
 
     },
+    "Apple Passwords is set to never save here." : {
+
+    },
     "Apple Passwords isn’t available" : {
 
     },
@@ -9208,6 +9211,9 @@
 
     },
     "Open pages keep their engine." : {
+
+    },
+    "Open Passwords App" : {
 
     },
     "Open Peek with" : {

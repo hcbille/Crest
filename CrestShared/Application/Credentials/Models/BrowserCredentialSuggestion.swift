@@ -9,8 +9,13 @@ struct BrowserCredentialOffer: Equatable, Sendable {
     var offersApplePasswordsPairing: Bool
     /// The one-time codes offered to a code field, which shows nothing else.
     var codes: [BrowserOneTimeCodeSuggestion] = []
+    /// Whether the list ends with the row that opens Apple's Passwords app on
+    /// the site: Apple Passwords is on for the Space, paired or not.
+    var offersOpeningPasswordsApp = false
 
-    var isEmpty: Bool { suggestions.isEmpty && codes.isEmpty && !offersApplePasswordsPairing }
+    var isEmpty: Bool {
+        suggestions.isEmpty && codes.isEmpty && !offersApplePasswordsPairing && !offersOpeningPasswordsApp
+    }
 }
 
 /// A saved account a prompt offers, with the provider that issued it. The

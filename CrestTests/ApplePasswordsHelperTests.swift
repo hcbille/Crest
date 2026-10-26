@@ -40,6 +40,39 @@ final class ApplePasswordsHelperTests: XCTestCase {
         }
     }
 
+    func testOnlyAnExplicitPairRequestStartsAnUnavailableHelperAgain() async throws {
+        let channel = FakeApplePasswordsChannel()
+        channel.script = ApplePasswordsPairingScript.respond(on: channel)
+        let launcher = FailingThenWorkingLauncher(failures: 2, channel: channel)
+        let helper = ApplePasswordsHelper(launcher: launcher)
+        let support = ApplePasswordsTestSupport.pairing
+
+        await helper.start(support: support)
+        XCTAssertEqual(helper.state, .unavailable(.launchFailed))
+        await helper.start(support: support)
+        XCTAssertEqual(launcher.launches, 1, "Starting on its own never retries.")
+
+        // The retry fails too: it is unavailable again, and the person may click again.
+        await assertUnavailable { try await helper.requestPairingCode(support: support) }
+        XCTAssertEqual(launcher.launches, 2)
+        XCTAssertEqual(helper.state, .unavailable(.launchFailed))
+
+        try await helper.requestPairingCode(support: support)
+        XCTAssertEqual(launcher.launches, 3)
+        XCTAssertEqual(helper.state, .awaitingCode)
+
+        // A click while pairing is under way reuses the one process.
+        try await helper.requestPairingCode(support: support)
+        XCTAssertEqual(launcher.launches, 3)
+        helper.stop()
+
+        // The core's answer still rules: a refused answer never retries.
+        let refused = ApplePasswordsHelper(launcher: FailingThenWorkingLauncher(failures: 1, channel: channel))
+        await refused.start(support: support)
+        await assertNotPermitted { try await refused.requestPairingCode(support: ApplePasswordsTestSupport.refused) }
+        XCTAssertEqual(refused.state, .unavailable(.launchFailed))
+    }
+
     func testAMalformedCodeDoesNotSpendTheChallenge() async throws {
         let channel = FakeApplePasswordsChannel()
         channel.script = ApplePasswordsPairingScript.respond(on: channel)
@@ -185,11 +218,11 @@ final class ApplePasswordsHelperTests: XCTestCase {
             try ApplePasswordsHelper.saveRequest(
                 username: "ada", password: "secret",
                 origin: CredentialOrigin(scheme: "http", host: "accounts.crest.test", port: 80), form: .signUp,
-                tabID: { _ in 1 }, session: session)
+                tabID: 1, session: session)
         ) { XCTAssertEqual($0 as? ApplePasswordsError, .insecureOrigin) }
 
         let request = try ApplePasswordsHelper.saveRequest(
-            username: "ada", password: "secret", origin: origin, form: .signUp, tabID: { _ in 1 }, session: session)
+            username: "ada", password: "secret", origin: origin, form: .signUp, tabID: 1, session: session)
         let channel = FakeApplePasswordsChannel()
         let queue = ApplePasswordsRequestQueue(channel: channel)
         let sending = Task { try? await queue.submit(request) }
@@ -270,6 +303,17 @@ final class ApplePasswordsHelperTests: XCTestCase {
         }
     }
 
+    private func assertUnavailable(_ work: () async throws -> Void, file: StaticString = #filePath, line: UInt = #line)
+        async
+    {
+        do {
+            try await work()
+            XCTFail("The helper should have stayed unavailable.", file: file, line: line)
+        } catch {
+            XCTAssertEqual(error as? ApplePasswordsError, .unavailable(.launchFailed), file: file, line: line)
+        }
+    }
+
     private func waitUntil(_ condition: () -> Bool) async {
         for _ in 0..<200 where !condition() {
             try? await Task.sleep(for: .milliseconds(10))
@@ -289,6 +333,24 @@ struct RefusingLauncher: ApplePasswordsChannelLauncher {
     func launch() throws -> any ApplePasswordsChannel {
         XCTFail("No helper may be launched.")
         throw ApplePasswordsUnavailability.launchFailed
+    }
+}
+
+/// A launcher whose first launches fail, counting every attempt.
+final class FailingThenWorkingLauncher: ApplePasswordsChannelLauncher, @unchecked Sendable {
+    private(set) var launches = 0
+    private let failures: Int
+    private let channel: FakeApplePasswordsChannel
+
+    init(failures: Int, channel: FakeApplePasswordsChannel) {
+        self.failures = failures
+        self.channel = channel
+    }
+
+    func launch() throws -> any ApplePasswordsChannel {
+        launches += 1
+        if launches <= failures { throw ApplePasswordsUnavailability.launchFailed }
+        return channel
     }
 }
 

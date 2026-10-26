@@ -62,6 +62,7 @@ struct BrowserCredentialSuggestionPrompt: View {
                 fill: fill,
                 fillCode: fillCode,
                 beginPairing: beginPairing,
+                openPasswordsApp: openPasswordsApp,
                 submitPairingCode: submitPairingCode
             )
         }
@@ -81,6 +82,13 @@ struct BrowserCredentialSuggestionPrompt: View {
 
     private func beginPairing() {
         Task { await model.beginPairing(in: port.spaceID, using: browser) }
+    }
+
+    private func openPasswordsApp() {
+        Task { @MainActor in
+            await browser.openApplePasswordsApp(for: request.origin, in: port.spaceID)
+            port.dismiss()
+        }
     }
 
     private func submitPairingCode(_ code: String) {

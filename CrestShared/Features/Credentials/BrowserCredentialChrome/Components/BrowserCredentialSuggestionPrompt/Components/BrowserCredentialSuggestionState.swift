@@ -7,10 +7,12 @@ struct BrowserCredentialSuggestionState: View {
     let suggestions: [BrowserCredentialSuggestion]
     var codes: [BrowserOneTimeCodeSuggestion] = []
     var offersPairing = false
+    var offersOpeningPasswordsApp = false
     let metrics: BrowserCredentialPromptMetrics
     let fill: (BrowserCredentialSuggestion) -> Void
     var fillCode: (BrowserOneTimeCodeSuggestion) -> Void = { _ in }
     var beginPairing: () -> Void = {}
+    var openPasswordsApp: () -> Void = {}
 
     @ViewBuilder
     var body: some View {
@@ -18,17 +20,19 @@ struct BrowserCredentialSuggestionState: View {
             ProgressView("Checking this Space…")
                 .controlSize(.small)
                 .frame(minHeight: metrics.suggestionStateMinimumHeight)
-        } else if suggestions.isEmpty && codes.isEmpty && !offersPairing {
+        } else if suggestions.isEmpty && codes.isEmpty && !offersPairing && !offersOpeningPasswordsApp {
             empty
         } else {
             BrowserCredentialSuggestionList(
                 suggestions: suggestions,
                 codes: codes,
                 offersPairing: offersPairing,
+                offersOpeningPasswordsApp: offersOpeningPasswordsApp,
                 metrics: metrics,
                 fill: fill,
                 fillCode: fillCode,
-                beginPairing: beginPairing
+                beginPairing: beginPairing,
+                openPasswordsApp: openPasswordsApp
             )
         }
     }

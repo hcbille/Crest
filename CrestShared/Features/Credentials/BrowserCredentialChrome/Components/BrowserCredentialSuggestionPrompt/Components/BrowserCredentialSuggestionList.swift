@@ -8,10 +8,12 @@ struct BrowserCredentialSuggestionList: View {
     let suggestions: [BrowserCredentialSuggestion]
     var codes: [BrowserOneTimeCodeSuggestion] = []
     let offersPairing: Bool
+    var offersOpeningPasswordsApp = false
     let metrics: BrowserCredentialPromptMetrics
     let fill: (BrowserCredentialSuggestion) -> Void
     var fillCode: (BrowserOneTimeCodeSuggestion) -> Void = { _ in }
     let beginPairing: () -> Void
+    var openPasswordsApp: () -> Void = {}
 
     @ViewBuilder
     var body: some View {
@@ -52,6 +54,10 @@ struct BrowserCredentialSuggestionList: View {
         }
         if offersPairing {
             BrowserCredentialPairingRow(metrics: metrics, begin: beginPairing)
+        }
+        if offersOpeningPasswordsApp {
+            Divider()
+            BrowserCredentialOpenPasswordsAppRow(metrics: metrics, open: openPasswordsApp)
         }
     }
 }

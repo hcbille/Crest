@@ -33,6 +33,11 @@ final class BrowserCredentialSuggestionModel {
         return offer.offersApplePasswordsPairing
     }
 
+    var offersOpeningPasswordsApp: Bool {
+        guard case .suggestions(let offer) = phase else { return false }
+        return offer.offersOpeningPasswordsApp
+    }
+
     var isLoading: Bool {
         phase == .idle || phase == .loading
     }

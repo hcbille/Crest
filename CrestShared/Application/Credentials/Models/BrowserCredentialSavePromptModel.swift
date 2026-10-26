@@ -14,6 +14,9 @@ final class BrowserCredentialSavePromptModel {
     private(set) var destination = CredentialProvider.crestPasswords
     /// Whether the person may switch between Crest's and Apple's passwords.
     private(set) var offersDestinationChoice = false
+    /// Whether Apple Passwords is set to never save for the site, so only
+    /// Crest's own vault is offered.
+    private(set) var appleNeverSaves = false
 
     @ObservationIgnored private var candidateID: UUID?
     /// What Crest's own vault would ask, kept for when the person picks it.
@@ -63,6 +66,7 @@ final class BrowserCredentialSavePromptModel {
     func prepare(
         candidate: BrowserCredentialSaveCandidate,
         in spaceID: UUID,
+        tab: UUID?,
         browser: BrowserStore,
         now: Date = .now
     ) async {
@@ -83,7 +87,10 @@ final class BrowserCredentialSavePromptModel {
         }
         guard !Task.isCancelled, candidateID == candidate.id else { return }
         self.crestPhase = crestPhase
-        offersDestinationChoice = browser.applePasswordsSaveSupport(for: candidate, in: spaceID) != nil
+        let answer = await browser.applePasswordsSaveAnswer(for: candidate, in: spaceID, tab: tab)
+        guard !Task.isCancelled, candidateID == candidate.id else { return }
+        offersDestinationChoice = answer.offerableSupport != nil
+        appleNeverSaves = answer.neverSaves
         destination = offersDestinationChoice && !choseCrestPasswords ? .applePasswords : .crestPasswords
         // Apple decides between a new and a changed password, so Crest's own match does not apply.
         phase = destination.keepsSpaceVault ? crestPhase : .create

@@ -4609,6 +4609,10 @@
     "apple-passwords-one-time-codes": {
       "category": "new",
       "message": "On the Mac, Crest can fill verification codes saved in Apple Passwords into a site's code field."
+    },
+    "apple-passwords-extras": {
+      "category": "improved",
+      "message": "On the Mac, Crest no longer offers to save to Apple Passwords on sites it is set to never save, adds an Open Passwords App row to the password list, reconnects once if the Apple Passwords helper stops, and lets you pair again if it could not be used."
     }
   }
 }

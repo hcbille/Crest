@@ -63,7 +63,8 @@ struct BrowserCredentialSavePrompt: View {
             systemPasswordOfferPhase: model.systemPasswordOfferPhase,
             offersSystemPasswords: shouldOfferSystemPasswords,
             destination: model.destination,
-            offersDestinationChoice: model.offersDestinationChoice
+            offersDestinationChoice: model.offersDestinationChoice,
+            appleNeverSaves: model.appleNeverSaves
         )
     }
 
@@ -100,6 +101,7 @@ struct BrowserCredentialSavePrompt: View {
         await model.prepare(
             candidate: candidate,
             in: port.spaceID,
+            tab: port.tabID,
             browser: browser
         )
         guard !Task.isCancelled,

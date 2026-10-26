@@ -24,6 +24,8 @@ extension BrowserStore: BrowserCredentialSuggestionLoading {
             return offer
         }
         offer.offersApplePasswordsPairing = support.status.needsPairing
+        // Apple Passwords is on for the Space, paired or not, so its app can be opened on the site.
+        offer.offersOpeningPasswordsApp = support.status.startsHelper
         guard support.status.offersApplePasswords, let space = spaceModel(spaceID) else { return offer }
         do {
             let apple = try await access.descriptors(matching: origin, in: spaceID, tab: tab)
@@ -101,6 +103,17 @@ extension BrowserStore: BrowserCredentialSuggestionLoading {
         return applePasswordsSupport(in: spaceID)
     }
 
+    func openApplePasswordsApp(for origin: CredentialOrigin, in spaceID: UUID) async {
+        guard origin.isSecure, let access = applePasswords, let support = applePasswordsSupport(in: spaceID) else {
+            return
+        }
+        do {
+            try await access.openPasswordsApp(for: origin, support: support)
+        } catch {
+            DiagnosticLog.applePasswords.error("Opening the Passwords app failed: \(DiagnosticLog.describe(error))")
+        }
+    }
+
     func requestApplePasswordsPairingCode(in spaceID: UUID) async -> BrowserApplePasswordsPairingOutcome {
         guard let access = applePasswords, let support = applePasswordsSupport(in: spaceID),
             support.status.needsPairing
@@ -158,7 +171,54 @@ extension BrowserStore {
 
 // MARK: - Saving
 
+/// Whether a captured password may go to Apple Passwords, once Apple has been
+/// asked about the site.
+enum ApplePasswordsSaveAnswer {
+    /// Apple Passwords is not on offer for this save.
+    case unavailable
+    /// Apple said the site is not never-save.
+    case available(ApplePasswordsSupport)
+    /// Apple could not be asked. The prompt may still offer Apple, since the
+    /// person confirms there, but nothing is sent to it unasked.
+    case unverified(ApplePasswordsSupport)
+    /// Apple marks the site never-save, so only Crest's own vault is offered.
+    case neverSaves
+
+    /// The support to send with, only where Apple said the site is not never-save.
+    var support: ApplePasswordsSupport? {
+        guard case .available(let support) = self else { return nil }
+        return support
+    }
+
+    /// The support to offer Apple with, where a person still confirms.
+    var offerableSupport: ApplePasswordsSupport? {
+        switch self {
+        case .available(let support), .unverified(let support): support
+        case .unavailable, .neverSaves: nil
+        }
+    }
+
+    var neverSaves: Bool {
+        if case .neverSaves = self { return true }
+        return false
+    }
+}
+
 extension BrowserStore {
+    /// `applePasswordsSaveSupport(for:in:)`, then Apple's own never-save mark for
+    /// the site. Nothing is offered to Apple on a site it marks never-save.
+    func applePasswordsSaveAnswer(
+        for candidate: BrowserCredentialSaveCandidate, in spaceID: UUID, tab: UUID?
+    ) async -> ApplePasswordsSaveAnswer {
+        guard let support = applePasswordsSaveSupport(for: candidate, in: spaceID), let access = applePasswords
+        else { return .unavailable }
+        return switch await access.neverSaves(for: candidate.origin, tab: tab, support: support) {
+        case .neverSaves: .neverSaves
+        case .notNever: .available(support)
+        case .unknown: .unverified(support)
+        }
+    }
+
     /// The core's answer for the Space when a captured password can be offered
     /// to Apple Passwords: the Space uses it, the core offers it (paired and
     /// available, never in a private window or an isolated launch), and the
@@ -184,7 +244,7 @@ extension BrowserStore {
     func keepGeneratedPassword(
         _ candidate: BrowserCredentialSaveCandidate, in spaceID: UUID, tab: UUID?
     ) async throws -> Bool {
-        if applePasswordsSaveSupport(for: candidate, in: spaceID) != nil {
+        if await applePasswordsSaveAnswer(for: candidate, in: spaceID, tab: tab).support != nil {
             do {
                 try await commitApplePasswordsSave(candidate, in: spaceID, tab: tab)
                 return true
@@ -207,7 +267,8 @@ extension BrowserStore {
         now: Date = .now
     ) async throws {
         try validateCredentialSaveCandidate(candidate, in: spaceID, now: now)
-        guard let access = applePasswords, let support = applePasswordsSaveSupport(for: candidate, in: spaceID)
+        guard let access = applePasswords,
+            let support = await applePasswordsSaveAnswer(for: candidate, in: spaceID, tab: tab).support
         else {
             throw CredentialVaultError.credentialManagerDisabled
         }

@@ -35,12 +35,13 @@ enum BrowserApplePasswordsSystem {
         )
     }
 
-    /// The helper's state as the core's fact: the one place they meet.
+    /// The helper's state as the core's fact: the one place they meet. An
+    /// unavailable helper reads as not started: the person can ask to pair
+    /// again, which starts it afresh, and the core still refuses an isolated
+    /// launch or a private window first.
     static func fact(for state: ApplePasswordsHelper.State) -> ApplePasswordsHelperFact {
         switch state {
-        case .stopped: return .notStarted
-        case .unavailable(.unrecognizedCapabilities): return .unrecognized
-        case .unavailable: return .unavailable
+        case .stopped, .unavailable: return .notStarted
         case .unpaired, .awaitingCode: return .unpaired
         case .paired: return .paired
         }

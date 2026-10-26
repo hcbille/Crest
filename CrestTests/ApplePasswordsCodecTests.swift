@@ -181,6 +181,25 @@ final class ApplePasswordsCodecTests: XCTestCase {
         XCTAssertNil(try password.reply(from: result))
     }
 
+    func testATabEventAndLaunchingThePasswordsAppAreSentAsApplesExtensionSendsThem() throws {
+        func fields(_ data: Data) throws -> [String: Any] {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        }
+        let activated = try fields(ApplePasswordsTabEventMessage.encoded(tabID: 3, event: .activated))
+        XCTAssertEqual(activated["cmd"] as? Int, 8)
+        XCTAssertEqual(activated["tabId"] as? Int, 3)
+        XCTAssertEqual(activated["event"] as? Int, 1)
+        XCTAssertEqual(try fields(ApplePasswordsTabEventMessage.encoded(tabID: 3, event: .closed))["event"] as? Int, 0)
+
+        let origin = CredentialOrigin(scheme: "https", host: "example.com", port: 443)
+        let launch = try fields(ApplePasswordsLaunchPasswordsAppMessage.encoded(origin: origin))
+        XCTAssertEqual(launch["cmd"] as? Int, 13)
+        XCTAssertEqual(launch["searchQueryURL"] as? String, "https://example.com")
+        XCTAssertThrowsError(
+            try ApplePasswordsLaunchPasswordsAppMessage.encoded(
+                origin: CredentialOrigin(scheme: "http", host: "example.com", port: 80)))
+    }
+
     func testOddEntriesAreSkippedAndRepeatedUsernamesListOnce() throws {
         let result = try queryResult(
             """
@@ -483,7 +502,7 @@ final class ApplePasswordsCodecTests: XCTestCase {
         XCTAssertEqual(ApplePasswordsCommand.numbered(19), .cancelPairing)
         let cancel = try? jsonObject(ApplePasswordsCancelPairingMessage.encoded())
         XCTAssertEqual(cancel?["cmd"] as? Int, 19)
-        XCTAssertNil(ApplePasswordsCommand.numbered(13))
+        XCTAssertNil(ApplePasswordsCommand.numbered(11))
         XCTAssertNil(ApplePasswordsCommand.numbered(1984))
     }
 

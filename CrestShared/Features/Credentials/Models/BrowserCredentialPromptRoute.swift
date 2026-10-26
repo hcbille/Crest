@@ -67,6 +67,9 @@ struct BrowserCredentialPromptDestinationMetadata: Sendable {
     let syncStatus: LocalizedStringResource?
     /// The button that sends this one save to the other place, when there is one.
     var switchTitle: LocalizedStringResource?
+    /// Said under the destination where Apple Passwords is set to never save
+    /// for the site, which also makes the destination a fixed Crest Passwords.
+    var neverSavesNote: LocalizedStringResource?
 }
 
 enum BrowserCredentialPromptDestinationPresentation: Equatable, Sendable {
@@ -153,6 +156,8 @@ struct BrowserCredentialPromptRoute: Equatable, Sendable {
     /// is written by Crest; the other is handed to Apple Passwords.
     let destination: CredentialProvider
     let offersDestinationChoice: Bool
+    /// Whether Apple Passwords is set to never save for the site.
+    let appleNeverSaves: Bool
 
     var primaryAction: BrowserCredentialPromptPrimaryAction? {
         state.primaryAction
@@ -185,8 +190,10 @@ struct BrowserCredentialPromptRoute: Equatable, Sendable {
         systemPasswordOfferPhase: BrowserSystemPasswordOfferPhase,
         offersSystemPasswords: Bool,
         destination: CredentialProvider = .crestPasswords,
-        offersDestinationChoice: Bool = false
+        offersDestinationChoice: Bool = false,
+        appleNeverSaves: Bool = false
     ) {
+        self.appleNeverSaves = appleNeverSaves
         self.offersSystemPasswords = offersSystemPasswords
         self.destination = destination
         self.offersDestinationChoice = offersDestinationChoice
@@ -239,6 +246,11 @@ struct BrowserCredentialPromptRoute: Equatable, Sendable {
         let alternateTitle: LocalizedStringResource =
             destination.keepsSpaceVault ? "Use Apple Passwords" : "Use Crest Passwords"
         let switchTitle = offersDestinationChoice ? alternateTitle : nil
+        if appleNeverSaves {
+            return BrowserCredentialPromptDestinationMetadata(
+                detail: "Crest Passwords", syncStatus: nil, switchTitle: nil,
+                neverSavesNote: "Apple Passwords is set to never save here.")
+        }
         guard destination.keepsSpaceVault else {
             return BrowserCredentialPromptDestinationMetadata(
                 detail: "Saves to Apple Passwords, which asks you to confirm", syncStatus: nil,

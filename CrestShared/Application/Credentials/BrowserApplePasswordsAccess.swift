@@ -55,6 +55,17 @@ protocol BrowserApplePasswordsAccess: AnyObject {
     /// only for a row this access issued.
     func credential(id: UUID, in spaceID: UUID, tab: UUID?) async throws -> BrowserCredential?
 
+    /// What Apple says about saving passwords for the origin's site. A lookup
+    /// that fails for any reason is `unknown`, never `notNever`.
+    func neverSaves(
+        for origin: CredentialOrigin, tab: UUID?, support: ApplePasswordsSupport
+    ) async -> ApplePasswordsNeverSaveAnswer
+
+    /// Has the helper open Apple's Passwords app on the origin's site. Needs
+    /// the helper running but no pairing.
+    /// - Throws: When the helper cannot take the request; nothing was sent.
+    func openPasswordsApp(for origin: CredentialOrigin, support: ApplePasswordsSupport) async throws
+
     /// Whether the paired helper says it fills one-time codes.
     var canFillOneTimeCodes: Bool { get }
 
@@ -90,4 +101,14 @@ protocol BrowserApplePasswordsAccess: AnyObject {
 
     /// Turns Apple's extension off in the Space.
     func turnOffExtension(in space: BrowserSpaceIdentity)
+}
+
+/// Whether Apple marks a site never-save.
+enum ApplePasswordsNeverSaveAnswer: Equatable, Sendable {
+    /// Apple marks the site never-save.
+    case neverSaves
+    /// Apple answered and does not mark it.
+    case notNever
+    /// The lookup failed or was not answered, so nothing is known.
+    case unknown
 }

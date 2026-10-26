@@ -9,7 +9,21 @@ struct BrowserCredentialSaveDestination: View {
     /// Sends this one save to the other place; nil when there is no other.
     let switchDestination: (() -> Void)?
 
+    @ViewBuilder
     var body: some View {
+        if let note = destination.neverSavesNote {
+            VStack(alignment: .leading, spacing: BrowserCredentialPromptMetrics.destinationSpacing) {
+                Label(destination.detail, systemImage: "lock")
+                Text(note)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } else {
+            row
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: BrowserCredentialPromptMetrics.destinationSpacing) {
             HStack(spacing: BrowserCredentialPromptMetrics.destinationSpacing) {
                 detail

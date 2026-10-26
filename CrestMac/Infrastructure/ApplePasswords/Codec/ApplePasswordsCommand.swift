@@ -12,6 +12,10 @@ struct ApplePasswordsCommand: Hashable, Sendable {
     static let setPassword = ApplePasswordsCommand(number: 6)
     static let passwordsDisabled = ApplePasswordsCommand(number: 9, push: .passwordsDisabled)
     static let reloginNeeded = ApplePasswordsCommand(number: 10, push: .reloginNeeded)
+    /// Tells the helper which tab is in front or was closed. It has no reply.
+    static let tabEvent = ApplePasswordsCommand(number: 8)
+    /// Opens the Passwords app on a site. It has no reply.
+    static let launchPasswordsApp = ApplePasswordsCommand(number: 13)
     static let getCapabilities = ApplePasswordsCommand(number: 14)
     /// Pushed when a one-time code arrives. It only asks an open code list to refresh.
     static let oneTimeCodeAvailable = ApplePasswordsCommand(number: 15, push: .oneTimeCodeAvailable)
@@ -20,12 +24,11 @@ struct ApplePasswordsCommand: Hashable, Sendable {
     /// Tells the helper the person gave up on the code. It has no reply.
     static let cancelPairing = ApplePasswordsCommand(number: 19)
 
-    /// Every command the codec knows. The rest of the protocol (icons, tab
-    /// events, launching the Passwords app) is never sent, and a
-    /// message with another number is ignored.
+    /// Every command the codec knows. The rest of the protocol (icons) is never
+    /// sent, and a message with another number is ignored.
     static let all: [ApplePasswordsCommand] = [
-        end, handshake, getLoginNames, getPassword, setPassword, passwordsDisabled, reloginNeeded,
-        getCapabilities, oneTimeCodeAvailable, getOneTimeCodes, didFillOneTimeCode, cancelPairing,
+        end, handshake, getLoginNames, getPassword, setPassword, tabEvent, passwordsDisabled, reloginNeeded,
+        launchPasswordsApp, getCapabilities, oneTimeCodeAvailable, getOneTimeCodes, didFillOneTimeCode, cancelPairing,
     ]
 
     // MARK: - Variables

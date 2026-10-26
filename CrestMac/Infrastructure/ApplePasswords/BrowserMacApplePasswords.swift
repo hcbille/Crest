@@ -12,6 +12,8 @@ final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
 
     /// How often the helper announced that a one-time code arrived.
     private(set) var oneTimeCodeArrivals = 0
+    /// Follows the windows' tabs and tells the helper about them.
+    @ObservationIgnored let tabEvents: BrowserMacApplePasswordsTabEvents
 
     @ObservationIgnored private let vault: ApplePasswordsCredentialVault
     @ObservationIgnored private let oneTimeCodeRows: ApplePasswordsOneTimeCodes
@@ -33,10 +35,14 @@ final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
         self.browser = browser
         self.helper = helper
         self.launchEnvironment = launchEnvironment
-        vault = ApplePasswordsCredentialVault(source: helper) { [weak browser, weak helper, weak core] spaceID in
+        let appleVault = ApplePasswordsCredentialVault(source: helper) {
+            [weak browser, weak helper, weak core] spaceID in
             await Self.support(for: spaceID, browser: browser, helper: helper, core: core)
         }
         oneTimeCodeRows = ApplePasswordsOneTimeCodes(source: helper)
+        vault = appleVault
+        tabEvents = BrowserMacApplePasswordsTabEvents(helper: helper, launchEnvironment: launchEnvironment)
+        helper.onProcessEnd = { Task { await appleVault.forgetIssued() } }
         helper.onStateChange = { [weak self] state in self?.helperStateChanged(state) }
         helper.onOneTimeCodeAvailable = { [weak self] in self?.oneTimeCodeArrivals += 1 }
     }
@@ -165,6 +171,21 @@ final class BrowserMacApplePasswords: BrowserApplePasswordsAccess {
 
     func forgetOneTimeCodes(tab: UUID?) {
         oneTimeCodeRows.forget(tab: tab)
+    }
+
+    /// Asks Apple about the site with the same query that lists its logins, so
+    /// the same timeouts bound it. Any failure reads as `unknown`.
+    func neverSaves(
+        for origin: CredentialOrigin, tab: UUID?, support: ApplePasswordsSupport
+    ) async -> ApplePasswordsNeverSaveAnswer {
+        guard let logins = try? await helper.logins(for: origin, tab: tab, support: support) else { return .unknown }
+        return logins.neverSaves ? .neverSaves : .notNever
+    }
+
+    // MARK: - Actions - Passwords app
+
+    func openPasswordsApp(for origin: CredentialOrigin, support: ApplePasswordsSupport) async throws {
+        try await helper.openPasswordsApp(for: origin, support: support)
     }
 
     // MARK: - Actions - Notices

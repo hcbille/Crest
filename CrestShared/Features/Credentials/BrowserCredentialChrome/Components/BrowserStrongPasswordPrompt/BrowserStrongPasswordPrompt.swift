@@ -16,6 +16,9 @@ struct BrowserStrongPasswordPrompt: View {
     @State private var model = BrowserStrongPasswordOperationModel()
     /// Whether the generated password went to Apple Passwords instead of the Space.
     @State private var sentToApplePasswords = false
+    /// Whether Apple has been asked about the site and will take the password.
+    /// Until it has answered, the prompt names the Space and never Apple.
+    @State private var appleWillTakePassword = false
 
     var body: some View {
         BrowserCredentialPromptSurface(
@@ -36,6 +39,12 @@ struct BrowserStrongPasswordPrompt: View {
                 generateAndFill: generateAndFill
             )
         }
+        .task(id: request.id) {
+            appleWillTakePassword = false
+            appleWillTakePassword =
+                await browser.applePasswordsSaveAnswer(for: candidate(for: ""), in: port.spaceID, tab: port.tabID)
+                .support != nil
+        }
     }
 
     private var space: BrowserSpaceIdentity? {
@@ -45,8 +54,7 @@ struct BrowserStrongPasswordPrompt: View {
     /// Where the generated password is kept before it is filled: Apple
     /// Passwords where the Space saves there, otherwise the Space itself.
     private var destinationName: String {
-        browser.applePasswordsSaveSupport(for: candidate(for: ""), in: port.spaceID) == nil
-            ? spaceName : "Apple Passwords"
+        appleWillTakePassword ? "Apple Passwords" : spaceName
     }
 
     private func candidate(for password: String) -> BrowserCredentialSaveCandidate {

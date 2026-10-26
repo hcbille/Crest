@@ -6,6 +6,8 @@ struct BrowserCredentialPromptRow: View {
     let symbol: String
     let title: String
     let detail: String?
+    /// The glyph that says choosing the row goes on; nil for a row that leaves Crest.
+    var trailingSymbol: String? = "arrow.right.circle.fill"
     let metrics: BrowserCredentialPromptMetrics
     let action: () -> Void
 
@@ -41,8 +43,10 @@ struct BrowserCredentialPromptRow: View {
                     minLength: BrowserCredentialPromptMetrics
                         .suggestionRowSpacerLength
                 )
-                Image(systemName: "arrow.right.circle.fill")
-                    .foregroundStyle(.tint)
+                if let trailingSymbol {
+                    Image(systemName: trailingSymbol)
+                        .foregroundStyle(.tint)
+                }
             }
             .padding(.horizontal, metrics.suggestionRowHighlightBleed)
             .frame(

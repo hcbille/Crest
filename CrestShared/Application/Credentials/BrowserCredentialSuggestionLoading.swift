@@ -16,6 +16,10 @@ protocol BrowserCredentialSuggestionLoading: AnyObject {
         tab: UUID?
     ) async throws -> BrowserCredentialOffer
 
+    /// Has Apple's Passwords app open on the site. Does nothing unless the
+    /// Space uses Apple Passwords and the origin is https.
+    func openApplePasswordsApp(for origin: CredentialOrigin, in spaceID: UUID) async
+
     /// Has Apple Passwords show a pairing code.
     func requestApplePasswordsPairingCode(in spaceID: UUID) async -> BrowserApplePasswordsPairingOutcome
 

@@ -11,6 +11,7 @@ struct BrowserCredentialSuggestionPromptContent: View {
     let fill: (BrowserCredentialSuggestion) -> Void
     let fillCode: (BrowserOneTimeCodeSuggestion) -> Void
     let beginPairing: () -> Void
+    let openPasswordsApp: () -> Void
     let submitPairingCode: (String) -> Void
 
     var body: some View {
@@ -44,10 +45,12 @@ struct BrowserCredentialSuggestionPromptContent: View {
                     suggestions: model.suggestions,
                     codes: model.codes,
                     offersPairing: model.offersPairing,
+                    offersOpeningPasswordsApp: model.offersOpeningPasswordsApp,
                     metrics: metrics,
                     fill: fill,
                     fillCode: fillCode,
-                    beginPairing: beginPairing
+                    beginPairing: beginPairing,
+                    openPasswordsApp: openPasswordsApp
                 )
                 if let message = model.pairingFeedback?.message {
                     BrowserCredentialPromptError(verbatim: String(localized: message))
