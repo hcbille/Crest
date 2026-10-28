@@ -20,8 +20,14 @@ the rest of `AGENTS.md` and the `crest-contribution` skill.
   `git switch -c <name> origin/main`. One pull request per branch. If the
   current branch belongs to other work or its PR is merged, branch first; if
   unrelated uncommitted changes are present, point them out before going on.
+- Never commit HC's own harness files to upstream: the agent-skills section of
+  `AGENTS.md`, `CONTEXT.md`, `docs/agents/`, `.claude/agents/`,
+  `.claude/settings*`, `.scratch/`, and any other agent or tooling
+  configuration added for HC's workflow. They live only on the fork. Stage
+  files by name on feature branches, never with `git add -A`, so none slips in.
 - Before opening a pull request to `origin`, check that
-  `git log origin/main..HEAD` holds no fork-only commits.
+  `git log origin/main..HEAD` holds no fork-only commits and
+  `git diff --stat origin/main..HEAD` touches none of those files.
 - Notes on how HC builds locally (Chromium workspace, source upgrades) stay
   in the fork, as standalone files on a personal branch such as
   `hc/chromium-workspace-notes`, never in upstream docs like

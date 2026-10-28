@@ -108,6 +108,10 @@ contract for setup, validation and change discipline.
 > must never be pushed to `pauljoda/Crest`.
 > Base upstream feature branches on `origin/main`, not on the fork's `main`.
 > Local `main` tracks `fork/main`, so a plain `git push` goes to the fork.
+> Never commit HC's own harness files to upstream: this `AGENTS.md` section,
+> `CONTEXT.md`, `docs/agents/`, `.claude/agents/`, `.claude/settings*`,
+> `.scratch/`, memory files, and any other agent or tooling configuration HC
+> added for their own workflow. They live only on the fork.
 
 ### Orchestration
 
