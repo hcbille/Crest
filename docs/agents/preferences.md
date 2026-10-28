@@ -9,8 +9,13 @@ the rest of `AGENTS.md` and the `crest-contribution` skill.
   `pauljoda/Crest`, which receives pull requests.
 - The fork's `main` carries fork-only commits (the `## Agent skills` section
   of `AGENTS.md`, `docs/agents/`, `.claude/agents/`, and their ignore rules).
-  Update it with `git pull --rebase`. It stays ahead of `origin/main` by those
-  commits, and it is pushed only to `fork`.
+  Local `main` tracks `fork/main`, so a plain `git push` and `git pull` act on
+  the fork and never on `origin`. Commit fork-only changes on `main` and push
+  them with `git push`. To bring in upstream work, run `git fetch origin` and
+  `git rebase origin/main`, then `git push --force-with-lease`. `main` stays
+  ahead of `origin/main` by the fork-only commits and is never pushed to
+  `origin`. Because it does not track `origin/main`, `git status` does not
+  show the distance to upstream; compare with `git log origin/main..main`.
 - Start every new feature or fix on a fresh branch:
   `git switch -c <name> origin/main`. One pull request per branch. If the
   current branch belongs to other work or its PR is merged, branch first; if

@@ -107,6 +107,7 @@ contract for setup, validation and change discipline.
 > `.scratch/` and `.claude/agents/` ignore rules belong to `hcbille/Crest` and
 > must never be pushed to `pauljoda/Crest`.
 > Base upstream feature branches on `origin/main`, not on the fork's `main`.
+> Local `main` tracks `fork/main`, so a plain `git push` goes to the fork.
 
 ### Orchestration
 
