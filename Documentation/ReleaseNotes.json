@@ -4593,6 +4593,10 @@
     "site-popover-developer-mode-toggle": {
       "category": "fixed",
       "message": "Clicking Developer Mode in a page's site settings now turns the developer toolbar on or off for that page."
+    },
+    "developer-toolbar-mode-setting": {
+      "category": "improved",
+      "message": "Choose in Settings whether the developer toolbar opens by itself never, on local pages or on all websites, and the reload menu's developer options follow it."
     }
   }
 }

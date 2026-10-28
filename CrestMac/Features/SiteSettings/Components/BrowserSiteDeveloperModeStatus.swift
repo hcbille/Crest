@@ -38,6 +38,8 @@ struct BrowserSiteDeveloperModeStatus: View {
 
     private var detail: String {
         guard page.isDeveloperModeEnabled else { return "Off" }
-        return page.isDeveloperModeAutomatic ? "On automatically for localhost" : "On"
+        guard page.isDeveloperModeEnabledAutomatically else { return "On" }
+        return BrowserAppPreferenceStore.shared.developerToolbar == .allWebsites
+            ? "On automatically" : "On automatically for localhost"
     }
 }
