@@ -131,6 +131,11 @@ building and code review instead of doing that work itself.
   re-asking. When handing work to a new session, point it at that file.
 - Never edit code before every answer is in. Always plan first, present the
   plan, and start development only after HC confirms it.
+- Keep `CONTEXT.md` current. When grilling, an investigation or the work
+  settles, changes or finds a domain term (a concept's meaning, scope or
+  behavior), update the glossary in the same session and fix any entry the
+  work has made untrue, so it never contradicts the code. It lives on the
+  fork's `main`; commit the update there, not on an upstream feature branch.
 - When a feature is finished, clean up the session scratchpad (the
   `/private/tmp/claude-*/…/scratchpad` directory) before reporting back. Delete
   the build output in it (the `dd*` DerivedData folders run to several GB each)
