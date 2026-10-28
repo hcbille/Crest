@@ -84,8 +84,11 @@ the rest of `AGENTS.md` and the `crest-contribution` skill.
   `3U2R97HLXF` holds it, so system passkeys and the Apple Passwords helper
   can't be checked in any local build. Say so in the checklist, and list
   those checks for the maintainer's signed build or the next published
-  release. Afterwards quit the copy, unregister it with `lsregister -u`, and
-  delete it.
+  release. Afterwards quit the copy, unregister it with `lsregister -u` while
+  it is still on disk (the command does nothing for a missing path), and only
+  then delete it. This covers every build output: DerivedData, scratchpad
+  `dd*` folders, review folders and engine downloads. Confirm with
+  `lsregister -dump | grep <path>` that no entry is left.
 
 ## Writing
 

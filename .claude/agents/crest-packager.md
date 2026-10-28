@@ -51,10 +51,12 @@ engine the release workflow already published.
 
 ## Cleanup (only when your prompt asks)
 
-Quit the copy, unregister it with
-`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u <app>`,
-and delete the app, its user-data dir and the DerivedData and engine download
-folders. Report what you deleted.
+Quit the copy. Unregister every app bundle you built or downloaded with
+`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u <app>`
+while it is still on disk; the command does nothing for a missing path, so
+never delete first. Then delete the app, its user-data dir and the DerivedData
+and engine download folders. Check with `lsregister -dump | grep <path>` that
+no entry is left, and report what you unregistered and deleted.
 
 ## Done when
 
