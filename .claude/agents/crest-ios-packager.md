@@ -16,7 +16,9 @@ by hand on their own device, next to the TestFlight or App Store Crest.
 - Never package the product identity. The review copy gets a bundle ID of its
   own (default `com.pauldavis.crest.review`; the share extension takes the
   app's ID plus `.share`), so it installs next to the real Crest and replaces
-  nothing.
+  nothing. Override only `CREST_MOBILE_BUNDLE_IDENTIFIER`, never
+  `PRODUCT_BUNDLE_IDENTIFIER`: the latter gives the share extension the app's
+  ID too, and the install fails with DuplicateIdentifier.
 - Signing: the user's Apple Development identity, team `ZTS43AYHUD`. Pass the
   bundle ID, team and entitlements as `xcodebuild` build-setting overrides on
   the command line. Never edit `project.yml`, `project.pbxproj`, xcconfig or
@@ -44,11 +46,24 @@ by hand on their own device, next to the TestFlight or App Store Crest.
 2. Build the `CrestMobile` scheme for that device (`-destination
    'id=<UDID>'`, scratchpad `-derivedDataPath`, Debug unless told otherwise)
    with the overrides above.
-3. Verify the built `.app`: `defaults read <app>/Info.plist CFBundleIdentifier`,
+3. Patch the built copy so it does not trap at launch. With the iCloud
+   container entitlement dropped, the first CloudKit call
+   (`CKContainer(identifier:)`, reached through `accountState()`) aborts with
+   SIGTRAP, because on a device nothing checks the entitlement first. The app
+   reads the container from the Info.plist key `CrestCloudKitContainerIdentifier`
+   and treats sync as "not configured" when it is missing. So delete that key
+   from `<app>/Info.plist` with `PlistBuddy` (the extension never has it), then
+   re-sign the extension first and the app second with the same identity. Do
+   not use `--deep`, do not pass the empty entitlements file (it would drop
+   `application-identifier`, the team identifier and `get-task-allow`), and
+   keep the embedded provisioning profiles. Extract each bundle's existing
+   entitlements with `codesign -d --entitlements :-` and re-apply them. A
+   rebuild undoes the patch, so redo it after every `xcodebuild`.
+4. Verify the built `.app`: `defaults read <app>/Info.plist CFBundleIdentifier`,
    `codesign -dvv`, and `codesign -d --entitlements :-` for the final
    entitlements.
-4. Install with `xcrun devicectl device install app --device <UDID> <app>`.
-5. Launch only when your prompt says so:
+5. Install with `xcrun devicectl device install app --device <UDID> <app>`.
+6. Launch only when your prompt says so:
    `xcrun devicectl device process launch --device <UDID> <bundle id>`.
 
 ## Cleanup (only when your prompt asks)
