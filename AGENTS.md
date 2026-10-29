@@ -121,7 +121,7 @@ building and code review instead of doing that work itself.
 
 - Use the Crest agents defined in `.claude/agents/` (`crest-implementer`,
   `crest-reviewer`, `crest-engine-builder`, `crest-packager`,
-  `crest-shipper`). Do not fall back
+  `crest-ios-packager`, `crest-shipper`). Do not fall back
   to a general-purpose agent for work one of them covers.
 - When no defined agent fits the work, or one is not available, stop and
   report back to HC with a proposal for a new agent type (name, purpose,
